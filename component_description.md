@@ -54,8 +54,8 @@ The `com_ordenproduction` component is a comprehensive **Production Management S
 
 ### Database Structure
 The component uses several database tables:
-- `#__produccion_ordenes` - Main work orders table
-- `#__produccion_config` - Configuration settings (webhook settings, etc.)
+- `#__ordenproduccion_ordenes` - Main work orders table
+- `#__ordenproduccion_config` - Configuration settings (webhook settings, etc.)
 - Additional tables for EAV data structure, technician assignments, and production notes
 
 ### MVC Structure

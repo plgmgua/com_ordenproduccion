@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<access component="com_ordenproduccion">
+    <section name="component">
+        <action name="core.admin" title="JACTION_ADMIN" description="JACTION_ADMIN_COMPONENT_DESC" />
+        <action name="core.manage" title="JACTION_MANAGE" description="JACTION_MANAGE_COMPONENT_DESC" />
+        <action name="core.create" title="JACTION_CREATE" description="JACTION_CREATE_COMPONENT_DESC" />
+        <action name="core.edit" title="JACTION_EDIT" description="JACTION_EDIT_COMPONENT_DESC" />
+        <action name="core.edit.state" title="JACTION_EDITSTATE" description="JACTION_EDITSTATE_COMPONENT_DESC" />
+        <action name="core.delete" title="JACTION_DELETE" description="JACTION_DELETE_COMPONENT_DESC" />
+    </section>
+    <section name="orden">
+        <action name="core.create" title="COM_ORDENPRODUCCION_ORDEN_CREATE" description="COM_ORDENPRODUCCION_ORDEN_CREATE_DESC" />
+        <action name="core.edit" title="COM_ORDENPRODUCCION_ORDEN_EDIT" description="COM_ORDENPRODUCCION_ORDEN_EDIT_DESC" />
+        <action name="core.edit.own" title="COM_ORDENPRODUCCION_ORDEN_EDIT_OWN" description="COM_ORDENPRODUCCION_ORDEN_EDIT_OWN_DESC" />
+        <action name="core.edit.state" title="COM_ORDENPRODUCCION_ORDEN_EDITSTATE" description="COM_ORDENPRODUCCION_ORDEN_EDITSTATE_DESC" />
+        <action name="core.delete" title="COM_ORDENPRODUCCION_ORDEN_DELETE" description="COM_ORDENPRODUCCION_ORDEN_DELETE_DESC" />
+    </section>
+    <section name="technician">
+        <action name="core.create" title="COM_ORDENPRODUCCION_TECHNICIAN_CREATE" description="COM_ORDENPRODUCCION_TECHNICIAN_CREATE_DESC" />
+        <action name="core.edit" title="COM_ORDENPRODUCCION_TECHNICIAN_EDIT" description="COM_ORDENPRODUCCION_TECHNICIAN_EDIT_DESC" />
+        <action name="core.edit.state" title="COM_ORDENPRODUCCION_TECHNICIAN_EDITSTATE" description="COM_ORDENPRODUCCION_TECHNICIAN_EDITSTATE_DESC" />
+        <action name="core.delete" title="COM_ORDENPRODUCCION_TECHNICIAN_DELETE" description="COM_ORDENPRODUCCION_TECHNICIAN_DELETE_DESC" />
+    </section>
+    <section name="webhook">
+        <action name="core.manage" title="COM_ORDENPRODUCCION_WEBHOOK_MANAGE" description="COM_ORDENPRODUCCION_WEBHOOK_MANAGE_DESC" />
+        <action name="core.edit" title="COM_ORDENPRODUCCION_WEBHOOK_EDIT" description="COM_ORDENPRODUCCION_WEBHOOK_EDIT_DESC" />
+    </section>
+    <section name="debug">
+        <action name="core.manage" title="COM_ORDENPRODUCCION_DEBUG_MANAGE" description="COM_ORDENPRODUCCION_DEBUG_MANAGE_DESC" />
+        <action name="core.edit" title="COM_ORDENPRODUCCION_DEBUG_EDIT" description="COM_ORDENPRODUCCION_DEBUG_EDIT_DESC" />
+    </section>
+</access>
