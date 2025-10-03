@@ -12,43 +12,40 @@
 
 1. [Overview](#overview)
 2. [Server Configuration](#server-configuration)
-3. [CI/CD Setup](#cicd-setup)
-4. [Deployment Process](#deployment-process)
-5. [Automated Deployment Script](#automated-deployment-script)
-6. [Manual Deployment](#manual-deployment)
-7. [Troubleshooting](#troubleshooting)
-8. [Monitoring](#monitoring)
+3. [Simple Deployment Method](#simple-deployment-method)
+4. [Automated Deployment Script](#automated-deployment-script)
+5. [GitHub Actions CI/CD](#github-actions-cicd)
+6. [Troubleshooting](#troubleshooting)
+7. [Monitoring](#monitoring)
 
 ---
 
 ## Overview
 
-This guide provides instructions for deploying the Production Orders Management System (`com_ordenproduccion`) to your production server using CI/CD automation. Since you don't have a staging server, we'll deploy directly to production with proper safeguards.
+This guide provides instructions for deploying the Production Orders Management System (`com_ordenproduccion`) to your production server. Since you don't have SSH access to your server, we'll use a simple deployment method that works via VNC access.
 
 ### Current Setup
-- **Server**: webserver
+- **Server**: webserver (Proxmox VM)
 - **User**: pgrant
 - **Joomla Path**: `/var/www/grimpsa_webserver`
-- **Deployment Method**: CI/CD automated deployment
+- **Access Method**: VNC session only
+- **Deployment Method**: Manual deployment via GitHub pull
 - **Target**: Production server (single server setup)
 
 ---
 
 ## Server Configuration
 
-### 1. Server Access
+### 1. Server Access via VNC
 
-```bash
-# SSH access to your server
-ssh pgrant@webserver
+Since you only have VNC access to your server:
 
-# Navigate to Joomla directory
-cd /var/www/grimpsa_webserver
-
-# Verify current directory
-pwd
-# Should output: /var/www/grimpsa_webserver
-```
+1. **Open VNC session** to your webserver
+2. **Open terminal** in your VNC session
+3. **Navigate to Joomla directory**:
+   ```bash
+   cd /var/www/grimpsa_webserver
+   ```
 
 ### 2. Directory Structure Verification
 
@@ -68,21 +65,196 @@ ls -la /var/www/grimpsa_webserver/
 ### 3. File Permissions
 
 ```bash
-# Set proper ownership
+# Set proper ownership (if needed)
 sudo chown -R www-data:www-data /var/www/grimpsa_webserver/
 
-# Set proper permissions
+# Set proper permissions (if needed)
 sudo chmod -R 755 /var/www/grimpsa_webserver/
 sudo chmod 644 /var/www/grimpsa_webserver/configuration.php
 ```
 
 ---
 
-## CI/CD Setup
+## Simple Deployment Method
 
-### 1. GitHub Actions Workflow
+This is the **recommended method** for your setup since you only have VNC access to your server.
 
-Create `.github/workflows/production-deploy.yml`:
+### Workflow Overview
+
+1. **On your Mac**: Push changes to GitHub
+2. **On your server** (via VNC): Run deployment script to pull and deploy
+
+### Step 1: Push Changes from Mac
+
+```bash
+# On your Mac
+git add .
+git commit -m "your changes"
+git push origin main
+```
+
+### Step 2: Deploy on Server via VNC
+
+1. **Open VNC session** to your webserver
+2. **Open terminal** in VNC
+3. **Download and run deployment script**:
+
+```bash
+# Download the deployment script from GitHub
+wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/deploy_to_server.sh
+
+# Make it executable
+chmod +x deploy_to_server.sh
+
+# Run the deployment
+./deploy_to_server.sh
+```
+
+### What the Script Does
+
+The `deploy_to_server.sh` script automatically:
+
+1. ✅ **Checks prerequisites** (git, permissions, Joomla directory)
+2. ✅ **Creates backup** of existing component files
+3. ✅ **Clones/updates** from your GitHub repository
+4. ✅ **Deploys files** to correct Joomla directories:
+   - Site files → `/var/www/grimpsa_webserver/components/com_ordenproduccion/`
+   - Admin files → `/var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/`
+   - Media files → `/var/www/grimpsa_webserver/media/com_ordenproduccion/`
+5. ✅ **Sets proper permissions**
+6. ✅ **Clears Joomla cache**
+7. ✅ **Shows deployment summary**
+
+### Benefits
+
+- ✅ **No SSH required** - works with VNC access only
+- ✅ **Automatic backups** - keeps existing files safe
+- ✅ **Proper file placement** - deploys to correct directories
+- ✅ **Error handling** - stops if something goes wrong
+- ✅ **Clear feedback** - shows what's happening step by step
+
+---
+
+## Automated Deployment Script
+
+The deployment script (`deploy_to_server.sh`) is already created and available in your GitHub repository. This script provides a complete automated deployment solution.
+
+### Script Features
+
+- **Automatic backup creation** before deployment
+- **Git-based updates** from your GitHub repository
+- **Proper file placement** in Joomla directories
+- **Permission management** for web server access
+- **Cache clearing** for immediate changes
+- **Error handling** and rollback capability
+- **Detailed logging** of all operations
+
+### Using the Deployment Script
+
+#### Option 1: Download and Run (Recommended)
+
+```bash
+# Download the script from GitHub
+wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/deploy_to_server.sh
+
+# Make it executable
+chmod +x deploy_to_server.sh
+
+# Run the deployment
+./deploy_to_server.sh
+```
+
+#### Option 2: Copy Script Content
+
+If `wget` doesn't work, you can:
+
+1. **Copy the script content** from GitHub
+2. **Create the file** on your server:
+   ```bash
+   nano deploy_to_server.sh
+   ```
+3. **Paste the content** and save
+4. **Make executable**:
+   ```bash
+   chmod +x deploy_to_server.sh
+   ```
+5. **Run the script**:
+   ```bash
+   ./deploy_to_server.sh
+   ```
+
+### Script Configuration
+
+The script is pre-configured for your environment:
+
+- **Repository**: `https://github.com/plgmgua/com_ordenproduccion.git`
+- **Joomla Root**: `/var/www/grimpsa_webserver`
+- **Component Name**: `com_ordenproduccion`
+- **Backup Directory**: `/var/backups/joomla_components`
+
+### Deployment Process
+
+When you run the script, it will:
+
+1. **Check prerequisites** (git, permissions, Joomla directory)
+2. **Create timestamped backup** of existing component
+3. **Clone/update repository** from GitHub
+4. **Deploy files** to correct Joomla locations
+5. **Set proper permissions** (644 for files, 755 for directories)
+6. **Clear Joomla cache** for immediate visibility
+7. **Clean up temporary files**
+8. **Show deployment summary**
+
+### Sample Output
+
+```
+==========================================
+  com_ordenproduccion Deployment Script
+==========================================
+
+[2025-01-27 15:30:15] Running as user: pgrant
+[2025-01-27 15:30:15] Checking prerequisites...
+[SUCCESS] Prerequisites check passed
+[2025-01-27 15:30:16] Creating backup of existing component...
+[SUCCESS] Backup created at: /var/backups/joomla_components/com_ordenproduccion_backup_20250127_153016
+[2025-01-27 15:30:17] Updating repository from GitHub...
+[2025-01-27 15:30:18] Cloning repository from GitHub...
+[SUCCESS] Repository updated successfully
+[2025-01-27 15:30:19] Deploying component files...
+[2025-01-27 15:30:20] Copying site component files...
+[2025-01-27 15:30:21] Copying admin component files...
+[2025-01-27 15:30:22] Copying media files...
+[2025-01-27 15:30:23] Setting file permissions...
+[SUCCESS] Component files deployed successfully
+[2025-01-27 15:30:24] Clearing Joomla cache...
+[SUCCESS] Joomla cache cleared
+[2025-01-27 15:30:25] Cleaning up temporary files...
+[SUCCESS] Temporary files cleaned up
+
+=== DEPLOYMENT SUMMARY ===
+Component: com_ordenproduccion
+Joomla Root: /var/www/grimpsa_webserver
+Site Component: /var/www/grimpsa_webserver/components/com_ordenproduccion
+Admin Component: /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion
+Media Files: /var/www/grimpsa_webserver/media/com_ordenproduccion
+Backup Location: /var/backups/joomla_components
+
+[SUCCESS] ✅ Component deployed successfully!
+[2025-01-27 15:30:26] You can now access the component in your Joomla admin panel.
+
+🎉 Deployment completed successfully!
+
+Next steps:
+1. Check Joomla admin panel for the component
+2. Verify component functionality
+3. Check error logs if any issues occur
+```
+
+---
+
+## GitHub Actions CI/CD
+
+If you want to set up automated CI/CD in the future (when you have SSH access), here's the GitHub Actions workflow:
 
 ```yaml
 name: Production Deployment
@@ -92,16 +264,6 @@ on:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      deploy_type:
-        description: 'Deployment type'
-        required: true
-        default: 'auto'
-        type: choice
-        options:
-          - auto
-          - manual
-          - rollback
 
 jobs:
   deploy:
@@ -110,437 +272,27 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
-    
+      
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.7.0
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
     
-    - name: Add server to known hosts
-      run: |
-        ssh-keyscan -H webserver >> ~/.ssh/known_hosts
-    
-    - name: Create deployment package
-      run: |
-        # Create clean package
-        mkdir -p deployment
-        cp -r com_ordenproduccion deployment/
-        
-        # Remove development files
-        find deployment/com_ordenproduccion -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
-        find deployment/com_ordenproduccion -name "*.md" -delete
-        find deployment/com_ordenproduccion -name "validate.php" -delete
-        
-        # Create ZIP package
-        cd deployment
-        zip -r com_ordenproduccion-$(git describe --tags --always).zip com_ordenproduccion/
-        cd ..
-    
     - name: Deploy to production
       run: |
-        # Copy package to server
-        scp deployment/com_ordenproduccion-*.zip pgrant@webserver:/tmp/
-        
-        # Deploy on server
+        # Download deployment script and run it on server
         ssh pgrant@webserver << 'EOF'
-        set -e
-        
-        # Backup current installation
-        echo "Creating backup..."
-        sudo tar -czf /backups/joomla-backup-$(date +%Y%m%d-%H%M%S).tar.gz /var/www/grimpsa_webserver/
-        
-        # Backup database
-        echo "Backing up database..."
-        DB_NAME=$(grep 'public \$db' /var/www/grimpsa_webserver/configuration.php | cut -d"'" -f2)
-        DB_USER=$(grep 'public \$user' /var/www/grimpsa_webserver/configuration.php | cut -d"'" -f2)
-        DB_PASS=$(grep 'public \$password' /var/www/grimpsa_webserver/configuration.php | cut -d"'" -f2)
-        
-        mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > /backups/database-backup-$(date +%Y%m%d-%H%M%S).sql
-        
-        # Extract new component
-        echo "Extracting new component..."
-        cd /tmp
-        unzip -o com_ordenproduccion-*.zip
-        
-        # Stop web server temporarily
-        echo "Stopping web server..."
-        sudo systemctl stop apache2
-        
-        # Remove old component if exists
-        echo "Removing old component..."
-        sudo rm -rf /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion
-        sudo rm -rf /var/www/grimpsa_webserver/components/com_ordenproduccion
-        sudo rm -rf /var/www/grimpsa_webserver/media/com_ordenproduccion
-        
-        # Install new component
-        echo "Installing new component..."
-        sudo cp -r com_ordenproduccion/admin/* /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
-        sudo cp -r com_ordenproduccion/site/* /var/www/grimpsa_webserver/components/com_ordenproduccion/
-        sudo cp -r com_ordenproduccion/media/* /var/www/grimpsa_webserver/media/com_ordenproduccion/
-        
-        # Set permissions
-        echo "Setting permissions..."
-        sudo chown -R www-data:www-data /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
-        sudo chown -R www-data:www-data /var/www/grimpsa_webserver/components/com_ordenproduccion/
-        sudo chown -R www-data:www-data /var/www/grimpsa_webserver/media/com_ordenproduccion/
-        
-        sudo chmod -R 755 /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
-        sudo chmod -R 755 /var/www/grimpsa_webserver/components/com_ordenproduccion/
-        sudo chmod -R 755 /var/www/grimpsa_webserver/media/com_ordenproduccion/
-        
-        # Start web server
-        echo "Starting web server..."
-        sudo systemctl start apache2
-        
-        # Clean up
-        rm -rf /tmp/com_ordenproduccion*
-        
-        echo "Deployment completed successfully!"
+        wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/deploy_to_server.sh
+        chmod +x deploy_to_server.sh
+        ./deploy_to_server.sh
         EOF
     
     - name: Verify deployment
       run: |
-        # Test webhook endpoint
         curl -f https://grimpsa.com/index.php?option=com_ordenproduccion&task=webhook.health || exit 1
-        
-        echo "Deployment verification successful!"
-    
-    - name: Notify deployment status
-      if: always()
-      run: |
-        if [ $? -eq 0 ]; then
-          echo "✅ Deployment successful!"
-        else
-          echo "❌ Deployment failed!"
-        fi
 ```
 
-### 2. GitHub Secrets Configuration
-
-Configure the following secrets in your GitHub repository:
-
-1. **SSH_PRIVATE_KEY**: Your private SSH key for server access
-2. **GITHUB_TOKEN**: GitHub token for repository access
-
-#### Setting up SSH Key:
-
-```bash
-# On your local machine, generate SSH key if you don't have one
-ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
-
-# Copy public key to server
-ssh-copy-id pgrant@webserver
-
-# Test SSH connection
-ssh pgrant@webserver
-
-# Add private key to GitHub secrets
-# Go to: Repository Settings > Secrets and variables > Actions
-# Add new secret: SSH_PRIVATE_KEY
-# Value: Contents of your ~/.ssh/id_rsa file
-```
-
----
-
-## Deployment Process
-
-### 1. Automatic Deployment
-
-Deployment happens automatically when:
-- Code is pushed to `main` branch
-- A new version tag is created
-- Manual workflow is triggered
-
-### 2. Manual Deployment
-
-```bash
-# Trigger manual deployment via GitHub Actions
-# Go to: Repository > Actions > Production Deployment > Run workflow
-```
-
-### 3. Version-based Deployment
-
-```bash
-# Create and push a new version tag
-git tag v1.0.2
-git push origin v1.0.2
-
-# This will trigger automatic deployment
-```
-
----
-
-## Automated Deployment Script
-
-Create a deployment script on your server:
-
-```bash
-# Create deployment script
-sudo nano /usr/local/bin/deploy-ordenproduccion.sh
-```
-
-```bash
-#!/bin/bash
-
-# Deployment script for com_ordenproduccion
-# Usage: deploy-ordenproduccion.sh [version]
-
-set -e
-
-# Configuration
-COMPONENT_NAME="com_ordenproduccion"
-JOOMLA_ROOT="/var/www/grimpsa_webserver"
-BACKUP_DIR="/backups"
-TEMP_DIR="/tmp"
-VERSION=${1:-"latest"}
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Logging function
-log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
-}
-
-success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-# Create backup
-create_backup() {
-    log "Creating backup..."
-    
-    # Create backup directory
-    sudo mkdir -p $BACKUP_DIR
-    
-    # Backup files
-    sudo tar -czf $BACKUP_DIR/joomla-backup-$(date +%Y%m%d-%H%M%S).tar.gz $JOOMLA_ROOT/
-    
-    # Backup database
-    DB_NAME=$(grep 'public \$db' $JOOMLA_ROOT/configuration.php | cut -d"'" -f2)
-    DB_USER=$(grep 'public \$user' $JOOMLA_ROOT/configuration.php | cut -d"'" -f2)
-    DB_PASS=$(grep 'public \$password' $JOOMLA_ROOT/configuration.php | cut -d"'" -f2)
-    
-    mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_DIR/database-backup-$(date +%Y%m%d-%H%M%S).sql
-    
-    success "Backup created successfully"
-}
-
-# Download component
-download_component() {
-    log "Downloading component version $VERSION..."
-    
-    if [ "$VERSION" = "latest" ]; then
-        # Download latest from GitHub
-        wget -O $TEMP_DIR/$COMPONENT_NAME.zip https://github.com/plgmgua/com_ordenproduccion/archive/refs/heads/main.zip
-    else
-        # Download specific version
-        wget -O $TEMP_DIR/$COMPONENT_NAME.zip https://github.com/plgmgua/com_ordenproduccion/archive/refs/tags/v$VERSION.zip
-    fi
-    
-    success "Component downloaded"
-}
-
-# Extract component
-extract_component() {
-    log "Extracting component..."
-    
-    cd $TEMP_DIR
-    unzip -o $COMPONENT_NAME.zip
-    
-    # Find the extracted directory
-    EXTRACTED_DIR=$(find . -name "com_ordenproduccion*" -type d | head -1)
-    
-    if [ -z "$EXTRACTED_DIR" ]; then
-        error "Could not find extracted component directory"
-        exit 1
-    fi
-    
-    # Copy to component directory
-    cp -r $EXTRACTED_DIR/com_ordenproduccion ./
-    
-    success "Component extracted"
-}
-
-# Install component
-install_component() {
-    log "Installing component..."
-    
-    # Stop web server
-    log "Stopping web server..."
-    sudo systemctl stop apache2
-    
-    # Remove old component
-    log "Removing old component..."
-    sudo rm -rf $JOOMLA_ROOT/administrator/components/$COMPONENT_NAME
-    sudo rm -rf $JOOMLA_ROOT/components/$COMPONENT_NAME
-    sudo rm -rf $JOOMLA_ROOT/media/$COMPONENT_NAME
-    
-    # Install new component
-    log "Installing new component..."
-    sudo cp -r $TEMP_DIR/com_ordenproduccion/admin/* $JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/
-    sudo cp -r $TEMP_DIR/com_ordenproduccion/site/* $JOOMLA_ROOT/components/$COMPONENT_NAME/
-    sudo cp -r $TEMP_DIR/com_ordenproduccion/media/* $JOOMLA_ROOT/media/$COMPONENT_NAME/
-    
-    # Set permissions
-    log "Setting permissions..."
-    sudo chown -R www-data:www-data $JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/
-    sudo chown -R www-data:www-data $JOOMLA_ROOT/components/$COMPONENT_NAME/
-    sudo chown -R www-data:www-data $JOOMLA_ROOT/media/$COMPONENT_NAME/
-    
-    sudo chmod -R 755 $JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/
-    sudo chmod -R 755 $JOOMLA_ROOT/components/$COMPONENT_NAME/
-    sudo chmod -R 755 $JOOMLA_ROOT/media/$COMPONENT_NAME/
-    
-    # Start web server
-    log "Starting web server..."
-    sudo systemctl start apache2
-    
-    success "Component installed successfully"
-}
-
-# Verify installation
-verify_installation() {
-    log "Verifying installation..."
-    
-    # Check if files exist
-    if [ ! -d "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME" ]; then
-        error "Admin component directory not found"
-        return 1
-    fi
-    
-    if [ ! -d "$JOOMLA_ROOT/components/$COMPONENT_NAME" ]; then
-        error "Site component directory not found"
-        return 1
-    fi
-    
-    if [ ! -d "$JOOMLA_ROOT/media/$COMPONENT_NAME" ]; then
-        error "Media directory not found"
-        return 1
-    fi
-    
-    # Test webhook endpoint
-    if ! curl -f -s https://grimpsa.com/index.php?option=$COMPONENT_NAME&task=webhook.health > /dev/null; then
-        warning "Webhook health check failed"
-        return 1
-    fi
-    
-    success "Installation verification passed"
-}
-
-# Cleanup
-cleanup() {
-    log "Cleaning up temporary files..."
-    rm -rf $TEMP_DIR/$COMPONENT_NAME*
-    success "Cleanup completed"
-}
-
-# Main deployment function
-main() {
-    log "Starting deployment of $COMPONENT_NAME version $VERSION"
-    
-    create_backup
-    download_component
-    extract_component
-    install_component
-    
-    if verify_installation; then
-        success "Deployment completed successfully!"
-    else
-        error "Deployment verification failed"
-        exit 1
-    fi
-    
-    cleanup
-}
-
-# Run main function
-main "$@"
-```
-
-Make the script executable:
-
-```bash
-sudo chmod +x /usr/local/bin/deploy-ordenproduccion.sh
-```
-
----
-
-## Manual Deployment
-
-### 1. Direct Server Deployment
-
-```bash
-# SSH to server
-ssh pgrant@webserver
-
-# Navigate to Joomla directory
-cd /var/www/grimpsa_webserver
-
-# Create backup
-sudo tar -czf /backups/joomla-backup-$(date +%Y%m%d-%H%M%S).tar.gz .
-
-# Download latest component
-wget -O /tmp/com_ordenproduccion.zip https://github.com/plgmgua/com_ordenproduccion/archive/refs/heads/main.zip
-
-# Extract
-cd /tmp
-unzip com_ordenproduccion.zip
-cd com_ordenproduccion-main
-
-# Stop web server
-sudo systemctl stop apache2
-
-# Remove old component
-sudo rm -rf /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion
-sudo rm -rf /var/www/grimpsa_webserver/components/com_ordenproduccion
-sudo rm -rf /var/www/grimpsa_webserver/media/com_ordenproduccion
-
-# Install new component
-sudo cp -r com_ordenproduccion/admin/* /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
-sudo cp -r com_ordenproduccion/site/* /var/www/grimpsa_webserver/components/com_ordenproduccion/
-sudo cp -r com_ordenproduccion/media/* /var/www/grimpsa_webserver/media/com_ordenproduccion/
-
-# Set permissions
-sudo chown -R www-data:www-data /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
-sudo chown -R www-data:www-data /var/www/grimpsa_webserver/components/com_ordenproduccion/
-sudo chown -R www-data:www-data /var/www/grimpsa_webserver/media/com_ordenproduccion/
-
-sudo chmod -R 755 /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
-sudo chmod -R 755 /var/www/grimpsa_webserver/components/com_ordenproduccion/
-sudo chmod -R 755 /var/www/grimpsa_webserver/media/com_ordenproduccion/
-
-# Start web server
-sudo systemctl start apache2
-
-# Clean up
-rm -rf /tmp/com_ordenproduccion*
-```
-
-### 2. Using Deployment Script
-
-```bash
-# Deploy latest version
-sudo /usr/local/bin/deploy-ordenproduccion.sh
-
-# Deploy specific version
-sudo /usr/local/bin/deploy-ordenproduccion.sh 1.0.2
-```
+**Note**: This requires SSH access to your server, which you currently don't have. The manual deployment method above is recommended for your current setup.
 
 ---
 
@@ -548,25 +300,30 @@ sudo /usr/local/bin/deploy-ordenproduccion.sh 1.0.2
 
 ### Common Issues
 
-#### 1. Permission Denied
+#### 1. Deployment Script Fails
+```bash
+# Check if git is installed
+git --version
+
+# If not installed, install git
+sudo apt update
+sudo apt install git
+
+# Check if wget is available
+wget --version
+
+# If not available, install wget
+sudo apt install wget
+```
+
+#### 2. Permission Denied
 ```bash
 # Fix ownership
 sudo chown -R www-data:www-data /var/www/grimpsa_webserver/
 
 # Fix permissions
 sudo chmod -R 755 /var/www/grimpsa_webserver/
-```
-
-#### 2. Web Server Won't Start
-```bash
-# Check Apache status
-sudo systemctl status apache2
-
-# Check Apache error logs
-sudo tail -f /var/log/apache2/error.log
-
-# Restart Apache
-sudo systemctl restart apache2
+sudo chmod 644 /var/www/grimpsa_webserver/configuration.php
 ```
 
 #### 3. Component Not Accessible
@@ -574,9 +331,10 @@ sudo systemctl restart apache2
 # Check if files exist
 ls -la /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
 ls -la /var/www/grimpsa_webserver/components/com_ordenproduccion/
+ls -la /var/www/grimpsa_webserver/media/com_ordenproduccion/
 
 # Check Joomla cache
-# Go to: System > Clear Cache
+# Go to: System > Clear Cache in Joomla admin
 ```
 
 #### 4. Database Issues
@@ -588,20 +346,36 @@ mysql -u [username] -p[password] [database_name]
 mysql -u [username] -p[password] [database_name] -e "SHOW TABLES LIKE '%ordenproduccion%';"
 ```
 
+#### 5. Webhook Not Working
+```bash
+# Test webhook endpoint
+curl -X POST https://grimpsa.com/index.php?option=com_ordenproduccion&task=webhook.process \
+  -H "Content-Type: application/json" \
+  -d '{"request_title":"Test","form_data":{"client_id":"1"}}'
+
+# Check webhook logs in Joomla admin
+```
+
 ### Rollback Procedure
 
+If deployment fails, you can restore from backup:
+
 ```bash
-# Stop web server
-sudo systemctl stop apache2
+# Navigate to backup directory
+cd /var/backups/joomla_components/
 
-# Restore from backup
-sudo tar -xzf /backups/joomla-backup-[timestamp].tar.gz -C /
+# List available backups
+ls -la
 
-# Restore database
-mysql -u [username] -p[password] [database_name] < /backups/database-backup-[timestamp].sql
+# Restore from specific backup (replace timestamp)
+sudo cp -r com_ordenproduccion_backup_20250127_153016/* /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
+sudo cp -r com_ordenproduccion_backup_20250127_153016/* /var/www/grimpsa_webserver/components/com_ordenproduccion/
+sudo cp -r com_ordenproduccion_backup_20250127_153016/* /var/www/grimpsa_webserver/media/com_ordenproduccion/
 
-# Start web server
-sudo systemctl start apache2
+# Set permissions
+sudo chown -R www-data:www-data /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
+sudo chown -R www-data:www-data /var/www/grimpsa_webserver/components/com_ordenproduccion/
+sudo chown -R www-data:www-data /var/www/grimpsa_webserver/media/com_ordenproduccion/
 ```
 
 ---
@@ -623,11 +397,11 @@ curl -f https://grimpsa.com/administrator/index.php?option=com_ordenproduccion
 
 ### 2. Health Checks
 
-Create a monitoring script:
+Create a simple monitoring script:
 
 ```bash
 # Create health check script
-sudo nano /usr/local/bin/health-check.sh
+nano health-check.sh
 ```
 
 ```bash
@@ -636,6 +410,8 @@ sudo nano /usr/local/bin/health-check.sh
 # Health check script for com_ordenproduccion
 
 COMPONENT_URL="https://grimpsa.com/index.php?option=com_ordenproduccion&task=webhook.health"
+
+echo "Checking component health..."
 
 # Check webhook health
 if curl -f -s $COMPONENT_URL > /dev/null; then
@@ -649,10 +425,22 @@ fi
 
 ```bash
 # Make executable
-sudo chmod +x /usr/local/bin/health-check.sh
+chmod +x health-check.sh
 
-# Add to crontab for regular checks
-echo "*/5 * * * * /usr/local/bin/health-check.sh" | sudo crontab -
+# Run health check
+./health-check.sh
+```
+
+### 3. Component Status Check
+
+```bash
+# Check if component files exist
+ls -la /var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/
+ls -la /var/www/grimpsa_webserver/components/com_ordenproduccion/
+ls -la /var/www/grimpsa_webserver/media/com_ordenproduccion/
+
+# Check component in Joomla admin
+# Go to: Extensions > Manage > Components > com_ordenproduccion
 ```
 
 ---
@@ -660,36 +448,73 @@ echo "*/5 * * * * /usr/local/bin/health-check.sh" | sudo crontab -
 ## Best Practices
 
 ### 1. Deployment Safety
-- Always create backups before deployment
-- Test deployments during low-traffic periods
-- Monitor logs after deployment
-- Have rollback plan ready
+- ✅ Always create backups before deployment (automatic with script)
+- ✅ Test deployments during low-traffic periods
+- ✅ Monitor logs after deployment
+- ✅ Have rollback plan ready (backups are timestamped)
 
 ### 2. Version Management
-- Use semantic versioning
-- Tag releases properly
-- Document changes
-- Test thoroughly before deployment
+- ✅ Use semantic versioning (handled by version-manager.sh)
+- ✅ Tag releases properly
+- ✅ Document changes in CHANGELOG.md
+- ✅ Test thoroughly before deployment
 
 ### 3. Security
-- Use SSH keys for authentication
-- Limit server access
-- Monitor for unauthorized changes
-- Keep system updated
+- ✅ Use VNC access for deployment (no SSH keys needed)
+- ✅ Limit server access to VNC only
+- ✅ Monitor for unauthorized changes
+- ✅ Keep system updated
+
+### 4. Deployment Workflow
+- ✅ Push changes from Mac to GitHub
+- ✅ Run deployment script on server via VNC
+- ✅ Verify deployment success
+- ✅ Test component functionality
+
+---
+
+## Quick Reference
+
+### Deployment Commands
+
+```bash
+# On Mac - Push changes
+git add .
+git commit -m "your changes"
+git push origin main
+
+# On Server (via VNC) - Deploy
+wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/deploy_to_server.sh
+chmod +x deploy_to_server.sh
+./deploy_to_server.sh
+```
+
+### Important URLs
+
+- **Component Admin**: `https://grimpsa.com/administrator/index.php?option=com_ordenproduccion`
+- **Webhook Endpoint**: `https://grimpsa.com/index.php?option=com_ordenproduccion&task=webhook.process`
+- **Health Check**: `https://grimpsa.com/index.php?option=com_ordenproduccion&task=webhook.health`
+
+### File Locations
+
+- **Site Component**: `/var/www/grimpsa_webserver/components/com_ordenproduccion/`
+- **Admin Component**: `/var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/`
+- **Media Files**: `/var/www/grimpsa_webserver/media/com_ordenproduccion/`
+- **Backups**: `/var/backups/joomla_components/`
 
 ---
 
 ## Support
 
 ### Getting Help
-- **Email**: support@grimpsa.com
-- **Documentation**: Check component documentation
+- **Documentation**: Check component documentation in repository
 - **Logs**: Review server and application logs
+- **Health Check**: Run `./health-check.sh` on server
 
 ### Emergency Procedures
-1. **Immediate Rollback**: Use backup restoration
-2. **Service Restart**: Restart web server
-3. **Contact Support**: Reach out to development team
+1. **Immediate Rollback**: Use backup restoration (see troubleshooting section)
+2. **Service Restart**: Restart web server if needed
+3. **Check Logs**: Review deployment and error logs
 
 ---
 
