@@ -1,0 +1,758 @@
+---
+alwaysApply: true
+---
+# Joomla Component PHP Code Examples
+
+This file contains practical PHP code examples that complement the JoomlaComponentRules.md guidelines.
+
+## Table of Contents
+1. [Version Management](#version-management)
+2. [Database Integration](#database-integration)
+3. [MVC Pattern Implementation](#mvc-pattern-implementation)
+4. [Security Implementation](#security-implementation)
+5. [Debugging System](#debugging-system)
+6. [Asset Management](#asset-management)
+
+---
+
+## Version Management
+
+### Component Helper with Version Support
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Site\Helper;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Component\ComponentHelper;
+
+class ComponentHelper
+{
+    protected static $version;
+    
+    public static function getVersion()
+    {
+        if (self::$version === null) {
+            $versionFile = JPATH_ROOT . '/components/com_yourcomponent/VERSION';
+            if (file_exists($versionFile)) {
+                self::$version = trim(file_get_contents($versionFile));
+            } else {
+                $manifest = ComponentHelper::getParams('com_yourcomponent');
+                self::$version = $manifest->get('version', '1.0.0');
+            }
+        }
+        return self::$version;
+    }
+    
+    public static function getVersionInfo()
+    {
+        $version = self::getVersion();
+        $parts = explode('-', $version);
+        
+        return [
+            'version' => $version,
+            'number' => $parts[0],
+            'stage' => isset($parts[1]) ? $parts[1] : 'STABLE',
+            'major' => (int) explode('.', $parts[0])[0],
+            'minor' => (int) explode('.', $parts[0])[1],
+            'patch' => (int) explode('.', $parts[0])[2]
+        ];
+    }
+}
+```
+
+### Version Update Script
+```bash
+#!/bin/bash
+COMPONENT_NAME="com_yourcomponent"
+NEW_VERSION="$1"
+
+if [[ ! $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Z0-9]+)?$ ]]; then
+    echo "Error: Invalid version format. Use MAJOR.MINOR.PATCH[-STAGE]"
+    exit 1
+fi
+
+echo "$NEW_VERSION" > VERSION
+sed -i "s/<version>.*<\/version>/<version>$NEW_VERSION<\/version>/" ${COMPONENT_NAME}.xml
+echo "Version updated to $NEW_VERSION"
+```
+
+---
+
+## Database Integration
+
+### Database Helper Class
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Site\Helper;
+
+use Joomla\CMS\Factory;
+use Joomla\Database\DatabaseInterface;
+
+class DatabaseHelper
+{
+    protected $db;
+    protected $version;
+    
+    public function __construct()
+    {
+        $this->db = Factory::getContainer()->get(DatabaseInterface::class);
+        $this->version = ComponentHelper::getVersion();
+    }
+    
+    public function getItems($filters = [])
+    {
+        $query = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__yourcomponent_items'))
+            ->where($this->db->quoteName('state') . ' = 1');
+            
+        if (!empty($filters['search'])) {
+            $search = $this->db->quote('%' . $this->db->escape($filters['search']) . '%');
+            $query->where('(' . $this->db->quoteName('title') . ' LIKE ' . $search . 
+                         ' OR ' . $this->db->quoteName('description') . ' LIKE ' . $search . ')');
+        }
+        
+        $this->db->setQuery($query);
+        return $this->db->loadObjectList();
+    }
+    
+    public function saveItem($data)
+    {
+        if (empty($data['version'])) {
+            $data['version'] = $this->version;
+        }
+        
+        $table = $this->getTable();
+        
+        if (!$table->bind($data)) {
+            return false;
+        }
+        
+        if (!$table->store()) {
+            return false;
+        }
+        
+        return $table->id;
+    }
+}
+```
+
+### Database Table Creation
+```sql
+CREATE TABLE `#__yourcomponent_items` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `title` varchar(255) NOT NULL,
+    `description` text,
+    `state` tinyint(3) NOT NULL DEFAULT 1,
+    `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `created_by` int(11) NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `version` varchar(20) DEFAULT '1.0.0',
+    PRIMARY KEY (`id`),
+    KEY `idx_state` (`state`),
+    KEY `idx_created_by` (`created_by`),
+    KEY `idx_version` (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+---
+
+## MVC Pattern Implementation
+
+### List Model
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Site\Model;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\MVC\Model\ListModel;
+use Joomla\CMS\Pagination\Pagination;
+
+class ItemsModel extends ListModel
+{
+    protected $version;
+    
+    public function __construct($config = [])
+    {
+        $this->version = ComponentHelper::getVersion();
+        
+        if (empty($config['filter_fields'])) {
+            $config['filter_fields'] = [
+                'id', 'title', 'description', 'created', 'created_by', 'version'
+            ];
+        }
+        parent::__construct($config);
+    }
+
+    public function getItems()
+    {
+        $helper = new \YourCompany\Component\YourComponent\Site\Helper\DatabaseHelper();
+        $filters = [
+            'search' => $this->getState('filter.search', ''),
+            'limit' => $this->getState('list.limit', 20),
+            'start' => $this->getStart()
+        ];
+        
+        $items = $helper->getItems($filters);
+        
+        foreach ($items as &$item) {
+            $item->component_version = $this->version;
+        }
+        
+        return $items;
+    }
+
+    protected function populateState($ordering = 'created', $direction = 'desc')
+    {
+        $app = Factory::getApplication();
+        
+        $limit = $app->getUserStateFromRequest('global.list.limit', 'limit', 20, 'uint');
+        $this->setState('list.limit', $limit);
+
+        $limitstart = $app->input->get('limitstart', 0, 'uint');
+        $this->setState('list.start', $limitstart);
+
+        $search = $app->getUserStateFromRequest($this->context . '.filter.search', 'filter_search', '', 'string');
+        $this->setState('filter.search', $search);
+
+        $this->setState('list.ordering', $ordering);
+        $this->setState('list.direction', $direction);
+    }
+}
+```
+
+### Form Controller
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Site\Controller;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\Controller\FormController;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
+
+class ItemController extends FormController
+{
+    public function save($key = null, $urlVar = null)
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_yourcomponent&view=items'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_YOURCOMPONENT_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        $model = $this->getModel('Item');
+        $data = $this->input->post->get('jform', [], 'array');
+        $itemId = $this->input->getInt('id', 0);
+        
+        try {
+            $result = $model->save($data);
+            
+            if ($result !== false) {
+                $message = $itemId > 0 ? 'Item updated successfully' : 'Item created successfully';
+                $this->app->enqueueMessage($message, 'success');
+                $this->setRedirect(Route::_('index.php?option=com_yourcomponent&view=items'));
+            } else {
+                $this->app->enqueueMessage('Error saving item', 'error');
+                $this->setRedirect(Route::_('index.php?option=com_yourcomponent&view=item&layout=edit&id=' . $itemId));
+            }
+        } catch (Exception $e) {
+            $this->app->enqueueMessage($e->getMessage(), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_yourcomponent&view=item&layout=edit&id=' . $itemId));
+        }
+
+        return true;
+    }
+}
+```
+
+### List View
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Site\View\Items;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Component\ComponentHelper;
+
+class HtmlView extends BaseHtmlView
+{
+    protected $items = [];
+    protected $pagination;
+    protected $state;
+    protected $params;
+    protected $version;
+
+    public function display($tpl = null)
+    {
+        try {
+            $this->items = $this->get('Items');
+            $this->pagination = $this->get('Pagination');
+            $this->state = $this->get('State');
+            $this->params = ComponentHelper::getParams('com_yourcomponent');
+            $this->version = ComponentHelper::getVersionInfo();
+        } catch (Exception $e) {
+            $this->items = [];
+            $this->pagination = null;
+            $this->state = new \Joomla\Registry\Registry();
+            $this->params = ComponentHelper::getParams('com_yourcomponent');
+            $this->version = ['version' => '1.0.0', 'number' => '1.0.0', 'stage' => 'STABLE'];
+            
+            Factory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        $this->addToolbar();
+        $this->_prepareDocument();
+
+        parent::display($tpl);
+    }
+
+    protected function addToolbar()
+    {
+        $user = Factory::getUser();
+        
+        $this->document->setTitle(Text::_('COM_YOURCOMPONENT_ITEMS_TITLE'));
+        
+        HTMLHelper::_('bootstrap.framework');
+        
+        $wa = $this->document->getWebAssetManager();
+        $wa->registerAndUseStyle('com_yourcomponent.items', 'media/com_yourcomponent/css/items.css', [], ['version' => 'auto']);
+        $wa->registerAndUseScript('com_yourcomponent.items', 'media/com_yourcomponent/js/items.js', [], ['version' => 'auto']);
+        
+        if ($this->params->get('enable_debug', 0)) {
+            Factory::getApplication()->enqueueMessage(
+                'Component Version: ' . $this->version['version'], 
+                'notice'
+            );
+        }
+    }
+}
+```
+
+---
+
+## Security Implementation
+
+### Input Validation and Sanitization
+```php
+// Controller Input Validation
+$itemId = $this->input->getInt('id', 0);
+$search = $this->input->getString('search', '');
+$data = $this->input->post->get('jform', [], 'array');
+
+if ($itemId < 0) {
+    $itemId = 0;
+}
+
+$search = filter_var($search, FILTER_SANITIZE_STRING);
+
+// Model Data Validation
+public function validate($form, $data, $group = null)
+{
+    if (empty($data['title'])) {
+        $this->setError('Title is required');
+        return false;
+    }
+    
+    if (strlen($data['title']) > 255) {
+        $this->setError('Title must be less than 255 characters');
+        return false;
+    }
+    
+    return parent::validate($form, $data, $group);
+}
+
+// Template Output Escaping
+function safeEscape($value, $default = '') {
+    if (is_string($value) && !empty($value)) {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+    return $default;
+}
+
+function safeGet($array, $key, $default = '') {
+    if (is_array($array) && isset($array[$key])) {
+        return $array[$key];
+    }
+    return $default;
+}
+```
+
+### Access Control
+```php
+$user = Factory::getUser();
+
+if ($user->guest) {
+    $this->app->redirect(Route::_('index.php?option=com_users&view=login'));
+}
+
+if (!$user->authorise('core.edit', 'com_yourcomponent')) {
+    $this->app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_EDIT_NOT_PERMITTED'), 'error');
+    $this->setRedirect(Route::_('index.php?option=com_yourcomponent&view=items'));
+    return false;
+}
+```
+
+---
+
+## Debugging System
+
+### Debug Helper Class
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Site\Helper;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Component\ComponentHelper;
+use Joomla\CMS\Log\Log;
+
+class DebugHelper
+{
+    protected static $config;
+    protected static $logFile;
+    protected static $version;
+    
+    public static function init()
+    {
+        self::$config = ComponentHelper::getParams('com_yourcomponent');
+        self::$logFile = JPATH_ROOT . '/logs/com_yourcomponent_debug.log';
+        self::$version = ComponentHelper::getVersion();
+    }
+    
+    public static function isEnabled()
+    {
+        if (!self::$config) {
+            self::init();
+        }
+        return (bool) self::$config->get('enable_debug', 0);
+    }
+    
+    public static function log($message, $level = 'DEBUG', $context = [])
+    {
+        if (!self::isEnabled()) {
+            return;
+        }
+        
+        if (!self::$config) {
+            self::init();
+        }
+        
+        $logLevel = self::$config->get('debug_log_level', 'DEBUG');
+        $levels = ['ERROR' => 1, 'WARNING' => 2, 'INFO' => 3, 'DEBUG' => 4];
+        
+        if ($levels[$level] > $levels[$logLevel]) {
+            return;
+        }
+        
+        $timestamp = Factory::getDate()->toSql();
+        $user = Factory::getUser();
+        $userId = $user->guest ? 'guest' : $user->id;
+        $userName = $user->guest ? 'guest' : $user->name;
+        
+        $logEntry = sprintf(
+            "[%s] [%s] [v%s] [User:%s:%s] %s %s\n",
+            $timestamp,
+            $level,
+            self::$version,
+            $userId,
+            $userName,
+            $message,
+            !empty($context) ? json_encode($context) : ''
+        );
+        
+        file_put_contents(self::$logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        Log::add($message, constant('Log::' . $level), 'com_yourcomponent');
+    }
+    
+    public static function getLogs($lines = 100)
+    {
+        if (!file_exists(self::$logFile)) {
+            return [];
+        }
+        
+        $allLines = file(self::$logFile);
+        return array_slice($allLines, -$lines);
+    }
+    
+    public static function clearLogs()
+    {
+        if (file_exists(self::$logFile)) {
+            unlink(self::$logFile);
+        }
+    }
+}
+```
+
+### Debug Controller
+```php
+<?php
+namespace YourCompany\Component\YourComponent\Administrator\Controller;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\Controller\BaseController;
+use Joomla\CMS\Session\Session;
+use YourCompany\Component\YourComponent\Site\Helper\DebugHelper;
+
+class DebugController extends BaseController
+{
+    public function toggleDebug()
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect('index.php?option=com_yourcomponent&view=debug');
+            return false;
+        }
+        
+        $component = Factory::getApplication()->bootComponent('com_yourcomponent');
+        $params = $component->getParams();
+        $currentValue = $params->get('enable_debug', 0);
+        $newValue = $currentValue ? 0 : 1;
+        
+        $params->set('enable_debug', $newValue);
+        
+        $table = Factory::getTable('Extension');
+        $table->load(['element' => 'com_yourcomponent', 'type' => 'component']);
+        $table->params = $params->toString();
+        $table->store();
+        
+        $message = $newValue ? 
+            Text::_('COM_YOURCOMPONENT_DEBUG_ENABLED') : 
+            Text::_('COM_YOURCOMPONENT_DEBUG_DISABLED');
+            
+        $this->app->enqueueMessage($message, 'success');
+        $this->setRedirect('index.php?option=com_yourcomponent&view=debug');
+        return true;
+    }
+}
+```
+
+---
+
+## Asset Management
+
+### WebAssetManager Implementation
+```php
+protected function addToolbar()
+{
+    if (!$this->document->getWebAssetManager()->getAsset('style', 'com_yourcomponent.items')) {
+        $wa = $this->document->getWebAssetManager();
+        $wa->registerAndUseStyle('com_yourcomponent.items', 'media/com_yourcomponent/css/items.css', [], ['version' => 'auto']);
+        $wa->registerAndUseScript('com_yourcomponent.items', 'media/com_yourcomponent/js/items.js', [], ['version' => 'auto']);
+    }
+}
+
+// Template Asset Loading
+HTMLHelper::_('bootstrap.framework');
+
+$wa = Factory::getApplication()->getDocument()->getWebAssetManager();
+$wa->registerAndUseStyle('com_yourcomponent.contacts', 'media/com_yourcomponent/css/contacts.css', [], ['version' => 'auto']);
+```
+
+### Caching Implementation
+```php
+use Joomla\CMS\Factory;
+use Joomla\CMS\Cache\Cache;
+use YourCompany\Component\YourComponent\Site\Helper\ComponentHelper;
+
+class CachedDataHelper
+{
+    protected $cache;
+    protected $version;
+    
+    public function __construct()
+    {
+        $this->cache = Factory::getCache('com_yourcomponent', 'output');
+        $this->cache->setCaching(true);
+        $this->cache->setLifeTime(300);
+        $this->version = ComponentHelper::getVersion();
+    }
+    
+    public function getCachedItems($key, $callback)
+    {
+        $cacheKey = 'items_' . md5($key . '_' . $this->version);
+        
+        $data = $this->cache->get($cacheKey);
+        
+        if ($data === false) {
+            $data = $callback();
+            $this->cache->store($data, $cacheKey);
+        }
+        
+        return $data;
+    }
+}
+```
+
+---
+
+## Template Examples
+
+### Safe Template Functions
+```php
+// Always include these safe functions in templates
+function safeEscape($value, $default = '') {
+    if (is_string($value) && !empty($value)) {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+    return $default;
+}
+
+function safeGet($array, $key, $default = '') {
+    if (is_array($array) && isset($array[$key])) {
+        return $array[$key];
+    }
+    return $default;
+}
+
+// Usage in templates
+echo safeEscape($item->title, 'No title');
+echo safeGet($item, 'description', 'No description');
+```
+
+### Form Template Example
+```php
+<form action="<?php echo Route::_('index.php?option=com_yourcomponent&view=item'); ?>" 
+      method="post" name="adminForm" id="adminForm" class="form-validate">
+    
+    <input type="hidden" name="task" value="" />
+    <input type="hidden" name="id" value="<?php echo (int) ($this->item->id ?? 0); ?>" />
+    <?php echo HTMLHelper::_('form.token'); ?>
+    
+    <div class="form-group">
+        <label for="jform_name">Title *</label>
+        <input type="text" name="jform[name]" id="jform_name" 
+               value="<?php echo safeEscape($this->item->title ?? ''); ?>" 
+               class="form-control required" required />
+    </div>
+    
+</form>
+```
+
+---
+
+## Language Files
+
+### English Language File (en-GB/com_yourcomponent.ini)
+```ini
+COM_YOURCOMPONENT="Your Component"
+COM_YOURCOMPONENT_ITEMS_TITLE="Items"
+COM_YOURCOMPONENT_ITEM_TITLE="Item"
+COM_YOURCOMPONENT_ERROR_LOGIN_REQUIRED="You must be logged in to access this area."
+COM_YOURCOMPONENT_ERROR_INVALID_ITEM="Invalid item selected."
+COM_YOURCOMPONENT_ITEM_DELETED_SUCCESS="Item deleted successfully."
+COM_YOURCOMPONENT_ERROR_DELETE_FAILED="Error deleting item."
+COM_YOURCOMPONENT_VERSION="Version"
+COM_YOURCOMPONENT_CURRENT_VERSION="Current Version"
+COM_YOURCOMPONENT_DEBUG_TITLE="Debug Console"
+```
+
+### System Language File (en-GB/com_yourcomponent.sys.ini)
+```ini
+COM_YOURCOMPONENT_XML_DESCRIPTION="Your Component Description"
+COM_YOURCOMPONENT_CONFIG_COMPONENT_LABEL="Component Configuration"
+COM_YOURCOMPONENT_CONFIG_VERSION_LABEL="Component Version"
+COM_YOURCOMPONENT_CONFIG_VERSION_DESC="Current version of the component"
+COM_YOURCOMPONENT_CONFIG_ENABLE_DEBUG_LABEL="Enable Debug"
+COM_YOURCOMPONENT_CONFIG_ENABLE_DEBUG_DESC="Enable debug logging for troubleshooting"
+```
+
+---
+
+## Manifest File Example
+
+### Component Manifest (yourcomponent.xml)
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" version="5.0" method="upgrade">
+    <name>COM_YOURCOMPONENT</name>
+    <author>YourCompany</author>
+    <creationDate>2025-01-27</creationDate>
+    <copyright>Copyright (C) 2025 YourCompany. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <authorEmail>admin@yourcompany.com</authorEmail>
+    <authorUrl>https://yourcompany.com</authorUrl>
+    <version>1.0.0-STABLE</version>
+    <description>COM_YOURCOMPONENT_XML_DESCRIPTION</description>
+
+    <namespace path="src">YourCompany\Component\YourComponent</namespace>
+
+    <files folder="site">
+        <folder>src</folder>
+        <folder>tmpl</folder>
+        <folder>language</folder>
+        <folder>forms</folder>
+    </files>
+
+    <media destination="com_yourcomponent" folder="media">
+        <folder>css</folder>
+        <folder>js</folder>
+    </media>
+
+    <administration>
+        <menu img="class:your-icon">COM_YOURCOMPONENT</menu>
+        <files folder="admin">
+            <filename>services/provider.php</filename>
+            <folder>forms</folder>
+            <folder>src</folder>
+            <folder>tmpl</folder>
+            <folder>language</folder>
+        </files>
+    </administration>
+
+    <config>
+        <fields name="params">
+            <fieldset name="component" label="COM_YOURCOMPONENT_CONFIG_COMPONENT_LABEL">
+                <field
+                    name="enable_debug"
+                    type="radio"
+                    label="COM_YOURCOMPONENT_CONFIG_ENABLE_DEBUG_LABEL"
+                    description="COM_YOURCOMPONENT_CONFIG_ENABLE_DEBUG_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="debug_log_level"
+                    type="list"
+                    label="COM_YOURCOMPONENT_CONFIG_DEBUG_LOG_LEVEL_LABEL"
+                    description="COM_YOURCOMPONENT_CONFIG_DEBUG_LOG_LEVEL_DESC"
+                    default="DEBUG"
+                >
+                    <option value="ERROR">COM_YOURCOMPONENT_DEBUG_ERROR</option>
+                    <option value="WARNING">COM_YOURCOMPONENT_DEBUG_WARNING</option>
+                    <option value="INFO">COM_YOURCOMPONENT_DEBUG_INFO</option>
+                    <option value="DEBUG">COM_YOURCOMPONENT_DEBUG_DEBUG</option>
+                </field>
+                <field
+                    name="debug_log_retention_days"
+                    type="number"
+                    label="COM_YOURCOMPONENT_CONFIG_DEBUG_LOG_RETENTION_LABEL"
+                    description="COM_YOURCOMPONENT_CONFIG_DEBUG_LOG_RETENTION_DESC"
+                    default="7"
+                    min="1"
+                    max="365"
+                />
+            </fieldset>
+        </fields>
+    </config>
+</extension>
+```
+
+---
+
+This code examples file provides practical PHP implementations that complement the guidelines in JoomlaComponentRules.md. Use these examples as templates when developing new Joomla components.

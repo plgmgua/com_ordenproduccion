@@ -1,0 +1,599 @@
+---
+alwaysApply: true
+---
+# Joomla Component Development Rules
+
+## Table of Contents
+1. [Component Architecture Overview](#component-architecture-overview)
+2. [Component Types](#component-types)
+3. [Directory Structure](#directory-structure)
+4. [Version Management](#version-management)
+5. [Manifest File (XML)](#manifest-file-xml)
+6. [Database Integration](#database-integration)
+7. [MVC Pattern Implementation](#mvc-pattern-implementation)
+8. [Security Best Practices](#security-best-practices)
+9. [Performance Optimization](#performance-optimization)
+10. [Internationalization (i18n)](#internationalization-i18n)
+11. [Advanced Debugging System](#advanced-debugging-system)
+12. [Asset Management](#asset-management)
+13. [Module Integration](#module-integration)
+14. [Custom Menu Item Types](#custom-menu-item-types)
+15. [Error Handling Patterns](#error-handling-patterns)
+16. [Code Standards](#code-standards)
+
+---
+
+## Component Architecture Overview
+
+### Core Principles
+- **Joomla 5.0+ Compatibility**: Use modern Joomla architecture
+- **MVC Pattern**: Strict separation of Model, View, Controller
+- **PSR-4 Autoloading**: Follow PSR-4 namespace conventions
+- **Security First**: Always implement CSRF protection and input validation
+- **Performance Optimized**: Use caching and efficient database queries
+- **Debugging Ready**: Built-in debugging system with backend controls
+- **Version Controlled**: Every build must have a version number
+
+---
+
+## Component Types
+
+### Frontend-Only Components
+**Use Case**: User-facing functionality without admin management
+**Structure**: Minimal admin (dashboard only) + Full frontend
+**Example**: Customer portal, public forms, content display
+
+### Full Admin/Frontend Components
+**Use Case**: Complete CRUD operations with admin management
+**Structure**: Full admin interface + Full frontend
+**Example**: Content management, user management, complex data operations
+
+---
+
+## Directory Structure
+
+```
+com_yourcomponent/
+├── admin/                          # Administration files
+│   ├── forms/                      # Form definitions
+│   ├── language/                   # Admin language files
+│   ├── services/                   # Service providers
+│   ├── src/                        # Admin source code
+│   │   ├── Controller/             # Admin controllers
+│   │   ├── Extension/              # Component extension class
+│   │   ├── Helper/                 # Admin helpers
+│   │   ├── Model/                  # Admin models
+│   │   ├── Service/                # Admin services
+│   │   └── View/                   # Admin views
+│   └── tmpl/                       # Admin templates
+├── media/                          # Frontend assets
+│   ├── css/                        # Stylesheets
+│   └── js/                         # JavaScript files
+├── site/                           # Frontend files
+│   ├── forms/                      # Form definitions
+│   ├── language/                   # Frontend language files
+│   ├── src/                        # Frontend source code
+│   │   ├── Controller/             # Frontend controllers
+│   │   ├── Dispatcher/             # Component dispatcher
+│   │   ├── Helper/                 # Frontend helpers
+│   │   ├── Model/                  # Frontend models
+│   │   ├── Service/                # Frontend services
+│   │   └── View/                   # Frontend views
+│   └── tmpl/                       # Frontend templates
+├── CHANGELOG.md                    # Version history
+├── VERSION                         # Current version file
+└── yourcomponent.xml              # Component manifest
+```
+
+---
+
+## Version Management
+
+### Version Numbering System
+**MANDATORY**: Every build must have a version number following semantic versioning:
+
+```
+MAJOR.MINOR.PATCH[-STAGE]
+```
+
+**Examples:**
+- `1.0.0` - Initial stable release
+- `1.0.1` - Bug fix release
+- `1.1.0` - New feature release
+- `2.0.0` - Breaking changes release
+- `1.0.0-ALPHA` - Alpha testing stage
+- `1.0.0-BETA` - Beta testing stage
+- `1.0.0-RC1` - Release candidate 1
+
+### Version File Structure
+
+#### VERSION File (Root Directory)
+```
+1.0.0-STABLE
+```
+
+#### CHANGELOG.md
+- Document all changes for each version
+- Follow format: Added, Changed, Fixed, Security
+- Include dates for each version
+- Use semantic versioning
+
+### Version Integration Rules
+
+1. **Manifest File**: Always include version in component.xml
+2. **Version Helper**: Create helper class to read version from VERSION file
+3. **Version Info**: Display version in debug logs and admin interface
+4. **Cache Keys**: Include version in cache keys to invalidate on updates
+5. **Database**: Track version in database records if needed
+
+### Version Update Process
+
+1. **Update VERSION file** with new version number
+2. **Update manifest file** version attribute
+3. **Update CHANGELOG.md** with new version entry
+4. **Test the component** with new version
+5. **Commit and tag** the version in git
+
+### Version Validation Rules
+
+1. **Mandatory Version**: Every component must have a version number
+2. **Semantic Versioning**: Follow MAJOR.MINOR.PATCH format
+3. **Version Files**: Must have both VERSION file and manifest version
+4. **Version Consistency**: All version references must match
+5. **Changelog**: Every version must have corresponding changelog entry
+6. **Build Process**: Version must be updated before any build/release
+
+---
+
+## Manifest File (XML)
+
+### Required Structure
+- Extension type: component
+- Version: 5.0
+- Method: upgrade
+- Namespace: YourCompany\Component\YourComponent
+- Version number: Must match VERSION file
+
+### Required Sections
+1. **Basic Info**: name, author, version, description
+2. **Files**: site folder, admin folder, media folder
+3. **Administration**: menu, admin files
+4. **Configuration**: component parameters
+5. **Debug Settings**: enable_debug, log_level, retention_days
+
+### Configuration Fields
+- enable_debug (radio: yes/no)
+- debug_log_level (list: ERROR, WARNING, INFO, DEBUG)
+- debug_log_retention_days (number: 1-365)
+- component_version (note: read-only display)
+
+---
+
+## Database Integration
+
+### Database Table Creation Rules
+1. **Table Prefix**: Always use #__yourcomponent_tablename
+2. **Standard Fields**: id, title, description, state, created, created_by, modified, modified_by
+3. **Version Field**: Include version field for tracking
+4. **Indexes**: Add indexes for state, created_by, version
+5. **Charset**: Use utf8mb4_unicode_ci
+
+### Database Helper Rules
+1. **Helper Class**: Create DatabaseHelper class
+2. **Connection**: Use Factory::getContainer()->get(DatabaseInterface::class)
+3. **Query Builder**: Use Joomla's query builder
+4. **Prepared Statements**: Always use prepared statements
+5. **Error Handling**: Implement proper error handling
+6. **Version Tracking**: Include version in save operations
+
+### Database Operations
+- getItems(): Retrieve multiple records with filters
+- getItem(): Retrieve single record by ID
+- saveItem(): Create or update record
+- deleteItem(): Soft delete (set state = 0)
+- recordVersionInstall(): Track version installations
+
+---
+
+## MVC Pattern Implementation
+
+### Model Rules
+
+#### List Model (Multiple Items)
+- Extend Joomla\CMS\MVC\Model\ListModel
+- Implement getItems(), getTotal(), getPagination()
+- Use populateState() for filters and pagination
+- Include version info in returned items
+- Implement proper error handling
+
+#### Admin Model (Single Item)
+- Extend Joomla\CMS\MVC\Model\AdminModel
+- Implement getForm(), getItem(), save()
+- Use loadFormData() for form data
+- Include version tracking in save operations
+- Validate data before saving
+
+### View Rules
+
+#### List View
+- Extend Joomla\CMS\MVC\View\HtmlView
+- Implement display(), addToolbar(), _prepareDocument()
+- Load assets using WebAssetManager
+- Display version info in debug mode
+- Handle empty states gracefully
+
+#### Form View
+- Extend Joomla\CMS\MVC\View\HtmlView
+- Implement display(), addToolbar()
+- Load form using model's getForm()
+- Handle edit/view modes
+- Include breadcrumbs for navigation
+
+### Controller Rules
+
+#### Display Controller
+- Extend Joomla\CMS\MVC\Controller\BaseController
+- Implement display() method
+- Check user authentication
+- Set default view
+- Handle view/layout parameters
+
+#### Form Controller
+- Extend Joomla\CMS\MVC\Controller\FormController
+- Implement edit(), add(), save(), delete(), cancel()
+- Check CSRF tokens
+- Validate user permissions
+- Handle redirects properly
+
+---
+
+## Security Best Practices
+
+### CSRF Protection
+- **ALWAYS** include CSRF tokens in forms
+- Use HTMLHelper::_('form.token') in templates
+- Check Session::checkToken() in controllers
+- Redirect with error message if token invalid
+
+### Input Validation and Sanitization
+- **Controller Level**: Use input->getInt(), getString(), getArray()
+- **Model Level**: Implement validate() method
+- **Template Level**: Use htmlspecialchars() for output
+- **Safe Functions**: Create safeEscape() and safeGet() helper functions
+
+### Access Control
+- Check user authentication (guest users)
+- Verify user permissions (core.edit, core.delete)
+- Implement proper redirects for unauthorized access
+- Use Factory::getUser() for user information
+
+### Data Security
+- Use prepared statements for database queries
+- Validate all user input
+- Sanitize output in templates
+- Implement proper error messages
+
+---
+
+## Performance Optimization
+
+### Database Query Optimization
+- Use proper indexing on frequently queried fields
+- Limit results with setLimit()
+- Use select() to specify only needed fields
+- Implement efficient WHERE clauses
+- Use prepared statements
+
+### Caching Implementation
+- Use Factory::getCache() for caching
+- Include version in cache keys
+- Set appropriate cache lifetime
+- Implement cache clearing methods
+- Cache expensive operations
+
+### Asset Loading Optimization
+- Load assets only when needed
+- Use WebAssetManager for asset management
+- Check if assets already loaded before loading
+- Use version parameter for cache busting
+- Minify CSS and JavaScript when possible
+
+### General Performance
+- Implement pagination for large datasets
+- Use lazy loading where appropriate
+- Optimize database queries
+- Cache frequently accessed data
+- Minimize database calls
+
+---
+
+## Internationalization (i18n)
+
+### Language File Structure
+- Create language files for each supported language
+- Use standard Joomla language codes (en-GB, es-ES, etc.)
+- Separate .ini and .sys.ini files
+- Include all component strings
+
+### Language File Organization
+- com_yourcomponent.ini: Component strings
+- com_yourcomponent.sys.ini: System strings
+- Use consistent naming convention
+- Include version-related strings
+
+### String Usage Rules
+- Always use Text::_() for language strings
+- Use descriptive constant names
+- Include parameters with Text::sprintf()
+- Never hardcode strings in code
+- Test with different languages
+
+### Required Language Strings
+- Component title and description
+- Error messages
+- Success messages
+- Form labels and descriptions
+- Debug-related strings
+- Version-related strings
+
+---
+
+## Advanced Debugging System
+
+### Debug Configuration Requirements
+- Backend toggle switch (enable/disable)
+- Log level selection (ERROR, WARNING, INFO, DEBUG)
+- Log retention period (1-365 days)
+- File-based logging system
+- Admin interface for log viewing
+
+### Debug Helper Rules
+- Create DebugHelper class
+- Check if debugging enabled before logging
+- Include timestamp, level, version, user info in logs
+- Write to dedicated log file
+- Also log to Joomla's log system
+- Implement log cleanup functionality
+
+### Debug Controller Rules
+- Create admin debug controller
+- Implement clearLogs(), cleanupLogs(), toggleDebug()
+- Check CSRF tokens for all actions
+- Provide success/error messages
+- Redirect appropriately after actions
+
+### Debug View Rules
+- Create admin debug view
+- Display current debug status
+- Show log statistics (file size, lines, last modified)
+- Display recent log entries
+- Provide action buttons (clear, cleanup, toggle)
+- Show component version information
+
+### Debug Logging Rules
+- Include version in all log entries
+- Log user information (ID, name)
+- Include context information when available
+- Respect log level settings
+- Implement automatic log cleanup
+- Provide log statistics
+
+---
+
+## Asset Management
+
+### WebAssetManager Rules
+- Use WebAssetManager for all asset loading
+- Register assets with unique names
+- Use version parameter for cache busting
+- Load assets only when needed
+- Check if assets already loaded
+
+### Asset Organization
+- CSS files in media/css/ folder
+- JavaScript files in media/js/ folder
+- Use descriptive file names
+- Include component prefix in asset names
+- Organize by functionality
+
+### Asset Loading Rules
+- Load assets in view's addToolbar() method
+- Use registerAndUseStyle() for CSS
+- Use registerAndUseScript() for JavaScript
+- Include version parameter
+- Load Bootstrap framework when needed
+
+---
+
+## Module Integration
+
+### Module Creation Rules
+- Create mod_yourcomponent module
+- Use standard Joomla module structure
+- Include module manifest file
+- Implement module helper
+- Follow Joomla module conventions
+
+### Module-Component Integration
+- Use component's helper classes
+- Share language files when possible
+- Use consistent styling
+- Implement proper error handling
+- Cache module output when appropriate
+
+### Module Configuration
+- Provide module parameters
+- Use standard Joomla parameter types
+- Include help text and descriptions
+- Validate parameter values
+- Set sensible defaults
+
+---
+
+## Custom Menu Item Types
+
+### Menu Item Type Rules
+- Create menu item type XML files
+- Use descriptive names and descriptions
+- Include required parameters
+- Implement proper routing
+- Handle menu item state
+
+### Menu Item Integration
+- Use component's routing system
+- Include breadcrumb support
+- Handle SEO-friendly URLs
+- Implement proper redirects
+- Support menu item parameters
+
+---
+
+## Error Handling Patterns
+
+### Controller Error Handling
+- Use try-catch blocks for operations
+- Provide meaningful error messages
+- Log errors to debug system
+- Redirect appropriately on errors
+- Check for required data
+
+### Model Error Handling
+- Validate data before processing
+- Return false on errors
+- Set error messages using setError()
+- Log database errors
+- Handle empty result sets
+
+### View Error Handling
+- Check for required data
+- Handle empty states gracefully
+- Display user-friendly error messages
+- Log view errors
+- Provide fallback content
+
+### Template Error Handling
+- Use safe functions for data access
+- Check if data exists before displaying
+- Provide default values
+- Handle missing translations
+- Validate user permissions
+
+---
+
+## Code Standards
+
+### PHP Code Standards
+- Follow PSR-4 autoloading
+- Use proper namespacing
+- Include proper file headers
+- Use Joomla coding standards
+- Document all public methods
+
+### File Structure Standards
+- Use descriptive file names
+- Organize files logically
+- Include proper directory structure
+- Use consistent naming conventions
+- Follow Joomla conventions
+
+### Documentation Standards
+- Include file headers with copyright
+- Document all public methods
+- Use proper PHPDoc comments
+- Include parameter and return types
+- Document complex logic
+
+### Security Standards
+- Always validate input
+- Escape output in templates
+- Use CSRF protection
+- Check user permissions
+- Log security-related events
+
+### Performance Standards
+- Optimize database queries
+- Use caching appropriately
+- Minimize asset loading
+- Implement pagination
+- Use efficient algorithms
+
+---
+
+## Development Workflow
+
+### Component Creation Process
+1. Create directory structure
+2. Create manifest file with version
+3. Create VERSION and CHANGELOG.md files
+4. Implement basic MVC structure
+5. Add database integration
+6. Implement security measures
+7. Add debugging system
+8. Create language files
+9. Add asset management
+10. Test and validate
+
+### Version Update Process
+1. Update VERSION file
+2. Update manifest version
+3. Update CHANGELOG.md
+4. Test component
+5. Commit and tag version
+6. Deploy if needed
+
+### Testing Requirements
+1. Test all CRUD operations
+2. Test security measures
+3. Test error handling
+4. Test with different users
+5. Test with different languages
+6. Test performance
+7. Test debugging system
+
+### Deployment Checklist
+1. Version numbers updated
+2. All tests passing
+3. Documentation updated
+4. Language files complete
+5. Assets optimized
+6. Debug system working
+7. Security measures in place
+8. Performance optimized
+
+---
+
+## Best Practices Summary
+
+### Always Do
+- Include version numbers in all builds
+- Implement CSRF protection
+- Validate all input
+- Escape all output
+- Use proper error handling
+- Include debugging system
+- Follow MVC pattern
+- Use semantic versioning
+- Document all code
+- Test thoroughly
+
+### Never Do
+- Hardcode strings in code
+- Skip input validation
+- Display raw database errors
+- Ignore security measures
+- Skip version management
+- Forget error handling
+- Mix business logic in views
+- Skip documentation
+- Deploy without testing
+- Ignore performance
+
+### Remember
+- Security is paramount
+- Performance matters
+- Users need feedback
+- Debugging saves time
+- Version control is essential
+- Documentation is crucial
+- Testing prevents problems
+- Standards ensure consistency

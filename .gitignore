@@ -1,0 +1,64 @@
+# Joomla Component .gitignore
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Build files
+/build/
+/dist/
+*.zip
+*.tar.gz
+
+# Node modules (if using build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Composer
+/vendor/
+composer.lock
+
+# Joomla specific
+/installation/
+/cache/
+/tmp/
+/logs/
+/administrator/cache/
+/administrator/logs/
+
+# Component specific
+/media/com_ordenproduccion/tmp/
+/media/com_ordenproduccion/cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test files
+/tests/tmp/
+/tests/logs/
