@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+    <fieldset name="component" label="COM_ORDENPRODUCCION_CONFIGURATION">
+        <field
+            name="show_title"
+            type="radio"
+            label="COM_ORDENPRODUCCION_SHOW_TITLE_LABEL"
+            description="COM_ORDENPRODUCCION_SHOW_TITLE_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="0">JNO</option>
+            <option value="1">JYES</option>
+        </field>
+        <field
+            name="items_per_page"
+            type="number"
+            label="COM_ORDENPRODUCCION_ITEMS_PER_PAGE_LABEL"
+            description="COM_ORDENPRODUCCION_ITEMS_PER_PAGE_DESC"
+            default="20"
+            min="5"
+            max="100"
+        />
+        <field
+            name="default_order_status"
+            type="list"
+            label="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_LABEL"
+            description="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_DESC"
+            default="nueva"
+        >
+            <option value="nueva">COM_ORDENPRODUCCION_STATUS_NUEVA</option>
+            <option value="en_proceso">COM_ORDENPRODUCCION_STATUS_EN_PROCESO</option>
+            <option value="terminada">COM_ORDENPRODUCCION_STATUS_TERMINADA</option>
+            <option value="cerrada">COM_ORDENPRODUCCION_STATUS_CERRADA</option>
+        </field>
+        <field
+            name="auto_assign_technicians"
+            type="radio"
+            label="COM_ORDENPRODUCCION_AUTO_ASSIGN_TECHNICIANS_LABEL"
+            description="COM_ORDENPRODUCCION_AUTO_ASSIGN_TECHNICIANS_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="0">JNO</option>
+            <option value="1">JYES</option>
+        </field>
+        <field
+            name="enable_calendar_view"
+            type="radio"
+            label="COM_ORDENPRODUCCION_ENABLE_CALENDAR_VIEW_LABEL"
+            description="COM_ORDENPRODUCCION_ENABLE_CALENDAR_VIEW_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="0">JNO</option>
+            <option value="1">JYES</option>
+        </field>
+    </fieldset>
+</config>
