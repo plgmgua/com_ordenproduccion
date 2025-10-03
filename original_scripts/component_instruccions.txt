@@ -1,0 +1,612 @@
+# Complete Joomla Component Structure Guide
+
+Based on the com_approvalworkflow component, here are the complete instructions for creating a barebones Joomla component:
+
+## Component Directory Structure
+
+```
+com_yourcomponent/
+├── com_yourcomponent.xml          # Main manifest file
+├── script.php                     # Installation script
+├── admin/
+│   ├── yourcomponent.php          # Admin entry point
+│   ├── access.xml                 # ACL permissions
+│   ├── config.xml                 # Component configuration
+│   ├── services/
+│   │   └── provider.php           # Service provider
+│   ├── src/
+│   │   ├── Controller/            # Admin controllers
+│   │   ├── Model/                 # Admin models
+│   │   ├── View/                  # Admin views
+│   │   ├── Table/                 # Database tables
+│   │   ├── Field/                 # Custom form fields
+│   │   ├── Helper/                # Helper classes
+│   │   └── Extension/
+│   │       └── YourComponentComponent.php
+│   ├── tmpl/                      # Admin templates
+│   ├── forms/                     # XML form definitions
+│   ├── sql/
+│   │   ├── install.mysql.utf8.sql
+│   │   ├── uninstall.mysql.utf8.sql
+│   │   └── updates/
+│   └── language/
+│       ├── en-GB/
+│       └── es-ES/
+├── site/
+│   ├── yourcomponent.php         # Site entry point
+│   ├── services/
+│   │   └── provider.php           # Service provider
+│   ├── src/
+│   │   ├── Controller/            # Site controllers
+│   │   ├── Model/                 # Site models
+│   │   ├── View/                  # Site views
+│   │   ├── Helper/                # Helper classes
+│   │   └── Extension/
+│   │       └── YourComponentComponent.php
+│   ├── tmpl/                      # Site templates
+│   ├── forms/                     # Site forms
+│   └── language/
+│       ├── en-GB/
+│       └── es-ES/
+└── media/
+    ├── css/
+    └── js/
+```
+
+## 1. Main Manifest File (com_yourcomponent.xml)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" method="upgrade">
+    <name>COM_YOURCOMPONENT</name>
+    <author>Your Name</author>
+    <creationDate>2024-01-01</creationDate>
+    <copyright>Copyright (C) 2024 Your Name. All rights reserved.</copyright>
+    <authorEmail>your.email@example.com</authorEmail>
+    <authorUrl>https://yourwebsite.com</authorUrl>
+    <version>1.0.0</version>
+    <license>GNU GPL v2 or later</license>
+    <description>COM_YOURCOMPONENT_DESCRIPTION</description>
+    <scriptfile>script.php</scriptfile>
+
+    <namespace path="src">Joomla\Component\YourComponent</namespace>
+
+    <!-- Site files -->
+    <files folder="site">
+        <filename>yourcomponent.php</filename>
+        <folder>src</folder>
+        <folder>tmpl</folder>
+        <folder>language</folder>
+        <folder>forms</folder>
+    </files>
+
+    <!-- Administration -->
+    <administration>
+        <menu img="class:cog">COM_YOURCOMPONENT</menu>
+        <submenu>
+            <menu link="option=com_yourcomponent&amp;view=dashboard">COM_YOURCOMPONENT_DASHBOARD</menu>
+            <menu link="option=com_yourcomponent&amp;view=items">COM_YOURCOMPONENT_ITEMS</menu>
+        </submenu>
+        
+        <files folder="admin">
+            <filename>services/provider.php</filename>
+            <filename>access.xml</filename>
+            <filename>config.xml</filename>
+            <folder>src</folder>
+            <folder>tmpl</folder>
+            <folder>forms</folder>
+            <folder>sql</folder>
+            <folder>language</folder>
+        </files>
+        
+        <media destination="com_yourcomponent" folder="media">
+            <folder>css</folder>
+            <folder>js</folder>
+        </media>
+        
+        <languages folder="admin/language">
+            <language tag="en-GB">en-GB/com_yourcomponent.ini</language>
+            <language tag="en-GB">en-GB/com_yourcomponent.sys.ini</language>
+        </languages>
+    </administration>
+
+    <!-- Site languages -->
+    <languages folder="site/language">
+        <language tag="en-GB">en-GB/com_yourcomponent.ini</language>
+    </languages>
+
+    <!-- Menu items -->
+    <menu>
+        <menu type="component" link="option=com_yourcomponent&amp;view=items">COM_YOURCOMPONENT_MENU_ITEMS</menu>
+    </menu>
+
+    <!-- Database -->
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8mb4">admin/sql/install.mysql.utf8.sql</file>
+        </sql>
+    </install>
+
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8mb4">admin/sql/uninstall.mysql.utf8.sql</file>
+        </sql>
+    </uninstall>
+
+    <config>
+        <access>access.xml</access>
+    </config>
+</extension>
+```
+
+## 2. Installation Script (script.php)
+
+```php
+<?php
+/**
+ * @package     Joomla.Administrator
+ * @subpackage  com_yourcomponent
+ *
+ * @copyright   (C) 2024 Open Source Matters, Inc. <https://www.joomla.org>
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Installer\InstallerScript;
+use Joomla\CMS\Installer\InstallerAdapter;
+use Joomla\CMS\Factory;
+
+/**
+ * Installation script for Your Component
+ *
+ * @since  1.0.0
+ */
+class Com_YourcomponentInstallerScript extends InstallerScript
+{
+    /**
+     * Extension script constructor.
+     *
+     * @since   1.0.0
+     */
+    public function __construct()
+    {
+        $this->extension = 'com_yourcomponent';
+        $this->minimumJoomla = '4.0';
+        $this->minimumPhp = '7.4';
+    }
+
+    /**
+     * Function called after the extension is installed.
+     *
+     * @param   InstallerAdapter  $adapter  The adapter calling this method
+     *
+     * @return  boolean  True on success
+     *
+     * @since   1.0.0
+     */
+    public function install($adapter)
+    {
+        $this->registerACLRules();
+        return true;
+    }
+
+    /**
+     * Function called after the extension is updated.
+     *
+     * @param   InstallerAdapter  $adapter  The adapter calling this method
+     *
+     * @return  boolean  True on success
+     *
+     * @since   1.0.0
+     */
+    public function update($adapter)
+    {
+        $this->registerACLRules();
+        return true;
+    }
+
+    /**
+     * Register ACL rules for the component
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    private function registerACLRules()
+    {
+        try {
+            $accessFile = JPATH_ADMINISTRATOR . '/components/com_yourcomponent/access.xml';
+            
+            if (file_exists($accessFile)) {
+                $xml = simplexml_load_file($accessFile);
+                
+                if ($xml) {
+                    $db = Factory::getDbo();
+                    
+                    // Check if asset already exists
+                    $query = $db->getQuery(true)
+                        ->select('*')
+                        ->from('#__assets')
+                        ->where('name = ' . $db->quote($this->extension));
+                    
+                    $db->setQuery($query);
+                    $asset = $db->loadObject();
+                    
+                    if (!$asset) {
+                        // Create the asset if it doesn't exist
+                        $query = $db->getQuery(true)
+                            ->insert('#__assets')
+                            ->columns(['name', 'title', 'rules'])
+                            ->values([
+                                $db->quote($this->extension),
+                                $db->quote('COM_YOURCOMPONENT'),
+                                $db->quote('{}')
+                            ]);
+                        
+                        $db->setQuery($query);
+                        $db->execute();
+                    }
+                    
+                    // Clear the cache
+                    Factory::getCache()->clean('com_plugins');
+                    Factory::getCache()->clean('_system');
+                    Factory::getCache()->clean('com_config');
+                }
+            }
+        } catch (Exception $e) {
+            Factory::getApplication()->enqueueMessage(
+                'ACL registration completed with warnings: ' . $e->getMessage(),
+                'warning'
+            );
+        }
+    }
+}
+```
+
+## 3. Admin Entry Point (admin/yourcomponent.php)
+
+```php
+<?php
+/**
+ * @package     Joomla.Administrator
+ * @subpackage  com_yourcomponent
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+
+// Access check
+$user = Factory::getApplication()->getIdentity();
+if (!$user->authorise('core.manage', 'com_yourcomponent')) {
+    throw new InvalidArgumentException(Text::_('JERROR_ALERTNOAUTHOR'), 404);
+}
+```
+
+## 4. Site Entry Point (site/yourcomponent.php)
+
+```php
+<?php
+/**
+ * @package     Joomla.Site
+ * @subpackage  com_yourcomponent
+ *
+ * @copyright   (C) 2024 Open Source Matters, Inc. <https://www.joomla.org>
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Factory;
+
+echo Factory::getApplication()->bootComponent('com_yourcomponent')->render();
+```
+
+## 5. Admin Service Provider (admin/services/provider.php)
+
+```php
+<?php
+/**
+ * @package     Joomla.Administrator
+ * @subpackage  com_yourcomponent
+ *
+ * @copyright   (C) 2024 Open Source Matters, Inc. <https://www.joomla.org>
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Component\Router\RouterFactoryInterface;
+use Joomla\CMS\Dispatcher\ComponentDispatcherFactoryInterface;
+use Joomla\CMS\Extension\ComponentInterface;
+use Joomla\CMS\Extension\Service\Provider\ComponentDispatcherFactory;
+use Joomla\CMS\Extension\Service\Provider\MVCFactory;
+use Joomla\CMS\Extension\Service\Provider\RouterFactory;
+use Joomla\CMS\HTML\Registry;
+use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
+use Joomla\CMS\Form\FormHelper;
+use Joomla\Component\YourComponent\Administrator\Extension\YourComponentComponent;
+use Joomla\DI\Container;
+use Joomla\DI\ServiceProviderInterface;
+
+/**
+ * The your component service provider.
+ *
+ * @since  1.0.0
+ */
+return new class implements ServiceProviderInterface
+{
+    /**
+     * Registers the service provider with a DI container.
+     *
+     * @param   Container  $container  The DI container.
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    public function register(Container $container)
+    {
+        $container->registerServiceProvider(new MVCFactory('\\Joomla\\Component\\YourComponent'));
+        $container->registerServiceProvider(new ComponentDispatcherFactory('\\Joomla\\Component\\YourComponent'));
+        $container->registerServiceProvider(new RouterFactory('\\Joomla\\Component\\YourComponent'));
+        
+        // Register custom form field types
+        FormHelper::addFieldPath(JPATH_ADMINISTRATOR . '/components/com_yourcomponent/src/Field');
+        FormHelper::addFieldPrefix('Joomla\\Component\\YourComponent\\Administrator\\Field');
+        
+        // Register form paths
+        FormHelper::addFormPath(JPATH_ADMINISTRATOR . '/components/com_yourcomponent/forms');
+        
+        $container->set(
+            ComponentInterface::class,
+            function (Container $container) {
+                $component = new YourComponentComponent($container->get(ComponentDispatcherFactoryInterface::class));
+
+                $component->setRegistry($container->get(Registry::class));
+                $component->setMVCFactory($container->get(MVCFactoryInterface::class));
+                $component->setRouterFactory($container->get(RouterFactoryInterface::class));
+
+                return $component;
+            }
+        );
+    }
+};
+```
+
+## 6. Site Service Provider (site/services/provider.php)
+
+```php
+<?php
+/**
+ * @package     Joomla.Site
+ * @subpackage  com_yourcomponent
+ *
+ * @copyright   (C) 2024 Open Source Matters, Inc. <https://www.joomla.org>
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Component\Router\RouterFactoryInterface;
+use Joomla\CMS\Dispatcher\ComponentDispatcherFactoryInterface;
+use Joomla\CMS\Extension\ComponentInterface;
+use Joomla\CMS\Extension\Service\Provider\ComponentDispatcherFactory;
+use Joomla\CMS\Extension\Service\Provider\MVCFactory;
+use Joomla\CMS\Extension\Service\Provider\RouterFactory;
+use Joomla\CMS\HTML\Registry;
+use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
+use Joomla\Component\YourComponent\Site\Extension\YourComponentComponent;
+use Joomla\DI\Container;
+use Joomla\DI\ServiceProviderInterface;
+
+/**
+ * The your component service provider.
+ *
+ * @since  1.0.0
+ */
+return new class implements ServiceProviderInterface
+{
+    /**
+     * Registers the service provider with a DI container.
+     *
+     * @param   Container  $container  The DI container.
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    public function register(Container $container)
+    {
+        $container->registerServiceProvider(new MVCFactory('\\Joomla\\Component\\YourComponent'));
+        $container->registerServiceProvider(new ComponentDispatcherFactory('\\Joomla\\Component\\YourComponent'));
+        $container->registerServiceProvider(new RouterFactory('\\Joomla\\Component\\YourComponent'));
+        
+        $container->set(
+            ComponentInterface::class,
+            function (Container $container) {
+                $component = new YourComponentComponent($container->get(ComponentDispatcherFactoryInterface::class));
+
+                $component->setRegistry($container->get(Registry::class));
+                $component->setMVCFactory($container->get(MVCFactoryInterface::class));
+                $component->setRouterFactory($container->get(RouterFactoryInterface::class));
+
+                return $component;
+            }
+        );
+    }
+};
+```
+
+## 7. ACL Permissions (admin/access.xml)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<access component="com_yourcomponent">
+    <section name="component">
+        <action name="core.admin" title="JACTION_ADMIN" description="JACTION_ADMIN_COMPONENT_DESC" />
+        <action name="core.manage" title="JACTION_MANAGE" description="JACTION_MANAGE_COMPONENT_DESC" />
+        <action name="core.create" title="JACTION_CREATE" description="JACTION_CREATE_COMPONENT_DESC" />
+        <action name="core.edit" title="JACTION_EDIT" description="JACTION_EDIT_COMPONENT_DESC" />
+        <action name="core.edit.state" title="JACTION_EDITSTATE" description="JACTION_EDITSTATE_COMPONENT_DESC" />
+        <action name="core.delete" title="JACTION_DELETE" description="JACTION_DELETE_COMPONENT_DESC" />
+    </section>
+</access>
+```
+
+## 8. Component Configuration (admin/config.xml)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+    <fieldset name="component" label="COM_YOURCOMPONENT_CONFIGURATION">
+        <field
+            name="show_title"
+            type="radio"
+            label="COM_YOURCOMPONENT_SHOW_TITLE_LABEL"
+            description="COM_YOURCOMPONENT_SHOW_TITLE_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="0">JNO</option>
+            <option value="1">JYES</option>
+        </field>
+    </fieldset>
+</config>
+```
+
+## 9. Database Installation (admin/sql/install.mysql.utf8.sql)
+
+```sql
+CREATE TABLE IF NOT EXISTS `#__yourcomponent_items` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `title` varchar(255) NOT NULL,
+    `description` text,
+    `state` tinyint(3) NOT NULL DEFAULT '1',
+    `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `created_by` int(11) NOT NULL DEFAULT '0',
+    `modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `modified_by` int(11) NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+## 10. Database Uninstall (admin/sql/uninstall.mysql.utf8.sql)
+
+```sql
+DROP TABLE IF EXISTS `#__yourcomponent_items`;
+```
+
+## 11. Language Files
+
+**Admin Language (admin/language/en-GB/com_yourcomponent.ini):**
+```ini
+COM_YOURCOMPONENT="Your Component"
+COM_YOURCOMPONENT_DESCRIPTION="Your Component Description"
+COM_YOURCOMPONENT_DASHBOARD="Dashboard"
+COM_YOURCOMPONENT_ITEMS="Items"
+COM_YOURCOMPONENT_ITEM="Item"
+COM_YOURCOMPONENT_ADD_ITEM="Add Item"
+COM_YOURCOMPONENT_EDIT_ITEM="Edit Item"
+```
+
+**System Language (admin/language/en-GB/com_yourcomponent.sys.ini):**
+```ini
+COM_YOURCOMPONENT="Your Component"
+COM_YOURCOMPONENT_DESCRIPTION="Your Component Description"
+```
+
+## 12. Basic MVC Structure
+
+**Controller (admin/src/Controller/ItemsController.php):**
+```php
+<?php
+namespace Joomla\Component\YourComponent\Administrator\Controller;
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\MVC\Controller\AdminController;
+
+class ItemsController extends AdminController
+{
+    protected $default_view = 'items';
+}
+```
+
+**Model (admin/src/Model/ItemsModel.php):**
+```php
+<?php
+namespace Joomla\Component\YourComponent\Administrator\Model;
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\MVC\Model\ListModel;
+
+class ItemsModel extends ListModel
+{
+    protected function getListQuery()
+    {
+        $db = $this->getDbo();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__yourcomponent_items'));
+        
+        return $query;
+    }
+}
+```
+
+**View (admin/src/View/Items/HtmlView.php):**
+```php
+<?php
+namespace Joomla\Component\YourComponent\Administrator\View\Items;
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Toolbar\ToolbarHelper;
+use Joomla\CMS\Language\Text;
+
+class HtmlView extends BaseHtmlView
+{
+    public function display($tpl = null)
+    {
+        $this->items = $this->get('Items');
+        $this->pagination = $this->get('Pagination');
+        $this->state = $this->get('State');
+        
+        $this->addToolbar();
+        parent::display($tpl);
+    }
+    
+    protected function addToolbar()
+    {
+        ToolbarHelper::title(Text::_('COM_YOURCOMPONENT_ITEMS'), 'yourcomponent');
+        ToolbarHelper::addNew('item.add');
+        ToolbarHelper::editList('item.edit');
+        ToolbarHelper::deleteList('', 'items.delete');
+    }
+}
+```
+
+## Key Naming Conventions
+
+1. **Component Name:** `com_yourcomponent` (lowercase, underscores)
+2. **Class Names:** `YourComponent` (PascalCase)
+3. **File Names:** `yourcomponent.php` (lowercase)
+4. **View Directories:** `items` (lowercase, plural)
+5. **Controller Names:** `ItemsController` (PascalCase, plural)
+6. **Model Names:** `ItemsModel` (PascalCase, plural)
+7. **Table Names:** `ItemTable` (PascalCase, singular)
+
+## Installation Steps
+
+1. **Create the directory structure** as shown above
+2. **Add all the files** with proper content
+3. **Create a ZIP file** with the component folder
+4. **Install via Joomla Admin** → Extensions → Install
+5. **Configure permissions** in Global Configuration → Permissions
+
+This structure provides a complete, working Joomla component that follows Joomla 4/5 best practices and can be extended with additional functionality as needed.
