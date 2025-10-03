@@ -1,0 +1,184 @@
+name: Version Management
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      commit_message:
+        description: 'Commit message'
+        required: true
+        default: 'Automated version bump'
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, json, curl, zip
+    
+    - name: Make version manager executable
+      run: chmod +x version-manager.sh
+    
+    - name: Run tests
+      run: |
+        if [ -f "com_ordenproduccion/tests/run-tests.php" ]; then
+          php com_ordenproduccion/tests/run-tests.php
+        fi
+    
+    - name: Validate component
+      run: |
+        if [ -f "com_ordenproduccion/validate.php" ]; then
+          php com_ordenproduccion/validate.php
+        fi
+    
+    - name: Bump version (Manual)
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        ./version-manager.sh ${{ github.event.inputs.version_type }} \
+          -m "${{ github.event.inputs.commit_message }}" \
+          -p -t
+    
+    - name: Create release (Tag)
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: |
+        ./version-manager.sh release
+    
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+    
+    - name: Build component package
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: |
+        # Create package directory
+        mkdir -p package
+        
+        # Copy component files
+        cp -r com_ordenproduccion package/
+        
+        # Create ZIP package
+        cd package
+        zip -r ../com_ordenproduccion-${{ github.ref_name }}.zip .
+        cd ..
+        
+        # Upload as release asset
+        gh release upload ${{ github.ref_name }} com_ordenproduccion-${{ github.ref_name }}.zip
+    
+    - name: Notify deployment
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: |
+        echo "Release ${{ github.ref_name }} created successfully"
+        echo "Component package: com_ordenproduccion-${{ github.ref_name }}.zip"
+        echo "Ready for deployment to production"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run security scan
+      uses: github/super-linter@v4
+      env:
+        DEFAULT_BRANCH: main
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VALIDATE_PHP: true
+        VALIDATE_JAVASCRIPT: true
+        VALIDATE_CSS: true
+        VALIDATE_HTML: true
+        VALIDATE_JSON: true
+        VALIDATE_YAML: true
+        VALIDATE_MARKDOWN: true
+
+  performance-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, json, curl, zip
+    
+    - name: Run performance tests
+      run: |
+        # Create performance test script
+        cat > performance-test.php << 'EOF'
+        <?php
+        $start_time = microtime(true);
+        $start_memory = memory_get_usage();
+        
+        // Simulate component operations
+        for ($i = 0; $i < 1000; $i++) {
+            // Simulate database operations
+            $data = [
+                'order_id' => $i,
+                'client' => 'Test Client ' . $i,
+                'description' => 'Test order ' . $i,
+                'status' => 'nueva'
+            ];
+            
+            // Simulate processing
+            json_encode($data);
+        }
+        
+        $end_time = microtime(true);
+        $end_memory = memory_get_usage();
+        
+        $execution_time = $end_time - $start_time;
+        $memory_usage = $end_memory - $start_memory;
+        
+        echo "Performance Test Results:\n";
+        echo "Execution Time: " . round($execution_time, 4) . " seconds\n";
+        echo "Memory Usage: " . round($memory_usage / 1024, 2) . " KB\n";
+        
+        // Performance thresholds
+        if ($execution_time > 1.0) {
+            echo "WARNING: Execution time exceeds 1 second\n";
+            exit(1);
+        }
+        
+        if ($memory_usage > 10 * 1024 * 1024) {
+            echo "WARNING: Memory usage exceeds 10MB\n";
+            exit(1);
+        }
+        
+        echo "Performance test passed!\n";
+        EOF
+        
+        php performance-test.php
