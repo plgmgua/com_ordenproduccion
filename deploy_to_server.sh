@@ -134,8 +134,36 @@ download_repository() {
     log "DEBUG: Contents of downloaded repository:"
     ls -la "$TEMP_DIR/$COMPONENT_NAME/"
     
+    # Debug: Show if there's a nested com_ordenproduccion directory
+    if [ -d "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME" ]; then
+        log "DEBUG: Found nested component directory:"
+        ls -la "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME/"
+    fi
+    
     success "Repository downloaded successfully"
     echo "$TEMP_DIR/$COMPONENT_NAME"
+}
+
+# Function to find the correct component path
+find_component_path() {
+    local repo_path="$1"
+    local component_path=""
+    
+    # Check if files are directly in repo root
+    if [ -d "$repo_path/admin" ] && [ -d "$repo_path/site" ] && [ -d "$repo_path/media" ]; then
+        component_path="$repo_path"
+        log "Found component files directly in repository root"
+    # Check if files are in nested component directory
+    elif [ -d "$repo_path/$COMPONENT_NAME/admin" ] && [ -d "$repo_path/$COMPONENT_NAME/site" ] && [ -d "$repo_path/$COMPONENT_NAME/media" ]; then
+        component_path="$repo_path/$COMPONENT_NAME"
+        log "Found component files in nested directory: $component_path"
+    else
+        error "Could not find component files in expected locations"
+        error "Searched in: $repo_path and $repo_path/$COMPONENT_NAME"
+        exit 1
+    fi
+    
+    echo "$component_path"
 }
 
 # Function to verify downloaded files
@@ -143,22 +171,26 @@ verify_downloaded_files() {
     local repo_path="$1"
     log "Verifying downloaded files..."
     
-    # Check if essential directories exist in the downloaded repository
+    # Find the correct component path
+    local component_path=$(find_component_path "$repo_path")
+    log "Using component path: $component_path"
+    
+    # Check if essential directories exist in the correct location
     local missing_files=()
     
-    if [ ! -d "$repo_path/admin" ]; then
+    if [ ! -d "$component_path/admin" ]; then
         missing_files+=("admin/")
     fi
     
-    if [ ! -d "$repo_path/site" ]; then
+    if [ ! -d "$component_path/site" ]; then
         missing_files+=("site/")
     fi
     
-    if [ ! -d "$repo_path/media" ]; then
+    if [ ! -d "$component_path/media" ]; then
         missing_files+=("media/")
     fi
     
-    if [ ! -f "$repo_path/$COMPONENT_NAME.xml" ]; then
+    if [ ! -f "$component_path/$COMPONENT_NAME.xml" ]; then
         missing_files+=("$COMPONENT_NAME.xml")
     fi
     
@@ -185,7 +217,10 @@ deploy_component() {
     local repo_path="$1"
     
     log "Deploying component files..."
-    log "Source directory: $repo_path"
+    
+    # Find the correct component path
+    local component_path=$(find_component_path "$repo_path")
+    log "Source directory: $component_path"
     
     # Create component directories
     if [ "$USE_SUDO" = true ]; then
@@ -199,35 +234,35 @@ deploy_component() {
     fi
     
     # Copy site component files
-    log "Copying site component files from $repo_path/site/..."
+    log "Copying site component files from $component_path/site/..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$repo_path/site/"* "$COMPONENT_PATH/"
+        sudo cp -r "$component_path/site/"* "$COMPONENT_PATH/"
     else
-        cp -r "$repo_path/site/"* "$COMPONENT_PATH/"
+        cp -r "$component_path/site/"* "$COMPONENT_PATH/"
     fi
     
     # Copy admin component files
-    log "Copying admin component files from $repo_path/admin/..."
+    log "Copying admin component files from $component_path/admin/..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$repo_path/admin/"* "$ADMIN_COMPONENT_PATH/"
+        sudo cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/"
     else
-        cp -r "$repo_path/admin/"* "$ADMIN_COMPONENT_PATH/"
+        cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/"
     fi
     
     # Copy media files
-    log "Copying media files from $repo_path/media/..."
+    log "Copying media files from $component_path/media/..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$repo_path/media/"* "$MEDIA_PATH/"
+        sudo cp -r "$component_path/media/"* "$MEDIA_PATH/"
     else
-        cp -r "$repo_path/media/"* "$MEDIA_PATH/"
+        cp -r "$component_path/media/"* "$MEDIA_PATH/"
     fi
     
     # Copy manifest file
-    log "Copying manifest file from $repo_path/$COMPONENT_NAME.xml..."
+    log "Copying manifest file from $component_path/$COMPONENT_NAME.xml..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp "$repo_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+        sudo cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
     else
-        cp "$repo_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+        cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
     fi
     
     success "Component files deployed"
