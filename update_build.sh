@@ -46,7 +46,7 @@ warning() {
 get_version_info() {
     log "Getting version information from repository..."
     
-    # Get commit hash
+    # Get commit hash from the actual repository
     COMMIT_HASH=$(cd "$TEMP_DIR/$COMPONENT_NAME" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
     
     # Get version from VERSION file if it exists
@@ -54,6 +54,16 @@ get_version_info() {
         CURRENT_VERSION=$(cat "$TEMP_DIR/$COMPONENT_NAME/VERSION" 2>/dev/null || echo "unknown")
     else
         CURRENT_VERSION="unknown"
+    fi
+    
+    # If version is still unknown, try to get it from the manifest file
+    if [ "$CURRENT_VERSION" = "unknown" ] && [ -f "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME.xml" ]; then
+        CURRENT_VERSION=$(grep -oP '<version>\K[^<]+' "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME.xml" 2>/dev/null || echo "unknown")
+    fi
+    
+    # If still unknown, use commit hash as version
+    if [ "$CURRENT_VERSION" = "unknown" ]; then
+        CURRENT_VERSION="commit-$COMMIT_HASH"
     fi
     
     log "Commit Hash: $COMMIT_HASH"
@@ -65,6 +75,10 @@ find_component_root() {
     local repo_clone_path="$1"
     local component_root=""
 
+    log "DEBUG: Searching for component files in: $repo_clone_path"
+    log "DEBUG: Contents of repo clone path:"
+    ls -la "$repo_clone_path" | while read line; do log "DEBUG:   $line"; done
+
     # Check if files are directly in repo root
     if [ -d "$repo_clone_path/admin" ] && [ -d "$repo_clone_path/site" ] && [ -f "$repo_clone_path/$COMPONENT_NAME.xml" ]; then
         component_root="$repo_clone_path"
@@ -74,6 +88,11 @@ find_component_root() {
         component_root="$repo_clone_path/$COMPONENT_NAME"
         log "Found component files in nested directory: $component_root"
     else
+        log "DEBUG: Component files not found in expected locations"
+        log "DEBUG: Checking for any admin/site directories..."
+        find "$repo_clone_path" -name "admin" -type d | while read dir; do log "DEBUG: Found admin dir: $dir"; done
+        find "$repo_clone_path" -name "site" -type d | while read dir; do log "DEBUG: Found site dir: $dir"; done
+        find "$repo_clone_path" -name "*.xml" | while read file; do log "DEBUG: Found XML file: $file"; done
         error "Could not find component files in expected locations within $repo_clone_path"
     fi
     echo "$component_root"
@@ -113,20 +132,41 @@ deploy_new_files() {
     sudo mkdir -p "$SITE_COMPONENT_PATH" || error "Failed to create site component directory"
     sudo mkdir -p "$MEDIA_PATH" || error "Failed to create media directory"
     
+    # Verify source paths exist before copying
+    log "DEBUG: Verifying source paths..."
+    log "DEBUG: Component root: $COMPONENT_ROOT"
+    log "DEBUG: Admin source: $COMPONENT_ROOT/admin"
+    log "DEBUG: Site source: $COMPONENT_ROOT/site"
+    log "DEBUG: Media source: $COMPONENT_ROOT/media"
+    log "DEBUG: Manifest source: $COMPONENT_ROOT/$COMPONENT_NAME.xml"
+    
+    if [ ! -d "$COMPONENT_ROOT/admin" ]; then
+        error "Admin directory not found: $COMPONENT_ROOT/admin"
+    fi
+    if [ ! -d "$COMPONENT_ROOT/site" ]; then
+        error "Site directory not found: $COMPONENT_ROOT/site"
+    fi
+    if [ ! -d "$COMPONENT_ROOT/media" ]; then
+        error "Media directory not found: $COMPONENT_ROOT/media"
+    fi
+    if [ ! -f "$COMPONENT_ROOT/$COMPONENT_NAME.xml" ]; then
+        error "Manifest file not found: $COMPONENT_ROOT/$COMPONENT_NAME.xml"
+    fi
+    
     # Copy admin files
-    log "Copying admin files..."
+    log "Copying admin files from $COMPONENT_ROOT/admin/ to $ADMIN_COMPONENT_PATH/"
     sudo cp -r "$COMPONENT_ROOT/admin/"* "$ADMIN_COMPONENT_PATH/" || error "Failed to copy admin files"
     
     # Copy site files
-    log "Copying site files..."
+    log "Copying site files from $COMPONENT_ROOT/site/ to $SITE_COMPONENT_PATH/"
     sudo cp -r "$COMPONENT_ROOT/site/"* "$SITE_COMPONENT_PATH/" || error "Failed to copy site files"
     
     # Copy media files
-    log "Copying media files..."
+    log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
     sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"
     
     # Copy manifest file
-    log "Copying manifest file..."
+    log "Copying manifest file from $COMPONENT_ROOT/$COMPONENT_NAME.xml to $ADMIN_COMPONENT_PATH/"
     sudo cp "$COMPONENT_ROOT/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" || error "Failed to copy manifest file"
     
     success "New files deployed"
