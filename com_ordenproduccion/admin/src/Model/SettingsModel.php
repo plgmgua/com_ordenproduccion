@@ -12,15 +12,15 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\Model;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Model\AdminModel;
-use Joomla\CMS\Table\Table;
+use Joomla\CMS\MVC\Model\BaseModel;
+use Joomla\CMS\Form\Form;
 
 /**
  * Settings model for com_ordenproduccion
  *
  * @since  1.0.0
  */
-class SettingsModel extends AdminModel
+class SettingsModel extends BaseModel
 {
     /**
      * The prefix to use with controller messages.
@@ -31,63 +31,31 @@ class SettingsModel extends AdminModel
     protected $text_prefix = 'COM_ORDENPRODUCCION_SETTINGS';
 
     /**
-     * Method to get the table object.
-     *
-     * @param   string  $type    The table name. Optional.
-     * @param   string  $prefix  The class prefix. Optional.
-     * @param   array   $config  Configuration array for model. Optional.
-     *
-     * @return  Table|boolean  Table object on success, false on failure
-     *
-     * @since   1.0.0
-     */
-    public function getTable($type = '', $prefix = '', $config = [])
-    {
-        // Return null to avoid table requirements
-        return null;
-    }
-
-    /**
      * Method to get the record form.
      *
      * @param   array    $data      Data for the form.
      * @param   boolean  $loadData  True if the form should load its own data (default case), false if not.
      *
-     * @return  \JForm|boolean  A \JForm object on success, false on failure
+     * @return  Form|boolean  A Form object on success, false on failure
      *
      * @since   1.0.0
      */
     public function getForm($data = [], $loadData = true)
     {
         // Get the form.
-        $form = $this->loadForm('com_ordenproduccion.settings', 'settings', ['control' => 'jform', 'load_data' => $loadData]);
+        $form = Form::getInstance('com_ordenproduccion.settings', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/forms/settings.xml', ['control' => 'jform']);
 
         if (empty($form)) {
             return false;
         }
 
-        return $form;
-    }
-
-    /**
-     * Method to get the data that should be injected in the form.
-     *
-     * @return  mixed  The data for the form.
-     *
-     * @since   1.0.0
-     */
-    protected function loadFormData()
-    {
-        // Check the session for previously entered form data.
-        $data = Factory::getApplication()->getUserState('com_ordenproduccion.edit.settings.data', []);
-
-        if (empty($data)) {
+        // Load data if requested
+        if ($loadData) {
             $data = $this->getItem();
+            $form->bind($data);
         }
 
-        $this->preprocessData('com_ordenproduccion.settings', $data);
-
-        return $data;
+        return $form;
     }
 
     /**
@@ -101,8 +69,7 @@ class SettingsModel extends AdminModel
      */
     public function getItem($pk = null)
     {
-        // For now, return default settings without database table
-        // TODO: Implement proper settings storage later
+        // Return default settings
         $settings = new \stdClass();
         
         $settings->next_order_number = '1000';
@@ -112,6 +79,7 @@ class SettingsModel extends AdminModel
         $settings->items_per_page = '20';
         $settings->show_creation_date = '1';
         $settings->show_modification_date = '1';
+        $settings->default_order_status = 'nueva';
 
         return $settings;
     }
@@ -137,5 +105,53 @@ class SettingsModel extends AdminModel
         return true;
     }
 
+    /**
+     * Get the next order number and increment it
+     *
+     * @return  string  The next order number
+     *
+     * @since   1.0.0
+     */
+    public function getNextOrderNumber()
+    {
+        try {
+            // Get current settings
+            $settings = $this->getItem();
 
+            // Get the next number
+            $nextNumber = (int) $settings->next_order_number;
+
+            // Generate the order number based on format
+            $orderNumber = $settings->order_format;
+            $orderNumber = str_replace('{PREFIX}', $settings->order_prefix, $orderNumber);
+            $orderNumber = str_replace('{NUMBER}', str_pad($nextNumber, 4, '0', STR_PAD_LEFT), $orderNumber);
+
+            // For now, just return the generated number without incrementing
+            // TODO: Implement proper persistence later
+            return $orderNumber;
+
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage(
+                'Error generating order number: ' . $e->getMessage(),
+                'error'
+            );
+            return 'ORD-' . date('YmdHis');
+        }
+    }
+
+    /**
+     * Method to get the model state.
+     *
+     * @return  \Joomla\Registry\Registry  The state object.
+     *
+     * @since   1.0.0
+     */
+    public function getState()
+    {
+        if (empty($this->state)) {
+            $this->state = new \Joomla\Registry\Registry();
+        }
+
+        return $this->state;
+    }
 }

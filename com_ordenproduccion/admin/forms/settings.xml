@@ -48,6 +48,20 @@
             <option value="1">JYES</option>
             <option value="0">JNO</option>
         </field>
+        
+        <field
+            name="default_order_status"
+            type="list"
+            label="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_LABEL"
+            description="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_DESC"
+            default="nueva"
+            class="form-control"
+        >
+            <option value="nueva">COM_ORDENPRODUCCION_STATUS_NEW</option>
+            <option value="en_proceso">COM_ORDENPRODUCCION_STATUS_IN_PROCESS</option>
+            <option value="terminada">COM_ORDENPRODUCCION_STATUS_COMPLETED</option>
+            <option value="cerrada">COM_ORDENPRODUCCION_STATUS_CLOSED</option>
+        </field>
     </fieldset>
     
     <fieldset name="display" label="COM_ORDENPRODUCCION_SETTINGS_DISPLAY_LABEL">
