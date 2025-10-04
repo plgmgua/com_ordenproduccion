@@ -221,6 +221,11 @@ class OrdenesModel extends ListModel
     {
         $items = parent::getItems();
 
+        // Ensure we always return an array, even if parent::getItems() returns false
+        if (!$items) {
+            return [];
+        }
+
         if ($items) {
             $db = $this->getDbo();
             

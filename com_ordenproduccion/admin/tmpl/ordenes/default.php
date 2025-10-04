@@ -84,8 +84,9 @@ if ($saveOrder && !empty($this->items)) {
                         </thead>
                         <tbody<?php if ($saveOrder) : ?> class="js-draggable" data-url="<?php echo $saveOrderingUrl; ?>" data-direction="<?php echo strtolower($listDirn); ?>" data-nested="true"<?php endif; ?>>
                             <?php
-                            $n = count($this->items);
-                            foreach ($this->items as $i => $item) :
+                            $n = is_array($this->items) ? count($this->items) : 0;
+                            if (is_array($this->items)) {
+                                foreach ($this->items as $i => $item) :
                                 $canEdit    = $user->authorise('core.edit', 'com_ordenproduccion.orden.' . $item->id);
                                 $canCheckin = $user->authorise('core.manage', 'com_checkin') || $item->checked_out == $userId || is_null($item->checked_out);
                                 $canEditOwn = $user->authorise('core.edit.own', 'com_ordenproduccion.orden.' . $item->id) && $item->created_by == $userId;
@@ -148,6 +149,7 @@ if ($saveOrder && !empty($this->items)) {
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                            <?php } ?>
                         </tbody>
                     </table>
 
