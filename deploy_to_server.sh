@@ -204,10 +204,10 @@ verify_downloaded_files() {
     
     # Show what was downloaded
     log "Downloaded files verified:"
-    log "  - Admin files: $repo_path/admin/"
-    log "  - Site files: $repo_path/site/"
-    log "  - Media files: $repo_path/media/"
-    log "  - Manifest file: $repo_path/$COMPONENT_NAME.xml"
+    log "  - Admin files: $component_path/admin/"
+    log "  - Site files: $component_path/site/"
+    log "  - Media files: $component_path/media/"
+    log "  - Manifest file: $component_path/$COMPONENT_NAME.xml"
     
     success "All essential files downloaded successfully"
 }
