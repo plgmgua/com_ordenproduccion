@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.1.1
+# Version: 1.1.2
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -183,6 +183,14 @@ verify_downloaded_files() {
     # Hardcode the component path - we know it's nested
     local component_path="$repo_path/$COMPONENT_NAME"
     log "Using hardcoded component path: $component_path"
+    
+    # Add a small delay to ensure filesystem is synchronized
+    log "Waiting for filesystem synchronization..."
+    sleep 2
+    
+    # Convert to absolute path to avoid any relative path issues
+    component_path=$(realpath "$component_path" 2>/dev/null || echo "$component_path")
+    log "Absolute component path: $component_path"
     
     # Debug: Show what we're actually checking
     log "DEBUG: Checking for admin directory at: $component_path/admin"
@@ -428,7 +436,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.1.1"
+    log "Script Version: 1.1.2"
     echo ""
 }
 
@@ -456,7 +464,7 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.1.1"
+        echo "  Version: 1.1.2"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
@@ -464,7 +472,7 @@ main() {
     # Initialize log file
     echo "=== DEPLOYMENT LOG STARTED ===" > "$LOG_FILE"
     echo "Timestamp: $(date)" >> "$LOG_FILE"
-    echo "Script Version: 1.1.1" >> "$LOG_FILE"
+    echo "Script Version: 1.1.2" >> "$LOG_FILE"
     echo "Log File: $LOG_FILE" >> "$LOG_FILE"
     echo "" >> "$LOG_FILE"
     
@@ -488,7 +496,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.1.1"
+    log "Script Version: 1.1.2"
     echo ""
 }
 
