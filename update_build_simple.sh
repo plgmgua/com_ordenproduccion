@@ -305,6 +305,38 @@ main() {
 
     success "Manifest update completed"
 
+    # Step 12: Add Settings menu item to database
+    log "Step 12: Adding Settings menu item to database..."
+    
+    echo "Adding Settings menu item to Joomla admin menu..."
+    
+    # Create temporary SQL file
+    TEMP_SQL_DIR="$GITHUB_DIR/temp_sql"
+    mkdir -p "$TEMP_SQL_DIR"
+    
+    echo "Downloading Settings menu SQL script..."
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/sql/add_settings_menu.sql -O "$TEMP_SQL_DIR/add_settings_menu.sql"
+
+    if [ $? -eq 0 ]; then
+        success "Settings menu SQL script downloaded successfully"
+    else
+        warning "Failed to download Settings menu SQL script"
+    fi
+
+    echo "Executing Settings menu SQL script..."
+    sudo mysql -u joomla -p'Blob-Repair-Commodore6' joomla < "$TEMP_SQL_DIR/add_settings_menu.sql"
+
+    if [ $? -eq 0 ]; then
+        success "Settings menu item added to database successfully"
+    else
+        warning "Failed to add Settings menu item to database"
+    fi
+
+    echo "Cleaning up temporary SQL files..."
+    rm -rf "$TEMP_SQL_DIR"
+
+    success "Settings menu item setup completed"
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
@@ -315,11 +347,11 @@ main() {
     log "Component manifest has been updated with new configuration fields."
     echo ""
     log "📝 Next steps:"
-    log "   1. Go to Components → Production Orders → Options"
-    log "   2. Look for 'Next Order Number' field in the configuration"
-    log "   3. Set your starting order number (e.g., 1000)"
-    log "   4. Or go to Components → Production Orders → Settings for advanced options"
-    log "   5. Save the settings"
+    log "   1. Go to Components → Production Orders → Settings"
+    log "   2. Set your 'Next Order Number' (e.g., 1000)"
+    log "   3. Configure your order prefix and format"
+    log "   4. Save the settings"
+    log "   5. The Settings menu item has been added to the admin menu"
     echo ""
 }
 
