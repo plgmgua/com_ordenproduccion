@@ -56,11 +56,6 @@ return new class implements ServiceProviderInterface
             ComponentInterface::class,
             function (Container $container) {
                 $component = new OrdenproduccionComponent($container->get(ComponentDispatcherFactoryInterface::class));
-
-                $component->setRegistry($container->get(Registry::class));
-                $component->setMVCFactory($container->get(MVCFactoryInterface::class));
-                $component->setRouterFactory($container->get(RouterFactoryInterface::class));
-
                 return $component;
             }
         );
