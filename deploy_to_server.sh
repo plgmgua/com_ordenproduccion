@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.0.7
+# Version: 1.0.8
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -381,7 +381,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.0.7"
+    log "Script Version: 1.0.8"
     echo ""
 }
 
@@ -409,7 +409,7 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.0.7"
+        echo "  Version: 1.0.8"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
@@ -432,7 +432,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.0.7"
+    log "Script Version: 1.0.8"
     echo ""
 }
 
