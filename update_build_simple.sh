@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simplified Build Update Script for com_ordenproduccion
-# Version: 1.0.0
+# Version: 1.5.4
 # Downloads latest code from GitHub and deploys to Joomla webserver
 # No validation, just simple copy operations
 
@@ -110,7 +110,7 @@ main() {
     echo "=========================================="
     echo "  Simplified Build Update Script"
     echo "  com_ordenproduccion Component"
-    echo "  Version: 1.0.0"
+    echo "  Version: 1.5.4"
     echo "=========================================="
     echo ""
 
@@ -305,8 +305,32 @@ main() {
 
     success "Manifest update completed"
 
-    # Step 12: Clear Joomla cache to refresh menu items
-    log "Step 12: Clearing Joomla cache to refresh menu items..."
+    # Step 12: Fix menu items in database
+    log "Step 12: Fixing menu items in database..."
+    
+    echo "Downloading menu fix script..."
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/sql/fix_menu_items.sql -O "$GITHUB_DIR/fix_menu_items.sql"
+    
+    if [ $? -eq 0 ]; then
+        success "Menu fix script downloaded successfully"
+        
+        echo "Executing menu fix script..."
+        mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod < "$GITHUB_DIR/fix_menu_items.sql" 2>/dev/null
+        
+        if [ $? -eq 0 ]; then
+            success "Menu items fixed in database"
+        else
+            warning "Failed to execute menu fix script"
+        fi
+        
+        echo "Cleaning up menu fix script..."
+        rm -f "$GITHUB_DIR/fix_menu_items.sql"
+    else
+        warning "Failed to download menu fix script"
+    fi
+
+    # Step 13: Clear Joomla cache to refresh menu items
+    log "Step 13: Clearing Joomla cache to refresh menu items..."
     
     echo "Clearing Joomla cache to ensure menu items are refreshed..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"

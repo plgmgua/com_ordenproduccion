@@ -118,6 +118,14 @@ class HtmlView extends BaseHtmlView
                 ->task('webhook.clearLogs');
         }
 
+        // Add settings button
+        if ($user->authorise('core.admin', 'com_ordenproduccion')) {
+            $toolbar->standardButton('settings')
+                ->text('COM_ORDENPRODUCCION_MENU_SETTINGS')
+                ->icon('icon-cog')
+                ->url(Route::_('index.php?option=com_ordenproduccion&view=settings'));
+        }
+
         // Add help button
         if ($user->authorise('core.admin', 'com_ordenproduccion')) {
             ToolbarHelper::preferences('com_ordenproduccion');

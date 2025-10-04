@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-            <p><strong>Validation Script Version:</strong> 1.5.3 | <strong>Deployment Script Version:</strong> 1.5.3</p>
+                <p><strong>Validation Script Version:</strong> 1.5.4 | <strong>Deployment Script Version:</strong> 1.5.4</p>
         </div>
 
         <?php
@@ -398,7 +398,33 @@ ini_set('display_errors', 1);
         }
         echo "</div>";
 
-        // 9. Check Language Files for Settings Labels
+        // 9. Check Webhook Settings Button
+        echo "<div class='section'>";
+        echo "<h2>🔗 Webhook Settings Button</h2>";
+        
+        $webhook_view_file = JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Webhook/HtmlView.php';
+        
+        if (file_exists($webhook_view_file)) {
+            $content = file_get_contents($webhook_view_file);
+            if (strpos($content, 'COM_ORDENPRODUCCION_MENU_SETTINGS') !== false && strpos($content, 'settings') !== false) {
+                echo "<div class='status ok'>✅ Webhook Settings Button</div>";
+                echo "<p><strong>Path:</strong> $webhook_view_file</p>";
+                echo "<p><strong>Status:</strong> Settings button added to webhook toolbar</p>";
+                addResult('Webhook Settings Button', 'success', 'Settings button properly added to webhook view');
+            } else {
+                echo "<div class='status warning'>⚠️ Webhook Settings Button (Missing)</div>";
+                echo "<p><strong>Path:</strong> $webhook_view_file</p>";
+                echo "<p><strong>Issue:</strong> Settings button not found in webhook view</p>";
+                addResult('Webhook Settings Button', 'warning', 'Settings button missing from webhook view');
+            }
+        } else {
+            echo "<div class='status error'>❌ Webhook View File</div>";
+            echo "<p><strong>Path:</strong> $webhook_view_file - <span style='color: red;'>MISSING</span></p>";
+            addResult('Webhook Settings Button', 'error', 'Webhook view file missing');
+        }
+        echo "</div>";
+
+        // 10. Check Language Files for Settings Labels
         echo "<div class='section'>";
         echo "<h2>🌐 Settings Language Labels</h2>";
         
@@ -498,10 +524,10 @@ ini_set('display_errors', 1);
         
         echo "<h3>🔧 Deployment Commands:</h3>";
         echo "<div class='code'>";
-        echo "# Download and run deployment script (v1.5.3):<br>";
-        echo "wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/update_build_simple.sh<br>";
-        echo "chmod +x update_build_simple.sh<br>";
-        echo "sudo ./update_build_simple.sh<br>";
+            echo "# Download and run deployment script (v1.5.4):<br>";
+            echo "wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/update_build_simple.sh<br>";
+            echo "chmod +x update_build_simple.sh<br>";
+            echo "sudo ./update_build_simple.sh<br>";
         echo "</div>";
         echo "</div>";
 
