@@ -148,42 +148,42 @@ deploy_component() {
     fi
     
     # Copy site component files
-    if [ -d "$repo_path/$COMPONENT_NAME/site" ]; then
+    if [ -d "$repo_path/site" ]; then
         log "Copying site component files..."
         if [ "$USE_SUDO" = true ]; then
-            sudo cp -r "$repo_path/$COMPONENT_NAME/site/"* "$COMPONENT_PATH/"
+            sudo cp -r "$repo_path/site/"* "$COMPONENT_PATH/"
         else
-            cp -r "$repo_path/$COMPONENT_NAME/site/"* "$COMPONENT_PATH/"
+            cp -r "$repo_path/site/"* "$COMPONENT_PATH/"
         fi
     fi
     
     # Copy admin component files
-    if [ -d "$repo_path/$COMPONENT_NAME/admin" ]; then
+    if [ -d "$repo_path/admin" ]; then
         log "Copying admin component files..."
         if [ "$USE_SUDO" = true ]; then
-            sudo cp -r "$repo_path/$COMPONENT_NAME/admin/"* "$ADMIN_COMPONENT_PATH/"
+            sudo cp -r "$repo_path/admin/"* "$ADMIN_COMPONENT_PATH/"
         else
-            cp -r "$repo_path/$COMPONENT_NAME/admin/"* "$ADMIN_COMPONENT_PATH/"
+            cp -r "$repo_path/admin/"* "$ADMIN_COMPONENT_PATH/"
         fi
     fi
     
     # Copy media files
-    if [ -d "$repo_path/$COMPONENT_NAME/media" ]; then
+    if [ -d "$repo_path/media" ]; then
         log "Copying media files..."
         if [ "$USE_SUDO" = true ]; then
-            sudo cp -r "$repo_path/$COMPONENT_NAME/media/"* "$MEDIA_PATH/"
+            sudo cp -r "$repo_path/media/"* "$MEDIA_PATH/"
         else
-            cp -r "$repo_path/$COMPONENT_NAME/media/"* "$MEDIA_PATH/"
+            cp -r "$repo_path/media/"* "$MEDIA_PATH/"
         fi
     fi
     
     # Copy manifest file
-    if [ -f "$repo_path/$COMPONENT_NAME/$COMPONENT_NAME.xml" ]; then
+    if [ -f "$repo_path/$COMPONENT_NAME.xml" ]; then
         log "Copying manifest file..."
         if [ "$USE_SUDO" = true ]; then
-            sudo cp "$repo_path/$COMPONENT_NAME/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+            sudo cp "$repo_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
         else
-            cp "$repo_path/$COMPONENT_NAME/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+            cp "$repo_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
         fi
     fi
     
