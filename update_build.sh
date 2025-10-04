@@ -57,8 +57,16 @@ get_version_info() {
     fi
     
     # If version is still unknown, try to get it from the manifest file
-    if [ "$CURRENT_VERSION" = "unknown" ] && [ -f "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME.xml" ]; then
-        CURRENT_VERSION=$(grep -oP '<version>\K[^<]+' "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME.xml" 2>/dev/null || echo "unknown")
+    # First try the nested path, then the root path
+    MANIFEST_FILE=""
+    if [ -f "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME/$COMPONENT_NAME.xml" ]; then
+        MANIFEST_FILE="$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME/$COMPONENT_NAME.xml"
+    elif [ -f "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME.xml" ]; then
+        MANIFEST_FILE="$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME.xml"
+    fi
+    
+    if [ "$CURRENT_VERSION" = "unknown" ] && [ -n "$MANIFEST_FILE" ]; then
+        CURRENT_VERSION=$(grep -oP '<version>\K[^<]+' "$MANIFEST_FILE" 2>/dev/null || echo "unknown")
     fi
     
     # If still unknown, use commit hash as version
@@ -155,19 +163,27 @@ deploy_new_files() {
     
     # Copy admin files
     log "Copying admin files from $COMPONENT_ROOT/admin/ to $ADMIN_COMPONENT_PATH/"
-    sudo cp -r "$COMPONENT_ROOT/admin/"* "$ADMIN_COMPONENT_PATH/" || error "Failed to copy admin files"
+    if ! sudo cp -r "$COMPONENT_ROOT/admin/"* "$ADMIN_COMPONENT_PATH/"; then
+        error "Failed to copy admin files"
+    fi
     
     # Copy site files
     log "Copying site files from $COMPONENT_ROOT/site/ to $SITE_COMPONENT_PATH/"
-    sudo cp -r "$COMPONENT_ROOT/site/"* "$SITE_COMPONENT_PATH/" || error "Failed to copy site files"
+    if ! sudo cp -r "$COMPONENT_ROOT/site/"* "$SITE_COMPONENT_PATH/"; then
+        error "Failed to copy site files"
+    fi
     
     # Copy media files
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
-    sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"
+    if ! sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/"; then
+        error "Failed to copy media files"
+    fi
     
     # Copy manifest file
     log "Copying manifest file from $COMPONENT_ROOT/$COMPONENT_NAME.xml to $ADMIN_COMPONENT_PATH/"
-    sudo cp "$COMPONENT_ROOT/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" || error "Failed to copy manifest file"
+    if ! sudo cp "$COMPONENT_ROOT/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"; then
+        error "Failed to copy manifest file"
+    fi
     
     success "New files deployed"
 }
@@ -311,6 +327,7 @@ main() {
     clear_cache
     verify_deployment
 
+    # Only show success if we reach this point without errors
     echo ""
     success "🎉 Build update completed successfully!"
     echo ""
