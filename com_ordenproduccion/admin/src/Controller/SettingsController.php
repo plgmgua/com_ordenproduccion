@@ -11,11 +11,6 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\Controller;
 
 defined('_JEXEC') or die;
 
-// Enable error display for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\FormController;
