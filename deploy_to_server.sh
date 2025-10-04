@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.0.8
+# Version: 1.0.9
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -178,6 +178,14 @@ verify_downloaded_files() {
     # Debug: Show what we're actually checking
     log "DEBUG: Checking for admin directory at: $component_path/admin"
     log "DEBUG: Directory exists check: [ -d \"$component_path/admin\" ]"
+    
+    # Manual test commands for debugging
+    log "DEBUG: Manual test - running: test -d \"$component_path/admin\""
+    if test -d "$component_path/admin"; then
+        log "DEBUG: Manual test - admin directory EXISTS"
+    else
+        log "DEBUG: Manual test - admin directory DOES NOT EXIST"
+    fi
     
     # Check if essential directories exist in the correct location
     local missing_files=()
@@ -381,7 +389,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.0.8"
+    log "Script Version: 1.0.9"
     echo ""
 }
 
@@ -409,7 +417,7 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.0.8"
+        echo "  Version: 1.0.9"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
@@ -432,7 +440,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.0.8"
+    log "Script Version: 1.0.9"
     echo ""
 }
 
