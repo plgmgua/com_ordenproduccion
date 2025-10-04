@@ -16,7 +16,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION', 'com-ordenproduccion', '', 'com-ordenproduccion', 
     'index.php?option=com_ordenproduccion', 'component', 1, 1, 1, @component_id, 
-    0, '0000-00-00 00:00:00', 0, 1, 'class:cog', 0, '{}', 0, 0, 0, '*', 1
+    0, NULL, 0, 1, 'class:cog', 0, '{}', 0, 0, 0, '*', 1
 );
 
 -- Get the main menu item ID
@@ -31,7 +31,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION_MENU_DASHBOARD', 'com-ordenproduccion-dashboard', '', 
     'com-ordenproduccion/dashboard', 'index.php?option=com_ordenproduccion&view=dashboard', 
-    'component', 1, @main_menu_id, 2, @component_id, 0, '0000-00-00 00:00:00', 
+    'component', 1, @main_menu_id, 2, @component_id, 0, NULL, 
     0, 1, 'class:home', 0, '{}', 0, 0, 0, '*', 1
 );
 
@@ -44,7 +44,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION_MENU_ORDERS', 'com-ordenproduccion-orders', '', 
     'com-ordenproduccion/orders', 'index.php?option=com_ordenproduccion&view=ordenes', 
-    'component', 1, @main_menu_id, 2, @component_id, 0, '0000-00-00 00:00:00', 
+    'component', 1, @main_menu_id, 2, @component_id, 0, NULL, 
     0, 1, 'class:list', 0, '{}', 0, 0, 0, '*', 1
 );
 
@@ -57,7 +57,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION_MENU_TECHNICIANS', 'com-ordenproduccion-technicians', '', 
     'com-ordenproduccion/technicians', 'index.php?option=com_ordenproduccion&view=technicians', 
-    'component', 1, @main_menu_id, 2, @component_id, 0, '0000-00-00 00:00:00', 
+    'component', 1, @main_menu_id, 2, @component_id, 0, NULL, 
     0, 1, 'class:users', 0, '{}', 0, 0, 0, '*', 1
 );
 
@@ -70,7 +70,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION_MENU_WEBHOOK', 'com-ordenproduccion-webhook', '', 
     'com-ordenproduccion/webhook', 'index.php?option=com_ordenproduccion&view=webhook', 
-    'component', 1, @main_menu_id, 2, @component_id, 0, '0000-00-00 00:00:00', 
+    'component', 1, @main_menu_id, 2, @component_id, 0, NULL, 
     0, 1, 'class:link', 0, '{}', 0, 0, 0, '*', 1
 );
 
@@ -83,7 +83,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION_MENU_DEBUG', 'com-ordenproduccion-debug', '', 
     'com-ordenproduccion/debug', 'index.php?option=com_ordenproduccion&view=debug', 
-    'component', 1, @main_menu_id, 2, @component_id, 0, '0000-00-00 00:00:00', 
+    'component', 1, @main_menu_id, 2, @component_id, 0, NULL, 
     0, 1, 'class:bug', 0, '{}', 0, 0, 0, '*', 1
 );
 
@@ -96,7 +96,7 @@ INSERT INTO `joomla_menu` (
 ) VALUES (
     'main', 'COM_ORDENPRODUCCION_MENU_SETTINGS', 'com-ordenproduccion-settings', '', 
     'com-ordenproduccion/settings', 'index.php?option=com_ordenproduccion&view=settings', 
-    'component', 1, @main_menu_id, 2, @component_id, 0, '0000-00-00 00:00:00', 
+    'component', 1, @main_menu_id, 2, @component_id, 0, NULL,
     0, 1, 'class:cog', 0, '{}', 0, 0, 0, '*', 1
 );
 
