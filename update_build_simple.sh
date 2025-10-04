@@ -305,42 +305,14 @@ main() {
 
     success "Manifest update completed"
 
-    # Step 12: Add all menu items to database
-    log "Step 12: Adding all menu items to Joomla admin menu..."
+    # Step 12: Clear Joomla cache to refresh menu items
+    log "Step 12: Clearing Joomla cache to refresh menu items..."
     
-    echo "Adding all menu items to Joomla admin menu..."
-    
-    # Create temporary SQL file
-    TEMP_SQL_DIR="$GITHUB_DIR/temp_sql"
-    mkdir -p "$TEMP_SQL_DIR"
-    
-    echo "Downloading menu items SQL script..."
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/sql/add_all_menu_items.sql -O "$TEMP_SQL_DIR/add_all_menu_items.sql"
-
-    if [ $? -eq 0 ]; then
-        success "Menu items SQL script downloaded successfully"
-    else
-        warning "Failed to download menu items SQL script"
-    fi
-
-    echo "Executing menu items SQL script..."
-    sudo mysql -u joomla -p'Blob-Repair-Commodore6' joomla < "$TEMP_SQL_DIR/add_all_menu_items.sql"
-
-    if [ $? -eq 0 ]; then
-        success "All menu items added to database successfully"
-    else
-        warning "Failed to add menu items to database"
-    fi
-
-    echo "Cleaning up temporary SQL files..."
-    rm -rf "$TEMP_SQL_DIR"
-
-    # Clear Joomla cache to refresh menu items
-    echo "Clearing Joomla cache to refresh menu items..."
+    echo "Clearing Joomla cache to ensure menu items are refreshed..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
     sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear admin cache directory"
     
-    success "All menu items setup completed"
+    success "Cache cleared - menu items should be refreshed from manifest"
 
     echo ""
     success "🎉 Simplified build update completed successfully!"
