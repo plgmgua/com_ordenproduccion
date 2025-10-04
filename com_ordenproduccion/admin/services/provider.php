@@ -19,6 +19,7 @@ use Joomla\CMS\HTML\Registry;
 use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Joomla\CMS\Form\FormHelper;
 use Grimpsa\Component\Ordenproduccion\Administrator\Extension\OrdenproduccionComponent;
+use Grimpsa\Component\Ordenproduccion\Administrator\Dispatcher\Dispatcher;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 
@@ -50,6 +51,14 @@ return new class implements ServiceProviderInterface
         
         // Register form paths
         FormHelper::addFormPath(JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/forms');
+        
+        // Register dispatcher
+        $container->set(
+            ComponentDispatcherFactoryInterface::class,
+            function (Container $container) {
+                return new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion\\Administrator\\Dispatcher\\Dispatcher');
+            }
+        );
         
         $container->set(
             ComponentInterface::class,

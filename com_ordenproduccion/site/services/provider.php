@@ -18,6 +18,7 @@ use Joomla\CMS\Extension\Service\Provider\RouterFactory;
 use Joomla\CMS\HTML\Registry;
 use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Extension\OrdenproduccionComponent;
+use Grimpsa\Component\Ordenproduccion\Site\Dispatcher\Dispatcher;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 
@@ -42,6 +43,14 @@ return new class implements ServiceProviderInterface
         $container->registerServiceProvider(new MVCFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         $container->registerServiceProvider(new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         $container->registerServiceProvider(new RouterFactory('\\Grimpsa\\Component\\Ordenproduccion'));
+        
+        // Register dispatcher
+        $container->set(
+            ComponentDispatcherFactoryInterface::class,
+            function (Container $container) {
+                return new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion\\Site\\Dispatcher\\Dispatcher');
+            }
+        );
         
         $container->set(
             ComponentInterface::class,

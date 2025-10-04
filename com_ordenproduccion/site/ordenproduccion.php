@@ -11,4 +11,9 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 
-echo Factory::getApplication()->bootComponent('com_ordenproduccion')->render();
+try {
+    $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+    echo $component->render();
+} catch (Exception $e) {
+    echo 'Component Error: ' . $e->getMessage();
+}

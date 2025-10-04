@@ -17,3 +17,11 @@ $user = Factory::getApplication()->getIdentity();
 if (!$user->authorise('core.manage', 'com_ordenproduccion')) {
     throw new InvalidArgumentException(Text::_('JERROR_ALERTNOAUTHOR'), 404);
 }
+
+// Boot the component and dispatch
+try {
+    $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+    $component->dispatch();
+} catch (Exception $e) {
+    echo 'Component Error: ' . $e->getMessage();
+}
