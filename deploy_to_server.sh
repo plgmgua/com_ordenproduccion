@@ -122,6 +122,10 @@ download_repository() {
         exit 1
     fi
     
+    # Debug: Show what was actually downloaded
+    log "DEBUG: Contents of downloaded repository:"
+    ls -la "$TEMP_DIR/$COMPONENT_NAME/"
+    
     success "Repository downloaded successfully"
     echo "$TEMP_DIR/$COMPONENT_NAME"
 }
