@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.1.0
+# Version: 1.1.1
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -22,22 +22,31 @@ COMPONENT_PATH="$JOOMLA_ROOT/components/$COMPONENT_NAME"
 ADMIN_COMPONENT_PATH="$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME"
 MEDIA_PATH="$JOOMLA_ROOT/media/$COMPONENT_NAME"
 BACKUP_DIR="/var/backups/joomla_components"
+LOG_FILE="$HOME/deploy_debug_$(date +%Y%m%d_%H%M%S).log"
 
 # Logging functions
 log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+    local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo -e "${BLUE}${message}${NC}"
+    echo "$message" >> "$LOG_FILE"
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    local message="[SUCCESS] $1"
+    echo -e "${GREEN}${message}${NC}"
+    echo "$message" >> "$LOG_FILE"
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
+    local message="[ERROR] $1"
+    echo -e "${RED}${message}${NC}" >&2
+    echo "$message" >> "$LOG_FILE"
 }
 
 warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    local message="[WARNING] $1"
+    echo -e "${YELLOW}${message}${NC}"
+    echo "$message" >> "$LOG_FILE"
 }
 
 # Function to check prerequisites
@@ -419,7 +428,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.1.0"
+    log "Script Version: 1.1.1"
     echo ""
 }
 
@@ -447,10 +456,19 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.1.0"
+        echo "  Version: 1.1.1"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
+    
+    # Initialize log file
+    echo "=== DEPLOYMENT LOG STARTED ===" > "$LOG_FILE"
+    echo "Timestamp: $(date)" >> "$LOG_FILE"
+    echo "Script Version: 1.1.1" >> "$LOG_FILE"
+    echo "Log File: $LOG_FILE" >> "$LOG_FILE"
+    echo "" >> "$LOG_FILE"
+    
+    log "Log file created: $LOG_FILE"
     
     check_prerequisites
     create_backup
@@ -470,7 +488,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.1.0"
+    log "Script Version: 1.1.1"
     echo ""
 }
 
