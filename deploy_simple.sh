@@ -207,6 +207,8 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
+    log "Script Version: 1.0.0"
+    echo ""
     log "Next step: Install the component via Joomla admin panel"
     log "1. Go to Extensions → Manage → Install"
     log "2. Upload: com_ordenproduccion-1.0.1.zip"
