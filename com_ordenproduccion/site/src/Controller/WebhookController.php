@@ -92,6 +92,13 @@ class WebhookController extends BaseController
         try {
             $model = $this->getModel('Webhook');
             
+            if (!$model) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to load webhook model'
+                ];
+            }
+            
             // Check if order already exists
             $existingOrder = $model->findExistingOrder($data);
             
@@ -100,34 +107,37 @@ class WebhookController extends BaseController
                 $result = $model->updateOrder($existingOrder->id, $data);
                 $message = 'Order updated successfully';
             } else {
-                // Generate order number for new orders
-                $data['orden_de_trabajo'] = $this->generateOrderNumber();
-                
                 // Create new order
                 $result = $model->createOrder($data);
                 $message = 'Order created successfully';
             }
             
             if ($result) {
+                // Get the order number from the model
+                $orderNumber = $model->getLastOrderNumber();
+                
                 return [
                     'success' => true,
                     'message' => $message,
                     'data' => [
                         'order_id' => $result,
-                        'order_number' => $data['orden_de_trabajo'] ?? 'N/A'
+                        'order_number' => $orderNumber ?? 'N/A'
                     ]
                 ];
             } else {
+                // Get the last error from the model
+                $errorMessage = $model->getError() ?: 'Unknown error occurred';
                 return [
                     'success' => false,
-                    'message' => 'Failed to process order data'
+                    'message' => 'Failed to process order data: ' . $errorMessage
                 ];
             }
             
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error processing order: ' . $e->getMessage()
+                'message' => 'Error processing order: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ];
         }
     }

@@ -72,6 +72,7 @@ class WebhookModel extends BaseDatabaseModel
             
             // Generate order number
             $orderNumber = $this->generateOrderNumber($formData);
+            $this->lastOrderNumber = $orderNumber;
             
             // Prepare order data
             $orderData = [
@@ -259,6 +260,18 @@ class WebhookModel extends BaseDatabaseModel
         
         // Generate order number: CLIENTCODE-YYYYMMDD-HHMMSS
         return $clientCode . '-' . $date . '-' . $time;
+    }
+
+    /**
+     * Get the last generated order number
+     *
+     * @return  string|null  Last order number or null
+     *
+     * @since   1.0.0
+     */
+    public function getLastOrderNumber()
+    {
+        return $this->lastOrderNumber ?? null;
     }
 
     /**

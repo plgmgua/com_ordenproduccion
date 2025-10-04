@@ -159,6 +159,9 @@ class SettingsController extends FormController
     protected function validateSettings($data)
     {
         $errors = [];
+        
+        // Debug: Log the received data
+        error_log('Settings validation data: ' . json_encode($data));
 
         // Validate next order number
         if (empty($data['next_order_number']) || !is_numeric($data['next_order_number']) || $data['next_order_number'] < 1) {
@@ -170,12 +173,17 @@ class SettingsController extends FormController
             $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_EMPTY_PREFIX');
         }
 
-        // Validate order format - check if it's one of the valid options
-        $validFormats = ['PREFIX-NUMBER', 'NUMBER', 'PREFIX-NUMBER-YEAR', 'NUMBER-YEAR'];
+        // Validate order format - be more flexible with format validation
         if (empty($data['order_format'])) {
             $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_EMPTY_FORMAT');
-        } elseif (!in_array($data['order_format'], $validFormats)) {
-            $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_FORMAT');
+        } else {
+            // Check if it's a predefined format or a custom format with placeholders
+            $validFormats = ['PREFIX-NUMBER', 'NUMBER', 'PREFIX-NUMBER-YEAR', 'NUMBER-YEAR'];
+            $isCustomFormat = strpos($data['order_format'], '{PREFIX}') !== false || strpos($data['order_format'], '{NUMBER}') !== false;
+            
+            if (!in_array($data['order_format'], $validFormats) && !$isCustomFormat) {
+                $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_FORMAT');
+            }
         }
 
         // Validate default order status
