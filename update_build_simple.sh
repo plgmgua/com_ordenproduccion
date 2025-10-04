@@ -240,18 +240,18 @@ main() {
     fi
 
     echo "Backing up existing language files..."
-    sudo cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing EN file to backup"
-    sudo cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
+    cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing EN file to backup"
+    cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
 
     echo "Installing new language files..."
-    sudo cp /tmp/en-GB.ini "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    sudo cp /tmp/es-ES.ini "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    cp /tmp/en-GB.ini "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    cp /tmp/es-ES.ini "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
 
     # Set proper permissions
-    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
-    sudo chmod 644 "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    sudo chmod 644 "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    chown www-data:www-data "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    chmod 644 "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    chmod 644 "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
 
     if [ $? -eq 0 ]; then
         success "Language files installed successfully"
@@ -264,6 +264,39 @@ main() {
 
     success "Language files update completed"
 
+    # Step 11: Update component manifest
+    log "Step 11: Updating component manifest..."
+    
+    echo "Downloading latest manifest file..."
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/com_ordenproduccion.xml -O /tmp/manifest.xml
+
+    if [ $? -eq 0 ]; then
+        success "Manifest file downloaded successfully"
+    else
+        warning "Failed to download manifest file"
+    fi
+
+    echo "Backing up existing manifest..."
+    cp "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml.backup" 2>/dev/null || echo "No existing manifest to backup"
+
+    echo "Installing new manifest..."
+    cp /tmp/manifest.xml "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+
+    # Set proper permissions
+    chown www-data:www-data "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+    chmod 644 "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+
+    if [ $? -eq 0 ]; then
+        success "Manifest file installed successfully"
+    else
+        warning "Failed to install manifest file"
+    fi
+
+    echo "Cleaning up temporary files..."
+    rm -f /tmp/manifest.xml
+
+    success "Manifest update completed"
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
@@ -271,12 +304,14 @@ main() {
     log "All existing files have been replaced with new versions."
     log "Autoloading issues have been addressed."
     log "Language files have been updated with proper labels."
+    log "Component manifest has been updated with new configuration fields."
     echo ""
     log "📝 Next steps:"
-    log "   1. Go to Components → Production Orders → Settings"
-    log "   2. Set your 'Next Order Number' (e.g., 1000)"
-    log "   3. Configure your order prefix and format"
-    log "   4. Save the settings"
+    log "   1. Go to Components → Production Orders → Options"
+    log "   2. Look for 'Next Order Number' field in the configuration"
+    log "   3. Set your starting order number (e.g., 1000)"
+    log "   4. Or go to Components → Production Orders → Settings for advanced options"
+    log "   5. Save the settings"
     echo ""
 }
 
