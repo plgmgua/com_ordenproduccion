@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.1.3
+# Version: 1.1.4
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -293,47 +293,103 @@ deploy_component() {
     local component_path="$repo_path/$COMPONENT_NAME"
     log "Source directory: $component_path"
     
+    # Debug: Check if source directory exists and has content
+    log "DEBUG: Checking source directory contents..."
+    if [ -d "$component_path" ]; then
+        log "DEBUG: Source directory exists: $component_path"
+        log "DEBUG: Source directory contents:"
+        ls -la "$component_path" | while read line; do
+            log "DEBUG:   $line"
+        done
+    else
+        error "Source directory does not exist: $component_path"
+        exit 1
+    fi
+    
     # Create component directories
+    log "Creating component directories..."
     if [ "$USE_SUDO" = true ]; then
         sudo mkdir -p "$COMPONENT_PATH"
         sudo mkdir -p "$ADMIN_COMPONENT_PATH"
         sudo mkdir -p "$MEDIA_PATH"
+        log "DEBUG: Created directories with sudo"
     else
         mkdir -p "$COMPONENT_PATH"
         mkdir -p "$ADMIN_COMPONENT_PATH"
         mkdir -p "$MEDIA_PATH"
+        log "DEBUG: Created directories without sudo"
     fi
     
     # Copy site component files
     log "Copying site component files from $component_path/site/..."
-    if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$component_path/site/"* "$COMPONENT_PATH/"
+    if [ -d "$component_path/site" ]; then
+        log "DEBUG: Site directory exists, copying files..."
+        if [ "$USE_SUDO" = true ]; then
+            sudo cp -r "$component_path/site/"* "$COMPONENT_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        else
+            cp -r "$component_path/site/"* "$COMPONENT_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        fi
+        log "DEBUG: Site files copied"
     else
-        cp -r "$component_path/site/"* "$COMPONENT_PATH/"
+        error "Site directory does not exist: $component_path/site"
     fi
     
     # Copy admin component files
     log "Copying admin component files from $component_path/admin/..."
-    if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/"
+    if [ -d "$component_path/admin" ]; then
+        log "DEBUG: Admin directory exists, copying files..."
+        if [ "$USE_SUDO" = true ]; then
+            sudo cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        else
+            cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        fi
+        log "DEBUG: Admin files copied"
     else
-        cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/"
+        error "Admin directory does not exist: $component_path/admin"
     fi
     
     # Copy media files
     log "Copying media files from $component_path/media/..."
-    if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$component_path/media/"* "$MEDIA_PATH/"
+    if [ -d "$component_path/media" ]; then
+        log "DEBUG: Media directory exists, copying files..."
+        if [ "$USE_SUDO" = true ]; then
+            sudo cp -r "$component_path/media/"* "$MEDIA_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        else
+            cp -r "$component_path/media/"* "$MEDIA_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        fi
+        log "DEBUG: Media files copied"
     else
-        cp -r "$component_path/media/"* "$MEDIA_PATH/"
+        error "Media directory does not exist: $component_path/media"
     fi
     
     # Copy manifest file
     log "Copying manifest file from $component_path/$COMPONENT_NAME.xml..."
-    if [ "$USE_SUDO" = true ]; then
-        sudo cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+    if [ -f "$component_path/$COMPONENT_NAME.xml" ]; then
+        log "DEBUG: Manifest file exists, copying..."
+        if [ "$USE_SUDO" = true ]; then
+            sudo cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        else
+            cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
+                log "DEBUG: cp output: $line"
+            done
+        fi
+        log "DEBUG: Manifest file copied"
     else
-        cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+        error "Manifest file does not exist: $component_path/$COMPONENT_NAME.xml"
     fi
     
     success "Component files deployed"
@@ -436,7 +492,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.1.3"
+    log "Script Version: 1.1.4"
     echo ""
 }
 
@@ -464,7 +520,7 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.1.3"
+        echo "  Version: 1.1.4"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
@@ -472,7 +528,7 @@ main() {
     # Initialize log file
     echo "=== DEPLOYMENT LOG STARTED ===" > "$LOG_FILE"
     echo "Timestamp: $(date)" >> "$LOG_FILE"
-    echo "Script Version: 1.1.3" >> "$LOG_FILE"
+    echo "Script Version: 1.1.4" >> "$LOG_FILE"
     echo "Log File: $LOG_FILE" >> "$LOG_FILE"
     echo "" >> "$LOG_FILE"
     
@@ -496,7 +552,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.1.3"
+    log "Script Version: 1.1.4"
     echo ""
 }
 
