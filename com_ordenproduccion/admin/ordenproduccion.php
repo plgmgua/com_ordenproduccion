@@ -11,6 +11,8 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use InvalidArgumentException;
+use Exception;
 
 // Access check
 $user = Factory::getApplication()->getIdentity();

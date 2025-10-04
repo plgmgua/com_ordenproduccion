@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Exception;
 
 try {
     $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
