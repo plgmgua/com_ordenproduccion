@@ -297,4 +297,58 @@ class WebhookModel extends BaseDatabaseModel
             return false;
         }
     }
+
+    /**
+     * Get webhook endpoints for display
+     *
+     * @return  array  Webhook endpoints
+     *
+     * @since   1.0.0
+     */
+    public function getEndpoints()
+    {
+        $baseUrl = Factory::getApplication()->get('live_site');
+        
+        return [
+            'main' => rtrim($baseUrl, '/') . '/index.php?option=com_ordenproduccion&task=webhook.process&format=json',
+            'test' => rtrim($baseUrl, '/') . '/index.php?option=com_ordenproduccion&task=webhook.test&format=json',
+            'health' => rtrim($baseUrl, '/') . '/index.php?option=com_ordenproduccion&task=webhook.health&format=json'
+        ];
+    }
+
+    /**
+     * Get webhook statistics for display
+     *
+     * @return  array  Statistics data
+     *
+     * @since   1.0.0
+     */
+    public function getStatistics()
+    {
+        return $this->getWebhookStats();
+    }
+
+    /**
+     * Get webhook logs for display
+     *
+     * @return  array  Webhook logs
+     *
+     * @since   1.0.0
+     */
+    public function getLogs()
+    {
+        return $this->getWebhookLogs(50);
+    }
+
+    /**
+     * Get webhook configuration for display
+     *
+     * @return  array  Configuration data
+     *
+     * @since   1.0.0
+     */
+    public function getConfig()
+    {
+        return $this->getWebhookConfig();
+    }
 }

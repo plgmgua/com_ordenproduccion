@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simplified Build Update Script for com_ordenproduccion
-# Version: 1.6.2
+# Version: 1.6.3
 # Downloads latest code from GitHub and deploys to Joomla webserver
 # No validation, just simple copy operations
 
