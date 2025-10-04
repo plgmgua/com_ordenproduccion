@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.0.6
+# Version: 1.0.7
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -171,9 +171,9 @@ verify_downloaded_files() {
     local repo_path="$1"
     log "Verifying downloaded files..."
     
-    # Find the correct component path
-    local component_path=$(find_component_path "$repo_path")
-    log "Using component path: $component_path"
+    # Hardcode the component path - we know it's nested
+    local component_path="$repo_path/$COMPONENT_NAME"
+    log "Using hardcoded component path: $component_path"
     
     # Debug: Show what we're actually checking
     log "DEBUG: Checking for admin directory at: $component_path/admin"
@@ -190,15 +190,24 @@ verify_downloaded_files() {
     fi
     
     if [ ! -d "$component_path/site" ]; then
+        log "DEBUG: site directory NOT found at $component_path/site"
         missing_files+=("site/")
+    else
+        log "DEBUG: site directory FOUND at $component_path/site"
     fi
     
     if [ ! -d "$component_path/media" ]; then
+        log "DEBUG: media directory NOT found at $component_path/media"
         missing_files+=("media/")
+    else
+        log "DEBUG: media directory FOUND at $component_path/media"
     fi
     
     if [ ! -f "$component_path/$COMPONENT_NAME.xml" ]; then
+        log "DEBUG: manifest file NOT found at $component_path/$COMPONENT_NAME.xml"
         missing_files+=("$COMPONENT_NAME.xml")
+    else
+        log "DEBUG: manifest file FOUND at $component_path/$COMPONENT_NAME.xml"
     fi
     
     if [ ${#missing_files[@]} -gt 0 ]; then
@@ -225,8 +234,8 @@ deploy_component() {
     
     log "Deploying component files..."
     
-    # Find the correct component path
-    local component_path=$(find_component_path "$repo_path")
+    # Use hardcoded component path - we know it's nested
+    local component_path="$repo_path/$COMPONENT_NAME"
     log "Source directory: $component_path"
     
     # Create component directories
@@ -372,7 +381,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.0.6"
+    log "Script Version: 1.0.7"
     echo ""
 }
 
@@ -400,7 +409,7 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.0.6"
+        echo "  Version: 1.0.7"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
@@ -423,7 +432,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.0.6"
+    log "Script Version: 1.0.7"
     echo ""
 }
 
