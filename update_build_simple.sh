@@ -229,9 +229,13 @@ main() {
     # Step 10: Update language files
     log "Step 10: Updating language files..."
     
+    # Create temporary directory in user's github folder
+    TEMP_DIR="$GITHUB_DIR/temp_lang"
+    mkdir -p "$TEMP_DIR"
+    
     echo "Downloading latest language files..."
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/en-GB/com_ordenproduccion.ini -O /tmp/en-GB.ini
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/es-ES/com_ordenproduccion.ini -O /tmp/es-ES.ini
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/en-GB/com_ordenproduccion.ini -O "$TEMP_DIR/en-GB.ini"
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/es-ES/com_ordenproduccion.ini -O "$TEMP_DIR/es-ES.ini"
 
     if [ $? -eq 0 ]; then
         success "Language files downloaded successfully"
@@ -244,8 +248,8 @@ main() {
     cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
 
     echo "Installing new language files..."
-    cp /tmp/en-GB.ini "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    cp /tmp/es-ES.ini "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    cp "$TEMP_DIR/en-GB.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    cp "$TEMP_DIR/es-ES.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
 
     # Set proper permissions
     chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
@@ -260,15 +264,19 @@ main() {
     fi
 
     echo "Cleaning up temporary files..."
-    rm -f /tmp/en-GB.ini /tmp/es-ES.ini
+    rm -rf "$TEMP_DIR"
 
     success "Language files update completed"
 
     # Step 11: Update component manifest
     log "Step 11: Updating component manifest..."
     
+    # Create temporary directory for manifest
+    TEMP_MANIFEST_DIR="$GITHUB_DIR/temp_manifest"
+    mkdir -p "$TEMP_MANIFEST_DIR"
+    
     echo "Downloading latest manifest file..."
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/com_ordenproduccion.xml -O /tmp/manifest.xml
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/com_ordenproduccion.xml -O "$TEMP_MANIFEST_DIR/manifest.xml"
 
     if [ $? -eq 0 ]; then
         success "Manifest file downloaded successfully"
@@ -280,7 +288,7 @@ main() {
     cp "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml.backup" 2>/dev/null || echo "No existing manifest to backup"
 
     echo "Installing new manifest..."
-    cp /tmp/manifest.xml "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+    cp "$TEMP_MANIFEST_DIR/manifest.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
 
     # Set proper permissions
     chown www-data:www-data "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
@@ -293,7 +301,7 @@ main() {
     fi
 
     echo "Cleaning up temporary files..."
-    rm -f /tmp/manifest.xml
+    rm -rf "$TEMP_MANIFEST_DIR"
 
     success "Manifest update completed"
 
