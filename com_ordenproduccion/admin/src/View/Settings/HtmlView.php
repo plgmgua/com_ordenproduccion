@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Toolbar\Toolbar;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Form\FormHelper;
 
 /**
  * Settings view for com_ordenproduccion

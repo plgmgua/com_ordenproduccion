@@ -12,7 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\Model;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Model\BaseModel;
+use Joomla\CMS\MVC\Model\AdminModel;
 use Joomla\CMS\Table\Table;
 
 /**
@@ -20,7 +20,7 @@ use Joomla\CMS\Table\Table;
  *
  * @since  1.0.0
  */
-class SettingsModel extends BaseModel
+class SettingsModel extends AdminModel
 {
     /**
      * The prefix to use with controller messages.
@@ -29,6 +29,23 @@ class SettingsModel extends BaseModel
      * @since  1.0.0
      */
     protected $text_prefix = 'COM_ORDENPRODUCCION_SETTINGS';
+
+    /**
+     * Method to get the table object.
+     *
+     * @param   string  $type    The table name. Optional.
+     * @param   string  $prefix  The class prefix. Optional.
+     * @param   array   $config  Configuration array for model. Optional.
+     *
+     * @return  Table|boolean  Table object on success, false on failure
+     *
+     * @since   1.0.0
+     */
+    public function getTable($type = '', $prefix = '', $config = [])
+    {
+        // Return null to avoid table requirements
+        return null;
+    }
 
     /**
      * Method to get the record form.
