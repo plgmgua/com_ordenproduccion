@@ -134,24 +134,20 @@ verify_downloaded_files() {
     # Check if essential directories exist in the downloaded repository
     local missing_files=()
     
-    if [ ! -d "$repo_path/$COMPONENT_NAME" ]; then
-        missing_files+=("$COMPONENT_NAME/")
+    if [ ! -d "$repo_path/admin" ]; then
+        missing_files+=("admin/")
     fi
     
-    if [ ! -d "$repo_path/$COMPONENT_NAME/admin" ]; then
-        missing_files+=("$COMPONENT_NAME/admin/")
+    if [ ! -d "$repo_path/site" ]; then
+        missing_files+=("site/")
     fi
     
-    if [ ! -d "$repo_path/$COMPONENT_NAME/site" ]; then
-        missing_files+=("$COMPONENT_NAME/site/")
+    if [ ! -d "$repo_path/media" ]; then
+        missing_files+=("media/")
     fi
     
-    if [ ! -d "$repo_path/$COMPONENT_NAME/media" ]; then
-        missing_files+=("$COMPONENT_NAME/media/")
-    fi
-    
-    if [ ! -f "$repo_path/$COMPONENT_NAME/$COMPONENT_NAME.xml" ]; then
-        missing_files+=("$COMPONENT_NAME/$COMPONENT_NAME.xml")
+    if [ ! -f "$repo_path/$COMPONENT_NAME.xml" ]; then
+        missing_files+=("$COMPONENT_NAME.xml")
     fi
     
     if [ ${#missing_files[@]} -gt 0 ]; then
@@ -164,11 +160,10 @@ verify_downloaded_files() {
     
     # Show what was downloaded
     log "Downloaded files verified:"
-    log "  - Component directory: $repo_path/$COMPONENT_NAME/"
-    log "  - Admin files: $repo_path/$COMPONENT_NAME/admin/"
-    log "  - Site files: $repo_path/$COMPONENT_NAME/site/"
-    log "  - Media files: $repo_path/$COMPONENT_NAME/media/"
-    log "  - Manifest file: $repo_path/$COMPONENT_NAME/$COMPONENT_NAME.xml"
+    log "  - Admin files: $repo_path/admin/"
+    log "  - Site files: $repo_path/site/"
+    log "  - Media files: $repo_path/media/"
+    log "  - Manifest file: $repo_path/$COMPONENT_NAME.xml"
     
     success "All essential files downloaded successfully"
 }
@@ -176,9 +171,9 @@ verify_downloaded_files() {
 # Function to deploy component files
 deploy_component() {
     local repo_path="$1"
-    local component_source="$repo_path/$COMPONENT_NAME"
     
     log "Deploying component files..."
+    log "Source directory: $repo_path"
     
     # Create component directories
     if [ "$USE_SUDO" = true ]; then
@@ -192,35 +187,35 @@ deploy_component() {
     fi
     
     # Copy site component files
-    log "Copying site component files..."
+    log "Copying site component files from $repo_path/site/..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$component_source/site/"* "$COMPONENT_PATH/"
+        sudo cp -r "$repo_path/site/"* "$COMPONENT_PATH/"
     else
-        cp -r "$component_source/site/"* "$COMPONENT_PATH/"
+        cp -r "$repo_path/site/"* "$COMPONENT_PATH/"
     fi
     
     # Copy admin component files
-    log "Copying admin component files..."
+    log "Copying admin component files from $repo_path/admin/..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$component_source/admin/"* "$ADMIN_COMPONENT_PATH/"
+        sudo cp -r "$repo_path/admin/"* "$ADMIN_COMPONENT_PATH/"
     else
-        cp -r "$component_source/admin/"* "$ADMIN_COMPONENT_PATH/"
+        cp -r "$repo_path/admin/"* "$ADMIN_COMPONENT_PATH/"
     fi
     
     # Copy media files
-    log "Copying media files..."
+    log "Copying media files from $repo_path/media/..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp -r "$component_source/media/"* "$MEDIA_PATH/"
+        sudo cp -r "$repo_path/media/"* "$MEDIA_PATH/"
     else
-        cp -r "$component_source/media/"* "$MEDIA_PATH/"
+        cp -r "$repo_path/media/"* "$MEDIA_PATH/"
     fi
     
     # Copy manifest file
-    log "Copying manifest file..."
+    log "Copying manifest file from $repo_path/$COMPONENT_NAME.xml..."
     if [ "$USE_SUDO" = true ]; then
-        sudo cp "$component_source/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+        sudo cp "$repo_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
     else
-        cp "$component_source/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
+        cp "$repo_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/"
     fi
     
     success "Component files deployed"
