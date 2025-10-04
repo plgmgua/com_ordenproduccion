@@ -179,16 +179,23 @@ class SettingsModel extends BaseModel
     /**
      * Method to get the model state.
      *
-     * @return  \Joomla\Registry\Registry  The state object.
+     * @param   string  $property  Optional property name
+     * @param   mixed   $default   Optional default value
+     *
+     * @return  mixed  The property value or null
      *
      * @since   1.0.0
      */
-    public function getState()
+    public function getState($property = null, $default = null)
     {
         if (empty($this->state)) {
             $this->state = new \Joomla\Registry\Registry();
         }
 
-        return $this->state;
+        if ($property === null) {
+            return $this->state;
+        }
+
+        return $this->state->get($property, $default);
     }
 }
