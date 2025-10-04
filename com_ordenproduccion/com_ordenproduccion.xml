@@ -66,7 +66,11 @@
 
     <!-- Menu items -->
     <menu>
-        <menu type="component" link="option=com_ordenproduccion&amp;view=ordenes">COM_ORDENPRODUCCION_MENU_ORDENES</menu>
+        <menu type="component" link="option=com_ordenproduccion&amp;view=dashboard">COM_ORDENPRODUCCION_MENU_DASHBOARD</menu>
+        <menu type="component" link="option=com_ordenproduccion&amp;view=ordenes">COM_ORDENPRODUCCION_MENU_ORDERS</menu>
+        <menu type="component" link="option=com_ordenproduccion&amp;view=technicians">COM_ORDENPRODUCCION_MENU_TECHNICIANS</menu>
+        <menu type="component" link="option=com_ordenproduccion&amp;view=webhook">COM_ORDENPRODUCCION_MENU_WEBHOOK</menu>
+        <menu type="component" link="option=com_ordenproduccion&amp;view=debug">COM_ORDENPRODUCCION_MENU_DEBUG</menu>
         <menu type="component" link="option=com_ordenproduccion&amp;view=settings">COM_ORDENPRODUCCION_MENU_SETTINGS</menu>
     </menu>
 
