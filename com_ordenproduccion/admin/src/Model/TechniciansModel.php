@@ -61,7 +61,7 @@ class TechniciansModel extends ListModel
         $this->setState('filter.active', $active);
 
         // Load the parameters.
-        $params = $app->getParams();
+        $params = \Joomla\CMS\Component\ComponentHelper::getParams('com_ordenproduccion');
         $this->setState('params', $params);
 
         // List state information.

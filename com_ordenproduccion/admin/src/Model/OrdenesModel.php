@@ -79,7 +79,7 @@ class OrdenesModel extends ListModel
         $this->setState('filter.date_to', $dateTo);
 
         // Load the parameters
-        $params = $app->getParams();
+        $params = \Joomla\CMS\Component\ComponentHelper::getParams('com_ordenproduccion');
         $this->setState('params', $params);
 
         // List state information
