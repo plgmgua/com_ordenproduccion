@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
-# Version: 1.0.9
+# Version: 1.1.0
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -179,13 +179,43 @@ verify_downloaded_files() {
     log "DEBUG: Checking for admin directory at: $component_path/admin"
     log "DEBUG: Directory exists check: [ -d \"$component_path/admin\" ]"
     
-    # Manual test commands for debugging
-    log "DEBUG: Manual test - running: test -d \"$component_path/admin\""
+    # Comprehensive diagnostic testing
+    log "DEBUG: === COMPREHENSIVE DIAGNOSTICS ==="
+    log "DEBUG: Current working directory: $(pwd)"
+    log "DEBUG: Component path variable: '$component_path'"
+    log "DEBUG: Component path length: ${#component_path}"
+    log "DEBUG: Component path hex dump: $(echo -n "$component_path" | xxd)"
+    
+    # Test different path variations
+    log "DEBUG: Testing path variations:"
+    log "DEBUG: 1. test -d \"$component_path/admin\""
     if test -d "$component_path/admin"; then
-        log "DEBUG: Manual test - admin directory EXISTS"
+        log "DEBUG:    Result: EXISTS"
     else
-        log "DEBUG: Manual test - admin directory DOES NOT EXIST"
+        log "DEBUG:    Result: DOES NOT EXIST"
     fi
+    
+    log "DEBUG: 2. test -d \"$component_path/admin/\""
+    if test -d "$component_path/admin/"; then
+        log "DEBUG:    Result: EXISTS"
+    else
+        log "DEBUG:    Result: DOES NOT EXIST"
+    fi
+    
+    log "DEBUG: 3. ls -ld \"$component_path/admin\""
+    ls -ld "$component_path/admin" 2>&1 | while read line; do
+        log "DEBUG:    ls output: $line"
+    done
+    
+    log "DEBUG: 4. file \"$component_path/admin\""
+    file "$component_path/admin" 2>&1 | while read line; do
+        log "DEBUG:    file output: $line"
+    done
+    
+    log "DEBUG: 5. stat \"$component_path/admin\""
+    stat "$component_path/admin" 2>&1 | while read line; do
+        log "DEBUG:    stat output: $line"
+    done
     
     # Check if essential directories exist in the correct location
     local missing_files=()
@@ -389,7 +419,7 @@ cleanup() {
     
     # Always show script version at the end, regardless of outcome
     echo ""
-    log "Script Version: 1.0.9"
+    log "Script Version: 1.1.0"
     echo ""
 }
 
@@ -417,7 +447,7 @@ show_summary() {
 main() {
         echo "=========================================="
         echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.0.9"
+        echo "  Version: 1.1.0"
         echo "  (GitHub Repository → Joomla Webserver)"
         echo "=========================================="
     echo ""
@@ -440,7 +470,7 @@ main() {
     echo ""
     success "🎉 Deployment completed successfully!"
     echo ""
-    log "Script Version: 1.0.9"
+    log "Script Version: 1.1.0"
     echo ""
 }
 
