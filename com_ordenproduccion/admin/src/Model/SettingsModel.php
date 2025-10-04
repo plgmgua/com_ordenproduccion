@@ -12,7 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\Model;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Model\AdminModel;
+use Joomla\CMS\MVC\Model\BaseModel;
 use Joomla\CMS\Table\Table;
 
 /**
@@ -20,7 +20,7 @@ use Joomla\CMS\Table\Table;
  *
  * @since  1.0.0
  */
-class SettingsModel extends AdminModel
+class SettingsModel extends BaseModel
 {
     /**
      * The prefix to use with controller messages.
@@ -120,89 +120,5 @@ class SettingsModel extends AdminModel
         return true;
     }
 
-    /**
-     * Save a configuration value
-     *
-     * @param   string  $key    The configuration key
-     * @param   string  $value  The configuration value
-     *
-     * @return  boolean  True on success, False on error
-     *
-     * @since   1.0.0
-     */
-    protected function saveConfigValue($key, $value)
-    {
-        $db = $this->getDbo();
-        $user = Factory::getUser();
 
-        // Check if the key exists
-        $query = $db->getQuery(true)
-            ->select('id')
-            ->from($db->quoteName('#__ordenproduccion_config'))
-            ->where($db->quoteName('config_key') . ' = ' . $db->quote($key));
-        
-        $db->setQuery($query);
-        $id = $db->loadResult();
-
-        if ($id) {
-            // Update existing record
-            $query = $db->getQuery(true)
-                ->update($db->quoteName('#__ordenproduccion_config'))
-                ->set($db->quoteName('config_value') . ' = ' . $db->quote($value))
-                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
-                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
-                ->where($db->quoteName('id') . ' = ' . (int) $id);
-        } else {
-            // Insert new record
-            $query = $db->getQuery(true)
-                ->insert($db->quoteName('#__ordenproduccion_config'))
-                ->set($db->quoteName('config_key') . ' = ' . $db->quote($key))
-                ->set($db->quoteName('config_value') . ' = ' . $db->quote($value))
-                ->set($db->quoteName('created') . ' = ' . $db->quote(Factory::getDate()->toSql()))
-                ->set($db->quoteName('created_by') . ' = ' . (int) $user->id)
-                ->set($db->quoteName('state') . ' = 1');
-        }
-
-        $db->setQuery($query);
-        return $db->execute();
-    }
-
-    /**
-     * Get the next order number and increment it
-     *
-     * @return  string  The next order number
-     *
-     * @since   1.0.0
-     */
-    public function getNextOrderNumber()
-    {
-        $db = $this->getDbo();
-
-        try {
-            // Get current settings
-            $settings = $this->getItem();
-
-            // Get the next number
-            $nextNumber = (int) $settings->next_order_number;
-
-            // Generate the order number
-            $orderNumber = str_replace(
-                ['{PREFIX}', '{NUMBER}'],
-                [$settings->order_number_prefix, str_pad($nextNumber, 4, '0', STR_PAD_LEFT)],
-                $settings->order_number_format
-            );
-
-            // Increment the next order number
-            $this->saveConfigValue('next_order_number', (string) ($nextNumber + 1));
-
-            return $orderNumber;
-
-        } catch (\Exception $e) {
-            Factory::getApplication()->enqueueMessage(
-                'Error generating order number: ' . $e->getMessage(),
-                'error'
-            );
-            return 'ORD-' . date('YmdHis');
-        }
-    }
 }
