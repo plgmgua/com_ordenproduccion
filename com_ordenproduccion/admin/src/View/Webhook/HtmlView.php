@@ -121,7 +121,7 @@ class HtmlView extends BaseHtmlView
 
         // Add settings button
         if ($user->authorise('core.admin', 'com_ordenproduccion')) {
-            $toolbar->standardButton('settings')
+            $toolbar->linkButton('settings')
                 ->text('COM_ORDENPRODUCCION_MENU_SETTINGS')
                 ->icon('icon-cog')
                 ->url(Route::_('index.php?option=com_ordenproduccion&view=settings'));

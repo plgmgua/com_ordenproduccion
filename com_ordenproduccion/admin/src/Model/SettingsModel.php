@@ -84,73 +84,17 @@ class SettingsModel extends AdminModel
      */
     public function getItem($pk = null)
     {
-        $db = $this->getDbo();
+        // For now, return default settings without database table
+        // TODO: Implement proper settings storage later
         $settings = new \stdClass();
-
-        try {
-            // Get next order number
-            $query = $db->getQuery(true)
-                ->select('config_value')
-                ->from($db->quoteName('#__ordenproduccion_config'))
-                ->where($db->quoteName('config_key') . ' = ' . $db->quote('next_order_number'));
-            
-            $db->setQuery($query);
-            $nextOrderNumber = $db->loadResult();
-            $settings->next_order_number = $nextOrderNumber ?: '1000';
-
-            // Get order number prefix
-            $query = $db->getQuery(true)
-                ->select('config_value')
-                ->from($db->quoteName('#__ordenproduccion_config'))
-                ->where($db->quoteName('config_key') . ' = ' . $db->quote('order_number_prefix'));
-            
-            $db->setQuery($query);
-            $orderPrefix = $db->loadResult();
-            $settings->order_number_prefix = $orderPrefix ?: 'ORD';
-
-            // Get order number format
-            $query = $db->getQuery(true)
-                ->select('config_value')
-                ->from($db->quoteName('#__ordenproduccion_config'))
-                ->where($db->quoteName('config_key') . ' = ' . $db->quote('order_number_format'));
-            
-            $db->setQuery($query);
-            $orderFormat = $db->loadResult();
-            $settings->order_number_format = $orderFormat ?: '{PREFIX}-{NUMBER}';
-
-            // Get auto-assign technicians
-            $query = $db->getQuery(true)
-                ->select('config_value')
-                ->from($db->quoteName('#__ordenproduccion_config'))
-                ->where($db->quoteName('config_key') . ' = ' . $db->quote('auto_assign_technicians'));
-            
-            $db->setQuery($query);
-            $autoAssign = $db->loadResult();
-            $settings->auto_assign_technicians = $autoAssign ?: '0';
-
-            // Get default order status
-            $query = $db->getQuery(true)
-                ->select('config_value')
-                ->from($db->quoteName('#__ordenproduccion_config'))
-                ->where($db->quoteName('config_key') . ' = ' . $db->quote('default_order_status'));
-            
-            $db->setQuery($query);
-            $defaultStatus = $db->loadResult();
-            $settings->default_order_status = $defaultStatus ?: 'nueva';
-
-        } catch (\Exception $e) {
-            Factory::getApplication()->enqueueMessage(
-                'Error loading settings: ' . $e->getMessage(),
-                'error'
-            );
-            
-            // Return default values
-            $settings->next_order_number = '1000';
-            $settings->order_number_prefix = 'ORD';
-            $settings->order_number_format = '{PREFIX}-{NUMBER}';
-            $settings->auto_assign_technicians = '0';
-            $settings->default_order_status = 'nueva';
-        }
+        
+        $settings->next_order_number = '1000';
+        $settings->order_prefix = 'ORD';
+        $settings->order_format = 'PREFIX-NUMBER';
+        $settings->auto_increment = '1';
+        $settings->items_per_page = '20';
+        $settings->show_creation_date = '1';
+        $settings->show_modification_date = '1';
 
         return $settings;
     }
@@ -166,39 +110,14 @@ class SettingsModel extends AdminModel
      */
     public function save($data)
     {
-        $db = $this->getDbo();
-        $user = Factory::getUser();
-
-        try {
-            $db->transactionStart();
-
-            // Save next order number
-            $this->saveConfigValue('next_order_number', $data['next_order_number']);
-
-            // Save order number prefix
-            $this->saveConfigValue('order_number_prefix', $data['order_number_prefix']);
-
-            // Save order number format
-            $this->saveConfigValue('order_number_format', $data['order_number_format']);
-
-            // Save auto-assign technicians
-            $this->saveConfigValue('auto_assign_technicians', $data['auto_assign_technicians']);
-
-            // Save default order status
-            $this->saveConfigValue('default_order_status', $data['default_order_status']);
-
-            $db->transactionCommit();
-
-            return true;
-
-        } catch (\Exception $e) {
-            $db->transactionRollback();
-            Factory::getApplication()->enqueueMessage(
-                'Error saving settings: ' . $e->getMessage(),
-                'error'
-            );
-            return false;
-        }
+        // For now, just show a success message without database operations
+        // TODO: Implement proper settings storage later
+        Factory::getApplication()->enqueueMessage(
+            'Settings saved successfully (Note: Settings are not persisted yet)',
+            'notice'
+        );
+        
+        return true;
     }
 
     /**
