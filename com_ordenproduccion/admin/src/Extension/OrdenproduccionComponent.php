@@ -6,6 +6,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Extension\BootableExtensionInterface;
 use Joomla\CMS\Extension\MVCComponent;
+use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -30,7 +31,7 @@ class OrdenproduccionComponent extends MVCComponent implements BootableExtension
      */
     public function boot(ContainerInterface $container)
     {
-        // This is where we can register additional services if needed
-        // For now, we'll keep it simple
+        // Set the MVC factory
+        $this->setMVCFactory($container->get(MVCFactoryInterface::class));
     }
 }
