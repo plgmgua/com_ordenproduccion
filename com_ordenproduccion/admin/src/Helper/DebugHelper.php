@@ -73,7 +73,7 @@ class DebugHelper
         if (!self::$config) {
             self::init();
         }
-        return (bool) self::$config->get('debug_mode', 0);
+        return (bool) self::$config->get('enable_debug', 0);
     }
 
     /**
@@ -481,55 +481,36 @@ class DebugHelper
     public static function updateConfig($config)
     {
         try {
-            $db = Factory::getDbo();
-            $now = Factory::getDate()->toSql();
+            // Use Joomla's component parameters system
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $params = $component->getParams();
             
             foreach ($config as $key => $value) {
-                // Check if config exists
-                $query = $db->getQuery(true)
-                    ->select('id')
-                    ->from($db->quoteName('#__ordenproduccion_config'))
-                    ->where($db->quoteName('setting_key') . ' = ' . $db->quote($key));
-                
-                $db->setQuery($query);
-                $existingId = $db->loadResult();
-                
-                if ($existingId) {
-                    // Update existing config
-                    $query = $db->getQuery(true)
-                        ->update($db->quoteName('#__ordenproduccion_config'))
-                        ->set($db->quoteName('setting_value') . ' = ' . $db->quote($value))
-                        ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
-                        ->where($db->quoteName('id') . ' = ' . (int) $existingId);
-                    
-                    $db->setQuery($query);
-                    $db->execute();
-                } else {
-                    // Insert new config
-                    $query = $db->getQuery(true)
-                        ->insert($db->quoteName('#__ordenproduccion_config'))
-                        ->columns([
-                            $db->quoteName('setting_key'),
-                            $db->quoteName('setting_value'),
-                            $db->quoteName('created'),
-                            $db->quoteName('modified')
-                        ])
-                        ->values([
-                            $db->quote($key),
-                            $db->quote($value),
-                            $db->quote($now),
-                            $db->quote($now)
-                        ]);
-                    
-                    $db->setQuery($query);
-                    $db->execute();
-                }
+                $params->set($key, $value);
             }
             
-            // Clear cache
-            Factory::getCache()->clean('com_ordenproduccion');
+            // Save parameters to database
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__extensions'))
+                ->set($db->quoteName('params') . ' = ' . $db->quote($params->toString()))
+                ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
             
-            return true;
+            $db->setQuery($query);
+            $result = $db->execute();
+            
+            if ($result) {
+                // Clear cache
+                Factory::getCache()->clean('com_ordenproduccion');
+                
+                // Reset our cached config
+                self::$config = null;
+                
+                return true;
+            }
+            
+            return false;
             
         } catch (\Exception $e) {
             self::error('Failed to update debug configuration: ' . $e->getMessage());

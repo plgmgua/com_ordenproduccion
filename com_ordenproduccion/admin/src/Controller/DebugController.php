@@ -80,7 +80,7 @@ class DebugController extends BaseController
             $currentConfig = DebugHelper::getConfig();
             $newEnabled = !$currentConfig['enabled'];
             
-            $config = ['debug_mode' => $newEnabled ? '1' : '0'];
+            $config = ['enable_debug' => $newEnabled ? '1' : '0'];
             $result = DebugHelper::updateConfig($config);
             
             if ($result) {
@@ -130,7 +130,7 @@ class DebugController extends BaseController
 
         try {
             $config = [
-                'debug_mode' => $this->input->getString('debug_mode', '0'),
+                'enable_debug' => $this->input->getString('enable_debug', '0'),
                 'debug_log_level' => $this->input->getString('debug_log_level', 'DEBUG'),
                 'debug_log_retention_days' => $this->input->getInt('debug_log_retention_days', 7)
             ];
