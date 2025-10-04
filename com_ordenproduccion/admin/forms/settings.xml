@@ -10,7 +10,6 @@
             min="1"
             max="999999"
             required="true"
-            class="form-control"
         />
         
         <field
@@ -20,7 +19,6 @@
             description="COM_ORDENPRODUCCION_ORDER_PREFIX_DESC"
             default="ORD"
             maxlength="10"
-            class="form-control"
         />
         
         <field
@@ -29,7 +27,6 @@
             label="COM_ORDENPRODUCCION_ORDER_FORMAT_LABEL"
             description="COM_ORDENPRODUCCION_ORDER_FORMAT_DESC"
             default="PREFIX-NUMBER"
-            class="form-control"
         >
             <option value="PREFIX-NUMBER">COM_ORDENPRODUCCION_FORMAT_PREFIX_NUMBER</option>
             <option value="NUMBER">COM_ORDENPRODUCCION_FORMAT_NUMBER_ONLY</option>
@@ -55,7 +52,6 @@
             label="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_LABEL"
             description="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_DESC"
             default="nueva"
-            class="form-control"
         >
             <option value="nueva">COM_ORDENPRODUCCION_STATUS_NEW</option>
             <option value="en_proceso">COM_ORDENPRODUCCION_STATUS_IN_PROCESS</option>
@@ -73,7 +69,6 @@
             default="20"
             min="5"
             max="100"
-            class="form-control"
         />
         
         <field

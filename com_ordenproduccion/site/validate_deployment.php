@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.5.9 | <strong>Deployment Script Version:</strong> 1.5.9</p>
+                <p><strong>Validation Script Version:</strong> 1.6.0 | <strong>Deployment Script Version:</strong> 1.6.0</p>
         </div>
 
         <?php
@@ -524,7 +524,7 @@ ini_set('display_errors', 1);
         
         echo "<h3>🔧 Deployment Commands:</h3>";
         echo "<div class='code'>";
-            echo "# Download and run deployment script (v1.5.9):<br>";
+            echo "# Download and run deployment script (v1.6.0):<br>";
             echo "wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/update_build_simple.sh<br>";
             echo "chmod +x update_build_simple.sh<br>";
             echo "sudo ./update_build_simple.sh<br>";

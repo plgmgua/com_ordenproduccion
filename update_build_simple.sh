@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simplified Build Update Script for com_ordenproduccion
-# Version: 1.5.9
+# Version: 1.6.0
 # Downloads latest code from GitHub and deploys to Joomla webserver
 # No validation, just simple copy operations
 
@@ -110,7 +110,7 @@ main() {
     echo "=========================================="
     echo "  Simplified Build Update Script"
     echo "  com_ordenproduccion Component"
-    echo "  Version: 1.5.9"
+    echo "  Version: 1.6.0"
     echo "=========================================="
     echo ""
 

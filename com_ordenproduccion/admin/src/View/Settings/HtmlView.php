@@ -59,19 +59,27 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $this->form = $this->get('Form');
-        $this->item = $this->get('Item');
-        $this->state = $this->get('State');
+        try {
+            $this->form = $this->get('Form');
+            $this->item = $this->get('Item');
+            $this->state = $this->get('State');
 
-        // Check for errors.
-        if (count($errors = $this->get('Errors'))) {
-            throw new \JViewGenericdataexception(implode("\n", $errors), 500);
+            // Check for errors.
+            if (count($errors = $this->get('Errors'))) {
+                foreach ($errors as $error) {
+                    Factory::getApplication()->enqueueMessage($error, 'error');
+                }
+            }
+
+            $this->addToolbar();
+            $this->_prepareDocument();
+
+            parent::display($tpl);
+            
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage('Error loading settings view: ' . $e->getMessage(), 'error');
+            echo '<div class="alert alert-danger">Error loading settings: ' . htmlspecialchars($e->getMessage()) . '</div>';
         }
-
-        $this->addToolbar();
-        $this->_prepareDocument();
-
-        parent::display($tpl);
     }
 
     /**

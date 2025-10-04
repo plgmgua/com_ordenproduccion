@@ -42,20 +42,36 @@ class SettingsModel extends BaseModel
      */
     public function getForm($data = [], $loadData = true)
     {
-        // Get the form.
-        $form = Form::getInstance('com_ordenproduccion.settings', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/forms/settings.xml', ['control' => 'jform']);
+        try {
+            // Get the form.
+            $formPath = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/forms/settings.xml';
+            
+            if (!file_exists($formPath)) {
+                Factory::getApplication()->enqueueMessage('Settings form file not found: ' . $formPath, 'error');
+                return false;
+            }
+            
+            $form = Form::getInstance('com_ordenproduccion.settings', $formPath, ['control' => 'jform']);
 
-        if (empty($form)) {
+            if (empty($form)) {
+                Factory::getApplication()->enqueueMessage('Failed to load settings form', 'error');
+                return false;
+            }
+
+            // Load data if requested
+            if ($loadData) {
+                $data = $this->getItem();
+                if ($data) {
+                    $form->bind($data);
+                }
+            }
+
+            return $form;
+            
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage('Error loading form: ' . $e->getMessage(), 'error');
             return false;
         }
-
-        // Load data if requested
-        if ($loadData) {
-            $data = $this->getItem();
-            $form->bind($data);
-        }
-
-        return $form;
     }
 
     /**
@@ -69,19 +85,25 @@ class SettingsModel extends BaseModel
      */
     public function getItem($pk = null)
     {
-        // Return default settings
-        $settings = new \stdClass();
-        
-        $settings->next_order_number = '1000';
-        $settings->order_prefix = 'ORD';
-        $settings->order_format = 'PREFIX-NUMBER';
-        $settings->auto_increment = '1';
-        $settings->items_per_page = '20';
-        $settings->show_creation_date = '1';
-        $settings->show_modification_date = '1';
-        $settings->default_order_status = 'nueva';
+        try {
+            // Return default settings
+            $settings = new \stdClass();
+            
+            $settings->next_order_number = '1000';
+            $settings->order_prefix = 'ORD';
+            $settings->order_format = 'PREFIX-NUMBER';
+            $settings->auto_increment = '1';
+            $settings->items_per_page = '20';
+            $settings->show_creation_date = '1';
+            $settings->show_modification_date = '1';
+            $settings->default_order_status = 'nueva';
 
-        return $settings;
+            return $settings;
+            
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage('Error getting settings: ' . $e->getMessage(), 'error');
+            return false;
+        }
     }
 
     /**
@@ -95,14 +117,20 @@ class SettingsModel extends BaseModel
      */
     public function save($data)
     {
-        // For now, just show a success message without database operations
-        // TODO: Implement proper settings storage later
-        Factory::getApplication()->enqueueMessage(
-            'Settings saved successfully (Note: Settings are not persisted yet)',
-            'notice'
-        );
-        
-        return true;
+        try {
+            // For now, just show a success message without database operations
+            // TODO: Implement proper settings storage later
+            Factory::getApplication()->enqueueMessage(
+                'Settings saved successfully (Note: Settings are not persisted yet)',
+                'notice'
+            );
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage('Error saving settings: ' . $e->getMessage(), 'error');
+            return false;
+        }
     }
 
     /**
@@ -117,6 +145,10 @@ class SettingsModel extends BaseModel
         try {
             // Get current settings
             $settings = $this->getItem();
+
+            if (!$settings) {
+                return 'ORD-' . date('YmdHis');
+            }
 
             // Get the next number
             $nextNumber = (int) $settings->next_order_number;
