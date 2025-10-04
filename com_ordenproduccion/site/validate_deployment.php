@@ -1,7 +1,7 @@
 <?php
 /**
- * Deployment Validation Script for com_ordenproduccion
- * Run this file inside a Joomla article using Sourcerer
+ * File Deployment Validator for com_ordenproduccion
+ * Checks if all required files are deployed correctly
  * 
  * Usage: Create a Joomla article and use Sourcerer to include this script
  */
@@ -10,9 +10,6 @@
 if (!defined('_JEXEC')) {
     die('This script must be run from within a Joomla article using Sourcerer.');
 }
-
-use Joomla\CMS\Factory;
-use Joomla\CMS\Language\Text;
 
 // Set error reporting
 error_reporting(E_ALL);
@@ -73,267 +70,254 @@ ini_set('display_errors', 1);
             }
         }
 
-        // 1. Check Joomla Environment
+        // Function to check file content
+        function checkFileContent($file_path, $expected_content) {
+            if (!file_exists($file_path)) {
+                return ['exists' => false, 'content_match' => false, 'error' => 'File does not exist'];
+            }
+            
+            $actual_content = file_get_contents($file_path);
+            $content_match = strpos($actual_content, $expected_content) !== false;
+            
+            return [
+                'exists' => true,
+                'content_match' => $content_match,
+                'size' => filesize($file_path),
+                'modified' => date('Y-m-d H:i:s', filemtime($file_path))
+            ];
+        }
+
+        // 1. Basic Environment Info
         echo "<div class='section info'>";
-        echo "<h2>📋 Joomla Environment</h2>";
-        echo "<p><strong>Joomla Version:</strong> " . JVERSION . "</p>";
+        echo "<h2>📋 Environment Information</h2>";
+        echo "<p><strong>Joomla Root:</strong> " . JPATH_ROOT . "</p>";
         echo "<p><strong>PHP Version:</strong> " . PHP_VERSION . "</p>";
-        echo "<p><strong>Server:</strong> " . $_SERVER['SERVER_SOFTWARE'] . "</p>";
-        echo "<p><strong>Document Root:</strong> " . JPATH_ROOT . "</p>";
+        echo "<p><strong>Current Time:</strong> " . date('Y-m-d H:i:s') . "</p>";
         echo "</div>";
 
-        // 2. Check Component Registration
+        // 2. Check Core Component Directories
         echo "<div class='section'>";
-        echo "<h2>🔍 Component Registration Check</h2>";
+        echo "<h2>📁 Core Component Directories</h2>";
         
-        try {
-            $db = Factory::getDbo();
-            $query = $db->getQuery(true)
-                ->select('*')
-                ->from('#__extensions')
-                ->where('element = ' . $db->quote('com_ordenproduccion'));
-            
-            $db->setQuery($query);
-            $component = $db->loadObject();
-            
-            if ($component) {
-                addResult('Component Registration', 'success', 'Component is registered in Joomla', 
-                    "Extension ID: {$component->extension_id}, Enabled: {$component->enabled}");
-                echo "<div class='status ok'>✅ REGISTERED</div>";
-                echo "<p>Component is properly registered in Joomla's extension system.</p>";
-            } else {
-                addResult('Component Registration', 'error', 'Component not found in extensions table');
-                echo "<div class='status error'>❌ NOT REGISTERED</div>";
-                echo "<p>Component is not registered in Joomla's extension system.</p>";
-            }
-        } catch (Exception $e) {
-            addResult('Component Registration', 'error', 'Database error: ' . $e->getMessage());
-            echo "<div class='status error'>❌ DATABASE ERROR</div>";
-            echo "<p>Error checking component registration: " . $e->getMessage() . "</p>";
-        }
-        echo "</div>";
-
-        // 3. Check File Structure
-        echo "<div class='section'>";
-        echo "<h2>📁 File Structure Validation</h2>";
-        
-        $required_paths = [
-            'admin' => JPATH_ROOT . '/administrator/components/com_ordenproduccion',
-            'site' => JPATH_ROOT . '/components/com_ordenproduccion',
-            'media' => JPATH_ROOT . '/media/com_ordenproduccion',
-            'manifest' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml'
+        $core_directories = [
+            'Admin Component' => JPATH_ROOT . '/administrator/components/com_ordenproduccion',
+            'Site Component' => JPATH_ROOT . '/components/com_ordenproduccion',
+            'Media Files' => JPATH_ROOT . '/media/com_ordenproduccion',
+            'Manifest File' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml'
         ];
         
-        $file_checks = [];
-        foreach ($required_paths as $name => $path) {
+        $dir_checks = [];
+        foreach ($core_directories as $name => $path) {
             if (file_exists($path)) {
-                $file_checks[$name] = 'exists';
+                $dir_checks[$name] = 'exists';
                 echo "<div class='status ok'>✅ {$name}</div>";
-                echo "<p><strong>{$name}:</strong> {$path}</p>";
+                echo "<p><strong>Path:</strong> {$path}</p>";
+                if (is_dir($path)) {
+                    $file_count = count(glob($path . '/*'));
+                    echo "<p><strong>Files:</strong> {$file_count} items</p>";
+                }
             } else {
-                $file_checks[$name] = 'missing';
+                $dir_checks[$name] = 'missing';
                 echo "<div class='status error'>❌ {$name}</div>";
-                echo "<p><strong>{$name}:</strong> {$path} - <span style='color: red;'>MISSING</span></p>";
+                echo "<p><strong>Path:</strong> {$path} - <span style='color: red;'>MISSING</span></p>";
             }
         }
         
-        if (in_array('missing', $file_checks)) {
-            addResult('File Structure', 'error', 'Some required files/directories are missing');
+        if (in_array('missing', $dir_checks)) {
+            addResult('Core Directories', 'error', 'Some core directories are missing');
         } else {
-            addResult('File Structure', 'success', 'All required files and directories exist');
+            addResult('Core Directories', 'success', 'All core directories exist');
         }
         echo "</div>";
 
-        // 4. Check Extension Classes
+        // 3. Check Extension Classes (Critical Files)
         echo "<div class='section'>";
-        echo "<h2>🔧 Extension Classes Check</h2>";
+        echo "<h2>🔧 Extension Classes (Critical Files)</h2>";
         
-        $extension_classes = [
-            'Admin Extension' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Extension/OrdenproduccionComponent.php',
-            'Site Extension' => JPATH_ROOT . '/components/com_ordenproduccion/src/Extension/OrdenproduccionComponent.php',
-            'Admin Dispatcher' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Dispatcher/Dispatcher.php',
-            'Site Dispatcher' => JPATH_ROOT . '/components/com_ordenproduccion/src/Dispatcher/Dispatcher.php'
+        $extension_files = [
+            'Admin Extension' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Extension/OrdenproduccionComponent.php',
+                'expected_content' => 'class OrdenproduccionComponent extends MVCComponent'
+            ],
+            'Site Extension' => [
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/src/Extension/OrdenproduccionComponent.php',
+                'expected_content' => 'class OrdenproduccionComponent extends MVCComponent'
+            ],
+            'Admin Dispatcher' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Dispatcher/Dispatcher.php',
+                'expected_content' => 'class Dispatcher extends ComponentDispatcher'
+            ],
+            'Site Dispatcher' => [
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/src/Dispatcher/Dispatcher.php',
+                'expected_content' => 'class Dispatcher extends ComponentDispatcher'
+            ]
         ];
         
-        $class_checks = [];
-        foreach ($extension_classes as $name => $path) {
-            if (file_exists($path)) {
-                $class_checks[$name] = 'exists';
-                echo "<div class='status ok'>✅ {$name}</div>";
-                echo "<p><strong>{$name}:</strong> {$path}</p>";
+        $extension_checks = [];
+        foreach ($extension_files as $name => $file_info) {
+            $check = checkFileContent($file_info['path'], $file_info['expected_content']);
+            
+            if ($check['exists']) {
+                if ($check['content_match']) {
+                    echo "<div class='status ok'>✅ {$name}</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Size:</strong> {$check['size']} bytes</p>";
+                    echo "<p><strong>Modified:</strong> {$check['modified']}</p>";
+                    $extension_checks[$name] = 'valid';
+                } else {
+                    echo "<div class='status warning'>⚠️ {$name} (Wrong Content)</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Issue:</strong> File exists but doesn't contain expected content</p>";
+                    $extension_checks[$name] = 'invalid';
+                }
             } else {
-                $class_checks[$name] = 'missing';
                 echo "<div class='status error'>❌ {$name}</div>";
-                echo "<p><strong>{$name}:</strong> {$path} - <span style='color: red;'>MISSING</span></p>";
+                echo "<p><strong>Path:</strong> {$file_info['path']} - <span style='color: red;'>MISSING</span></p>";
+                $extension_checks[$name] = 'missing';
             }
         }
         
-        if (in_array('missing', $class_checks)) {
-            addResult('Extension Classes', 'error', 'Some required extension classes are missing');
+        if (in_array('missing', $extension_checks)) {
+            addResult('Extension Classes', 'error', 'Some extension classes are missing');
+        } elseif (in_array('invalid', $extension_checks)) {
+            addResult('Extension Classes', 'warning', 'Some extension classes have wrong content');
         } else {
-            addResult('Extension Classes', 'success', 'All required extension classes exist');
+            addResult('Extension Classes', 'success', 'All extension classes exist with correct content');
         }
         echo "</div>";
 
-        // 5. Check Service Providers
+        // 4. Check Service Providers
         echo "<div class='section'>";
-        echo "<h2>⚙️ Service Providers Check</h2>";
+        echo "<h2>⚙️ Service Providers</h2>";
         
         $service_providers = [
-            'Admin Provider' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/services/provider.php',
-            'Site Provider' => JPATH_ROOT . '/components/com_ordenproduccion/services/provider.php'
+            'Admin Provider' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/services/provider.php',
+                'expected_content' => 'OrdenproduccionComponent'
+            ],
+            'Site Provider' => [
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/services/provider.php',
+                'expected_content' => 'OrdenproduccionComponent'
+            ]
         ];
         
         $provider_checks = [];
-        foreach ($service_providers as $name => $path) {
-            if (file_exists($path)) {
-                $provider_checks[$name] = 'exists';
-                echo "<div class='status ok'>✅ {$name}</div>";
-                echo "<p><strong>{$name}:</strong> {$path}</p>";
+        foreach ($service_providers as $name => $file_info) {
+            $check = checkFileContent($file_info['path'], $file_info['expected_content']);
+            
+            if ($check['exists']) {
+                if ($check['content_match']) {
+                    echo "<div class='status ok'>✅ {$name}</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Size:</strong> {$check['size']} bytes</p>";
+                    $provider_checks[$name] = 'valid';
+                } else {
+                    echo "<div class='status warning'>⚠️ {$name} (Wrong Content)</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    $provider_checks[$name] = 'invalid';
+                }
             } else {
-                $provider_checks[$name] = 'missing';
                 echo "<div class='status error'>❌ {$name}</div>";
-                echo "<p><strong>{$name}:</strong> {$path} - <span style='color: red;'>MISSING</span></p>";
+                echo "<p><strong>Path:</strong> {$file_info['path']} - <span style='color: red;'>MISSING</span></p>";
+                $provider_checks[$name] = 'missing';
             }
         }
         
         if (in_array('missing', $provider_checks)) {
-            addResult('Service Providers', 'error', 'Some required service providers are missing');
+            addResult('Service Providers', 'error', 'Some service providers are missing');
+        } elseif (in_array('invalid', $provider_checks)) {
+            addResult('Service Providers', 'warning', 'Some service providers have wrong content');
         } else {
-            addResult('Service Providers', 'success', 'All required service providers exist');
+            addResult('Service Providers', 'success', 'All service providers exist with correct content');
         }
         echo "</div>";
 
-        // 6. Test Component Boot
+        // 5. Check Entry Point Files
         echo "<div class='section'>";
-        echo "<h2>🚀 Component Boot Test</h2>";
+        echo "<h2>🚪 Entry Point Files</h2>";
         
-        try {
-            $app = Factory::getApplication();
-            $component = $app->bootComponent('com_ordenproduccion');
-            
-            if ($component) {
-                addResult('Component Boot', 'success', 'Component boots successfully');
-                echo "<div class='status ok'>✅ BOOT SUCCESS</div>";
-                echo "<p>Component can be booted by Joomla's application.</p>";
-                
-                // Test if component has required methods
-                if (method_exists($component, 'dispatch')) {
-                    echo "<div class='status ok'>✅ DISPATCH METHOD</div>";
-                    echo "<p>Component has dispatch method.</p>";
-                } else {
-                    echo "<div class='status warning'>⚠️ DISPATCH METHOD</div>";
-                    echo "<p>Component missing dispatch method.</p>";
-                }
-                
-                if (method_exists($component, 'render')) {
-                    echo "<div class='status ok'>✅ RENDER METHOD</div>";
-                    echo "<p>Component has render method.</p>";
-                } else {
-                    echo "<div class='status warning'>⚠️ RENDER METHOD</div>";
-                    echo "<p>Component missing render method.</p>";
-                }
-                
-            } else {
-                addResult('Component Boot', 'error', 'Component failed to boot');
-                echo "<div class='status error'>❌ BOOT FAILED</div>";
-                echo "<p>Component could not be booted by Joomla's application.</p>";
-            }
-        } catch (Exception $e) {
-            addResult('Component Boot', 'error', 'Component boot error: ' . $e->getMessage());
-            echo "<div class='status error'>❌ BOOT ERROR</div>";
-            echo "<p>Error booting component: " . $e->getMessage() . "</p>";
-            echo "<div class='code'>" . $e->getTraceAsString() . "</div>";
-        }
-        echo "</div>";
-
-        // 7. Check Database Tables
-        echo "<div class='section'>";
-        echo "<h2>🗄️ Database Tables Check</h2>";
+        $entry_points = [
+            'Admin Entry Point' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/ordenproduccion.php',
+                'expected_content' => 'bootComponent'
+            ],
+            'Site Entry Point' => [
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/ordenproduccion.php',
+                'expected_content' => 'bootComponent'
+            ]
+        ];
         
-        try {
-            $db = Factory::getDbo();
-            $tables = [
-                'ordenproduccion_ordenes',
-                'ordenproduccion_info', 
-                'ordenproduccion_technicians',
-                'ordenproduccion_attendance',
-                'ordenproduccion_production_notes',
-                'ordenproduccion_shipping',
-                'ordenproduccion_webhook_logs',
-                'ordenproduccion_config'
-            ];
+        $entry_checks = [];
+        foreach ($entry_points as $name => $file_info) {
+            $check = checkFileContent($file_info['path'], $file_info['expected_content']);
             
-            $table_checks = [];
-            foreach ($tables as $table) {
-                $query = "SHOW TABLES LIKE '{$db->getPrefix()}{$table}'";
-                $db->setQuery($query);
-                $result = $db->loadResult();
-                
-                if ($result) {
-                    $table_checks[$table] = 'exists';
-                    echo "<div class='status ok'>✅ {$table}</div>";
+            if ($check['exists']) {
+                if ($check['content_match']) {
+                    echo "<div class='status ok'>✅ {$name}</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Size:</strong> {$check['size']} bytes</p>";
+                    $entry_checks[$name] = 'valid';
                 } else {
-                    $table_checks[$table] = 'missing';
-                    echo "<div class='status error'>❌ {$table}</div>";
-                }
-            }
-            
-            if (in_array('missing', $table_checks)) {
-                addResult('Database Tables', 'warning', 'Some component tables are missing');
-            } else {
-                addResult('Database Tables', 'success', 'All component tables exist');
-            }
-        } catch (Exception $e) {
-            addResult('Database Tables', 'error', 'Database error: ' . $e->getMessage());
-            echo "<div class='status error'>❌ DATABASE ERROR</div>";
-            echo "<p>Error checking database tables: " . $e->getMessage() . "</p>";
-        }
-        echo "</div>";
-
-        // 8. Check Menu Entry
-        echo "<div class='section'>";
-        echo "<h2>📋 Menu Entry Check</h2>";
-        
-        try {
-            $db = Factory::getDbo();
-            $query = $db->getQuery(true)
-                ->select('*')
-                ->from('#__menu')
-                ->where('link LIKE ' . $db->quote('%com_ordenproduccion%'));
-            
-            $db->setQuery($query);
-            $menu_items = $db->loadObjectList();
-            
-            if (!empty($menu_items)) {
-                addResult('Menu Entry', 'success', 'Menu entry exists', 'Found ' . count($menu_items) . ' menu item(s)');
-                echo "<div class='status ok'>✅ MENU EXISTS</div>";
-                foreach ($menu_items as $item) {
-                    echo "<p><strong>Menu Item:</strong> {$item->title} (ID: {$item->id})</p>";
-                    echo "<p><strong>Link:</strong> {$item->link}</p>";
-                    echo "<p><strong>Published:</strong> " . ($item->published ? 'Yes' : 'No') . "</p>";
+                    echo "<div class='status warning'>⚠️ {$name} (Wrong Content)</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    $entry_checks[$name] = 'invalid';
                 }
             } else {
-                addResult('Menu Entry', 'warning', 'No menu entries found for component');
-                echo "<div class='status warning'>⚠️ NO MENU</div>";
-                echo "<p>No menu entries found for the component.</p>";
+                echo "<div class='status error'>❌ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$file_info['path']} - <span style='color: red;'>MISSING</span></p>";
+                $entry_checks[$name] = 'missing';
             }
-        } catch (Exception $e) {
-            addResult('Menu Entry', 'error', 'Database error: ' . $e->getMessage());
-            echo "<div class='status error'>❌ DATABASE ERROR</div>";
-            echo "<p>Error checking menu entries: " . $e->getMessage() . "</p>";
+        }
+        
+        if (in_array('missing', $entry_checks)) {
+            addResult('Entry Points', 'error', 'Some entry point files are missing');
+        } elseif (in_array('invalid', $entry_checks)) {
+            addResult('Entry Points', 'warning', 'Some entry point files have wrong content');
+        } else {
+            addResult('Entry Points', 'success', 'All entry point files exist with correct content');
         }
         echo "</div>";
 
-        // 9. Overall Status
+        // 6. Check Key Controller Files
+        echo "<div class='section'>";
+        echo "<h2>🎮 Key Controller Files</h2>";
+        
+        $controllers = [
+            'Admin Dashboard Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/DashboardController.php',
+            'Admin Ordenes Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/OrdenesController.php',
+            'Site Webhook Controller' => JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/WebhookController.php'
+        ];
+        
+        $controller_checks = [];
+        foreach ($controllers as $name => $path) {
+            if (file_exists($path)) {
+                $controller_checks[$name] = 'exists';
+                echo "<div class='status ok'>✅ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$path}</p>";
+                echo "<p><strong>Size:</strong> " . filesize($path) . " bytes</p>";
+            } else {
+                $controller_checks[$name] = 'missing';
+                echo "<div class='status error'>❌ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$path} - <span style='color: red;'>MISSING</span></p>";
+            }
+        }
+        
+        if (in_array('missing', $controller_checks)) {
+            addResult('Controllers', 'warning', 'Some controller files are missing');
+        } else {
+            addResult('Controllers', 'success', 'All key controller files exist');
+        }
+        echo "</div>";
+
+        // 7. Overall Deployment Status
         echo "<div class='section " . ($overall_status === 'success' ? 'success' : ($overall_status === 'warning' ? 'warning' : 'error')) . "'>";
-        echo "<h2>📊 Overall Deployment Status</h2>";
+        echo "<h2>📊 File Deployment Status</h2>";
         
         $status_icon = $overall_status === 'success' ? '✅' : ($overall_status === 'warning' ? '⚠️' : '❌');
         $status_text = $overall_status === 'success' ? 'SUCCESS' : ($overall_status === 'warning' ? 'WARNING' : 'FAILED');
         
         echo "<div class='status " . ($overall_status === 'success' ? 'ok' : ($overall_status === 'warning' ? 'warning' : 'error')) . "'>";
-        echo "{$status_icon} DEPLOYMENT {$status_text}";
+        echo "{$status_icon} FILE DEPLOYMENT {$status_text}";
         echo "</div>";
         
         echo "<h3>Validation Summary:</h3>";
@@ -348,63 +332,38 @@ ini_set('display_errors', 1);
         echo "</ul>";
         echo "</div>";
 
-        // 10. Recommendations
+        // 8. Recommendations
         echo "<div class='section info'>";
-        echo "<h2>💡 Recommendations</h2>";
+        echo "<h2>💡 Next Steps</h2>";
         
         if ($overall_status === 'error') {
             echo "<h3>❌ Critical Issues Found:</h3>";
             echo "<ul>";
-            echo "<li>Run the deployment script again: <code>./update_build_simple.sh</code></li>";
-            echo "<li>Check file permissions on the component directories</li>";
-            echo "<li>Verify the component is properly registered in Joomla</li>";
-            echo "<li>Clear Joomla cache after deployment</li>";
+            echo "<li><strong>Run deployment script:</strong> <code>./update_build_simple.sh</code></li>";
+            echo "<li><strong>Check file permissions:</strong> Ensure www-data has access to component directories</li>";
+            echo "<li><strong>Verify deployment:</strong> Check if files were copied correctly</li>";
             echo "</ul>";
         } elseif ($overall_status === 'warning') {
             echo "<h3>⚠️ Minor Issues Found:</h3>";
             echo "<ul>";
-            echo "<li>Some database tables or menu entries may be missing</li>";
-            echo "<li>Run the phpMyAdmin fix script if needed</li>";
-            echo "<li>Check component configuration in Joomla admin</li>";
+            echo "<li><strong>Some files may be outdated:</strong> Run deployment script to update</li>";
+            echo "<li><strong>Check file contents:</strong> Some files exist but may have wrong content</li>";
             echo "</ul>";
         } else {
-            echo "<h3>✅ Deployment Successful:</h3>";
+            echo "<h3>✅ All Files Deployed Successfully:</h3>";
             echo "<ul>";
-            echo "<li>Component is properly deployed and configured</li>";
-            echo "<li>You can now access the component in Joomla admin</li>";
-            echo "<li>Test the webhook endpoint functionality</li>";
+            echo "<li><strong>All critical files are present and correct</strong></li>";
+            echo "<li><strong>Component should work properly now</strong></li>";
+            echo "<li><strong>Try accessing the component in Joomla admin</strong></li>";
             echo "</ul>";
         }
         
-        echo "<h3>🔗 Quick Actions:</h3>";
-        echo "<a href='/administrator/index.php?option=com_ordenproduccion' class='btn'>Admin Component</a>";
-        echo "<a href='/index.php?option=com_ordenproduccion&task=webhook.test' class='btn'>Test Webhook</a>";
-        echo "<a href='/administrator/index.php?option=com_components&view=components' class='btn'>Joomla Components</a>";
-        echo "</div>";
-
-        // 11. Debug Information
-        echo "<div class='section'>";
-        echo "<h2>🐛 Debug Information</h2>";
-        echo "<h3>PHP Error Log:</h3>";
+        echo "<h3>🔧 Deployment Commands:</h3>";
         echo "<div class='code'>";
-        $error_log = ini_get('error_log');
-        if ($error_log && file_exists($error_log)) {
-            $errors = file_get_contents($error_log);
-            echo htmlspecialchars(substr($errors, -2000)); // Last 2000 characters
-        } else {
-            echo "No error log found or accessible.";
-        }
-        echo "</div>";
-        
-        echo "<h3>Joomla Log:</h3>";
-        echo "<div class='code'>";
-        $joomla_log = JPATH_ROOT . '/logs/joomla.log';
-        if (file_exists($joomla_log)) {
-            $log_content = file_get_contents($joomla_log);
-            echo htmlspecialchars(substr($log_content, -2000)); // Last 2000 characters
-        } else {
-            echo "No Joomla log found.";
-        }
+        echo "# Download and run deployment script:<br>";
+        echo "wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/update_build_simple.sh<br>";
+        echo "chmod +x update_build_simple.sh<br>";
+        echo "./update_build_simple.sh<br>";
         echo "</div>";
         echo "</div>";
 
