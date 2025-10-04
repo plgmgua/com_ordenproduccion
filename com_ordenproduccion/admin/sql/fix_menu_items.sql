@@ -2,13 +2,13 @@
 -- This script ensures all menu items are properly registered in Joomla's menu system
 
 -- First, remove any existing menu items for this component to avoid duplicates
-DELETE FROM `#__menu` WHERE `component_id` = (SELECT `extension_id` FROM `#__extensions` WHERE `element` = 'com_ordenproduccion' AND `type` = 'component');
+DELETE FROM `joomla__menu` WHERE `component_id` = (SELECT `extension_id` FROM `joomla__extensions` WHERE `element` = 'com_ordenproduccion' AND `type` = 'component');
 
 -- Get the component ID
-SET @component_id = (SELECT `extension_id` FROM `#__extensions` WHERE `element` = 'com_ordenproduccion' AND `type` = 'component');
+SET @component_id = (SELECT `extension_id` FROM `joomla__extensions` WHERE `element` = 'com_ordenproduccion' AND `type` = 'component');
 
 -- Insert main component menu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -23,7 +23,7 @@ INSERT INTO `#__menu` (
 SET @main_menu_id = LAST_INSERT_ID();
 
 -- Insert Dashboard submenu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -36,7 +36,7 @@ INSERT INTO `#__menu` (
 );
 
 -- Insert Orders submenu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -49,7 +49,7 @@ INSERT INTO `#__menu` (
 );
 
 -- Insert Technicians submenu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -62,7 +62,7 @@ INSERT INTO `#__menu` (
 );
 
 -- Insert Webhook submenu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -75,7 +75,7 @@ INSERT INTO `#__menu` (
 );
 
 -- Insert Debug submenu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -88,7 +88,7 @@ INSERT INTO `#__menu` (
 );
 
 -- Insert Settings submenu item
-INSERT INTO `#__menu` (
+INSERT INTO `joomla__menu` (
     `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`, 
     `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`, 
     `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`, 
@@ -101,10 +101,10 @@ INSERT INTO `#__menu` (
 );
 
 -- Update the lft and rgt values for proper menu hierarchy
-UPDATE `#__menu` SET `lft` = 1, `rgt` = 14 WHERE `id` = @main_menu_id;
-UPDATE `#__menu` SET `lft` = 2, `rgt` = 3 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-dashboard';
-UPDATE `#__menu` SET `lft` = 4, `rgt` = 5 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-orders';
-UPDATE `#__menu` SET `lft` = 6, `rgt` = 7 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-technicians';
-UPDATE `#__menu` SET `lft` = 8, `rgt` = 9 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-webhook';
-UPDATE `#__menu` SET `lft` = 10, `rgt` = 11 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-debug';
-UPDATE `#__menu` SET `lft` = 12, `rgt` = 13 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-settings';
+UPDATE `joomla__menu` SET `lft` = 1, `rgt` = 14 WHERE `id` = @main_menu_id;
+UPDATE `joomla__menu` SET `lft` = 2, `rgt` = 3 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-dashboard';
+UPDATE `joomla__menu` SET `lft` = 4, `rgt` = 5 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-orders';
+UPDATE `joomla__menu` SET `lft` = 6, `rgt` = 7 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-technicians';
+UPDATE `joomla__menu` SET `lft` = 8, `rgt` = 9 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-webhook';
+UPDATE `joomla__menu` SET `lft` = 10, `rgt` = 11 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-debug';
+UPDATE `joomla__menu` SET `lft` = 12, `rgt` = 13 WHERE `parent_id` = @main_menu_id AND `alias` = 'com-ordenproduccion-settings';
