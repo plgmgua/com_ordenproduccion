@@ -48,8 +48,8 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('tipo_de_campo') . ' = ' . $db->quote('estado'))
-                ->where($db->quoteName('valor') . ' = ' . $db->quote('nueva'))
+                ->where($db->quoteName('attribute_name') . ' = ' . $db->quote('estado'))
+                ->where($db->quoteName('attribute_value') . ' = ' . $db->quote('nueva'))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -59,8 +59,8 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('tipo_de_campo') . ' = ' . $db->quote('estado'))
-                ->where($db->quoteName('valor') . ' = ' . $db->quote('en_proceso'))
+                ->where($db->quoteName('attribute_name') . ' = ' . $db->quote('estado'))
+                ->where($db->quoteName('attribute_value') . ' = ' . $db->quote('en_proceso'))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -70,8 +70,8 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('tipo_de_campo') . ' = ' . $db->quote('estado'))
-                ->where($db->quoteName('valor') . ' = ' . $db->quote('terminada'))
+                ->where($db->quoteName('attribute_name') . ' = ' . $db->quote('estado'))
+                ->where($db->quoteName('attribute_value') . ' = ' . $db->quote('terminada'))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -81,8 +81,8 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('tipo_de_campo') . ' = ' . $db->quote('estado'))
-                ->where($db->quoteName('valor') . ' = ' . $db->quote('cerrada'))
+                ->where($db->quoteName('attribute_name') . ' = ' . $db->quote('estado'))
+                ->where($db->quoteName('attribute_value') . ' = ' . $db->quote('cerrada'))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -91,9 +91,9 @@ class DashboardModel extends BaseDatabaseModel
             // Active technicians today
             $today = Factory::getDate()->format('Y-m-d');
             $query = $db->getQuery(true)
-                ->select('COUNT(DISTINCT ' . $db->quoteName('person_name') . ')')
+                ->select('COUNT(DISTINCT ' . $db->quoteName('technician_id') . ')')
                 ->from($db->quoteName('#__ordenproduccion_attendance'))
-                ->where($db->quoteName('auth_date') . ' = ' . $db->quote($today))
+                ->where($db->quoteName('date') . ' = ' . $db->quote($today))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -103,7 +103,7 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($db->quoteName('fecha_de_entrega') . ' = ' . $db->quote($today))
+                ->where($db->quoteName('delivery_date') . ' = ' . $db->quote($today))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -113,7 +113,7 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($db->quoteName('fecha_de_entrega') . ' < ' . $db->quote($today))
+                ->where($db->quoteName('delivery_date') . ' < ' . $db->quote($today))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -158,20 +158,20 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select([
                     'o.id',
-                    'o.orden_de_trabajo',
-                    'o.nombre_del_cliente',
-                    'o.fecha_de_entrega',
-                    'o.created',
-                    'i.valor as status'
+                    'o.order_number',
+                    'o.client_name',
+                    'o.delivery_date',
+                    'o.created_on',
+                    'i.attribute_value as status'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->leftJoin(
                     $db->quoteName('#__ordenproduccion_info', 'i') . ' ON ' .
-                    $db->quoteName('i.numero_de_orden') . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
-                    $db->quoteName('i.tipo_de_campo') . ' = ' . $db->quote('estado')
+                    $db->quoteName('i.order_id') . ' = ' . $db->quoteName('o.id') . ' AND ' .
+                    $db->quoteName('i.attribute_name') . ' = ' . $db->quote('estado')
                 )
                 ->where($db->quoteName('o.state') . ' = 1')
-                ->order($db->quoteName('o.created') . ' DESC')
+                ->order($db->quoteName('o.created_on') . ' DESC')
                 ->setLimit($limit);
             
             $db->setQuery($query);
@@ -213,15 +213,15 @@ class DashboardModel extends BaseDatabaseModel
             
             $query = $db->getQuery(true)
                 ->select([
-                    'DATE(o.created) as order_date',
+                    'DATE(o.created_on) as order_date',
                     'COUNT(*) as order_count'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where($db->quoteName('o.state') . ' = 1')
-                ->where($db->quoteName('o.created') . ' >= ' . $db->quote($startDate))
-                ->where($db->quoteName('o.created') . ' <= ' . $db->quote($endDate))
-                ->group('DATE(o.created)')
-                ->order('DATE(o.created)');
+                ->where($db->quoteName('o.created_on') . ' >= ' . $db->quote($startDate))
+                ->where($db->quoteName('o.created_on') . ' <= ' . $db->quote($endDate))
+                ->group('DATE(o.created_on)')
+                ->order('DATE(o.created_on)');
             
             $db->setQuery($query);
             $results = $db->loadObjectList();
@@ -255,9 +255,9 @@ class DashboardModel extends BaseDatabaseModel
         
         try {
             $query = $db->getQuery(true)
-                ->select('setting_value')
+                ->select('config_value')
                 ->from($db->quoteName('#__ordenproduccion_config'))
-                ->where($db->quoteName('setting_key') . ' = ' . $db->quote('component_version'));
+                ->where($db->quoteName('config_key') . ' = ' . $db->quote('component_version'));
             
             $db->setQuery($query);
             $version = $db->loadResult();

@@ -122,34 +122,28 @@ class HtmlView extends BaseHtmlView
             ->icon('icon-refresh')
             ->task('dashboard.refreshStats');
 
-        // Add export dropdown
+        // Add export buttons
         if ($user->authorise('core.export', 'com_ordenproduccion')) {
-            $toolbar->dropdownButton('export')
-                ->text('COM_ORDENPRODUCCION_EXPORT')
-                ->icon('icon-download')
-                ->listCheck(false)
-                ->children(function ($child) {
-                    $child->standardButton('export-stats')
-                        ->text('COM_ORDENPRODUCCION_EXPORT_STATISTICS')
-                        ->icon('icon-chart')
-                        ->task('dashboard.exportData')
-                        ->formAttribute('data-format', 'csv')
-                        ->formAttribute('data-type', 'statistics');
-                    
-                    $child->standardButton('export-orders')
-                        ->text('COM_ORDENPRODUCCION_EXPORT_RECENT_ORDERS')
-                        ->icon('icon-list')
-                        ->task('dashboard.exportData')
-                        ->formAttribute('data-format', 'csv')
-                        ->formAttribute('data-type', 'recent_orders');
-                    
-                    $child->standardButton('export-calendar')
-                        ->text('COM_ORDENPRODUCCION_EXPORT_CALENDAR')
-                        ->icon('icon-calendar')
-                        ->task('dashboard.exportData')
-                        ->formAttribute('data-format', 'csv')
-                        ->formAttribute('data-type', 'calendar');
-                });
+            $toolbar->standardButton('export-stats')
+                ->text('COM_ORDENPRODUCCION_EXPORT_STATISTICS')
+                ->icon('icon-chart')
+                ->task('dashboard.exportData')
+                ->formAttribute('data-format', 'csv')
+                ->formAttribute('data-type', 'statistics');
+            
+            $toolbar->standardButton('export-orders')
+                ->text('COM_ORDENPRODUCCION_EXPORT_RECENT_ORDERS')
+                ->icon('icon-list')
+                ->task('dashboard.exportData')
+                ->formAttribute('data-format', 'csv')
+                ->formAttribute('data-type', 'recent_orders');
+            
+            $toolbar->standardButton('export-calendar')
+                ->text('COM_ORDENPRODUCCION_EXPORT_CALENDAR')
+                ->icon('icon-calendar')
+                ->task('dashboard.exportData')
+                ->formAttribute('data-format', 'csv')
+                ->formAttribute('data-type', 'calendar');
         }
 
         // Add help button
