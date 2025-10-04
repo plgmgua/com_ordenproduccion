@@ -320,6 +320,12 @@ main() {
     
     success "Repository downloaded successfully. Component root: $COMPONENT_ROOT"
 
+    log "Step 2.5: Setting permissions for downloaded files..."
+    # Set proper permissions for the downloaded files before copying
+    chmod -R 755 "$COMPONENT_ROOT" || warning "Failed to set permissions on downloaded files"
+    find "$COMPONENT_ROOT" -type f -exec chmod 644 {} \; || warning "Failed to set file permissions on downloaded files"
+    success "Downloaded files permissions set"
+
     # Execute deployment steps
     remove_existing_files
     deploy_new_files
