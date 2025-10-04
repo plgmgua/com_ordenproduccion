@@ -100,6 +100,9 @@ class WebhookController extends BaseController
                 $result = $model->updateOrder($existingOrder->id, $data);
                 $message = 'Order updated successfully';
             } else {
+                // Generate order number for new orders
+                $data['orden_de_trabajo'] = $this->generateOrderNumber();
+                
                 // Create new order
                 $result = $model->createOrder($data);
                 $message = 'Order created successfully';
@@ -385,5 +388,29 @@ class WebhookController extends BaseController
         $this->app->setHeader('HTTP/1.1 200 OK');
         echo json_encode($response);
         $this->app->close();
+    }
+
+    /**
+     * Generate the next order number using settings
+     *
+     * @return  string  The generated order number
+     *
+     * @since   1.0.0
+     */
+    protected function generateOrderNumber()
+    {
+        try {
+            // Get the admin settings model
+            $adminModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Settings', 'Administrator');
+            
+            return $adminModel->getNextOrderNumber();
+            
+        } catch (\Exception $e) {
+            // Fallback to timestamp-based order number
+            Log::add('Error generating order number: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+            return 'ORD-' . date('YmdHis');
+        }
     }
 }

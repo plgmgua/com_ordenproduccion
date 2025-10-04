@@ -67,6 +67,7 @@
     <!-- Menu items -->
     <menu>
         <menu type="component" link="option=com_ordenproduccion&amp;view=ordenes">COM_ORDENPRODUCCION_MENU_ORDENES</menu>
+        <menu type="component" link="option=com_ordenproduccion&amp;view=settings">COM_ORDENPRODUCCION_MENU_SETTINGS</menu>
     </menu>
 
     <!-- Database -->
