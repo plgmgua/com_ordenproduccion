@@ -22,6 +22,7 @@ use Grimpsa\Component\Ordenproduccion\Administrator\Extension\OrdenproduccionCom
 use Grimpsa\Component\Ordenproduccion\Administrator\Dispatcher\Dispatcher;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
+use Joomla\Autoload\ClassLoader;
 
 /**
  * The ordenproduccion component service provider.
@@ -41,6 +42,11 @@ return new class implements ServiceProviderInterface
      */
     public function register(Container $container)
     {
+        // Register autoloader for our component classes
+        $loader = ClassLoader::getInstance();
+        $loader->registerNamespace('Grimpsa\\Component\\Ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src');
+        $loader->registerNamespace('Grimpsa\\Component\\Ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/src');
+        
         $container->registerServiceProvider(new MVCFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         $container->registerServiceProvider(new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         $container->registerServiceProvider(new RouterFactory('\\Grimpsa\\Component\\Ordenproduccion'));
