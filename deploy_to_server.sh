@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for com_ordenproduccion
+# Version: 1.0.2
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
 
@@ -107,8 +108,15 @@ create_backup() {
 download_repository() {
     log "Downloading repository from GitHub..."
     
-    # Create temporary directory for clone in user's home
-    TEMP_DIR="$HOME/${COMPONENT_NAME}_deploy_$$"
+    # Create fixed temporary directory for clone in user's home
+    TEMP_DIR="$HOME/${COMPONENT_NAME}_deploy"
+    
+    # Clean up any existing deployment directory
+    if [ -d "$TEMP_DIR" ]; then
+        log "Removing existing deployment directory..."
+        rm -rf "$TEMP_DIR"
+    fi
+    
     mkdir -p "$TEMP_DIR"
     
     # Clone repository from GitHub
@@ -345,6 +353,7 @@ show_summary() {
 main() {
     echo "=========================================="
     echo "  com_ordenproduccion Production Deployment"
+    echo "  Version: 1.0.2"
     echo "  (GitHub Repository → Joomla Webserver)"
     echo "=========================================="
     echo ""
