@@ -31,6 +31,12 @@
 - ✅ **MANDATORY**: Version display must work for both successful and failed deployments
 - ✅ **MANDATORY**: Version must be clearly visible in the output
 
+### **6. Validation File Updates**
+- ✅ **MANDATORY**: Always update `validate_deployment.php` with every code change
+- ✅ **MANDATORY**: Validation file must reflect current version number
+- ✅ **MANDATORY**: Validation file must check all new features and files
+- ✅ **MANDATORY**: Update validation script version to match deployment script version
+
 ## 🚫 **What NOT to Do**
 
 - ❌ **NEVER** create multiple deployment scripts
@@ -38,6 +44,7 @@
 - ❌ **NEVER** skip committing and pushing changes
 - ❌ **NEVER** deploy without version increment
 - ❌ **NEVER** keep old files during deployment (always overwrite)
+- ❌ **NEVER** skip updating validation file with code changes
 
 ## 📝 **Standard Process**
 
