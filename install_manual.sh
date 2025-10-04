@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Manual Installation Script for com_ordenproduccion
-# Version: 1.0.0
+# Version: 1.0.1
 # Creates database tables and registers component in Joomla
 
 set -e
@@ -102,27 +102,63 @@ register_component() {
     
     if [ "$EXISTING" -gt 0 ]; then
         warning "Component is already registered. Updating existing entry..."
-        mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "
-        UPDATE \`${DB_PREFIX}extensions\` SET 
-            \`enabled\` = 1,
-            \`access\` = 1,
-            \`protected\` = 0,
-            \`manifest_cache\` = '{\"legacy\":false,\"name\":\"$COMPONENT_NAME\",\"type\":\"component\",\"creationDate\":\"2025-01-27\",\"author\":\"Grimpsa\",\"authorEmail\":\"admin@grimpsa.com\",\"authorUrl\":\"https://grimpsa.com\",\"copyright\":\"Copyright (C) 2025 Grimpsa. All rights reserved.\",\"license\":\"GNU General Public License version 2 or later\",\"version\":\"1.0.0\",\"description\":\"COM_ORDENPRODUCCION_XML_DESCRIPTION\",\"group\":\"\"}',
-            \`params\` = '{}',
-            \`custom_data\` = '{}',
-            \`system_data\` = '{}',
-            \`checked_out\` = 0,
-            \`checked_out_time\` = '0000-00-00 00:00:00',
-            \`ordering\` = 0,
-            \`state\` = 0
-        WHERE \`element\` = '$COMPONENT_NAME';
-        "
+        
+        # Check if system_data column exists
+        SYSTEM_DATA_EXISTS=$(mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -s -N -e "SHOW COLUMNS FROM ${DB_PREFIX}extensions LIKE 'system_data';" | wc -l)
+        
+        if [ "$SYSTEM_DATA_EXISTS" -gt 0 ]; then
+            log "Using full schema with system_data column..."
+            mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "
+            UPDATE \`${DB_PREFIX}extensions\` SET 
+                \`enabled\` = 1,
+                \`access\` = 1,
+                \`protected\` = 0,
+                \`manifest_cache\` = '{\"legacy\":false,\"name\":\"$COMPONENT_NAME\",\"type\":\"component\",\"creationDate\":\"2025-01-27\",\"author\":\"Grimpsa\",\"authorEmail\":\"admin@grimpsa.com\",\"authorUrl\":\"https://grimpsa.com\",\"copyright\":\"Copyright (C) 2025 Grimpsa. All rights reserved.\",\"license\":\"GNU General Public License version 2 or later\",\"version\":\"1.0.0\",\"description\":\"COM_ORDENPRODUCCION_XML_DESCRIPTION\",\"group\":\"\"}',
+                \`params\` = '{}',
+                \`custom_data\` = '{}',
+                \`system_data\` = '{}',
+                \`checked_out\` = 0,
+                \`checked_out_time\` = '0000-00-00 00:00:00',
+                \`ordering\` = 0,
+                \`state\` = 0
+            WHERE \`element\` = '$COMPONENT_NAME';
+            "
+        else
+            log "Using simplified schema without system_data column..."
+            mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "
+            UPDATE \`${DB_PREFIX}extensions\` SET 
+                \`enabled\` = 1,
+                \`access\` = 1,
+                \`protected\` = 0,
+                \`manifest_cache\` = '{\"legacy\":false,\"name\":\"$COMPONENT_NAME\",\"type\":\"component\",\"creationDate\":\"2025-01-27\",\"author\":\"Grimpsa\",\"authorEmail\":\"admin@grimpsa.com\",\"authorUrl\":\"https://grimpsa.com\",\"copyright\":\"Copyright (C) 2025 Grimpsa. All rights reserved.\",\"license\":\"GNU General Public License version 2 or later\",\"version\":\"1.0.0\",\"description\":\"COM_ORDENPRODUCCION_XML_DESCRIPTION\",\"group\":\"\"}',
+                \`params\` = '{}',
+                \`custom_data\` = '{}',
+                \`checked_out\` = 0,
+                \`checked_out_time\` = '0000-00-00 00:00:00',
+                \`ordering\` = 0,
+                \`state\` = 0
+            WHERE \`element\` = '$COMPONENT_NAME';
+            "
+        fi
     else
         log "Adding new component entry..."
-        mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "
-        INSERT INTO \`${DB_PREFIX}extensions\` (\`extension_id\`, \`name\`, \`type\`, \`element\`, \`folder\`, \`client_id\`, \`enabled\`, \`access\`, \`protected\`, \`manifest_cache\`, \`params\`, \`custom_data\`, \`system_data\`, \`checked_out\`, \`checked_out_time\`, \`ordering\`, \`state\`) VALUES
-        (NULL, '$COMPONENT_NAME', 'component', '$COMPONENT_NAME', '', 1, 1, 1, 0, '{\"legacy\":false,\"name\":\"$COMPONENT_NAME\",\"type\":\"component\",\"creationDate\":\"2025-01-27\",\"author\":\"Grimpsa\",\"authorEmail\":\"admin@grimpsa.com\",\"authorUrl\":\"https://grimpsa.com\",\"copyright\":\"Copyright (C) 2025 Grimpsa. All rights reserved.\",\"license\":\"GNU General Public License version 2 or later\",\"version\":\"1.0.0\",\"description\":\"COM_ORDENPRODUCCION_XML_DESCRIPTION\",\"group\":\"\"}', '{}', '{}', '{}', 0, '0000-00-00 00:00:00', 0, 0);
-        "
+        
+        # Check if system_data column exists
+        SYSTEM_DATA_EXISTS=$(mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -s -N -e "SHOW COLUMNS FROM ${DB_PREFIX}extensions LIKE 'system_data';" | wc -l)
+        
+        if [ "$SYSTEM_DATA_EXISTS" -gt 0 ]; then
+            log "Using full schema with system_data column..."
+            mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "
+            INSERT INTO \`${DB_PREFIX}extensions\` (\`extension_id\`, \`name\`, \`type\`, \`element\`, \`folder\`, \`client_id\`, \`enabled\`, \`access\`, \`protected\`, \`manifest_cache\`, \`params\`, \`custom_data\`, \`system_data\`, \`checked_out\`, \`checked_out_time\`, \`ordering\`, \`state\`) VALUES
+            (NULL, '$COMPONENT_NAME', 'component', '$COMPONENT_NAME', '', 1, 1, 1, 0, '{\"legacy\":false,\"name\":\"$COMPONENT_NAME\",\"type\":\"component\",\"creationDate\":\"2025-01-27\",\"author\":\"Grimpsa\",\"authorEmail\":\"admin@grimpsa.com\",\"authorUrl\":\"https://grimpsa.com\",\"copyright\":\"Copyright (C) 2025 Grimpsa. All rights reserved.\",\"license\":\"GNU General Public License version 2 or later\",\"version\":\"1.0.0\",\"description\":\"COM_ORDENPRODUCCION_XML_DESCRIPTION\",\"group\":\"\"}', '{}', '{}', '{}', 0, '0000-00-00 00:00:00', 0, 0);
+            "
+        else
+            log "Using simplified schema without system_data column..."
+            mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "
+            INSERT INTO \`${DB_PREFIX}extensions\` (\`extension_id\`, \`name\`, \`type\`, \`element\`, \`folder\`, \`client_id\`, \`enabled\`, \`access\`, \`protected\`, \`manifest_cache\`, \`params\`, \`custom_data\`, \`checked_out\`, \`checked_out_time\`, \`ordering\`, \`state\`) VALUES
+            (NULL, '$COMPONENT_NAME', 'component', '$COMPONENT_NAME', '', 1, 1, 1, 0, '{\"legacy\":false,\"name\":\"$COMPONENT_NAME\",\"type\":\"component\",\"creationDate\":\"2025-01-27\",\"author\":\"Grimpsa\",\"authorEmail\":\"admin@grimpsa.com\",\"authorUrl\":\"https://grimpsa.com\",\"copyright\":\"Copyright (C) 2025 Grimpsa. All rights reserved.\",\"license\":\"GNU General Public License version 2 or later\",\"version\":\"1.0.0\",\"description\":\"COM_ORDENPRODUCCION_XML_DESCRIPTION\",\"group\":\"\"}', '{}', '{}', 0, '0000-00-00 00:00:00', 0, 0);
+            "
+        fi
     fi
     
     if [ $? -eq 0 ]; then
@@ -222,7 +258,7 @@ main() {
     echo "=========================================="
     echo "  Manual Installation Script"
     echo "  com_ordenproduccion Component"
-    echo "  Version: 1.0.0"
+    echo "  Version: 1.0.1"
     echo "=========================================="
     echo ""
     
@@ -243,7 +279,7 @@ main() {
     log "3. Look for 'Orden Produccion' in the Components menu"
     log "4. Click on it to access the component"
     echo ""
-    log "Script Version: 1.0.0"
+    log "Script Version: 1.0.1"
     echo ""
 }
 
