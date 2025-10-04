@@ -244,18 +244,18 @@ main() {
     fi
 
     echo "Backing up existing language files..."
-    cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing EN file to backup"
-    cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
+    sudo cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing EN file to backup"
+    sudo cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
 
     echo "Installing new language files..."
-    cp "$TEMP_DIR/en-GB.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    cp "$TEMP_DIR/es-ES.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    sudo cp "$TEMP_DIR/en-GB.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    sudo cp "$TEMP_DIR/es-ES.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
 
     # Set proper permissions
-    chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    chown www-data:www-data "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
-    chmod 644 "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
-    chmod 644 "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    sudo chmod 644 "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    sudo chmod 644 "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
 
     if [ $? -eq 0 ]; then
         success "Language files installed successfully"
@@ -285,14 +285,14 @@ main() {
     fi
 
     echo "Backing up existing manifest..."
-    cp "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml.backup" 2>/dev/null || echo "No existing manifest to backup"
+    sudo cp "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml.backup" 2>/dev/null || echo "No existing manifest to backup"
 
     echo "Installing new manifest..."
-    cp "$TEMP_MANIFEST_DIR/manifest.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+    sudo cp "$TEMP_MANIFEST_DIR/manifest.xml" "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
 
     # Set proper permissions
-    chown www-data:www-data "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
-    chmod 644 "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
+    sudo chmod 644 "$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME/com_ordenproduccion.xml"
 
     if [ $? -eq 0 ]; then
         success "Manifest file installed successfully"
