@@ -278,7 +278,38 @@ ini_set('display_errors', 1);
         }
         echo "</div>";
 
-        // 6. Check Key Controller Files
+        // 6. Test Autoloading
+        echo "<div class='section'>";
+        echo "<h2>🔍 Autoloading Test</h2>";
+        
+        $autoload_tests = [
+            'Admin Extension Class' => 'Grimpsa\\Component\\Ordenproduccion\\Administrator\\Extension\\OrdenproduccionComponent',
+            'Site Extension Class' => 'Grimpsa\\Component\\Ordenproduccion\\Site\\Extension\\OrdenproduccionComponent',
+            'Admin Dispatcher Class' => 'Grimpsa\\Component\\Ordenproduccion\\Administrator\\Dispatcher\\Dispatcher',
+            'Site Dispatcher Class' => 'Grimpsa\\Component\\Ordenproduccion\\Site\\Dispatcher\\Dispatcher'
+        ];
+        
+        $autoload_checks = [];
+        foreach ($autoload_tests as $name => $class_name) {
+            if (class_exists($class_name)) {
+                echo "<div class='status ok'>✅ {$name}</div>";
+                echo "<p><strong>Class:</strong> {$class_name}</p>";
+                $autoload_checks[$name] = 'exists';
+            } else {
+                echo "<div class='status error'>❌ {$name}</div>";
+                echo "<p><strong>Class:</strong> {$class_name} - <span style='color: red;'>NOT FOUND</span></p>";
+                $autoload_checks[$name] = 'missing';
+            }
+        }
+        
+        if (in_array('missing', $autoload_checks)) {
+            addResult('Autoloading', 'error', 'Some classes cannot be autoloaded');
+        } else {
+            addResult('Autoloading', 'success', 'All classes can be autoloaded');
+        }
+        echo "</div>";
+
+        // 7. Check Key Controller Files
         echo "<div class='section'>";
         echo "<h2>🎮 Key Controller Files</h2>";
         
