@@ -226,12 +226,57 @@ main() {
     
     success "Autoloading fixes applied"
 
+    # Step 10: Update language files
+    log "Step 10: Updating language files..."
+    
+    echo "Downloading latest language files..."
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/en-GB/com_ordenproduccion.ini -O /tmp/en-GB.ini
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/es-ES/com_ordenproduccion.ini -O /tmp/es-ES.ini
+
+    if [ $? -eq 0 ]; then
+        success "Language files downloaded successfully"
+    else
+        warning "Failed to download language files"
+    fi
+
+    echo "Backing up existing language files..."
+    sudo cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing EN file to backup"
+    sudo cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
+
+    echo "Installing new language files..."
+    sudo cp /tmp/en-GB.ini "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    sudo cp /tmp/es-ES.ini "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+
+    # Set proper permissions
+    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+    sudo chmod 644 "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
+    sudo chmod 644 "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+
+    if [ $? -eq 0 ]; then
+        success "Language files installed successfully"
+    else
+        warning "Failed to install language files"
+    fi
+
+    echo "Cleaning up temporary files..."
+    rm -f /tmp/en-GB.ini /tmp/es-ES.ini
+
+    success "Language files update completed"
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
     log "Component has been updated with the latest version."
     log "All existing files have been replaced with new versions."
     log "Autoloading issues have been addressed."
+    log "Language files have been updated with proper labels."
+    echo ""
+    log "📝 Next steps:"
+    log "   1. Go to Components → Production Orders → Settings"
+    log "   2. Set your 'Next Order Number' (e.g., 1000)"
+    log "   3. Configure your order prefix and format"
+    log "   4. Save the settings"
     echo ""
 }
 
