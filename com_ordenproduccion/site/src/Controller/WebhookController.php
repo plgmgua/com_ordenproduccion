@@ -186,7 +186,7 @@ class WebhookController extends BaseController
         ];
         
         $this->app->setHeader('Content-Type', 'application/json');
-        $this->app->setHeader('HTTP/1.1 200 OK');
+        $this->app->setHeader('Status', '200');
         echo json_encode($response);
         $this->app->close();
     }
@@ -211,7 +211,7 @@ class WebhookController extends BaseController
         ];
         
         $this->app->setHeader('Content-Type', 'application/json');
-        $this->app->setHeader('HTTP/1.1 ' . $code);
+        $this->app->setHeader('Status', $code);
         echo json_encode($response);
         $this->app->close();
     }
@@ -385,7 +385,7 @@ class WebhookController extends BaseController
         ];
         
         $this->app->setHeader('Content-Type', 'application/json');
-        $this->app->setHeader('HTTP/1.1 200 OK');
+        $this->app->setHeader('Status', '200');
         echo json_encode($response);
         $this->app->close();
     }

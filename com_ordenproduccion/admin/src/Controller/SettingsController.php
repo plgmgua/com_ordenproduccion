@@ -165,15 +165,16 @@ class SettingsController extends FormController
             $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_ORDER_NUMBER');
         }
 
-        // Validate order number prefix
-        if (empty($data['order_number_prefix'])) {
+        // Validate order prefix
+        if (empty($data['order_prefix'])) {
             $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_EMPTY_PREFIX');
         }
 
-        // Validate order number format
-        if (empty($data['order_number_format'])) {
+        // Validate order format - check if it's one of the valid options
+        $validFormats = ['PREFIX-NUMBER', 'NUMBER', 'PREFIX-NUMBER-YEAR', 'NUMBER-YEAR'];
+        if (empty($data['order_format'])) {
             $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_EMPTY_FORMAT');
-        } elseif (!strpos($data['order_number_format'], '{PREFIX}') || !strpos($data['order_number_format'], '{NUMBER}')) {
+        } elseif (!in_array($data['order_format'], $validFormats)) {
             $errors[] = Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_FORMAT');
         }
 
