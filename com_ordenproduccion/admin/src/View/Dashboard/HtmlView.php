@@ -127,23 +127,17 @@ class HtmlView extends BaseHtmlView
             $toolbar->standardButton('export-stats')
                 ->text('COM_ORDENPRODUCCION_EXPORT_STATISTICS')
                 ->icon('icon-chart')
-                ->task('dashboard.exportData')
-                ->formAttribute('data-format', 'csv')
-                ->formAttribute('data-type', 'statistics');
+                ->task('dashboard.exportData');
             
             $toolbar->standardButton('export-orders')
                 ->text('COM_ORDENPRODUCCION_EXPORT_RECENT_ORDERS')
                 ->icon('icon-list')
-                ->task('dashboard.exportData')
-                ->formAttribute('data-format', 'csv')
-                ->formAttribute('data-type', 'recent_orders');
+                ->task('dashboard.exportData');
             
             $toolbar->standardButton('export-calendar')
                 ->text('COM_ORDENPRODUCCION_EXPORT_CALENDAR')
                 ->icon('icon-calendar')
-                ->task('dashboard.exportData')
-                ->formAttribute('data-format', 'csv')
-                ->formAttribute('data-type', 'calendar');
+                ->task('dashboard.exportData');
         }
 
         // Add help button

@@ -93,7 +93,7 @@ class DashboardModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('COUNT(DISTINCT ' . $db->quoteName('technician_id') . ')')
                 ->from($db->quoteName('#__ordenproduccion_attendance'))
-                ->where($db->quoteName('date') . ' = ' . $db->quote($today))
+                ->where($db->quoteName('attendance_date') . ' = ' . $db->quote($today))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);
@@ -161,7 +161,7 @@ class DashboardModel extends BaseDatabaseModel
                     'o.order_number',
                     'o.client_name',
                     'o.delivery_date',
-                    'o.created_on',
+                    'o.created',
                     'i.attribute_value as status'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
@@ -171,7 +171,7 @@ class DashboardModel extends BaseDatabaseModel
                     $db->quoteName('i.attribute_name') . ' = ' . $db->quote('estado')
                 )
                 ->where($db->quoteName('o.state') . ' = 1')
-                ->order($db->quoteName('o.created_on') . ' DESC')
+                ->order($db->quoteName('o.created') . ' DESC')
                 ->setLimit($limit);
             
             $db->setQuery($query);
@@ -213,15 +213,15 @@ class DashboardModel extends BaseDatabaseModel
             
             $query = $db->getQuery(true)
                 ->select([
-                    'DATE(o.created_on) as order_date',
+                    'DATE(o.created) as order_date',
                     'COUNT(*) as order_count'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where($db->quoteName('o.state') . ' = 1')
-                ->where($db->quoteName('o.created_on') . ' >= ' . $db->quote($startDate))
-                ->where($db->quoteName('o.created_on') . ' <= ' . $db->quote($endDate))
-                ->group('DATE(o.created_on)')
-                ->order('DATE(o.created_on)');
+                ->where($db->quoteName('o.created') . ' >= ' . $db->quote($startDate))
+                ->where($db->quoteName('o.created') . ' <= ' . $db->quote($endDate))
+                ->group('DATE(o.created)')
+                ->order('DATE(o.created)');
             
             $db->setQuery($query);
             $results = $db->loadObjectList();
