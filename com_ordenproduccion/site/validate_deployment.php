@@ -1,18 +1,15 @@
 <?php
 /**
  * Deployment Validation Script for com_ordenproduccion
- * Run this file directly from Joomla root to validate deployment
+ * Run this file inside a Joomla article using Sourcerer
  * 
- * Usage: https://your-domain.com/validate_deployment.php
+ * Usage: Create a Joomla article and use Sourcerer to include this script
  */
 
-// Define Joomla constants
-define('_JEXEC', 1);
-
-// Load Joomla
-require_once __DIR__ . '/libraries/vendor/autoload.php';
-require_once __DIR__ . '/libraries/import.php';
-require_once __DIR__ . '/configuration.php';
+// Since we're running inside Joomla via Sourcerer, Joomla should already be loaded
+if (!defined('_JEXEC')) {
+    die('This script must be run from within a Joomla article using Sourcerer.');
+}
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
