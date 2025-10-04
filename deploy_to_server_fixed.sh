@@ -222,7 +222,11 @@ update_database() {
     
     if [ -f "$SQL_FILE" ]; then
         log "SQL installation file found: $SQL_FILE"
-        warning "Database updates may be required. Please check the SQL file and run updates manually if needed."
+        warning "Database installation required for component to appear in Joomla admin."
+        log "Please install the component via Joomla admin panel:"
+        log "1. Go to Extensions → Manage → Install"
+        log "2. Upload: com_ordenproduccion-1.0.1.zip from installation_package/"
+        log "3. Or download from: https://github.com/plgmgua/com_ordenproduccion/raw/main/installation_package/com_ordenproduccion-1.0.1.zip"
         log "SQL file location: $SQL_FILE"
     else
         log "No SQL installation file found, skipping database updates"
