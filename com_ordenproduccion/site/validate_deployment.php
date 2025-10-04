@@ -317,6 +317,7 @@ ini_set('display_errors', 1);
         $controllers = [
             'Admin Dashboard Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/DashboardController.php',
             'Admin Ordenes Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/OrdenesController.php',
+            'Admin Settings Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/SettingsController.php',
             'Site Webhook Controller' => JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/WebhookController.php'
         ];
         
@@ -341,7 +342,110 @@ ini_set('display_errors', 1);
         }
         echo "</div>";
 
-        // 7. Overall Deployment Status
+        // 8. Check Settings and Configuration Files
+        echo "<div class='section'>";
+        echo "<h2>⚙️ Settings and Configuration</h2>";
+        
+        $settings_files = [
+            'Settings Model' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Model/SettingsModel.php',
+                'expected_content' => 'getNextOrderNumber'
+            ],
+            'Settings View' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Settings/HtmlView.php',
+                'expected_content' => 'Settings'
+            ],
+            'Settings Template' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/settings/default.php',
+                'expected_content' => 'next_order_number'
+            ],
+            'Component Manifest' => [
+                'path' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml',
+                'expected_content' => 'next_order_number'
+            ]
+        ];
+        
+        $settings_checks = [];
+        foreach ($settings_files as $name => $file_info) {
+            $check = checkFileContent($file_info['path'], $file_info['expected_content']);
+            
+            if ($check['exists']) {
+                if ($check['content_match']) {
+                    echo "<div class='status ok'>✅ {$name}</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Size:</strong> {$check['size']} bytes</p>";
+                    echo "<p><strong>Modified:</strong> {$check['modified']}</p>";
+                    $settings_checks[$name] = 'valid';
+                } else {
+                    echo "<div class='status warning'>⚠️ {$name} (Missing Expected Content)</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Issue:</strong> File exists but doesn't contain expected content: {$file_info['expected_content']}</p>";
+                    $settings_checks[$name] = 'invalid';
+                }
+            } else {
+                echo "<div class='status error'>❌ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$file_info['path']} - <span style='color: red;'>MISSING</span></p>";
+                $settings_checks[$name] = 'missing';
+            }
+        }
+        
+        if (in_array('missing', $settings_checks)) {
+            addResult('Settings Configuration', 'error', 'Some settings files are missing');
+        } elseif (in_array('invalid', $settings_checks)) {
+            addResult('Settings Configuration', 'warning', 'Some settings files have wrong content');
+        } else {
+            addResult('Settings Configuration', 'success', 'All settings files exist with correct content');
+        }
+        echo "</div>";
+
+        // 9. Check Language Files for Settings Labels
+        echo "<div class='section'>";
+        echo "<h2>🌐 Settings Language Labels</h2>";
+        
+        $language_files = [
+            'English Admin Language' => [
+                'path' => JPATH_ROOT . '/administrator/language/en-GB/com_ordenproduccion.ini',
+                'expected_content' => 'COM_ORDENPRODUCCION_NEXT_ORDER_NUMBER'
+            ],
+            'Spanish Admin Language' => [
+                'path' => JPATH_ROOT . '/administrator/language/es-ES/com_ordenproduccion.ini',
+                'expected_content' => 'COM_ORDENPRODUCCION_NEXT_ORDER_NUMBER'
+            ]
+        ];
+        
+        $language_checks = [];
+        foreach ($language_files as $name => $file_info) {
+            if (file_exists($file_info['path'])) {
+                $check = checkFileContent($file_info['path'], $file_info['expected_content']);
+                
+                if ($check['content_match']) {
+                    echo "<div class='status ok'>✅ {$name}</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Contains:</strong> Next Order Number labels</p>";
+                    $language_checks[$name] = 'valid';
+                } else {
+                    echo "<div class='status warning'>⚠️ {$name} (Missing Labels)</div>";
+                    echo "<p><strong>Path:</strong> {$file_info['path']}</p>";
+                    echo "<p><strong>Issue:</strong> File exists but missing Next Order Number labels</p>";
+                    $language_checks[$name] = 'invalid';
+                }
+            } else {
+                echo "<div class='status error'>❌ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$file_info['path']} - <span style='color: red;'>MISSING</span></p>";
+                $language_checks[$name] = 'missing';
+            }
+        }
+        
+        if (in_array('missing', $language_checks)) {
+            addResult('Settings Language Labels', 'error', 'Some language files are missing');
+        } elseif (in_array('invalid', $language_checks)) {
+            addResult('Settings Language Labels', 'warning', 'Some language files missing settings labels');
+        } else {
+            addResult('Settings Language Labels', 'success', 'All language files contain settings labels');
+        }
+        echo "</div>";
+
+        // 10. Overall Deployment Status
         echo "<div class='section " . ($overall_status === 'success' ? 'success' : ($overall_status === 'warning' ? 'warning' : 'error')) . "'>";
         echo "<h2>📊 File Deployment Status</h2>";
         
@@ -385,8 +489,10 @@ ini_set('display_errors', 1);
             echo "<h3>✅ All Files Deployed Successfully:</h3>";
             echo "<ul>";
             echo "<li><strong>All critical files are present and correct</strong></li>";
+            echo "<li><strong>Settings and Next Order Number functionality is ready</strong></li>";
             echo "<li><strong>Component should work properly now</strong></li>";
             echo "<li><strong>Try accessing the component in Joomla admin</strong></li>";
+            echo "<li><strong>Go to Components → Production Orders → Options to set Next Order Number</strong></li>";
             echo "</ul>";
         }
         
