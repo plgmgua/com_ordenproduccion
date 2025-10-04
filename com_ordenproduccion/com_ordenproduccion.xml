@@ -145,6 +145,14 @@
                     default="ORD"
                     size="10"
                 />
+                <field
+                    name="next_order_number"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_NEXT_ORDER_NUMBER"
+                    description="COM_ORDENPRODUCCION_NEXT_ORDER_NUMBER_DESC"
+                    default="1000"
+                    min="1"
+                />
             </fieldset>
         </fields>
     </config>
