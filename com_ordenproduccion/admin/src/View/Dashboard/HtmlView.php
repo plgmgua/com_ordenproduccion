@@ -160,13 +160,14 @@ class HtmlView extends BaseHtmlView
     {
         $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_DASHBOARD'));
 
-        // Load Bootstrap
+        // Load Bootstrap and jQuery
         HTMLHelper::_('bootstrap.framework');
+        HTMLHelper::_('jquery.framework');
 
         // Load component assets
         $wa = $this->document->getWebAssetManager();
         $wa->registerAndUseStyle('com_ordenproduccion.dashboard', 'media/com_ordenproduccion/css/dashboard.css', [], ['version' => 'auto']);
-        $wa->registerAndUseScript('com_ordenproduccion.dashboard', 'media/com_ordenproduccion/js/dashboard.js', [], ['version' => 'auto']);
+        $wa->registerAndUseScript('com_ordenproduccion.dashboard', 'media/com_ordenproduccion/js/dashboard.js', ['jquery'], ['version' => 'auto']);
 
         // Add inline JavaScript for dashboard functionality
         $this->document->addScriptDeclaration("
