@@ -305,37 +305,14 @@ main() {
 
     success "Manifest update completed"
 
-    # Step 12: Add Settings menu item to database
-    log "Step 12: Adding Settings menu item to database..."
+    # Step 12: Clear Joomla cache to refresh menu items
+    log "Step 12: Clearing Joomla cache to refresh menu items..."
     
-    echo "Adding Settings menu item to Joomla admin menu..."
+    echo "Clearing Joomla cache to ensure menu items are refreshed..."
+    sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
+    sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear admin cache directory"
     
-    # Create temporary SQL file
-    TEMP_SQL_DIR="$GITHUB_DIR/temp_sql"
-    mkdir -p "$TEMP_SQL_DIR"
-    
-    echo "Downloading Settings menu SQL script..."
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/sql/add_settings_menu.sql -O "$TEMP_SQL_DIR/add_settings_menu.sql"
-
-    if [ $? -eq 0 ]; then
-        success "Settings menu SQL script downloaded successfully"
-    else
-        warning "Failed to download Settings menu SQL script"
-    fi
-
-    echo "Executing Settings menu SQL script..."
-    sudo mysql -u joomla -p'Blob-Repair-Commodore6' joomla < "$TEMP_SQL_DIR/add_settings_menu.sql"
-
-    if [ $? -eq 0 ]; then
-        success "Settings menu item added to database successfully"
-    else
-        warning "Failed to add Settings menu item to database"
-    fi
-
-    echo "Cleaning up temporary SQL files..."
-    rm -rf "$TEMP_SQL_DIR"
-
-    success "Settings menu item setup completed"
+    success "Cache cleared - menu items should be refreshed"
 
     echo ""
     success "🎉 Simplified build update completed successfully!"

@@ -1,5 +1,5 @@
 -- Add Settings menu item to com_ordenproduccion component
--- This script adds the Settings menu item to the Joomla admin menu
+-- This script adds the Settings menu item to the Joomla ADMIN menu (backend)
 
 INSERT INTO `#__menu` (
     `menutype`, 
@@ -38,7 +38,7 @@ SELECT
     'index.php?option=com_ordenproduccion&view=settings', 
     'component', 
     1, 
-    (SELECT id FROM `#__menu` WHERE `link` = 'index.php?option=com_ordenproduccion&view=ordenes' AND `menutype` = 'main' LIMIT 1), 
+    (SELECT id FROM `#__menu` WHERE `link` = 'index.php?option=com_ordenproduccion&view=ordenes' AND `menutype` = 'main' AND `client_id` = 1 LIMIT 1), 
     2, 
     (SELECT extension_id FROM `#__extensions` WHERE `element` = 'com_ordenproduccion' AND `type` = 'component' LIMIT 1), 
     0, 
@@ -59,5 +59,6 @@ SELECT
 WHERE NOT EXISTS (
     SELECT 1 FROM `#__menu` 
     WHERE `link` = 'index.php?option=com_ordenproduccion&view=settings' 
-    AND `menutype` = 'main'
+    AND `menutype` = 'main' 
+    AND `client_id` = 1
 );
