@@ -187,11 +187,51 @@ main() {
     sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear Joomla admin cache"
     success "Joomla cache cleared"
 
+    log "Step 9: Fixing Joomla autoloading issues..."
+    
+    # Check if component is properly registered in database
+    log "Checking component registration in database..."
+    COMPONENT_EXISTS=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT COUNT(*) FROM joomla_extensions WHERE element = '$COMPONENT_NAME';" 2>/dev/null || echo "0")
+    
+    if [ "$COMPONENT_EXISTS" -eq 0 ]; then
+        warning "Component not found in database. Please run install_manual.sh first."
+    else
+        success "Component is registered in database"
+    fi
+    
+    # Delete autoload_psr4.php to force regeneration
+    AUTOLOAD_FILE="$JOOMLA_ROOT/administrator/cache/autoload_psr4.php"
+    if [ -f "$AUTOLOAD_FILE" ]; then
+        log "Deleting autoload_psr4.php to force regeneration..."
+        sudo rm -f "$AUTOLOAD_FILE" || warning "Failed to delete autoload file"
+        success "Autoload file deleted - Joomla will regenerate it"
+    else
+        log "Autoload file not found - will be created on next request"
+    fi
+    
+    # Enable Extension - Namespace Updater plugin if disabled
+    log "Checking Extension - Namespace Updater plugin..."
+    PLUGIN_ENABLED=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT enabled FROM joomla_extensions WHERE element = 'namespaceupdater' AND type = 'plugin';" 2>/dev/null || echo "0")
+    
+    if [ "$PLUGIN_ENABLED" -eq 0 ]; then
+        warning "Extension - Namespace Updater plugin is disabled. Enabling it..."
+        mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -e "UPDATE joomla_extensions SET enabled = 1 WHERE element = 'namespaceupdater' AND type = 'plugin';" 2>/dev/null || warning "Failed to enable plugin"
+        success "Extension - Namespace Updater plugin enabled"
+    else
+        success "Extension - Namespace Updater plugin is already enabled"
+    fi
+    
+    # Clear tmp directory as well
+    sudo rm -rf "$JOOMLA_ROOT/tmp/*" 2>/dev/null || warning "Failed to clear tmp directory"
+    
+    success "Autoloading fixes applied"
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
     log "Component has been updated with the latest version."
     log "All existing files have been replaced with new versions."
+    log "Autoloading issues have been addressed."
     echo ""
 }
 
