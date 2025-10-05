@@ -14,7 +14,7 @@ use Exception;
 
 try {
     $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
-    echo $component->render();
+    $component->dispatch();
 } catch (Exception $e) {
     echo 'Component Error: ' . $e->getMessage();
 }

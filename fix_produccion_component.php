@@ -325,6 +325,44 @@ try {
         echo "     Description: {$type->description}\n";
     }
     
+    // 12. Fix Component Entry Points and Dispatchers (NEW)
+    echo "\n12. Fixing Component Entry Points and Dispatchers...\n";
+    
+    // Check site entry point
+    $siteEntryPoint = JPATH_ROOT . '/components/com_ordenproduccion/site/ordenproduccion.php';
+    if (file_exists($siteEntryPoint)) {
+        $content = file_get_contents($siteEntryPoint);
+        if (strpos($content, '$component->render()') !== false) {
+            echo "   ❌ Site entry point using wrong method (render instead of dispatch)\n";
+            echo "   This is likely causing the 'Invalid controller' error\n";
+        } else {
+            echo "   ✓ Site entry point looks correct\n";
+        }
+    } else {
+        echo "   ❌ Site entry point missing\n";
+    }
+    
+    // Check site dispatcher
+    $siteDispatcher = JPATH_ROOT . '/components/com_ordenproduccion/site/src/Dispatcher/Dispatcher.php';
+    if (file_exists($siteDispatcher)) {
+        echo "   ✓ Site dispatcher exists\n";
+    } else {
+        echo "   ❌ Site dispatcher missing - this will cause controller errors\n";
+    }
+    
+    // Check service provider
+    $serviceProvider = JPATH_ROOT . '/administrator/components/com_ordenproduccion/services/provider.php';
+    if (file_exists($serviceProvider)) {
+        $content = file_get_contents($serviceProvider);
+        if (strpos($content, 'SiteDispatcher') !== false) {
+            echo "   ✓ Service provider includes site dispatcher\n";
+        } else {
+            echo "   ❌ Service provider missing site dispatcher registration\n";
+        }
+    } else {
+        echo "   ❌ Service provider missing\n";
+    }
+    
     // Final cache clear
     echo "   Final cache clear...\n";
     $cache->clean();
