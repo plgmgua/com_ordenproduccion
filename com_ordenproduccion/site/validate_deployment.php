@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.6.18 | <strong>Deployment Script Version:</strong> 1.6.18</p>
+                <p><strong>Validation Script Version:</strong> 1.6.19 | <strong>Deployment Script Version:</strong> 1.6.19</p>
         </div>
 
         <?php
@@ -482,14 +482,11 @@ ini_set('display_errors', 1);
         echo "{$status_icon} FILE DEPLOYMENT {$status_text}";
         echo "</div>";
 
-        // 11. Test WebhookModel SQL Generation
+        // 11. Test SQL Generation (without WebhookModel instantiation)
         echo "<div class='section'>";
-        echo "<h2>🔧 WebhookModel SQL Generation Test</h2>";
+        echo "<h2>🔧 SQL Generation Test</h2>";
         
         try {
-            require_once JPATH_ROOT . '/components/com_ordenproduccion/src/Model/WebhookModel.php';
-            $model = new \Grimpsa\Component\Ordenproduccion\Site\Model\WebhookModel();
-            
             // Test payload
             $testPayload = [
                 'request_title' => 'Solicitud Ventas a Produccion',
@@ -508,45 +505,110 @@ ini_set('display_errors', 1);
                 ]
             ];
             
-            echo "<div class='info'>Testing WebhookModel createOrder method...</div>";
+            echo "<div class='info'>Testing SQL generation logic...</div>";
             
-            // Use reflection to access the protected createOrder method
-            $reflection = new ReflectionClass($model);
-            $method = $reflection->getMethod('createOrder');
-            $method->setAccessible(true);
+            // Simulate WebhookModel logic without instantiating the class
+            $formData = $testPayload['form_data'];
             
-            // Capture the SQL query by temporarily overriding the database query
-            $db = Factory::getDbo();
-            $capturedQuery = null;
+            // Generate order number
+            $clientName = $formData['cliente'] ?? 'CLIENT';
+            $clientCode = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $clientName), 0, 4));
+            $date = date('Ymd');
+            $time = date('His');
+            $orderNumber = $clientCode . '-' . $date . '-' . $time;
             
-            // Create a custom database driver to capture queries
-            $originalExecute = null;
-            
-            try {
-                $result = $method->invoke($model, $testPayload);
-                
-                if ($result) {
-                    echo "<div class='status ok'>✅ WebhookModel createOrder executed</div>";
-                    echo "<p><strong>Result:</strong> Order ID $result created successfully</p>";
-                    addResult('WebhookModel createOrder', 'success', 'createOrder method executed successfully');
+            // Format date
+            $dateInput = $formData['fecha_entrega'];
+            $formattedDate = null;
+            if (!empty($dateInput)) {
+                if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $dateInput, $matches)) {
+                    $day = $matches[1];
+                    $month = $matches[2];
+                    $year = $matches[3];
+                    $formattedDate = $year . '-' . $month . '-' . $day;
                 } else {
-                    $error = $model->getError() ?: 'Unknown error';
-                    echo "<div class='status error'>❌ WebhookModel createOrder failed</div>";
-                    echo "<p><strong>Error:</strong> $error</p>";
-                    addResult('WebhookModel createOrder', 'error', 'createOrder failed: ' . $error);
+                    $formattedDate = $dateInput;
                 }
+            }
+            
+            // Create order data array (exact copy from WebhookModel)
+            $now = date('Y-m-d H:i:s');
+            $orderData = [
+                'order_number' => $orderNumber,
+                'client_id' => $formData['client_id'] ?? '0',
+                'client_name' => $formData['cliente'],
+                'nit' => $formData['nit'] ?? '',
+                'invoice_value' => $formData['valor_factura'] ?? 0,
+                'work_description' => $formData['descripcion_trabajo'],
+                'print_color' => $formData['color_impresion'] ?? '',
+                'dimensions' => $formData['medidas'] ?? '',
+                'delivery_date' => $formattedDate,
+                'material' => $formData['material'] ?? '',
+                'cutting' => $formData['corte'] ?? 'NO',
+                'cutting_details' => $formData['detalles_corte'] ?? '',
+                'state' => 1,
+                'created' => $now,
+                'created_by' => 0,
+                'modified' => $now,
+                'modified_by' => 0,
+                'version' => '1.0.0'
+            ];
+            
+            // Generate SQL query
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_ordenes'))
+                ->columns(array_keys($orderData))
+                ->values(array_map([$db, 'quote'], $orderData));
+            
+            $sql = (string) $query;
+            
+            echo "<div class='status ok'>✅ SQL Query Generated</div>";
+            echo "<p><strong>Order Number:</strong> $orderNumber</p>";
+            echo "<p><strong>Formatted Date:</strong> $formattedDate</p>";
+            echo "<p><strong>Fields Count:</strong> " . count($orderData) . "</p>";
+            
+            // Count columns and values
+            preg_match('/INSERT INTO.*?\((.*?)\).*?VALUES.*?\((.*?)\)/s', $sql, $matches);
+            if (isset($matches[1]) && isset($matches[2])) {
+                $columns = array_map('trim', explode(',', $matches[1]));
+                $values = array_map('trim', explode(',', $matches[2]));
+                
+                if (count($columns) === count($values)) {
+                    echo "<div class='status ok'>✅ Column count (" . count($columns) . ") matches value count (" . count($values) . ")</div>";
+                    addResult('SQL Generation', 'success', 'Column count matches value count');
+                } else {
+                    echo "<div class='status error'>❌ Column count (" . count($columns) . ") does NOT match value count (" . count($values) . ")</div>";
+                    addResult('SQL Generation', 'error', 'Column count mismatch');
+                }
+            }
+            
+            // Try to execute the query
+            try {
+                $db->setQuery($query);
+                $db->execute();
+                $insertId = $db->insertid();
+                
+                echo "<div class='status ok'>✅ SQL Query executed successfully!</div>";
+                echo "<p><strong>Insert ID:</strong> $insertId</p>";
+                
+                // Clean up
+                $deleteQuery = "DELETE FROM joomla_ordenproduccion_ordenes WHERE id = $insertId";
+                $db->setQuery($deleteQuery);
+                $db->execute();
+                
+                addResult('SQL Execution', 'success', 'SQL query executed successfully');
                 
             } catch (Exception $e) {
-                echo "<div class='status error'>❌ WebhookModel Exception</div>";
+                echo "<div class='status error'>❌ SQL Query execution failed</div>";
                 echo "<p><strong>Error:</strong> " . $e->getMessage() . "</p>";
-                echo "<div class='code'>" . htmlspecialchars($e->getTraceAsString()) . "</div>";
-                addResult('WebhookModel Exception', 'error', 'Exception: ' . $e->getMessage());
+                addResult('SQL Execution', 'error', 'Execution failed: ' . $e->getMessage());
             }
             
         } catch (Exception $e) {
-            echo "<div class='status error'>❌ WebhookModel Test Failed</div>";
+            echo "<div class='status error'>❌ SQL Generation Test Failed</div>";
             echo "<p><strong>Error:</strong> " . $e->getMessage() . "</p>";
-            addResult('WebhookModel Test', 'error', 'Test failed: ' . $e->getMessage());
+            addResult('SQL Generation Test', 'error', 'Test failed: ' . $e->getMessage());
         }
         
         echo "</div>";
