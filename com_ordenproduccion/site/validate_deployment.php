@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.6.11 | <strong>Deployment Script Version:</strong> 1.6.11</p>
+                <p><strong>Validation Script Version:</strong> 1.6.12 | <strong>Deployment Script Version:</strong> 1.6.12</p>
         </div>
 
         <?php
@@ -482,6 +482,172 @@ ini_set('display_errors', 1);
         echo "{$status_icon} FILE DEPLOYMENT {$status_text}";
         echo "</div>";
         
+        // 11. Database Table Structure Comparison
+        echo "<div class='section'>";
+        echo "<h2>🗄️ Database Table Structure Comparison</h2>";
+        echo "<p>Comparing original table structure from scripts with current implementation...</p>";
+        
+        // Original table structure from the scripts
+        $originalTables = [
+            'ordenes_de_trabajo' => [
+                'orden_de_trabajo', 'marca_temporal', 'fecha_de_solicitud', 'fecha_de_entrega', 'nombre_del_cliente',
+                'nit', 'direccion_de_entrega', 'agente_de_ventas', 'descripcion_de_trabajo', 'material',
+                'medidas_en_pulgadas', 'adjuntar_cotizacion', 'corte', 'detalles_de_corte', 'bloqueado',
+                'detalles_de_bloqueado', 'doblado', 'detalles_de_doblado', 'laminado', 'detalles_de_laminado',
+                'lomo', 'detalles_de_lomo', 'numerado', 'detalles_de_numerado', 'pegado', 'detalles_de_pegado',
+                'sizado', 'detalles_de_sizado', 'engrapado', 'detalles_de_engrapado', 'troquel', 'detalles_de_troquel',
+                'troquel_cameo', 'detalles_de_troquel_cameo', 'observaciones_instrucciones_generales', 'barniz',
+                'descripcion_de_barniz', 'impresion_en_blanco', 'descripcion_de_acabado_en_blanco', 'color_de_impresion',
+                'direccion_de_correo_electronico', 'tiro_retiro', 'valor_a_facturar', 'archivo_de_arte',
+                'despuntados', 'descripcion_de_despuntados', 'ojetes', 'descripcion_de_ojetes', 'perforado',
+                'descripcion_de_perforado', 'agregar_datos_contacto', 'contacto_nombre', 'contacto_telefono',
+                'contacto_correo_electronico', 'tipo_de_orden'
+            ],
+            'ordenes_info' => [
+                'numero_de_orden', 'tipo_de_campo', 'valor', 'usuario', 'timestamp'
+            ],
+            'asistencia' => [
+                'personname', 'authdate', 'authtime', 'authdatetime', 'direction', 'device_name', 'device_serial_no', 'card_no'
+            ]
+        ];
+        
+        // Current table structure from our schema
+        $currentTables = [
+            'joomla_ordenproduccion_ordenes' => [
+                'id', 'orden_de_trabajo', 'marca_temporal', 'fecha_de_solicitud', 'fecha_de_entrega', 'nombre_del_cliente',
+                'nit', 'direccion_de_entrega', 'agente_de_ventas', 'descripcion_de_trabajo', 'material',
+                'medidas_en_pulgadas', 'adjuntar_cotizacion', 'corte', 'detalles_de_corte', 'bloqueado',
+                'detalles_de_bloqueado', 'doblado', 'detalles_de_doblado', 'laminado', 'detalles_de_laminado',
+                'lomo', 'detalles_de_lomo', 'numerado', 'detalles_de_numerado', 'pegado', 'detalles_de_pegado',
+                'sizado', 'detalles_de_sizado', 'engrapado', 'detalles_de_engrapado', 'troquel', 'detalles_de_troquel',
+                'troquel_cameo', 'detalles_de_troquel_cameo', 'observaciones_instrucciones_generales', 'barniz',
+                'descripcion_de_barniz', 'impresion_en_blanco', 'descripcion_de_acabado_en_blanco', 'color_de_impresion',
+                'direccion_de_correo_electronico', 'tiro_retiro', 'valor_a_facturar', 'archivo_de_arte',
+                'despuntados', 'descripcion_de_despuntados', 'ojetes', 'descripcion_de_ojetes', 'perforado',
+                'descripcion_de_perforado', 'contacto_nombre', 'contacto_telefono', 'state', 'created', 'created_by',
+                'modified', 'modified_by', 'version'
+            ],
+            'joomla_ordenproduccion_info' => [
+                'id', 'numero_de_orden', 'tipo_de_campo', 'valor', 'usuario', 'timestamp', 'state', 'created', 'created_by', 'modified', 'modified_by'
+            ],
+            'joomla_ordenproduccion_attendance' => [
+                'id', 'person_name', 'auth_date', 'auth_time', 'auth_datetime', 'direction', 'device_name', 'device_serial_no', 'card_no',
+                'state', 'created', 'created_by', 'modified', 'modified_by'
+            ]
+        ];
+        
+        echo "<div class='code-block'>";
+        echo "<h3>📋 Table Name Mapping</h3>";
+        echo "<table style='width: 100%; border-collapse: collapse; margin: 10px 0;'>";
+        echo "<tr><th style='border: 1px solid #ddd; padding: 8px; background: #f5f5f5;'>Original Table</th><th style='border: 1px solid #ddd; padding: 8px; background: #f5f5f5;'>Current Table</th></tr>";
+        echo "<tr><td style='border: 1px solid #ddd; padding: 8px;'>ordenes_de_trabajo</td><td style='border: 1px solid #ddd; padding: 8px;'>joomla_ordenproduccion_ordenes</td></tr>";
+        echo "<tr><td style='border: 1px solid #ddd; padding: 8px;'>ordenes_info</td><td style='border: 1px solid #ddd; padding: 8px;'>joomla_ordenproduccion_info</td></tr>";
+        echo "<tr><td style='border: 1px solid #ddd; padding: 8px;'>asistencia</td><td style='border: 1px solid #ddd; padding: 8px;'>joomla_ordenproduccion_attendance</td></tr>";
+        echo "</table>";
+        
+        // Compare main table columns
+        echo "<h3>🔍 Main Table Column Analysis (ordenes_de_trabajo)</h3>";
+        $originalMainCols = $originalTables['ordenes_de_trabajo'];
+        $currentMainCols = array_slice($currentTables['joomla_ordenproduccion_ordenes'], 1); // Skip 'id' column
+        
+        $missingInCurrent = array_diff($originalMainCols, $currentMainCols);
+        $addedInCurrent = array_diff($currentMainCols, $originalMainCols);
+        
+        if (!empty($missingInCurrent)) {
+            echo "<div class='status error'>❌ Missing columns in current table (" . count($missingInCurrent) . "):</div>";
+            echo "<ul>";
+            foreach ($missingInCurrent as $col) {
+                echo "<li>$col</li>";
+            }
+            echo "</ul>";
+            addResult('Main Table Columns', 'error', 'Missing ' . count($missingInCurrent) . ' columns from original table');
+        } else {
+            echo "<div class='status ok'>✅ All original columns present in current table</div>";
+            addResult('Main Table Columns', 'success', 'All original columns present');
+        }
+        
+        if (!empty($addedInCurrent)) {
+            echo "<div class='status info'>ℹ️ Additional columns in current table (" . count($addedInCurrent) . "):</div>";
+            echo "<ul>";
+            foreach ($addedInCurrent as $col) {
+                echo "<li>$col</li>";
+            }
+            echo "</ul>";
+        }
+        
+        // Compare EAV table columns
+        echo "<h3>🔍 EAV Table Column Analysis (ordenes_info)</h3>";
+        $originalEavCols = $originalTables['ordenes_info'];
+        $currentEavCols = array_slice($currentTables['joomla_ordenproduccion_info'], 1); // Skip 'id' column
+        
+        $missingEavInCurrent = array_diff($originalEavCols, $currentEavCols);
+        $addedEavInCurrent = array_diff($currentEavCols, $originalEavCols);
+        
+        if (!empty($missingEavInCurrent)) {
+            echo "<div class='status error'>❌ Missing columns in current EAV table (" . count($missingEavInCurrent) . "):</div>";
+            echo "<ul>";
+            foreach ($missingEavInCurrent as $col) {
+                echo "<li>$col</li>";
+            }
+            echo "</ul>";
+            addResult('EAV Table Columns', 'error', 'Missing ' . count($missingEavInCurrent) . ' columns from original EAV table');
+        } else {
+            echo "<div class='status ok'>✅ All original EAV columns present in current table</div>";
+            addResult('EAV Table Columns', 'success', 'All original EAV columns present');
+        }
+        
+        if (!empty($addedEavInCurrent)) {
+            echo "<div class='status info'>ℹ️ Additional columns in current EAV table (" . count($addedEavInCurrent) . "):</div>";
+            echo "<ul>";
+            foreach ($addedEavInCurrent as $col) {
+                echo "<li>$col</li>";
+            }
+            echo "</ul>";
+        }
+        
+        // Compare attendance table columns
+        echo "<h3>🔍 Attendance Table Column Analysis (asistencia)</h3>";
+        $originalAttCols = $originalTables['asistencia'];
+        $currentAttCols = array_slice($currentTables['joomla_ordenproduccion_attendance'], 1); // Skip 'id' column
+        
+        $missingAttInCurrent = array_diff($originalAttCols, $currentAttCols);
+        $addedAttInCurrent = array_diff($currentAttCols, $originalAttCols);
+        
+        if (!empty($missingAttInCurrent)) {
+            echo "<div class='status error'>❌ Missing columns in current attendance table (" . count($missingAttInCurrent) . "):</div>";
+            echo "<ul>";
+            foreach ($missingAttInCurrent as $col) {
+                echo "<li>$col</li>";
+            }
+            echo "</ul>";
+            addResult('Attendance Table Columns', 'error', 'Missing ' . count($missingAttInCurrent) . ' columns from original attendance table');
+        } else {
+            echo "<div class='status ok'>✅ All original attendance columns present in current table</div>";
+            addResult('Attendance Table Columns', 'success', 'All original attendance columns present');
+        }
+        
+        if (!empty($addedAttInCurrent)) {
+            echo "<div class='status info'>ℹ️ Additional columns in current attendance table (" . count($addedAttInCurrent) . "):</div>";
+            echo "<ul>";
+            foreach ($addedAttInCurrent as $col) {
+                echo "<li>$col</li>";
+            }
+            echo "</ul>";
+        }
+        
+        // Overall assessment
+        $totalMissing = count($missingInCurrent) + count($missingEavInCurrent) + count($missingAttInCurrent);
+        if ($totalMissing === 0) {
+            echo "<div class='status ok'>✅ All table structures are compatible with the original system!</div>";
+            addResult('Database Compatibility', 'success', 'All tables are compatible with original system');
+        } else {
+            echo "<div class='status error'>❌ Found $totalMissing missing columns that need to be addressed for full compatibility.</div>";
+            addResult('Database Compatibility', 'error', "Found $totalMissing missing columns for compatibility");
+        }
+        
+        echo "</div>";
+        echo "</div>";
+
         echo "<h3>Validation Summary:</h3>";
         echo "<ul>";
         foreach ($validation_results as $result) {
