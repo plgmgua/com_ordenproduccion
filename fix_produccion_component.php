@@ -261,7 +261,83 @@ try {
     echo "5. Check if status labels now show in Spanish\n";
     echo "6. Run validate_deployment.php to verify all fixes\n";
     
+    // 11. Comprehensive Menu Item Type Fix (NEW)
+    echo "\n11. Comprehensive Menu Item Type Fix...\n";
+    
+    // Clear all existing menu item types for this component
+    echo "   Clearing existing menu item types...\n";
+    $query = $db->getQuery(true)
+        ->delete($db->quoteName('#__menu_types'))
+        ->where($db->quoteName('menutype') . ' LIKE ' . $db->quote('%ordenproduccion%'));
+    
+    $db->setQuery($query);
+    $deleted = $db->execute();
+    echo "   ✓ Cleared existing menu item types\n";
+    
+    // Test language translations
+    echo "   Testing language translations...\n";
+    $testKey = 'COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_TITLE';
+    $translated = \Joomla\CMS\Language\Text::_($testKey);
+    echo "   Key: $testKey\n";
+    echo "   Translated: $translated\n";
+    echo "   Is translated: " . ($translated !== $testKey ? 'YES' : 'NO') . "\n";
+    
+    // Create menu item types with explicit titles
+    echo "   Creating menu item types with explicit titles...\n";
+    
+    // Create Ordenes menu item type
+    $query = $db->getQuery(true)
+        ->insert($db->quoteName('#__menu_types'))
+        ->set($db->quoteName('menutype') . ' = ' . $db->quote('com-ordenproduccion-ordenes'))
+        ->set($db->quoteName('title') . ' = ' . $db->quote('Listado de Órdenes'))
+        ->set($db->quoteName('description') . ' = ' . $db->quote('Muestra una lista de órdenes de trabajo con filtros y paginación'))
+        ->set($db->quoteName('client_id') . ' = 0');
+    
+    $db->setQuery($query);
+    $db->execute();
+    echo "   ✓ Created 'com-ordenproduccion-ordenes' with title 'Listado de Órdenes'\n";
+    
+    // Create Orden menu item type
+    $query = $db->getQuery(true)
+        ->insert($db->quoteName('#__menu_types'))
+        ->set($db->quoteName('menutype') . ' = ' . $db->quote('com-ordenproduccion-orden'))
+        ->set($db->quoteName('title') . ' = ' . $db->quote('Detalle de Orden de Trabajo'))
+        ->set($db->quoteName('description') . ' = ' . $db->quote('Muestra el detalle completo de una orden de trabajo específica'))
+        ->set($db->quoteName('client_id') . ' = 0');
+    
+    $db->setQuery($query);
+    $db->execute();
+    echo "   ✓ Created 'com-ordenproduccion-orden' with title 'Detalle de Orden de Trabajo'\n";
+    
+    // Verify menu item types were created
+    echo "   Verifying menu item types...\n";
+    $query = $db->getQuery(true)
+        ->select('*')
+        ->from($db->quoteName('#__menu_types'))
+        ->where($db->quoteName('menutype') . ' LIKE ' . $db->quote('%ordenproduccion%'));
+    
+    $db->setQuery($query);
+    $menuTypes = $db->loadObjectList();
+    
+    foreach ($menuTypes as $type) {
+        echo "   - Menutype: {$type->menutype}\n";
+        echo "     Title: {$type->title}\n";
+        echo "     Description: {$type->description}\n";
+    }
+    
+    // Final cache clear
+    echo "   Final cache clear...\n";
+    $cache->clean();
+    echo "   ✓ Final cache clear completed\n";
+    
     echo "\n=== FIX COMPLETE ===\n";
+    echo "The menu item types should now show:\n";
+    echo "- 'Listado de Órdenes' instead of 'Metadata'\n";
+    echo "- 'Detalle de Orden de Trabajo' for the detail view\n";
+    echo "\nNext steps:\n";
+    echo "1. Go to Joomla Admin → Menus → [Any Menu] → New\n";
+    echo "2. Check if the menu item types now show the correct titles\n";
+    echo "3. If still showing 'Metadata', try clearing browser cache\n";
     
 } catch (Exception $e) {
     echo "❌ Error: " . $e->getMessage() . "\n";
