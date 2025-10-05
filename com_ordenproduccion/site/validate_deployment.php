@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.8.3 | <strong>Deployment Script Version:</strong> 1.8.3</p>
+                <p><strong>Validation Script Version:</strong> 1.8.3 | <strong>Deployment Script Version:</strong> 1.8.3 | <strong>Commit:</strong> 251b088</p>
         </div>
 
         <?php
@@ -96,7 +96,241 @@ ini_set('display_errors', 1);
         echo "<p><strong>Current Time:</strong> " . date('Y-m-d H:i:s') . "</p>";
         echo "</div>";
 
-        // 2. Language System Validation (NEW - TOP PRIORITY)
+        // 2. Commit 251b088 File Structure Validation (NEW - TOP PRIORITY)
+        echo "<div class='section'>";
+        echo "<h2>📋 Commit 251b088 File Structure Validation</h2>";
+        echo "<p>Verifying all files from commit 251b088 are present and correct...</p>";
+        
+        // Expected file structure from commit 251b088
+        $expectedFiles = [
+            // Core component files
+            'Admin Component Root' => JPATH_ROOT . '/administrator/components/com_ordenproduccion',
+            'Site Component Root' => JPATH_ROOT . '/components/com_ordenproduccion',
+            'Media Files' => JPATH_ROOT . '/media/com_ordenproduccion',
+            
+            // Admin structure
+            'Admin Entry Point' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/ordenproduccion.php',
+            'Admin Manifest' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml',
+            'Admin Extension' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Extension/OrdenproduccionComponent.php',
+            'Admin Dispatcher' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Dispatcher/Dispatcher.php',
+            'Admin Service Provider' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/services/provider.php',
+            
+            // Admin Controllers
+            'Admin Dashboard Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/DashboardController.php',
+            'Admin Ordenes Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/OrdenesController.php',
+            'Admin Settings Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/SettingsController.php',
+            'Admin Debug Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/DebugController.php',
+            'Admin Webhook Controller' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Controller/WebhookController.php',
+            
+            // Admin Models
+            'Admin Dashboard Model' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Model/DashboardModel.php',
+            'Admin Ordenes Model' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Model/OrdenesModel.php',
+            'Admin Orden Model' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Model/OrdenModel.php',
+            'Admin Settings Model' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Model/SettingsModel.php',
+            'Admin Webhook Model' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Model/WebhookModel.php',
+            
+            // Admin Views
+            'Admin Dashboard View' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Dashboard/HtmlView.php',
+            'Admin Ordenes View' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Ordenes/HtmlView.php',
+            'Admin Orden View' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Orden/HtmlView.php',
+            'Admin Settings View' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Settings/HtmlView.php',
+            'Admin Webhook View' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Webhook/HtmlView.php',
+            'Admin Debug View' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/View/Debug/HtmlView.php',
+            
+            // Admin Templates
+            'Admin Dashboard Template' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/dashboard/default.php',
+            'Admin Ordenes Template' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/ordenes/default.php',
+            'Admin Orden Template' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/orden/edit.php',
+            'Admin Settings Template' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/settings/default.php',
+            'Admin Webhook Template' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/webhook/default.php',
+            'Admin Debug Template' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/tmpl/debug/default.php',
+            
+            // Admin Forms
+            'Admin Orden Form' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/forms/orden.xml',
+            'Admin Settings Form' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/forms/settings.xml',
+            'Admin Webhook Form' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/forms/webhook.xml',
+            
+            // Admin Language Files
+            'Admin English Language' => JPATH_ROOT . '/administrator/language/en-GB/com_ordenproduccion.ini',
+            'Admin Spanish Language' => JPATH_ROOT . '/administrator/language/es-ES/com_ordenproduccion.ini',
+            'Admin English System Language' => JPATH_ROOT . '/administrator/language/en-GB/com_ordenproduccion.sys.ini',
+            'Admin Spanish System Language' => JPATH_ROOT . '/administrator/language/es-ES/com_ordenproduccion.sys.ini',
+            
+            // Admin SQL
+            'Admin Install SQL' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/sql/install.mysql.utf8.sql',
+            'Admin Uninstall SQL' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/sql/uninstall.mysql.utf8.sql',
+            
+            // Site structure
+            'Site Entry Point' => JPATH_ROOT . '/components/com_ordenproduccion/ordenproduccion.php',
+            'Site Extension' => JPATH_ROOT . '/components/com_ordenproduccion/src/Extension/OrdenproduccionComponent.php',
+            'Site Dispatcher' => JPATH_ROOT . '/components/com_ordenproduccion/src/Dispatcher/Dispatcher.php',
+            'Site Service Provider' => JPATH_ROOT . '/components/com_ordenproduccion/services/provider.php',
+            
+            // Site Controllers
+            'Site Display Controller' => JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/DisplayController.php',
+            'Site Ordenes Controller' => JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/OrdenesController.php',
+            'Site Orden Controller' => JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/OrdenController.php',
+            'Site Webhook Controller' => JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/WebhookController.php',
+            
+            // Site Models
+            'Site Ordenes Model' => JPATH_ROOT . '/components/com_ordenproduccion/src/Model/OrdenesModel.php',
+            'Site Orden Model' => JPATH_ROOT . '/components/com_ordenproduccion/src/Model/OrdenModel.php',
+            'Site Webhook Model' => JPATH_ROOT . '/components/com_ordenproduccion/src/Model/WebhookModel.php',
+            
+            // Site Views
+            'Site Ordenes View' => JPATH_ROOT . '/components/com_ordenproduccion/src/View/Ordenes/HtmlView.php',
+            'Site Orden View' => JPATH_ROOT . '/components/com_ordenproduccion/src/View/Orden/HtmlView.php',
+            
+            // Site Templates
+            'Site Ordenes Template' => JPATH_ROOT . '/components/com_ordenproduccion/tmpl/ordenes/default.php',
+            'Site Orden Template' => JPATH_ROOT . '/components/com_ordenproduccion/tmpl/orden/default.php',
+            
+            // Site Forms
+            'Site Ordenes Form' => JPATH_ROOT . '/components/com_ordenproduccion/forms/ordenes.xml',
+            'Site Orden Form' => JPATH_ROOT . '/components/com_ordenproduccion/forms/orden.xml',
+            
+            // Site Language Files
+            'Site English Language' => JPATH_ROOT . '/components/com_ordenproduccion/site/language/en-GB/com_ordenproduccion.ini',
+            'Site Spanish Language' => JPATH_ROOT . '/components/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.ini',
+            'Site Spanish System Language' => JPATH_ROOT . '/components/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.sys.ini',
+            
+            // Site Views Metadata
+            'Site Ordenes Metadata' => JPATH_ROOT . '/components/com_ordenproduccion/site/views/ordenes/metadata.xml',
+            'Site Orden Metadata' => JPATH_ROOT . '/components/com_ordenproduccion/site/views/orden/metadata.xml',
+            
+            // Media files
+            'Media CSS' => JPATH_ROOT . '/media/com_ordenproduccion/css/ordenproduccion.css',
+            'Media JS' => JPATH_ROOT . '/media/com_ordenproduccion/js/ordenproduccion.js',
+            
+            // Helper files
+            'Admin Debug Helper' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Helper/DebugHelper.php',
+            
+            // Debug files (from commit 251b088)
+            'Debug Component Loading' => JPATH_ROOT . '/components/com_ordenproduccion/site/debug_component_loading.php',
+            'Debug Joomla Component' => JPATH_ROOT . '/components/com_ordenproduccion/site/debug_joomla_component.php',
+            'Validate Deployment' => JPATH_ROOT . '/components/com_ordenproduccion/site/validate_deployment.php',
+            'Clear Cache' => JPATH_ROOT . '/components/com_ordenproduccion/site/clear_cache.php',
+            'Clear Language Cache' => JPATH_ROOT . '/components/com_ordenproduccion/site/clear_language_cache.php'
+        ];
+        
+        $fileChecks = [];
+        $missingFiles = [];
+        $existingFiles = [];
+        
+        echo "<h3>📁 File Structure Check:</h3>";
+        foreach ($expectedFiles as $name => $path) {
+            if (file_exists($path)) {
+                $existingFiles[] = $name;
+                $fileChecks[$name] = 'exists';
+                echo "<div class='status ok'>✅ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$path}</p>";
+                if (is_file($path)) {
+                    echo "<p><strong>Size:</strong> " . filesize($path) . " bytes</p>";
+                    echo "<p><strong>Modified:</strong> " . date('Y-m-d H:i:s', filemtime($path)) . "</p>";
+                } else {
+                    echo "<p><strong>Type:</strong> Directory</p>";
+                }
+            } else {
+                $missingFiles[] = $name;
+                $fileChecks[$name] = 'missing';
+                echo "<div class='status error'>❌ {$name}</div>";
+                echo "<p><strong>Path:</strong> {$path} - <span style='color: red;'>MISSING</span></p>";
+            }
+        }
+        
+        echo "<h3>📊 File Structure Summary:</h3>";
+        echo "<p><strong>Total Expected Files:</strong> " . count($expectedFiles) . "</p>";
+        echo "<p><strong>Existing Files:</strong> " . count($existingFiles) . "</p>";
+        echo "<p><strong>Missing Files:</strong> " . count($missingFiles) . "</p>";
+        
+        if (count($missingFiles) > 0) {
+            echo "<div class='status error'>❌ MISSING FILES DETECTED</div>";
+            echo "<h4>Missing Files:</h4>";
+            echo "<ul>";
+            foreach ($missingFiles as $missing) {
+                echo "<li>$missing</li>";
+            }
+            echo "</ul>";
+            addResult('Commit 251b088 File Structure', 'error', count($missingFiles) . ' files missing from commit 251b088');
+        } else {
+            echo "<div class='status ok'>✅ ALL FILES FROM COMMIT 251b088 PRESENT</div>";
+            addResult('Commit 251b088 File Structure', 'success', 'All files from commit 251b088 are present');
+        }
+        
+        echo "</div>";
+
+        // 3. ComponentDispatcherFactory Error Check (NEW - TOP PRIORITY)
+        echo "<div class='section'>";
+        echo "<h2>🔧 ComponentDispatcherFactory Error Check</h2>";
+        echo "<p>Checking for the specific ComponentDispatcherFactory constructor error...</p>";
+        
+        $adminProviderFile = JPATH_ROOT . '/administrator/components/com_ordenproduccion/services/provider.php';
+        
+        if (file_exists($adminProviderFile)) {
+            $content = file_get_contents($adminProviderFile);
+            
+            echo "<h3>📋 Admin Service Provider Analysis:</h3>";
+            echo "<p><strong>File:</strong> $adminProviderFile</p>";
+            echo "<p><strong>Size:</strong> " . filesize($adminProviderFile) . " bytes</p>";
+            
+            // Check for ComponentDispatcherFactory usage
+            if (strpos($content, 'ComponentDispatcherFactory') !== false) {
+                echo "<div class='status warning'>⚠️ ComponentDispatcherFactory found in service provider</div>";
+                
+                // Check for constructor calls
+                if (preg_match('/new\s+ComponentDispatcherFactory\s*\([^)]*\)/', $content, $matches)) {
+                    echo "<p><strong>Constructor Call Found:</strong></p>";
+                    echo "<div class='code'>" . htmlspecialchars($matches[0]) . "</div>";
+                    
+                    // Check if it has the correct number of arguments
+                    $args = substr($matches[0], strpos($matches[0], '(') + 1, -1);
+                    $argCount = substr_count($args, ',') + 1;
+                    
+                    if ($argCount == 1) {
+                        echo "<div class='status error'>❌ ComponentDispatcherFactory constructor has only 1 argument (should have 2)</div>";
+                        echo "<p><strong>Issue:</strong> ComponentDispatcherFactory constructor expects 2 arguments: namespace and MVCFactoryInterface</p>";
+                        addResult('ComponentDispatcherFactory Error', 'error', 'ComponentDispatcherFactory constructor has only 1 argument');
+                    } elseif ($argCount == 2) {
+                        echo "<div class='status ok'>✅ ComponentDispatcherFactory constructor has 2 arguments</div>";
+                        addResult('ComponentDispatcherFactory Error', 'success', 'ComponentDispatcherFactory constructor has correct number of arguments');
+                    } else {
+                        echo "<div class='status warning'>⚠️ ComponentDispatcherFactory constructor has $argCount arguments (unexpected)</div>";
+                        addResult('ComponentDispatcherFactory Error', 'warning', "ComponentDispatcherFactory constructor has $argCount arguments");
+                    }
+                } else {
+                    echo "<div class='status info'>ℹ️ No direct ComponentDispatcherFactory constructor calls found</div>";
+                }
+                
+                // Check for setDispatcher calls
+                if (strpos($content, 'setDispatcher') !== false) {
+                    echo "<div class='status error'>❌ setDispatcher() method calls found</div>";
+                    echo "<p><strong>Issue:</strong> ComponentDispatcherFactory does not have a setDispatcher() method in Joomla 5.x</p>";
+                    addResult('ComponentDispatcherFactory Error', 'error', 'setDispatcher() method calls found - not supported in Joomla 5.x');
+                } else {
+                    echo "<div class='status ok'>✅ No setDispatcher() method calls found</div>";
+                }
+                
+            } else {
+                echo "<div class='status ok'>✅ No ComponentDispatcherFactory usage found</div>";
+                addResult('ComponentDispatcherFactory Error', 'success', 'No ComponentDispatcherFactory usage found');
+            }
+            
+            // Check for proper service provider registration
+            if (strpos($content, 'ComponentDispatcherFactory') !== false && strpos($content, 'registerServiceProvider') !== false) {
+                echo "<div class='status ok'>✅ Using registerServiceProvider for ComponentDispatcherFactory</div>";
+            } elseif (strpos($content, 'ComponentDispatcherFactory') !== false) {
+                echo "<div class='status warning'>⚠️ ComponentDispatcherFactory used but not via registerServiceProvider</div>";
+            }
+            
+        } else {
+            echo "<div class='status error'>❌ Admin service provider file not found</div>";
+            echo "<p><strong>Path:</strong> $adminProviderFile</p>";
+            addResult('ComponentDispatcherFactory Error', 'error', 'Admin service provider file not found');
+        }
+        
+        echo "</div>";
+
+        // 4. Language System Validation (NEW - TOP PRIORITY)
         echo "<div class='section'>";
         echo "<h2>🌐 Language System Validation</h2>";
         
