@@ -49,6 +49,8 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                     </div>
                     <div class="card-body">
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
+                            <input type="hidden" name="option" value="com_ordenproduccion">
+                            <input type="hidden" name="view" value="ordenes">
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="form-group">

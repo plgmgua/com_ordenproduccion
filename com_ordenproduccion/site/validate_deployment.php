@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.7.6 | <strong>Deployment Script Version:</strong> 1.7.6</p>
+                <p><strong>Validation Script Version:</strong> 1.7.7 | <strong>Deployment Script Version:</strong> 1.7.7</p>
         </div>
 
         <?php
@@ -167,7 +167,81 @@ ini_set('display_errors', 1);
         
         echo "</div>";
 
-        // 2. Check Core Component Directories
+        // 3. Routing and View Debug (NEW - TOP PRIORITY)
+        echo "<div class='section'>";
+        echo "<h2>🔗 Routing and View Debug</h2>";
+        
+        try {
+            $app = \Joomla\CMS\Factory::getApplication();
+            $input = $app->input;
+            
+            echo "<h3>Current Request Information:</h3>";
+            echo "<p><strong>Option:</strong> " . $input->get('option', 'none') . "</p>";
+            echo "<p><strong>View:</strong> " . $input->get('view', 'none') . "</p>";
+            echo "<p><strong>Task:</strong> " . $input->get('task', 'none') . "</p>";
+            echo "<p><strong>Layout:</strong> " . $input->get('layout', 'none') . "</p>";
+            
+            // Test routing
+            echo "<h3>Route Testing:</h3>";
+            $testRoutes = [
+                'index.php?option=com_ordenproduccion&view=ordenes' => 'Ordenes List',
+                'index.php?option=com_ordenproduccion&view=orden&id=1' => 'Orden Detail',
+                'index.php?option=com_ordenproduccion&view=webhook' => 'Webhook (should not exist)'
+            ];
+            
+            foreach ($testRoutes as $route => $description) {
+                try {
+                    $url = \Joomla\CMS\Router\Route::_($route);
+                    echo "<p>✅ $description: <code>$url</code></p>";
+                } catch (Exception $e) {
+                    echo "<p>❌ $description: Error - " . $e->getMessage() . "</p>";
+                }
+            }
+            
+            // Check if webhook view exists (this might be causing conflicts)
+            echo "<h3>View File Conflicts:</h3>";
+            $webhookViewFile = JPATH_ROOT . '/components/com_ordenproduccion/site/src/View/Webhook/HtmlView.php';
+            if (file_exists($webhookViewFile)) {
+                echo "<p>⚠️ Webhook view file exists - this might be causing routing conflicts</p>";
+                echo "<p>File: <code>$webhookViewFile</code></p>";
+                addResult('Routing Debug', 'warning', 'Webhook view file exists and might cause routing conflicts');
+            } else {
+                echo "<p>✅ No webhook view file found</p>";
+            }
+            
+            // Check controller routing
+            echo "<h3>Controller Routing:</h3>";
+            $ordenesController = JPATH_ROOT . '/components/com_ordenproduccion/site/src/Controller/OrdenesController.php';
+            $ordenController = JPATH_ROOT . '/components/com_ordenproduccion/site/src/Controller/OrdenController.php';
+            $webhookController = JPATH_ROOT . '/components/com_ordenproduccion/site/src/Controller/WebhookController.php';
+            
+            if (file_exists($ordenesController)) {
+                echo "<p>✅ OrdenesController exists</p>";
+            } else {
+                echo "<p>❌ OrdenesController missing</p>";
+            }
+            
+            if (file_exists($ordenController)) {
+                echo "<p>✅ OrdenController exists</p>";
+            } else {
+                echo "<p>❌ OrdenController missing</p>";
+            }
+            
+            if (file_exists($webhookController)) {
+                echo "<p>⚠️ WebhookController exists - might be interfering with routing</p>";
+                addResult('Routing Debug', 'warning', 'WebhookController exists and might interfere with normal routing');
+            } else {
+                echo "<p>✅ No WebhookController found</p>";
+            }
+            
+        } catch (Exception $e) {
+            echo "<p>❌ Error testing routing: " . $e->getMessage() . "</p>";
+            addResult('Routing Debug', 'error', 'Error testing routing: ' . $e->getMessage());
+        }
+        
+        echo "</div>";
+
+        // 4. Check Core Component Directories
         echo "<div class='section'>";
         echo "<h2>📁 Core Component Directories</h2>";
         
