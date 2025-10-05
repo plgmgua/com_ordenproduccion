@@ -53,7 +53,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                             <div class="col-md-3">
                                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>:</strong>
                                 <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?> ml-2">
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_STATUS_' . strtoupper(str_replace(' ', '_', $item->status))); ?>
+                                    <?php echo $this->translateStatus($item->status); ?>
                                 </span>
                             </div>
                             <div class="col-md-3">

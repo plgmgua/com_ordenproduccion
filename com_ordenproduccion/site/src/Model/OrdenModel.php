@@ -219,17 +219,32 @@ class OrdenModel extends ItemModel
     {
         try {
             $db = $this->getDatabase();
+            
+            // First get the order number from the order ID
+            $orderQuery = $db->getQuery(true)
+                ->select('orden_de_trabajo')
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+            
+            $db->setQuery($orderQuery);
+            $orderNumber = $db->loadResult();
+            
+            if (empty($orderNumber)) {
+                return [];
+            }
+            
+            // Now get EAV data using the order number
             $query = $db->getQuery(true)
-                ->select('attribute_name, attribute_value')
+                ->select('tipo_de_campo, valor')
                 ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('order_id') . ' = ' . (int) $orderId);
+                ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($orderNumber));
 
             $db->setQuery($query);
             $results = $db->loadObjectList();
 
             $eavData = [];
             foreach ($results as $result) {
-                $eavData[$result->attribute_name] = $result->attribute_value;
+                $eavData[$result->tipo_de_campo] = $result->valor;
             }
 
             return $eavData;
@@ -249,10 +264,10 @@ class OrdenModel extends ItemModel
     public function getStatusOptions()
     {
         return [
-            'New' => 'COM_ORDENPRODUCCION_STATUS_NEW',
-            'In Process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
-            'Completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
-            'Closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED'
+            'New' => 'New',
+            'In Process' => 'In Process',
+            'Completed' => 'Completed',
+            'Closed' => 'Closed'
         ];
     }
 
