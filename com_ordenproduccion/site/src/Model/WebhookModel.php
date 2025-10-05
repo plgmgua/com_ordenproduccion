@@ -43,7 +43,7 @@ class WebhookModel extends BaseDatabaseModel
             $query = $db->getQuery(true)
                 ->select('*')
                 ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote($orderNumber));
+                ->where($db->quoteName('order_number') . ' = ' . $db->quote($orderNumber));
             
             $db->setQuery($query);
             return $db->loadObject();
@@ -74,12 +74,49 @@ class WebhookModel extends BaseDatabaseModel
             $orderNumber = $this->generateOrderNumber($formData);
             $this->lastOrderNumber = $orderNumber;
             
-            // Prepare order data - only use columns that exist in the database
+            // Prepare order data - map to actual English column names in database
             $orderData = [
-                'orden_de_trabajo' => $orderNumber,
-                'nombre_del_cliente' => $formData['cliente'],
-                'descripcion_de_trabajo' => $formData['descripcion_trabajo'],
-                'fecha_de_entrega' => $this->formatDate($formData['fecha_entrega']),
+                'order_number' => $orderNumber,
+                'client_id' => $formData['client_id'] ?? '0',
+                'client_name' => $formData['cliente'],
+                'nit' => $formData['nit'] ?? '',
+                'invoice_value' => $formData['valor_factura'] ?? 0,
+                'work_description' => $formData['descripcion_trabajo'],
+                'print_color' => $formData['color_impresion'] ?? '',
+                'dimensions' => $formData['medidas'] ?? '',
+                'delivery_date' => $this->formatDate($formData['fecha_entrega']),
+                'material' => $formData['material'] ?? '',
+                'quotation_files' => isset($formData['cotizacion']) ? json_encode($formData['cotizacion']) : '',
+                'art_files' => isset($formData['arte']) ? json_encode($formData['arte']) : '',
+                'cutting' => $formData['corte'] ?? 'NO',
+                'cutting_details' => $formData['detalles_corte'] ?? '',
+                'blocking' => $formData['blocado'] ?? 'NO',
+                'blocking_details' => $formData['detalles_blocado'] ?? '',
+                'folding' => $formData['doblado'] ?? 'NO',
+                'folding_details' => $formData['detalles_doblado'] ?? '',
+                'laminating' => $formData['laminado'] ?? 'NO',
+                'laminating_details' => $formData['detalles_laminado'] ?? '',
+                'spine' => $formData['lomo'] ?? 'NO',
+                'gluing' => $formData['pegado'] ?? 'NO',
+                'numbering' => $formData['numerado'] ?? 'NO',
+                'numbering_details' => $formData['detalles_numerado'] ?? '',
+                'sizing' => $formData['sizado'] ?? 'NO',
+                'stapling' => $formData['engrapado'] ?? 'NO',
+                'die_cutting' => $formData['troquel'] ?? 'NO',
+                'die_cutting_details' => $formData['detalles_troquel'] ?? '',
+                'varnish' => $formData['barniz'] ?? 'NO',
+                'varnish_details' => $formData['detalles_barniz'] ?? '',
+                'white_print' => $formData['impresion_blanco'] ?? 'NO',
+                'trimming' => $formData['despuntado'] ?? 'NO',
+                'trimming_details' => $formData['detalles_despuntado'] ?? '',
+                'eyelets' => $formData['ojetes'] ?? 'NO',
+                'perforation' => $formData['perforado'] ?? 'NO',
+                'perforation_details' => $formData['detalles_perforado'] ?? '',
+                'instructions' => $formData['instrucciones'] ?? '',
+                'sales_agent' => $formData['agente_de_ventas'] ?? '',
+                'request_date' => $formData['fecha_de_solicitud'] ?? $now,
+                'status' => 'New',
+                'order_type' => 'External',
                 'state' => 1,
                 'created' => $now,
                 'created_by' => 0, // System created
@@ -87,32 +124,6 @@ class WebhookModel extends BaseDatabaseModel
                 'modified_by' => 0,
                 'version' => '1.0.0'
             ];
-            
-            // Add optional fields if they exist in the form data
-            if (isset($formData['nit'])) {
-                $orderData['nit'] = $formData['nit'];
-            }
-            if (isset($formData['agente_de_ventas'])) {
-                $orderData['agente_de_ventas'] = $formData['agente_de_ventas'];
-            }
-            if (isset($formData['material'])) {
-                $orderData['material'] = $formData['material'];
-            }
-            if (isset($formData['medidas'])) {
-                $orderData['medidas_en_pulgadas'] = $formData['medidas'];
-            }
-            if (isset($formData['color_impresion'])) {
-                $orderData['color_de_impresion'] = $formData['color_impresion'];
-            }
-            if (isset($formData['tiro_retiro'])) {
-                $orderData['tiro_retiro'] = $formData['tiro_retiro'];
-            }
-            if (isset($formData['valor_factura'])) {
-                $orderData['valor_a_facturar'] = $formData['valor_factura'];
-            }
-            if (isset($formData['instrucciones'])) {
-                $orderData['observaciones_instrucciones_generales'] = $formData['instrucciones'];
-            }
             
             // Insert order
             $query = $db->getQuery(true)
@@ -172,11 +183,11 @@ class WebhookModel extends BaseDatabaseModel
             $db = Factory::getDbo();
             $now = Factory::getDate()->toSql();
             
-            // Prepare update data - only use columns that exist in the database
+            // Prepare update data - map to actual English column names in database
             $updateData = [
-                'nombre_del_cliente' => $formData['cliente'],
-                'descripcion_de_trabajo' => $formData['descripcion_trabajo'],
-                'fecha_de_entrega' => $this->formatDate($formData['fecha_entrega']),
+                'client_name' => $formData['cliente'],
+                'work_description' => $formData['descripcion_trabajo'],
+                'delivery_date' => $this->formatDate($formData['fecha_entrega']),
                 'modified' => $now,
                 'modified_by' => 0 // System modified
             ];
@@ -186,25 +197,22 @@ class WebhookModel extends BaseDatabaseModel
                 $updateData['nit'] = $formData['nit'];
             }
             if (isset($formData['agente_de_ventas'])) {
-                $updateData['agente_de_ventas'] = $formData['agente_de_ventas'];
+                $updateData['sales_agent'] = $formData['agente_de_ventas'];
             }
             if (isset($formData['material'])) {
                 $updateData['material'] = $formData['material'];
             }
             if (isset($formData['medidas'])) {
-                $updateData['medidas_en_pulgadas'] = $formData['medidas'];
+                $updateData['dimensions'] = $formData['medidas'];
             }
             if (isset($formData['color_impresion'])) {
-                $updateData['color_de_impresion'] = $formData['color_impresion'];
-            }
-            if (isset($formData['tiro_retiro'])) {
-                $updateData['tiro_retiro'] = $formData['tiro_retiro'];
+                $updateData['print_color'] = $formData['color_impresion'];
             }
             if (isset($formData['valor_factura'])) {
-                $updateData['valor_a_facturar'] = $formData['valor_factura'];
+                $updateData['invoice_value'] = $formData['valor_factura'];
             }
             if (isset($formData['instrucciones'])) {
-                $updateData['observaciones_instrucciones_generales'] = $formData['instrucciones'];
+                $updateData['instructions'] = $formData['instrucciones'];
             }
             
             // Update order
@@ -261,8 +269,8 @@ class WebhookModel extends BaseDatabaseModel
                 $query = $db->getQuery(true)
                     ->select('id')
                     ->from($db->quoteName('#__ordenproduccion_info'))
-                    ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($orderId))
-                    ->where($db->quoteName('tipo_de_campo') . ' = ' . $db->quote($attribute));
+                    ->where($db->quoteName('order_id') . ' = ' . $db->quote($orderId))
+                    ->where($db->quoteName('attribute_name') . ' = ' . $db->quote($attribute));
                 
                 $db->setQuery($query);
                 $existingId = $db->loadResult();
@@ -271,7 +279,7 @@ class WebhookModel extends BaseDatabaseModel
                     // Update existing attribute
                     $query = $db->getQuery(true)
                         ->update($db->quoteName('#__ordenproduccion_info'))
-                        ->set($db->quoteName('valor') . ' = ' . $db->quote($value))
+                        ->set($db->quoteName('attribute_value') . ' = ' . $db->quote($value))
                         ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
                         ->where($db->quoteName('id') . ' = ' . (int) $existingId);
                     
@@ -285,11 +293,9 @@ class WebhookModel extends BaseDatabaseModel
                     $query = $db->getQuery(true)
                         ->insert($db->quoteName('#__ordenproduccion_info'))
                         ->columns([
-                            $db->quoteName('numero_de_orden'),
-                            $db->quoteName('tipo_de_campo'),
-                            $db->quoteName('valor'),
-                            $db->quoteName('usuario'),
-                            $db->quoteName('timestamp'),
+                            $db->quoteName('order_id'),
+                            $db->quoteName('attribute_name'),
+                            $db->quoteName('attribute_value'),
                             $db->quoteName('created'),
                             $db->quoteName('created_by')
                         ])
@@ -297,8 +303,6 @@ class WebhookModel extends BaseDatabaseModel
                             $db->quote($orderId),
                             $db->quote($attribute),
                             $db->quote($value),
-                            $db->quote('webhook'),
-                            $db->quote($now),
                             $db->quote($now),
                             (int) 0
                         ]);
