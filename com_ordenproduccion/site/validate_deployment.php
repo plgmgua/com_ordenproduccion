@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.8.6 | <strong>Deployment Script Version:</strong> 1.8.6 | <strong>Commit:</strong> 251b088</p>
+                <p><strong>Validation Script Version:</strong> 1.8.7 | <strong>Deployment Script Version:</strong> 1.8.7 | <strong>Commit:</strong> 251b088</p>
         </div>
 
         <?php
@@ -96,7 +96,159 @@ ini_set('display_errors', 1);
         echo "<p><strong>Current Time:</strong> " . date('Y-m-d H:i:s') . "</p>";
         echo "</div>";
 
-        // 2. Commit 251b088 File Structure Validation (NEW - TOP PRIORITY)
+        // 2. Local vs Server File Comparison (NEW - TOP PRIORITY)
+        echo "<div class='section'>";
+        echo "<h2>📋 Local vs Server File Comparison</h2>";
+        echo "<p>Comparing local working copy files with server files to ensure changes are deployed...</p>";
+        
+        // Define the local working directory (this would be the GitHub repo)
+        $localWorkingDir = '/Users/pgrant/my_cloud/GitHub-Cursor/com_ordenproduccion-1';
+        
+        // Key files to compare for our recent fixes
+        $comparisonFiles = [
+            'OrdenModel' => [
+                'local' => $localWorkingDir . '/com_ordenproduccion/site/src/Model/OrdenModel.php',
+                'server' => JPATH_ROOT . '/components/com_ordenproduccion/site/src/Model/OrdenModel.php',
+                'fixes' => ['translateStatus', 'numero_de_orden', 'getEAVData']
+            ],
+            'OrdenView' => [
+                'local' => $localWorkingDir . '/com_ordenproduccion/site/src/View/Orden/HtmlView.php',
+                'server' => JPATH_ROOT . '/components/com_ordenproduccion/site/src/View/Orden/HtmlView.php',
+                'fixes' => ['translateStatus', 'getStatusBadgeClass']
+            ],
+            'OrdenTemplate' => [
+                'local' => $localWorkingDir . '/com_ordenproduccion/site/tmpl/orden/default.php',
+                'server' => JPATH_ROOT . '/components/com_ordenproduccion/site/tmpl/orden/default.php',
+                'fixes' => ['translateStatus', 'getStatusBadgeClass']
+            ],
+            'OrdenesModel' => [
+                'local' => $localWorkingDir . '/com_ordenproduccion/site/src/Model/OrdenesModel.php',
+                'server' => JPATH_ROOT . '/components/com_ordenproduccion/site/src/Model/OrdenesModel.php',
+                'fixes' => ['getStatusOptions', 'translateStatus']
+            ],
+            'OrdenesTemplate' => [
+                'local' => $localWorkingDir . '/com_ordenproduccion/site/tmpl/ordenes/default.php',
+                'server' => JPATH_ROOT . '/components/com_ordenproduccion/site/tmpl/ordenes/default.php',
+                'fixes' => ['translateStatus', 'filter_status']
+            ],
+            'ServiceProvider' => [
+                'local' => $localWorkingDir . '/com_ordenproduccion/admin/services/provider.php',
+                'server' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/services/provider.php',
+                'fixes' => ['ComponentDispatcherFactory', 'registerServiceProvider']
+            ]
+        ];
+        
+        $comparisonResults = [];
+        $allFilesMatch = true;
+        
+        echo "<h3>📁 File Comparison Results:</h3>";
+        
+        foreach ($comparisonFiles as $name => $fileInfo) {
+            echo "<div style='margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px;'>";
+            echo "<h4>$name</h4>";
+            
+            $localExists = file_exists($fileInfo['local']);
+            $serverExists = file_exists($fileInfo['server']);
+            
+            if (!$localExists) {
+                echo "<div class='status error'>❌ Local file not found: {$fileInfo['local']}</div>";
+                $allFilesMatch = false;
+                continue;
+            }
+            
+            if (!$serverExists) {
+                echo "<div class='status error'>❌ Server file not found: {$fileInfo['server']}</div>";
+                $allFilesMatch = false;
+                continue;
+            }
+            
+            // Read file contents
+            $localContent = file_get_contents($fileInfo['local']);
+            $serverContent = file_get_contents($fileInfo['server']);
+            
+            // Compare file sizes
+            $localSize = strlen($localContent);
+            $serverSize = strlen($serverContent);
+            $sizeMatch = ($localSize === $serverSize);
+            
+            // Compare file modification times (if possible)
+            $localModified = date('Y-m-d H:i:s', filemtime($fileInfo['local']));
+            $serverModified = date('Y-m-d H:i:s', filemtime($fileInfo['server']));
+            
+            // Check for specific fixes
+            $fixResults = [];
+            foreach ($fileInfo['fixes'] as $fix) {
+                $localHasFix = strpos($localContent, $fix) !== false;
+                $serverHasFix = strpos($serverContent, $fix) !== false;
+                $fixMatch = ($localHasFix === $serverHasFix);
+                
+                $fixResults[$fix] = [
+                    'local' => $localHasFix,
+                    'server' => $serverHasFix,
+                    'match' => $fixMatch
+                ];
+                
+                if (!$fixMatch) {
+                    $allFilesMatch = false;
+                }
+            }
+            
+            // Overall file match
+            $contentMatch = ($localContent === $serverContent);
+            if (!$contentMatch) {
+                $allFilesMatch = false;
+            }
+            
+            // Display results
+            echo "<p><strong>Local File:</strong> {$fileInfo['local']}</p>";
+            echo "<p><strong>Server File:</strong> {$fileInfo['server']}</p>";
+            echo "<p><strong>Local Size:</strong> $localSize bytes | <strong>Server Size:</strong> $serverSize bytes</p>";
+            echo "<p><strong>Local Modified:</strong> $localModified | <strong>Server Modified:</strong> $serverModified</p>";
+            
+            if ($sizeMatch) {
+                echo "<div class='status ok'>✅ File sizes match</div>";
+            } else {
+                echo "<div class='status error'>❌ File sizes differ</div>";
+            }
+            
+            if ($contentMatch) {
+                echo "<div class='status ok'>✅ File contents match exactly</div>";
+            } else {
+                echo "<div class='status warning'>⚠️ File contents differ</div>";
+            }
+            
+            // Display fix results
+            echo "<h5>Fix Verification:</h5>";
+            foreach ($fixResults as $fix => $result) {
+                $statusClass = $result['match'] ? 'ok' : 'error';
+                $statusText = $result['match'] ? '✅' : '❌';
+                $localStatus = $result['local'] ? 'Present' : 'Missing';
+                $serverStatus = $result['server'] ? 'Present' : 'Missing';
+                
+                echo "<div class='status $statusClass'>$statusText <strong>$fix:</strong> Local: $localStatus | Server: $serverStatus</div>";
+            }
+            
+            $comparisonResults[$name] = [
+                'content_match' => $contentMatch,
+                'size_match' => $sizeMatch,
+                'fixes_match' => $fixResults
+            ];
+            
+            echo "</div>";
+        }
+        
+        echo "<h3>📊 Overall Comparison Summary:</h3>";
+        if ($allFilesMatch) {
+            echo "<div class='status ok'>✅ ALL FILES MATCH - Changes properly deployed</div>";
+            addResult('Local vs Server Comparison', 'success', 'All files match between local and server');
+        } else {
+            echo "<div class='status error'>❌ FILES DIFFER - Changes not properly deployed</div>";
+            addResult('Local vs Server Comparison', 'error', 'Files differ between local and server - deployment needed');
+        }
+        
+        echo "</div>";
+
+        // 3. Commit 251b088 File Structure Validation (NEW - TOP PRIORITY)
         echo "<div class='section'>";
         echo "<h2>📋 Commit 251b088 File Structure Validation</h2>";
         echo "<p>Verifying all files from commit 251b088 are present and correct...</p>";
