@@ -336,7 +336,7 @@ class WebhookModel extends BaseDatabaseModel
     }
 
     /**
-     * Generate order number from form data
+     * Generate order number using settings
      *
      * @param   array  $formData  Form data
      *
@@ -346,18 +346,23 @@ class WebhookModel extends BaseDatabaseModel
      */
     protected function generateOrderNumber($formData)
     {
-        // Extract client name and create a short code
-        $clientName = $formData['cliente'] ?? 'CLIENT';
-        $clientCode = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $clientName), 0, 4));
+        try {
+            // Use the SettingsModel to get the next order number
+            $settingsModel = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+            $orderNumber = $settingsModel->getNextOrderNumber();
+            
+            if ($orderNumber) {
+                return $orderNumber;
+            }
+        } catch (\Exception $e) {
+            // Log the error but continue with fallback
+            $this->logError('Error getting order number from settings: ' . $e->getMessage());
+        }
         
-        // Get current date
+        // Fallback to simple format if settings fail
         $date = date('Ymd');
-        
-        // Get current time for uniqueness
         $time = date('His');
-        
-        // Generate order number: CLIENTCODE-YYYYMMDD-HHMMSS
-        return $clientCode . '-' . $date . '-' . $time;
+        return 'ORD-' . $date . '-' . $time;
     }
 
     /**
@@ -370,6 +375,21 @@ class WebhookModel extends BaseDatabaseModel
     public function getLastOrderNumber()
     {
         return $this->lastOrderNumber ?? null;
+    }
+
+    /**
+     * Log error message
+     *
+     * @param   string  $message  Error message
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function logError($message)
+    {
+        // Simple error logging - could be enhanced with proper logging system
+        error_log('WebhookModel Error: ' . $message);
     }
 
     /**

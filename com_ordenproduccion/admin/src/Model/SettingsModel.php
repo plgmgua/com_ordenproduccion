@@ -86,17 +86,22 @@ class SettingsModel extends BaseModel
     public function getItem($pk = null)
     {
         try {
-            // Return default settings
-            $settings = new \stdClass();
+            // Try to get saved settings from database
+            $settings = $this->getSavedSettings();
             
-            $settings->next_order_number = '1000';
-            $settings->order_prefix = 'ORD';
-            $settings->order_format = 'PREFIX-NUMBER';
-            $settings->auto_increment = '1';
-            $settings->items_per_page = '20';
-            $settings->show_creation_date = '1';
-            $settings->show_modification_date = '1';
-            $settings->default_order_status = 'nueva';
+            if (!$settings) {
+                // Return default settings if no saved settings found
+                $settings = new \stdClass();
+                
+                $settings->next_order_number = '1000';
+                $settings->order_prefix = 'ORD';
+                $settings->order_format = 'PREFIX-NUMBER';
+                $settings->auto_increment = '1';
+                $settings->items_per_page = '20';
+                $settings->show_creation_date = '1';
+                $settings->show_modification_date = '1';
+                $settings->default_order_status = 'nueva';
+            }
 
             return $settings;
             
@@ -143,23 +148,29 @@ class SettingsModel extends BaseModel
     public function getNextOrderNumber()
     {
         try {
-            // Get current settings
-            $settings = $this->getItem();
+            // Get actual settings from database
+            $settings = $this->getSavedSettings();
 
             if (!$settings) {
-                return 'ORD-' . date('YmdHis');
+                // Fallback to default settings
+                $settings = (object) [
+                    'next_order_number' => '1000',
+                    'order_prefix' => 'ORD',
+                    'order_format' => 'PREFIX-NUMBER'
+                ];
             }
 
-            // Get the next number
+            // Get the next number and increment it
             $nextNumber = (int) $settings->next_order_number;
 
             // Generate the order number based on format
             $orderNumber = $settings->order_format;
-            $orderNumber = str_replace('{PREFIX}', $settings->order_prefix, $orderNumber);
-            $orderNumber = str_replace('{NUMBER}', str_pad($nextNumber, 4, '0', STR_PAD_LEFT), $orderNumber);
+            $orderNumber = str_replace('PREFIX', $settings->order_prefix, $orderNumber);
+            $orderNumber = str_replace('NUMBER', str_pad($nextNumber, 6, '0', STR_PAD_LEFT), $orderNumber);
 
-            // For now, just return the generated number without incrementing
-            // TODO: Implement proper persistence later
+            // Increment the next order number and save it
+            $this->incrementNextOrderNumber($nextNumber + 1);
+
             return $orderNumber;
 
         } catch (\Exception $e) {
@@ -167,7 +178,77 @@ class SettingsModel extends BaseModel
                 'Error generating order number: ' . $e->getMessage(),
                 'error'
             );
-            return 'ORD-' . date('YmdHis');
+            return 'ORD-001000';
+        }
+    }
+
+    /**
+     * Get saved settings from database
+     *
+     * @return  object|null  Settings object or null
+     *
+     * @since   1.0.0
+     */
+    protected function getSavedSettings()
+    {
+        try {
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_settings'))
+                ->where($db->quoteName('id') . ' = 1');
+            
+            $db->setQuery($query);
+            $result = $db->loadObject();
+            
+            return $result;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Increment the next order number in database
+     *
+     * @param   int  $nextNumber  The next order number
+     *
+     * @return  boolean  True on success
+     *
+     * @since   1.0.0
+     */
+    protected function incrementNextOrderNumber($nextNumber)
+    {
+        try {
+            $db = Factory::getDbo();
+            
+            // Check if settings record exists
+            $query = $db->getQuery(true)
+                ->select('id')
+                ->from($db->quoteName('#__ordenproduccion_settings'))
+                ->where($db->quoteName('id') . ' = 1');
+            
+            $db->setQuery($query);
+            $exists = $db->loadResult();
+            
+            if ($exists) {
+                // Update existing record
+                $query = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_order_number') . ' = ' . (int) $nextNumber)
+                    ->where($db->quoteName('id') . ' = 1');
+            } else {
+                // Insert new record
+                $query = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_settings'))
+                    ->columns(['id', 'next_order_number', 'order_prefix', 'order_format', 'auto_increment', 'items_per_page', 'show_creation_date', 'show_modification_date', 'default_order_status'])
+                    ->values('1, ' . (int) $nextNumber . ', ' . $db->quote('ORD') . ', ' . $db->quote('PREFIX-NUMBER') . ', 1, 20, 1, 1, ' . $db->quote('nueva'));
+            }
+            
+            $db->setQuery($query);
+            return $db->execute();
+            
+        } catch (\Exception $e) {
+            return false;
         }
     }
 
