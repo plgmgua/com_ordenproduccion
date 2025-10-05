@@ -193,6 +193,10 @@ class SettingsModel extends BaseModel
     {
         try {
             $db = Factory::getDbo();
+            
+            // Check if table exists, create if it doesn't
+            $this->ensureSettingsTableExists();
+            
             $query = $db->getQuery(true)
                 ->select('*')
                 ->from($db->quoteName('#__ordenproduccion_settings'))
@@ -204,6 +208,60 @@ class SettingsModel extends BaseModel
             return $result;
         } catch (\Exception $e) {
             return null;
+        }
+    }
+
+    /**
+     * Ensure the settings table exists
+     *
+     * @return  boolean  True if table exists or was created
+     *
+     * @since   1.0.0
+     */
+    protected function ensureSettingsTableExists()
+    {
+        try {
+            $db = Factory::getDbo();
+            
+            // Check if table exists
+            $query = "SHOW TABLES LIKE " . $db->quote('#__ordenproduccion_settings');
+            $db->setQuery($query);
+            $exists = $db->loadResult();
+            
+            if (!$exists) {
+                // Create the settings table
+                $createTable = "
+                    CREATE TABLE `#__ordenproduccion_settings` (
+                        `id` int(11) NOT NULL DEFAULT 1,
+                        `next_order_number` int(11) NOT NULL DEFAULT 1000,
+                        `order_prefix` varchar(10) NOT NULL DEFAULT 'ORD',
+                        `order_format` varchar(50) NOT NULL DEFAULT 'PREFIX-NUMBER',
+                        `auto_increment` tinyint(1) NOT NULL DEFAULT 1,
+                        `items_per_page` int(11) NOT NULL DEFAULT 20,
+                        `show_creation_date` tinyint(1) NOT NULL DEFAULT 1,
+                        `show_modification_date` tinyint(1) NOT NULL DEFAULT 1,
+                        `default_order_status` varchar(50) NOT NULL DEFAULT 'nueva',
+                        PRIMARY KEY (`id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ";
+                
+                $db->setQuery($createTable);
+                $db->execute();
+                
+                // Insert default record
+                $insertDefault = "
+                    INSERT INTO `#__ordenproduccion_settings` 
+                    (`id`, `next_order_number`, `order_prefix`, `order_format`, `auto_increment`, `items_per_page`, `show_creation_date`, `show_modification_date`, `default_order_status`)
+                    VALUES (1, 1000, 'ORD', 'PREFIX-NUMBER', 1, 20, 1, 1, 'nueva');
+                ";
+                
+                $db->setQuery($insertDefault);
+                $db->execute();
+            }
+            
+            return true;
+        } catch (\Exception $e) {
+            return false;
         }
     }
 

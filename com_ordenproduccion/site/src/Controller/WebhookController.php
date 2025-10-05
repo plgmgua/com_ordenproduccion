@@ -104,18 +104,9 @@ class WebhookController extends BaseController
                 ];
             }
             
-            // Check if order already exists
-            $existingOrder = $model->findExistingOrder($data);
-            
-            if ($existingOrder) {
-                // Update existing order
-                $result = $model->updateOrder($existingOrder->id, $data);
-                $message = 'Order updated successfully';
-            } else {
-                // Create new order
-                $result = $model->createOrder($data);
-                $message = 'Order created successfully';
-            }
+            // Always create new order for webhook (don't update existing)
+            $result = $model->createOrder($data);
+            $message = 'Order created successfully';
             
             if ($result) {
                 // Get the order number from the model
