@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.6.17 | <strong>Deployment Script Version:</strong> 1.6.17</p>
+                <p><strong>Validation Script Version:</strong> 1.6.18 | <strong>Deployment Script Version:</strong> 1.6.18</p>
         </div>
 
         <?php
@@ -481,8 +481,77 @@ ini_set('display_errors', 1);
         echo "<div class='status " . ($overall_status === 'success' ? 'ok' : ($overall_status === 'warning' ? 'warning' : 'error')) . "'>";
         echo "{$status_icon} FILE DEPLOYMENT {$status_text}";
         echo "</div>";
+
+        // 11. Test WebhookModel SQL Generation
+        echo "<div class='section'>";
+        echo "<h2>🔧 WebhookModel SQL Generation Test</h2>";
         
-        // 11. Database Table Structure Comparison
+        try {
+            require_once JPATH_ROOT . '/components/com_ordenproduccion/src/Model/WebhookModel.php';
+            $model = new \Grimpsa\Component\Ordenproduccion\Site\Model\WebhookModel();
+            
+            // Test payload
+            $testPayload = [
+                'request_title' => 'Solicitud Ventas a Produccion',
+                'form_data' => [
+                    'client_id' => '7',
+                    'cliente' => 'Grupo Impre S.A.',
+                    'nit' => '114441782',
+                    'valor_factura' => '2500',
+                    'descripcion_trabajo' => '1000 Flyers Full Color con acabados especiales',
+                    'color_impresion' => 'Full Color',
+                    'medidas' => '8.5 x 11',
+                    'fecha_entrega' => '15/10/2025',
+                    'material' => 'Husky 250 grms',
+                    'corte' => 'SI',
+                    'detalles_corte' => 'Corte recto en guillotina'
+                ]
+            ];
+            
+            echo "<div class='info'>Testing WebhookModel createOrder method...</div>";
+            
+            // Use reflection to access the protected createOrder method
+            $reflection = new ReflectionClass($model);
+            $method = $reflection->getMethod('createOrder');
+            $method->setAccessible(true);
+            
+            // Capture the SQL query by temporarily overriding the database query
+            $db = Factory::getDbo();
+            $capturedQuery = null;
+            
+            // Create a custom database driver to capture queries
+            $originalExecute = null;
+            
+            try {
+                $result = $method->invoke($model, $testPayload);
+                
+                if ($result) {
+                    echo "<div class='status ok'>✅ WebhookModel createOrder executed</div>";
+                    echo "<p><strong>Result:</strong> Order ID $result created successfully</p>";
+                    addResult('WebhookModel createOrder', 'success', 'createOrder method executed successfully');
+                } else {
+                    $error = $model->getError() ?: 'Unknown error';
+                    echo "<div class='status error'>❌ WebhookModel createOrder failed</div>";
+                    echo "<p><strong>Error:</strong> $error</p>";
+                    addResult('WebhookModel createOrder', 'error', 'createOrder failed: ' . $error);
+                }
+                
+            } catch (Exception $e) {
+                echo "<div class='status error'>❌ WebhookModel Exception</div>";
+                echo "<p><strong>Error:</strong> " . $e->getMessage() . "</p>";
+                echo "<div class='code'>" . htmlspecialchars($e->getTraceAsString()) . "</div>";
+                addResult('WebhookModel Exception', 'error', 'Exception: ' . $e->getMessage());
+            }
+            
+        } catch (Exception $e) {
+            echo "<div class='status error'>❌ WebhookModel Test Failed</div>";
+            echo "<p><strong>Error:</strong> " . $e->getMessage() . "</p>";
+            addResult('WebhookModel Test', 'error', 'Test failed: ' . $e->getMessage());
+        }
+        
+        echo "</div>";
+
+        // 12. Database Table Structure Comparison
         echo "<div class='section'>";
         echo "<h2>🗄️ Database Table Structure Comparison</h2>";
         echo "<p>Comparing original table structure from scripts with current implementation...</p>";
