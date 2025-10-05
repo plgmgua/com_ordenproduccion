@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <view
-        title="COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_TITLE"
-        message="COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_DESC">
+    <view title="COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_TITLE">
+        <message>COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_DESC</message>
         <layout title="COM_ORDENPRODUCCION_LAYOUT_DEFAULT_TITLE" />
     </view>
 </metadata>
