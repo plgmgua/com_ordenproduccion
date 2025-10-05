@@ -2,6 +2,6 @@
 <metadata>
     <view title="COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_TITLE">
         <message>COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_DESC</message>
-        <layout title="COM_ORDENPRODUCCION_LAYOUT_DEFAULT_TITLE" />
+        <layout title="COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_TITLE" />
     </view>
 </metadata>

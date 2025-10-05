@@ -27,8 +27,39 @@ try {
     
     echo "=== FIXING PRODUCTION COMPONENT ISSUES ===\n\n";
     
-    // 1. Fix Menu Item Types (Database Approach)
-    echo "1. Fixing Menu Item Types...\n";
+    // 1. Clean Up Existing Menu Items
+    echo "1. Cleaning up existing menu items...\n";
+    
+    // Check for existing menu items that might conflict
+    $query = $db->getQuery(true)
+        ->select('id, title, alias, link, state, published')
+        ->from($db->quoteName('#__menu'))
+        ->where($db->quoteName('link') . ' LIKE ' . $db->quote('%com_ordenproduccion%'));
+    
+    $db->setQuery($query);
+    $existingMenuItems = $db->loadObjectList();
+    
+    if (!empty($existingMenuItems)) {
+        echo "   Found " . count($existingMenuItems) . " existing menu items:\n";
+        foreach ($existingMenuItems as $item) {
+            echo "   - ID: {$item->id}, Title: {$item->title}, State: {$item->state}, Published: {$item->published}\n";
+        }
+        
+        // Delete menu items in trash (state = -2)
+        $query = $db->getQuery(true)
+            ->delete($db->quoteName('#__menu'))
+            ->where($db->quoteName('state') . ' = -2')
+            ->where($db->quoteName('link') . ' LIKE ' . $db->quote('%com_ordenproduccion%'));
+        
+        $db->setQuery($query);
+        $deleted = $db->execute();
+        echo "   ✓ Cleaned up menu items in trash\n";
+    } else {
+        echo "   ✓ No existing menu items found\n";
+    }
+    
+    // 2. Fix Menu Item Types (Database Approach)
+    echo "\n2. Fixing Menu Item Types...\n";
     
     // Check if menu item types exist
     $query = $db->getQuery(true)
