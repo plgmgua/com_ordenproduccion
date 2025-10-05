@@ -79,6 +79,7 @@ try {
     
     $orderData = [
         'order_number' => $orderNumber,
+        'orden_de_trabajo' => $orderNumber, // Also populate the Spanish column
         'client_id' => $formData['client_id'] ?? '0',
         'client_name' => $formData['cliente'],
         'nit' => $formData['nit'] ?? '',
