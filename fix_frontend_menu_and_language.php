@@ -29,8 +29,8 @@ try {
     echo "📋 1. Checking Language Files:\n";
     
     $languageFiles = [
-        'en-GB' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/language/en-GB/com_ordenproduccion.ini',
-        'es-ES' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.ini'
+        'en-GB' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini',
+        'es-ES' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini'
     ];
     
     foreach ($languageFiles as $lang => $file) {
@@ -56,7 +56,7 @@ try {
             echo "   ❌ $lang: $file (missing)\n";
             
             // Copy from component directory if it exists
-            $sourceFile = "/var/www/grimpsa_webserver/components/com_ordenproduccion/site/language/$lang/com_ordenproduccion.ini";
+            $sourceFile = "/var/www/grimpsa_webserver/components/com_ordenproduccion/language/$lang/com_ordenproduccion.ini";
             if (file_exists($sourceFile)) {
                 $targetDir = dirname($file);
                 if (!is_dir($targetDir)) {

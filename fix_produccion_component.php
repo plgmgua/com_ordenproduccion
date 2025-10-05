@@ -31,11 +31,11 @@ try {
     
     $languageFiles = [
         'en-GB' => [
-            'source' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/language/en-GB/com_ordenproduccion.ini',
+            'source' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini',
             'target' => '/var/www/grimpsa_webserver/language/en-GB/com_ordenproduccion.ini'
         ],
         'es-ES' => [
-            'source' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.ini',
+            'source' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini',
             'target' => '/var/www/grimpsa_webserver/language/es-ES/com_ordenproduccion.ini'
         ]
     ];

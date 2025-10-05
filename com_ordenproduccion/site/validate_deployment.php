@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.8.9 | <strong>Deployment Script Version:</strong> 1.8.9 | <strong>Commit:</strong> 251b088</p>
+                <p><strong>Validation Script Version:</strong> 1.8.11 | <strong>Deployment Script Version:</strong> 1.8.11 | <strong>Commit:</strong> 251b088</p>
         </div>
 
         <?php
@@ -283,13 +283,13 @@ ini_set('display_errors', 1);
             'Site Orden Form' => JPATH_ROOT . '/components/com_ordenproduccion/forms/orden.xml',
             
             // Site Language Files
-            'Site English Language' => JPATH_ROOT . '/components/com_ordenproduccion/site/language/en-GB/com_ordenproduccion.ini',
-            'Site Spanish Language' => JPATH_ROOT . '/components/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.ini',
-            'Site Spanish System Language' => JPATH_ROOT . '/components/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.sys.ini',
+            'Site English Language' => JPATH_ROOT . '/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini',
+            'Site Spanish Language' => JPATH_ROOT . '/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini',
+            'Site Spanish System Language' => JPATH_ROOT . '/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.sys.ini',
             
             // Site Views Metadata
-            'Site Ordenes Metadata' => JPATH_ROOT . '/components/com_ordenproduccion/site/views/ordenes/metadata.xml',
-            'Site Orden Metadata' => JPATH_ROOT . '/components/com_ordenproduccion/site/views/orden/metadata.xml',
+            'Site Ordenes Metadata' => JPATH_ROOT . '/components/com_ordenproduccion/views/ordenes/metadata.xml',
+            'Site Orden Metadata' => JPATH_ROOT . '/components/com_ordenproduccion/views/orden/metadata.xml',
             
             // Media files
             'Media CSS' => JPATH_ROOT . '/media/com_ordenproduccion/css/ordenproduccion.css',
@@ -299,11 +299,11 @@ ini_set('display_errors', 1);
             'Admin Debug Helper' => JPATH_ROOT . '/administrator/components/com_ordenproduccion/src/Helper/DebugHelper.php',
             
             // Debug files (from commit 251b088)
-            'Debug Component Loading' => JPATH_ROOT . '/components/com_ordenproduccion/site/debug_component_loading.php',
-            'Debug Joomla Component' => JPATH_ROOT . '/components/com_ordenproduccion/site/debug_joomla_component.php',
-            'Validate Deployment' => JPATH_ROOT . '/components/com_ordenproduccion/site/validate_deployment.php',
-            'Clear Cache' => JPATH_ROOT . '/components/com_ordenproduccion/site/clear_cache.php',
-            'Clear Language Cache' => JPATH_ROOT . '/components/com_ordenproduccion/site/clear_language_cache.php'
+            'Debug Component Loading' => JPATH_ROOT . '/components/com_ordenproduccion/debug_component_loading.php',
+            'Debug Joomla Component' => JPATH_ROOT . '/components/com_ordenproduccion/debug_joomla_component.php',
+            'Validate Deployment' => JPATH_ROOT . '/components/com_ordenproduccion/validate_deployment.php',
+            'Clear Cache' => JPATH_ROOT . '/components/com_ordenproduccion/clear_cache.php',
+            'Clear Language Cache' => JPATH_ROOT . '/components/com_ordenproduccion/clear_language_cache.php'
         ];
         
         $fileChecks = [];
