@@ -127,9 +127,17 @@ class WebhookController extends BaseController
             } else {
                 // Get the last error from the model
                 $errorMessage = $model->getError() ?: 'Unknown error occurred';
+                $errors = $model->getErrors();
+                
                 return [
                     'success' => false,
-                    'message' => 'Failed to process order data: ' . $errorMessage
+                    'message' => 'Failed to process order data: ' . $errorMessage,
+                    'debug_info' => [
+                        'model_errors' => $errors,
+                        'model_error_count' => count($errors),
+                        'result_value' => $result,
+                        'result_type' => gettype($result)
+                    ]
                 ];
             }
             

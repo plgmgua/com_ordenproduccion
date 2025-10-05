@@ -97,13 +97,25 @@ class WebhookModel extends BaseDatabaseModel
                 ->values(array_map([$db, 'quote'], $orderData));
             
             $db->setQuery($query);
-            $db->execute();
+            if (!$db->execute()) {
+                $this->setError('Failed to insert order into database: ' . $db->getErrorMsg());
+                return false;
+            }
             
             $orderId = $db->insertid();
             
+            if (!$orderId) {
+                $this->setError('Failed to get order ID after insertion');
+                return false;
+            }
+            
             // Store all form data as EAV data
             if ($orderId) {
-                $this->storeEAVData($orderId, $formData);
+                $eavResult = $this->storeEAVData($orderId, $formData);
+                if (!$eavResult) {
+                    $this->setError('Failed to store EAV data: ' . $this->getError());
+                    return false;
+                }
             }
             
             // Log the creation
@@ -112,7 +124,9 @@ class WebhookModel extends BaseDatabaseModel
             return $orderId;
             
         } catch (\Exception $e) {
-            $this->logError('Error creating order: ' . $e->getMessage());
+            $errorMessage = 'Error creating order: ' . $e->getMessage();
+            $this->logError($errorMessage);
+            $this->setError($errorMessage);
             return false;
         }
     }
@@ -166,7 +180,9 @@ class WebhookModel extends BaseDatabaseModel
             return $orderId;
             
         } catch (\Exception $e) {
-            $this->logError('Error updating order: ' . $e->getMessage());
+            $errorMessage = 'Error updating order: ' . $e->getMessage();
+            $this->logError($errorMessage);
+            $this->setError($errorMessage);
             return false;
         }
     }
@@ -177,7 +193,7 @@ class WebhookModel extends BaseDatabaseModel
      * @param   int    $orderId  Order ID
      * @param   array  $data     EAV data
      *
-     * @return  void
+     * @return  boolean  True on success, false on failure
      *
      * @since   1.0.0
      */
@@ -207,7 +223,10 @@ class WebhookModel extends BaseDatabaseModel
                         ->where($db->quoteName('id') . ' = ' . (int) $existingId);
                     
                     $db->setQuery($query);
-                    $db->execute();
+                    if (!$db->execute()) {
+                        $this->setError('Failed to update EAV attribute ' . $attribute . ': ' . $db->getErrorMsg());
+                        return false;
+                    }
                 } else {
                     // Insert new attribute
                     $query = $db->getQuery(true)
@@ -228,12 +247,20 @@ class WebhookModel extends BaseDatabaseModel
                         ]);
                     
                     $db->setQuery($query);
-                    $db->execute();
+                    if (!$db->execute()) {
+                        $this->setError('Failed to insert EAV attribute ' . $attribute . ': ' . $db->getErrorMsg());
+                        return false;
+                    }
                 }
             }
             
+            return true;
+            
         } catch (\Exception $e) {
-            $this->logError('Error storing EAV data: ' . $e->getMessage());
+            $errorMessage = 'Error storing EAV data: ' . $e->getMessage();
+            $this->logError($errorMessage);
+            $this->setError($errorMessage);
+            return false;
         }
     }
 
