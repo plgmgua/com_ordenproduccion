@@ -19,8 +19,6 @@ use Joomla\CMS\HTML\Registry;
 use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Joomla\CMS\Form\FormHelper;
 use Grimpsa\Component\Ordenproduccion\Administrator\Extension\OrdenproduccionComponent;
-use Grimpsa\Component\Ordenproduccion\Administrator\Dispatcher\Dispatcher as AdminDispatcher;
-use Grimpsa\Component\Ordenproduccion\Site\Dispatcher\Dispatcher as SiteDispatcher;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 
@@ -46,16 +44,8 @@ return new class implements ServiceProviderInterface
         $container->registerServiceProvider(new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         $container->registerServiceProvider(new RouterFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         
-        // Register dispatchers
-        $container->set(
-            ComponentDispatcherFactoryInterface::class,
-            function (Container $container) {
-                $factory = new \Joomla\CMS\Dispatcher\ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion');
-                $factory->setDispatcher('Administrator', AdminDispatcher::class);
-                $factory->setDispatcher('Site', SiteDispatcher::class);
-                return $factory;
-            }
-        );
+        // Register dispatchers - use the standard ComponentDispatcherFactory service provider
+        // The ComponentDispatcherFactory will automatically discover dispatchers in the correct locations
         
         // Register custom form field types
         FormHelper::addFieldPath(JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/Field');
