@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.8.8 | <strong>Deployment Script Version:</strong> 1.8.8 | <strong>Commit:</strong> 251b088</p>
+                <p><strong>Validation Script Version:</strong> 1.8.9 | <strong>Deployment Script Version:</strong> 1.8.9 | <strong>Commit:</strong> 251b088</p>
         </div>
 
         <?php
@@ -104,23 +104,23 @@ ini_set('display_errors', 1);
         // Key files to check for our recent fixes
         $fixVerificationFiles = [
             'OrdenModel' => [
-                'path' => JPATH_ROOT . '/components/com_ordenproduccion/site/src/Model/OrdenModel.php',
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/src/Model/OrdenModel.php',
                 'fixes' => ['translateStatus', 'numero_de_orden', 'getEAVData']
             ],
             'OrdenView' => [
-                'path' => JPATH_ROOT . '/components/com_ordenproduccion/site/src/View/Orden/HtmlView.php',
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/src/View/Orden/HtmlView.php',
                 'fixes' => ['translateStatus', 'getStatusBadgeClass']
             ],
             'OrdenTemplate' => [
-                'path' => JPATH_ROOT . '/components/com_ordenproduccion/site/tmpl/orden/default.php',
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/tmpl/orden/default.php',
                 'fixes' => ['translateStatus', 'getStatusBadgeClass']
             ],
             'OrdenesModel' => [
-                'path' => JPATH_ROOT . '/components/com_ordenproduccion/site/src/Model/OrdenesModel.php',
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/src/Model/OrdenesModel.php',
                 'fixes' => ['getStatusOptions', 'translateStatus']
             ],
             'OrdenesTemplate' => [
-                'path' => JPATH_ROOT . '/components/com_ordenproduccion/site/tmpl/ordenes/default.php',
+                'path' => JPATH_ROOT . '/components/com_ordenproduccion/tmpl/ordenes/default.php',
                 'fixes' => ['translateStatus', 'filter_status']
             ],
             'ServiceProvider' => [

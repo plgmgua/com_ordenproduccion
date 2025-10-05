@@ -41,7 +41,11 @@ return new class implements ServiceProviderInterface
     public function register(Container $container)
     {
         $container->registerServiceProvider(new MVCFactory('\\Grimpsa\\Component\\Ordenproduccion'));
-        $container->registerServiceProvider(new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion'));
+        
+        // Get MVCFactoryInterface for ComponentDispatcherFactory
+        $mvcFactory = $container->get(MVCFactoryInterface::class);
+        $container->registerServiceProvider(new ComponentDispatcherFactory('\\Grimpsa\\Component\\Ordenproduccion', $mvcFactory));
+        
         $container->registerServiceProvider(new RouterFactory('\\Grimpsa\\Component\\Ordenproduccion'));
         
         // Register dispatchers - use the standard ComponentDispatcherFactory service provider
