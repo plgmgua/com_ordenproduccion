@@ -261,4 +261,40 @@ class HtmlView extends BaseHtmlView
 
         return false;
     }
+
+    /**
+     * Translate status value to human-readable text
+     *
+     * @param   string  $status  The status value
+     *
+     * @return  string  Translated status text
+     *
+     * @since   1.0.0
+     */
+    public function translateStatus($status)
+    {
+        // Map status values to language keys
+        $statusMap = [
+            'New' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'In Process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'Completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'Closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'new' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'in process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED'
+        ];
+
+        if (isset($statusMap[$status])) {
+            return Text::_($statusMap[$status]);
+        }
+
+        // If status is already a language key, try to translate it directly
+        if (strpos($status, 'COM_ORDENPRODUCCION_STATUS_') === 0) {
+            return Text::_($status);
+        }
+
+        // Fallback: return the status as-is
+        return $status;
+    }
 }

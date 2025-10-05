@@ -197,7 +197,7 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                         </td>
                                         <td>
                                             <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>">
-                                                <?php echo Text::_('COM_ORDENPRODUCCION_STATUS_' . strtoupper(str_replace(' ', '_', $item->status))); ?>
+                                                <?php echo $this->translateStatus($item->status); ?>
                                             </span>
                                         </td>
                                         <?php if ($isVentas || ($isVentas && $isProduccion)) : ?>
