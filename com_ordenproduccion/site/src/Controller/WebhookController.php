@@ -42,6 +42,11 @@ class WebhookController extends BaseController
      */
     public function process()
     {
+        // Enable PHP error reporting for debugging
+        ini_set('display_errors', 1);
+        ini_set('display_startup_errors', 1);
+        error_reporting(E_ALL);
+        
         try {
             // Get the raw POST data
             $rawData = file_get_contents('php://input');

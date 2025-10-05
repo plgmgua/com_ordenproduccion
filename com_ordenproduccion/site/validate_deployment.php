@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.6.23 | <strong>Deployment Script Version:</strong> 1.6.23</p>
+                <p><strong>Validation Script Version:</strong> 1.6.24 | <strong>Deployment Script Version:</strong> 1.6.24</p>
         </div>
 
         <?php
