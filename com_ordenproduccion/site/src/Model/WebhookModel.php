@@ -458,23 +458,6 @@ class WebhookModel extends BaseDatabaseModel
         }
     }
 
-    /**
-     * Log error
-     *
-     * @param   string  $message  Error message
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     */
-    protected function logError($message)
-    {
-        try {
-            $this->logToFile('Webhook Model Error: ' . $message);
-        } catch (\Exception $e) {
-            // Silent fail for logging
-        }
-    }
 
     /**
      * Log to file
