@@ -305,14 +305,17 @@ class WebhookModel extends BaseDatabaseModel
                             $db->quoteName('attribute_value'),
                             $db->quoteName('created'),
                             $db->quoteName('created_by')
-                        ])
-                        ->values([
-                            $db->quote($orderId),
-                            $db->quote($attribute),
-                            $db->quote($value),
-                            $db->quote($now),
-                            (int) 0
                         ]);
+                    
+                    // Add values one by one to avoid array_map issues
+                    $eavValues = [
+                        $db->quote($orderId),
+                        $db->quote($attribute),
+                        $db->quote($value),
+                        $db->quote($now),
+                        (int) 0
+                    ];
+                    $query->values(implode(',', $eavValues));
                     
                     $db->setQuery($query);
                     if (!$db->execute()) {

@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.6.21 | <strong>Deployment Script Version:</strong> 1.6.21</p>
+                <p><strong>Validation Script Version:</strong> 1.6.22 | <strong>Deployment Script Version:</strong> 1.6.22</p>
         </div>
 
         <?php
@@ -535,6 +535,7 @@ ini_set('display_errors', 1);
             $now = date('Y-m-d H:i:s');
             $orderData = [
                 'order_number' => $orderNumber,
+                'orden_de_trabajo' => $orderNumber, // Also populate the Spanish column
                 'client_id' => $formData['client_id'] ?? '0',
                 'client_name' => $formData['cliente'],
                 'nit' => $formData['nit'] ?? '',
@@ -555,11 +556,17 @@ ini_set('display_errors', 1);
             ];
             
             // Generate SQL query
-            $db = Factory::getDbo();
+            $db = \Joomla\CMS\Factory::getDbo();
             $query = $db->getQuery(true)
                 ->insert($db->quoteName('#__ordenproduccion_ordenes'))
-                ->columns(array_keys($orderData))
-                ->values(array_map([$db, 'quote'], $orderData));
+                ->columns(array_keys($orderData));
+            
+            // Add values one by one to avoid array_map issues
+            $values = [];
+            foreach ($orderData as $value) {
+                $values[] = $db->quote($value);
+            }
+            $query->values(implode(',', $values));
             
             $sql = (string) $query;
             
