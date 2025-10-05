@@ -76,7 +76,7 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                                 <?php if ($value !== '') : ?>
                                                     <option value="<?php echo $value; ?>" 
                                                             <?php echo $this->state->get('filter.status') == $value ? 'selected' : ''; ?>>
-                                                        <?php echo $text; ?>
+                                                        <?php echo $this->translateStatus($value); ?>
                                                     </option>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
