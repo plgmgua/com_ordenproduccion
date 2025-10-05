@@ -48,7 +48,7 @@ ini_set('display_errors', 1);
         <div class="header">
             <h1>🔧 com_ordenproduccion Deployment Validation</h1>
             <p>Comprehensive validation of component deployment and configuration</p>
-                <p><strong>Validation Script Version:</strong> 1.7.5 | <strong>Deployment Script Version:</strong> 1.7.5</p>
+                <p><strong>Validation Script Version:</strong> 1.7.6 | <strong>Deployment Script Version:</strong> 1.7.6</p>
         </div>
 
         <?php
@@ -94,6 +94,77 @@ ini_set('display_errors', 1);
         echo "<p><strong>Joomla Root:</strong> " . JPATH_ROOT . "</p>";
         echo "<p><strong>PHP Version:</strong> " . PHP_VERSION . "</p>";
         echo "<p><strong>Current Time:</strong> " . date('Y-m-d H:i:s') . "</p>";
+        echo "</div>";
+
+        // 2. Language System Validation (NEW - TOP PRIORITY)
+        echo "<div class='section'>";
+        echo "<h2>🌐 Language System Validation</h2>";
+        
+        try {
+            $lang = \Joomla\CMS\Factory::getLanguage();
+            $currentLang = $lang->getTag();
+            echo "<p><strong>Current Language:</strong> " . $currentLang . "</p>";
+            
+            // Test status translations
+            $statusTests = [
+                'COM_ORDENPRODUCCION_STATUS_NEW' => 'Nueva',
+                'COM_ORDENPRODUCCION_STATUS_IN_PROCESS' => 'En Proceso', 
+                'COM_ORDENPRODUCCION_STATUS_COMPLETED' => 'Completada',
+                'COM_ORDENPRODUCCION_STATUS_CLOSED' => 'Cerrada'
+            ];
+            
+            echo "<h3>Status Translation Tests:</h3>";
+            $allTranslated = true;
+            foreach ($statusTests as $key => $expected) {
+                $translated = \Joomla\CMS\Language\Text::_($key);
+                $isTranslated = ($translated !== $key); // If translation works, result != key
+                $matches = ($translated === $expected);
+                
+                $statusClass = $matches ? 'ok' : ($isTranslated ? 'warning' : 'error');
+                $statusText = $matches ? 'OK' : ($isTranslated ? 'PARTIAL' : 'FAILED');
+                
+                echo "<div style='margin: 5px 0; padding: 5px; background: #f8f9fa; border-radius: 3px;'>";
+                echo "<strong>$key</strong><br>";
+                echo "Expected: <span style='color: green;'>$expected</span><br>";
+                echo "Got: <span style='color: " . ($matches ? 'green' : 'red') . ";'>$translated</span><br>";
+                echo "<span class='status $statusClass'>$statusText</span>";
+                echo "</div>";
+                
+                if (!$matches) $allTranslated = false;
+            }
+            
+            // Check language file loading
+            echo "<h3>Language File Status:</h3>";
+            $langFile = JPATH_ROOT . '/components/com_ordenproduccion/site/language/' . $currentLang . '/com_ordenproduccion.ini';
+            if (file_exists($langFile)) {
+                echo "<p>✅ Language file exists: <code>$langFile</code></p>";
+                $fileSize = filesize($langFile);
+                $fileModified = date('Y-m-d H:i:s', filemtime($langFile));
+                echo "<p>📁 File size: $fileSize bytes | Modified: $fileModified</p>";
+                
+                // Check if language file is loaded
+                $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site');
+                echo "<p>✅ Language file loaded for component</p>";
+            } else {
+                echo "<p>❌ Language file missing: <code>$langFile</code></p>";
+                $allTranslated = false;
+            }
+            
+            // Overall language status
+            if ($allTranslated) {
+                echo "<div class='status ok'>✅ ALL STATUS TRANSLATIONS WORKING</div>";
+                addResult('Language System', 'success', 'All status translations are working correctly');
+            } else {
+                echo "<div class='status error'>❌ LANGUAGE TRANSLATION ISSUES DETECTED</div>";
+                echo "<p><strong>Recommendation:</strong> Clear Joomla cache and reload language files</p>";
+                addResult('Language System', 'error', 'Status translations are not working - cache clearing needed');
+            }
+            
+        } catch (Exception $e) {
+            echo "<p>❌ Error testing language system: " . $e->getMessage() . "</p>";
+            addResult('Language System', 'error', 'Error testing language system: ' . $e->getMessage());
+        }
+        
         echo "</div>";
 
         // 2. Check Core Component Directories
