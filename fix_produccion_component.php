@@ -368,6 +368,39 @@ try {
     $cache->clean();
     echo "   ✓ Final cache clear completed\n";
     
+    // 13. Create Debugging Tools (NEW)
+    echo "\n13. Creating Debugging Tools...\n";
+    
+    // Create comprehensive debug script
+    $debugScript = JPATH_ROOT . '/components/com_ordenproduccion/site/debug_joomla_component.php';
+    if (file_exists($debugScript)) {
+        echo "   ✓ Comprehensive debug script exists\n";
+    } else {
+        echo "   ❌ Comprehensive debug script missing\n";
+    }
+    
+    // Create component loading debug script
+    $loadingDebugScript = JPATH_ROOT . '/components/com_ordenproduccion/site/debug_component_loading.php';
+    if (file_exists($loadingDebugScript)) {
+        echo "   ✓ Component loading debug script exists\n";
+    } else {
+        echo "   ❌ Component loading debug script missing\n";
+    }
+    
+    // Clear any existing debug logs
+    $debugLogs = [
+        '/var/www/grimpsa_webserver/component_debug.log',
+        '/var/www/grimpsa_webserver/dispatcher_debug.log',
+        '/var/www/grimpsa_webserver/debug_component_loading.log'
+    ];
+    
+    foreach ($debugLogs as $logFile) {
+        if (file_exists($logFile)) {
+            unlink($logFile);
+            echo "   ✓ Cleared debug log: " . basename($logFile) . "\n";
+        }
+    }
+    
     echo "\n=== FIX COMPLETE ===\n";
     echo "The menu item types should now show:\n";
     echo "- 'Listado de Órdenes' instead of 'Metadata'\n";
@@ -376,6 +409,10 @@ try {
     echo "1. Go to Joomla Admin → Menus → [Any Menu] → New\n";
     echo "2. Check if the menu item types now show the correct titles\n";
     echo "3. If still showing 'Metadata', try clearing browser cache\n";
+    echo "\n🔍 DEBUGGING TOOLS AVAILABLE:\n";
+    echo "1. Run: php /var/www/grimpsa_webserver/components/com_ordenproduccion/site/debug_joomla_component.php\n";
+    echo "2. Run: php /var/www/grimpsa_webserver/components/com_ordenproduccion/site/debug_component_loading.php\n";
+    echo "3. Check log files after accessing the component URLs\n";
     
 } catch (Exception $e) {
     echo "❌ Error: " . $e->getMessage() . "\n";
