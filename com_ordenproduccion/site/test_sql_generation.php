@@ -139,11 +139,17 @@ try {
     
     $db = Factory::getDbo();
     
-    // Create the query exactly like WebhookModel does
+    // Create the query exactly like WebhookModel does (FIXED VERSION)
     $query = $db->getQuery(true)
         ->insert($db->quoteName('#__ordenproduccion_ordenes'))
-        ->columns(array_keys($orderData))
-        ->values(array_map([$db, 'quote'], $orderData));
+        ->columns(array_keys($orderData));
+    
+    // Add values one by one to avoid array_map issues
+    $values = [];
+    foreach ($orderData as $value) {
+        $values[] = $db->quote($value);
+    }
+    $query->values(implode(',', $values));
     
     $sql = (string) $query;
     

@@ -128,8 +128,14 @@ class WebhookModel extends BaseDatabaseModel
             // Insert order
             $query = $db->getQuery(true)
                 ->insert($db->quoteName('#__ordenproduccion_ordenes'))
-                ->columns(array_keys($orderData))
-                ->values(array_map([$db, 'quote'], $orderData));
+                ->columns(array_keys($orderData));
+            
+            // Add values one by one to avoid array_map issues
+            $values = [];
+            foreach ($orderData as $value) {
+                $values[] = $db->quote($value);
+            }
+            $query->values(implode(',', $values));
             
             $db->setQuery($query);
             if (!$db->execute()) {
