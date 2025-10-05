@@ -1,10 +1,14 @@
 <?php
 /**
- * Fix Menu Items and Routing Issues
+ * Fix Production Component Issues
  * This script addresses multiple issues:
  * 1. Menu item types disappearing
  * 2. 404 routing errors
  * 3. Language translation issues
+ * 4. Component registration problems
+ * 
+ * Usage: Run this script from the Joomla root directory
+ * php fix_produccion_component.php
  */
 
 // Bootstrap Joomla
@@ -21,7 +25,7 @@ try {
     $app = Factory::getApplication('site');
     $db = Factory::getDbo();
     
-    echo "=== FIXING MENU ITEMS AND ROUTING ISSUES ===\n\n";
+    echo "=== FIXING PRODUCTION COMPONENT ISSUES ===\n\n";
     
     // 1. Fix Menu Item Types (Database Approach)
     echo "1. Fixing Menu Item Types...\n";
@@ -147,7 +151,61 @@ try {
         }
     }
     
-    // 7. Summary
+    // 7. Check Controller Files
+    echo "\n7. Checking controller files...\n";
+    $controllerFiles = [
+        JPATH_ROOT . '/components/com_ordenproduccion/site/src/Controller/OrdenesController.php',
+        JPATH_ROOT . '/components/com_ordenproduccion/site/src/Controller/OrdenController.php'
+    ];
+    
+    foreach ($controllerFiles as $file) {
+        if (file_exists($file)) {
+            echo "   ✓ " . basename($file) . " exists\n";
+        } else {
+            echo "   ❌ " . basename($file) . " missing\n";
+        }
+    }
+    
+    // 8. Check for Webhook Conflicts
+    echo "\n8. Checking for webhook conflicts...\n";
+    $webhookFiles = [
+        JPATH_ROOT . '/components/com_ordenproduccion/site/src/View/Webhook/HtmlView.php',
+        JPATH_ROOT . '/components/com_ordenproduccion/site/src/Controller/WebhookController.php'
+    ];
+    
+    $webhookConflicts = false;
+    foreach ($webhookFiles as $file) {
+        if (file_exists($file)) {
+            echo "   ⚠️ " . basename($file) . " exists - might cause routing conflicts\n";
+            $webhookConflicts = true;
+        }
+    }
+    
+    if (!$webhookConflicts) {
+        echo "   ✓ No webhook files found - no conflicts\n";
+    }
+    
+    // 9. Test Routing
+    echo "\n9. Testing routing...\n";
+    try {
+        $testRoutes = [
+            'index.php?option=com_ordenproduccion&view=ordenes' => 'Ordenes List',
+            'index.php?option=com_ordenproduccion&view=orden&id=1' => 'Orden Detail'
+        ];
+        
+        foreach ($testRoutes as $route => $description) {
+            try {
+                $url = \Joomla\CMS\Router\Route::_($route);
+                echo "   ✓ $description: Route generated successfully\n";
+            } catch (Exception $e) {
+                echo "   ❌ $description: Error - " . $e->getMessage() . "\n";
+            }
+        }
+    } catch (Exception $e) {
+        echo "   ❌ Routing test error: " . $e->getMessage() . "\n";
+    }
+    
+    // 10. Summary
     echo "\n=== SUMMARY ===\n";
     if ($allWorking) {
         echo "✅ Language translations are working\n";
@@ -158,6 +216,11 @@ try {
     echo "✅ Menu item types have been registered\n";
     echo "✅ All caches have been cleared\n";
     echo "✅ Component registration verified\n";
+    echo "✅ View and controller files checked\n";
+    
+    if ($webhookConflicts) {
+        echo "⚠️ Webhook files detected - may cause routing conflicts\n";
+    }
     
     echo "\nNext steps:\n";
     echo "1. Go to Joomla Admin → Menus → [Any Menu] → New\n";
@@ -165,6 +228,9 @@ try {
     echo "3. Test the frontend work orders view\n";
     echo "4. Try applying filters to see if 404 error is resolved\n";
     echo "5. Check if status labels now show in Spanish\n";
+    echo "6. Run validate_deployment.php to verify all fixes\n";
+    
+    echo "\n=== FIX COMPLETE ===\n";
     
 } catch (Exception $e) {
     echo "❌ Error: " . $e->getMessage() . "\n";
