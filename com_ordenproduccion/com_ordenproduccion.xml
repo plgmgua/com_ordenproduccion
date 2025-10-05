@@ -17,6 +17,7 @@
     <files folder="site">
         <filename>ordenproduccion.php</filename>
         <folder>src</folder>
+        <folder>views</folder>
         <folder>tmpl</folder>
         <folder>language</folder>
         <folder>forms</folder>
