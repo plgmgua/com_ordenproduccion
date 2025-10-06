@@ -298,6 +298,169 @@ try {
         echo "<p>❌ <strong>EAV info table does not exist:</strong> $eavTable</p>\n";
     }
     
+    // 3.4. 404 Error Specific Debug Analysis
+    echo "<h3>🔍 3.4. 404 Error Specific Debug Analysis</h3>\n";
+    
+    // Check if site manifest exists
+    echo "<h4>Site Manifest Check:</h4>\n";
+    $siteManifest = '/var/www/grimpsa_webserver/components/com_ordenproduccion/com_ordenproduccion.xml';
+    if (file_exists($siteManifest)) {
+        $size = filesize($siteManifest);
+        $modified = date('Y-m-d H:i:s', filemtime($siteManifest));
+        echo "<p>✅ <strong>Site manifest exists:</strong> $siteManifest ($size bytes, modified: $modified)</p>\n";
+        
+        // Check manifest content
+        $content = file_get_contents($siteManifest);
+        if (strpos($content, 'namespace') !== false) {
+            echo "<p>✅ <strong>Manifest contains namespace</strong></p>\n";
+        } else {
+            echo "<p>❌ <strong>Manifest missing namespace</strong></p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>Site manifest missing:</strong> $siteManifest</p>\n";
+    }
+    
+    // Check OrdenModel file
+    echo "<h4>OrdenModel Check:</h4>\n";
+    $ordenModel = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src/Model/OrdenModel.php';
+    if (file_exists($ordenModel)) {
+        $size = filesize($ordenModel);
+        $modified = date('Y-m-d H:i:s', filemtime($ordenModel));
+        echo "<p>✅ <strong>OrdenModel exists:</strong> $ordenModel ($size bytes, modified: $modified)</p>\n";
+        
+        // Check if it contains the correct field names
+        $content = file_get_contents($ordenModel);
+        if (strpos($content, 'sales_agent') !== false) {
+            echo "<p>✅ <strong>OrdenModel contains sales_agent field</strong></p>\n";
+        } else {
+            echo "<p>❌ <strong>OrdenModel missing sales_agent field</strong></p>\n";
+        }
+        
+        if (strpos($content, 'invoice_value') !== false) {
+            echo "<p>✅ <strong>OrdenModel contains invoice_value field</strong></p>\n";
+        } else {
+            echo "<p>❌ <strong>OrdenModel missing invoice_value field</strong></p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>OrdenModel missing:</strong> $ordenModel</p>\n";
+    }
+    
+    // Check record ID 15 specifically
+    echo "<h4>Record ID 15 Specific Check:</h4>\n";
+    $query = "SELECT * FROM joomla_ordenproduccion_ordenes WHERE id = 15";
+    $db->setQuery($query);
+    $record = $db->loadObject();
+    
+    if ($record) {
+        echo "<p>✅ <strong>Record ID 15 exists</strong></p>\n";
+        echo "<ul>\n";
+        echo "<li>ID: {$record->id}</li>\n";
+        echo "<li>State: {$record->state}</li>\n";
+        echo "<li>Order Number: " . htmlspecialchars($record->order_number ?? 'NULL') . "</li>\n";
+        echo "<li>Client Name: " . htmlspecialchars($record->client_name ?? 'NULL') . "</li>\n";
+        echo "<li>Sales Agent: " . htmlspecialchars($record->sales_agent ?? 'NULL') . "</li>\n";
+        echo "<li>Created: {$record->created}</li>\n";
+        echo "</ul>\n";
+        
+        // Check if state is 1 (published)
+        if ($record->state == 1) {
+            echo "<p>✅ <strong>Record is published (state=1)</strong></p>\n";
+        } else {
+            echo "<p>❌ <strong>Record is not published (state={$record->state})</strong></p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>Record ID 15 does not exist</strong></p>\n";
+    }
+    
+    // Check user access
+    echo "<h4>User Access Check:</h4>\n";
+    $user = Factory::getUser();
+    echo "<p><strong>Current User:</strong> {$user->name} (ID: {$user->id})</p>\n";
+    echo "<p><strong>User Groups:</strong> " . implode(', ', $user->getAuthorisedGroups()) . "</p>\n";
+    
+    if ($record && $record->sales_agent) {
+        if ($record->sales_agent === $user->name) {
+            echo "<p>✅ <strong>User matches sales agent</strong></p>\n";
+        } else {
+            echo "<p>⚠️ <strong>User does not match sales agent:</strong> {$record->sales_agent} vs {$user->name}</p>\n";
+        }
+    }
+    
+    // Check component routing
+    echo "<h4>Component Routing Check:</h4>\n";
+    $componentPath = '/var/www/grimpsa_webserver/components/com_ordenproduccion';
+    if (is_dir($componentPath)) {
+        echo "<p>✅ <strong>Component directory exists:</strong> $componentPath</p>\n";
+        
+        $siteEntry = $componentPath . '/ordenproduccion.php';
+        if (file_exists($siteEntry)) {
+            echo "<p>✅ <strong>Site entry point exists:</strong> $siteEntry</p>\n";
+        } else {
+            echo "<p>❌ <strong>Site entry point missing:</strong> $siteEntry</p>\n";
+        }
+        
+        $siteDispatcher = $componentPath . '/src/Dispatcher/Dispatcher.php';
+        if (file_exists($siteDispatcher)) {
+            echo "<p>✅ <strong>Site dispatcher exists:</strong> $siteDispatcher</p>\n";
+        } else {
+            echo "<p>❌ <strong>Site dispatcher missing:</strong> $siteDispatcher</p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>Component directory missing:</strong> $componentPath</p>\n";
+    }
+    
+    // Test direct model access
+    echo "<h4>Direct Model Access Test:</h4>\n";
+    try {
+        // Try to load the model directly
+        $model = Factory::getApplication()->bootComponent('com_ordenproduccion')
+            ->getMVCFactory()
+            ->createModel('Orden', 'Site');
+        
+        if ($model) {
+            echo "<p>✅ <strong>Model can be created</strong></p>\n";
+            
+            // Try to get the item
+            $item = $model->getItem(15);
+            if ($item) {
+                echo "<p>✅ <strong>Model can retrieve item ID 15</strong></p>\n";
+                echo "<p><strong>Item data preview:</strong> " . substr(json_encode($item), 0, 200) . "...</p>\n";
+            } else {
+                echo "<p>❌ <strong>Model cannot retrieve item ID 15</strong></p>\n";
+                $errors = $model->getErrors();
+                if (!empty($errors)) {
+                    echo "<p><strong>Model errors:</strong></p>\n";
+                    echo "<ul>\n";
+                    foreach ($errors as $error) {
+                        echo "<li>" . htmlspecialchars($error) . "</li>\n";
+                    }
+                    echo "</ul>\n";
+                }
+            }
+        } else {
+            echo "<p>❌ <strong>Model cannot be created</strong></p>\n";
+        }
+    } catch (Exception $e) {
+        echo "<p>❌ <strong>Model access error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>\n";
+    }
+    
+    // Check URL structure
+    echo "<h4>URL Structure Check:</h4>\n";
+    $currentUrl = $_SERVER['REQUEST_URI'] ?? 'Not available';
+    echo "<p><strong>Current URL:</strong> $currentUrl</p>\n";
+    
+    $expectedUrl = '/index.php/component/ordenproduccion/?view=orden&id=15';
+    echo "<p><strong>Expected URL:</strong> $expectedUrl</p>\n";
+    
+    // Check Joomla routing
+    echo "<h4>Joomla Routing Check:</h4>\n";
+    $router = $app->getRouter();
+    if ($router) {
+        echo "<p>✅ <strong>Router is available</strong></p>\n";
+    } else {
+        echo "<p>❌ <strong>Router is not available</strong></p>\n";
+    }
+    
     // 4. Menu Item Types Check
     echo "<h3>🔗 4. Menu Item Types Check</h3>\n";
     
@@ -390,7 +553,17 @@ try {
     echo "<li>Check if record with ID 15 exists</li>\n";
     echo "<li>Verify webhook has been used to create data</li>\n";
     echo "<li>Check table structure matches model expectations</li>\n";
+    echo "<li>Check site manifest file exists and is properly configured</li>\n";
+    echo "<li>Verify OrdenModel field names match database schema</li>\n";
+    echo "<li>Test direct model access and user permissions</li>\n";
     echo "</ul>\n";
+    echo "</ul>\n";
+    
+    echo "<h3>📋 Project Rules</h3>\n";
+    echo "<ul>\n";
+    echo "<li><strong>Debug Code Rule:</strong> All debug code must be included in troubleshooting.php, not in separate files</li>\n";
+    echo "<li><strong>Consolidation Rule:</strong> No separate debug PHP files should be created</li>\n";
+    echo "<li><strong>Single Source:</strong> troubleshooting.php is the single source for all debugging functionality</li>\n";
     echo "</ul>\n";
     
     echo "<p><strong>Component Version: $componentVersion</strong></p>\n";
