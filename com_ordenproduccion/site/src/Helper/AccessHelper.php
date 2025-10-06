@@ -79,6 +79,39 @@ class AccessHelper
     }
 
     /**
+     * Check if user is in Administracion group
+     *
+     * @return  boolean
+     */
+    public static function isInAdministracionGroup()
+    {
+        $user = Factory::getUser();
+        $userGroups = $user->getAuthorisedGroups();
+        
+        // Check for Administracion group (ID 12) or by name
+        if (in_array(12, $userGroups)) {
+            return true;
+        }
+        
+        // Also check by name for safety
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id, title')
+            ->from('#__usergroups')
+            ->where('id IN (' . implode(',', $userGroups) . ')');
+        $db->setQuery($query);
+        $groups = $db->loadObjectList();
+        
+        foreach ($groups as $group) {
+            if ($group->title === 'Administracion') {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
      * Check if user is in both Ventas and Produccion groups
      *
      * @return  boolean
@@ -95,8 +128,8 @@ class AccessHelper
      */
     public static function canSeeAllOrders()
     {
-        // Can see all orders if in Produccion group OR both groups
-        return self::isInProduccionGroup() || self::isInBothGroups();
+        // Can see all orders if in Administracion, Produccion group, or both Ventas+Produccion groups
+        return self::isInAdministracionGroup() || self::isInProduccionGroup() || self::isInBothGroups();
     }
 
     /**
@@ -108,6 +141,11 @@ class AccessHelper
     public static function canSeeValorFactura($salesAgent = null)
     {
         $user = Factory::getUser();
+        
+        // If user is in Administracion group, can see valor_factura for all orders
+        if (self::isInAdministracionGroup()) {
+            return true;
+        }
         
         // If user is in Produccion group only, cannot see valor_factura
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
@@ -157,6 +195,10 @@ class AccessHelper
      */
     public static function getAccessLevelDescription()
     {
+        if (self::isInAdministracionGroup()) {
+            return 'Administracion: Can see all orders with valor_factura visible for all orders';
+        }
+        
         if (self::isInBothGroups()) {
             return 'Ventas + Produccion: Can see all orders, valor_factura visible only for own orders';
         }
@@ -179,6 +221,6 @@ class AccessHelper
      */
     public static function hasOrderAccess()
     {
-        return self::isInVentasGroup() || self::isInProduccionGroup();
+        return self::isInVentasGroup() || self::isInProduccionGroup() || self::isInAdministracionGroup();
     }
 }

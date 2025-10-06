@@ -60,6 +60,7 @@ try {
         $accessHelper = 'Grimpsa\\Component\\Ordenproduccion\\Site\\Helper\\AccessHelper';
         echo "isInVentasGroup(): " . ($accessHelper::isInVentasGroup() ? 'YES' : 'NO') . "<br>";
         echo "isInProduccionGroup(): " . ($accessHelper::isInProduccionGroup() ? 'YES' : 'NO') . "<br>";
+        echo "isInAdministracionGroup(): " . ($accessHelper::isInAdministracionGroup() ? 'YES' : 'NO') . "<br>";
         echo "isInBothGroups(): " . ($accessHelper::isInBothGroups() ? 'YES' : 'NO') . "<br>";
         echo "canSeeAllOrders(): " . ($accessHelper::canSeeAllOrders() ? 'YES' : 'NO') . "<br>";
         echo "hasOrderAccess(): " . ($accessHelper::hasOrderAccess() ? 'YES' : 'NO') . "<br>";
