@@ -179,9 +179,9 @@ class HistoricalDataImporter
                 'shipping_status' => 'Pending',
                 'tracking_number' => null,
                 'created' => $createdDate,
-                'created_by' => 0, // System import
+                'created_by' => 1, // System import (use admin user ID 1)
                 'modified' => $createdDate,
-                'modified_by' => 0, // System import
+                'modified_by' => 1, // System import (use admin user ID 1)
                 'state' => 1, // Published
                 'version' => '1.0.0'
             ];
@@ -200,7 +200,8 @@ class HistoricalDataImporter
                 }
                 
                 // Handle empty integer fields - don't include them in the INSERT if they're empty
-                if (in_array($key, ['assigned_technician', 'created_by', 'modified_by']) && (empty($value) || $value === '')) {
+                // But don't skip required fields like created_by and modified_by
+                if (in_array($key, ['assigned_technician']) && (empty($value) || $value === '')) {
                     echo "<p style='color: blue; font-size: 12px;'>DEBUG: Skipping empty integer field: {$key} = '{$value}'</p>\n";
                     continue; // Skip empty integer fields
                 }
