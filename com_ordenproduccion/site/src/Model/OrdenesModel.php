@@ -170,8 +170,8 @@ class OrdenesModel extends ListModel
                 'list.select',
                 'a.id, a.order_number, a.client_name, a.nit, ' .
                 'a.invoice_value, a.work_description, a.print_color, a.dimensions, ' .
-                'a.delivery_date, a.material, a.request_date, a.sales_agent, a.created, ' .
-                'a.created_by, a.modified, a.modified_by, a.state, a.version'
+                'a.delivery_date, a.material, a.request_date, a.sales_agent, a.status, ' .
+                'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version'
             )
         );
         $query->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
