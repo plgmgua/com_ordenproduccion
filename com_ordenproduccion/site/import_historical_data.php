@@ -24,6 +24,10 @@
 // Prevent direct access
 defined('_JEXEC') or die;
 
+// Load Joomla framework
+require_once JPATH_ROOT . '/includes/defines.php';
+require_once JPATH_ROOT . '/includes/framework.php';
+
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
@@ -40,7 +44,15 @@ class HistoricalDataImporter
 
     public function __construct()
     {
-        $this->db = Factory::getContainer()->get('DatabaseInterface');
+        try {
+            $this->db = Factory::getDbo();
+            if (!$this->db) {
+                throw new Exception('Database connection failed');
+            }
+        } catch (Exception $e) {
+            echo "<p style='color: red;'>Database connection error: " . $e->getMessage() . "</p>\n";
+            throw $e;
+        }
     }
 
     /**
@@ -295,9 +307,38 @@ class HistoricalDataImporter
 
 // Execute the import
 try {
-    $importer = new HistoricalDataImporter();
-    $importer->importHistoricalData();
+    // Test database connection first
+    echo "<h2>Database Connection Test</h2>\n";
+    $testDb = Factory::getDbo();
+    if ($testDb) {
+        echo "<p style='color: green;'>✅ Database connection successful</p>\n";
+        
+        // Test if old table exists
+        $query = $testDb->getQuery(true)
+            ->select('COUNT(*)')
+            ->from('ordenes_de_trabajo');
+        $testDb->setQuery($query);
+        $oldTableCount = $testDb->loadResult();
+        echo "<p>Old table 'ordenes_de_trabajo' has {$oldTableCount} total records</p>\n";
+        
+        // Test if new table exists
+        $query = $testDb->getQuery(true)
+            ->select('COUNT(*)')
+            ->from('joomla_ordenproduccion_ordenes');
+        $testDb->setQuery($query);
+        $newTableCount = $testDb->loadResult();
+        echo "<p>New table 'joomla_ordenproduccion_ordenes' has {$newTableCount} records</p>\n";
+        
+        echo "<hr>\n";
+        
+        // Proceed with import
+        $importer = new HistoricalDataImporter();
+        $importer->importHistoricalData();
+    } else {
+        echo "<p style='color: red;'>❌ Database connection failed</p>\n";
+    }
 } catch (Exception $e) {
     echo "<p style='color: red;'>Fatal error: " . $e->getMessage() . "</p>\n";
+    echo "<p>Error details: " . $e->getTraceAsString() . "</p>\n";
 }
 ?>
