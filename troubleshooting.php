@@ -38,7 +38,7 @@
             
             echo "<h2>2. Database Connection Test</h2>";
             $app = Joomla\CMS\Factory::getApplication('site');
-            $db = $app->getDbo();
+            $db = Joomla\CMS\Factory::getDbo();
             echo "<p class='success'>✅ <strong>Database connection successful</strong></p>\n";
             
             echo "<h2>3. Work Order Existence Check</h2>";
