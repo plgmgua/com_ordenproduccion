@@ -135,19 +135,24 @@ class OrdenController extends BaseController
             return null;
         }
 
-        // Get additional EAV data (tecnico, detalles, etc.)
-        $eavQuery = $db->getQuery(true)
-            ->select('tipo_de_campo, valor, timestamp, usuario')
-            ->from($db->quoteName('#__ordenproduccion_ordenes_info'))
-            ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($workOrder->numero_de_orden));
+        // Get additional EAV data (tecnico, detalles, etc.) - with error handling
+        try {
+            $eavQuery = $db->getQuery(true)
+                ->select('tipo_de_campo, valor, timestamp, usuario')
+                ->from($db->quoteName('#__ordenproduccion_ordenes_info'))
+                ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($workOrder->numero_de_orden));
 
-        $db->setQuery($eavQuery);
-        $eavData = $db->loadObjectList();
+            $db->setQuery($eavQuery);
+            $eavData = $db->loadObjectList();
 
-        // Organize EAV data by type
-        $workOrder->eav_data = [];
-        foreach ($eavData as $item) {
-            $workOrder->eav_data[$item->tipo_de_campo] = $item;
+            // Organize EAV data by type
+            $workOrder->eav_data = [];
+            foreach ($eavData as $item) {
+                $workOrder->eav_data[$item->tipo_de_campo] = $item;
+            }
+        } catch (Exception $e) {
+            // EAV table doesn't exist or other error - continue without EAV data
+            $workOrder->eav_data = [];
         }
 
         return $workOrder;
