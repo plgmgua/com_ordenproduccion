@@ -56,17 +56,7 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
         return;
     }
     
-    if ($orderId) {
-        // Redirect to component PDF generation - use direct URL format
-        $pdfUrl = 'index.php?option=com_ordenproduccion&task=orden.generatePdf&id=' . $orderId;
-        $app->redirect($pdfUrl);
-        return;
-    } else {
-        $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_INVALID_ORDER'), 'error');
-    }
-    
-    $app->redirect(Uri::current());
-    return;
+    // No need to handle PDF generation in module - let template handle it
 }
 
 // Load the template

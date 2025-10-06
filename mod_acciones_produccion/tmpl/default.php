@@ -28,14 +28,12 @@ $currentUrl = Uri::current();
         
         <!-- PDF Generation Button -->
         <div class="pdf-action">
-            <form action="<?php echo $currentUrl; ?>" method="post" class="pdf-form">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <input type="hidden" name="task" value="generate_pdf">
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-file-pdf"></i>
-                    Generar PDF
-                </button>
-            </form>
+            <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
+               target="_blank" 
+               class="btn btn-primary btn-block">
+                <i class="fas fa-file-pdf"></i>
+                Generar PDF
+            </a>
         </div>
 
     <?php else: ?>
