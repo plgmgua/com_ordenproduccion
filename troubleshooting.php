@@ -87,7 +87,9 @@ try {
     
     $tables = [
         'ordenes' => 'joomla_ordenproduccion_ordenes',
-        'settings' => 'joomla_ordenproduccion_settings'
+        'settings' => 'joomla_ordenproduccion_settings',
+        'webhook_logs' => 'joomla_ordenproduccion_webhook_logs',
+        'info' => 'joomla_ordenproduccion_info'
     ];
     
     foreach ($tables as $name => $table) {
@@ -102,6 +104,198 @@ try {
         } catch (Exception $e) {
             echo "<p>❌ <strong>$name table</strong>: $table (error: " . $e->getMessage() . ")</p>\n";
         }
+    }
+    
+    // 3.1. Deep Database Analysis for 404 Error
+    echo "<h3>🔍 3.1. Deep Database Analysis (404 Error Investigation)</h3>\n";
+    
+    // Check webhook table structure
+    $webhookTable = 'joomla_ordenproduccion_ordenes';
+    $query = "SHOW TABLES LIKE '$webhookTable'";
+    $db->setQuery($query);
+    $webhookTables = $db->loadColumn();
+    
+    if (!empty($webhookTables)) {
+        echo "<p>✅ <strong>Webhook table found:</strong> $webhookTable</p>\n";
+        
+        // Get table structure
+        $query = "DESCRIBE $webhookTable";
+        $db->setQuery($query);
+        $columns = $db->loadObjectList();
+        
+        echo "<h4>Table Structure:</h4>\n";
+        echo "<table border='1'>\n";
+        echo "<tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th><th>Extra</th></tr>\n";
+        foreach ($columns as $column) {
+            echo "<tr>";
+            echo "<td><strong>{$column->Field}</strong></td>";
+            echo "<td>{$column->Type}</td>";
+            echo "<td>{$column->Null}</td>";
+            echo "<td>{$column->Key}</td>";
+            echo "<td>{$column->Default}</td>";
+            echo "<td>{$column->Extra}</td>";
+            echo "</tr>\n";
+        }
+        echo "</table>\n";
+        
+        // Check if there are any records
+        $query = "SELECT COUNT(*) FROM $webhookTable";
+        $db->setQuery($query);
+        $totalRecords = $db->loadResult();
+        echo "<p><strong>Total records:</strong> $totalRecords</p>\n";
+        
+        if ($totalRecords > 0) {
+            // Get first few records
+            $query = "SELECT * FROM $webhookTable LIMIT 3";
+            $db->setQuery($query);
+            $records = $db->loadObjectList();
+            
+            echo "<h4>Sample Records:</h4>\n";
+            echo "<table border='1'>\n";
+            if (!empty($records)) {
+                // Get column headers from first record
+                $firstRecord = $records[0];
+                echo "<tr>";
+                foreach (get_object_vars($firstRecord) as $key => $value) {
+                    echo "<th>$key</th>";
+                }
+                echo "</tr>\n";
+                
+                foreach ($records as $record) {
+                    echo "<tr>";
+                    foreach (get_object_vars($record) as $key => $value) {
+                        echo "<td>" . htmlspecialchars($value ?? 'NULL') . "</td>";
+                    }
+                    echo "</tr>\n";
+                }
+            }
+            echo "</table>\n";
+            
+            // Check specifically for record with ID 15
+            $query = "SELECT * FROM $webhookTable WHERE id = 15";
+            $db->setQuery($query);
+            $record15 = $db->loadObject();
+            
+            echo "<h4>Record with ID 15 (404 Error Investigation):</h4>\n";
+            if ($record15) {
+                echo "<p>✅ <strong>Record found:</strong></p>\n";
+                echo "<table border='1'>\n";
+                foreach (get_object_vars($record15) as $key => $value) {
+                    echo "<tr><th>$key</th><td>" . htmlspecialchars($value ?? 'NULL') . "</td></tr>\n";
+                }
+                echo "</table>\n";
+            } else {
+                echo "<p>❌ <strong>No record found with ID 15 - This explains the 404 error!</strong></p>\n";
+                
+                // Show available IDs
+                $query = "SELECT id, order_number, client_name, state FROM $webhookTable ORDER BY id LIMIT 10";
+                $db->setQuery($query);
+                $availableIds = $db->loadObjectList();
+                
+                echo "<h4>Available Records (first 10):</h4>\n";
+                echo "<table border='1'>\n";
+                echo "<tr><th>ID</th><th>Order Number</th><th>Client Name</th><th>State</th></tr>\n";
+                foreach ($availableIds as $record) {
+                    echo "<tr>";
+                    echo "<td>{$record->id}</td>";
+                    echo "<td>" . htmlspecialchars($record->order_number ?? 'NULL') . "</td>";
+                    echo "<td>" . htmlspecialchars($record->client_name ?? 'NULL') . "</td>";
+                    echo "<td>{$record->state}</td>";
+                    echo "</tr>\n";
+                }
+                echo "</table>\n";
+            }
+        } else {
+            echo "<p>❌ <strong>No records found in webhook table - This explains the 404 error!</strong></p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>Webhook table does not exist:</strong> $webhookTable</p>\n";
+        echo "<p><strong>This explains the 404 error - the table doesn't exist!</strong></p>\n";
+        
+        // Check what tables do exist
+        echo "<h4>Available tables with 'orden' in name:</h4>\n";
+        $query = "SHOW TABLES LIKE '%orden%'";
+        $db->setQuery($query);
+        $allTables = $db->loadColumn();
+        foreach ($allTables as $table) {
+            echo "<p>📋 $table</p>\n";
+        }
+    }
+    
+    // 3.2. Webhook Logs Analysis
+    echo "<h3>📋 3.2. Webhook Logs Analysis</h3>\n";
+    
+    $logsTable = 'joomla_ordenproduccion_webhook_logs';
+    $query = "SHOW TABLES LIKE '$logsTable'";
+    $db->setQuery($query);
+    $logTables = $db->loadColumn();
+    
+    if (!empty($logTables)) {
+        $query = "SELECT COUNT(*) FROM $logsTable";
+        $db->setQuery($query);
+        $logCount = $db->loadResult();
+        echo "<p>✅ <strong>Webhook logs table found:</strong> $logsTable ($logCount records)</p>\n";
+        
+        if ($logCount > 0) {
+            $query = "SELECT * FROM $logsTable ORDER BY created DESC LIMIT 5";
+            $db->setQuery($query);
+            $logs = $db->loadObjectList();
+            
+            echo "<h4>Recent Webhook Logs:</h4>\n";
+            echo "<table border='1'>\n";
+            echo "<tr><th>ID</th><th>Type</th><th>IP</th><th>Created</th><th>Data (first 100 chars)</th></tr>\n";
+            foreach ($logs as $log) {
+                $dataPreview = substr($log->data ?? '', 0, 100);
+                echo "<tr>";
+                echo "<td>{$log->id}</td>";
+                echo "<td>" . htmlspecialchars($log->type ?? 'NULL') . "</td>";
+                echo "<td>" . htmlspecialchars($log->ip_address ?? 'NULL') . "</td>";
+                echo "<td>" . htmlspecialchars($log->created ?? 'NULL') . "</td>";
+                echo "<td>" . htmlspecialchars($dataPreview) . "...</td>";
+                echo "</tr>\n";
+            }
+            echo "</table>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>Webhook logs table does not exist:</strong> $logsTable</p>\n";
+    }
+    
+    // 3.3. EAV Data Analysis
+    echo "<h3>📋 3.3. EAV Data Analysis</h3>\n";
+    
+    $eavTable = 'joomla_ordenproduccion_info';
+    $query = "SHOW TABLES LIKE '$eavTable'";
+    $db->setQuery($query);
+    $eavTables = $db->loadColumn();
+    
+    if (!empty($eavTables)) {
+        $query = "SELECT COUNT(*) FROM $eavTable";
+        $db->setQuery($query);
+        $eavCount = $db->loadResult();
+        echo "<p>✅ <strong>EAV info table found:</strong> $eavTable ($eavCount records)</p>\n";
+        
+        if ($eavCount > 0) {
+            $query = "SELECT * FROM $eavTable ORDER BY created DESC LIMIT 5";
+            $db->setQuery($query);
+            $eavRecords = $db->loadObjectList();
+            
+            echo "<h4>Recent EAV Records:</h4>\n";
+            echo "<table border='1'>\n";
+            echo "<tr><th>ID</th><th>Order ID</th><th>Attribute</th><th>Value (first 50 chars)</th><th>Created</th></tr>\n";
+            foreach ($eavRecords as $eav) {
+                $valuePreview = substr($eav->attribute_value ?? '', 0, 50);
+                echo "<tr>";
+                echo "<td>{$eav->id}</td>";
+                echo "<td>{$eav->order_id}</td>";
+                echo "<td>" . htmlspecialchars($eav->attribute_name ?? 'NULL') . "</td>";
+                echo "<td>" . htmlspecialchars($valuePreview) . "...</td>";
+                echo "<td>" . htmlspecialchars($eav->created ?? 'NULL') . "</td>";
+                echo "</tr>\n";
+            }
+            echo "</table>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>EAV info table does not exist:</strong> $eavTable</p>\n";
     }
     
     // 4. Menu Item Types Check
@@ -189,6 +383,14 @@ try {
     echo "<li>If language strings don't appear, clear cache and check language files</li>\n";
     echo "<li>If webhook fails, check database connection and table structure</li>\n";
     echo "<li>If component doesn't load, check file permissions and dispatcher registration</li>\n";
+    echo "<li><strong>If 404 'Work order not found' error:</strong></li>\n";
+    echo "<ul>\n";
+    echo "<li>Check if webhook table exists (joomla_ordenproduccion_ordenes)</li>\n";
+    echo "<li>Verify if records exist in the table</li>\n";
+    echo "<li>Check if record with ID 15 exists</li>\n";
+    echo "<li>Verify webhook has been used to create data</li>\n";
+    echo "<li>Check table structure matches model expectations</li>\n";
+    echo "</ul>\n";
     echo "</ul>\n";
     
     echo "<p><strong>Component Version: $componentVersion</strong></p>\n";
