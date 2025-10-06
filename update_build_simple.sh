@@ -426,15 +426,19 @@ EOF
     # Copy language files - check multiple possible locations
     LANGUAGE_SOURCE=""
     
+    # Check if language files are in module directory (preferred location)
+    if [ -d "$REPO_DIR/mod_acciones_produccion/language" ]; then
+        LANGUAGE_SOURCE="$REPO_DIR/mod_acciones_produccion/language"
+        log "Found language files in module directory: $LANGUAGE_SOURCE"
     # Check if language files are in component directory
-    if [ -d "$COMPONENT_ROOT/mod_acciones_produccion/language" ]; then
+    elif [ -d "$COMPONENT_ROOT/mod_acciones_produccion/language" ]; then
         LANGUAGE_SOURCE="$COMPONENT_ROOT/mod_acciones_produccion/language"
         log "Found language files in component directory: $LANGUAGE_SOURCE"
     # Check if language files are in repository root
     elif [ -d "$REPO_DIR/language" ]; then
         LANGUAGE_SOURCE="$REPO_DIR/language"
         log "Found language files in repository root: $LANGUAGE_SOURCE"
-    # Check if language files are in module directory
+    # Check if language files are in module directory (after copying)
     elif [ -d "$MODULE_PATH/language" ]; then
         LANGUAGE_SOURCE="$MODULE_PATH/language"
         log "Found language files in module directory: $LANGUAGE_SOURCE"
@@ -454,7 +458,10 @@ EOF
     REGISTRATION_SCRIPT=""
     
     # Check multiple possible locations for registration script
-    if [ -f "$COMPONENT_ROOT/register_module_joomla5.php" ]; then
+    if [ -f "$REPO_DIR/mod_acciones_produccion/register_module_joomla5.php" ]; then
+        REGISTRATION_SCRIPT="$REPO_DIR/mod_acciones_produccion/register_module_joomla5.php"
+        log "Found registration script in module directory: $REGISTRATION_SCRIPT"
+    elif [ -f "$COMPONENT_ROOT/register_module_joomla5.php" ]; then
         REGISTRATION_SCRIPT="$COMPONENT_ROOT/register_module_joomla5.php"
         log "Found registration script in component directory: $REGISTRATION_SCRIPT"
     elif [ -f "$REPO_DIR/register_module_joomla5.php" ]; then
@@ -476,7 +483,10 @@ EOF
     # Copy module assignment script - check multiple possible locations
     ASSIGNMENT_SCRIPT=""
     
-    if [ -f "$COMPONENT_ROOT/configure_module_assignment.php" ]; then
+    if [ -f "$REPO_DIR/mod_acciones_produccion/configure_module_assignment.php" ]; then
+        ASSIGNMENT_SCRIPT="$REPO_DIR/mod_acciones_produccion/configure_module_assignment.php"
+        log "Found assignment script in module directory: $ASSIGNMENT_SCRIPT"
+    elif [ -f "$COMPONENT_ROOT/configure_module_assignment.php" ]; then
         ASSIGNMENT_SCRIPT="$COMPONENT_ROOT/configure_module_assignment.php"
         log "Found assignment script in component directory: $ASSIGNMENT_SCRIPT"
     elif [ -f "$REPO_DIR/configure_module_assignment.php" ]; then
