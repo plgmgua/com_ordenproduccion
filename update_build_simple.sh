@@ -199,6 +199,17 @@ main() {
     log "Repository contents:"
     ls -la "$REPO_DIR" | grep -E "(mod_|com_)" || log "No module/component directories found"
     
+    # Debug: Show if mod_acciones_produccion directory exists
+    if [ -d "$REPO_DIR/mod_acciones_produccion" ]; then
+        log "✅ Found mod_acciones_produccion directory in repository"
+        log "Module directory contents:"
+        ls -la "$REPO_DIR/mod_acciones_produccion" || log "Cannot list module directory contents"
+    else
+        log "❌ mod_acciones_produccion directory NOT found in repository"
+        log "Available directories:"
+        ls -la "$REPO_DIR" | grep "^d" || log "No directories found"
+    fi
+    
     # Check if module is in component directory
     if [ -d "$COMPONENT_ROOT/mod_acciones_produccion" ]; then
         MODULE_SOURCE="$COMPONENT_ROOT/mod_acciones_produccion"
