@@ -102,17 +102,49 @@ class OrdenModel extends ItemModel
         if (!isset($this->_item[$pk])) {
             try {
                 $db = $this->getDatabase();
+                // First, let's check what columns actually exist
+                $tableName = $db->quoteName('#__ordenproduccion_ordenes');
+                $columnsQuery = "SHOW COLUMNS FROM " . $tableName;
+                $db->setQuery($columnsQuery);
+                $columns = $db->loadObjectList();
+                
+                // Build select fields based on what actually exists
+                $selectFields = ['a.*'];
+                $joinFields = [];
+                
+                // Check if created_by and modified_by fields exist
+                $hasCreatedBy = false;
+                $hasModifiedBy = false;
+                foreach ($columns as $column) {
+                    if ($column->Field === 'created_by') {
+                        $hasCreatedBy = true;
+                    }
+                    if ($column->Field === 'modified_by') {
+                        $hasModifiedBy = true;
+                    }
+                }
+                
+                if ($hasCreatedBy) {
+                    $selectFields[] = 'u.name as created_by_name';
+                    $joinFields[] = $db->quoteName('#__users', 'u') . ' ON u.id = a.created_by';
+                }
+                
+                if ($hasModifiedBy) {
+                    $selectFields[] = 'u2.name as modified_by_name';
+                    $joinFields[] = $db->quoteName('#__users', 'u2') . ' ON u2.id = a.modified_by';
+                }
+                
                 $query = $db->getQuery(true)
-                    ->select(
-                        'a.*, ' .
-                        'u.name as created_by_name, ' .
-                        'u2.name as modified_by_name'
-                    )
-                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'a'))
-                    ->leftJoin($db->quoteName('#__users', 'u') . ' ON u.id = a.created_by')
-                    ->leftJoin($db->quoteName('#__users', 'u2') . ' ON u2.id = a.modified_by')
-                    ->where($db->quoteName('a.id') . ' = ' . (int) $pk)
-                    ->where($db->quoteName('a.state') . ' = 1');
+                    ->select(implode(', ', $selectFields))
+                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
+                
+                // Add joins if they exist
+                foreach ($joinFields as $join) {
+                    $query->leftJoin($join);
+                }
+                
+                $query->where($db->quoteName('a.id') . ' = ' . (int) $pk)
+                      ->where($db->quoteName('a.state') . ' = 1');
 
                 $db->setQuery($query);
                 $data = $db->loadObject();
@@ -120,7 +152,7 @@ class OrdenModel extends ItemModel
                 if (empty($data)) {
                     // Debug: Check if record exists without state filter
                     $debugQuery = $db->getQuery(true)
-                        ->select('id, state, orden_de_trabajo, nombre_del_cliente')
+                        ->select('*')
                         ->from($db->quoteName('#__ordenproduccion_ordenes'))
                         ->where($db->quoteName('id') . ' = ' . (int) $pk);
                     
@@ -186,7 +218,7 @@ class OrdenModel extends ItemModel
         if ($isVentas && !$isProduccion) {
             // Sales users can only see their own orders
             $userName = $user->get('name');
-            $salesAgent = $data->agente_de_ventas ?? '';
+            $salesAgent = $data->sales_agent ?? '';
             if ($salesAgent !== $userName) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 403);
             }
@@ -214,14 +246,14 @@ class OrdenModel extends ItemModel
         // If user is in both groups, they can see all orders but restricted fields only for their own
         if ($isVentas && $isProduccion) {
             $userName = $user->get('name');
-            $salesAgent = $data->agente_de_ventas ?? '';
+            $salesAgent = $data->sales_agent ?? '';
             if ($salesAgent !== $userName) {
                 // Hide restricted fields for orders not belonging to the user
-                unset($data->valor_a_facturar);
+                unset($data->invoice_value);
             }
         } elseif ($isProduccion && !$isVentas) {
             // Production users cannot see invoice value
-            unset($data->valor_a_facturar);
+            unset($data->invoice_value);
         }
         // Sales users can see all fields (no restrictions)
     }
@@ -237,61 +269,10 @@ class OrdenModel extends ItemModel
      */
     protected function mapDatabaseFields($data)
     {
-        // Map Spanish database fields to English field names
-        $fieldMapping = [
-            'orden_de_trabajo' => 'order_number',
-            'fecha_de_solicitud' => 'request_date',
-            'fecha_de_entrega' => 'delivery_date',
-            'nombre_del_cliente' => 'client_name',
-            'agente_de_ventas' => 'sales_agent',
-            'descripcion_de_trabajo' => 'work_description',
-            'color_de_impresion' => 'print_color',
-            'medidas_en_pulgadas' => 'dimensions',
-            'material' => 'material',
-            'valor_a_facturar' => 'invoice_value',
-            'corte' => 'cutting',
-            'detalles_de_corte' => 'cutting_details',
-            'bloqueado' => 'blocking',
-            'detalles_de_bloqueado' => 'blocking_details',
-            'doblado' => 'folding',
-            'detalles_de_doblado' => 'folding_details',
-            'laminado' => 'laminating',
-            'detalles_de_laminado' => 'laminating_details',
-            'numerado' => 'numbering',
-            'detalles_de_numerado' => 'numbering_details',
-            'troquel' => 'die_cutting',
-            'detalles_de_troquel' => 'die_cutting_details',
-            'barniz' => 'varnish',
-            'descripcion_de_barniz' => 'varnish_details',
-            'observaciones_instrucciones_generales' => 'instructions',
-            'contacto_nombre' => 'contact_name',
-            'contacto_telefono' => 'contact_phone',
-            'direccion_de_entrega' => 'delivery_address',
-            'direccion_de_correo_electronico' => 'email_address',
-            'archivo_de_arte' => 'art_files',
-            'adjuntar_cotizacion' => 'quotation_files',
-            'tiro_retiro' => 'print_run',
-            'impresion_en_blanco' => 'blank_printing',
-            'descripcion_de_acabado_en_blanco' => 'blank_finish_description',
-            'lomo' => 'spine',
-            'detalles_de_lomo' => 'spine_details',
-            'pegado' => 'gluing',
-            'detalles_de_pegado' => 'gluing_details',
-            'sizado' => 'sizing',
-            'detalles_de_sizado' => 'sizing_details',
-            'engrapado' => 'stapling',
-            'detalles_de_engrapado' => 'stapling_details',
-            'troquel_cameo' => 'cameo_die_cutting',
-            'detalles_de_troquel_cameo' => 'cameo_die_cutting_details',
-            'despuntados' => 'trimming',
-            'descripcion_de_despuntados' => 'trimming_details',
-            'ojetes' => 'eyelets',
-            'descripcion_de_ojetes' => 'eyelets_details',
-            'perforado' => 'perforation',
-            'descripcion_de_perforado' => 'perforation_details',
-        ];
-
-        // Create new object with mapped fields
+        // The database already has English field names, so we just need to ensure
+        // the template has access to the fields it expects
+        
+        // Create new object with all original fields
         $mappedData = new \stdClass();
         
         // Copy all original fields first
@@ -299,27 +280,10 @@ class OrdenModel extends ItemModel
             $mappedData->$key = $value;
         }
         
-        // Add mapped English field names
-        foreach ($fieldMapping as $spanishField => $englishField) {
-            if (isset($data->$spanishField)) {
-                $mappedData->$englishField = $data->$spanishField;
-            }
-        }
-
-        // Add default values for fields that might not exist
-        $defaultFields = [
-            'status' => 'New',
-            'order_type' => 'External',
-            'production_notes' => '',
-            'instructions' => $data->observaciones_instrucciones_generales ?? '',
-        ];
-
-        foreach ($defaultFields as $field => $defaultValue) {
-            if (!isset($mappedData->$field)) {
-                $mappedData->$field = $defaultValue;
-            }
-        }
-
+        // The database already has the correct English field names:
+        // - order_number, client_name, sales_agent, work_description, etc.
+        // So we don't need to map anything, just return the data as-is
+        
         return $mappedData;
     }
 
