@@ -97,11 +97,11 @@ try {
     echo "\n📋 4. Creating Menu Item Types:\n";
     
     $menuTypes = [
-        'com_ordenproduccion.ordenes' => [
+        'ordenes' => [
             'title' => 'Lista de Órdenes',
             'description' => 'Mostrar lista de órdenes de trabajo'
         ],
-        'com_ordenproduccion.orden' => [
+        'orden' => [
             'title' => 'Detalle de Orden',
             'description' => 'Mostrar detalle de orden de trabajo'
         ]
