@@ -213,36 +213,67 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
-        // Client and job information table
+        // Client and job information table with proper cell sizing
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 8, 'CLIENTE:', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 8, $workOrderData->client_name ?? 'N/A', 1, 1, 'L');
+        $pdf->Cell(35, 8, 'CLIENTE:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $clientName = $workOrderData->client_name ?? 'N/A';
+        if (strlen($clientName) > 50) {
+            $clientName = substr($clientName, 0, 47) . '...';
+        }
+        $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 8, 'TRABAJO:', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 8, $workOrderData->description ?? 'N/A', 1, 1, 'L');
+        $pdf->Cell(35, 8, 'TRABAJO:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $jobDesc = $workOrderData->description ?? 'N/A';
+        if (strlen($jobDesc) > 50) {
+            $jobDesc = substr($jobDesc, 0, 47) . '...';
+        }
+        $pdf->Cell(0, 8, $jobDesc, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 8, 'DIRECCION DE ENTREGA', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 8, $workOrderData->delivery_address ?? 'N/A', 1, 1, 'L');
+        $pdf->Cell(35, 8, 'DIRECCION DE ENTREGA', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $deliveryAddr = $workOrderData->delivery_address ?? 'N/A';
+        if (strlen($deliveryAddr) > 50) {
+            $deliveryAddr = substr($deliveryAddr, 0, 47) . '...';
+        }
+        $pdf->Cell(0, 8, $deliveryAddr, 1, 1, 'L');
         
         $pdf->Ln(5);
         
-        // Production specifications table
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 8, 'COLOR', 1, 0, 'C');
-        $pdf->Cell(30, 8, 'TIRO / RETIRO:', 1, 0, 'C');
-        $pdf->Cell(30, 8, 'MATERIAL:', 1, 0, 'C');
+        // Production specifications table with proper cell sizing
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->Cell(35, 8, 'COLOR', 1, 0, 'C');
+        $pdf->Cell(35, 8, 'TIRO / RETIRO:', 1, 0, 'C');
+        $pdf->Cell(35, 8, 'MATERIAL:', 1, 0, 'C');
         $pdf->Cell(0, 8, 'MEDIDAS:', 1, 1, 'C');
         
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(30, 8, $workOrderData->color ?? 'N/A', 1, 0, 'C');
-        $pdf->Cell(30, 8, $workOrderData->tiro_retiro ?? 'N/A', 1, 0, 'C');
-        $pdf->Cell(30, 8, $workOrderData->material ?? 'N/A', 1, 0, 'C');
-        $pdf->Cell(0, 8, $workOrderData->medidas ?? 'N/A', 1, 1, 'C');
+        $pdf->SetFont('Arial', '', 8);
+        $color = $workOrderData->color ?? 'N/A';
+        if (strlen($color) > 15) {
+            $color = substr($color, 0, 12) . '...';
+        }
+        $pdf->Cell(35, 8, $color, 1, 0, 'C');
+        
+        $tiroRetiro = $workOrderData->tiro_retiro ?? 'N/A';
+        if (strlen($tiroRetiro) > 15) {
+            $tiroRetiro = substr($tiroRetiro, 0, 12) . '...';
+        }
+        $pdf->Cell(35, 8, $tiroRetiro, 1, 0, 'C');
+        
+        $material = $workOrderData->material ?? 'N/A';
+        if (strlen($material) > 15) {
+            $material = substr($material, 0, 12) . '...';
+        }
+        $pdf->Cell(35, 8, $material, 1, 0, 'C');
+        
+        $medidas = $workOrderData->medidas ?? 'N/A';
+        if (strlen($medidas) > 20) {
+            $medidas = substr($medidas, 0, 17) . '...';
+        }
+        $pdf->Cell(0, 8, $medidas, 1, 1, 'C');
         
         $pdf->Ln(5);
         
@@ -268,11 +299,13 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
-        // Instructions/Observations
+        // Instructions/Observations with proper text wrapping
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(0, 8, 'Instrucciones / Observaciones', 1, 1, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->MultiCell(0, 6, $workOrderData->instructions ?? 'N/A', 1, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $instructions = $workOrderData->instructions ?? 'N/A';
+        // Ensure text fits within cell boundaries
+        $pdf->MultiCell(0, 6, $instructions, 1, 'L');
         
         // EAV Data (tecnico, detalles, etc.) - if available
         if (isset($workOrderData->eav_data) && !empty($workOrderData->eav_data)) {
