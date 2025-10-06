@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simplified Build Update Script for com_ordenproduccion
-# Version: 1.8.3
+# Version: 1.8.12
 # Downloads latest code from GitHub and deploys to Joomla webserver
 # No validation, just simple copy operations
 
@@ -110,7 +110,7 @@ main() {
     echo "=========================================="
     echo "  Simplified Build Update Script"
     echo "  com_ordenproduccion Component"
-    echo "  Version: 1.6.0"
+    echo "  Version: 1.8.12"
     echo "=========================================="
     echo ""
 
@@ -236,6 +236,8 @@ main() {
     echo "Downloading latest language files..."
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/en-GB/com_ordenproduccion.ini -O "$TEMP_DIR/en-GB.ini"
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/es-ES/com_ordenproduccion.ini -O "$TEMP_DIR/es-ES.ini"
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/site/language/en-GB/com_ordenproduccion.ini -O "$TEMP_DIR/site-en-GB.ini"
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.ini -O "$TEMP_DIR/site-es-ES.ini"
 
     if [ $? -eq 0 ]; then
         success "Language files downloaded successfully"
@@ -244,18 +246,30 @@ main() {
     fi
 
     echo "Backing up existing language files..."
-    sudo cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing EN file to backup"
-    sudo cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing ES file to backup"
+    sudo cp "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing admin EN file to backup"
+    sudo cp "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing admin ES file to backup"
+    sudo cp "$JOOMLA_ROOT/language/en-GB/com_ordenproduccion.ini" "$JOOMLA_ROOT/language/en-GB/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing site EN file to backup"
+    sudo cp "$JOOMLA_ROOT/language/es-ES/com_ordenproduccion.ini" "$JOOMLA_ROOT/language/es-ES/com_ordenproduccion.ini.backup" 2>/dev/null || echo "No existing site ES file to backup"
 
-    echo "Installing new language files..."
+    echo "Installing new admin language files..."
     sudo cp "$TEMP_DIR/en-GB.ini" "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
     sudo cp "$TEMP_DIR/es-ES.ini" "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
 
-    # Set proper permissions
+    echo "Installing new site language files..."
+    sudo cp "$TEMP_DIR/site-en-GB.ini" "$JOOMLA_ROOT/language/en-GB/com_ordenproduccion.ini"
+    sudo cp "$TEMP_DIR/site-es-ES.ini" "$JOOMLA_ROOT/language/es-ES/com_ordenproduccion.ini"
+
+    # Set proper permissions for admin files
     sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
     sudo chown www-data:www-data "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
     sudo chmod 644 "$JOOMLA_ROOT/administrator/language/en-GB/com_ordenproduccion.ini"
     sudo chmod 644 "$JOOMLA_ROOT/administrator/language/es-ES/com_ordenproduccion.ini"
+
+    # Set proper permissions for site files
+    sudo chown www-data:www-data "$JOOMLA_ROOT/language/en-GB/com_ordenproduccion.ini"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/language/es-ES/com_ordenproduccion.ini"
+    sudo chmod 644 "$JOOMLA_ROOT/language/en-GB/com_ordenproduccion.ini"
+    sudo chmod 644 "$JOOMLA_ROOT/language/es-ES/com_ordenproduccion.ini"
 
     if [ $? -eq 0 ]; then
         success "Language files installed successfully"
@@ -309,13 +323,13 @@ main() {
     log "Step 12: Fixing menu items in database..."
     
     echo "Downloading menu fix script..."
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/sql/fix_menu_items.sql -O "$GITHUB_DIR/fix_menu_items.sql"
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/fix_menu_item_type_complete.php -O "$GITHUB_DIR/fix_menu_item_type_complete.php"
     
     if [ $? -eq 0 ]; then
         success "Menu fix script downloaded successfully"
         
         echo "Executing menu fix script..."
-        mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod < "$GITHUB_DIR/fix_menu_items.sql" 2>/dev/null
+        php "$GITHUB_DIR/fix_menu_item_type_complete.php" 2>/dev/null
         
         if [ $? -eq 0 ]; then
             success "Menu items fixed in database"
@@ -324,7 +338,7 @@ main() {
         fi
         
         echo "Cleaning up menu fix script..."
-        rm -f "$GITHUB_DIR/fix_menu_items.sql"
+        rm -f "$GITHUB_DIR/fix_menu_item_type_complete.php"
     else
         warning "Failed to download menu fix script"
     fi
@@ -352,7 +366,10 @@ main() {
     log "   2. Set your 'Next Order Number' (e.g., 1000)"
     log "   3. Configure your order prefix and format"
     log "   4. Save the settings"
-    log "   5. All menu items have been added: Dashboard, Orders, Technicians, Webhook, Debug, Settings"
+    log "   5. Go to Menus → Add New Menu Item"
+    log "   6. Select 'Lista de Órdenes' from Menu Item Type"
+    log "   7. Create your frontend menu item"
+    log "   8. All admin menu items available: Dashboard, Orders, Technicians, Webhook, Debug, Settings"
     echo ""
 }
 
