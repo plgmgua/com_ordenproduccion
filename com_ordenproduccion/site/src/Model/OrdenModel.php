@@ -102,83 +102,27 @@ class OrdenModel extends ItemModel
         if (!isset($this->_item[$pk])) {
             try {
                 $db = $this->getDatabase();
-                // First, let's check what columns actually exist
-                $tableName = $db->quoteName('#__ordenproduccion_ordenes');
-                $columnsQuery = "SHOW COLUMNS FROM " . $tableName;
-                $db->setQuery($columnsQuery);
-                $columns = $db->loadObjectList();
                 
-                // Build select fields based on what actually exists
-                $selectFields = ['a.*'];
-                $joinFields = [];
-                
-                // Check if created_by and modified_by fields exist
-                $hasCreatedBy = false;
-                $hasModifiedBy = false;
-                foreach ($columns as $column) {
-                    if ($column->Field === 'created_by') {
-                        $hasCreatedBy = true;
-                    }
-                    if ($column->Field === 'modified_by') {
-                        $hasModifiedBy = true;
-                    }
-                }
-                
-                if ($hasCreatedBy) {
-                    $selectFields[] = 'u.name as created_by_name';
-                    $joinFields[] = $db->quoteName('#__users', 'u') . ' ON u.id = a.created_by';
-                }
-                
-                if ($hasModifiedBy) {
-                    $selectFields[] = 'u2.name as modified_by_name';
-                    $joinFields[] = $db->quoteName('#__users', 'u2') . ' ON u2.id = a.modified_by';
-                }
-                
+                // Simple query - just get the work order data
                 $query = $db->getQuery(true)
-                    ->select(implode(', ', $selectFields))
-                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
-                
-                // Add joins if they exist
-                foreach ($joinFields as $join) {
-                    $query->leftJoin($join);
-                }
-                
-                $query->where($db->quoteName('a.id') . ' = ' . (int) $pk)
-                      ->where($db->quoteName('a.state') . ' = 1');
+                    ->select('a.*')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'a'))
+                    ->where($db->quoteName('a.id') . ' = ' . (int) $pk)
+                    ->where($db->quoteName('a.state') . ' = 1');
 
                 $db->setQuery($query);
                 $data = $db->loadObject();
 
                 if (empty($data)) {
-                    // Debug: Check if record exists without state filter
-                    $debugQuery = $db->getQuery(true)
-                        ->select('*')
-                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                        ->where($db->quoteName('id') . ' = ' . (int) $pk);
-                    
-                    $db->setQuery($debugQuery);
-                    $debugData = $db->loadObject();
-                    
-                    if ($debugData) {
-                        // Record exists but state is not 1
-                        throw new \Exception(Text::sprintf('COM_ORDENPRODUCCION_ERROR_ORDEN_NOT_PUBLISHED', $pk, $debugData->state), 404);
-                    } else {
-                        // Record doesn't exist at all
-                        throw new \Exception(Text::sprintf('COM_ORDENPRODUCCION_ERROR_ORDEN_NOT_FOUND', $pk), 404);
-                    }
+                    // Record not found or not published
+                    throw new \Exception(Text::sprintf('COM_ORDENPRODUCCION_ERROR_ORDEN_NOT_FOUND', $pk), 404);
                 }
 
                 // Check user access to this order
                 $this->checkUserAccess($data);
 
-                // Get EAV data for this order
-                $data->eav_data = $this->getEAVData($pk);
-
                 // Apply field visibility based on user groups
                 $this->applyFieldVisibility($data);
-
-                // Map Spanish database fields to English field names for template
-                $data = $this->mapDatabaseFields($data);
 
                 $this->_item[$pk] = $data;
 
