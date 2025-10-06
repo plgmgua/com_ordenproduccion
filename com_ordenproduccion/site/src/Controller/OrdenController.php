@@ -349,7 +349,7 @@ class OrdenController extends BaseController
         // Ensure text fits within cell boundaries
         $pdf->MultiCell(0, 6, $instructions, 1, 'L');
         
-        // Additional information (non-acabados data only)
+        // Additional information (non-acabados data only, excluding specified fields)
         if (isset($workOrderData->eav_data) && !empty($workOrderData->eav_data)) {
             $pdf->Ln(5);
             $pdf->SetFont('Arial', 'B', 10);
@@ -357,7 +357,7 @@ class OrdenController extends BaseController
             
             $pdf->SetFont('Arial', '', 9);
             
-            // Filter out acabados-related data to avoid duplication
+            // Filter out acabados-related data and excluded fields
             $acabadosKeys = ['blocado', 'corte', 'doblado', 'laminado', 'lomo', 'numerado', 
                            'pegado', 'sizado', 'engrapado', 'troquel', 'troquel_cameo', 
                            'barniz', 'imp_en_blanco', 'despuntado', 'ojetes', 'perforado'];
@@ -365,8 +365,12 @@ class OrdenController extends BaseController
             $detailsKeys = array_map(function($key) { return 'detalles_' . $key; }, $acabadosKeys);
             $excludeKeys = array_merge($acabadosKeys, $detailsKeys);
             
+            // Additional fields to exclude
+            $additionalExcludeKeys = ['arte', 'valor_factura', 'client_id'];
+            $excludeKeys = array_merge($excludeKeys, $additionalExcludeKeys);
+            
             foreach ($workOrderData->eav_data as $attributeName => $data) {
-                // Skip acabados data as it's already shown in the table above
+                // Skip acabados data and excluded fields
                 if (!in_array($attributeName, $excludeKeys)) {
                     $pdf->Cell(40, 6, ucfirst($attributeName) . ':', 1, 0, 'L');
                     $pdf->Cell(0, 6, $data->attribute_value ?? 'N/A', 1, 1, 'L');
