@@ -77,12 +77,14 @@ $componentPath = JPATH_ROOT . '/components/com_ordenproduccion';
 if (is_dir($componentPath)) {
     echo "✅ Component directory exists: " . $componentPath . "<br>";
     
-    // Check site entry point
-    $siteEntryPoint = $componentPath . '/site/ordenproduccion.php';
-    if (file_exists($siteEntryPoint)) {
-        echo "✅ Site entry point exists<br>";
+    // Check entry point in component root (flat structure)
+    $entryPoint = $componentPath . '/ordenproduccion.php';
+    if (file_exists($entryPoint)) {
+        echo "✅ Entry point exists: " . $entryPoint . "<br>";
+        echo "File size: " . filesize($entryPoint) . " bytes<br>";
+        echo "File permissions: " . substr(sprintf('%o', fileperms($entryPoint)), -4) . "<br>";
     } else {
-        echo "❌ Site entry point not found<br>";
+        echo "❌ Entry point not found: " . $entryPoint . "<br>";
     }
     
     // Check manifest
