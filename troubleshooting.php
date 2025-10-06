@@ -250,12 +250,128 @@ if (file_exists($ourEntryPoint)) {
     echo "❌ Our entry point not found: " . $ourEntryPoint . "<br>";
 }
 
+// 12. Debug Orden View 404 Issue
+echo "<h3>12. Debug Orden View 404 Issue</h3>";
+echo "<p>Testing the exact issue: 404 'Work order not found' when viewing order detail</p>";
+
+// Test 1: Direct Model Access
+echo "<h4>12.1 Direct Model Access Test</h4>";
+try {
+    $component = $app->bootComponent('com_ordenproduccion');
+    $mvcFactory = $component->getMVCFactory();
+    
+    // Test with ID 15 (from troubleshooting)
+    $model = $mvcFactory->createModel('Orden', 'Site');
+    $model->setState('orden.id', 15);
+    
+    $item = $model->getItem(15);
+    
+    if ($item) {
+        echo "✅ Model can retrieve item with ID 15<br>";
+        echo "- Order Number: " . ($item->order_number ?? 'N/A') . "<br>";
+        echo "- Client: " . ($item->client_name ?? 'N/A') . "<br>";
+        echo "- Status: " . ($item->status ?? 'N/A') . "<br>";
+    } else {
+        echo "❌ Model cannot retrieve item with ID 15<br>";
+        echo "Model errors: " . implode(', ', $model->getErrors()) . "<br>";
+    }
+} catch (Exception $e) {
+    echo "❌ Model access failed: " . $e->getMessage() . "<br>";
+}
+
+// Test 2: URL Parameters
+echo "<h4>12.2 URL Parameters Test</h4>";
+$input = $app->input;
+echo "Current View: " . $input->get('view', 'none') . "<br>";
+echo "Current ID: " . $input->get('id', 'none') . "<br>";
+echo "Current Option: " . $input->get('option', 'none') . "<br>";
+
+// Test 3: View Creation
+echo "<h4>12.3 View Creation Test</h4>";
+try {
+    $component = $app->bootComponent('com_ordenproduccion');
+    $mvcFactory = $component->getMVCFactory();
+    
+    // Set the input parameters for orden view
+    $input->set('view', 'orden');
+    $input->set('id', 15);
+    
+    $view = $mvcFactory->createView('Orden', 'Site');
+    echo "✅ View created successfully<br>";
+    echo "View class: " . get_class($view) . "<br>";
+    
+    // Try to get the model from the view
+    $viewModel = $view->getModel();
+    if ($viewModel) {
+        echo "✅ View model retrieved<br>";
+        echo "Model class: " . get_class($viewModel) . "<br>";
+        
+        // Try to get the item
+        $item = $viewModel->getItem();
+        if ($item) {
+            echo "✅ View model can retrieve item<br>";
+        } else {
+            echo "❌ View model cannot retrieve item<br>";
+            echo "Model errors: " . implode(', ', $viewModel->getErrors()) . "<br>";
+        }
+    } else {
+        echo "❌ View model not found<br>";
+    }
+    
+} catch (Exception $e) {
+    echo "❌ View creation failed: " . $e->getMessage() . "<br>";
+}
+
+// Test 4: View Template Check
+echo "<h4>12.4 View Template Check</h4>";
+$templatePath = JPATH_ROOT . '/components/com_ordenproduccion/site/tmpl/orden/default.php';
+if (file_exists($templatePath)) {
+    echo "✅ View template exists: " . $templatePath . "<br>";
+    echo "File size: " . filesize($templatePath) . " bytes<br>";
+} else {
+    echo "❌ View template not found: " . $templatePath . "<br>";
+    echo "Checking alternative locations:<br>";
+    
+    // Check flat structure template
+    $flatTemplatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/orden/default.php';
+    if (file_exists($flatTemplatePath)) {
+        echo "✅ Found template in flat structure: " . $flatTemplatePath . "<br>";
+    } else {
+        echo "❌ Template not found in flat structure either<br>";
+    }
+}
+
+// Test 5: Error Simulation
+echo "<h4>12.5 Error Simulation Test</h4>";
+try {
+    // Simulate the exact URL that's failing
+    $app->input->set('option', 'com_ordenproduccion');
+    $app->input->set('view', 'orden');
+    $app->input->set('id', 15);
+    
+    $component = $app->bootComponent('com_ordenproduccion');
+    $dispatcher = $component->getDispatcher($app);
+    
+    echo "✅ Dispatcher created successfully<br>";
+    echo "Dispatcher class: " . get_class($dispatcher) . "<br>";
+    
+    // Try to dispatch
+    $dispatcher->dispatch();
+    echo "✅ Dispatch completed successfully<br>";
+    
+} catch (Exception $e) {
+    echo "❌ Dispatch failed: " . $e->getMessage() . "<br>";
+    echo "Error code: " . $e->getCode() . "<br>";
+    echo "Error trace: " . $e->getTraceAsString() . "<br>";
+}
+
 echo "<h3>Recommendations</h3>";
-echo "<p>Based on the working component analysis:</p>";
+echo "<p>Based on the debugging analysis:</p>";
 echo "<ul>";
-echo "<li>Check if our entry point is in the correct location (component root, not site/ subdirectory)</li>";
-echo "<li>Verify entry point has proper Joomla security and application calls</li>";
-echo "<li>Compare our entry point structure with working component</li>";
-echo "<li>Ensure entry point can be accessed directly</li>";
+echo "<li>Check if the model is properly getting the ID from the state</li>";
+echo "<li>Verify the view template exists and is accessible</li>";
+echo "<li>Check if there are any access control issues</li>";
+echo "<li>Verify the dispatcher is working correctly</li>";
+echo "<li>Check if the issue is with flat vs site structure</li>";
 echo "</ul>";
 ?>
