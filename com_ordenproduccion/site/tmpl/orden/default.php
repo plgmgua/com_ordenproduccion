@@ -62,7 +62,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <strong style="color: #333;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>:</strong>
                                 </div>
                                 <div>
-                                    <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>">
+                                    <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>" style="color: #333 !important;">
                                         <?php 
                                         // Debug: Log the status value
                                         error_log("DEBUG: Template - item->status: " . var_export($item->status, true));
@@ -76,7 +76,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <strong style="color: #333;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO'); ?>:</strong>
                                 </div>
                                 <div>
-                                    <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?>">
+                                    <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?>" style="color: #333 !important;">
                                         <?php 
                                         // Map order type values
                                         $orderTypeMap = [
