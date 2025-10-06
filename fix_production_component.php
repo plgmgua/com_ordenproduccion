@@ -22,8 +22,16 @@ try {
     $app = Factory::getApplication('site');
     $db = Factory::getDbo();
     
+    // Get component version
+    $versionFile = JPATH_BASE . '/components/com_ordenproduccion/VERSION';
+    $componentVersion = 'Unknown';
+    if (file_exists($versionFile)) {
+        $componentVersion = trim(file_get_contents($versionFile));
+    }
+    
     echo "🔧 Complete Production Component Fix\n";
-    echo "====================================\n\n";
+    echo "====================================\n";
+    echo "Component Version: $componentVersion\n\n";
     
     // 1. Check component installation
     echo "📋 1. Checking Component Installation:\n";

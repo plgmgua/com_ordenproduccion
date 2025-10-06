@@ -351,14 +351,14 @@ main() {
     sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
     success "fix_production_component.php copied to Joomla root"
     
-    echo "Copying compare_local_vs_server.php to Joomla root..."
-    sudo cp "$GITHUB_DIR/compare_local_vs_server.php" "$JOOMLA_ROOT/" || error "Failed to copy compare_local_vs_server.php"
-    sudo chmod 644 "$JOOMLA_ROOT/compare_local_vs_server.php" || warning "Failed to set permissions on compare_local_vs_server.php"
-    success "compare_local_vs_server.php copied to Joomla root"
+    echo "Copying troubleshooting.php to Joomla root..."
+    sudo cp "$GITHUB_DIR/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
+    sudo chmod 644 "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set permissions on troubleshooting.php"
+    success "troubleshooting.php copied to Joomla root"
     
     echo "Setting proper ownership for utility files..."
     sudo chown www-data:www-data "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set ownership for fix_production_component.php"
-    sudo chown www-data:www-data "$JOOMLA_ROOT/compare_local_vs_server.php" || warning "Failed to set ownership for compare_local_vs_server.php"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
     success "Utility files ownership set"
 
     # Step 14: Clear Joomla cache to refresh menu items
