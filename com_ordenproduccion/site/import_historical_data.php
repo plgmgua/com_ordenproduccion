@@ -186,6 +186,9 @@ class HistoricalDataImporter
                 'version' => '1.0.0'
             ];
 
+            // Truncate data to fit column sizes
+            $data = $this->truncateDataForColumns($data);
+            
             // Insert the record
             $query = $this->db->getQuery(true)
                 ->insert($this->db->quoteName('joomla_ordenproduccion_ordenes'));
@@ -297,6 +300,74 @@ class HistoricalDataImporter
         ];
 
         return isset($typeMap[$oldType]) ? $typeMap[$oldType] : 'External';
+    }
+
+    /**
+     * Truncate data to fit column sizes
+     */
+    protected function truncateDataForColumns($data)
+    {
+        // Define column size limits based on the new table structure
+        $columnLimits = [
+            'client_name' => 255,
+            'nit' => 20,
+            'work_description' => 1000,
+            'print_color' => 50,
+            'dimensions' => 50,
+            'material' => 255,
+            'quotation_files' => 255,
+            'art_files' => 255,
+            'cutting' => 10,
+            'cutting_details' => 1000,
+            'blocking' => 10,
+            'blocking_details' => 1000,
+            'folding' => 10,
+            'folding_details' => 1000,
+            'laminating' => 10,
+            'laminating_details' => 1000,
+            'spine' => 10,
+            'gluing' => 10,
+            'numbering' => 10,
+            'numbering_details' => 1000,
+            'sizing' => 10,
+            'stapling' => 10,
+            'die_cutting' => 10,
+            'die_cutting_details' => 1000,
+            'varnish' => 10,
+            'varnish_details' => 1000,
+            'white_print' => 10,
+            'trimming' => 10,
+            'trimming_details' => 1000,
+            'eyelets' => 10,
+            'perforation' => 10,
+            'perforation_details' => 1000,
+            'instructions' => 1000,
+            'sales_agent' => 255,
+            'order_type' => 50,
+            'assigned_technician' => 255,
+            'production_notes' => 1000,
+            'shipping_address' => 500,
+            'shipping_contact' => 100,
+            'shipping_phone' => 50,
+            'shipping_email' => 100,
+            'shipping_status' => 50,
+            'tracking_number' => 100
+        ];
+
+        foreach ($data as $key => $value) {
+            if (isset($columnLimits[$key]) && is_string($value)) {
+                $limit = $columnLimits[$key];
+                if (strlen($value) > $limit) {
+                    $originalValue = $value;
+                    $data[$key] = substr($value, 0, $limit);
+                    echo "<p style='color: orange;'>⚠️ Truncated {$key} from " . strlen($value) . " to {$limit} characters</p>\n";
+                    echo "<p style='color: orange; font-size: 12px;'>Original: " . htmlspecialchars(substr($originalValue, 0, 100)) . (strlen($originalValue) > 100 ? '...' : '') . "</p>\n";
+                    echo "<p style='color: orange; font-size: 12px;'>Truncated: " . htmlspecialchars($data[$key]) . "</p>\n";
+                }
+            }
+        }
+
+        return $data;
     }
 
     /**
