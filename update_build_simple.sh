@@ -322,42 +322,40 @@ main() {
     # Step 12: Fix menu items in database
     log "Step 12: Fixing menu items in database..."
     
-    echo "Downloading production component fix script..."
+    echo "Downloading fix_production_component.php..."
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/fix_production_component.php -O "$GITHUB_DIR/fix_production_component.php"
-    
-    echo "Downloading troubleshooting script..."
+    if [ $? -ne 0 ]; then
+        error "Failed to download fix_production_component.php. Aborting deployment."
+        exit 1
+    fi
+    success "fix_production_component.php downloaded successfully"
+
+    echo "Downloading troubleshooting.php..."
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/troubleshooting.php -O "$GITHUB_DIR/troubleshooting.php"
+    if [ $? -ne 0 ]; then
+        error "Failed to download troubleshooting.php. Aborting deployment."
+        exit 1
+    fi
+    success "troubleshooting.php downloaded successfully"
+    
+    echo "Executing production component fix script..."
+    php "$GITHUB_DIR/fix_production_component.php" 2>/dev/null
     
     if [ $? -eq 0 ]; then
-        success "Production component fix script downloaded successfully"
-        
-        if [ -f "$GITHUB_DIR/troubleshooting.php" ]; then
-            success "Troubleshooting script downloaded successfully"
-        else
-            warning "Failed to download troubleshooting script"
-        fi
-        
-        echo "Executing production component fix script..."
-        php "$GITHUB_DIR/fix_production_component.php" 2>/dev/null
-        
-        if [ $? -eq 0 ]; then
-            success "Production component fixed in database"
-        else
-            warning "Failed to execute production component fix script"
-        fi
-        
-        # Copy utility files to Joomla root directory before cleanup
-        echo "Copying fix_production_component.php to Joomla root..."
-        sudo cp "$GITHUB_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
-        sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
-        success "fix_production_component.php copied to Joomla root"
-        
-        echo "Cleaning up utility scripts..."
-        rm -f "$GITHUB_DIR/fix_production_component.php"
-        rm -f "$GITHUB_DIR/troubleshooting.php"
+        success "Production component fixed in database"
     else
-        warning "Failed to download production component fix script"
+        warning "Failed to execute production component fix script"
     fi
+    
+    # Copy utility files to Joomla root directory before cleanup
+    echo "Copying fix_production_component.php to Joomla root..."
+    sudo cp "$GITHUB_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
+    sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
+    success "fix_production_component.php copied to Joomla root"
+    
+    echo "Cleaning up utility scripts..."
+    rm -f "$GITHUB_DIR/fix_production_component.php"
+    rm -f "$GITHUB_DIR/troubleshooting.php"
 
     # Step 13: Copy remaining utility files to Joomla root directory
     log "Step 13: Copying remaining utility files to Joomla root directory..."
