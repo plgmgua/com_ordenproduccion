@@ -399,4 +399,117 @@ echo "<li>Check if there are any access control issues</li>";
 echo "<li>Verify the dispatcher is working correctly</li>";
 echo "<li>Check if the issue is with flat vs site structure</li>";
 echo "</ul>";
+
+// 13. Historical Data Import Section
+echo "<h3>13. Historical Data Import</h3>";
+echo "<p>Import all 2025 records from old ordenes_de_trabajo table to new joomla_ordenproduccion_ordenes table.</p>";
+
+// Check if old table exists
+echo "<h4>13.1 Old Table Check</h4>";
+try {
+    $db = \Joomla\CMS\Factory::getDbo();
+    $query = $db->getQuery(true)
+        ->select('COUNT(*) as count')
+        ->from('ordenes_de_trabajo')
+        ->where('YEAR(STR_TO_DATE(marca_temporal, \'%d/%m/%Y %H:%i:%s\')) = 2025');
+    
+    $db->setQuery($query);
+    $count = $db->loadResult();
+    
+    if ($count > 0) {
+        echo "✅ Found {$count} records from 2025 in old table<br>";
+        echo "<p><strong>Import Script Available:</strong></p>";
+        echo "<p><a href='/components/com_ordenproduccion/site/import_historical_data.php' target='_blank'>Run Historical Data Import</a></p>";
+        echo "<p><em>This will import all 2025 records with:</em></p>";
+        echo "<ul>";
+        echo "<li>Status set to 'Terminada' for all imported records</li>";
+        echo "<li>Order numbers formatted as ORD-000000 (6 digits with leading zeros)</li>";
+        echo "<li>All fields mapped correctly between old and new table structures</li>";
+        echo "<li>Date formats converted from DD/MM/YYYY to YYYY-MM-DD</li>";
+        echo "<li>Numeric values cleaned (remove currency symbols, etc.)</li>";
+        echo "<li>Order types mapped (Interna → Internal, Externa → External)</li>";
+        echo "</ul>";
+    } else {
+        echo "❌ No records found for 2025 in old table<br>";
+    }
+} catch (Exception $e) {
+    echo "❌ Error checking old table: " . $e->getMessage() . "<br>";
+}
+
+// Check new table
+echo "<h4>13.2 New Table Check</h4>";
+try {
+    $db = \Joomla\CMS\Factory::getDbo();
+    $query = $db->getQuery(true)
+        ->select('COUNT(*) as count')
+        ->from('joomla_ordenproduccion_ordenes');
+    
+    $db->setQuery($query);
+    $count = $db->loadResult();
+    
+    echo "✅ New table has {$count} records<br>";
+} catch (Exception $e) {
+    echo "❌ Error checking new table: " . $e->getMessage() . "<br>";
+}
+
+// Show sample data from old table
+echo "<h4>13.3 Sample Data from Old Table (2025)</h4>";
+try {
+    $db = \Joomla\CMS\Factory::getDbo();
+    $query = $db->getQuery(true)
+        ->select('orden_de_trabajo, marca_temporal, nombre_del_cliente, agente_de_ventas, valor_a_facturar')
+        ->from('ordenes_de_trabajo')
+        ->where('YEAR(STR_TO_DATE(marca_temporal, \'%d/%m/%Y %H:%i:%s\')) = 2025')
+        ->order('orden_de_trabajo ASC')
+        ->setLimit(5);
+    
+    $db->setQuery($query);
+    $samples = $db->loadObjectList();
+    
+    if (!empty($samples)) {
+        echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+        echo "<tr><th>Order #</th><th>Date</th><th>Client</th><th>Agent</th><th>Value</th></tr>";
+        foreach ($samples as $sample) {
+            echo "<tr>";
+            echo "<td>" . htmlspecialchars($sample->orden_de_trabajo) . "</td>";
+            echo "<td>" . htmlspecialchars($sample->marca_temporal) . "</td>";
+            echo "<td>" . htmlspecialchars($sample->nombre_del_cliente) . "</td>";
+            echo "<td>" . htmlspecialchars($sample->agente_de_ventas) . "</td>";
+            echo "<td>" . htmlspecialchars($sample->valor_a_facturar) . "</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    } else {
+        echo "❌ No sample data found<br>";
+    }
+} catch (Exception $e) {
+    echo "❌ Error getting sample data: " . $e->getMessage() . "<br>";
+}
+
+echo "<h4>13.4 Import Process</h4>";
+echo "<p><strong>To run the import:</strong></p>";
+echo "<ol>";
+echo "<li>Click the 'Run Historical Data Import' link above</li>";
+echo "<li>The script will automatically:</li>";
+echo "<ul>";
+echo "<li>Find all 2025 records in the old table</li>";
+echo "<li>Convert order numbers to ORD-000000 format</li>";
+echo "<li>Set status to 'Terminada' for all imported records</li>";
+echo "<li>Map all fields correctly</li>";
+echo "<li>Convert date formats</li>";
+echo "<li>Clean numeric values</li>";
+echo "<li>Insert into the new table</li>";
+echo "</ul>";
+echo "<li>Display progress and results</li>";
+echo "<li>Show any errors encountered</li>";
+echo "</ol>";
+
+echo "<p><strong>⚠️ Important Notes:</strong></p>";
+echo "<ul>";
+echo "<li>This is a one-time import process</li>";
+echo "<li>All imported records will have status 'Terminada'</li>";
+echo "<li>Order numbers will be reformatted to ORD-000000</li>";
+echo "<li>Original data is preserved in the old table</li>";
+echo "<li>Backup your database before running the import</li>";
+echo "</ul>";
 ?>

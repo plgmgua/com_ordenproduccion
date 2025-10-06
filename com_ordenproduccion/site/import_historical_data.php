@@ -1,0 +1,303 @@
+<?php
+/**
+ * Historical Data Import Script
+ * 
+ * This script imports all 2025 records from the old ordenes_de_trabajo table
+ * to the new joomla_ordenproduccion_ordenes table.
+ * 
+ * Features:
+ * - Imports all records from 2025
+ * - Sets status to "Terminada" for all imported records
+ * - Formats order numbers as ORD-000000 (6 digits with leading zeros)
+ * - Maps all fields correctly between old and new table structures
+ * - Handles date format conversion
+ * - Preserves all original data
+ * 
+ * @package     Grimpsa\Component\Ordenproduccion\Site
+ * @subpackage  Import
+ * @author      Grimpsa Development Team
+ * @copyright   Copyright (C) 2025 Grimpsa. All rights reserved.
+ * @license     GNU General Public License version 2 or later
+ * @since       1.0.0
+ */
+
+// Prevent direct access
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
+
+/**
+ * Historical Data Import Class
+ */
+class HistoricalDataImporter
+{
+    protected $db;
+    protected $importedCount = 0;
+    protected $errorCount = 0;
+    protected $errors = [];
+
+    public function __construct()
+    {
+        $this->db = Factory::getContainer()->get('DatabaseInterface');
+    }
+
+    /**
+     * Import all 2025 records from old table to new table
+     */
+    public function importHistoricalData()
+    {
+        echo "<h2>Historical Data Import - 2025 Records</h2>\n";
+        echo "<p>Starting import process...</p>\n";
+
+        try {
+            // Get all 2025 records from old table
+            $query = $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('ordenes_de_trabajo'))
+                ->where('YEAR(STR_TO_DATE(marca_temporal, \'%d/%m/%Y %H:%i:%s\')) = 2025')
+                ->order('orden_de_trabajo ASC');
+
+            $this->db->setQuery($query);
+            $records = $this->db->loadObjectList();
+
+            echo "<p>Found " . count($records) . " records to import from 2025.</p>\n";
+
+            if (empty($records)) {
+                echo "<p style='color: orange;'>No records found for 2025. Import process completed.</p>\n";
+                return;
+            }
+
+            // Import each record
+            foreach ($records as $record) {
+                $this->importRecord($record);
+            }
+
+            // Display results
+            $this->displayResults();
+
+        } catch (Exception $e) {
+            echo "<p style='color: red;'>Error during import: " . $e->getMessage() . "</p>\n";
+            Log::add('Historical import error: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+        }
+    }
+
+    /**
+     * Import a single record
+     */
+    protected function importRecord($record)
+    {
+        try {
+            // Generate new order number in ORD-000000 format
+            $newOrderNumber = $this->generateOrderNumber($record->orden_de_trabajo);
+            
+            // Convert date formats
+            $requestDate = $this->convertDate($record->fecha_de_solicitud);
+            $deliveryDate = $this->convertDate($record->fecha_de_entrega);
+            $createdDate = $this->convertDateTime($record->marca_temporal);
+
+            // Map fields from old table to new table
+            $data = [
+                'orden_de_trabajo' => $newOrderNumber,
+                'order_number' => $newOrderNumber,
+                'client_id' => 0, // Default client ID
+                'client_name' => $record->nombre_del_cliente,
+                'nit' => $record->nit,
+                'invoice_value' => $this->cleanNumericValue($record->valor_a_facturar),
+                'work_description' => $record->descripcion_de_trabajo,
+                'print_color' => $record->color_de_impresion,
+                'dimensions' => $record->medidas_en_pulgadas,
+                'delivery_date' => $deliveryDate,
+                'material' => $record->material,
+                'quotation_files' => $record->adjuntar_cotizacion,
+                'art_files' => $record->archivo_de_arte,
+                'cutting' => $record->corte,
+                'cutting_details' => $record->detalles_de_corte,
+                'blocking' => $record->bloqueado,
+                'blocking_details' => $record->detalles_de_bloqueado,
+                'folding' => $record->doblado,
+                'folding_details' => $record->detalles_de_doblado,
+                'laminating' => $record->laminado,
+                'laminating_details' => $record->detalles_de_laminado,
+                'spine' => $record->lomo,
+                'gluing' => $record->pegado,
+                'numbering' => $record->numerado,
+                'numbering_details' => $record->detalles_de_numerado,
+                'sizing' => $record->sizado,
+                'stapling' => $record->engrapado,
+                'die_cutting' => $record->troquel,
+                'die_cutting_details' => $record->detalles_de_troquel,
+                'varnish' => $record->barniz,
+                'varnish_details' => $record->descripcion_de_barniz,
+                'white_print' => $record->impresion_en_blanco,
+                'trimming' => $record->despuntados,
+                'trimming_details' => $record->descripcion_de_despuntados,
+                'eyelets' => $record->ojetes,
+                'perforation' => $record->perforado,
+                'perforation_details' => $record->descripcion_de_perforado,
+                'instructions' => $record->observaciones_instrucciones_generales,
+                'sales_agent' => $record->agente_de_ventas,
+                'request_date' => $requestDate,
+                'status' => 'Terminada', // Set all imported records to "Terminada"
+                'order_type' => $this->mapOrderType($record->tipo_de_orden),
+                'assigned_technician' => null,
+                'production_notes' => null,
+                'shipping_address' => $record->direccion_de_entrega,
+                'shipping_contact' => $record->contacto_nombre,
+                'shipping_phone' => $record->contacto_telefono,
+                'shipping_email' => $record->contacto_correo_electronico,
+                'shipping_date' => null,
+                'shipping_status' => 'Pending',
+                'tracking_number' => null,
+                'created' => $createdDate,
+                'created_by' => 0, // System import
+                'modified' => $createdDate,
+                'modified_by' => 0, // System import
+                'state' => 1, // Published
+                'version' => '1.0.0'
+            ];
+
+            // Insert the record
+            $query = $this->db->getQuery(true)
+                ->insert($this->db->quoteName('joomla_ordenproduccion_ordenes'));
+
+            foreach ($data as $key => $value) {
+                $query->set($this->db->quoteName($key) . ' = ' . $this->db->quote($value));
+            }
+
+            $this->db->setQuery($query);
+            $this->db->execute();
+
+            $this->importedCount++;
+            echo "<p style='color: green;'>✓ Imported: {$newOrderNumber} - {$record->nombre_del_cliente}</p>\n";
+
+        } catch (Exception $e) {
+            $this->errorCount++;
+            $this->errors[] = "Error importing {$record->orden_de_trabajo}: " . $e->getMessage();
+            echo "<p style='color: red;'>✗ Error importing {$record->orden_de_trabajo}: " . $e->getMessage() . "</p>\n";
+            Log::add('Import error for ' . $record->orden_de_trabajo . ': ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+        }
+    }
+
+    /**
+     * Generate new order number in ORD-000000 format
+     */
+    protected function generateOrderNumber($oldOrderNumber)
+    {
+        // Extract number from old format (e.g., "04008" -> "8")
+        $number = intval($oldOrderNumber);
+        
+        // Format as ORD-000000 (6 digits with leading zeros)
+        return 'ORD-' . str_pad($number, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Convert date from DD/MM/YYYY format to YYYY-MM-DD
+     */
+    protected function convertDate($dateString)
+    {
+        if (empty($dateString) || $dateString === 'NULL') {
+            return null;
+        }
+
+        try {
+            // Handle DD/MM/YYYY format
+            $date = DateTime::createFromFormat('d/m/Y', $dateString);
+            if ($date) {
+                return $date->format('Y-m-d');
+            }
+        } catch (Exception $e) {
+            // If conversion fails, return null
+        }
+
+        return null;
+    }
+
+    /**
+     * Convert datetime from DD/MM/YYYY HH:MM:SS format to YYYY-MM-DD HH:MM:SS
+     */
+    protected function convertDateTime($dateTimeString)
+    {
+        if (empty($dateTimeString) || $dateTimeString === 'NULL') {
+            return date('Y-m-d H:i:s');
+        }
+
+        try {
+            // Handle DD/MM/YYYY HH:MM:SS format
+            $dateTime = DateTime::createFromFormat('d/m/Y H:i:s', $dateTimeString);
+            if ($dateTime) {
+                return $dateTime->format('Y-m-d H:i:s');
+            }
+        } catch (Exception $e) {
+            // If conversion fails, return current datetime
+        }
+
+        return date('Y-m-d H:i:s');
+    }
+
+    /**
+     * Clean numeric values (remove currency symbols, spaces, etc.)
+     */
+    protected function cleanNumericValue($value)
+    {
+        if (empty($value) || $value === 'NULL') {
+            return 0.00;
+        }
+
+        // Remove currency symbols, spaces, and non-numeric characters except decimal point
+        $cleaned = preg_replace('/[^0-9.]/', '', $value);
+        
+        return floatval($cleaned);
+    }
+
+    /**
+     * Map order type from old format to new format
+     */
+    protected function mapOrderType($oldType)
+    {
+        if (empty($oldType) || $oldType === 'NULL') {
+            return 'External';
+        }
+
+        // Map old types to new types
+        $typeMap = [
+            'Interna' => 'Internal',
+            'Externa' => 'External',
+            'INTERNA' => 'Internal',
+            'EXTERNA' => 'External'
+        ];
+
+        return isset($typeMap[$oldType]) ? $typeMap[$oldType] : 'External';
+    }
+
+    /**
+     * Display import results
+     */
+    protected function displayResults()
+    {
+        echo "<h3>Import Results</h3>\n";
+        echo "<p style='color: green;'><strong>Successfully imported: {$this->importedCount} records</strong></p>\n";
+        
+        if ($this->errorCount > 0) {
+            echo "<p style='color: red;'><strong>Errors: {$this->errorCount} records</strong></p>\n";
+            echo "<h4>Error Details:</h4>\n";
+            echo "<ul>\n";
+            foreach ($this->errors as $error) {
+                echo "<li style='color: red;'>{$error}</li>\n";
+            }
+            echo "</ul>\n";
+        }
+
+        echo "<p><strong>Import process completed!</strong></p>\n";
+    }
+}
+
+// Execute the import
+try {
+    $importer = new HistoricalDataImporter();
+    $importer->importHistoricalData();
+} catch (Exception $e) {
+    echo "<p style='color: red;'>Fatal error: " . $e->getMessage() . "</p>\n";
+}
+?>
