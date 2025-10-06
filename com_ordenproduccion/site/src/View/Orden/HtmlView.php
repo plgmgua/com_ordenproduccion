@@ -344,8 +344,12 @@ class HtmlView extends BaseHtmlView
      */
     public function translateStatus($status)
     {
+        // Debug: Log the status value
+        error_log("DEBUG: translateStatus called with status: " . var_export($status, true));
+        
         // Handle empty or null status - default to "Nueva" for new orders
         if (empty($status) || $status === null || $status === '') {
+            error_log("DEBUG: Status is empty, returning Nueva");
             return Text::_('COM_ORDENPRODUCCION_STATUS_NEW');
         }
 
@@ -362,15 +366,20 @@ class HtmlView extends BaseHtmlView
         ];
 
         if (isset($statusMap[$status])) {
-            return Text::_($statusMap[$status]);
+            $translated = Text::_($statusMap[$status]);
+            error_log("DEBUG: Status mapped to: " . $statusMap[$status] . " -> " . $translated);
+            return $translated;
         }
 
         // If status is already a language key, try to translate it directly
         if (strpos($status, 'COM_ORDENPRODUCCION_STATUS_') === 0) {
-            return Text::_($status);
+            $translated = Text::_($status);
+            error_log("DEBUG: Status is language key: " . $status . " -> " . $translated);
+            return $translated;
         }
 
         // Fallback: return the status as-is
+        error_log("DEBUG: Status fallback: " . $status);
         return $status;
     }
 

@@ -56,7 +56,11 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                 </div>
                                 <div>
                                     <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>">
-                                        <?php echo $this->translateStatus($item->status); ?>
+                                        <?php 
+                                        // Debug: Log the status value
+                                        error_log("DEBUG: Template - item->status: " . var_export($item->status, true));
+                                        echo $this->translateStatus($item->status); 
+                                        ?>
                                     </span>
                                 </div>
                             </div>
