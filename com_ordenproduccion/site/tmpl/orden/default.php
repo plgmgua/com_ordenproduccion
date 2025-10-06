@@ -51,24 +51,40 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-3">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>:</strong>
-                                <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?> ml-2">
-                                    <?php echo $this->translateStatus($item->status); ?>
-                                </span>
+                                <div>
+                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>:</strong>
+                                </div>
+                                <div>
+                                    <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>">
+                                        <?php echo $this->translateStatus($item->status); ?>
+                                    </span>
+                                </div>
                             </div>
                             <div class="col-md-3">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO'); ?>:</strong>
-                                <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?> ml-2">
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_TYPE_' . strtoupper($item->order_type)); ?>
-                                </span>
+                                <div>
+                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO'); ?>:</strong>
+                                </div>
+                                <div>
+                                    <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?>">
+                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_TYPE_' . strtoupper($item->order_type)); ?>
+                                    </span>
+                                </div>
                             </div>
                             <div class="col-md-3">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_SOLICITUD'); ?>:</strong>
-                                <?php echo $this->formatDate($item->request_date); ?>
+                                <div>
+                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_SOLICITUD'); ?>:</strong>
+                                </div>
+                                <div>
+                                    <?php echo $this->formatDate($item->request_date); ?>
+                                </div>
                             </div>
                             <div class="col-md-3">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_ENTREGA'); ?>:</strong>
-                                <?php echo $this->formatDate($item->delivery_date); ?>
+                                <div>
+                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_ENTREGA'); ?>:</strong>
+                                </div>
+                                <div>
+                                    <?php echo $this->formatDate($item->delivery_date); ?>
+                                </div>
                             </div>
                         </div>
                     </div>

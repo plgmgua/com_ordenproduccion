@@ -344,6 +344,11 @@ class HtmlView extends BaseHtmlView
      */
     public function translateStatus($status)
     {
+        // Handle empty or null status - default to "Nueva" for new orders
+        if (empty($status) || $status === null || $status === '') {
+            return Text::_('COM_ORDENPRODUCCION_STATUS_NEW');
+        }
+
         // Map status values to language keys
         $statusMap = [
             'New' => 'COM_ORDENPRODUCCION_STATUS_NEW',
