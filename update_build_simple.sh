@@ -396,8 +396,17 @@ main() {
     sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
     success "Utility files ownership set"
 
-    # Step 14: Copy debug script to Joomla root directory
-    log "Step 14: Copying debug script to Joomla root directory..."
+    # Step 14: Clear Joomla cache to refresh menu items
+    log "Step 14: Clearing Joomla cache to refresh menu items..."
+    
+    echo "Clearing Joomla cache to ensure menu items are refreshed..."
+    sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
+    sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear admin cache directory"
+    
+    success "Cache cleared - menu items should be refreshed from manifest"
+
+    # Step 15: Copy debug script to Joomla root directory (FINAL STEP)
+    log "Step 15: Copying debug script to Joomla root directory (FINAL STEP)..."
     
     echo "Copying onetimedebug.php to Joomla root (overwriting if exists)..."
     sudo cp -f "$REPO_DIR/onetimedebug.php" "$JOOMLA_ROOT/" || error "Failed to copy onetimedebug.php"
@@ -405,17 +414,11 @@ main() {
     sudo chown www-data:www-data "$JOOMLA_ROOT/onetimedebug.php" || warning "Failed to set ownership for onetimedebug.php"
     success "onetimedebug.php copied to Joomla root"
     
+    echo ""
+    echo "🔍 DEBUG SCRIPT DEPLOYED SUCCESSFULLY!"
     echo "Debug script is now available at: https://grimpsa_webserver.grantsolutions.cc/onetimedebug.php"
     echo "This script will help diagnose component issues and 404 errors."
-
-    # Step 15: Clear Joomla cache to refresh menu items
-    log "Step 15: Clearing Joomla cache to refresh menu items..."
-    
-    echo "Clearing Joomla cache to ensure menu items are refreshed..."
-    sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
-    sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear admin cache directory"
-    
-    success "Cache cleared - menu items should be refreshed from manifest"
+    echo ""
 
     echo ""
     success "🎉 Simplified build update completed successfully!"
