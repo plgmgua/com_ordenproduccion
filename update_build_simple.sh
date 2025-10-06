@@ -322,25 +322,25 @@ main() {
     # Step 12: Fix menu items in database
     log "Step 12: Fixing menu items in database..."
     
-    echo "Downloading menu fix script..."
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/fix_menu_item_type_complete.php -O "$GITHUB_DIR/fix_menu_item_type_complete.php"
+    echo "Downloading production component fix script..."
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/fix_production_component.php -O "$GITHUB_DIR/fix_production_component.php"
     
     if [ $? -eq 0 ]; then
-        success "Menu fix script downloaded successfully"
+        success "Production component fix script downloaded successfully"
         
-        echo "Executing menu fix script..."
-        php "$GITHUB_DIR/fix_menu_item_type_complete.php" 2>/dev/null
+        echo "Executing production component fix script..."
+        php "$GITHUB_DIR/fix_production_component.php" 2>/dev/null
         
         if [ $? -eq 0 ]; then
-            success "Menu items fixed in database"
+            success "Production component fixed in database"
         else
-            warning "Failed to execute menu fix script"
+            warning "Failed to execute production component fix script"
         fi
         
-        echo "Cleaning up menu fix script..."
-        rm -f "$GITHUB_DIR/fix_menu_item_type_complete.php"
+        echo "Cleaning up production component fix script..."
+        rm -f "$GITHUB_DIR/fix_production_component.php"
     else
-        warning "Failed to download menu fix script"
+        warning "Failed to download production component fix script"
     fi
 
     # Step 13: Clear Joomla cache to refresh menu items
