@@ -339,5 +339,31 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                 </div>
             </div>
         </div>
+
+        <!-- Component Version Information -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <small class="text-muted">
+                                    <i class="fas fa-code-branch"></i>
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_COMPONENT_VERSION'); ?>: 
+                                    <strong><?php echo $this->getComponentVersion(); ?></strong>
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-right">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i>
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_LAST_UPDATED'); ?>: 
+                                    <?php echo date('Y-m-d H:i:s'); ?>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

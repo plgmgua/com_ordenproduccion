@@ -368,4 +368,39 @@ class HtmlView extends BaseHtmlView
         // Fallback: return the status as-is
         return $status;
     }
+
+    /**
+     * Get component version
+     *
+     * @return  string  Component version
+     *
+     * @since   1.0.0
+     */
+    public function getComponentVersion()
+    {
+        try {
+            // Try to get version from VERSION file first
+            $versionFile = JPATH_ROOT . '/components/com_ordenproduccion/VERSION';
+            if (file_exists($versionFile)) {
+                $version = trim(file_get_contents($versionFile));
+                if (!empty($version)) {
+                    return $version;
+                }
+            }
+
+            // Fallback to manifest version
+            $manifestFile = JPATH_ROOT . '/components/com_ordenproduccion/com_ordenproduccion.xml';
+            if (file_exists($manifestFile)) {
+                $manifest = simplexml_load_file($manifestFile);
+                if ($manifest && isset($manifest['version'])) {
+                    return (string) $manifest['version'];
+                }
+            }
+
+            // Final fallback
+            return '1.0.0';
+        } catch (Exception $e) {
+            return '1.0.0';
+        }
+    }
 }
