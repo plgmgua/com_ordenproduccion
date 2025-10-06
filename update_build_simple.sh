@@ -43,6 +43,9 @@ error() {
 
 warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}Press any key to continue...${NC}"
+    read -n 1 -s
+    echo ""
 }
 
 # Function to get version information
@@ -180,6 +183,215 @@ main() {
         success "Production actions module deployed"
     else
         warning "Production actions module not found in component"
+        
+        # Create missing module files
+        log "Creating missing module files..."
+        
+        # Create template directory
+        sudo mkdir -p "$MODULE_PATH/tmpl" || warning "Failed to create template directory"
+        
+        # Create main module file
+        sudo tee "$MODULE_PATH/mod_acciones_produccion.php" > /dev/null << 'EOF'
+<?php
+/**
+ * @package     Joomla.Site
+ * @subpackage  mod_acciones_produccion
+ *
+ * @copyright   (C) 2025 Grimpsa. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Helper\ModuleHelper;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
+
+// Get the application
+$app = Factory::getApplication();
+$user = Factory::getUser();
+
+// Check if user is in produccion group
+$userGroups = $user->getAuthorisedGroups();
+$db = Factory::getDbo();
+$query = $db->getQuery(true)
+    ->select('id')
+    ->from($db->quoteName('joomla_usergroups'))
+    ->where($db->quoteName('title') . ' = ' . $db->quote('produccion'));
+
+$db->setQuery($query);
+$produccionGroupId = $db->loadResult();
+
+$hasProductionAccess = false;
+if ($produccionGroupId && in_array($produccionGroupId, $userGroups)) {
+    $hasProductionAccess = true;
+}
+
+// Get module parameters
+$orderId = $params->get('order_id', '');
+$showStatistics = $params->get('show_statistics', 1);
+$showPdfButton = $params->get('show_pdf_button', 1);
+$showExcelButton = $params->get('show_excel_button', 1);
+
+// Get current order if not specified
+if (empty($orderId)) {
+    $orderId = $app->input->getInt('id', 0);
+}
+
+// Load the template
+require ModuleHelper::getLayoutPath('mod_acciones_produccion', $params->get('layout', 'default'));
+EOF
+        
+        # Create template file
+        sudo tee "$MODULE_PATH/tmpl/default.php" > /dev/null << 'EOF'
+<?php
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
+
+$app = Factory::getApplication();
+$user = Factory::getUser();
+$currentUrl = Uri::current();
+?>
+
+<div class="mod-acciones-produccion">
+    <?php if (!$hasProductionAccess): ?>
+        <div class="alert alert-warning">
+            <i class="fas fa-lock"></i>
+            <?php echo Text::_('MOD_ACCIONES_PRODUCCION_ACCESS_DENIED'); ?>
+        </div>
+    <?php else: ?>
+        
+        <!-- Production Actions -->
+        <div class="production-actions">
+            <h5 class="actions-title">
+                <i class="fas fa-tools"></i>
+                <?php echo Text::_('MOD_ACCIONES_PRODUCCION_ACTIONS'); ?>
+            </h5>
+            
+            <!-- PDF Generation Form -->
+            <?php if ($showPdfButton): ?>
+            <div class="action-item mb-3">
+                <form action="<?php echo $currentUrl; ?>" method="post" class="pdf-form">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="task" value="generate_pdf">
+                    <div class="form-group">
+                        <label for="order_id" class="form-label">
+                            <i class="fas fa-file-pdf"></i>
+                            <?php echo Text::_('MOD_ACCIONES_PRODUCCION_ORDER_ID'); ?>
+                        </label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="order_id" 
+                               name="order_id" 
+                               value="<?php echo htmlspecialchars($orderId); ?>"
+                               placeholder="<?php echo Text::_('MOD_ACCIONES_PRODUCCION_ORDER_ID_PLACEHOLDER'); ?>"
+                               required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-file-pdf"></i>
+                        <?php echo Text::_('MOD_ACCIONES_PRODUCCION_GENERATE_PDF'); ?>
+                    </button>
+                </form>
+            </div>
+            <?php endif; ?>
+
+            <!-- Quick Links -->
+            <div class="quick-links">
+                <h6 class="links-title">
+                    <i class="fas fa-link"></i>
+                    <?php echo Text::_('MOD_ACCIONES_PRODUCCION_QUICK_LINKS'); ?>
+                </h6>
+                <div class="links-grid">
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-list"></i>
+                        <?php echo Text::_('MOD_ACCIONES_PRODUCCION_VIEW_ORDERS'); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    <?php endif; ?>
+</div>
+
+<style>
+.mod-acciones-produccion {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.production-actions {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+}
+
+.actions-title, .links-title {
+    color: #495057;
+    font-size: 14px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.action-item {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 15px;
+}
+
+.form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.form-control {
+    font-size: 12px;
+    padding: 6px 8px;
+}
+
+.btn {
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+.quick-links {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+}
+
+.links-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.alert {
+    font-size: 12px;
+    padding: 10px;
+    margin-bottom: 0;
+}
+</style>
+EOF
+        
+        # Set permissions
+        sudo chown -R www-data:www-data "$MODULE_PATH"
+        sudo chmod -R 755 "$MODULE_PATH"
+        
+        success "Missing module files created"
     fi
     
     # Copy language files
