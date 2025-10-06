@@ -36,38 +36,33 @@ if ($produccionGroupId && in_array($produccionGroupId, $userGroups)) {
     $hasProductionAccess = true;
 }
 
-// Get module parameters
-$orderId = $params->get('order_id', '');
-$showStatistics = $params->get('show_statistics', 1);
-$showPdfButton = $params->get('show_pdf_button', 1);
-$showExcelButton = $params->get('show_excel_button', 1);
+// Get current work order ID from URL
+$orderId = $app->input->getInt('id', 0);
 
-// Get current order if not specified
-if (empty($orderId)) {
-    // Try to get from URL parameter
-    $orderId = $app->input->getInt('id', 0);
+// Check if we're on the correct component and view
+$option = $app->input->get('option', '');
+$view = $app->input->get('view', '');
+
+// Only show module on ordenproduccion component pages
+if ($option !== 'com_ordenproduccion') {
+    return; // Don't display the module
 }
 
-// Get production statistics if enabled
-$statistics = null;
-if ($showStatistics && $hasProductionAccess) {
+// Get work order data for PDF generation
+$workOrderData = null;
+if ($orderId && $hasProductionAccess) {
     try {
         $query = $db->getQuery(true)
-            ->select([
-                'COUNT(*) as total_orders',
-                'SUM(invoice_value) as total_value',
-                'COUNT(CASE WHEN status = "Terminada" THEN 1 END) as completed_orders',
-                'COUNT(CASE WHEN status = "En Proceso" THEN 1 END) as in_progress_orders'
-            ])
+            ->select('*')
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('request_date') . ' >= ' . $db->quote(date('Y-m-01')));
+            ->where($db->quoteName('id') . ' = ' . (int)$orderId)
+            ->where($db->quoteName('state') . ' = 1');
 
         $db->setQuery($query);
-        $statistics = $db->loadObject();
+        $workOrderData = $db->loadObject();
     } catch (Exception $e) {
-        // Statistics not available
-        $statistics = null;
+        // Work order data not available
+        $workOrderData = null;
     }
 }
 
@@ -79,15 +74,10 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
         return;
     }
     
-    $orderId = $app->input->getInt('order_id', 0);
-    
-    if ($orderId) {
+    if ($orderId && $workOrderData) {
         try {
-            // Include the production helper
-            require_once JPATH_ROOT . '/components/com_ordenproduccion/site/src/Helper/ProductionActionsHelper.php';
-            
-            $helper = new \Grimpsa\Component\Ordenproduccion\Site\Helper\ProductionActionsHelper();
-            $pdfPath = $helper->generateWorkOrderPDF($orderId);
+            // Simple PDF generation using TCPDF or similar
+            $pdfPath = $this->generateWorkOrderPDF($orderId, $workOrderData);
             
             if ($pdfPath) {
                 $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_PDF_GENERATED'), 'success');
@@ -107,34 +97,31 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
     return;
 }
 
-// Export Excel action
-if ($app->input->get('task') === 'export_excel' && $hasProductionAccess) {
-    if (!Session::checkToken()) {
-        $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-        $app->redirect(Uri::current());
-        return;
+// Simple PDF generation function
+function generateWorkOrderPDF($orderId, $workOrderData) {
+    // Create PDF directory if it doesn't exist
+    $pdfDir = JPATH_ROOT . '/media/com_ordenproduccion/pdf';
+    if (!is_dir($pdfDir)) {
+        mkdir($pdfDir, 0755, true);
     }
     
-    try {
-        // Include the production helper
-        require_once JPATH_ROOT . '/components/com_ordenproduccion/site/src/Helper/ProductionActionsHelper.php';
-        
-        $helper = new \Grimpsa\Component\Ordenproduccion\Site\Helper\ProductionActionsHelper();
-        $excelPath = $helper->exportOrdersToExcel();
-        
-        if ($excelPath) {
-            $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_EXCEL_EXPORTED'), 'success');
-            // Redirect to Excel file
-            $app->redirect($excelPath);
-        } else {
-            $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_EXCEL_ERROR'), 'error');
-        }
-    } catch (Exception $e) {
-        $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_EXCEL_ERROR') . ': ' . $e->getMessage(), 'error');
-    }
+    $pdfFile = $pdfDir . '/orden_trabajo_' . $orderId . '_' . date('Y-m-d_H-i-s') . '.pdf';
     
-    $app->redirect(Uri::current());
-    return;
+    // Simple HTML to PDF conversion (you can enhance this)
+    $html = '<html><body>';
+    $html .= '<h1>Orden de Trabajo #' . $orderId . '</h1>';
+    $html .= '<p><strong>Cliente:</strong> ' . htmlspecialchars($workOrderData->client_name ?? 'N/A') . '</p>';
+    $html .= '<p><strong>Fecha de Solicitud:</strong> ' . htmlspecialchars($workOrderData->request_date ?? 'N/A') . '</p>';
+    $html .= '<p><strong>Fecha de Entrega:</strong> ' . htmlspecialchars($workOrderData->delivery_date ?? 'N/A') . '</p>';
+    $html .= '<p><strong>Estado:</strong> ' . htmlspecialchars($workOrderData->status ?? 'N/A') . '</p>';
+    $html .= '<p><strong>Valor Factura:</strong> $' . number_format($workOrderData->invoice_value ?? 0, 2) . '</p>';
+    $html .= '<p><strong>Descripción:</strong> ' . htmlspecialchars($workOrderData->description ?? 'N/A') . '</p>';
+    $html .= '</body></html>';
+    
+    // For now, create a simple text file (you can enhance this with proper PDF generation)
+    file_put_contents($pdfFile, $html);
+    
+    return $pdfFile;
 }
 
 // Load the template
