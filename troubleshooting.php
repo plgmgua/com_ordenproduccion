@@ -27,8 +27,8 @@
             echo "<p class='success'>✅ <strong>Joomla framework available (via Sourcerer plugin)</strong></p>\n";
             
             echo "<h2>2. Database Connection Test</h2>";
-            $app = Factory::getApplication();
-            $db = Factory::getDbo();
+            $app = \Joomla\CMS\Factory::getApplication();
+            $db = \Joomla\CMS\Factory::getDbo();
             echo "<p class='success'>✅ <strong>Database connection successful</strong></p>\n";
             
             echo "<h2>3. Database Table Structure Check</h2>";
@@ -78,7 +78,7 @@
             }
             
             echo "<h2>4. User Access Check</h2>";
-            $user = Factory::getUser();
+            $user = \Joomla\CMS\Factory::getUser();
             echo "<p><strong>User ID:</strong> " . $user->id . "</p>\n";
             echo "<p><strong>User Name:</strong> " . htmlspecialchars($user->name) . "</p>\n";
             echo "<p><strong>User Groups:</strong> " . implode(', ', $user->getAuthorisedGroups()) . "</p>\n";
