@@ -30,7 +30,24 @@ class AccessHelper
     public static function isInVentasGroup()
     {
         $user = Factory::getUser();
-        return in_array('Ventas', $user->getAuthorisedGroups());
+        $userGroups = $user->getAuthorisedGroups();
+        
+        // Get group names to check for 'Ventas'
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id, title')
+            ->from('#__usergroups')
+            ->where('id IN (' . implode(',', $userGroups) . ')');
+        $db->setQuery($query);
+        $groups = $db->loadObjectList();
+        
+        foreach ($groups as $group) {
+            if ($group->title === 'Ventas') {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -41,7 +58,24 @@ class AccessHelper
     public static function isInProduccionGroup()
     {
         $user = Factory::getUser();
-        return in_array('Produccion', $user->getAuthorisedGroups());
+        $userGroups = $user->getAuthorisedGroups();
+        
+        // Get group names to check for 'Produccion'
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id, title')
+            ->from('#__usergroups')
+            ->where('id IN (' . implode(',', $userGroups) . ')');
+        $db->setQuery($query);
+        $groups = $db->loadObjectList();
+        
+        foreach ($groups as $group) {
+            if ($group->title === 'Produccion') {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
