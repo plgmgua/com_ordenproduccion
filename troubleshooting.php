@@ -418,8 +418,10 @@ try {
     
     if ($count > 0) {
         echo "✅ Found {$count} records from 2025 in old table<br>";
-        echo "<p><strong>Import Script Available:</strong></p>";
-        echo "<p><a href='/components/com_ordenproduccion/site/import_historical_data.php' target='_blank'>Run Historical Data Import</a></p>";
+        echo "<p><strong>Import Scripts Available:</strong></p>";
+        echo "<p><a href='/components/com_ordenproduccion/site/check_data_lengths.php' target='_blank'>1. Check Data Lengths</a> - Analyze data sizes</p>";
+        echo "<p><a href='/components/com_ordenproduccion/site/modify_table_structure.php' target='_blank'>2. Modify Table Structure</a> - Increase column sizes</p>";
+        echo "<p><a href='/components/com_ordenproduccion/site/import_historical_data.php' target='_blank'>3. Run Historical Data Import</a> - Import the data</p>";
         echo "<p><em>This will import all 2025 records with:</em></p>";
         echo "<ul>";
         echo "<li>Status set to 'Terminada' for all imported records</li>";
