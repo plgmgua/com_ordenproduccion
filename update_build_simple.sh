@@ -325,8 +325,17 @@ main() {
     echo "Downloading production component fix script..."
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/fix_production_component.php -O "$GITHUB_DIR/fix_production_component.php"
     
+    echo "Downloading troubleshooting script..."
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/troubleshooting.php -O "$GITHUB_DIR/troubleshooting.php"
+    
     if [ $? -eq 0 ]; then
         success "Production component fix script downloaded successfully"
+        
+        if [ -f "$GITHUB_DIR/troubleshooting.php" ]; then
+            success "Troubleshooting script downloaded successfully"
+        else
+            warning "Failed to download troubleshooting script"
+        fi
         
         echo "Executing production component fix script..."
         php "$GITHUB_DIR/fix_production_component.php" 2>/dev/null
@@ -343,8 +352,9 @@ main() {
         sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
         success "fix_production_component.php copied to Joomla root"
         
-        echo "Cleaning up production component fix script..."
+        echo "Cleaning up utility scripts..."
         rm -f "$GITHUB_DIR/fix_production_component.php"
+        rm -f "$GITHUB_DIR/troubleshooting.php"
     else
         warning "Failed to download production component fix script"
     fi
