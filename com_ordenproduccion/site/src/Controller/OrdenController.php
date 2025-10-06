@@ -277,13 +277,13 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
-        // Finishing options table
+        // Finishing options table with real data from EAV
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(60, 8, 'ACABADOS', 1, 0, 'C');
         $pdf->Cell(30, 8, 'SELECCION', 1, 0, 'C');
         $pdf->Cell(0, 8, 'DETALLES', 1, 1, 'C');
         
-        // List of finishing options
+        // List of finishing options with actual data
         $finishingOptions = [
             'BLOCADO', 'CORTE', 'DOBLADO', 'LAMINADO', 'LOMO', 'NUMERADO',
             'PEGADO', 'SIZADO', 'ENGRAPADO', 'TROQUEL', 'TROQUEL CAMEO',
@@ -292,9 +292,51 @@ class OrdenController extends BaseController
         
         $pdf->SetFont('Arial', '', 9);
         foreach ($finishingOptions as $option) {
+            // Check if this finishing option is selected
+            $isSelected = 'NO';
+            $details = '';
+            
+            // Map option names to EAV attribute names
+            $eavMapping = [
+                'BLOCADO' => 'blocado',
+                'CORTE' => 'corte', 
+                'DOBLADO' => 'doblado',
+                'LAMINADO' => 'laminado',
+                'LOMO' => 'lomo',
+                'NUMERADO' => 'numerado',
+                'PEGADO' => 'pegado',
+                'SIZADO' => 'sizado',
+                'ENGRAPADO' => 'engrapado',
+                'TROQUEL' => 'troquel',
+                'TROQUEL CAMEO' => 'troquel_cameo',
+                'BARNIZ' => 'barniz',
+                'IMP. EN BLANCO' => 'imp_en_blanco',
+                'DESPUNTADO' => 'despuntado',
+                'OJETES' => 'ojetes',
+                'PERFORADO' => 'perforado'
+            ];
+            
+            $eavKey = $eavMapping[$option] ?? strtolower($option);
+            
+            // Check if this finishing option is selected (SI/NO)
+            if (isset($workOrderData->eav_data[$eavKey])) {
+                $isSelected = $workOrderData->eav_data[$eavKey]->attribute_value;
+            }
+            
+            // Get details for this finishing option
+            $detailsKey = 'detalles_' . $eavKey;
+            if (isset($workOrderData->eav_data[$detailsKey])) {
+                $details = $workOrderData->eav_data[$detailsKey]->attribute_value;
+            }
+            
+            // Truncate details if too long
+            if (strlen($details) > 30) {
+                $details = substr($details, 0, 27) . '...';
+            }
+            
             $pdf->Cell(60, 6, $option, 1, 0, 'L');
-            $pdf->Cell(30, 6, '', 1, 0, 'C');
-            $pdf->Cell(0, 6, '', 1, 1, 'L');
+            $pdf->Cell(30, 6, $isSelected, 1, 0, 'C');
+            $pdf->Cell(0, 6, $details, 1, 1, 'L');
         }
         
         $pdf->Ln(5);
@@ -307,16 +349,28 @@ class OrdenController extends BaseController
         // Ensure text fits within cell boundaries
         $pdf->MultiCell(0, 6, $instructions, 1, 'L');
         
-        // EAV Data (tecnico, detalles, etc.) - if available
+        // Additional information (non-acabados data only)
         if (isset($workOrderData->eav_data) && !empty($workOrderData->eav_data)) {
             $pdf->Ln(5);
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(0, 8, 'INFORMACION ADICIONAL', 1, 1, 'L');
             
             $pdf->SetFont('Arial', '', 9);
+            
+            // Filter out acabados-related data to avoid duplication
+            $acabadosKeys = ['blocado', 'corte', 'doblado', 'laminado', 'lomo', 'numerado', 
+                           'pegado', 'sizado', 'engrapado', 'troquel', 'troquel_cameo', 
+                           'barniz', 'imp_en_blanco', 'despuntado', 'ojetes', 'perforado'];
+            
+            $detailsKeys = array_map(function($key) { return 'detalles_' . $key; }, $acabadosKeys);
+            $excludeKeys = array_merge($acabadosKeys, $detailsKeys);
+            
             foreach ($workOrderData->eav_data as $attributeName => $data) {
-                $pdf->Cell(40, 6, ucfirst($attributeName) . ':', 1, 0, 'L');
-                $pdf->Cell(0, 6, $data->attribute_value ?? 'N/A', 1, 1, 'L');
+                // Skip acabados data as it's already shown in the table above
+                if (!in_array($attributeName, $excludeKeys)) {
+                    $pdf->Cell(40, 6, ucfirst($attributeName) . ':', 1, 0, 'L');
+                    $pdf->Cell(0, 6, $data->attribute_value ?? 'N/A', 1, 1, 'L');
+                }
             }
         }
         
