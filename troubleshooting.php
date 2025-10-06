@@ -135,12 +135,125 @@ try {
     echo "❌ Menu query failed: " . $e->getMessage() . "<br>";
 }
 
+// 8. Analyze working component structure
+echo "<h3>8. Working Component Analysis (com_approvalworkflow)</h3>";
+$workingComponentPath = JPATH_ROOT . '/components/com_approvalworkflow';
+if (is_dir($workingComponentPath)) {
+    echo "✅ Working component found: " . $workingComponentPath . "<br>";
+    
+    // List files in working component
+    $workingFiles = scandir($workingComponentPath);
+    echo "Files in working component:<br>";
+    foreach ($workingFiles as $file) {
+        if ($file != '.' && $file != '..') {
+            $filePath = $workingComponentPath . '/' . $file;
+            if (is_dir($filePath)) {
+                echo "- [DIR] " . $file . "<br>";
+            } else {
+                echo "- [FILE] " . $file . " (" . filesize($filePath) . " bytes)<br>";
+            }
+        }
+    }
+    
+    // Check if working component has entry point
+    $workingEntryPoint = $workingComponentPath . '/approvalworkflow.php';
+    if (file_exists($workingEntryPoint)) {
+        echo "<br>✅ Working component entry point exists: " . $workingEntryPoint . "<br>";
+        echo "File size: " . filesize($workingEntryPoint) . " bytes<br>";
+        echo "File permissions: " . substr(sprintf('%o', fileperms($workingEntryPoint)), -4) . "<br>";
+    } else {
+        echo "<br>❌ Working component entry point not found<br>";
+    }
+} else {
+    echo "❌ Working component not found: " . $workingComponentPath . "<br>";
+}
+
+// 9. Compare our component structure
+echo "<h3>9. Our Component Structure Analysis</h3>";
+$ourComponentPath = JPATH_ROOT . '/components/com_ordenproduccion';
+if (is_dir($ourComponentPath)) {
+    echo "✅ Our component directory exists: " . $ourComponentPath . "<br>";
+    
+    // List files in our component
+    $ourFiles = scandir($ourComponentPath);
+    echo "Files in our component:<br>";
+    foreach ($ourFiles as $file) {
+        if ($file != '.' && $file != '..') {
+            $filePath = $ourComponentPath . '/' . $file;
+            if (is_dir($filePath)) {
+                echo "- [DIR] " . $file . "<br>";
+            } else {
+                echo "- [FILE] " . $file . " (" . filesize($filePath) . " bytes)<br>";
+            }
+        }
+    }
+    
+    // Check if our component has entry point
+    $ourEntryPoint = $ourComponentPath . '/ordenproduccion.php';
+    if (file_exists($ourEntryPoint)) {
+        echo "<br>✅ Our component entry point exists: " . $ourEntryPoint . "<br>";
+        echo "File size: " . filesize($ourEntryPoint) . " bytes<br>";
+        echo "File permissions: " . substr(sprintf('%o', fileperms($ourEntryPoint)), -4) . "<br>";
+    } else {
+        echo "<br>❌ Our component entry point not found<br>";
+    }
+} else {
+    echo "❌ Our component directory not found: " . $ourComponentPath . "<br>";
+}
+
+// 10. Check if our entry point is in wrong location
+echo "<h3>10. Entry Point Location Analysis</h3>";
+$possibleEntryPoints = [
+    JPATH_ROOT . '/components/com_ordenproduccion/ordenproduccion.php',
+    JPATH_ROOT . '/components/com_ordenproduccion/site/ordenproduccion.php',
+    JPATH_ROOT . '/components/com_ordenproduccion/index.php'
+];
+
+foreach ($possibleEntryPoints as $entryPoint) {
+    if (file_exists($entryPoint)) {
+        echo "✅ Entry point found: " . $entryPoint . "<br>";
+        echo "File size: " . filesize($entryPoint) . " bytes<br>";
+        echo "File permissions: " . substr(sprintf('%o', fileperms($entryPoint)), -4) . "<br>";
+    } else {
+        echo "❌ Entry point not found: " . $entryPoint . "<br>";
+    }
+}
+
+// 11. Test our entry point directly
+echo "<h3>11. Direct Entry Point Test</h3>";
+$ourEntryPoint = JPATH_ROOT . '/components/com_ordenproduccion/ordenproduccion.php';
+if (file_exists($ourEntryPoint)) {
+    echo "✅ Our entry point exists: " . $ourEntryPoint . "<br>";
+    
+    // Check if entry point has correct content
+    $content = file_get_contents($ourEntryPoint);
+    if (strpos($content, 'defined(\'_JEXEC\')') !== false) {
+        echo "✅ Entry point has Joomla security check<br>";
+    } else {
+        echo "❌ Entry point missing Joomla security check<br>";
+    }
+    
+    if (strpos($content, 'Factory::getApplication') !== false) {
+        echo "✅ Entry point has Joomla application call<br>";
+    } else {
+        echo "❌ Entry point missing Joomla application call<br>";
+    }
+    
+    if (strpos($content, 'bootComponent') !== false) {
+        echo "✅ Entry point has component boot call<br>";
+    } else {
+        echo "❌ Entry point missing component boot call<br>";
+    }
+} else {
+    echo "❌ Our entry point not found: " . $ourEntryPoint . "<br>";
+}
+
 echo "<h3>Recommendations</h3>";
-echo "<p>If component is registered but routing fails:</p>";
+echo "<p>Based on the working component analysis:</p>";
 echo "<ul>";
-echo "<li>Check if component is enabled in Joomla admin</li>";
-echo "<li>Verify menu items are published</li>";
-echo "<li>Check URL rewriting settings</li>";
-echo "<li>Try different URL patterns</li>";
+echo "<li>Check if our entry point is in the correct location (component root, not site/ subdirectory)</li>";
+echo "<li>Verify entry point has proper Joomla security and application calls</li>";
+echo "<li>Compare our entry point structure with working component</li>";
+echo "<li>Ensure entry point can be accessed directly</li>";
 echo "</ul>";
 ?>
