@@ -48,9 +48,9 @@ if ($option !== 'com_ordenproduccion') {
     return; // Don't display the module
 }
 
-// Get work order data for PDF generation
+// Get work order data for display and PDF generation
 $workOrderData = null;
-if ($orderId && $hasProductionAccess) {
+if ($orderId) {
     try {
         $query = $db->getQuery(true)
             ->select('*')
@@ -60,8 +60,15 @@ if ($orderId && $hasProductionAccess) {
 
         $db->setQuery($query);
         $workOrderData = $db->loadObject();
+        
+        // Debug: Log what we found
+        if ($workOrderData) {
+            error_log("Module Debug - Found work order: " . print_r($workOrderData, true));
+        } else {
+            error_log("Module Debug - No work order found for ID: " . $orderId);
+        }
     } catch (Exception $e) {
-        // Work order data not available
+        error_log("Module Debug - Database error: " . $e->getMessage());
         $workOrderData = null;
     }
 }

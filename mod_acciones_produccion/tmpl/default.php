@@ -26,6 +26,16 @@ $currentUrl = Uri::current();
         </div>
     <?php elseif ($orderId && $workOrderData): ?>
         
+        <!-- Debug Information (remove in production) -->
+        <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px; border: 1px solid #ccc;">
+            <strong>Debug Info:</strong><br>
+            Order ID: <?php echo $orderId; ?><br>
+            Numero de Orden: <?php echo htmlspecialchars($workOrderData->numero_de_orden ?? 'NULL'); ?><br>
+            Client Name: <?php echo htmlspecialchars($workOrderData->client_name ?? 'NULL'); ?><br>
+            Status: <?php echo htmlspecialchars($workOrderData->status ?? 'NULL'); ?><br>
+            Has Production Access: <?php echo $hasProductionAccess ? 'Yes' : 'No'; ?>
+        </div>
+        
         <!-- Work Order Information -->
         <div class="work-order-info mb-3">
             <h6 class="order-title">
