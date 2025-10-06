@@ -61,6 +61,29 @@ class OrdenModel extends ItemModel
     }
 
     /**
+     * Method to populate the state.
+     *
+     * @param   string  $ordering   An optional ordering field.
+     * @param   string  $direction  An optional direction (asc|desc).
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function populateState($ordering = null, $direction = null)
+    {
+        $app = Factory::getApplication();
+        
+        // Get the ID from the input
+        $id = $app->input->getInt('id', 0);
+        $this->setState($this->getName() . '.id', $id);
+        
+        // Load the parameters
+        $params = $app->getParams('com_ordenproduccion');
+        $this->setState('params', $params);
+    }
+
+    /**
      * Method to get the data that should be injected in the form.
      *
      * @return  mixed  The data for the form.
@@ -93,7 +116,17 @@ class OrdenModel extends ItemModel
      */
     public function getItem($pk = null)
     {
-        $pk = (!empty($pk)) ? $pk : (int) $this->getState($this->getName() . '.id');
+        // Try to get ID from parameter first, then from state, then from input
+        if (!empty($pk)) {
+            $pk = (int) $pk;
+        } else {
+            $pk = (int) $this->getState($this->getName() . '.id');
+            if (empty($pk)) {
+                // Try to get from input as fallback
+                $app = Factory::getApplication();
+                $pk = (int) $app->input->get('id', 0);
+            }
+        }
 
         if ($this->_item === null) {
             $this->_item = [];
