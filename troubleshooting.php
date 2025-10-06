@@ -32,7 +32,7 @@ echo "<h2>📋 1. Component Installation Status</h2>\n";
 try {
     $db = Factory::getDbo();
     $query = $db->getQuery(true)
-        ->select($db->quoteName(['extension_id', 'name', 'enabled', 'manifest_cache', 'version']))
+        ->select($db->quoteName(['extension_id', 'name', 'enabled', 'manifest_cache']))
         ->from($db->quoteName('#__extensions'))
         ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'))
         ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
@@ -44,7 +44,6 @@ try {
         echo "<p>✅ <strong>Component found in database</strong></p>\n";
         echo "<p><strong>Name:</strong> " . $component->name . "</p>\n";
         echo "<p><strong>Enabled:</strong> " . ($component->enabled ? 'Yes' : 'No') . "</p>\n";
-        echo "<p><strong>Version:</strong> " . $component->version . "</p>\n";
         echo "<p><strong>Manifest Cache:</strong> " . (empty($component->manifest_cache) ? 'Missing' : 'Present') . "</p>\n";
     } else {
         echo "<p>❌ <strong>Component com_ordenproduccion not found in database</strong></p>\n";
@@ -152,7 +151,40 @@ try {
 // Test OrdenModel loading
 echo "<h3>4.3. OrdenModel Loading Test</h3>\n";
 try {
-    $model = BaseDatabaseModel::getInstance('Orden', 'Grimpsa\\Component\\Ordenproduccion\\Site\\Model\\');
+    // Try different methods to create the model
+    $model = null;
+    $error = '';
+    
+    // Method 1: Direct instantiation
+    try {
+        $model = new \Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel();
+        echo "<p>✅ <strong>OrdenModel direct instantiation successful</strong></p>\n";
+    } catch (Exception $e) {
+        $error .= "Direct instantiation failed: " . $e->getMessage() . "\n";
+    }
+    
+    // Method 2: Using Factory
+    if (!$model) {
+        try {
+            $app = Factory::getApplication();
+            $component = $app->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $model = $mvcFactory->createModel('Orden', 'Site');
+            echo "<p>✅ <strong>OrdenModel via MVC Factory successful</strong></p>\n";
+        } catch (Exception $e) {
+            $error .= "MVC Factory failed: " . $e->getMessage() . "\n";
+        }
+    }
+    
+    // Method 3: Using BaseDatabaseModel
+    if (!$model) {
+        try {
+            $model = BaseDatabaseModel::getInstance('Orden', 'Grimpsa\\Component\\Ordenproduccion\\Site\\Model\\');
+            echo "<p>✅ <strong>OrdenModel via BaseDatabaseModel successful</strong></p>\n";
+        } catch (Exception $e) {
+            $error .= "BaseDatabaseModel failed: " . $e->getMessage() . "\n";
+        }
+    }
     
     if ($model) {
         echo "<p>✅ <strong>OrdenModel instance created successfully</strong></p>\n";
@@ -167,6 +199,7 @@ try {
         }
     } else {
         echo "<p>❌ <strong>Failed to create OrdenModel instance</strong></p>\n";
+        echo "<p><strong>Error details:</strong> " . $error . "</p>\n";
     }
 } catch (Exception $e) {
     echo "<p>❌ <strong>Error during OrdenModel loading test:</strong> " . $e->getMessage() . "</p>\n";
