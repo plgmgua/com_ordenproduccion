@@ -13,7 +13,7 @@
  */
 
 echo "=== FIXING PRODUCTION COMPONENT ===\n";
-echo "Version: 1.8.117\n";
+echo "Version: 1.8.135\n";
 echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 
 // Check if we're in the right directory
@@ -455,7 +455,305 @@ echo "- CSS and JavaScript assets created\n";
 echo "- Documentation created\n";
 echo "- Menu item SQL created\n\n";
 
-echo "NEXT STEPS:\n";
+echo "=== MODULE DATABASE VALIDATION ===\n";
+echo "Checking module database entries...\n\n";
+
+// Joomla bootstrap for database access
+define('_JEXEC', 1);
+define('JPATH_BASE', '/var/www/grimpsa_webserver');
+require_once JPATH_BASE . '/includes/defines.php';
+require_once JPATH_BASE . '/includes/framework.php';
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Installer\Installer;
+
+try {
+    $app = Factory::getApplication('administrator');
+    $db = Factory::getDbo();
+    
+    echo "🔍 STEP 1: Checking Module in Extensions Table\n";
+    
+    // Check if module exists in joomla_extensions table
+    $query = $db->getQuery(true)
+        ->select('*')
+        ->from($db->quoteName('#__extensions'))
+        ->where($db->quoteName('element') . ' = ' . $db->quote('mod_acciones_produccion'))
+        ->where($db->quoteName('type') . ' = ' . $db->quote('module'));
+
+    $db->setQuery($query);
+    $extension = $db->loadObject();
+
+    if ($extension) {
+        echo "✅ Module found in extensions table:\n";
+        echo "Extension ID: {$extension->extension_id}\n";
+        echo "Name: {$extension->name}\n";
+        echo "Type: {$extension->type}\n";
+        echo "Element: {$extension->element}\n";
+        echo "Folder: {$extension->folder}\n";
+        echo "Client ID: {$extension->client_id}\n";
+        echo "Enabled: " . ($extension->enabled ? 'YES' : 'NO') . "\n";
+        echo "Access: {$extension->access}\n";
+        echo "Protected: " . ($extension->protected ? 'YES' : 'NO') . "\n";
+        echo "Ordering: {$extension->ordering}\n";
+        echo "State: {$extension->state}\n";
+        echo "Manifest Cache: " . (empty($extension->manifest_cache) ? 'EMPTY' : 'EXISTS') . "\n";
+        echo "Params: " . (empty($extension->params) ? 'EMPTY' : 'EXISTS') . "\n";
+    } else {
+        echo "❌ Module NOT found in extensions table\n";
+        echo "🔧 Attempting to register module...\n";
+        
+        // Try to register the module
+        $installer = new Installer();
+        $result = $installer->install('/var/www/grimpsa_webserver/modules/mod_acciones_produccion');
+        
+        if ($result) {
+            echo "✅ Module registration successful\n";
+        } else {
+            echo "❌ Module registration failed: " . $installer->getError() . "\n";
+        }
+    }
+
+    echo "\n🔍 STEP 2: Checking Module in Modules Table\n";
+    
+    // Check if module exists in joomla_modules table
+    $query = $db->getQuery(true)
+        ->select('*')
+        ->from($db->quoteName('#__modules'))
+        ->where($db->quoteName('module') . ' = ' . $db->quote('mod_acciones_produccion'));
+
+    $db->setQuery($query);
+    $modules = $db->loadObjectList();
+
+    if ($modules) {
+        echo "✅ Found " . count($modules) . " module instance(s):\n\n";
+        foreach ($modules as $index => $module) {
+            echo "Module Instance " . ($index + 1) . ":\n";
+            echo "ID: {$module->id}\n";
+            echo "Title: {$module->title}\n";
+            echo "Position: {$module->position}\n";
+            echo "Published: " . ($module->published ? 'YES' : 'NO') . "\n";
+            echo "Access: {$module->access}\n";
+            echo "Show Title: " . ($module->showtitle ? 'YES' : 'NO') . "\n";
+            echo "Client ID: {$module->client_id}\n";
+            echo "Language: {$module->language}\n";
+            echo "Assignment: {$module->assignment}\n";
+            echo "Ordering: {$module->ordering}\n";
+            echo "Params:\n";
+            $params = json_decode($module->params, true);
+            if ($params) {
+                foreach ($params as $key => $value) {
+                    echo "  - $key: $value\n";
+                }
+            }
+            echo "\n";
+        }
+    } else {
+        echo "❌ No module instances found in modules table\n";
+        echo "🔧 Creating default module instance...\n";
+        
+        // Create a default module instance
+        $query = $db->getQuery(true)
+            ->insert($db->quoteName('#__modules'))
+            ->set($db->quoteName('title') . ' = ' . $db->quote('Acciones Produccion'))
+            ->set($db->quoteName('note') . ' = ' . $db->quote(''))
+            ->set($db->quoteName('content') . ' = ' . $db->quote(''))
+            ->set($db->quoteName('showtitle') . ' = 1')
+            ->set($db->quoteName('control') . ' = ' . $db->quote(''))
+            ->set($db->quoteName('params') . ' = ' . $db->quote('{}'))
+            ->set($db->quoteName('module') . ' = ' . $db->quote('mod_acciones_produccion'))
+            ->set($db->quoteName('access') . ' = 1')
+            ->set($db->quoteName('showtitle') . ' = 1')
+            ->set($db->quoteName('client_id') . ' = 0')
+            ->set($db->quoteName('language') . ' = ' . $db->quote('*'))
+            ->set($db->quoteName('publish_up') . ' = ' . $db->quote('0000-00-00 00:00:00'))
+            ->set($db->quoteName('publish_down') . ' = ' . $db->quote('0000-00-00 00:00:00'))
+            ->set($db->quoteName('published') . ' = 1')
+            ->set($db->quoteName('ordering') . ' = 0');
+        
+        $db->setQuery($query);
+        if ($db->execute()) {
+            $moduleId = $db->insertid();
+            echo "✅ Created module instance with ID: $moduleId\n";
+        } else {
+            echo "❌ Failed to create module instance\n";
+        }
+    }
+
+    echo "\n🔍 STEP 3: Checking Module Menu Assignments\n";
+    
+    if ($modules) {
+        foreach ($modules as $module) {
+            echo "Module ID {$module->id} assignments:\n";
+            
+            // Check menu assignments
+            $query = $db->getQuery(true)
+                ->select('m.id, m.title, m.link, m.published')
+                ->from($db->quoteName('#__menu', 'm'))
+                ->join('INNER', $db->quoteName('#__modules_menu', 'mm') . ' ON m.id = mm.menuid')
+                ->where($db->quoteName('mm.moduleid') . ' = ' . (int)$module->id);
+            
+            $db->setQuery($query);
+            $assignments = $db->loadObjectList();
+            
+            if ($assignments) {
+                foreach ($assignments as $assignment) {
+                    $status = $assignment->published ? '✅' : '❌';
+                    echo "$status Assigned to: {$assignment->title} (ID: {$assignment->id})\n";
+                    echo "  Link: {$assignment->link}\n";
+                    echo "  Published: " . ($assignment->published ? 'YES' : 'NO') . "\n";
+                }
+            } else {
+                echo "❌ No menu assignments found\n";
+            }
+            echo "\n";
+        }
+    }
+
+    echo "🔍 STEP 4: Checking File System\n";
+    echo "Checking module files:\n";
+    
+    $modulePath = '/var/www/grimpsa_webserver/modules/mod_acciones_produccion';
+    $xmlFile = $modulePath . '/mod_acciones_produccion.xml';
+    $phpFile = $modulePath . '/mod_acciones_produccion.php';
+    $templateFile = $modulePath . '/tmpl/default.php';
+    
+    if (file_exists($phpFile)) {
+        echo "✅ Main module file exists: $phpFile\n";
+        echo "  Size: " . filesize($phpFile) . " bytes\n";
+        echo "  Permissions: " . substr(sprintf('%o', fileperms($phpFile)), -4) . "\n";
+        echo "  Owner: " . posix_getpwuid(fileowner($phpFile))['name'] . "\n";
+    } else {
+        echo "❌ Main module file NOT found: $phpFile\n";
+    }
+    
+    if (file_exists($templateFile)) {
+        echo "✅ Template file exists: $templateFile\n";
+        echo "  Size: " . filesize($templateFile) . " bytes\n";
+        echo "  Permissions: " . substr(sprintf('%o', fileperms($templateFile)), -4) . "\n";
+    } else {
+        echo "❌ Template file NOT found: $templateFile\n";
+    }
+    
+    echo "\nChecking language files:\n";
+    $languageFiles = [
+        '/var/www/grimpsa_webserver/language/en-GB/mod_acciones_produccion.ini',
+        '/var/www/grimpsa_webserver/language/es-ES/mod_acciones_produccion.ini'
+    ];
+    
+    foreach ($languageFiles as $langFile) {
+        if (file_exists($langFile)) {
+            echo "✅ Language file exists: $langFile\n";
+            echo "  Size: " . filesize($langFile) . " bytes\n";
+        } else {
+            echo "❌ Language file NOT found: $langFile\n";
+        }
+    }
+
+    echo "\n🔍 STEP 5: Checking Directory Permissions\n";
+    $directories = [
+        '/var/www/grimpsa_webserver/modules',
+        '/var/www/grimpsa_webserver/modules/mod_acciones_produccion',
+        '/var/www/grimpsa_webserver/modules/mod_acciones_produccion/tmpl',
+        '/var/www/grimpsa_webserver/language',
+        '/var/www/grimpsa_webserver/language/en-GB',
+        '/var/www/grimpsa_webserver/language/es-ES'
+    ];
+    
+    foreach ($directories as $dir) {
+        if (is_dir($dir)) {
+            $perms = substr(sprintf('%o', fileperms($dir)), -4);
+            $owner = posix_getpwuid(fileowner($dir))['name'];
+            $group = posix_getgrgid(filegroup($dir))['name'];
+            echo "✅ Directory: $dir\n";
+            echo "  Permissions: $perms\n";
+            echo "  Owner: $owner\n";
+            echo "  Group: $group\n";
+        } else {
+            echo "❌ Directory NOT found: $dir\n";
+        }
+    }
+
+    echo "\n🔍 STEP 6: Checking Database Schema\n";
+    
+    // Check if assignment column exists
+    $query = "SHOW COLUMNS FROM `#__modules` LIKE 'assignment'";
+    $db->setQuery($query);
+    $assignmentColumn = $db->loadObject();
+    
+    if ($assignmentColumn) {
+        echo "✅ 'assignment' column exists in joomla_modules table\n";
+        echo "  Type: {$assignmentColumn->Type}\n";
+        echo "  Null: {$assignmentColumn->Null}\n";
+        echo "  Default: {$assignmentColumn->Default}\n";
+    } else {
+        echo "❌ 'assignment' column NOT found in joomla_modules table\n";
+        echo "🔧 Adding assignment column...\n";
+        
+        $query = "ALTER TABLE `#__modules` ADD COLUMN `assignment` tinyint(1) NOT NULL DEFAULT 0";
+        $db->setQuery($query);
+        if ($db->execute()) {
+            echo "✅ Assignment column added successfully\n";
+        } else {
+            echo "❌ Failed to add assignment column\n";
+        }
+    }
+    
+    // Show table structure
+    echo "\njoomla_modules table structure:\n";
+    $query = "DESCRIBE `#__modules`";
+    $db->setQuery($query);
+    $columns = $db->loadObjectList();
+    
+    foreach ($columns as $column) {
+        $null = $column->Null === 'YES' ? 'YES' : 'NO';
+        $key = $column->Key ?: '';
+        $default = $column->Default ?: '';
+        echo "  {$column->Field}: {$column->Type} ($null, $key, $default)\n";
+    }
+
+    echo "\n🔍 STEP 7: Summary and Recommendations\n";
+    
+    $successes = [];
+    $issues = [];
+    
+    if ($extension) $successes[] = "Module registered in extensions table";
+    if ($modules) $successes[] = "Module found in modules table";
+    if (file_exists($phpFile)) $successes[] = "Main module file exists";
+    if (file_exists($templateFile)) $successes[] = "Template file exists";
+    if ($assignmentColumn) $successes[] = "Assignment column exists";
+    
+    if (empty($extension)) $issues[] = "Module not registered in extensions table";
+    if (empty($modules)) $issues[] = "No module instances found";
+    if (!file_exists($phpFile)) $issues[] = "Main module file missing";
+    if (!file_exists($templateFile)) $issues[] = "Template file missing";
+    if (!$assignmentColumn) $issues[] = "Assignment column missing";
+    
+    if (!empty($successes)) {
+        echo "✅ SUCCESSES:\n";
+        foreach ($successes as $success) {
+            echo "  - $success\n";
+        }
+    }
+    
+    if (!empty($issues)) {
+        echo "\n❌ ISSUES FOUND:\n";
+        foreach ($issues as $issue) {
+            echo "  - $issue\n";
+        }
+    }
+    
+    if (empty($issues)) {
+        echo "\n🎉 ALL CHECKS PASSED! Module should be working correctly.\n";
+    } else {
+        echo "\n⚠️ Some issues were found. Please review and fix them.\n";
+    }
+
+} catch (Exception $e) {
+    echo "❌ Error during module validation: " . $e->getMessage() . "\n";
+    echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
+}
+
+echo "\nNEXT STEPS:\n";
 echo "1. Deploy the updated component\n";
 echo "2. Run the menu item SQL in phpMyAdmin\n";
 echo "3. Create 'produccion' user group in Joomla\n";
