@@ -291,6 +291,82 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                             <td><?php echo htmlspecialchars($item->varnish_details); ?></td>
                                         </tr>
                                     <?php endif; ?>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LOMO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->spine === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->spine === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PEGADO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->gluing === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->gluing === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_SIZADO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->sizing === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->sizing === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ENGRAPADO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->stapling === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->stapling === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_IMPRESION_BLANCO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->white_print === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->white_print === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DESPUNTADO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->trimming === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->trimming === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php if ($item->trimming === 'SI' && !empty($item->trimming_details)) : ?>
+                                        <tr>
+                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_DESPUNTADO'); ?>:</strong></td>
+                                            <td><?php echo htmlspecialchars($item->trimming_details); ?></td>
+                                        </tr>
+                                    <?php endif; ?>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_OJETES'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->eyelets === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->eyelets === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PERFORADO'); ?>:</strong></td>
+                                        <td>
+                                            <span class="badge <?php echo $item->perforation === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
+                                                <?php echo ($item->perforation === 'SI') ? 'Sí' : 'No'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php if ($item->perforation === 'SI' && !empty($item->perforation_details)) : ?>
+                                        <tr>
+                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_PERFORADO'); ?>:</strong></td>
+                                            <td><?php echo htmlspecialchars($item->perforation_details); ?></td>
+                                        </tr>
+                                    <?php endif; ?>
                                 </table>
                             </div>
                         </div>
