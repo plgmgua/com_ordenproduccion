@@ -27,18 +27,17 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h1 class="page-title">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TITLE'); ?>
-                        </h1>
-                        <p class="page-description">
                             <?php 
-                            // Debug: Check what order number fields are available
+                            // Get order number value
                             $orderNumber = $item->orden_de_trabajo ?? $item->order_number ?? 'N/A';
                             error_log("DEBUG: Order number fields - orden_de_trabajo: " . var_export($item->orden_de_trabajo ?? 'NOT_SET', true));
                             error_log("DEBUG: Order number fields - order_number: " . var_export($item->order_number ?? 'NOT_SET', true));
                             error_log("DEBUG: Order number fields - final value: " . var_export($orderNumber, true));
-                            echo Text::_('COM_ORDENPRODUCCION_ORDEN_NUMERO') . ': ' . $orderNumber; 
+                            
+                            // Display title with order number inline
+                            echo Text::_('COM_ORDENPRODUCCION_ORDEN_TITLE') . ' ' . $orderNumber;
                             ?>
-                        </p>
+                        </h1>
                     </div>
                     <div>
                         <a href="<?php echo $this->getBackToListRoute(); ?>" 
