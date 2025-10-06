@@ -4,11 +4,15 @@
  * This file helps diagnose routing issues
  */
 
-// Prevent direct access
-defined('_JEXEC') or die;
+// Define _JEXEC to allow execution
+define('_JEXEC', 1);
 
-// Get Joomla application
-$app = \Joomla\CMS\Factory::getApplication();
+// Load Joomla framework
+require_once JPATH_ROOT . '/includes/defines.php';
+require_once JPATH_ROOT . '/includes/framework.php';
+
+// Initialize Joomla application
+$app = \Joomla\CMS\Factory::getApplication('site');
 
 echo "<h2>🔍 Routing Debug Test</h2>";
 echo "<p>Timestamp: " . date('Y-m-d H:i:s') . "</p>";
