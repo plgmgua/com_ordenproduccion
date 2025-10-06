@@ -30,7 +30,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                             <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TITLE'); ?>
                         </h1>
                         <p class="page-description">
-                            <?php echo Text::sprintf('COM_ORDENPRODUCCION_ORDEN_NUMERO', $item->order_number); ?>
+                            <?php echo Text::sprintf('COM_ORDENPRODUCCION_ORDEN_NUMERO', $item->orden_de_trabajo ?? $item->order_number ?? 'N/A'); ?>
                         </p>
                     </div>
                     <div>
@@ -245,10 +245,6 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                             <td><?php echo htmlspecialchars($item->laminating_details); ?></td>
                                         </tr>
                                     <?php endif; ?>
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <table class="table table-sm">
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_NUMERADO'); ?>:</strong></td>
                                         <td>
@@ -307,6 +303,10 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                             </span>
                                         </td>
                                     </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-sm">
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_SIZADO'); ?>:</strong></td>
                                         <td>
