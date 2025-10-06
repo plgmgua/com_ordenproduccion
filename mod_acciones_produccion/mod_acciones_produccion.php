@@ -57,8 +57,8 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
     }
     
     if ($orderId) {
-        // Redirect to component PDF generation
-        $pdfUrl = Route::_('index.php?option=com_ordenproduccion&task=orden.generatePdf&id=' . $orderId);
+        // Redirect to component PDF generation - use direct URL format
+        $pdfUrl = 'index.php?option=com_ordenproduccion&task=orden.generatePdf&id=' . $orderId;
         $app->redirect($pdfUrl);
         return;
     } else {
