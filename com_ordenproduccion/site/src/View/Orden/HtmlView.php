@@ -70,6 +70,11 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
         $user = Factory::getUser();
 
+        // Load component language
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site/language');
+        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/admin/language');
+
         // Check if user is logged in
         if ($user->guest) {
             $app->redirect(Route::_('index.php?option=com_users&view=login'));
