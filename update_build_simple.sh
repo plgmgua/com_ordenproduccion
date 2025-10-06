@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simplified Build Update Script for com_ordenproduccion
-# Version: 1.8.12
+# Version: 1.8.117
 # Downloads latest code from GitHub and deploys to Joomla webserver
 # No validation, just simple copy operations
 
@@ -110,7 +110,7 @@ main() {
     echo "=========================================="
     echo "  Simplified Build Update Script"
     echo "  com_ordenproduccion Component"
-    echo "  Version: 1.8.12"
+    echo "  Version: 1.8.117"
     echo "=========================================="
     echo ""
 
@@ -163,6 +163,45 @@ main() {
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
     sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"
     
+    # Deploy production actions module
+    log "Deploying production actions module..."
+    MODULE_NAME="mod_acciones_produccion"
+    MODULE_PATH="$JOOMLA_ROOT/modules/$MODULE_NAME"
+    LANGUAGE_PATH="$JOOMLA_ROOT/language"
+    
+    # Create module directory
+    sudo mkdir -p "$MODULE_PATH" || log "Module directory may already exist"
+    
+    # Copy module files
+    if [ -d "$COMPONENT_ROOT/mod_acciones_produccion" ]; then
+        sudo cp -r "$COMPONENT_ROOT/mod_acciones_produccion/"* "$MODULE_PATH/" || warning "Failed to copy module files"
+        sudo chown -R www-data:www-data "$MODULE_PATH"
+        sudo chmod -R 755 "$MODULE_PATH"
+        success "Production actions module deployed"
+    else
+        warning "Production actions module not found in component"
+    fi
+    
+    # Copy language files
+    if [ -d "$COMPONENT_ROOT/mod_acciones_produccion/language" ]; then
+        sudo cp -r "$COMPONENT_ROOT/mod_acciones_produccion/language/"* "$LANGUAGE_PATH/" || warning "Failed to copy module language files"
+        sudo chown -R www-data:www-data "$LANGUAGE_PATH"
+        sudo chmod -R 755 "$LANGUAGE_PATH"
+        success "Module language files deployed"
+    else
+        warning "Module language files not found"
+    fi
+    
+    # Register module in Joomla 5.x
+    log "Registering module in Joomla 5.x..."
+    if [ -f "$COMPONENT_ROOT/register_module_joomla5.php" ]; then
+        cd "$MODULE_PATH"
+        sudo php "$COMPONENT_ROOT/register_module_joomla5.php" || warning "Module registration failed, but continuing..."
+        success "Module registered in Joomla 5.x"
+    else
+        warning "Module registration script not found"
+    fi
+    
     # Verify site files were copied correctly
     log "Verifying site files deployment..."
     if [ -f "$SITE_COMPONENT_PATH/src/Model/OrdenModel.php" ]; then
@@ -189,6 +228,32 @@ main() {
         success "Site manifest deployed successfully"
     else
         error "Site manifest not found after deployment"
+    fi
+    
+    # Verify production module files
+    log "Verifying production module deployment..."
+    if [ -f "$SITE_COMPONENT_PATH/src/Controller/ProductionController.php" ]; then
+        success "ProductionController.php deployed successfully"
+    else
+        warning "ProductionController.php not found - production module may not be available"
+    fi
+    
+    if [ -f "$SITE_COMPONENT_PATH/src/Helper/ProductionActionsHelper.php" ]; then
+        success "ProductionActionsHelper.php deployed successfully"
+    else
+        warning "ProductionActionsHelper.php not found - production actions may not work"
+    fi
+    
+    if [ -d "$SITE_COMPONENT_PATH/src/View/Production" ]; then
+        success "Production view directory deployed successfully"
+    else
+        warning "Production view directory not found - production interface may not be available"
+    fi
+    
+    if [ -d "$SITE_COMPONENT_PATH/tmpl/production" ]; then
+        success "Production templates deployed successfully"
+    else
+        warning "Production templates not found - production interface may not display correctly"
     fi
     
     log "Copying manifest file from $COMPONENT_ROOT/$COMPONENT_NAME.xml to $ADMIN_COMPONENT_PATH/"
