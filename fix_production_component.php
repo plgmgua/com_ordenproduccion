@@ -145,7 +145,7 @@ try {
             echo "<p>❌ <strong>$name</strong>: $file (missing)</p>\n";
             
             // Try to copy from component directory
-            if (strpos($file, '/language/') !== false) && strpos($file, '.sys.ini') === false) {
+            if (strpos($file, '/language/') !== false && strpos($file, '.sys.ini') === false) {
                 $sourceFile = str_replace('/language/', '/components/com_ordenproduccion/language/', $file);
                 if (file_exists($sourceFile)) {
                     $targetDir = dirname($file);
