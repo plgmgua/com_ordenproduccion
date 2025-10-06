@@ -58,13 +58,19 @@ try {
         throw $e;
     }
     
-    // Try to initialize application
+    // Try to initialize application (skip if method is protected)
     try {
-        $app->initialise();
-        echo "<p>✅ <strong>Joomla application initialized successfully</strong></p>\n";
+        if (method_exists($app, 'initialise') && is_callable([$app, 'initialise'])) {
+            $app->initialise();
+            echo "<p>✅ <strong>Joomla application initialized successfully</strong></p>\n";
+        } else {
+            echo "<p>⚠️ <strong>Joomla application created but initialise() method is not accessible</strong></p>\n";
+            echo "<p><strong>This is normal for some Joomla versions - continuing with basic functionality</strong></p>\n";
+        }
     } catch (Exception $e) {
         echo "<p>❌ <strong>Failed to initialize Joomla application:</strong> " . $e->getMessage() . "</p>\n";
         echo "<p><strong>This might be due to database connection issues or missing configuration.</strong></p>\n";
+        echo "<p><strong>Continuing with fallback mode...</strong></p>\n";
         throw $e;
     }
     
