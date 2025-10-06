@@ -46,12 +46,30 @@ try {
     
     // Try to get application with error handling
     try {
-        $app = Factory::getApplication('site');
-        echo "<p>✅ <strong>Joomla application created successfully</strong></p>\n";
+        // Try different application types
+        $app = null;
+        $appTypes = ['site', 'administrator', 'cli'];
+        
+        foreach ($appTypes as $appType) {
+            try {
+                $app = Factory::getApplication($appType);
+                echo "<p>✅ <strong>Joomla application created successfully (type: $appType)</strong></p>\n";
+                break;
+            } catch (Exception $e) {
+                echo "<p>⚠️ <strong>Failed to create $appType application:</strong> " . $e->getMessage() . "</p>\n";
+                continue;
+            }
+        }
+        
+        if (!$app) {
+            throw new Exception("Failed to create any Joomla application type");
+        }
+        
     } catch (Exception $e) {
         echo "<p>❌ <strong>Failed to create Joomla application:</strong> " . $e->getMessage() . "</p>\n";
         echo "<p><strong>This might be due to database connection issues or missing configuration.</strong></p>\n";
-        exit;
+        echo "<p><strong>Continuing with fallback mode...</strong></p>\n";
+        throw $e;
     }
     
     // Try to initialize application (skip if method is protected)
