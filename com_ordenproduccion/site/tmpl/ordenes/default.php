@@ -198,7 +198,7 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                             <?php echo $this->formatDate($item->delivery_date); ?>
                                         </td>
                                         <td>
-                                            <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>">
+                                            <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>" style="color: #333 !important;">
                                                 <?php echo $this->translateStatus($item->status); ?>
                                             </span>
                                         </td>

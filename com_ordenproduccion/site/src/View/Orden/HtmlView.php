@@ -190,12 +190,17 @@ class HtmlView extends BaseHtmlView
     {
         switch (strtolower($status)) {
             case 'new':
+            case 'nuevo':
                 return 'badge-primary';
             case 'in process':
+            case 'en proceso':
                 return 'badge-warning';
             case 'completed':
+            case 'terminada':
+            case 'completada':
                 return 'badge-success';
             case 'closed':
+            case 'cerrada':
                 return 'badge-secondary';
             default:
                 return 'badge-light';
