@@ -163,6 +163,20 @@ main() {
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
     sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"
     
+    # Verify site files were copied correctly
+    log "Verifying site files deployment..."
+    if [ -f "$SITE_COMPONENT_PATH/src/Model/OrdenModel.php" ]; then
+        success "OrdenModel.php deployed successfully"
+    else
+        error "OrdenModel.php not found after deployment - check site directory structure"
+    fi
+    
+    if [ -d "$SITE_COMPONENT_PATH/src/Model" ]; then
+        success "Site Model directory deployed successfully"
+    else
+        error "Site Model directory not found after deployment"
+    fi
+    
     log "Copying manifest file from $COMPONENT_ROOT/$COMPONENT_NAME.xml to $ADMIN_COMPONENT_PATH/"
     sudo cp "$COMPONENT_ROOT/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" || error "Failed to copy manifest file"
     
