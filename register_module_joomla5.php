@@ -28,7 +28,7 @@ try {
     echo "📋 Step 1: Checking existing registration...\n";
     $query = $db->getQuery(true)
         ->select('extension_id')
-        ->from($db->quoteName('#__extensions'))
+        ->from($db->quoteName('joomla_extensions'))
         ->where($db->quoteName('element') . ' = ' . $db->quote('mod_acciones_produccion'))
         ->where($db->quoteName('type') . ' = ' . $db->quote('module'));
     
