@@ -124,19 +124,6 @@ class HistoricalDataImporter
             $requestDate = $this->convertDate($record->fecha_de_solicitud);
             $deliveryDate = $this->convertDate($record->fecha_de_entrega);
             $createdDate = $this->convertDateTime($record->marca_temporal);
-            
-            // Debug: Show original date values
-            echo "<p style='color: blue; font-size: 12px;'>DEBUG: Order {$record->orden_de_trabajo} - fecha_de_solicitud: '{$record->fecha_de_solicitud}' -> requestDate: '{$requestDate}'</p>\n";
-            
-            // Handle empty dates - use current date as fallback
-            if (empty($requestDate)) {
-                $requestDate = date('Y-m-d');
-                echo "<p style='color: orange; font-size: 12px;'>DEBUG: Using fallback date for request_date: {$requestDate}</p>\n";
-            }
-            if (empty($deliveryDate)) {
-                $deliveryDate = date('Y-m-d', strtotime('+7 days')); // Default to 7 days from now
-                echo "<p style='color: orange; font-size: 12px;'>DEBUG: Using fallback date for delivery_date: {$deliveryDate}</p>\n";
-            }
 
             // Map fields from old table to new table
             $data = [
@@ -207,6 +194,10 @@ class HistoricalDataImporter
                 ->insert($this->db->quoteName('joomla_ordenproduccion_ordenes'));
 
             foreach ($data as $key => $value) {
+                // Handle empty dates - don't include them in the INSERT if they're empty
+                if (in_array($key, ['request_date', 'delivery_date', 'shipping_date']) && empty($value)) {
+                    continue; // Skip empty date fields
+                }
                 $query->set($this->db->quoteName($key) . ' = ' . $this->db->quote($value));
             }
 
@@ -241,7 +232,7 @@ class HistoricalDataImporter
      */
     protected function convertDate($dateString)
     {
-        if (empty($dateString) || $dateString === 'NULL' || $dateString === '') {
+        if (empty($dateString) || $dateString === 'NULL') {
             return null;
         }
 
