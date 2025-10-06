@@ -24,6 +24,16 @@
 // Prevent direct access
 defined('_JEXEC') or die;
 
+// Enable comprehensive error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', JPATH_ROOT . '/logs/php_errors.log');
+
+// Set time limit for long operations
+set_time_limit(300); // 5 minutes
+
 // Load Joomla framework
 require_once JPATH_ROOT . '/includes/defines.php';
 require_once JPATH_ROOT . '/includes/framework.php';
@@ -62,6 +72,12 @@ class HistoricalDataImporter
     {
         echo "<h2>Historical Data Import - 2025 Records</h2>\n";
         echo "<p>Starting import process...</p>\n";
+        echo "<p><strong>Debug Info:</strong></p>\n";
+        echo "<ul>\n";
+        echo "<li>Database object: " . (is_object($this->db) ? 'Valid' : 'Invalid') . "</li>\n";
+        echo "<li>Database class: " . get_class($this->db) . "</li>\n";
+        echo "<li>Memory usage: " . memory_get_usage(true) . " bytes</li>\n";
+        echo "</ul>\n";
 
         try {
             // Get all 2025 records from old table
@@ -307,11 +323,21 @@ class HistoricalDataImporter
 
 // Execute the import
 try {
+    echo "<h1>Historical Data Import Script</h1>\n";
+    echo "<p><strong>Script started at:</strong> " . date('Y-m-d H:i:s') . "</p>\n";
+    echo "<p><strong>PHP Version:</strong> " . phpversion() . "</p>\n";
+    echo "<p><strong>Memory Limit:</strong> " . ini_get('memory_limit') . "</p>\n";
+    echo "<p><strong>Max Execution Time:</strong> " . ini_get('max_execution_time') . " seconds</p>\n";
+    echo "<hr>\n";
+    
     // Test database connection first
     echo "<h2>Database Connection Test</h2>\n";
+    echo "<p>Attempting to connect to database...</p>\n";
+    
     $testDb = Factory::getDbo();
     if ($testDb) {
         echo "<p style='color: green;'>✅ Database connection successful</p>\n";
+        echo "<p><strong>Database Type:</strong> " . get_class($testDb) . "</p>\n";
         
         // Test if old table exists
         $query = $testDb->getQuery(true)
@@ -338,7 +364,16 @@ try {
         echo "<p style='color: red;'>❌ Database connection failed</p>\n";
     }
 } catch (Exception $e) {
-    echo "<p style='color: red;'>Fatal error: " . $e->getMessage() . "</p>\n";
-    echo "<p>Error details: " . $e->getTraceAsString() . "</p>\n";
+    echo "<h2 style='color: red;'>FATAL ERROR</h2>\n";
+    echo "<p style='color: red;'><strong>Error Message:</strong> " . $e->getMessage() . "</p>\n";
+    echo "<p style='color: red;'><strong>Error Code:</strong> " . $e->getCode() . "</p>\n";
+    echo "<p style='color: red;'><strong>File:</strong> " . $e->getFile() . "</p>\n";
+    echo "<p style='color: red;'><strong>Line:</strong> " . $e->getLine() . "</p>\n";
+    echo "<h3>Stack Trace:</h3>\n";
+    echo "<pre style='background: #f5f5f5; padding: 10px; border: 1px solid #ccc;'>" . $e->getTraceAsString() . "</pre>\n";
+    
+    // Also log to error log
+    error_log("Import script fatal error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
 }
 ?>
