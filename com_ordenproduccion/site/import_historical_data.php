@@ -169,7 +169,7 @@ class HistoricalDataImporter
                 'request_date' => $requestDate,
                 'status' => 'Terminada', // Set all imported records to "Terminada"
                 'order_type' => $this->mapOrderType($record->tipo_de_orden),
-                'assigned_technician' => null,
+                'assigned_technician' => null, // Will be skipped if empty
                 'production_notes' => null,
                 'shipping_address' => $record->direccion_de_entrega,
                 'shipping_contact' => $record->contacto_nombre,
@@ -198,6 +198,13 @@ class HistoricalDataImporter
                 if (in_array($key, ['request_date', 'delivery_date', 'shipping_date']) && empty($value)) {
                     continue; // Skip empty date fields
                 }
+                
+                // Handle empty integer fields - don't include them in the INSERT if they're empty
+                if (in_array($key, ['assigned_technician', 'created_by', 'modified_by']) && (empty($value) || $value === '')) {
+                    echo "<p style='color: blue; font-size: 12px;'>DEBUG: Skipping empty integer field: {$key} = '{$value}'</p>\n";
+                    continue; // Skip empty integer fields
+                }
+                
                 $query->set($this->db->quoteName($key) . ' = ' . $this->db->quote($value));
             }
 
