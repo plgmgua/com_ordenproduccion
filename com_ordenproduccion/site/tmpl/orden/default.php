@@ -30,7 +30,14 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                             <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TITLE'); ?>
                         </h1>
                         <p class="page-description">
-                            <?php echo Text::sprintf('COM_ORDENPRODUCCION_ORDEN_NUMERO', $item->orden_de_trabajo ?? $item->order_number ?? 'N/A'); ?>
+                            <?php 
+                            // Debug: Check what order number fields are available
+                            $orderNumber = $item->orden_de_trabajo ?? $item->order_number ?? 'N/A';
+                            error_log("DEBUG: Order number fields - orden_de_trabajo: " . var_export($item->orden_de_trabajo ?? 'NOT_SET', true));
+                            error_log("DEBUG: Order number fields - order_number: " . var_export($item->order_number ?? 'NOT_SET', true));
+                            error_log("DEBUG: Order number fields - final value: " . var_export($orderNumber, true));
+                            echo Text::_('COM_ORDENPRODUCCION_ORDEN_NUMERO') . ': ' . $orderNumber; 
+                            ?>
                         </p>
                     </div>
                     <div>
@@ -52,7 +59,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                         <div class="row">
                             <div class="col-md-3">
                                 <div>
-                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>:</strong>
+                                    <strong style="color: #333;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>:</strong>
                                 </div>
                                 <div>
                                     <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>">
@@ -66,7 +73,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                             </div>
                             <div class="col-md-3">
                                 <div>
-                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO'); ?>:</strong>
+                                    <strong style="color: #333;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO'); ?>:</strong>
                                 </div>
                                 <div>
                                     <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?>">
