@@ -177,6 +177,20 @@ main() {
         error "Site Model directory not found after deployment"
     fi
     
+    # Verify the correct structure (no site/ subdirectory)
+    log "Verifying component structure..."
+    if [ -f "$SITE_COMPONENT_PATH/ordenproduccion.php" ]; then
+        success "Site entry point deployed successfully"
+    else
+        error "Site entry point not found after deployment"
+    fi
+    
+    if [ -f "$SITE_COMPONENT_PATH/com_ordenproduccion.xml" ]; then
+        success "Site manifest deployed successfully"
+    else
+        error "Site manifest not found after deployment"
+    fi
+    
     log "Copying manifest file from $COMPONENT_ROOT/$COMPONENT_NAME.xml to $ADMIN_COMPONENT_PATH/"
     sudo cp "$COMPONENT_ROOT/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" || error "Failed to copy manifest file"
     

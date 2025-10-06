@@ -464,7 +464,7 @@ try {
     // 3.5. OrdenModel File Deployment Check
     echo "<h3>🔧 3.5. OrdenModel File Deployment Check</h3>\n";
     
-    $ordenModelPath = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src/Model/OrdenModel.php';
+    $ordenModelPath = '/var/www/grimpsa_webserver/components/com_ordenproduccion/src/Model/OrdenModel.php';
     
     if (file_exists($ordenModelPath)) {
         $size = filesize($ordenModelPath);
@@ -499,12 +499,12 @@ try {
             echo "<p>❌ <strong>Model directory missing:</strong> $modelDir</p>\n";
         }
         
-        // Check if the site directory exists
-        $siteDir = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site';
-        if (is_dir($siteDir)) {
-            echo "<p>✅ <strong>Site directory exists:</strong> $siteDir</p>\n";
+        // Check if the src directory exists (correct path based on server structure)
+        $srcDir = '/var/www/grimpsa_webserver/components/com_ordenproduccion/src';
+        if (is_dir($srcDir)) {
+            echo "<p>✅ <strong>Src directory exists:</strong> $srcDir</p>\n";
         } else {
-            echo "<p>❌ <strong>Site directory missing:</strong> $siteDir</p>\n";
+            echo "<p>❌ <strong>Src directory missing:</strong> $srcDir</p>\n";
         }
         
         echo "<h4>🔧 Solution Required:</h4>\n";
