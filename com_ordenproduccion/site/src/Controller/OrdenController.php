@@ -287,7 +287,13 @@ class OrdenController extends BaseController
             }
         }
         
-        // Output PDF
+        // Set headers for inline PDF viewing in new tab
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="orden_trabajo_' . $orderId . '.pdf"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+        
+        // Output PDF inline (opens in new tab)
         $pdf->Output('I', 'orden_trabajo_' . $orderId . '.pdf');
         exit;
     }
