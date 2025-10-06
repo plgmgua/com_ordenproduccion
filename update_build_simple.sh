@@ -175,14 +175,43 @@ main() {
     # Create module directory
     sudo mkdir -p "$MODULE_PATH" || log "Module directory may already exist"
     
-    # Copy module files
+    # Copy module files - check multiple possible locations
+    MODULE_SOURCE=""
+    
+    # Check if module is in component directory
     if [ -d "$COMPONENT_ROOT/mod_acciones_produccion" ]; then
-        sudo cp -r "$COMPONENT_ROOT/mod_acciones_produccion/"* "$MODULE_PATH/" || warning "Failed to copy module files"
+        MODULE_SOURCE="$COMPONENT_ROOT/mod_acciones_produccion"
+        log "Found module in component directory: $MODULE_SOURCE"
+    # Check if module is in repository root
+    elif [ -d "$REPO_DIR/mod_acciones_produccion" ]; then
+        MODULE_SOURCE="$REPO_DIR/mod_acciones_produccion"
+        log "Found module in repository root: $MODULE_SOURCE"
+    # Check if module files are in repository root (not in subdirectory)
+    elif [ -f "$REPO_DIR/mod_acciones_produccion.php" ]; then
+        MODULE_SOURCE="$REPO_DIR"
+        log "Found module files in repository root: $MODULE_SOURCE"
+    fi
+    
+    if [ -n "$MODULE_SOURCE" ]; then
+        if [ -d "$MODULE_SOURCE/mod_acciones_produccion" ]; then
+            # Module is in a subdirectory
+            sudo cp -r "$MODULE_SOURCE/mod_acciones_produccion/"* "$MODULE_PATH/" || warning "Failed to copy module files from subdirectory"
+        else
+            # Module files are in the root directory
+            sudo cp "$MODULE_SOURCE/mod_acciones_produccion.php" "$MODULE_PATH/" || warning "Failed to copy main module file"
+            if [ -d "$MODULE_SOURCE/tmpl" ]; then
+                sudo cp -r "$MODULE_SOURCE/tmpl" "$MODULE_PATH/" || warning "Failed to copy template directory"
+            fi
+            if [ -d "$MODULE_SOURCE/language" ]; then
+                sudo cp -r "$MODULE_SOURCE/language" "$MODULE_PATH/" || warning "Failed to copy language directory"
+            fi
+        fi
+        
         sudo chown -R www-data:www-data "$MODULE_PATH"
         sudo chmod -R 755 "$MODULE_PATH"
-        success "Production actions module deployed"
+        success "Production actions module deployed from: $MODULE_SOURCE"
     else
-        warning "Production actions module not found in component"
+        warning "Production actions module not found in any expected location"
         
         # Create missing module files
         log "Creating missing module files..."
@@ -394,41 +423,78 @@ EOF
         success "Missing module files created"
     fi
     
-    # Copy language files
+    # Copy language files - check multiple possible locations
+    LANGUAGE_SOURCE=""
+    
+    # Check if language files are in component directory
     if [ -d "$COMPONENT_ROOT/mod_acciones_produccion/language" ]; then
-        sudo cp -r "$COMPONENT_ROOT/mod_acciones_produccion/language/"* "$LANGUAGE_PATH/" || warning "Failed to copy module language files"
+        LANGUAGE_SOURCE="$COMPONENT_ROOT/mod_acciones_produccion/language"
+        log "Found language files in component directory: $LANGUAGE_SOURCE"
+    # Check if language files are in repository root
+    elif [ -d "$REPO_DIR/language" ]; then
+        LANGUAGE_SOURCE="$REPO_DIR/language"
+        log "Found language files in repository root: $LANGUAGE_SOURCE"
+    # Check if language files are in module directory
+    elif [ -d "$MODULE_PATH/language" ]; then
+        LANGUAGE_SOURCE="$MODULE_PATH/language"
+        log "Found language files in module directory: $LANGUAGE_SOURCE"
+    fi
+    
+    if [ -n "$LANGUAGE_SOURCE" ]; then
+        sudo cp -r "$LANGUAGE_SOURCE/"* "$LANGUAGE_PATH/" || warning "Failed to copy module language files"
         sudo chown -R www-data:www-data "$LANGUAGE_PATH"
         sudo chmod -R 755 "$LANGUAGE_PATH"
-        success "Module language files deployed"
+        success "Module language files deployed from: $LANGUAGE_SOURCE"
     else
-        warning "Module language files not found"
+        warning "Module language files not found in any expected location"
     fi
     
     # Register module in Joomla 5.x
     log "Registering module in Joomla 5.x..."
+    REGISTRATION_SCRIPT=""
+    
+    # Check multiple possible locations for registration script
     if [ -f "$COMPONENT_ROOT/register_module_joomla5.php" ]; then
+        REGISTRATION_SCRIPT="$COMPONENT_ROOT/register_module_joomla5.php"
+        log "Found registration script in component directory: $REGISTRATION_SCRIPT"
+    elif [ -f "$REPO_DIR/register_module_joomla5.php" ]; then
+        REGISTRATION_SCRIPT="$REPO_DIR/register_module_joomla5.php"
+        log "Found registration script in repository root: $REGISTRATION_SCRIPT"
+    fi
+    
+    if [ -n "$REGISTRATION_SCRIPT" ]; then
         cd "$MODULE_PATH"
-        sudo php "$COMPONENT_ROOT/register_module_joomla5.php" || warning "Module registration failed, but continuing..."
-        success "Module registered in Joomla 5.x"
+        sudo php "$REGISTRATION_SCRIPT" || warning "Module registration failed, but continuing..."
+        success "Module registered in Joomla 5.x using: $REGISTRATION_SCRIPT"
     else
-        warning "Module registration script not found"
+        warning "Module registration script not found in any expected location"
     fi
     
     # Configure module assignment for specific URL
     log "Configuring module assignment for specific URL..."
     
-    # Copy module assignment script
+    # Copy module assignment script - check multiple possible locations
+    ASSIGNMENT_SCRIPT=""
+    
     if [ -f "$COMPONENT_ROOT/configure_module_assignment.php" ]; then
-        sudo cp "$COMPONENT_ROOT/configure_module_assignment.php" "$JOOMLA_ROOT/"
+        ASSIGNMENT_SCRIPT="$COMPONENT_ROOT/configure_module_assignment.php"
+        log "Found assignment script in component directory: $ASSIGNMENT_SCRIPT"
+    elif [ -f "$REPO_DIR/configure_module_assignment.php" ]; then
+        ASSIGNMENT_SCRIPT="$REPO_DIR/configure_module_assignment.php"
+        log "Found assignment script in repository root: $ASSIGNMENT_SCRIPT"
+    fi
+    
+    if [ -n "$ASSIGNMENT_SCRIPT" ]; then
+        sudo cp "$ASSIGNMENT_SCRIPT" "$JOOMLA_ROOT/"
         sudo chown www-data:www-data "$JOOMLA_ROOT/configure_module_assignment.php"
         sudo chmod 644 "$JOOMLA_ROOT/configure_module_assignment.php"
         
         # Run module assignment configuration
         cd "$JOOMLA_ROOT"
         php configure_module_assignment.php || warning "Module assignment configuration failed"
-        success "Module assignment configured for component pages"
+        success "Module assignment configured for component pages using: $ASSIGNMENT_SCRIPT"
     else
-        warning "Module assignment script not found - using basic configuration"
+        warning "Module assignment script not found in any expected location - using basic configuration"
         
         # Basic module assignment
         MODULE_ID=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT id FROM joomla_modules WHERE module = 'mod_acciones_produccion' ORDER BY id DESC LIMIT 1;" 2>/dev/null || echo "")
