@@ -18,6 +18,15 @@ if (!defined('JPATH_BASE')) {
     define('JPATH_BASE', '/var/www/grimpsa_webserver');
 }
 
+// Check if Joomla files exist before loading
+if (!file_exists(JPATH_BASE . '/includes/defines.php')) {
+    die("❌ Joomla defines.php not found at: " . JPATH_BASE . '/includes/defines.php');
+}
+
+if (!file_exists(JPATH_BASE . '/includes/framework.php')) {
+    die("❌ Joomla framework.php not found at: " . JPATH_BASE . '/includes/framework.php');
+}
+
 if (!class_exists('Joomla\CMS\Factory')) {
     require_once JPATH_BASE . '/includes/defines.php';
     require_once JPATH_BASE . '/includes/framework.php';
@@ -25,6 +34,121 @@ if (!class_exists('Joomla\CMS\Factory')) {
 
 echo "<h1>🔧 Component Troubleshooting & Validation</h1>\n";
 echo "<p>Component Version: " . (file_exists('VERSION') ? file_get_contents('VERSION') : 'Unknown') . "</p>\n";
+
+// 0. Joomla Framework Check
+echo "<h2>📋 0. Joomla Framework Check</h2>\n";
+
+try {
+    if (!class_exists('Joomla\\CMS\\Factory')) {
+        echo "<p>❌ <strong>Joomla Factory class not found</strong></p>\n";
+        echo "<p><strong>This indicates Joomla framework is not properly loaded.</strong></p>\n";
+        echo "<p><strong>Check if Joomla is installed at:</strong> " . JPATH_BASE . "</p>\n";
+        throw new Exception("Joomla Factory class not available");
+    }
+    
+    echo "<p>✅ <strong>Joomla Factory class found</strong></p>\n>";
+    
+    // Try to get application with error handling
+    try {
+        $app = Factory::getApplication('site');
+        echo "<p>✅ <strong>Joomla application created successfully</strong></p>\n";
+    } catch (Exception $e) {
+        echo "<p>❌ <strong>Failed to create Joomla application:</strong> " . $e->getMessage() . "</p>\n";
+        echo "<p><strong>This might be due to database connection issues or missing configuration.</strong></p>\n";
+        throw $e;
+    }
+    
+    // Try to initialize application
+    try {
+        $app->initialise();
+        echo "<p>✅ <strong>Joomla application initialized successfully</strong></p>\n";
+    } catch (Exception $e) {
+        echo "<p>❌ <strong>Failed to initialize Joomla application:</strong> " . $e->getMessage() . "</p>\n";
+        echo "<p><strong>This might be due to database connection issues or missing configuration.</strong></p>\n";
+        throw $e;
+    }
+    
+} catch (Exception $e) {
+    echo "<p>❌ <strong>Joomla framework failed to load:</strong> " . $e->getMessage() . "</p>\n";
+    
+    // Fallback mode - try to work without Joomla framework
+    echo "<h2>🔄 Fallback Mode - Working without Joomla Framework</h2>\n";
+    
+    echo "<p><strong>Attempting to check files and database directly...</strong></p>\n";
+    
+    // Check if component files exist
+    echo "<h3>File Structure Check (Fallback)</h3>\n";
+    
+    $filesToCheck = [
+        'Site Entry Point' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/ordenproduccion.php',
+        'Site OrdenModel' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/src/Model/OrdenModel.php',
+        'Site Orden View' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/src/View/Orden/HtmlView.php',
+        'Site Orden Template' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/tmpl/orden/default.php',
+    ];
+    
+    foreach ($filesToCheck as $name => $path) {
+        if (file_exists($path)) {
+            echo "<p>✅ <strong>$name exists:</strong> $path</p>\n";
+        } else {
+            echo "<p>❌ <strong>$name missing:</strong> $path</p>\n";
+        }
+    }
+    
+    // Check database connection directly
+    echo "<h3>Database Connection Check (Fallback)</h3>\n";
+    
+    try {
+        $pdo = new PDO('mysql:host=localhost;dbname=grimpsa_prod', 'joomla', 'Blob-Repair-Commodore6');
+        echo "<p>✅ <strong>Database connection successful</strong></p>\n";
+        
+        // Check if component is in database
+        $stmt = $pdo->query("SELECT * FROM joomla_extensions WHERE element = 'com_ordenproduccion'");
+        $component = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($component) {
+            echo "<p>✅ <strong>Component found in database</strong></p>\n";
+            echo "<p><strong>Name:</strong> " . $component['name'] . "</p>\n";
+            echo "<p><strong>Enabled:</strong> " . ($component['enabled'] ? 'Yes' : 'No') . "</p>\n";
+        } else {
+            echo "<p>❌ <strong>Component not found in database</strong></p>\n";
+        }
+        
+        // Check ordenes table
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM joomla_ordenproduccion_ordenes");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        echo "<p><strong>Records in ordenes table:</strong> " . $result['count'] . "</p>\n";
+        
+        // Check record ID 15 specifically
+        $stmt = $pdo->prepare("SELECT * FROM joomla_ordenproduccion_ordenes WHERE id = 15");
+        $stmt->execute();
+        $record = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($record) {
+            echo "<p>✅ <strong>Record ID 15 exists</strong></p>\n";
+            echo "<p><strong>Order Number:</strong> " . ($record['order_number'] ?? 'N/A') . "</p>\n";
+            echo "<p><strong>Client:</strong> " . ($record['client_name'] ?? 'N/A') . "</p>\n";
+            echo "<p><strong>State:</strong> " . ($record['state'] ?? 'N/A') . "</p>\n";
+            echo "<p><strong>Sales Agent:</strong> " . ($record['sales_agent'] ?? 'N/A') . "</p>\n";
+        } else {
+            echo "<p>❌ <strong>Record ID 15 does not exist</strong></p>\n";
+        }
+        
+    } catch (PDOException $e) {
+        echo "<p>❌ <strong>Database connection failed:</strong> " . $e->getMessage() . "</p>\n";
+    }
+    
+    echo "<h3>Recommendations (Fallback Mode)</h3>\n";
+    echo "<ul>\n";
+    echo "<li><strong>Joomla Framework Issue:</strong> The Joomla framework failed to load properly</li>\n";
+    echo "<li><strong>Check Configuration:</strong> Verify Joomla configuration.php file</li>\n";
+    echo "<li><strong>Check Database:</strong> Ensure database connection is working</li>\n";
+    echo "<li><strong>Check Permissions:</strong> Verify file permissions on Joomla installation</li>\n";
+    echo "<li><strong>Check Logs:</strong> Check Joomla error logs for more details</li>\n";
+    echo "</ul>\n";
+    
+    echo "<h2>End of Troubleshooting Report (Fallback Mode)</h2>\n";
+    exit;
+}
 
 // 1. Component Installation Status
 echo "<h2>📋 1. Component Installation Status</h2>\n";
