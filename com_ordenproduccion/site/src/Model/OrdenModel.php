@@ -120,7 +120,7 @@ class OrdenModel extends ItemModel
                 if (empty($data)) {
                     // Debug: Check if record exists without state filter
                     $debugQuery = $db->getQuery(true)
-                        ->select('id, state, orden_de_trabajo, cliente')
+                        ->select('id, state, orden_de_trabajo, nombre_del_cliente')
                         ->from($db->quoteName('#__ordenproduccion_ordenes'))
                         ->where($db->quoteName('id') . ' = ' . (int) $pk);
                     

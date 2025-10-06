@@ -66,7 +66,7 @@ try {
             echo "<td>{$record->id}</td>";
             echo "<td>{$record->state}</td>";
             echo "<td>" . ($record->orden_de_trabajo ?? 'N/A') . "</td>";
-            echo "<td>" . ($record->cliente ?? 'N/A') . "</td>";
+            echo "<td>" . ($record->nombre_del_cliente ?? 'N/A') . "</td>";
             echo "<td>" . ($record->agente_de_ventas ?? 'N/A') . "</td>";
             echo "<td>" . ($record->created ?? 'N/A') . "</td>";
             echo "</tr>\n";
@@ -96,7 +96,7 @@ try {
     echo "<p>Count: $publishedCount</p>\n";
     
     if ($publishedCount > 0) {
-        $query = "SELECT id, state, orden_de_trabajo, cliente FROM $tableName WHERE state = 1 ORDER BY id";
+        $query = "SELECT id, state, orden_de_trabajo, nombre_del_cliente FROM $tableName WHERE state = 1 ORDER BY id";
         $db->setQuery($query);
         $publishedRecords = $db->loadObjectList();
         
@@ -107,7 +107,7 @@ try {
             echo "<td>{$record->id}</td>";
             echo "<td>{$record->state}</td>";
             echo "<td>" . ($record->orden_de_trabajo ?? 'N/A') . "</td>";
-            echo "<td>" . ($record->cliente ?? 'N/A') . "</td>";
+            echo "<td>" . ($record->nombre_del_cliente ?? 'N/A') . "</td>";
             echo "</tr>\n";
         }
         echo "</table>\n";
