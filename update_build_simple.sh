@@ -396,8 +396,20 @@ main() {
     sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
     success "Utility files ownership set"
 
-    # Step 14: Clear Joomla cache to refresh menu items
-    log "Step 14: Clearing Joomla cache to refresh menu items..."
+    # Step 14: Copy debug script to Joomla root directory
+    log "Step 14: Copying debug script to Joomla root directory..."
+    
+    echo "Copying onetimedebug.php to Joomla root (overwriting if exists)..."
+    sudo cp -f "$REPO_DIR/onetimedebug.php" "$JOOMLA_ROOT/" || error "Failed to copy onetimedebug.php"
+    sudo chmod 644 "$JOOMLA_ROOT/onetimedebug.php" || warning "Failed to set permissions on onetimedebug.php"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/onetimedebug.php" || warning "Failed to set ownership for onetimedebug.php"
+    success "onetimedebug.php copied to Joomla root"
+    
+    echo "Debug script is now available at: https://grimpsa_webserver.grantsolutions.cc/onetimedebug.php"
+    echo "This script will help diagnose component issues and 404 errors."
+
+    # Step 15: Clear Joomla cache to refresh menu items
+    log "Step 15: Clearing Joomla cache to refresh menu items..."
     
     echo "Clearing Joomla cache to ensure menu items are refreshed..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
@@ -423,6 +435,7 @@ main() {
     log "   6. Select 'Lista de Órdenes' from Menu Item Type"
     log "   7. Create your frontend menu item"
     log "   8. All admin menu items available: Dashboard, Orders, Technicians, Webhook, Debug, Settings"
+    log "   9. If you have 404 errors, run: https://grimpsa_webserver.grantsolutions.cc/onetimedebug.php"
     echo ""
 }
 
