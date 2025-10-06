@@ -167,13 +167,13 @@ class OrdenesModel extends ListModel
         $query->select(
             $this->getState(
                 'list.select',
-                'a.id, a.orden_de_trabajo, a.nombre_del_cliente, a.nit, ' .
-                'a.valor_a_facturar, a.descripcion_de_trabajo, a.color_de_impresion, a.medidas_en_pulgadas, ' .
-                'a.fecha_de_entrega, a.material, a.fecha_de_solicitud, a.agente_de_ventas, a.created, ' .
+                'a.id, a.order_number, a.client_name, a.nit, ' .
+                'a.invoice_value, a.work_description, a.print_color, a.dimensions, ' .
+                'a.delivery_date, a.material, a.request_date, a.sales_agent, a.created, ' .
                 'a.created_by, a.modified, a.modified_by, a.state, a.version'
             )
         );
-        $query->from($db->quoteName('#__ordenes_de_trabajo', 'a'));
+        $query->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
 
         // Filter by published state
         $query->where($db->quoteName('a.state') . ' = 1');
@@ -188,40 +188,37 @@ class OrdenesModel extends ListModel
                 $query->where('a.id = ' . (int) substr($search, 3));
             } else {
                 $search = $db->quote('%' . $db->escape($search, true) . '%');
-                $query->where('(' . $db->quoteName('a.orden_de_trabajo') . ' LIKE ' . $search .
-                    ' OR ' . $db->quoteName('a.nombre_del_cliente') . ' LIKE ' . $search .
-                    ' OR ' . $db->quoteName('a.descripcion_de_trabajo') . ' LIKE ' . $search . ')');
+                $query->where('(' . $db->quoteName('a.order_number') . ' LIKE ' . $search .
+                    ' OR ' . $db->quoteName('a.client_name') . ' LIKE ' . $search .
+                    ' OR ' . $db->quoteName('a.work_description') . ' LIKE ' . $search . ')');
             }
         }
 
-        // Filter by status (using EAV table for status)
+        // Filter by status
         $status = $this->getState('filter.status');
         if (!empty($status)) {
-            // Status is stored in EAV table, so we need to join with ordenes_info
-            $query->leftJoin($db->quoteName('#__ordenes_info', 'status_info') . 
-                ' ON status_info.numero_de_orden = a.orden_de_trabajo AND status_info.tipo_de_campo = ' . $db->quote('estado'));
-            $query->where($db->quoteName('status_info.valor') . ' = ' . $db->quote($status));
+            $query->where($db->quoteName('a.status') . ' = ' . $db->quote($status));
         }
 
         // Filter by client name
         $clientName = $this->getState('filter.client_name');
         if (!empty($clientName)) {
-            $query->where($db->quoteName('a.nombre_del_cliente') . ' LIKE ' . $db->quote('%' . $db->escape($clientName, true) . '%'));
+            $query->where($db->quoteName('a.client_name') . ' LIKE ' . $db->quote('%' . $db->escape($clientName, true) . '%'));
         }
 
         // Filter by date range
         $dateFrom = $this->getState('filter.date_from');
         if (!empty($dateFrom)) {
-            $query->where($db->quoteName('a.fecha_de_solicitud') . ' >= ' . $db->quote($dateFrom));
+            $query->where($db->quoteName('a.request_date') . ' >= ' . $db->quote($dateFrom));
         }
 
         $dateTo = $this->getState('filter.date_to');
         if (!empty($dateTo)) {
-            $query->where($db->quoteName('a.fecha_de_solicitud') . ' <= ' . $db->quote($dateTo));
+            $query->where($db->quoteName('a.request_date') . ' <= ' . $db->quote($dateTo));
         }
 
         // Add the list ordering clause.
-        $orderCol = $this->state->get('list.ordering', 'fecha_de_solicitud');
+        $orderCol = $this->state->get('list.ordering', 'request_date');
         $orderDirn = $this->state->get('list.direction', 'desc');
 
         if ($orderCol && $orderDirn) {
@@ -253,7 +250,7 @@ class OrdenesModel extends ListModel
         if ($isVentas && !$isProduccion) {
             // Sales users can only see their own orders
             $userName = $user->get('name');
-            $query->where($db->quoteName('a.agente_de_ventas') . ' = ' . $db->quote($userName));
+            $query->where($db->quoteName('a.sales_agent') . ' = ' . $db->quote($userName));
         }
         // Production users and users in both groups can see all orders (no additional filter)
     }
@@ -277,13 +274,13 @@ class OrdenesModel extends ListModel
         // If user is in both groups, they can see all orders but restricted fields only for their own
         if ($isVentas && $isProduccion) {
             $userName = $user->get('name');
-            if ($item->agente_de_ventas !== $userName) {
+            if ($item->sales_agent !== $userName) {
                 // Hide restricted fields for orders not belonging to the user
-                unset($item->valor_a_facturar);
+                unset($item->invoice_value);
             }
         } elseif ($isProduccion && !$isVentas) {
             // Production users cannot see invoice value
-            unset($item->valor_a_facturar);
+            unset($item->invoice_value);
         }
         // Sales users can see all fields (no restrictions)
     }

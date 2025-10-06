@@ -108,7 +108,7 @@ class OrdenModel extends ItemModel
                         'u.name as created_by_name, ' .
                         'u2.name as modified_by_name'
                     )
-                    ->from($db->quoteName('#__ordenes_de_trabajo', 'a'))
+                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'a'))
                     ->leftJoin($db->quoteName('#__users', 'u') . ' ON u.id = a.created_by')
                     ->leftJoin($db->quoteName('#__users', 'u2') . ' ON u2.id = a.modified_by')
                     ->where($db->quoteName('a.id') . ' = ' . (int) $pk)
@@ -120,8 +120,8 @@ class OrdenModel extends ItemModel
                 if (empty($data)) {
                     // Debug: Check if record exists without state filter
                     $debugQuery = $db->getQuery(true)
-                        ->select('id, state, orden_de_trabajo, nombre_del_cliente')
-                        ->from($db->quoteName('#__ordenes_de_trabajo'))
+                        ->select('id, state, order_number, client_name')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
                         ->where($db->quoteName('id') . ' = ' . (int) $pk);
                     
                     $db->setQuery($debugQuery);
