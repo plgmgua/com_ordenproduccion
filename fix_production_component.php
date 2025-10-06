@@ -131,6 +131,8 @@ try {
     $languageFiles = [
         'Site EN' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini',
         'Site ES' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini',
+        'Site EN Sys' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.sys.ini',
+        'Site ES Sys' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.sys.ini',
         'Joomla EN' => '/var/www/grimpsa_webserver/language/en-GB/com_ordenproduccion.ini',
         'Joomla ES' => '/var/www/grimpsa_webserver/language/es-ES/com_ordenproduccion.ini'
     ];
@@ -143,7 +145,7 @@ try {
             echo "<p>❌ <strong>$name</strong>: $file (missing)</p>\n";
             
             // Try to copy from component directory
-            if (strpos($file, '/language/') !== false) {
+            if (strpos($file, '/language/') !== false) && strpos($file, '.sys.ini') === false) {
                 $sourceFile = str_replace('/language/', '/components/com_ordenproduccion/language/', $file);
                 if (file_exists($sourceFile)) {
                     $targetDir = dirname($file);
@@ -153,6 +155,35 @@ try {
                     if (copy($sourceFile, $file)) {
                         echo "<p>     ✅ <strong>Copied from component directory</strong></p>\n";
                     }
+                }
+            }
+            
+            // Create system language files if missing
+            if (strpos($file, '.sys.ini') !== false) {
+                $targetDir = dirname($file);
+                if (!is_dir($targetDir)) {
+                    mkdir($targetDir, 0755, true);
+                }
+                
+                $sysContent = '';
+                if (strpos($file, 'en-GB') !== false) {
+                    $sysContent = '; Joomla! System Language File
+COM_ORDENPRODUCCION="Work Orders"
+COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_TITLE="Work Orders List"
+COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_DESC="Display list of work orders"
+COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_TITLE="Work Order Detail"
+COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_DESC="Display work order details"';
+                } elseif (strpos($file, 'es-ES') !== false) {
+                    $sysContent = '; Joomla! System Language File
+COM_ORDENPRODUCCION="Órdenes de Trabajo"
+COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_TITLE="Listado de Órdenes"
+COM_ORDENPRODUCCION_ORDENES_VIEW_DEFAULT_DESC="Mostrar lista de órdenes de trabajo"
+COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_TITLE="Detalle de Orden"
+COM_ORDENPRODUCCION_ORDEN_VIEW_DEFAULT_DESC="Mostrar detalle de orden de trabajo"';
+                }
+                
+                if ($sysContent && file_put_contents($file, $sysContent)) {
+                    echo "<p>     ✅ <strong>Created system language file</strong></p>\n";
                 }
             }
         }
