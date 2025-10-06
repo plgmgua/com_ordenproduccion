@@ -355,15 +355,29 @@ class HtmlView extends BaseHtmlView
 
         // Map status values to language keys
         $statusMap = [
-            'New' => 'COM_ORDENPRODUCCION_STATUS_NEW',
-            'Completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
-            'Delivered' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
-            'new' => 'COM_ORDENPRODUCCION_STATUS_NEW',
-            'completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
-            'delivered' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
+            // Spanish values (current)
             'Nueva' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'En Proceso' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
             'Terminada' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
-            'Entregada' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED'
+            'Cerrada' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'Entregada' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
+            // English values (legacy)
+            'New' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'In Process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'Completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'Closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'Delivered' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
+            // Lowercase variants
+            'nueva' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'en proceso' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'terminada' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'cerrada' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'entregada' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
+            'new' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'in process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'delivered' => 'COM_ORDENPRODUCCION_STATUS_DELIVERED'
         ];
 
         if (isset($statusMap[$status])) {

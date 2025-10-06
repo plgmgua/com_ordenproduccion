@@ -275,10 +275,21 @@ class HtmlView extends BaseHtmlView
     {
         // Map status values to language keys
         $statusMap = [
+            // Spanish values (current)
+            'Nueva' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'En Proceso' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'Terminada' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'Cerrada' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            // English values (legacy)
             'New' => 'COM_ORDENPRODUCCION_STATUS_NEW',
             'In Process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
             'Completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
             'Closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            // Lowercase variants
+            'nueva' => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'en proceso' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'terminada' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'cerrada' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
             'new' => 'COM_ORDENPRODUCCION_STATUS_NEW',
             'in process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
             'completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
