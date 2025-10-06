@@ -91,40 +91,16 @@ class OrdenController extends BaseController
 
         try {
             // Get work order data
-            $query = $db->getQuery(true)
-                ->select('*')
-                ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($db->quoteName('id') . ' = ' . (int)$orderId)
-                ->where($db->quoteName('state') . ' = 1');
-
-            $db->setQuery($query);
-            $workOrderData = $db->loadObject();
-
+            $workOrderData = $this->getWorkOrderData($orderId);
+            
             if (!$workOrderData) {
                 $app->enqueueMessage('Orden de trabajo no encontrada.', 'error');
                 $app->redirect('index.php?option=com_ordenproduccion&view=ordenes');
                 return;
             }
 
-            // Generate PDF
-            $pdfPath = $this->generateWorkOrderPDF($orderId, $workOrderData);
-            
-            if ($pdfPath && file_exists($pdfPath)) {
-                // Set headers for PDF download
-                header('Content-Type: application/pdf');
-                header('Content-Disposition: attachment; filename="orden_trabajo_' . $orderId . '.pdf"');
-                header('Content-Length: ' . filesize($pdfPath));
-                
-                // Output PDF file
-                readfile($pdfPath);
-                
-                // Clean up temporary file
-                unlink($pdfPath);
-                exit;
-            } else {
-                $app->enqueueMessage('Error al generar el PDF.', 'error');
-                $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
-            }
+            // Generate PDF using FPDF
+            $this->generateWorkOrderPDF($orderId, $workOrderData);
             
         } catch (Exception $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
@@ -133,41 +109,133 @@ class OrdenController extends BaseController
     }
 
     /**
-     * Method to generate PDF file for work order.
+     * Method to get work order data from database.
+     *
+     * @param   int  $orderId  Work order ID
+     *
+     * @return  object|null  Work order data or null if not found
+     *
+     * @since   1.0.0
+     */
+    private function getWorkOrderData($orderId)
+    {
+        $db = Factory::getDbo();
+        
+        // Get main work order data
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('id') . ' = ' . (int)$orderId)
+            ->where($db->quoteName('state') . ' = 1');
+
+        $db->setQuery($query);
+        $workOrder = $db->loadObject();
+
+        if (!$workOrder) {
+            return null;
+        }
+
+        // Get additional EAV data (tecnico, detalles, etc.)
+        $eavQuery = $db->getQuery(true)
+            ->select('tipo_de_campo, valor, timestamp, usuario')
+            ->from($db->quoteName('#__ordenproduccion_ordenes_info'))
+            ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($workOrder->numero_de_orden));
+
+        $db->setQuery($eavQuery);
+        $eavData = $db->loadObjectList();
+
+        // Organize EAV data by type
+        $workOrder->eav_data = [];
+        foreach ($eavData as $item) {
+            $workOrder->eav_data[$item->tipo_de_campo] = $item;
+        }
+
+        return $workOrder;
+    }
+
+    /**
+     * Method to generate PDF file for work order using FPDF.
      *
      * @param   int     $orderId        Work order ID
      * @param   object  $workOrderData Work order data
      *
-     * @return  string|false  PDF file path on success, false on failure
+     * @return  void
      *
      * @since   1.0.0
      */
     private function generateWorkOrderPDF($orderId, $workOrderData)
     {
-        // Create PDF directory if it doesn't exist
-        $pdfDir = JPATH_ROOT . '/media/com_ordenproduccion/pdf';
-        if (!is_dir($pdfDir)) {
-            mkdir($pdfDir, 0755, true);
+        // Include FPDF library
+        require_once JPATH_ROOT . '/fpdf/fpdf.php';
+        
+        // Create PDF instance
+        $pdf = new \FPDF('P', 'mm', 'A4');
+        $pdf->AddPage();
+        
+        // Set font
+        $pdf->SetFont('Arial', 'B', 16);
+        
+        // Header
+        $pdf->Cell(0, 10, 'ORDEN DE TRABAJO', 0, 1, 'C');
+        $pdf->Ln(5);
+        
+        // Work order number
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->Cell(0, 8, 'Numero: ' . ($workOrderData->numero_de_orden ?? 'N/A'), 0, 1, 'L');
+        $pdf->Ln(3);
+        
+        // Client information
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(40, 8, 'Cliente:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 8, $workOrderData->client_name ?? 'N/A', 0, 1, 'L');
+        
+        // Request date
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(40, 8, 'Fecha Solicitud:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 8, $workOrderData->request_date ?? 'N/A', 0, 1, 'L');
+        
+        // Delivery date
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(40, 8, 'Fecha Entrega:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 8, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
+        
+        // Status
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(40, 8, 'Estado:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 8, $workOrderData->status ?? 'N/A', 0, 1, 'L');
+        
+        // Invoice value
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(40, 8, 'Valor Factura:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 8, '$' . number_format($workOrderData->invoice_value ?? 0, 2), 0, 1, 'L');
+        
+        $pdf->Ln(5);
+        
+        // Description
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(0, 8, 'Descripcion:', 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->MultiCell(0, 6, $workOrderData->description ?? 'N/A', 0, 'L');
+        
+        $pdf->Ln(5);
+        
+        // EAV Data (tecnico, detalles, etc.)
+        if (isset($workOrderData->eav_data)) {
+            foreach ($workOrderData->eav_data as $type => $data) {
+                $pdf->SetFont('Arial', 'B', 12);
+                $pdf->Cell(40, 8, ucfirst($type) . ':', 0, 0, 'L');
+                $pdf->SetFont('Arial', '', 12);
+                $pdf->Cell(0, 8, $data->valor ?? 'N/A', 0, 1, 'L');
+            }
         }
         
-        $pdfFile = $pdfDir . '/orden_trabajo_' . $orderId . '_' . date('Y-m-d_H-i-s') . '.pdf';
-        
-        // Simple HTML to PDF conversion (you can enhance this with proper PDF library)
-        $html = '<html><body>';
-        $html .= '<h1>Orden de Trabajo #' . $orderId . '</h1>';
-        $html .= '<p><strong>Cliente:</strong> ' . htmlspecialchars($workOrderData->client_name ?? 'N/A') . '</p>';
-        $html .= '<p><strong>Fecha de Solicitud:</strong> ' . htmlspecialchars($workOrderData->request_date ?? 'N/A') . '</p>';
-        $html .= '<p><strong>Fecha de Entrega:</strong> ' . htmlspecialchars($workOrderData->delivery_date ?? 'N/A') . '</p>';
-        $html .= '<p><strong>Estado:</strong> ' . htmlspecialchars($workOrderData->status ?? 'N/A') . '</p>';
-        $html .= '<p><strong>Valor Factura:</strong> $' . number_format($workOrderData->invoice_value ?? 0, 2) . '</p>';
-        $html .= '<p><strong>Descripción:</strong> ' . htmlspecialchars($workOrderData->description ?? 'N/A') . '</p>';
-        $html .= '</body></html>';
-        
-        // For now, create a simple text file (you can enhance this with proper PDF generation)
-        if (file_put_contents($pdfFile, $html)) {
-            return $pdfFile;
-        }
-        
-        return false;
+        // Output PDF
+        $pdf->Output('I', 'orden_trabajo_' . $orderId . '.pdf');
+        exit;
     }
 }
