@@ -23,7 +23,7 @@ ini_set('memory_limit', '512M'); // Increase memory limit
 $db_host = 'localhost';
 $db_user = 'joomla';
 $db_pass = 'Blob-Repair-Commodore6';
-$db_name = 'joomla'; // Adjust if your database name is different
+$db_name = 'grimpsa_prod'; // Updated to correct database name
 
 echo "=== Historical Data Import - Command Line Version ===\n";
 echo "Starting import process at: " . date('Y-m-d H:i:s') . "\n";
