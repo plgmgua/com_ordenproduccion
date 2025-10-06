@@ -120,7 +120,7 @@ class OrdenModel extends ItemModel
                 if (empty($data)) {
                     // Debug: Check if record exists without state filter
                     $debugQuery = $db->getQuery(true)
-                        ->select('id, state, order_number, client_name')
+                        ->select('id, state, orden_de_trabajo, nombre_del_cliente')
                         ->from($db->quoteName('#__ordenproduccion_ordenes'))
                         ->where($db->quoteName('id') . ' = ' . (int) $pk);
                     
@@ -186,7 +186,7 @@ class OrdenModel extends ItemModel
         if ($isVentas && !$isProduccion) {
             // Sales users can only see their own orders
             $userName = $user->get('name');
-            $salesAgent = $data->sales_agent ?? '';
+            $salesAgent = $data->agente_de_ventas ?? '';
             if ($salesAgent !== $userName) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 403);
             }
@@ -214,14 +214,14 @@ class OrdenModel extends ItemModel
         // If user is in both groups, they can see all orders but restricted fields only for their own
         if ($isVentas && $isProduccion) {
             $userName = $user->get('name');
-            $salesAgent = $data->sales_agent ?? '';
+            $salesAgent = $data->agente_de_ventas ?? '';
             if ($salesAgent !== $userName) {
                 // Hide restricted fields for orders not belonging to the user
-                unset($data->invoice_value);
+                unset($data->valor_a_facturar);
             }
         } elseif ($isProduccion && !$isVentas) {
             // Production users cannot see invoice value
-            unset($data->invoice_value);
+            unset($data->valor_a_facturar);
         }
         // Sales users can see all fields (no restrictions)
     }
