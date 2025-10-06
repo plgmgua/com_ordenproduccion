@@ -7,12 +7,21 @@
 // Define _JEXEC to allow execution
 define('_JEXEC', 1);
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Load Joomla framework
 require_once JPATH_ROOT . '/includes/defines.php';
 require_once JPATH_ROOT . '/includes/framework.php';
 
 // Initialize Joomla application
-$app = \Joomla\CMS\Factory::getApplication('site');
+try {
+    $app = \Joomla\CMS\Factory::getApplication('site');
+} catch (Exception $e) {
+    echo "❌ Failed to initialize Joomla application: " . $e->getMessage() . "<br>";
+    exit;
+}
 
 echo "<h2>🔍 Component Registration & Routing Test</h2>";
 echo "<p>Timestamp: " . date('Y-m-d H:i:s') . "</p>";
@@ -266,14 +275,19 @@ try {
     
     $item = $model->getItem(15);
     
-    if ($item) {
+    if ($item && is_object($item)) {
         echo "✅ Model can retrieve item with ID 15<br>";
         echo "- Order Number: " . ($item->order_number ?? 'N/A') . "<br>";
         echo "- Client: " . ($item->client_name ?? 'N/A') . "<br>";
         echo "- Status: " . ($item->status ?? 'N/A') . "<br>";
     } else {
         echo "❌ Model cannot retrieve item with ID 15<br>";
-        echo "Model errors: " . implode(', ', $model->getErrors()) . "<br>";
+        if ($model) {
+            $errors = $model->getErrors();
+            if (!empty($errors)) {
+                echo "Model errors: " . implode(', ', $errors) . "<br>";
+            }
+        }
     }
 } catch (Exception $e) {
     echo "❌ Model access failed: " . $e->getMessage() . "<br>";
@@ -297,25 +311,32 @@ try {
     $input->set('id', 15);
     
     $view = $mvcFactory->createView('Orden', 'Site');
-    echo "✅ View created successfully<br>";
-    echo "View class: " . get_class($view) . "<br>";
-    
-    // Try to get the model from the view
-    $viewModel = $view->getModel();
-    if ($viewModel) {
-        echo "✅ View model retrieved<br>";
-        echo "Model class: " . get_class($viewModel) . "<br>";
+    if ($view) {
+        echo "✅ View created successfully<br>";
+        echo "View class: " . get_class($view) . "<br>";
         
-        // Try to get the item
-        $item = $viewModel->getItem();
-        if ($item) {
-            echo "✅ View model can retrieve item<br>";
+        // Try to get the model from the view
+        $viewModel = $view->getModel();
+        if ($viewModel && is_object($viewModel)) {
+            echo "✅ View model retrieved<br>";
+            echo "Model class: " . get_class($viewModel) . "<br>";
+            
+            // Try to get the item
+            $item = $viewModel->getItem();
+            if ($item && is_object($item)) {
+                echo "✅ View model can retrieve item<br>";
+            } else {
+                echo "❌ View model cannot retrieve item<br>";
+                $errors = $viewModel->getErrors();
+                if (!empty($errors)) {
+                    echo "Model errors: " . implode(', ', $errors) . "<br>";
+                }
+            }
         } else {
-            echo "❌ View model cannot retrieve item<br>";
-            echo "Model errors: " . implode(', ', $viewModel->getErrors()) . "<br>";
+            echo "❌ View model not found<br>";
         }
     } else {
-        echo "❌ View model not found<br>";
+        echo "❌ View creation failed<br>";
     }
     
 } catch (Exception $e) {
@@ -352,12 +373,16 @@ try {
     $component = $app->bootComponent('com_ordenproduccion');
     $dispatcher = $component->getDispatcher($app);
     
-    echo "✅ Dispatcher created successfully<br>";
-    echo "Dispatcher class: " . get_class($dispatcher) . "<br>";
-    
-    // Try to dispatch
-    $dispatcher->dispatch();
-    echo "✅ Dispatch completed successfully<br>";
+    if ($dispatcher && is_object($dispatcher)) {
+        echo "✅ Dispatcher created successfully<br>";
+        echo "Dispatcher class: " . get_class($dispatcher) . "<br>";
+        
+        // Try to dispatch
+        $dispatcher->dispatch();
+        echo "✅ Dispatch completed successfully<br>";
+    } else {
+        echo "❌ Dispatcher creation failed<br>";
+    }
     
 } catch (Exception $e) {
     echo "❌ Dispatch failed: " . $e->getMessage() . "<br>";
