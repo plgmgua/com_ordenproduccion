@@ -129,8 +129,21 @@ main() {
 
     log "Step 2: Creating github directory and cloning repository..."
     mkdir -p "$GITHUB_DIR"
+    
+    # Force clean clone to ensure latest changes
+    log "Cloning repository from: $REPO_URL"
     git clone "$REPO_URL" "$REPO_DIR" || error "Failed to clone repository"
-    success "Repository cloned successfully"
+    
+    # Verify the clone worked and show what was cloned
+    log "Verifying cloned repository contents..."
+    if [ -d "$REPO_DIR" ]; then
+        log "Repository directory created: $REPO_DIR"
+        log "Repository contents:"
+        ls -la "$REPO_DIR" | head -10
+        success "Repository cloned successfully"
+    else
+        error "Repository directory not created after clone"
+    fi
 
     log "Step 3: Getting version information..."
     get_version_info
@@ -178,6 +191,14 @@ main() {
     # Copy module files - check multiple possible locations
     MODULE_SOURCE=""
     
+    log "Searching for module files in repository..."
+    log "Repository directory: $REPO_DIR"
+    log "Component root: $COMPONENT_ROOT"
+    
+    # Debug: Show what's in the repository
+    log "Repository contents:"
+    ls -la "$REPO_DIR" | grep -E "(mod_|com_)" || log "No module/component directories found"
+    
     # Check if module is in component directory
     if [ -d "$COMPONENT_ROOT/mod_acciones_produccion" ]; then
         MODULE_SOURCE="$COMPONENT_ROOT/mod_acciones_produccion"
@@ -186,6 +207,8 @@ main() {
     elif [ -d "$REPO_DIR/mod_acciones_produccion" ]; then
         MODULE_SOURCE="$REPO_DIR/mod_acciones_produccion"
         log "Found module in repository root: $MODULE_SOURCE"
+        log "Module directory contents:"
+        ls -la "$MODULE_SOURCE" || log "Cannot list module directory contents"
     # Check if module files are in repository root (not in subdirectory)
     elif [ -f "$REPO_DIR/mod_acciones_produccion.php" ]; then
         MODULE_SOURCE="$REPO_DIR"
