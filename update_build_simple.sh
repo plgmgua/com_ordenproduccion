@@ -202,6 +202,47 @@ main() {
         warning "Module registration script not found"
     fi
     
+    # Configure module assignment for specific URL
+    log "Configuring module assignment for specific URL..."
+    
+    # Copy module assignment script
+    if [ -f "$COMPONENT_ROOT/configure_module_assignment.php" ]; then
+        sudo cp "$COMPONENT_ROOT/configure_module_assignment.php" "$JOOMLA_ROOT/"
+        sudo chown www-data:www-data "$JOOMLA_ROOT/configure_module_assignment.php"
+        sudo chmod 644 "$JOOMLA_ROOT/configure_module_assignment.php"
+        
+        # Run module assignment configuration
+        cd "$JOOMLA_ROOT"
+        php configure_module_assignment.php || warning "Module assignment configuration failed"
+        success "Module assignment configured for component pages"
+    else
+        warning "Module assignment script not found - using basic configuration"
+        
+        # Basic module assignment
+        MODULE_ID=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT id FROM joomla_modules WHERE module = 'mod_acciones_produccion' ORDER BY id DESC LIMIT 1;" 2>/dev/null || echo "")
+        
+        if [ -n "$MODULE_ID" ]; then
+            log "Found module ID: $MODULE_ID"
+            
+            # Set module to show only on component pages
+            mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -e "
+            UPDATE joomla_modules 
+            SET 
+                assignment = 1,
+                params = '{\"assigned\":[\"component\"],\"assignment\":1,\"showtitle\":\"1\",\"cache\":\"0\",\"cache_time\":\"900\",\"cachemode\":\"itemid\"}',
+                position = 'sidebar-right',
+                published = 1,
+                access = 1,
+                showtitle = 1
+            WHERE id = $MODULE_ID;
+            " 2>/dev/null || warning "Failed to configure module assignment"
+            
+            success "Module assignment configured for component pages"
+        else
+            warning "Module not found in database - assignment not configured"
+        fi
+    fi
+    
     # Verify site files were copied correctly
     log "Verifying site files deployment..."
     if [ -f "$SITE_COMPONENT_PATH/src/Model/OrdenModel.php" ]; then
