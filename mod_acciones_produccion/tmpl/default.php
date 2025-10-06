@@ -24,30 +24,8 @@ $currentUrl = Uri::current();
             <i class="fas fa-lock"></i>
             <?php echo Text::_('MOD_ACCIONES_PRODUCCION_ACCESS_DENIED'); ?>
         </div>
-    <?php elseif ($orderId && $workOrderData): ?>
+    <?php elseif ($orderId): ?>
         
-        <!-- Debug Information (remove in production) -->
-        <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px; border: 1px solid #ccc;">
-            <strong>Debug Info:</strong><br>
-            Order ID: <?php echo $orderId; ?><br>
-            Numero de Orden: <?php echo htmlspecialchars($workOrderData->numero_de_orden ?? 'NULL'); ?><br>
-            Client Name: <?php echo htmlspecialchars($workOrderData->client_name ?? 'NULL'); ?><br>
-            Status: <?php echo htmlspecialchars($workOrderData->status ?? 'NULL'); ?><br>
-            Has Production Access: <?php echo $hasProductionAccess ? 'Yes' : 'No'; ?>
-        </div>
-        
-        <!-- Work Order Information -->
-        <div class="work-order-info mb-3">
-            <h6 class="order-title">
-                <i class="fas fa-file-alt"></i>
-                Orden de Trabajo <?php echo htmlspecialchars($workOrderData->numero_de_orden ?? 'N/A'); ?>
-            </h6>
-            <div class="order-details">
-                <p><strong>Cliente:</strong> <?php echo htmlspecialchars($workOrderData->client_name ?? 'N/A'); ?></p>
-                <p><strong>Estado:</strong> <?php echo htmlspecialchars($workOrderData->status ?? 'N/A'); ?></p>
-            </div>
-        </div>
-
         <!-- PDF Generation Button -->
         <div class="pdf-action">
             <form action="<?php echo $currentUrl; ?>" method="post" class="pdf-form">
@@ -77,27 +55,6 @@ $currentUrl = Uri::current();
     margin-bottom: 20px;
 }
 
-.work-order-info {
-    background: white;
-    border-radius: 6px;
-    padding: 15px;
-    border: 1px solid #e9ecef;
-    margin-bottom: 15px;
-}
-
-.order-title {
-    color: #495057;
-    font-size: 16px;
-    margin-bottom: 10px;
-    font-weight: 600;
-}
-
-.order-details p {
-    margin: 5px 0;
-    font-size: 14px;
-    color: #6c757d;
-}
-
 .pdf-action {
     text-align: center;
 }
@@ -106,6 +63,7 @@ $currentUrl = Uri::current();
     font-size: 14px;
     padding: 10px 20px;
     font-weight: 600;
+    width: 100%;
 }
 
 .alert {

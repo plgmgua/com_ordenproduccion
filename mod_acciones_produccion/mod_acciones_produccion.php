@@ -48,32 +48,7 @@ if ($option !== 'com_ordenproduccion') {
     return; // Don't display the module
 }
 
-// Get work order data for display and PDF generation
-$workOrderData = null;
-if ($orderId) {
-    try {
-        $query = $db->getQuery(true)
-            ->select('*')
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('id') . ' = ' . (int)$orderId)
-            ->where($db->quoteName('state') . ' = 1');
-
-        $db->setQuery($query);
-        $workOrderData = $db->loadObject();
-        
-        // Debug: Log what we found
-        if ($workOrderData) {
-            error_log("Module Debug - Found work order: " . print_r($workOrderData, true));
-        } else {
-            error_log("Module Debug - No work order found for ID: " . $orderId);
-        }
-    } catch (Exception $e) {
-        error_log("Module Debug - Database error: " . $e->getMessage());
-        $workOrderData = null;
-    }
-}
-
-// Generate PDF action
+// Generate PDF action - redirect to component
 if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
     if (!Session::checkToken()) {
         $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -81,54 +56,17 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
         return;
     }
     
-    if ($orderId && $workOrderData) {
-        try {
-            // Simple PDF generation using TCPDF or similar
-            $pdfPath = $this->generateWorkOrderPDF($orderId, $workOrderData);
-            
-            if ($pdfPath) {
-                $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_PDF_GENERATED'), 'success');
-                // Redirect to PDF file
-                $app->redirect($pdfPath);
-            } else {
-                $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_PDF_ERROR'), 'error');
-            }
-        } catch (Exception $e) {
-            $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_PDF_ERROR') . ': ' . $e->getMessage(), 'error');
-        }
+    if ($orderId) {
+        // Redirect to component PDF generation
+        $pdfUrl = Route::_('index.php?option=com_ordenproduccion&task=orden.generatePdf&id=' . $orderId);
+        $app->redirect($pdfUrl);
+        return;
     } else {
         $app->enqueueMessage(Text::_('MOD_ACCIONES_PRODUCCION_INVALID_ORDER'), 'error');
     }
     
     $app->redirect(Uri::current());
     return;
-}
-
-// Simple PDF generation function
-function generateWorkOrderPDF($orderId, $workOrderData) {
-    // Create PDF directory if it doesn't exist
-    $pdfDir = JPATH_ROOT . '/media/com_ordenproduccion/pdf';
-    if (!is_dir($pdfDir)) {
-        mkdir($pdfDir, 0755, true);
-    }
-    
-    $pdfFile = $pdfDir . '/orden_trabajo_' . $orderId . '_' . date('Y-m-d_H-i-s') . '.pdf';
-    
-    // Simple HTML to PDF conversion (you can enhance this)
-    $html = '<html><body>';
-    $html .= '<h1>Orden de Trabajo ' . htmlspecialchars($workOrderData->numero_de_orden ?? 'N/A') . '</h1>';
-    $html .= '<p><strong>Cliente:</strong> ' . htmlspecialchars($workOrderData->client_name ?? 'N/A') . '</p>';
-    $html .= '<p><strong>Fecha de Solicitud:</strong> ' . htmlspecialchars($workOrderData->request_date ?? 'N/A') . '</p>';
-    $html .= '<p><strong>Fecha de Entrega:</strong> ' . htmlspecialchars($workOrderData->delivery_date ?? 'N/A') . '</p>';
-    $html .= '<p><strong>Estado:</strong> ' . htmlspecialchars($workOrderData->status ?? 'N/A') . '</p>';
-    $html .= '<p><strong>Valor Factura:</strong> $' . number_format($workOrderData->invoice_value ?? 0, 2) . '</p>';
-    $html .= '<p><strong>Descripción:</strong> ' . htmlspecialchars($workOrderData->description ?? 'N/A') . '</p>';
-    $html .= '</body></html>';
-    
-    // For now, create a simple text file (you can enhance this with proper PDF generation)
-    file_put_contents($pdfFile, $html);
-    
-    return $pdfFile;
 }
 
 // Load the template
