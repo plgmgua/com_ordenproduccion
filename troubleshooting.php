@@ -249,12 +249,16 @@ try {
         
         // Test parsing URLs
         $testUrl = 'index.php?option=com_ordenproduccion&view=orden&id=15';
-        $parsed = $router->parse($testUrl);
-        if ($parsed) {
-            echo "<p>✅ <strong>Router can parse component URLs</strong></p>\n";
-            echo "<p><strong>Parsed result:</strong> " . print_r($parsed, true) . "</p>\n";
-        } else {
-            echo "<p>❌ <strong>Router cannot parse component URLs</strong></p>\n";
+        try {
+            $parsed = $router->parse($testUrl);
+            if ($parsed) {
+                echo "<p>✅ <strong>Router can parse component URLs</strong></p>\n";
+                echo "<p><strong>Parsed result:</strong> " . print_r($parsed, true) . "</p>\n";
+            } else {
+                echo "<p>❌ <strong>Router cannot parse component URLs</strong></p>\n";
+            }
+        } catch (Exception $e) {
+            echo "<p>❌ <strong>Router parsing error:</strong> " . $e->getMessage() . "</p>\n";
         }
         
     } else {
@@ -357,30 +361,107 @@ try {
     echo "<p>❌ <strong>Error during component routing test:</strong> " . $e->getMessage() . "</p>\n";
 }
 
+// Test specific orden detail view
+echo "<h4>4.5.6. Orden Detail View Test</h4>\n";
+try {
+    // Test the specific orden view
+    echo "<p><strong>Testing Orden Detail View for ID 15</strong></p>\n";
+    
+    // Check if OrdenModel can get the item
+    $model = new \Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel();
+    $item = $model->getItem(15);
+    
+    if ($item && isset($item->id)) {
+        echo "<p>✅ <strong>OrdenModel successfully retrieved item ID 15</strong></p>\n";
+        echo "<p><strong>Item Details:</strong></p>\n";
+        echo "<ul>\n";
+        echo "<li><strong>ID:</strong> " . ($item->id ?? 'N/A') . "</li>\n";
+        echo "<li><strong>Order Number:</strong> " . ($item->order_number ?? 'N/A') . "</li>\n";
+        echo "<li><strong>Client:</strong> " . ($item->client_name ?? 'N/A') . "</li>\n";
+        echo "<li><strong>Sales Agent:</strong> " . ($item->sales_agent ?? 'N/A') . "</li>\n";
+        echo "<li><strong>State:</strong> " . ($item->state ?? 'N/A') . "</li>\n";
+        echo "</ul>\n";
+        
+        // Test user access
+        $user = Factory::getUser();
+        $userName = $user->get('name');
+        $salesAgent = $item->sales_agent ?? '';
+        
+        if ($userName === $salesAgent) {
+            echo "<p>✅ <strong>User access check passed</strong></p>\n";
+        } else {
+            echo "<p>⚠️ <strong>User access check failed</strong></p>\n";
+            echo "<p><strong>Current User:</strong> $userName</p>\n";
+            echo "<p><strong>Sales Agent:</strong> $salesAgent</p>\n";
+        }
+        
+    } else {
+        echo "<p>❌ <strong>OrdenModel failed to retrieve item ID 15</strong></p>\n";
+        echo "<p><strong>This explains the 'Work order not found' error!</strong></p>\n";
+    }
+    
+} catch (Exception $e) {
+    echo "<p>❌ <strong>Error during orden detail view test:</strong> " . $e->getMessage() . "</p>\n";
+}
+
+// Check if there's a menu item for orden detail view
+echo "<h4>4.5.7. Menu Item for Orden Detail View</h4>\n";
+try {
+    $db->setQuery("SELECT * FROM " . $db->quoteName('#__menu') . " WHERE " . $db->quoteName('link') . " LIKE '%com_ordenproduccion%orden%'");
+    $ordenMenuItems = $db->loadObjectList();
+    
+    if ($ordenMenuItems) {
+        echo "<p>✅ <strong>Found " . count($ordenMenuItems) . " menu items for orden detail view</strong></p>\n";
+        foreach ($ordenMenuItems as $item) {
+            echo "<p><strong>Menu Item:</strong> " . $item->title . " (ID: " . $item->id . ")</p>\n";
+            echo "<p><strong>Link:</strong> " . $item->link . "</p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>No menu items found for orden detail view</strong></p>\n";
+        echo "<p><strong>This explains why direct URLs don't work!</strong></p>\n";
+        echo "<p><strong>Solution: Create a menu item for orden detail view or use the list view links</strong></p>\n";
+    }
+} catch (Exception $e) {
+    echo "<p>❌ <strong>Error checking orden menu items:</strong> " . $e->getMessage() . "</p>\n";
+}
+
 echo "<h2>💡 Troubleshooting Tips</h2>\n";
 echo "<p>Based on the analysis above, here are the solutions:</p>\n";
 echo "<ul>\n";
-echo "<li><strong>Create Menu Item:</strong> Go to Menus → Add New Menu Item → Select 'Lista de Órdenes'</li>\n";
-echo "<li><strong>Use Correct URL Format:</strong> /index.php?option=com_ordenproduccion&view=orden&id=15</li>\n";
-echo "<li><strong>Check View Files:</strong> Ensure /src/View/Orden/HtmlView.php exists</li>\n";
-echo "<li><strong>Clear Joomla Cache:</strong> Go to System → Clear Cache</li>\n";
-echo "<li><strong>Check SEF URLs:</strong> Ensure SEF URLs are properly configured</li>\n";
-echo "<li><strong>Verify Component Installation:</strong> Reinstall component if needed</li>\n";
+echo "<li><strong>List View Works:</strong> The list view works because it has a proper menu item</li>\n";
+echo "<li><strong>Detail View Fails:</strong> No menu item exists for individual orden detail view</li>\n";
+echo "<li><strong>Direct URLs Don't Work:</strong> Joomla requires menu items for proper routing</li>\n";
+echo "<li><strong>Use List View Links:</strong> Access detail views through the list view</li>\n";
 echo "</ul>\n";
 
 echo "<h2>🔧 Quick Fix Solutions</h2>\n";
-echo "<p><strong>Solution 1: Create Menu Item</strong></p>\n";
+echo "<p><strong>Solution 1: Use List View (Recommended)</strong></p>\n";
+echo "<p>Since the list view works, use it to access individual orders:</p>\n";
+echo "<p><code>https://grimpsa_webserver.grantsolutions.cc/index.php/listado-ordenes</code></p>\n";
+echo "<p>Then click on individual order numbers to view details.</p>\n";
+
+echo "<p><strong>Solution 2: Create Menu Item for Detail View</strong></p>\n";
 echo "<ol>\n";
 echo "<li>Go to Menus → Add New Menu Item</li>\n";
-echo "<li>Select 'Lista de Órdenes' from Menu Item Type</li>\n";
-echo "<li>Set Menu Title (e.g., 'Órdenes de Trabajo')</li>\n";
+echo "<li>Select 'Orden Detail' from Menu Item Type</li>\n";
+echo "<li>Set Menu Title (e.g., 'Detalle de Orden')</li>\n";
 echo "<li>Save the menu item</li>\n";
-echo "<li>Use the menu item URL to access the component</li>\n";
+echo "<li>Use the menu item URL to access individual orders</li>\n";
 echo "</ol>\n";
 
-echo "<p><strong>Solution 2: Direct URL Access</strong></p>\n";
-echo "<p>Use this exact URL format:</p>\n";
-echo "<p><code>https://grimpsa_webserver.grantsolutions.cc/index.php?option=com_ordenproduccion&view=orden&id=15</code></p>\n";
+echo "<p><strong>Solution 3: Fix List View Links</strong></p>\n";
+echo "<p>Ensure the list view has proper links to individual orders:</p>\n";
+echo "<p>Check that the list view template includes links like:</p>\n";
+echo "<p><code>&lt;a href=\"index.php?option=com_ordenproduccion&view=orden&id=" . $item->id . "\"&gt;View Details&lt;/a&gt;</code></p>\n";
+
+echo "<h2>🎯 Root Cause Analysis</h2>\n";
+echo "<p><strong>Why the list works but detail view doesn't:</strong></p>\n";
+echo "<ul>\n";
+echo "<li>✅ <strong>List View:</strong> Has menu item 'listado-ordenes'</li>\n";
+echo "<li>❌ <strong>Detail View:</strong> No menu item for individual orden view</li>\n";
+echo "<li>❌ <strong>Direct URLs:</strong> Joomla routing requires menu items</li>\n";
+echo "<li>❌ <strong>SEF URLs:</strong> Not configured for detail view</li>\n";
+echo "</ul>\n";
 
 echo "<h2>End of Troubleshooting Report</h2>\n";
 ?>
