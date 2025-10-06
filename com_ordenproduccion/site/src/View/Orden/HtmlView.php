@@ -312,7 +312,7 @@ class HtmlView extends BaseHtmlView
             return '-';
         }
 
-        return '$' . number_format($value, 2);
+        return 'Q.' . number_format($value, 2);
     }
 
     /**
