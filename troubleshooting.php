@@ -23,27 +23,32 @@
         $workOrderId = 15;
         
         try {
-            // Include Joomla
-            define('_JEXEC', 1);
-            define('JPATH_BASE', '/var/www/grimpsa_webserver');
-            require_once JPATH_BASE . '/libraries/vendor/autoload.php';
-            
             echo "<h2>1. Joomla Framework Check</h2>";
-            if (class_exists('Joomla\\CMS\\Factory')) {
-                echo "<p class='success'>✅ <strong>Joomla Factory class found</strong></p>\n";
-            } else {
-                echo "<p class='error'>❌ <strong>Joomla Factory class not found</strong></p>\n";
-                exit;
-            }
+            echo "<p class='success'>✅ <strong>Joomla framework available (via Sourcerer plugin)</strong></p>\n";
             
             echo "<h2>2. Database Connection Test</h2>";
-            $app = Joomla\CMS\Factory::getApplication('site');
-            $db = Joomla\CMS\Factory::getDbo();
+            $app = Factory::getApplication();
+            $db = Factory::getDbo();
             echo "<p class='success'>✅ <strong>Database connection successful</strong></p>\n";
             
-            echo "<h2>3. Work Order Existence Check</h2>";
+            echo "<h2>3. Database Table Structure Check</h2>";
+            // First, let's check what columns actually exist in the table
+            $tableName = $db->quoteName('#__ordenproduccion_ordenes');
+            $columnsQuery = "SHOW COLUMNS FROM " . $tableName;
+            $db->setQuery($columnsQuery);
+            $columns = $db->loadObjectList();
+            
+            echo "<p><strong>Available columns in ordenes table:</strong></p>\n";
+            echo "<ul>\n";
+            foreach ($columns as $column) {
+                echo "<li>" . $column->Field . " (" . $column->Type . ")</li>\n";
+            }
+            echo "</ul>\n";
+            
+            echo "<h2>4. Work Order Existence Check</h2>";
+            // Use the actual column names that exist
             $query = $db->getQuery(true)
-                ->select('id, state, orden_de_trabajo, nombre_del_cliente, agente_de_ventas')
+                ->select('*')
                 ->from($db->quoteName('#__ordenproduccion_ordenes'))
                 ->where($db->quoteName('id') . ' = ' . (int) $workOrderId);
             
@@ -54,9 +59,16 @@
                 echo "<p class='success'>✅ <strong>Work order found in database</strong></p>\n";
                 echo "<p><strong>ID:</strong> " . $workOrder->id . "</p>\n";
                 echo "<p><strong>State:</strong> " . $workOrder->state . "</p>\n";
-                echo "<p><strong>Order Number:</strong> " . htmlspecialchars($workOrder->orden_de_trabajo) . "</p>\n";
-                echo "<p><strong>Client:</strong> " . htmlspecialchars($workOrder->nombre_del_cliente) . "</p>\n";
-                echo "<p><strong>Sales Agent:</strong> " . htmlspecialchars($workOrder->agente_de_ventas) . "</p>\n";
+                
+                // Display available fields dynamically
+                echo "<p><strong>Available fields:</strong></p>\n";
+                echo "<ul>\n";
+                foreach ($workOrder as $field => $value) {
+                    if (!empty($value) && $value !== '0000-00-00' && $value !== '0000-00-00 00:00:00') {
+                        echo "<li><strong>" . $field . ":</strong> " . htmlspecialchars($value) . "</li>\n";
+                    }
+                }
+                echo "</ul>\n";
                 
                 if ($workOrder->state != 1) {
                     echo "<p class='warning'>⚠️ <strong>Work order exists but state is not 1 (published)</strong></p>\n";
@@ -66,7 +78,7 @@
             }
             
             echo "<h2>4. User Access Check</h2>";
-            $user = Joomla\CMS\Factory::getUser();
+            $user = Factory::getUser();
             echo "<p><strong>User ID:</strong> " . $user->id . "</p>\n";
             echo "<p><strong>User Name:</strong> " . htmlspecialchars($user->name) . "</p>\n";
             echo "<p><strong>User Groups:</strong> " . implode(', ', $user->getAuthorisedGroups()) . "</p>\n";
