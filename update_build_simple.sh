@@ -419,6 +419,9 @@ main() {
     echo "Debug script is now available at: https://grimpsa_webserver.grantsolutions.cc/onetimedebug.php"
     echo "This script will help diagnose component issues and 404 errors."
     echo ""
+    echo "📁 Verifying debug script exists in Joomla root directory:"
+    ls -la "$JOOMLA_ROOT/onetimedebug.php" || echo "❌ Debug script not found in Joomla root directory"
+    echo ""
 
     echo ""
     success "🎉 Simplified build update completed successfully!"
