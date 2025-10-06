@@ -33,9 +33,13 @@ try {
     $component = $app->bootComponent('com_ordenproduccion');
     $debugLog("Component booted successfully, class: " . get_class($component));
     
-    $debugLog("Calling dispatch() method");
-    $component->dispatch();
-    $debugLog("dispatch() completed successfully");
+    $debugLog("Getting dispatcher from component");
+    $dispatcher = $component->getDispatcher($app);
+    $debugLog("Dispatcher obtained, class: " . get_class($dispatcher));
+    
+    $debugLog("Calling dispatcher dispatch() method");
+    $dispatcher->dispatch();
+    $debugLog("dispatcher dispatch() completed successfully");
     
 } catch (Exception $e) {
     $debugLog("ERROR: " . $e->getMessage());
