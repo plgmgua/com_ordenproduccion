@@ -135,20 +135,21 @@ class OrdenController extends BaseController
             return null;
         }
 
-        // Get additional EAV data (tecnico, detalles, etc.) - with error handling
+        // Get additional EAV data (tecnico, detalles, etc.) - using correct table structure
         try {
             $eavQuery = $db->getQuery(true)
-                ->select('tipo_de_campo, valor, timestamp, usuario')
-                ->from($db->quoteName('#__ordenproduccion_ordenes_info'))
-                ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($workOrder->numero_de_orden));
+                ->select('attribute_name, attribute_value, created, created_by')
+                ->from($db->quoteName('#__ordenproduccion_info'))
+                ->where($db->quoteName('order_id') . ' = ' . (int)$orderId)
+                ->where($db->quoteName('state') . ' = 1');
 
             $db->setQuery($eavQuery);
             $eavData = $db->loadObjectList();
 
-            // Organize EAV data by type
+            // Organize EAV data by attribute name
             $workOrder->eav_data = [];
             foreach ($eavData as $item) {
-                $workOrder->eav_data[$item->tipo_de_campo] = $item;
+                $workOrder->eav_data[$item->attribute_name] = $item;
             }
         } catch (Exception $e) {
             // EAV table doesn't exist or other error - continue without EAV data
@@ -231,11 +232,11 @@ class OrdenController extends BaseController
         
         // EAV Data (tecnico, detalles, etc.)
         if (isset($workOrderData->eav_data)) {
-            foreach ($workOrderData->eav_data as $type => $data) {
+            foreach ($workOrderData->eav_data as $attributeName => $data) {
                 $pdf->SetFont('Arial', 'B', 12);
-                $pdf->Cell(40, 8, ucfirst($type) . ':', 0, 0, 'L');
+                $pdf->Cell(40, 8, ucfirst($attributeName) . ':', 0, 0, 'L');
                 $pdf->SetFont('Arial', '', 12);
-                $pdf->Cell(0, 8, $data->valor ?? 'N/A', 0, 1, 'L');
+                $pdf->Cell(0, 8, $data->attribute_value ?? 'N/A', 0, 1, 'L');
             }
         }
         
