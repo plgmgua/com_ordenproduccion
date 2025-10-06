@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" version="5.0" method="upgrade">
+    <name>COM_ORDENPRODUCCION</name>
+    <author>Grimpsa</author>
+    <creationDate>2025-01-27</creationDate>
+    <copyright>Copyright (C) 2025 Grimpsa. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <authorEmail>admin@grimpsa.com</authorEmail>
+    <authorUrl>https://grimpsa.com</authorUrl>
+    <version>1.0.0-STABLE</version>
+    <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
+    <scriptfile>script.php</scriptfile>
+
+    <namespace path="src">Grimpsa\Component\Ordenproduccion</namespace>
+
+    <!-- Site files -->
+    <files folder="site">
+        <filename>ordenproduccion.php</filename>
+        <folder>src</folder>
+        <folder>views</folder>
+        <folder>tmpl</folder>
+        <folder>language</folder>
+        <folder>forms</folder>
+    </files>
+
+    <!-- Administration -->
+    <administration>
+        <menu img="class:cog">COM_ORDENPRODUCCION</menu>
+        <submenu>
+            <menu link="option=com_ordenproduccion&amp;view=dashboard">COM_ORDENPRODUCCION_MENU_DASHBOARD</menu>
+            <menu link="option=com_ordenproduccion&amp;view=ordenes">COM_ORDENPRODUCCION_MENU_ORDERS</menu>
+            <menu link="option=com_ordenproduccion&amp;view=technicians">COM_ORDENPRODUCCION_MENU_TECHNICIANS</menu>
+            <menu link="option=com_ordenproduccion&amp;view=webhook">COM_ORDENPRODUCCION_MENU_WEBHOOK</menu>
+            <menu link="option=com_ordenproduccion&amp;view=debug">COM_ORDENPRODUCCION_MENU_DEBUG</menu>
+            <menu link="option=com_ordenproduccion&amp;view=settings">COM_ORDENPRODUCCION_MENU_SETTINGS</menu>
+        </submenu>
+        
+        <files folder="admin">
+            <filename>ordenproduccion.php</filename>
+            <filename>services/provider.php</filename>
+            <filename>access.xml</filename>
+            <filename>config.xml</filename>
+            <folder>src</folder>
+            <folder>tmpl</folder>
+            <folder>forms</folder>
+            <folder>sql</folder>
+            <folder>language</folder>
+        </files>
+        
+        <media destination="com_ordenproduccion" folder="media">
+            <folder>css</folder>
+            <folder>js</folder>
+        </media>
+        
+        <languages folder="admin/language">
+            <language tag="en-GB">en-GB/com_ordenproduccion.ini</language>
+            <language tag="en-GB">en-GB/com_ordenproduccion.sys.ini</language>
+            <language tag="es-ES">es-ES/com_ordenproduccion.ini</language>
+            <language tag="es-ES">es-ES/com_ordenproduccion.sys.ini</language>
+        </languages>
+    </administration>
+
+    <!-- Site languages -->
+    <languages folder="site/language">
+        <language tag="en-GB">en-GB/com_ordenproduccion.ini</language>
+        <language tag="es-ES">es-ES/com_ordenproduccion.ini</language>
+    </languages>
+
+
+    <!-- Database -->
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8mb4">admin/sql/install.mysql.utf8.sql</file>
+        </sql>
+    </install>
+
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8mb4">admin/sql/uninstall.mysql.utf8.sql</file>
+        </sql>
+    </uninstall>
+
+    <config>
+        <access>access.xml</access>
+        <fields name="params">
+            <fieldset name="component" label="COM_ORDENPRODUCCION_CONFIG_COMPONENT_LABEL">
+                <field
+                    name="enable_debug"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_ENABLE_DEBUG_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_ENABLE_DEBUG_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="debug_log_level"
+                    type="list"
+                    label="COM_ORDENPRODUCCION_CONFIG_DEBUG_LOG_LEVEL_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_DEBUG_LOG_LEVEL_DESC"
+                    default="DEBUG"
+                >
+                    <option value="ERROR">COM_ORDENPRODUCCION_DEBUG_ERROR</option>
+                    <option value="WARNING">COM_ORDENPRODUCCION_DEBUG_WARNING</option>
+                    <option value="INFO">COM_ORDENPRODUCCION_DEBUG_INFO</option>
+                    <option value="DEBUG">COM_ORDENPRODUCCION_DEBUG_DEBUG</option>
+                </field>
+                <field
+                    name="debug_log_retention_days"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_CONFIG_DEBUG_LOG_RETENTION_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_DEBUG_LOG_RETENTION_DESC"
+                    default="7"
+                    min="1"
+                    max="365"
+                />
+                <field
+                    name="webhook_enabled"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_WEBHOOK_ENABLED_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_WEBHOOK_ENABLED_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="webhook_secret"
+                    type="password"
+                    label="COM_ORDENPRODUCCION_CONFIG_WEBHOOK_SECRET_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_WEBHOOK_SECRET_DESC"
+                    default=""
+                />
+                <field
+                    name="order_prefix"
+                    type="text"
+                    label="COM_ORDENPRODUCCION_CONFIG_ORDER_PREFIX_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_ORDER_PREFIX_DESC"
+                    default="ORD"
+                    size="10"
+                />
+            </fieldset>
+        </fields>
+    </config>
+</extension>

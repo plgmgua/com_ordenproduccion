@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="basic" label="COM_ORDENPRODUCCION_SETTINGS_BASIC_LABEL">
+        <field
+            name="next_order_number"
+            type="number"
+            label="COM_ORDENPRODUCCION_NEXT_ORDER_NUMBER_LABEL"
+            description="COM_ORDENPRODUCCION_NEXT_ORDER_NUMBER_DESC"
+            default="1000"
+            min="1"
+            max="999999"
+            required="true"
+        />
+        
+        <field
+            name="order_prefix"
+            type="text"
+            label="COM_ORDENPRODUCCION_ORDER_PREFIX_LABEL"
+            description="COM_ORDENPRODUCCION_ORDER_PREFIX_DESC"
+            default="ORD"
+            maxlength="10"
+        />
+        
+        <field
+            name="order_format"
+            type="list"
+            label="COM_ORDENPRODUCCION_ORDER_FORMAT_LABEL"
+            description="COM_ORDENPRODUCCION_ORDER_FORMAT_DESC"
+            default="PREFIX-NUMBER"
+        >
+            <option value="PREFIX-NUMBER">COM_ORDENPRODUCCION_FORMAT_PREFIX_NUMBER</option>
+            <option value="NUMBER">COM_ORDENPRODUCCION_FORMAT_NUMBER_ONLY</option>
+            <option value="PREFIX-NUMBER-YEAR">COM_ORDENPRODUCCION_FORMAT_PREFIX_NUMBER_YEAR</option>
+            <option value="NUMBER-YEAR">COM_ORDENPRODUCCION_FORMAT_NUMBER_YEAR</option>
+        </field>
+        
+        <field
+            name="auto_increment"
+            type="radio"
+            label="COM_ORDENPRODUCCION_AUTO_INCREMENT_LABEL"
+            description="COM_ORDENPRODUCCION_AUTO_INCREMENT_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        
+        <field
+            name="default_order_status"
+            type="list"
+            label="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_LABEL"
+            description="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_DESC"
+            default="nueva"
+        >
+            <option value="nueva">COM_ORDENPRODUCCION_STATUS_NEW</option>
+            <option value="en_proceso">COM_ORDENPRODUCCION_STATUS_IN_PROCESS</option>
+            <option value="terminada">COM_ORDENPRODUCCION_STATUS_COMPLETED</option>
+            <option value="cerrada">COM_ORDENPRODUCCION_STATUS_CLOSED</option>
+        </field>
+    </fieldset>
+    
+    <fieldset name="display" label="COM_ORDENPRODUCCION_SETTINGS_DISPLAY_LABEL">
+        <field
+            name="items_per_page"
+            type="number"
+            label="COM_ORDENPRODUCCION_ITEMS_PER_PAGE_LABEL"
+            description="COM_ORDENPRODUCCION_ITEMS_PER_PAGE_DESC"
+            default="20"
+            min="5"
+            max="100"
+        />
+        
+        <field
+            name="show_creation_date"
+            type="radio"
+            label="COM_ORDENPRODUCCION_SHOW_CREATION_DATE_LABEL"
+            description="COM_ORDENPRODUCCION_SHOW_CREATION_DATE_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        
+        <field
+            name="show_modification_date"
+            type="radio"
+            label="COM_ORDENPRODUCCION_SHOW_MODIFICATION_DATE_LABEL"
+            description="COM_ORDENPRODUCCION_SHOW_MODIFICATION_DATE_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+    </fieldset>
+</form>

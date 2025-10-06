@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+         bootstrap="bootstrap.php"
+         colors="true"
+         processIsolation="false"
+         stopOnFailure="false"
+         cacheResult="false"
+         executionOrder="random"
+         requireCoverageMetadata="true"
+         beStrictAboutCoverageMetadata="true"
+         beStrictAboutOutputDuringTests="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         verbose="true">
+    <testsuites>
+        <testsuite name="com_ordenproduccion">
+            <directory>./Unit</directory>
+            <directory>./Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <coverage>
+        <include>
+            <directory suffix=".php">../admin/src</directory>
+            <directory suffix=".php">../site/src</directory>
+        </include>
+        <exclude>
+            <directory>../admin/src/Extension</directory>
+            <directory>../site/src/Dispatcher</directory>
+        </exclude>
+    </coverage>
+
+    <php>
+        <env name="JOOMLA_TESTING" value="1"/>
+        <env name="JOOMLA_DB_HOST" value="localhost"/>
+        <env name="JOOMLA_DB_USER" value="root"/>
+        <env name="JOOMLA_DB_PASSWORD" value=""/>
+        <env name="JOOMLA_DB_NAME" value="joomla_test"/>
+        <env name="JOOMLA_DB_PREFIX" value="jos_"/>
+    </php>
+</phpunit>

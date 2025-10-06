@@ -848,18 +848,6 @@ EOF
     log "Autoloading issues have been addressed."
     log "Language files have been updated with proper labels."
     log "Component manifest has been updated with new configuration fields."
-    echo ""
-    log "📝 Next steps:"
-    log "   1. Go to Components → Production Orders → Settings"
-    log "   2. Set your 'Next Order Number' (e.g., 1000)"
-    log "   3. Configure your order prefix and format"
-    log "   4. Save the settings"
-    log "   5. Go to Menus → Add New Menu Item"
-    log "   6. Select 'Lista de Órdenes' from Menu Item Type"
-    log "   7. Create your frontend menu item"
-    log "   8. All admin menu items available: Dashboard, Orders, Technicians, Webhook, Debug, Settings"
-    log "   9. If you have 404 errors, run: https://grimpsa_webserver.grantsolutions.cc/onetimedebug.php"
-    echo ""
 }
 
 # Run main function

@@ -1,563 +1,275 @@
 #!/bin/bash
 
-# Production Deployment Script for com_ordenproduccion
-# Version: 1.1.4
-# Downloads from GitHub repository and deploys to Joomla webserver
-# Verifies all steps are completed successfully
-
-set -e
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+echo "=========================================="
+echo "  Deploy to Server Script"
+echo "  com_ordenproduccion Component"
+echo "  Version: 1.8.117"
+echo "=========================================="
 
 # Configuration
-REPO_URL="https://github.com/plgmgua/com_ordenproduccion.git"
+SERVER_HOST="grimpsa.com"
+SERVER_USER="root"
+SERVER_PATH="/var/www/grimpsa_webserver"
 COMPONENT_NAME="com_ordenproduccion"
+
+echo "🚀 Starting deployment to server..."
+
+# Step 1: Create deployment package
+echo "📦 Step 1: Creating deployment package..."
+if [ -d "deployment_package" ]; then
+    rm -rf deployment_package
+fi
+
+mkdir -p deployment_package
+cp -r com_ordenproduccion deployment_package/
+cp fix_produccion_component.php deployment_package/
+cp VERSION deployment_package/
+
+echo "✅ Package created: deployment_package/"
+
+# Step 2: Create server deployment script
+echo "🔧 Step 2: Creating server deployment script..."
+cat > deployment_package/deploy_on_server.sh << 'EOF'
+#!/bin/bash
+
+echo "=========================================="
+echo "  Server-Side Deployment"
+echo "  com_ordenproduccion Component"
+echo "=========================================="
+
+# Configuration
 JOOMLA_ROOT="/var/www/grimpsa_webserver"
-COMPONENT_PATH="$JOOMLA_ROOT/components/$COMPONENT_NAME"
-ADMIN_COMPONENT_PATH="$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME"
+COMPONENT_NAME="com_ordenproduccion"
+ADMIN_PATH="$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME"
+SITE_PATH="$JOOMLA_ROOT/components/$COMPONENT_NAME"
 MEDIA_PATH="$JOOMLA_ROOT/media/$COMPONENT_NAME"
-BACKUP_DIR="/var/backups/joomla_components"
-LOG_FILE="$HOME/deploy_debug_$(date +%Y%m%d_%H%M%S).log"
 
-# Logging functions
-log() {
-    local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
-    echo -e "${BLUE}${message}${NC}"
-    echo "$message" >> "$LOG_FILE"
-}
+echo "🚀 Starting server-side deployment..."
 
-success() {
-    local message="[SUCCESS] $1"
-    echo -e "${GREEN}${message}${NC}"
-    echo "$message" >> "$LOG_FILE"
-}
+# Step 1: Backup existing component
+echo "📦 Step 1: Creating backup..."
+if [ -d "$ADMIN_PATH" ]; then
+    cp -r "$ADMIN_PATH" "/tmp/${COMPONENT_NAME}_backup_$(date +%Y%m%d_%H%M%S)"
+    echo "✅ Backup created"
+fi
 
-error() {
-    local message="[ERROR] $1"
-    echo -e "${RED}${message}${NC}" >&2
-    echo "$message" >> "$LOG_FILE"
-}
+# Step 2: Remove old component
+echo "🗑️ Step 2: Removing old component..."
+rm -rf "$ADMIN_PATH"
+rm -rf "$SITE_PATH"
+rm -rf "$MEDIA_PATH"
+echo "✅ Old component removed"
 
-warning() {
-    local message="[WARNING] $1"
-    echo -e "${YELLOW}${message}${NC}"
-    echo "$message" >> "$LOG_FILE"
-}
+# Step 3: Copy new component
+echo "📋 Step 3: Installing new component..."
+cp -r "$COMPONENT_NAME" "$ADMIN_PATH"
+cp -r "$COMPONENT_NAME" "$SITE_PATH"
+cp -r "$COMPONENT_NAME/media" "$MEDIA_PATH"
+echo "✅ Component copied"
 
-# Function to check prerequisites
-check_prerequisites() {
-    log "Checking prerequisites..."
-    
-    # Check if git is installed
-    if ! command -v git &> /dev/null; then
-        error "Git is not installed. Please install git first."
-        exit 1
-    fi
-    
-    # Check if Joomla directory exists
-    if [ ! -d "$JOOMLA_ROOT" ]; then
-        error "Joomla root directory not found: $JOOMLA_ROOT"
-        exit 1
-    fi
-    
-    # Check if we need sudo for Joomla directory
-    if [ ! -w "$JOOMLA_ROOT" ]; then
-        warning "No write permission to Joomla root directory. Will use sudo when needed."
-        USE_SUDO=true
-    else
-        USE_SUDO=false
-    fi
-    
-    success "Prerequisites check passed"
-}
+# Step 4: Set permissions
+echo "🔐 Step 4: Setting permissions..."
+chown -R www-data:www-data "$ADMIN_PATH"
+chown -R www-data:www-data "$SITE_PATH"
+chown -R www-data:www-data "$MEDIA_PATH"
+chmod -R 755 "$ADMIN_PATH"
+chmod -R 755 "$SITE_PATH"
+chmod -R 755 "$MEDIA_PATH"
+echo "✅ Permissions set"
 
-# Function to create backup
-create_backup() {
-    log "Creating backup of existing component..."
-    
-    # Create backup directory if it doesn't exist
-    if [ "$USE_SUDO" = true ]; then
-        sudo mkdir -p "$BACKUP_DIR"
-    else
-        mkdir -p "$BACKUP_DIR"
-    fi
-    
-    # Create timestamp for backup
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-    BACKUP_PATH="$BACKUP_DIR/${COMPONENT_NAME}_backup_$TIMESTAMP"
-    
-    # Backup existing component files
-    if [ -d "$COMPONENT_PATH" ] || [ -d "$ADMIN_COMPONENT_PATH" ] || [ -d "$MEDIA_PATH" ]; then
-        log "Backing up to: $BACKUP_PATH"
-        
-        if [ "$USE_SUDO" = true ]; then
-            sudo mkdir -p "$BACKUP_PATH"
-            [ -d "$COMPONENT_PATH" ] && sudo cp -r "$COMPONENT_PATH" "$BACKUP_PATH/" 2>/dev/null || true
-            [ -d "$ADMIN_COMPONENT_PATH" ] && sudo cp -r "$ADMIN_COMPONENT_PATH" "$BACKUP_PATH/" 2>/dev/null || true
-            [ -d "$MEDIA_PATH" ] && sudo cp -r "$MEDIA_PATH" "$BACKUP_PATH/" 2>/dev/null || true
-        else
-            mkdir -p "$BACKUP_PATH"
-            [ -d "$COMPONENT_PATH" ] && cp -r "$COMPONENT_PATH" "$BACKUP_PATH/" 2>/dev/null || true
-            [ -d "$ADMIN_COMPONENT_PATH" ] && cp -r "$ADMIN_COMPONENT_PATH" "$BACKUP_PATH/" 2>/dev/null || true
-            [ -d "$MEDIA_PATH" ] && cp -r "$MEDIA_PATH" "$BACKUP_PATH/" 2>/dev/null || true
-        fi
-        
-        success "Backup created at: $BACKUP_PATH"
-    else
-        log "No existing component found, skipping backup"
-    fi
-}
+# Step 5: Run fix script
+echo "🔧 Step 5: Running fix script..."
+cd "$ADMIN_PATH"
+if [ -f "fix_produccion_component.php" ]; then
+    php fix_produccion_component.php
+    echo "✅ Fix script executed"
+else
+    echo "⚠️ Fix script not found, skipping..."
+fi
 
-# Function to download repository from GitHub
-download_repository() {
-    log "Downloading repository from GitHub..."
-    
-    # Create fixed temporary directory for clone in user's home
-    TEMP_DIR="$HOME/${COMPONENT_NAME}_deploy"
-    
-    # Clean up any existing deployment directory
-    if [ -d "$TEMP_DIR" ]; then
-        log "Removing existing deployment directory..."
-        rm -rf "$TEMP_DIR"
-    fi
-    
-    mkdir -p "$TEMP_DIR"
-    
-    # Clone repository from GitHub
-    log "Cloning repository from: $REPO_URL"
-    cd "$TEMP_DIR"
-    git clone "$REPO_URL" "$COMPONENT_NAME"
-    
-    # Verify repository was cloned successfully
-    if [ ! -d "$TEMP_DIR/$COMPONENT_NAME" ]; then
-        error "Failed to clone repository from GitHub"
-        exit 1
-    fi
-    
-    # Debug: Show what was actually downloaded
-    log "DEBUG: Contents of downloaded repository:"
-    ls -la "$TEMP_DIR/$COMPONENT_NAME/"
-    
-    # Debug: Show if there's a nested com_ordenproduccion directory
-    if [ -d "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME" ]; then
-        log "DEBUG: Found nested component directory:"
-        ls -la "$TEMP_DIR/$COMPONENT_NAME/$COMPONENT_NAME/"
-    fi
-    
-    success "Repository downloaded successfully"
-    echo "$TEMP_DIR/$COMPONENT_NAME"
-}
+# Step 6: Clear cache
+echo "🧹 Step 6: Clearing cache..."
+rm -rf "$JOOMLA_ROOT/cache/*"
+rm -rf "$JOOMLA_ROOT/administrator/cache/*"
+echo "✅ Cache cleared"
 
-# Function to find the correct component path
-find_component_path() {
-    local repo_path="$1"
-    local component_path=""
-    
-    # Check if files are directly in repo root
-    if [ -d "$repo_path/admin" ] && [ -d "$repo_path/site" ] && [ -d "$repo_path/media" ]; then
-        component_path="$repo_path"
-        log "Found component files directly in repository root"
-    # Check if files are in nested component directory
-    elif [ -d "$repo_path/$COMPONENT_NAME/admin" ] && [ -d "$repo_path/$COMPONENT_NAME/site" ] && [ -d "$repo_path/$COMPONENT_NAME/media" ]; then
-        component_path="$repo_path/$COMPONENT_NAME"
-        log "Found component files in nested directory: $component_path"
-    else
-        error "Could not find component files in expected locations"
-        error "Searched in: $repo_path and $repo_path/$COMPONENT_NAME"
-        exit 1
-    fi
-    
-    echo "$component_path"
-}
+# Step 7: Verify deployment
+echo "🔍 Step 7: Verifying deployment..."
+if [ -f "$SITE_PATH/src/Controller/ProductionController.php" ]; then
+    echo "✅ Production module deployed successfully"
+else
+    echo "⚠️ Production module not found"
+fi
 
-# Function to verify downloaded files
-verify_downloaded_files() {
-    local repo_path="$1"
-    log "Verifying downloaded files..."
-    
-    # Hardcode the component path - we know it's nested
-    local component_path="$repo_path/$COMPONENT_NAME"
-    log "Using hardcoded component path: $component_path"
-    
-    # Add a small delay to ensure filesystem is synchronized
-    log "Waiting for filesystem synchronization..."
-    sleep 2
-    
-    # Convert to absolute path to avoid any relative path issues
-    component_path=$(realpath "$component_path" 2>/dev/null || echo "$component_path")
-    log "Absolute component path: $component_path"
-    
-    # Debug: Show what we're actually checking
-    log "DEBUG: Checking for admin directory at: $component_path/admin"
-    log "DEBUG: Directory exists check: [ -d \"$component_path/admin\" ]"
-    
-    # Comprehensive diagnostic testing
-    log "DEBUG: === COMPREHENSIVE DIAGNOSTICS ==="
-    log "DEBUG: Current working directory: $(pwd)"
-    log "DEBUG: Component path variable: '$component_path'"
-    log "DEBUG: Component path length: ${#component_path}"
-    log "DEBUG: Component path hex dump: $(echo -n "$component_path" | xxd)"
-    
-    # Test different path variations
-    log "DEBUG: Testing path variations:"
-    log "DEBUG: 1. test -d \"$component_path/admin\""
-    if test -d "$component_path/admin"; then
-        log "DEBUG:    Result: EXISTS"
-    else
-        log "DEBUG:    Result: DOES NOT EXIST"
-    fi
-    
-    log "DEBUG: 2. test -d \"$component_path/admin/\""
-    if test -d "$component_path/admin/"; then
-        log "DEBUG:    Result: EXISTS"
-    else
-        log "DEBUG:    Result: DOES NOT EXIST"
-    fi
-    
-    log "DEBUG: 3. ls -ld \"$component_path/admin\""
-    ls -ld "$component_path/admin" 2>&1 | while read line; do
-        log "DEBUG:    ls output: $line"
-    done
-    
-    log "DEBUG: 4. file \"$component_path/admin\""
-    file "$component_path/admin" 2>&1 | while read line; do
-        log "DEBUG:    file output: $line"
-    done
-    
-    log "DEBUG: 5. stat \"$component_path/admin\""
-    stat "$component_path/admin" 2>&1 | while read line; do
-        log "DEBUG:    stat output: $line"
-    done
-    
-    # Check if essential directories exist in the correct location
-    local missing_files=()
-    
-    if [ ! -d "$component_path/admin" ]; then
-        log "DEBUG: admin directory NOT found at $component_path/admin"
-        missing_files+=("admin/")
-    else
-        log "DEBUG: admin directory FOUND at $component_path/admin"
-    fi
-    
-    if [ ! -d "$component_path/site" ]; then
-        log "DEBUG: site directory NOT found at $component_path/site"
-        missing_files+=("site/")
-    else
-        log "DEBUG: site directory FOUND at $component_path/site"
-    fi
-    
-    if [ ! -d "$component_path/media" ]; then
-        log "DEBUG: media directory NOT found at $component_path/media"
-        missing_files+=("media/")
-    else
-        log "DEBUG: media directory FOUND at $component_path/media"
-    fi
-    
-    if [ ! -f "$component_path/$COMPONENT_NAME.xml" ]; then
-        log "DEBUG: manifest file NOT found at $component_path/$COMPONENT_NAME.xml"
-        missing_files+=("$COMPONENT_NAME.xml")
-    else
-        log "DEBUG: manifest file FOUND at $component_path/$COMPONENT_NAME.xml"
-    fi
-    
-    if [ ${#missing_files[@]} -gt 0 ]; then
-        error "Missing essential files in downloaded repository:"
-        for file in "${missing_files[@]}"; do
-            error "  - $file"
-        done
-        exit 1
-    fi
-    
-    # Show what was downloaded
-    log "Downloaded files verified:"
-    log "  - Admin files: $component_path/admin/"
-    log "  - Site files: $component_path/site/"
-    log "  - Media files: $component_path/media/"
-    log "  - Manifest file: $component_path/$COMPONENT_NAME.xml"
-    
-    success "All essential files downloaded successfully"
-}
+if [ -f "$SITE_PATH/ordenproduccion.php" ]; then
+    echo "✅ Site entry point deployed successfully"
+else
+    echo "❌ Site entry point not found"
+fi
 
-# Function to deploy component files
-deploy_component() {
-    local repo_path="$1"
-    
-    log "Deploying component files..."
-    
-    # Use hardcoded component path - we know it's nested
-    local component_path="$repo_path/$COMPONENT_NAME"
-    log "Source directory: $component_path"
-    
-    # Debug: Check if source directory exists and has content
-    log "DEBUG: Checking source directory contents..."
-    if [ -d "$component_path" ]; then
-        log "DEBUG: Source directory exists: $component_path"
-        log "DEBUG: Source directory contents:"
-        ls -la "$component_path" | while read line; do
-            log "DEBUG:   $line"
-        done
-    else
-        error "Source directory does not exist: $component_path"
-        exit 1
-    fi
-    
-    # Create component directories
-    log "Creating component directories..."
-    if [ "$USE_SUDO" = true ]; then
-        sudo mkdir -p "$COMPONENT_PATH"
-        sudo mkdir -p "$ADMIN_COMPONENT_PATH"
-        sudo mkdir -p "$MEDIA_PATH"
-        log "DEBUG: Created directories with sudo"
-    else
-        mkdir -p "$COMPONENT_PATH"
-        mkdir -p "$ADMIN_COMPONENT_PATH"
-        mkdir -p "$MEDIA_PATH"
-        log "DEBUG: Created directories without sudo"
-    fi
-    
-    # Copy site component files
-    log "Copying site component files from $component_path/site/..."
-    if [ -d "$component_path/site" ]; then
-        log "DEBUG: Site directory exists, copying files..."
-        if [ "$USE_SUDO" = true ]; then
-            sudo cp -r "$component_path/site/"* "$COMPONENT_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        else
-            cp -r "$component_path/site/"* "$COMPONENT_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        fi
-        log "DEBUG: Site files copied"
-    else
-        error "Site directory does not exist: $component_path/site"
-    fi
-    
-    # Copy admin component files
-    log "Copying admin component files from $component_path/admin/..."
-    if [ -d "$component_path/admin" ]; then
-        log "DEBUG: Admin directory exists, copying files..."
-        if [ "$USE_SUDO" = true ]; then
-            sudo cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        else
-            cp -r "$component_path/admin/"* "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        fi
-        log "DEBUG: Admin files copied"
-    else
-        error "Admin directory does not exist: $component_path/admin"
-    fi
-    
-    # Copy media files
-    log "Copying media files from $component_path/media/..."
-    if [ -d "$component_path/media" ]; then
-        log "DEBUG: Media directory exists, copying files..."
-        if [ "$USE_SUDO" = true ]; then
-            sudo cp -r "$component_path/media/"* "$MEDIA_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        else
-            cp -r "$component_path/media/"* "$MEDIA_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        fi
-        log "DEBUG: Media files copied"
-    else
-        error "Media directory does not exist: $component_path/media"
-    fi
-    
-    # Copy manifest file
-    log "Copying manifest file from $component_path/$COMPONENT_NAME.xml..."
-    if [ -f "$component_path/$COMPONENT_NAME.xml" ]; then
-        log "DEBUG: Manifest file exists, copying..."
-        if [ "$USE_SUDO" = true ]; then
-            sudo cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        else
-            cp "$component_path/$COMPONENT_NAME.xml" "$ADMIN_COMPONENT_PATH/" 2>&1 | while read line; do
-                log "DEBUG: cp output: $line"
-            done
-        fi
-        log "DEBUG: Manifest file copied"
-    else
-        error "Manifest file does not exist: $component_path/$COMPONENT_NAME.xml"
-    fi
-    
-    success "Component files deployed"
-}
+echo ""
+echo "=========================================="
+echo "  DEPLOYMENT COMPLETE"
+echo "=========================================="
+echo "✅ Component deployed successfully"
+echo "📁 Admin: $ADMIN_PATH"
+echo "📁 Site: $SITE_PATH"
+echo "📁 Media: $MEDIA_PATH"
+echo ""
+echo "Next steps:"
+echo "1. Create 'produccion' user group in Joomla"
+echo "2. Assign users to the produccion group"
+echo "3. Test the production module"
+echo "=========================================="
+EOF
 
-# Function to verify deployed files
-verify_deployed_files() {
-    log "Verifying deployed files..."
-    
-    local missing_files=()
-    
-    # Check if deployed directories exist and have content
-    if [ ! -d "$COMPONENT_PATH" ] || [ -z "$(ls -A "$COMPONENT_PATH" 2>/dev/null)" ]; then
-        missing_files+=("Site component: $COMPONENT_PATH")
-    fi
-    
-    if [ ! -d "$ADMIN_COMPONENT_PATH" ] || [ -z "$(ls -A "$ADMIN_COMPONENT_PATH" 2>/dev/null)" ]; then
-        missing_files+=("Admin component: $ADMIN_COMPONENT_PATH")
-    fi
-    
-    if [ ! -d "$MEDIA_PATH" ] || [ -z "$(ls -A "$MEDIA_PATH" 2>/dev/null)" ]; then
-        missing_files+=("Media files: $MEDIA_PATH")
-    fi
-    
-    if [ ! -f "$ADMIN_COMPONENT_PATH/$COMPONENT_NAME.xml" ]; then
-        missing_files+=("Manifest file: $ADMIN_COMPONENT_PATH/$COMPONENT_NAME.xml")
-    fi
-    
-    if [ ${#missing_files[@]} -gt 0 ]; then
-        error "Deployment verification failed. Missing files:"
-        for file in "${missing_files[@]}"; do
-            error "  - $file"
-        done
-        exit 1
-    fi
-    
-    # Show what was deployed
-    log "Deployed files verified:"
-    log "  - Site component: $COMPONENT_PATH ($(find "$COMPONENT_PATH" -type f | wc -l) files)"
-    log "  - Admin component: $ADMIN_COMPONENT_PATH ($(find "$ADMIN_COMPONENT_PATH" -type f | wc -l) files)"
-    log "  - Media files: $MEDIA_PATH ($(find "$MEDIA_PATH" -type f | wc -l) files)"
-    log "  - Manifest file: $ADMIN_COMPONENT_PATH/$COMPONENT_NAME.xml"
-    
-    success "All files deployed successfully"
-}
+chmod +x deployment_package/deploy_on_server.sh
+echo "✅ Server script created: deployment_package/deploy_on_server.sh"
 
-# Function to set proper permissions
-set_permissions() {
-    log "Setting file permissions..."
-    
-    if [ "$USE_SUDO" = true ]; then
-        sudo find "$COMPONENT_PATH" -type f -exec chmod 644 {} \;
-        sudo find "$COMPONENT_PATH" -type d -exec chmod 755 {} \;
-        sudo find "$ADMIN_COMPONENT_PATH" -type f -exec chmod 644 {} \;
-        sudo find "$ADMIN_COMPONENT_PATH" -type d -exec chmod 755 {} \;
-        sudo find "$MEDIA_PATH" -type f -exec chmod 644 {} \;
-        sudo find "$MEDIA_PATH" -type d -exec chmod 755 {} \;
-        
-        # Set ownership to www-data
-        sudo chown -R www-data:www-data "$COMPONENT_PATH"
-        sudo chown -R www-data:www-data "$ADMIN_COMPONENT_PATH"
-        sudo chown -R www-data:www-data "$MEDIA_PATH"
-    else
-        find "$COMPONENT_PATH" -type f -exec chmod 644 {} \;
-        find "$COMPONENT_PATH" -type d -exec chmod 755 {} \;
-        find "$ADMIN_COMPONENT_PATH" -type f -exec chmod 644 {} \;
-        find "$ADMIN_COMPONENT_PATH" -type d -exec chmod 755 {} \;
-        find "$MEDIA_PATH" -type f -exec chmod 644 {} \;
-        find "$MEDIA_PATH" -type d -exec chmod 755 {} \;
-    fi
-    
-    success "File permissions set successfully"
-}
+# Step 3: Create upload instructions
+echo "📋 Step 3: Creating upload instructions..."
+cat > deployment_package/UPLOAD_INSTRUCTIONS.md << 'EOF'
+# Upload Instructions
 
-# Function to clear Joomla cache
-clear_cache() {
-    log "Clearing Joomla cache..."
-    
-    CACHE_DIR="$JOOMLA_ROOT/cache"
-    if [ -d "$CACHE_DIR" ]; then
-        if [ "$USE_SUDO" = true ]; then
-            sudo find "$CACHE_DIR" -type f -name "*.php" -delete 2>/dev/null || true
-        else
-            find "$CACHE_DIR" -type f -name "*.php" -delete 2>/dev/null || true
-        fi
-        success "Joomla cache cleared"
-    else
-        log "Cache directory not found, skipping cache clear"
-    fi
-}
+## Method 1: Using SCP (Recommended)
 
-# Function to cleanup temporary files
-cleanup() {
-    log "Cleaning up temporary files..."
-    
-    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
-        rm -rf "$TEMP_DIR"
-        success "Temporary files cleaned up"
-    fi
-    
-    # Always show script version at the end, regardless of outcome
+1. **Upload the deployment package:**
+   ```bash
+   scp -r deployment_package/ root@grimpsa.com:/tmp/
+   ```
+
+2. **SSH into your server:**
+   ```bash
+   ssh root@grimpsa.com
+   ```
+
+3. **Deploy the component:**
+   ```bash
+   cd /tmp/deployment_package
+   ./deploy_on_server.sh
+   ```
+
+## Method 2: Using SFTP
+
+1. **Connect to your server:**
+   ```bash
+   sftp root@grimpsa.com
+   ```
+
+2. **Upload the files:**
+   ```bash
+   put -r deployment_package /tmp/
+   ```
+
+3. **SSH and deploy:**
+   ```bash
+   ssh root@grimpsa.com
+   cd /tmp/deployment_package
+   ./deploy_on_server.sh
+   ```
+
+## Method 3: Manual Upload
+
+1. **Create a ZIP file:**
+   ```bash
+   cd deployment_package
+   zip -r com_ordenproduccion_deployment.zip .
+   ```
+
+2. **Upload via web interface or file manager**
+
+3. **Extract and deploy on server**
+
+## Post-Deployment Steps
+
+1. **Create the 'produccion' user group:**
+   - Go to Joomla Admin → Users → Groups
+   - Create new group called "produccion"
+   - Set appropriate permissions
+
+2. **Assign users to the produccion group:**
+   - Go to Joomla Admin → Users → Manage
+   - Edit users who should have production access
+   - Add them to the "produccion" group
+
+3. **Test the production module:**
+   - Login as a user in the "produccion" group
+   - Navigate to the Production Actions menu
+   - Test PDF generation and Excel export
+
+## Troubleshooting
+
+- If you get permission errors: `chown -R www-data:www-data /var/www/grimpsa_webserver/`
+- If the module doesn't appear: Clear Joomla cache
+- Check that the user is in the "produccion" group
+- Verify the component files are in the correct directories
+EOF
+
+echo "✅ Instructions created: deployment_package/UPLOAD_INSTRUCTIONS.md"
+
+# Step 4: Create a simple upload script
+echo "📤 Step 4: Creating upload script..."
+cat > deployment_package/upload.sh << 'EOF'
+#!/bin/bash
+
+echo "=========================================="
+echo "  Upload to Server"
+echo "  com_ordenproduccion Component"
+echo "=========================================="
+
+# Configuration
+SERVER_HOST="grimpsa.com"
+SERVER_USER="root"
+SERVER_PATH="/tmp"
+
+echo "🚀 Starting upload to server..."
+
+# Upload the deployment package
+echo "📤 Uploading deployment package..."
+scp -r . $SERVER_USER@$SERVER_HOST:$SERVER_PATH/deployment_package/
+
+if [ $? -eq 0 ]; then
+    echo "✅ Upload successful"
     echo ""
-    log "Script Version: 1.1.4"
-    echo ""
-}
+    echo "Next steps:"
+    echo "1. SSH into your server: ssh $SERVER_USER@$SERVER_HOST"
+    echo "2. Run: cd $SERVER_PATH/deployment_package"
+    echo "3. Run: ./deploy_on_server.sh"
+    echo "4. Follow the post-deployment steps"
+else
+    echo "❌ Upload failed"
+    echo "Please check your SSH connection and try again"
+fi
+EOF
 
-# Function to display deployment summary
-show_summary() {
-    echo ""
-    log "=== DEPLOYMENT SUMMARY ==="
-    echo "Component: $COMPONENT_NAME"
-    echo "Joomla Root: $JOOMLA_ROOT"
-    echo "Site Component: $COMPONENT_PATH"
-    echo "Admin Component: $ADMIN_COMPONENT_PATH"
-    echo "Media Files: $MEDIA_PATH"
-    echo "Backup Location: $BACKUP_DIR"
-    echo "Used sudo: $USE_SUDO"
-    echo ""
-    
-    success "✅ Component deployed successfully!"
-    log "Next step: Install the component via Joomla admin panel"
-    log "1. Go to Extensions → Manage → Install"
-    log "2. Upload: com_ordenproduccion-1.0.1.zip"
-    log "3. Or download from: https://github.com/plgmgua/com_ordenproduccion/raw/main/installation_package/com_ordenproduccion-1.0.1.zip"
-}
+chmod +x deployment_package/upload.sh
+echo "✅ Upload script created: deployment_package/upload.sh"
 
-# Main deployment function
-main() {
-        echo "=========================================="
-        echo "  com_ordenproduccion Production Deployment"
-        echo "  Version: 1.1.4"
-        echo "  (GitHub Repository → Joomla Webserver)"
-        echo "=========================================="
-    echo ""
-    
-    # Initialize log file
-    echo "=== DEPLOYMENT LOG STARTED ===" > "$LOG_FILE"
-    echo "Timestamp: $(date)" >> "$LOG_FILE"
-    echo "Script Version: 1.1.4" >> "$LOG_FILE"
-    echo "Log File: $LOG_FILE" >> "$LOG_FILE"
-    echo "" >> "$LOG_FILE"
-    
-    log "Log file created: $LOG_FILE"
-    
-    check_prerequisites
-    create_backup
-    
-    # Download repository
-    REPO_PATH=$(download_repository)
-    
-    # Skip verification and deploy directly (we know files exist from ls output)
-    log "Skipping file verification - deploying directly based on successful ls output"
-    deploy_component "$REPO_PATH"
-    verify_deployed_files
-    set_permissions
-    clear_cache
-    cleanup
-    show_summary
-    
-    echo ""
-    success "🎉 Deployment completed successfully!"
-    echo ""
-    log "Script Version: 1.1.4"
-    echo ""
-}
-
-# Trap to ensure cleanup on exit
-trap cleanup EXIT
-
-# Run main function
-main "$@"
+echo ""
+echo "=========================================="
+echo "  DEPLOYMENT PACKAGE READY"
+echo "=========================================="
+echo "📦 Package location: deployment_package/"
+echo "📋 Instructions: deployment_package/UPLOAD_INSTRUCTIONS.md"
+echo "🔧 Server script: deployment_package/deploy_on_server.sh"
+echo "📤 Upload script: deployment_package/upload.sh"
+echo ""
+echo "Choose your deployment method:"
+echo ""
+echo "Method 1 - Automated Upload:"
+echo "  cd deployment_package"
+echo "  ./upload.sh"
+echo ""
+echo "Method 2 - Manual Upload:"
+echo "  scp -r deployment_package/ root@grimpsa.com:/tmp/"
+echo "  ssh root@grimpsa.com"
+echo "  cd /tmp/deployment_package"
+echo "  ./deploy_on_server.sh"
+echo ""
+echo "Method 3 - Direct Server Deployment:"
+echo "  ssh root@grimpsa.com"
+echo "  wget https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/deploy_simple.sh"
+echo "  chmod +x deploy_simple.sh"
+echo "  ./deploy_simple.sh"
+echo ""
+echo "=========================================="

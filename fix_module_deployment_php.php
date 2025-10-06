@@ -15,7 +15,7 @@ echo "  Complete Module Deployment Fix (PHP)\n";
 echo "  mod_acciones_produccion\n";
 echo "==========================================\n\n";
 
-echo "🚀 Starting complete module deployment fix...\n";
+echo "🚀 Starting complete module deployment fix...\n\n";
 
 // Step 1: Create module directory and files
 echo "📁 Step 1: Creating module directory and files...\n";
@@ -90,10 +90,12 @@ if (empty($orderId)) {
 // Load the template
 require ModuleHelper::getLayoutPath(\'mod_acciones_produccion\', $params->get(\'layout\', \'default\'));';
 
-if (file_put_contents($module_path . '/mod_acciones_produccion.php', $module_content)) {
-    echo "✅ Created main module file\n";
+$module_file = $module_path . '/mod_acciones_produccion.php';
+if (file_put_contents($module_file, $module_content)) {
+    echo "✅ Created main module file: $module_file\n";
 } else {
-    echo "❌ Failed to create main module file\n";
+    echo "❌ Failed to create main module file: $module_file\n";
+    echo "   Check permissions on directory: $module_path\n";
 }
 
 // Create template file
@@ -236,14 +238,16 @@ $currentUrl = Uri::current();
 }
 </style>';
 
-if (file_put_contents($template_path . '/default.php', $template_content)) {
-    echo "✅ Created template file\n";
+$template_file = $template_path . '/default.php';
+if (file_put_contents($template_file, $template_content)) {
+    echo "✅ Created template file: $template_file\n";
 } else {
-    echo "❌ Failed to create template file\n";
+    echo "❌ Failed to create template file: $template_file\n";
+    echo "   Check permissions on directory: $template_path\n";
 }
 
 // Step 2: Create language files
-echo "🌐 Step 2: Creating language files...\n";
+echo "\n🌐 Step 2: Creating language files...\n";
 
 // Create language directories
 $lang_en_path = $language_path . '/en-GB';
