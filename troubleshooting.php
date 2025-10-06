@@ -404,6 +404,62 @@ try {
     echo "<p>❌ <strong>Error during orden detail view test:</strong> " . $e->getMessage() . "</p>\n";
 }
 
+// Test database record directly
+echo "<h4>4.5.7. Database Record Direct Test</h4>\n";
+try {
+    // Check if record ID 15 exists in database
+    $query = $db->getQuery(true)
+        ->select('*')
+        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+        ->where($db->quoteName('id') . ' = 15');
+    
+    $db->setQuery($query);
+    $record = $db->loadObject();
+    
+    if ($record) {
+        echo "<p>✅ <strong>Record ID 15 exists in database</strong></p>\n";
+        echo "<p><strong>Order Number:</strong> " . ($record->order_number ?? 'N/A') . "</p>\n";
+        echo "<p><strong>Client:</strong> " . ($record->client_name ?? 'N/A') . "</p>\n";
+        echo "<p><strong>State:</strong> " . ($record->state ?? 'N/A') . "</p>\n";
+        echo "<p><strong>Sales Agent:</strong> " . ($record->sales_agent ?? 'N/A') . "</p>\n";
+        
+        if ($record->state != 1) {
+            echo "<p>⚠️ <strong>Record state is not 1 (published)</strong></p>\n";
+            echo "<p><strong>This explains the 'Work order not found' error!</strong></p>\n";
+        } else {
+            echo "<p>✅ <strong>Record state is 1 (published)</strong></p>\n";
+        }
+    } else {
+        echo "<p>❌ <strong>Record ID 15 does not exist in database</strong></p>\n";
+        echo "<p><strong>This explains the 'Work order not found' error!</strong></p>\n";
+    }
+    
+    // Check all records in the table
+    echo "<h4>4.5.8. All Records Check</h4>\n";
+    $query = $db->getQuery(true)
+        ->select('id, order_number, client_name, state, sales_agent')
+        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+        ->order('id ASC');
+    
+    $db->setQuery($query);
+    $allRecords = $db->loadObjectList();
+    
+    echo "<p><strong>Total records in table:</strong> " . count($allRecords) . "</p>\n";
+    
+    if ($allRecords) {
+        echo "<p><strong>Available records:</strong></p>\n";
+        echo "<ul>\n";
+        foreach ($allRecords as $rec) {
+            $stateText = $rec->state == 1 ? 'Published' : 'Unpublished';
+            echo "<li><strong>ID:</strong> {$rec->id}, <strong>Order:</strong> {$rec->order_number}, <strong>Client:</strong> {$rec->client_name}, <strong>State:</strong> {$stateText}</li>\n";
+        }
+        echo "</ul>\n";
+    }
+    
+} catch (Exception $e) {
+    echo "<p>❌ <strong>Error during database record test:</strong> " . $e->getMessage() . "</p>\n";
+}
+
 // Check if there's a menu item for orden detail view
 echo "<h4>4.5.7. Menu Item for Orden Detail View</h4>\n";
 try {
@@ -462,6 +518,47 @@ echo "<li>❌ <strong>Detail View:</strong> No menu item for individual orden vi
 echo "<li>❌ <strong>Direct URLs:</strong> Joomla routing requires menu items</li>\n";
 echo "<li>❌ <strong>SEF URLs:</strong> Not configured for detail view</li>\n";
 echo "</ul>\n";
+
+echo "<h2>🔧 Layout Issue Explanation</h2>\n";
+echo "<p><strong>Your menu links are using the wrong layout:</strong></p>\n";
+echo "<ul>\n";
+echo "<li><strong>Current:</strong> <code>index.php?option=com_ordenproduccion&view=orden&layout=metadata</code></li>\n";
+echo "<li><strong>Current:</strong> <code>index.php?option=com_ordenproduccion&view=ordenes&layout=metadata</code></li>\n";
+echo "</ul>\n";
+
+echo "<p><strong>Available layouts in Joomla:</strong></p>\n";
+echo "<ul>\n";
+echo "<li><strong>layout=metadata</strong> - Shows metadata/configuration view</li>\n";
+echo "<li><strong>layout=default</strong> - Shows the main content view (this is what we need!)</li>\n";
+echo "<li><strong>layout=detail</strong> - Could be a custom layout for single item details</li>\n";
+echo "</ul>\n";
+
+echo "<p><strong>Solution: Change your menu items to use layout=default:</strong></p>\n";
+echo "<ul>\n";
+echo "<li><strong>For list view:</strong> <code>index.php?option=com_ordenproduccion&view=ordenes&layout=default</code></li>\n";
+echo "<li><strong>For detail view:</strong> <code>index.php?option=com_ordenproduccion&view=orden&layout=default</code></li>\n";
+echo "</ul>\n";
+
+echo "<h2>🔧 Quick Fix for Menu Items</h2>\n";
+echo "<p><strong>To fix the menu items:</strong></p>\n";
+echo "<ol>\n";
+echo "<li>Go to Menus → Menu Items</li>\n";
+echo "<li>Edit the 'Listado de Ordenes' menu item</li>\n";
+echo "<li>Change the Link from:</li>\n";
+echo "<li><code>index.php?option=com_ordenproduccion&view=ordenes&layout=metadata</code></li>\n";
+echo "<li>To:</li>\n";
+echo "<li><code>index.php?option=com_ordenproduccion&view=ordenes&layout=default</code></li>\n";
+echo "<li>Save the menu item</li>\n";
+echo "</ol>\n";
+
+echo "<p><strong>For the detail view, create a new menu item:</strong></p>\n";
+echo "<ol>\n";
+echo "<li>Go to Menus → Add New Menu Item</li>\n";
+echo "<li>Select 'Orden Detail' from Menu Item Type</li>\n";
+echo "<li>Set Link to: <code>index.php?option=com_ordenproduccion&view=orden&layout=default</code></li>\n";
+echo "<li>Set Menu Title (e.g., 'Detalle de Orden')</li>\n";
+echo "<li>Save the menu item</li>\n";
+echo "</ol>\n";
 
 echo "<h2>End of Troubleshooting Report</h2>\n";
 ?>
