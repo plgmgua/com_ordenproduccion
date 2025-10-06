@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Joomla\CMS\Language\Text;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Orden model for com_ordenproduccion
@@ -185,22 +186,23 @@ class OrdenModel extends ItemModel
      */
     protected function checkUserAccess($data)
     {
-        $user = Factory::getUser();
-        $userGroups = $user->getAuthorisedGroups();
+        // Check if user has any access to orders
+        if (!AccessHelper::hasOrderAccess()) {
+            throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 403);
+        }
 
-        // Check if user is in ventas group (group ID 2 is typically Registered users, adjust as needed)
-        $isVentas = in_array(2, $userGroups); // Adjust group ID as needed
-        $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
-
-        if ($isVentas && !$isProduccion) {
-            // Sales users can only see their own orders
+        // Check if user can see all orders or only their own
+        if (!AccessHelper::canSeeAllOrders()) {
+            // User can only see their own orders
+            $user = Factory::getUser();
             $userName = $user->get('name');
             $salesAgent = $data->sales_agent ?? '';
+            
             if ($salesAgent !== $userName) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 403);
             }
         }
-        // Production users and users in both groups can see all orders
+        // Users who can see all orders don't need additional checks
     }
 
     /**
@@ -214,25 +216,13 @@ class OrdenModel extends ItemModel
      */
     protected function applyFieldVisibility($data)
     {
-        $user = Factory::getUser();
-        $userGroups = $user->getAuthorisedGroups();
-
-        $isVentas = in_array(2, $userGroups); // Adjust group ID as needed
-        $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
-
-        // If user is in both groups, they can see all orders but restricted fields only for their own
-        if ($isVentas && $isProduccion) {
-            $userName = $user->get('name');
-            $salesAgent = $data->sales_agent ?? '';
-            if ($salesAgent !== $userName) {
-                // Hide restricted fields for orders not belonging to the user
-                unset($data->invoice_value);
-            }
-        } elseif ($isProduccion && !$isVentas) {
-            // Production users cannot see invoice value
+        // Check if user can see valor_factura for this specific order
+        $canSeeValorFactura = AccessHelper::canSeeValorFactura($data->sales_agent ?? '');
+        
+        if (!$canSeeValorFactura) {
+            // Hide the valor_factura field
             unset($data->invoice_value);
         }
-        // Sales users can see all fields (no restrictions)
     }
 
     /**
