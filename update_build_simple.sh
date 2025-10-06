@@ -343,8 +343,26 @@ main() {
         warning "Failed to download production component fix script"
     fi
 
-    # Step 13: Clear Joomla cache to refresh menu items
-    log "Step 13: Clearing Joomla cache to refresh menu items..."
+    # Step 13: Copy utility files to Joomla root directory
+    log "Step 13: Copying utility files to Joomla root directory..."
+    
+    echo "Copying fix_production_component.php to Joomla root..."
+    sudo cp "$GITHUB_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
+    sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
+    success "fix_production_component.php copied to Joomla root"
+    
+    echo "Copying compare_local_vs_server.php to Joomla root..."
+    sudo cp "$GITHUB_DIR/compare_local_vs_server.php" "$JOOMLA_ROOT/" || error "Failed to copy compare_local_vs_server.php"
+    sudo chmod 644 "$JOOMLA_ROOT/compare_local_vs_server.php" || warning "Failed to set permissions on compare_local_vs_server.php"
+    success "compare_local_vs_server.php copied to Joomla root"
+    
+    echo "Setting proper ownership for utility files..."
+    sudo chown www-data:www-data "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set ownership for fix_production_component.php"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/compare_local_vs_server.php" || warning "Failed to set ownership for compare_local_vs_server.php"
+    success "Utility files ownership set"
+
+    # Step 14: Clear Joomla cache to refresh menu items
+    log "Step 14: Clearing Joomla cache to refresh menu items..."
     
     echo "Clearing Joomla cache to ensure menu items are refreshed..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
