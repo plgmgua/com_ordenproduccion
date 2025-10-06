@@ -26,6 +26,97 @@ try {
 echo "<h2>🔍 Component Registration & Routing Test</h2>";
 echo "<p>Timestamp: " . date('Y-m-d H:i:s') . "</p>";
 
+// Add Access Control Debug Section
+echo "<h3>🔐 Access Control Debug</h3>";
+try {
+    $user = \Joomla\CMS\Factory::getUser();
+    echo "<strong>User Information:</strong><br>";
+    echo "User ID: " . $user->id . "<br>";
+    echo "User Name: " . $user->name . "<br>";
+    echo "Username: " . $user->username . "<br>";
+    
+    echo "<br><strong>User Groups:</strong><br>";
+    $userGroups = $user->getAuthorisedGroups();
+    echo "Group IDs: " . implode(', ', $userGroups) . "<br>";
+    
+    // Get group names
+    $db = \Joomla\CMS\Factory::getDbo();
+    $query = $db->getQuery(true)
+        ->select('id, title')
+        ->from('#__usergroups')
+        ->where('id IN (' . implode(',', $userGroups) . ')');
+    $db->setQuery($query);
+    $groups = $db->loadObjectList();
+    
+    echo "Group Names: ";
+    foreach ($groups as $group) {
+        echo $group->title . " (ID: " . $group->id . "), ";
+    }
+    echo "<br><br>";
+    
+    // Test AccessHelper if it exists
+    if (class_exists('Grimpsa\\Component\\Ordenproduccion\\Site\\Helper\\AccessHelper')) {
+        echo "<strong>AccessHelper Results:</strong><br>";
+        $accessHelper = 'Grimpsa\\Component\\Ordenproduccion\\Site\\Helper\\AccessHelper';
+        echo "isInVentasGroup(): " . ($accessHelper::isInVentasGroup() ? 'YES' : 'NO') . "<br>";
+        echo "isInProduccionGroup(): " . ($accessHelper::isInProduccionGroup() ? 'YES' : 'NO') . "<br>";
+        echo "isInBothGroups(): " . ($accessHelper::isInBothGroups() ? 'YES' : 'NO') . "<br>";
+        echo "canSeeAllOrders(): " . ($accessHelper::canSeeAllOrders() ? 'YES' : 'NO') . "<br>";
+        echo "hasOrderAccess(): " . ($accessHelper::hasOrderAccess() ? 'YES' : 'NO') . "<br>";
+        echo "getSalesAgentFilter(): " . ($accessHelper::getSalesAgentFilter() ?? 'NULL') . "<br>";
+        echo "getAccessLevelDescription(): " . $accessHelper::getAccessLevelDescription() . "<br><br>";
+        
+        echo "<strong>Test Order Access:</strong><br>";
+        
+        // Test with a specific order
+        $orderId = 15; // The order that's failing
+        $query = $db->getQuery(true)
+            ->select('id, order_number, client_name, sales_agent, invoice_value')
+            ->from('#__ordenproduccion_ordenes')
+            ->where('id = ' . (int) $orderId);
+        $db->setQuery($query);
+        $order = $db->loadObject();
+        
+        if ($order) {
+            echo "Order ID: " . $order->id . "<br>";
+            echo "Order Number: " . $order->order_number . "<br>";
+            echo "Client Name: " . $order->client_name . "<br>";
+            echo "Sales Agent: " . $order->sales_agent . "<br>";
+            echo "Invoice Value: " . $order->invoice_value . "<br><br>";
+            
+            echo "canSeeValorFactura('" . $order->sales_agent . "'): " . ($accessHelper::canSeeValorFactura($order->sales_agent) ? 'YES' : 'NO') . "<br>";
+            
+            // Test the access logic
+            if (!$accessHelper::hasOrderAccess()) {
+                echo "❌ User has no order access<br>";
+            } else {
+                echo "✅ User has order access<br>";
+            }
+            
+            if (!$accessHelper::canSeeAllOrders()) {
+                echo "❌ User cannot see all orders (should see only own)<br>";
+                $userName = $user->name;
+                $salesAgent = $order->sales_agent ?? '';
+                if ($salesAgent !== $userName) {
+                    echo "❌ Sales agent mismatch: '" . $salesAgent . "' != '" . $userName . "'<br>";
+                } else {
+                    echo "✅ Sales agent matches user name<br>";
+                }
+            } else {
+                echo "✅ User can see all orders<br>";
+            }
+        } else {
+            echo "❌ Order not found<br>";
+        }
+    } else {
+        echo "❌ AccessHelper class not found<br>";
+    }
+    
+} catch (Exception $e) {
+    echo "❌ Error in Access Control Debug: " . $e->getMessage() . "<br>";
+    echo "Stack trace: " . $e->getTraceAsString() . "<br>";
+}
+
 // 1. Check if component is registered in Joomla
 echo "<h3>1. Component Registration Check</h3>";
 try {
