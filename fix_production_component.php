@@ -87,49 +87,43 @@ try {
         }
     }
     
-    // 3. Clean up existing menu item types
-    echo "<h3>🗑️ 3. Cleaning Up Menu Item Types</h3>\n";
+    // 3. Check Joomla 5.x menu item type structure
+    echo "<h3>🔗 3. Checking Joomla 5.x Menu Item Type Structure</h3>\n";
     
-    // Remove all existing com_ordenproduccion menu item types
-    $query = $db->getQuery(true)
-        ->delete($db->quoteName('#__menu_types'))
-        ->where($db->quoteName('menutype') . ' LIKE ' . $db->quote('%com_ordenproduccion%'));
-    
-    $db->setQuery($query);
-    $result = $db->execute();
-    echo "<p>✅ <strong>Removed all existing com_ordenproduccion menu item types</strong></p>\n";
-    
-    // 4. Create proper menu item types
-    echo "<h3>🔗 4. Creating Menu Item Types</h3>\n";
-    
-    $menuTypes = [
-        'ordenes' => [
-            'title' => 'Lista de Órdenes',
-            'description' => 'Mostrar lista de órdenes de trabajo'
-        ],
-        'orden' => [
-            'title' => 'Detalle de Orden',
-            'description' => 'Mostrar detalle de orden de trabajo'
-        ]
+    // In Joomla 5.x, menu item types are auto-discovered from site/views/*/metadata.xml
+    $metadataFiles = [
+        'Ordenes View' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/views/ordenes/metadata.xml',
+        'Orden View' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/views/orden/metadata.xml'
     ];
     
-    foreach ($menuTypes as $type => $info) {
-        $menuType = new stdClass();
-        $menuType->menutype = $type;
-        $menuType->title = $info['title'];
-        $menuType->description = $info['description'];
-        
-        try {
-            $result = $db->insertObject('#__menu_types', $menuType);
-            if ($result) {
-                echo "<p>✅ <strong>Created: $type</strong> - {$info['title']}</p>\n";
+    foreach ($metadataFiles as $name => $file) {
+        if (file_exists($file)) {
+            $size = filesize($file);
+            echo "<p>✅ <strong>$name</strong>: $file ($size bytes)</p>\n";
+            
+            // Check if metadata.xml has correct structure
+            $content = file_get_contents($file);
+            if (strpos($content, '<view title=') !== false && strpos($content, '<layout title=') !== false) {
+                echo "<p>     ✅ <strong>Correct Joomla 5.x structure</strong></p>\n";
             } else {
-                echo "<p>❌ <strong>Failed to create: $type</strong></p>\n";
+                echo "<p>     ❌ <strong>Incorrect structure - needs view and layout elements</strong></p>\n";
             }
-        } catch (Exception $e) {
-            echo "<p>❌ <strong>Error creating $type:</strong> " . htmlspecialchars($e->getMessage()) . "</p>\n";
+        } else {
+            echo "<p>❌ <strong>$name</strong>: $file (missing)</p>\n";
         }
     }
+    
+    // 4. Clear menu item type cache (Joomla 5.x auto-discovery)
+    echo "<h3>🗑️ 4. Clearing Menu Item Type Cache</h3>\n";
+    
+    // Clear component cache to refresh menu item type discovery
+    $cache = Factory::getCache();
+    $cache->clean('com_ordenproduccion');
+    echo "<p>✅ <strong>Cleared component cache for menu item type refresh</strong></p>\n";
+    
+    // Clear system cache
+    $cache->clean('_system');
+    echo "<p>✅ <strong>Cleared system cache</strong></p>\n";
     
     // 5. Check language files
     echo "<h3>🌐 5. Checking Language Files</h3>\n";
@@ -214,8 +208,12 @@ try {
     echo "<ol>\n";
     echo "<li>Clear browser cache completely</li>\n";
     echo "<li>Log out and log back into Joomla admin</li>\n";
+    echo "<li>Wait 30 seconds for Joomla 5.x auto-discovery to refresh</li>\n";
     echo "<li>Try again</li>\n";
     echo "</ol>\n";
+    echo "<h3>📝 Note about Joomla 5.x:</h3>\n";
+    echo "<p>In Joomla 5.x, menu item types are <strong>auto-discovered</strong> from <code>site/views/*/metadata.xml</code> files.</p>\n";
+    echo "<p>No database entries are needed - Joomla automatically finds them!</p>\n";
     echo "<p><strong>Component Version: $componentVersion</strong></p>\n";
     echo "<p><em>Generated: " . date('Y-m-d H:i:s') . "</em></p>\n";
     echo "</body></html>\n";
