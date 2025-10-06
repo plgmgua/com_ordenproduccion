@@ -348,8 +348,8 @@ main() {
     fi
     
     # Copy utility files to Joomla root directory before cleanup
-    echo "Copying fix_production_component.php to Joomla root..."
-    sudo cp "$REPO_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
+    echo "Copying fix_production_component.php to Joomla root (overwriting if exists)..."
+    sudo cp -f "$REPO_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
     sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
     success "fix_production_component.php copied to Joomla root"
     
@@ -358,8 +358,8 @@ main() {
     # Step 13: Copy remaining utility files to Joomla root directory
     log "Step 13: Copying remaining utility files to Joomla root directory..."
     
-    echo "Copying troubleshooting.php to Joomla root..."
-    sudo cp "$REPO_DIR/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
+    echo "Copying troubleshooting.php to Joomla root (overwriting if exists)..."
+    sudo cp -f "$REPO_DIR/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
     sudo chmod 644 "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set permissions on troubleshooting.php"
     success "troubleshooting.php copied to Joomla root"
     
