@@ -183,7 +183,7 @@ class OrdenModel extends ItemModel
         if ($isVentas && !$isProduccion) {
             // Sales users can only see their own orders
             $userName = $user->get('name');
-            $salesAgent = $data->agente_de_ventas ?? $data->sales_agent ?? '';
+            $salesAgent = $data->sales_agent ?? '';
             if ($salesAgent !== $userName) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 403);
             }
@@ -211,14 +211,14 @@ class OrdenModel extends ItemModel
         // If user is in both groups, they can see all orders but restricted fields only for their own
         if ($isVentas && $isProduccion) {
             $userName = $user->get('name');
-            $salesAgent = $data->agente_de_ventas ?? $data->sales_agent ?? '';
+            $salesAgent = $data->sales_agent ?? '';
             if ($salesAgent !== $userName) {
                 // Hide restricted fields for orders not belonging to the user
-                unset($data->valor_factura);
+                unset($data->invoice_value);
             }
         } elseif ($isProduccion && !$isVentas) {
             // Production users cannot see invoice value
-            unset($data->valor_factura);
+            unset($data->invoice_value);
         }
         // Sales users can see all fields (no restrictions)
     }
