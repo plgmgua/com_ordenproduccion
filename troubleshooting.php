@@ -421,7 +421,16 @@ try {
         echo "<p><strong>Import Scripts Available:</strong></p>";
         echo "<p><a href='/components/com_ordenproduccion/site/check_data_lengths.php' target='_blank'>1. Check Data Lengths</a> - Analyze data sizes</p>";
         echo "<p><a href='/components/com_ordenproduccion/site/modify_table_structure.php' target='_blank'>2. Modify Table Structure</a> - Increase column sizes</p>";
-        echo "<p><a href='/components/com_ordenproduccion/site/import_historical_data.php' target='_blank'>3. Run Historical Data Import</a> - Import the data</p>";
+        echo "<p><a href='/components/com_ordenproduccion/site/import_historical_data.php' target='_blank'>3. Run Historical Data Import (Web)</a> - Import the data via web</p>";
+        echo "<p><strong>4. Command Line Import (Recommended)</strong> - No timeout, faster processing</p>";
+        echo "<p style='background: #f0f8ff; padding: 10px; border: 1px solid #ccc;'>";
+        echo "<strong>To run command line import:</strong><br>";
+        echo "1. SSH into your server<br>";
+        echo "2. Navigate to: <code>/var/www/grimpsa_webserver/components/com_ordenproduccion/site/</code><br>";
+        echo "3. Run: <code>php import_cli.php</code><br>";
+        echo "Or run: <code>./run_import.sh</code><br>";
+        echo "<strong>Benefits:</strong> No timeout, faster processing, better error handling";
+        echo "</p>";
         echo "<p><em>This will import all 2025 records with:</em></p>";
         echo "<ul>";
         echo "<li>Status set to 'Terminada' for all imported records</li>";
