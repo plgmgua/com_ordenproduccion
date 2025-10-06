@@ -178,65 +178,112 @@ class OrdenController extends BaseController
         $pdf = new \FPDF('P', 'mm', 'A4');
         $pdf->AddPage();
         
-        // Set font
+        // Set margins
+        $pdf->SetMargins(15, 15, 15);
+        
+        // Header with logo and title
         $pdf->SetFont('Arial', 'B', 16);
+        $pdf->Cell(60, 15, 'GRIMPSA', 0, 0, 'L');
+        $pdf->Cell(60, 15, 'Impresion Digital', 0, 0, 'L');
         
-        // Header
-        $pdf->Cell(0, 10, 'ORDEN DE TRABAJO', 0, 1, 'C');
-        $pdf->Ln(5);
-        
-        // Work order number
+        // Right side - Work order number
         $pdf->SetFont('Arial', 'B', 14);
-        $pdf->Cell(0, 8, 'Numero: ' . ($workOrderData->numero_de_orden ?? 'N/A'), 0, 1, 'L');
-        $pdf->Ln(3);
-        
-        // Client information
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(40, 8, 'Cliente:', 0, 0, 'L');
+        $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R');
         $pdf->SetFont('Arial', '', 12);
-        $pdf->Cell(0, 8, $workOrderData->client_name ?? 'N/A', 0, 1, 'L');
-        
-        // Request date
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(40, 8, 'Fecha Solicitud:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 12);
-        $pdf->Cell(0, 8, $workOrderData->request_date ?? 'N/A', 0, 1, 'L');
-        
-        // Delivery date
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(40, 8, 'Fecha Entrega:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 12);
-        $pdf->Cell(0, 8, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
-        
-        // Status
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(40, 8, 'Estado:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 12);
-        $pdf->Cell(0, 8, $workOrderData->status ?? 'N/A', 0, 1, 'L');
-        
-        // Invoice value
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(40, 8, 'Valor Factura:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 12);
-        $pdf->Cell(0, 8, '$' . number_format($workOrderData->invoice_value ?? 0, 2), 0, 1, 'L');
+        $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R');
         
         $pdf->Ln(5);
         
-        // Description
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(0, 8, 'Descripcion:', 0, 1, 'L');
+        // Date information
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 6, 'FECHA SOLICITUD:', 0, 0, 'L');
         $pdf->SetFont('Arial', '', 10);
-        $pdf->MultiCell(0, 6, $workOrderData->description ?? 'N/A', 0, 'L');
+        $pdf->Cell(40, 6, $workOrderData->request_date ?? 'N/A', 0, 0, 'L');
+        
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 6, 'FECHA ENTREGA:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
+        
+        // Sales agent
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 6, 'AGENTE DE VENTAS:', 0, 0, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 6, $workOrderData->agente_de_ventas ?? 'N/A', 0, 1, 'L');
         
         $pdf->Ln(5);
         
-        // EAV Data (tecnico, detalles, etc.)
-        if (isset($workOrderData->eav_data)) {
+        // Client and job information table
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 8, 'CLIENTE:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 8, $workOrderData->client_name ?? 'N/A', 1, 1, 'L');
+        
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 8, 'TRABAJO:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 8, $workOrderData->description ?? 'N/A', 1, 1, 'L');
+        
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 8, 'DIRECCION DE ENTREGA', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 8, $workOrderData->delivery_address ?? 'N/A', 1, 1, 'L');
+        
+        $pdf->Ln(5);
+        
+        // Production specifications table
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(30, 8, 'COLOR', 1, 0, 'C');
+        $pdf->Cell(30, 8, 'TIRO / RETIRO:', 1, 0, 'C');
+        $pdf->Cell(30, 8, 'MATERIAL:', 1, 0, 'C');
+        $pdf->Cell(0, 8, 'MEDIDAS:', 1, 1, 'C');
+        
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(30, 8, $workOrderData->color ?? 'N/A', 1, 0, 'C');
+        $pdf->Cell(30, 8, $workOrderData->tiro_retiro ?? 'N/A', 1, 0, 'C');
+        $pdf->Cell(30, 8, $workOrderData->material ?? 'N/A', 1, 0, 'C');
+        $pdf->Cell(0, 8, $workOrderData->medidas ?? 'N/A', 1, 1, 'C');
+        
+        $pdf->Ln(5);
+        
+        // Finishing options table
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(60, 8, 'ACABADOS', 1, 0, 'C');
+        $pdf->Cell(30, 8, 'SELECCION', 1, 0, 'C');
+        $pdf->Cell(0, 8, 'DETALLES', 1, 1, 'C');
+        
+        // List of finishing options
+        $finishingOptions = [
+            'BLOCADO', 'CORTE', 'DOBLADO', 'LAMINADO', 'LOMO', 'NUMERADO',
+            'PEGADO', 'SIZADO', 'ENGRAPADO', 'TROQUEL', 'TROQUEL CAMEO',
+            'BARNIZ', 'IMP. EN BLANCO', 'DESPUNTADO', 'OJETES', 'PERFORADO'
+        ];
+        
+        $pdf->SetFont('Arial', '', 9);
+        foreach ($finishingOptions as $option) {
+            $pdf->Cell(60, 6, $option, 1, 0, 'L');
+            $pdf->Cell(30, 6, '', 1, 0, 'C');
+            $pdf->Cell(0, 6, '', 1, 1, 'L');
+        }
+        
+        $pdf->Ln(5);
+        
+        // Instructions/Observations
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 8, 'Instrucciones / Observaciones', 1, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->MultiCell(0, 6, $workOrderData->instructions ?? 'N/A', 1, 'L');
+        
+        // EAV Data (tecnico, detalles, etc.) - if available
+        if (isset($workOrderData->eav_data) && !empty($workOrderData->eav_data)) {
+            $pdf->Ln(5);
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(0, 8, 'INFORMACION ADICIONAL', 1, 1, 'L');
+            
+            $pdf->SetFont('Arial', '', 9);
             foreach ($workOrderData->eav_data as $attributeName => $data) {
-                $pdf->SetFont('Arial', 'B', 12);
-                $pdf->Cell(40, 8, ucfirst($attributeName) . ':', 0, 0, 'L');
-                $pdf->SetFont('Arial', '', 12);
-                $pdf->Cell(0, 8, $data->attribute_value ?? 'N/A', 0, 1, 'L');
+                $pdf->Cell(40, 6, ucfirst($attributeName) . ':', 1, 0, 'L');
+                $pdf->Cell(0, 6, $data->attribute_value ?? 'N/A', 1, 1, 'L');
             }
         }
         
