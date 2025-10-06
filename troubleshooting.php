@@ -118,6 +118,59 @@ try {
     echo "Stack trace: " . $e->getTraceAsString() . "<br>";
 }
 
+// Add Status Field Debug Section
+echo "<h3>📊 Status Field Debug</h3>";
+try {
+    $db = \Joomla\CMS\Factory::getDbo();
+    
+    echo "<strong>Current Status Values in Database:</strong><br>";
+    $query = $db->getQuery(true)
+        ->select('DISTINCT status, COUNT(*) as count')
+        ->from('#__ordenproduccion_ordenes')
+        ->where('state = 1')
+        ->group('status')
+        ->order('status');
+    $db->setQuery($query);
+    $statusValues = $db->loadObjectList();
+    
+    if ($statusValues) {
+        echo "<table border='1' style='border-collapse: collapse; margin: 10px 0;'>";
+        echo "<tr><th>Status Value</th><th>Count</th></tr>";
+        foreach ($statusValues as $status) {
+            echo "<tr><td>" . htmlspecialchars($status->status) . "</td><td>" . $status->count . "</td></tr>";
+        }
+        echo "</table>";
+    } else {
+        echo "❌ No status values found in database<br>";
+    }
+    
+    echo "<br><strong>Filter Options Available:</strong><br>";
+    echo "<ul>";
+    echo "<li>nueva (Spanish)</li>";
+    echo "<li>terminada (Spanish)</li>";
+    echo "<li>cerrada (Spanish)</li>";
+    echo "<li>en progreso (Spanish)</li>";
+    echo "</ul>";
+    
+    echo "<br><strong>Model Status Options:</strong><br>";
+    echo "<ul>";
+    echo "<li>New (English)</li>";
+    echo "<li>In Process (English)</li>";
+    echo "<li>Completed (English)</li>";
+    echo "<li>Closed (English)</li>";
+    echo "</ul>";
+    
+    echo "<br><strong>Mismatch Analysis:</strong><br>";
+    echo "❌ Filter expects: nueva, terminada, cerrada, en progreso<br>";
+    echo "❌ Database has: " . (empty($statusValues) ? 'No data' : implode(', ', array_column($statusValues, 'status'))) . "<br>";
+    echo "❌ Model provides: New, In Process, Completed, Closed<br>";
+    echo "<br><strong>Solution:</strong> Update filter options to match database values or update database values to match filter options.<br>";
+    
+} catch (Exception $e) {
+    echo "❌ Error in Status Field Debug: " . $e->getMessage() . "<br>";
+    echo "Stack trace: " . $e->getTraceAsString() . "<br>";
+}
+
 // 1. Check if component is registered in Joomla
 echo "<h3>1. Component Registration Check</h3>";
 try {
