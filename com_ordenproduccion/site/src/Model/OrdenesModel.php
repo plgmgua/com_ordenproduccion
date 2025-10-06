@@ -284,10 +284,10 @@ class OrdenesModel extends ListModel
     {
         return [
             '' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_SELECT_STATUS'),
-            'New' => 'New',
-            'In Process' => 'In Process',
-            'Completed' => 'Completed',
-            'Closed' => 'Closed'
+            'Nueva' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_NEW'),
+            'En Proceso' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_IN_PROCESS'),
+            'Terminada' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_COMPLETED'),
+            'Cerrada' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_CLOSED')
         ];
     }
 }
