@@ -109,7 +109,7 @@ function generateWorkOrderPDF($orderId, $workOrderData) {
     
     // Simple HTML to PDF conversion (you can enhance this)
     $html = '<html><body>';
-    $html .= '<h1>Orden de Trabajo #' . $orderId . '</h1>';
+    $html .= '<h1>Orden de Trabajo ' . htmlspecialchars($workOrderData->numero_de_orden ?? 'N/A') . '</h1>';
     $html .= '<p><strong>Cliente:</strong> ' . htmlspecialchars($workOrderData->client_name ?? 'N/A') . '</p>';
     $html .= '<p><strong>Fecha de Solicitud:</strong> ' . htmlspecialchars($workOrderData->request_date ?? 'N/A') . '</p>';
     $html .= '<p><strong>Fecha de Entrega:</strong> ' . htmlspecialchars($workOrderData->delivery_date ?? 'N/A') . '</p>';

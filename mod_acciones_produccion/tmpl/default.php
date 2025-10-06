@@ -30,7 +30,7 @@ $currentUrl = Uri::current();
         <div class="work-order-info mb-3">
             <h6 class="order-title">
                 <i class="fas fa-file-alt"></i>
-                Orden de Trabajo #<?php echo $orderId; ?>
+                Orden de Trabajo <?php echo htmlspecialchars($workOrderData->numero_de_orden ?? 'N/A'); ?>
             </h6>
             <div class="order-details">
                 <p><strong>Cliente:</strong> <?php echo htmlspecialchars($workOrderData->client_name ?? 'N/A'); ?></p>
