@@ -36,7 +36,6 @@ try {
             manifest_cache,
             params,
             custom_data,
-            system_data,
             checked_out,
             checked_out_time,
             ordering,
