@@ -461,6 +461,96 @@ try {
         echo "<p>❌ <strong>Router is not available</strong></p>\n";
     }
     
+    // 3.5. OrdenModel File Deployment Check
+    echo "<h3>🔧 3.5. OrdenModel File Deployment Check</h3>\n";
+    
+    $ordenModelPath = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src/Model/OrdenModel.php';
+    
+    if (file_exists($ordenModelPath)) {
+        $size = filesize($ordenModelPath);
+        $modified = date('Y-m-d H:i:s', filemtime($ordenModelPath));
+        echo "<p>✅ <strong>OrdenModel exists:</strong> $ordenModelPath ($size bytes, modified: $modified)</p>\n";
+        
+        // Check if it contains the correct field names
+        $content = file_get_contents($ordenModelPath);
+        if (strpos($content, 'sales_agent') !== false) {
+            echo "<p>✅ <strong>OrdenModel contains sales_agent field</strong></p>\n";
+        } else {
+            echo "<p>❌ <strong>OrdenModel missing sales_agent field</strong></p>\n";
+        }
+        
+        if (strpos($content, 'invoice_value') !== false) {
+            echo "<p>✅ <strong>OrdenModel contains invoice_value field</strong></p>\n";
+        } else {
+            echo "<p>❌ <strong>OrdenModel missing invoice_value field</strong></p>\n";
+        }
+        
+        echo "<p>✅ <strong>OrdenModel is properly deployed and should resolve the 404 error!</strong></p>\n";
+        
+    } else {
+        echo "<p>❌ <strong>OrdenModel missing:</strong> $ordenModelPath</p>\n";
+        echo "<p><strong>This is the root cause of the 404 error!</strong></p>\n";
+        
+        // Check if the directory exists
+        $modelDir = dirname($ordenModelPath);
+        if (is_dir($modelDir)) {
+            echo "<p>✅ <strong>Model directory exists:</strong> $modelDir</p>\n";
+        } else {
+            echo "<p>❌ <strong>Model directory missing:</strong> $modelDir</p>\n";
+        }
+        
+        // Check if the site directory exists
+        $siteDir = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site';
+        if (is_dir($siteDir)) {
+            echo "<p>✅ <strong>Site directory exists:</strong> $siteDir</p>\n";
+        } else {
+            echo "<p>❌ <strong>Site directory missing:</strong> $siteDir</p>\n";
+        }
+        
+        echo "<h4>🔧 Solution Required:</h4>\n";
+        echo "<p>The OrdenModel file needs to be deployed to the server. This can be done by:</p>\n";
+        echo "<ul>\n";
+        echo "<li>Running the deployment script: <code>./update_build_simple.sh</code></li>\n";
+        echo "<li>Manually copying the file from the repository</li>\n";
+        echo "<li>Ensuring the deployment script copies all site model files</li>\n";
+        echo "</ul>\n";
+    }
+    
+    // Test if the model can be loaded
+    echo "<h4>🧪 Model Loading Test:</h4>\n";
+    try {
+        $model = Factory::getApplication()->bootComponent('com_ordenproduccion')
+            ->getMVCFactory()
+            ->createModel('Orden', 'Site');
+        
+        if ($model) {
+            echo "<p>✅ <strong>Model can be created successfully</strong></p>\n";
+            
+            // Try to get item 15
+            $item = $model->getItem(15);
+            if ($item) {
+                echo "<p>✅ <strong>Model can retrieve item ID 15</strong></p>\n";
+                echo "<p><strong>Item Order Number:</strong> " . htmlspecialchars($item->order_number ?? 'NULL') . "</p>\n";
+                echo "<p><strong>Item Client:</strong> " . htmlspecialchars($item->client_name ?? 'NULL') . "</p>\n";
+            } else {
+                echo "<p>❌ <strong>Model cannot retrieve item ID 15</strong></p>\n";
+                $errors = $model->getErrors();
+                if (!empty($errors)) {
+                    echo "<p><strong>Model errors:</strong></p>\n";
+                    echo "<ul>\n";
+                    foreach ($errors as $error) {
+                        echo "<li>" . htmlspecialchars($error) . "</li>\n";
+                    }
+                    echo "</ul>\n";
+                }
+            }
+        } else {
+            echo "<p>❌ <strong>Model cannot be created</strong></p>\n";
+        }
+    } catch (Exception $e) {
+        echo "<p>❌ <strong>Model loading error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>\n";
+    }
+    
     // 4. Menu Item Types Check
     echo "<h3>🔗 4. Menu Item Types Check</h3>\n";
     
