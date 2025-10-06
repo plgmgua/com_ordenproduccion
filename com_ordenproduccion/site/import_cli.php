@@ -246,8 +246,28 @@ function cleanNumericValue($value)
         return 0.00;
     }
 
-    $cleaned = preg_replace('/[^0-9.]/', '', $value);
-    return floatval($cleaned);
+    // Debug: Log original value
+    error_log("DEBUG: Original valor_a_facturar: " . var_export($value, true));
+
+    // Remove currency symbols (Q., $, etc.) and spaces
+    $cleaned = preg_replace('/^Q\.?\s*/', '', $value);
+    $cleaned = preg_replace('/^\$\s*/', '', $cleaned);
+    
+    // Remove commas (thousands separators) but keep decimal point
+    $cleaned = str_replace(',', '', $cleaned);
+    
+    // Remove any remaining non-numeric characters except decimal point
+    $cleaned = preg_replace('/[^0-9.]/', '', $cleaned);
+    
+    // Debug: Log cleaned value
+    error_log("DEBUG: Cleaned valor_a_facturar: " . var_export($cleaned, true));
+    
+    $result = floatval($cleaned);
+    
+    // Debug: Log final result
+    error_log("DEBUG: Final valor_a_facturar: " . var_export($result, true));
+    
+    return $result;
 }
 
 /**
