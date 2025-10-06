@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" version="5.0" method="upgrade">
+    <name>MOD_ACCIONES_PRODUCCION</name>
+    <author>Grimpsa Development Team</author>
+    <creationDate>2025-01-27</creationDate>
+    <copyright>Copyright (C) 2025 Grimpsa. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <authorEmail>admin@grimpsa.com</authorEmail>
+    <authorUrl>https://grimpsa.com</authorUrl>
+    <version>1.0.0</version>
+    <description>MOD_ACCIONES_PRODUCCION_XML_DESCRIPTION</description>
+
+    <files>
+        <filename module="mod_acciones_produccion">mod_acciones_produccion.php</filename>
+        <folder>tmpl</folder>
+    </files>
+
+    <languages>
+        <language tag="en-GB">language/en-GB/mod_acciones_produccion.ini</language>
+        <language tag="en-GB">language/en-GB/mod_acciones_produccion.sys.ini</language>
+        <language tag="es-ES">language/es-ES/mod_acciones_produccion.ini</language>
+        <language tag="es-ES">language/es-ES/mod_acciones_produccion.sys.ini</language>
+    </languages>
+
+    <config>
+        <fields name="params">
+            <fieldset name="basic" label="MOD_ACCIONES_PRODUCCION_CONFIG_BASIC_LABEL">
+                <field
+                    name="order_id"
+                    type="number"
+                    label="MOD_ACCIONES_PRODUCCION_CONFIG_ORDER_ID_LABEL"
+                    description="MOD_ACCIONES_PRODUCCION_CONFIG_ORDER_ID_DESC"
+                    default=""
+                />
+                <field
+                    name="show_statistics"
+                    type="radio"
+                    label="MOD_ACCIONES_PRODUCCION_CONFIG_SHOW_STATISTICS_LABEL"
+                    description="MOD_ACCIONES_PRODUCCION_CONFIG_SHOW_STATISTICS_DESC"
+                    default="1"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="show_pdf_button"
+                    type="radio"
+                    label="MOD_ACCIONES_PRODUCCION_CONFIG_SHOW_PDF_BUTTON_LABEL"
+                    description="MOD_ACCIONES_PRODUCCION_CONFIG_SHOW_PDF_BUTTON_DESC"
+                    default="1"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="show_excel_button"
+                    type="radio"
+                    label="MOD_ACCIONES_PRODUCCION_CONFIG_SHOW_EXCEL_BUTTON_LABEL"
+                    description="MOD_ACCIONES_PRODUCCION_CONFIG_SHOW_EXCEL_BUTTON_DESC"
+                    default="1"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+            </fieldset>
+        </fields>
+    </config>
+</extension>
