@@ -70,7 +70,18 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                 </div>
                                 <div>
                                     <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?>">
-                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_TYPE_' . strtoupper($item->order_type)); ?>
+                                        <?php 
+                                        // Map order type values
+                                        $orderTypeMap = [
+                                            'External' => 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL',
+                                            'Internal' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL',
+                                            'external' => 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL',
+                                            'internal' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL'
+                                        ];
+                                        
+                                        $orderTypeKey = isset($orderTypeMap[$item->order_type]) ? $orderTypeMap[$item->order_type] : 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL';
+                                        echo Text::_($orderTypeKey);
+                                        ?>
                                     </span>
                                 </div>
                             </div>
