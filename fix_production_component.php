@@ -133,6 +133,10 @@ try {
         'Site ES' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini',
         'Site EN Sys' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.sys.ini',
         'Site ES Sys' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.sys.ini',
+        'Admin EN' => '/var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini',
+        'Admin ES' => '/var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini',
+        'Admin EN Sys' => '/var/www/grimpsa_webserver/administrator/language/en-GB/com_ordenproduccion.sys.ini',
+        'Admin ES Sys' => '/var/www/grimpsa_webserver/administrator/language/es-ES/com_ordenproduccion.sys.ini',
         'Joomla EN' => '/var/www/grimpsa_webserver/language/en-GB/com_ordenproduccion.ini',
         'Joomla ES' => '/var/www/grimpsa_webserver/language/es-ES/com_ordenproduccion.ini'
     ];
