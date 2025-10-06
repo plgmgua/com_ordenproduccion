@@ -470,65 +470,10 @@ try {
         $size = filesize($ordenModelPath);
         $modified = date('Y-m-d H:i:s', filemtime($ordenModelPath));
         echo "<p>✅ <strong>OrdenModel exists:</strong> $ordenModelPath ($size bytes, modified: $modified)</p>\n";
-        
-        // Check if it contains the correct field names
-        $content = file_get_contents($ordenModelPath);
-        if (strpos($content, 'sales_agent') !== false) {
-            echo "<p>✅ <strong>OrdenModel contains sales_agent field</strong></p>\n";
-        } else {
-            echo "<p>❌ <strong>OrdenModel missing sales_agent field</strong></p>\n";
-        }
-        
-        if (strpos($content, 'invoice_value') !== false) {
-            echo "<p>✅ <strong>OrdenModel contains invoice_value field</strong></p>\n";
-        } else {
-            echo "<p>❌ <strong>OrdenModel missing invoice_value field</strong></p>\n";
-        }
-        
-        echo "<p>✅ <strong>OrdenModel is properly deployed and should resolve the 404 error!</strong></p>\n";
-        
+        echo "<p>✅ <strong>OrdenModel is properly deployed!</strong></p>\n";
     } else {
         echo "<p>❌ <strong>OrdenModel missing:</strong> $ordenModelPath</p>\n";
-        echo "<p><strong>This is the root cause of the 404 error!</strong></p>\n";
-        
-        // Check if the directory exists
-        $modelDir = dirname($ordenModelPath);
-        if (is_dir($modelDir)) {
-            echo "<p>✅ <strong>Model directory exists:</strong> $modelDir</p>\n";
-        } else {
-            echo "<p>❌ <strong>Model directory missing:</strong> $modelDir</p>\n";
-        }
-        
-        // Check if the src directory exists (correct path based on server structure)
-        $srcDir = '/var/www/grimpsa_webserver/components/com_ordenproduccion/src';
-        if (is_dir($srcDir)) {
-            echo "<p>✅ <strong>Src directory exists:</strong> $srcDir</p>\n";
-        } else {
-            echo "<p>❌ <strong>Src directory missing:</strong> $srcDir</p>\n";
-        }
-        
-        echo "<h4>🔧 Solution Required:</h4>\n";
-        echo "<p>The OrdenModel file needs to be deployed to the server. This can be done by:</p>\n";
-        echo "<ul>\n";
-        echo "<li>Running the deployment script: <code>./update_build_simple.sh</code></li>\n";
-        echo "<li>Manually copying the file from the repository</li>\n";
-        echo "<li>Ensuring the deployment script copies all site model files</li>\n";
-        echo "</ul>\n";
-        
-        echo "<h4>🤔 Contradiction Analysis:</h4>\n";
-        echo "<p><strong>Interesting Discovery:</strong> Despite missing site files, the model loading test shows:</p>\n";
-        echo "<ul>\n";
-        echo "<li>✅ Model can be created successfully</li>\n";
-        echo "<li>✅ Model can retrieve item ID 15</li>\n";
-        echo "<li>✅ Item data is accessible</li>\n";
-        echo "</ul>\n";
-        echo "<p><strong>This suggests:</strong></p>\n";
-        echo "<ul>\n";
-        echo "<li>Joomla is using a fallback model source (admin model or cached version)</li>\n";
-        echo "<li>The site directory structure is not properly deployed</li>\n";
-        echo "<li>Routing works but uses wrong model source</li>\n";
-        echo "<li>This explains why the model works but the 404 error persists</li>\n";
-        echo "</ul>\n";
+        echo "<p><strong>This would cause 404 errors!</strong></p>\n";
     }
     
     // Test if the model can be loaded
