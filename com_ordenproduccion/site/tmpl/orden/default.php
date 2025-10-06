@@ -287,6 +287,10 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                             <td><?php echo htmlspecialchars($item->varnish_details); ?></td>
                                         </tr>
                                     <?php endif; ?>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-sm">
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LOMO'); ?>:</strong></td>
                                         <td>
@@ -303,10 +307,6 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                             </span>
                                         </td>
                                     </tr>
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <table class="table table-sm">
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_SIZADO'); ?>:</strong></td>
                                         <td>
