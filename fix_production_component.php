@@ -29,12 +29,14 @@ try {
         $componentVersion = trim(file_get_contents($versionFile));
     }
     
-    echo "🔧 Complete Production Component Fix\n";
-    echo "====================================\n";
-    echo "Component Version: $componentVersion\n\n";
+    echo "<!DOCTYPE html>\n";
+    echo "<html><head><title>Production Component Fix</title></head><body>\n";
+    echo "<h1>🔧 Complete Production Component Fix</h1>\n";
+    echo "<h2>Component Version: <span style='color: blue;'>$componentVersion</span></h2>\n";
+    echo "<hr>\n";
     
     // 1. Check component installation
-    echo "📋 1. Checking Component Installation:\n";
+    echo "<h3>📋 1. Checking Component Installation</h3>\n";
     
     $query = $db->getQuery(true)
         ->select('*')
@@ -46,9 +48,12 @@ try {
     $component = $db->loadObject();
     
     if ($component) {
-        echo "   ✅ Component found in database\n";
-        echo "   - Name: {$component->name}\n";
-        echo "   - Enabled: " . ($component->enabled ? 'Yes' : 'No') . "\n";
+        echo "<p>✅ <strong>Component found in database</strong></p>\n";
+        echo "<ul>\n";
+        echo "<li>Name: {$component->name}</li>\n";
+        echo "<li>Enabled: " . ($component->enabled ? 'Yes' : 'No') . "</li>\n";
+        echo "<li>Version: {$component->version}</li>\n";
+        echo "</ul>\n";
         
         // Ensure component is enabled
         if (!$component->enabled) {
@@ -59,14 +64,14 @@ try {
             
             $db->setQuery($query);
             $db->execute();
-            echo "   ✅ Enabled component\n";
+            echo "<p>✅ <strong>Enabled component</strong></p>\n";
         }
     } else {
-        echo "   ❌ Component not found in database\n";
+        echo "<p>❌ <strong>Component not found in database</strong></p>\n";
     }
     
     // 2. Check menu item type files
-    echo "\n📋 2. Checking Menu Item Type Files:\n";
+    echo "<h3>📁 2. Checking Menu Item Type Files</h3>\n";
     
     $menuFiles = [
         'Admin Ordenes' => '/var/www/grimpsa_webserver/administrator/components/com_ordenproduccion/menu/ordenes.xml',
@@ -75,14 +80,15 @@ try {
     
     foreach ($menuFiles as $name => $file) {
         if (file_exists($file)) {
-            echo "   ✅ $name: $file (exists)\n";
+            $size = filesize($file);
+            echo "<p>✅ <strong>$name</strong>: $file ($size bytes)</p>\n";
         } else {
-            echo "   ❌ $name: $file (missing)\n";
+            echo "<p>❌ <strong>$name</strong>: $file (missing)</p>\n";
         }
     }
     
     // 3. Clean up existing menu item types
-    echo "\n📋 3. Cleaning Up Menu Item Types:\n";
+    echo "<h3>🗑️ 3. Cleaning Up Menu Item Types</h3>\n";
     
     // Remove all existing com_ordenproduccion menu item types
     $query = $db->getQuery(true)
@@ -91,10 +97,10 @@ try {
     
     $db->setQuery($query);
     $result = $db->execute();
-    echo "   ✅ Removed all existing com_ordenproduccion menu item types\n";
+    echo "<p>✅ <strong>Removed all existing com_ordenproduccion menu item types</strong></p>\n";
     
     // 4. Create proper menu item types
-    echo "\n📋 4. Creating Menu Item Types:\n";
+    echo "<h3>🔗 4. Creating Menu Item Types</h3>\n";
     
     $menuTypes = [
         'ordenes' => [
@@ -116,17 +122,17 @@ try {
         try {
             $result = $db->insertObject('#__menu_types', $menuType);
             if ($result) {
-                echo "   ✅ Created: $type - {$info['title']}\n";
+                echo "<p>✅ <strong>Created: $type</strong> - {$info['title']}</p>\n";
             } else {
-                echo "   ❌ Failed to create: $type\n";
+                echo "<p>❌ <strong>Failed to create: $type</strong></p>\n";
             }
         } catch (Exception $e) {
-            echo "   ❌ Error creating $type: " . $e->getMessage() . "\n";
+            echo "<p>❌ <strong>Error creating $type:</strong> " . htmlspecialchars($e->getMessage()) . "</p>\n";
         }
     }
     
     // 5. Check language files
-    echo "\n📋 5. Checking Language Files:\n";
+    echo "<h3>🌐 5. Checking Language Files</h3>\n";
     
     $languageFiles = [
         'Site EN' => '/var/www/grimpsa_webserver/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini',
@@ -138,9 +144,9 @@ try {
     foreach ($languageFiles as $name => $file) {
         if (file_exists($file)) {
             $size = filesize($file);
-            echo "   ✅ $name: $file ($size bytes)\n";
+            echo "<p>✅ <strong>$name</strong>: $file ($size bytes)</p>\n";
         } else {
-            echo "   ❌ $name: $file (missing)\n";
+            echo "<p>❌ <strong>$name</strong>: $file (missing)</p>\n";
             
             // Try to copy from component directory
             if (strpos($file, '/language/') !== false) {
@@ -151,7 +157,7 @@ try {
                         mkdir($targetDir, 0755, true);
                     }
                     if (copy($sourceFile, $file)) {
-                        echo "     ✅ Copied from component directory\n";
+                        echo "<p>     ✅ <strong>Copied from component directory</strong></p>\n";
                     }
                 }
             }
@@ -159,7 +165,7 @@ try {
     }
     
     // 6. Test language loading
-    echo "\n📋 6. Testing Language Loading:\n";
+    echo "<h3>🧪 6. Testing Language Loading</h3>\n";
     
     $lang = Factory::getLanguage();
     $lang->load('com_ordenproduccion', JPATH_SITE);
@@ -173,39 +179,52 @@ try {
     foreach ($testStrings as $string) {
         $translated = Text::_($string);
         if ($translated === $string) {
-            echo "   ❌ $string: Not translated\n";
+            echo "<p>❌ <strong>$string:</strong> Not translated</p>\n";
         } else {
-            echo "   ✅ $string: $translated\n";
+            echo "<p>✅ <strong>$string:</strong> $translated</p>\n";
         }
     }
     
     // 7. Clear all caches
-    echo "\n📋 7. Clearing All Caches:\n";
+    echo "<h3>🗑️ 7. Clearing All Caches</h3>\n";
     
     $cache = Factory::getCache();
     $cache->clean('com_ordenproduccion');
-    echo "   ✅ Cleared component cache\n";
+    echo "<p>✅ <strong>Cleared component cache</strong></p>\n";
     
     $cache->clean('_system');
-    echo "   ✅ Cleared system cache\n";
+    echo "<p>✅ <strong>Cleared system cache</strong></p>\n";
     
     $cache->clean('_system', 'page');
-    echo "   ✅ Cleared page cache\n";
+    echo "<p>✅ <strong>Cleared page cache</strong></p>\n";
     
-    echo "\n✅ Complete Production Component Fix Finished\n";
-    echo "\n💡 What Should Happen Now:\n";
-    echo "1. Go to Menus > Add New Menu Item\n";
-    echo "2. In 'Menu Item Type' dropdown, you should see:\n";
-    echo "   - 'Lista de Órdenes' (not 'Metadata')\n";
-    echo "   - 'Detalle de Orden'\n";
-    echo "3. Select 'Lista de Órdenes' to create the frontend view\n";
-    echo "\n🔧 If it still shows 'Metadata':\n";
-    echo "1. Clear browser cache completely\n";
-    echo "2. Log out and log back into Joomla admin\n";
-    echo "3. Try again\n";
+    echo "<hr>\n";
+    echo "<h2>✅ Complete Production Component Fix Finished</h2>\n";
+    echo "<h3>💡 What Should Happen Now:</h3>\n";
+    echo "<ol>\n";
+    echo "<li>Go to <strong>Menus > Add New Menu Item</strong></li>\n";
+    echo "<li>In <strong>'Menu Item Type'</strong> dropdown, you should see:</li>\n";
+    echo "<ul>\n";
+    echo "<li><strong>'Lista de Órdenes'</strong> (not 'Metadata')</li>\n";
+    echo "<li><strong>'Detalle de Orden'</strong></li>\n";
+    echo "</ul>\n";
+    echo "<li>Select <strong>'Lista de Órdenes'</strong> to create the frontend view</li>\n";
+    echo "</ol>\n";
+    echo "<h3>🔧 If it still shows 'Metadata':</h3>\n";
+    echo "<ol>\n";
+    echo "<li>Clear browser cache completely</li>\n";
+    echo "<li>Log out and log back into Joomla admin</li>\n";
+    echo "<li>Try again</li>\n";
+    echo "</ol>\n";
+    echo "<p><strong>Component Version: $componentVersion</strong></p>\n";
+    echo "<p><em>Generated: " . date('Y-m-d H:i:s') . "</em></p>\n";
+    echo "</body></html>\n";
     
 } catch (Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
-    echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
+    echo "<h2>❌ Error</h2>\n";
+    echo "<p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>\n";
+    echo "<p><strong>Stack trace:</strong></p>\n";
+    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>\n";
+    echo "</body></html>\n";
 }
 ?>
