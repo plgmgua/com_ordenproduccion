@@ -26,13 +26,23 @@ $currentUrl = Uri::current();
         </div>
     <?php elseif ($orderId && $workOrderData): ?>
         
+        <!-- PDF Generation Button (Top) -->
+        <div class="pdf-action">
+            <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
+               target="_blank" 
+               class="btn btn-primary btn-block">
+                <i class="fas fa-file-pdf"></i>
+                Generar PDF
+            </a>
+        </div>
+        
         <!-- Work Order Info -->
         <div class="work-order-info">
             <h5><i class="fas fa-clipboard-list"></i> Orden de Trabajo #<?php echo htmlspecialchars($workOrderData->numero_de_orden ?? $orderId); ?></h5>
             <p><strong>Cliente:</strong> <?php echo htmlspecialchars($workOrderData->client_name ?? 'N/A'); ?></p>
             <p><strong>Estado Actual:</strong> 
-                <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'pending'); ?>">
-                    <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'pending'] ?? 'Pendiente'); ?>
+                <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'en_progreso'); ?>">
+                    <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'en_progreso'] ?? 'En Progreso'); ?>
                 </span>
             </p>
         </div>
@@ -63,16 +73,6 @@ $currentUrl = Uri::current();
             </form>
             
             <div id="status-message" class="status-message" style="display: none;"></div>
-        </div>
-        
-        <!-- PDF Generation Button -->
-        <div class="pdf-action">
-            <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
-               target="_blank" 
-               class="btn btn-primary btn-block">
-                <i class="fas fa-file-pdf"></i>
-                Generar PDF
-            </a>
         </div>
 
     <?php else: ?>
@@ -120,11 +120,9 @@ $currentUrl = Uri::current();
     text-transform: uppercase;
 }
 
-.status-pending { background: #ffc107; color: #000; }
-.status-in_progress { background: #17a2b8; color: #fff; }
-.status-completed { background: #28a745; color: #fff; }
-.status-cancelled { background: #dc3545; color: #fff; }
-.status-on_hold { background: #6c757d; color: #fff; }
+.status-en_progreso { background: #17a2b8; color: #fff; }
+.status-terminada { background: #28a745; color: #fff; }
+.status-entregada { background: #6f42c1; color: #fff; }
 
 .status-change-section {
     background: #fff;

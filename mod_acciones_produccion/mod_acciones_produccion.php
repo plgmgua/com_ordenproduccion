@@ -119,11 +119,9 @@ if ($orderId > 0) {
 
 // Get status options for dropdown
 $statusOptions = [
-    'pending' => 'Pendiente',
-    'in_progress' => 'En Progreso',
-    'completed' => 'Completado',
-    'cancelled' => 'Cancelado',
-    'on_hold' => 'En Espera'
+    'en_progreso' => 'En Progreso',
+    'terminada' => 'Terminada',
+    'entregada' => 'Entregada'
 ];
 
 // Load the template
