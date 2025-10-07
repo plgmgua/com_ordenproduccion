@@ -222,8 +222,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Convert FormData to URL-encoded string
             const urlEncodedData = new URLSearchParams(formData).toString();
             
-            // Make AJAX request
-            fetch('/components/com_ordenproduccion/change_status.php', {
+            // Make AJAX request - try the simple version first
+            fetch('/components/com_ordenproduccion/change_status_simple_joomla.php', {
                 method: 'POST',
                 body: urlEncodedData,
                 headers: {
