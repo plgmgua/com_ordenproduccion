@@ -75,24 +75,35 @@ try {
     $stmt->execute();
     echo "   ✅ Menu hierarchy fixed\n";
 
-    // 5. Ensure menu items are properly positioned
-    echo "\n🔧 Fixing menu positioning...\n";
+    // 5. Check if ordering column exists and fix positioning
+    echo "\n🔧 Checking menu table structure...\n";
     
-    // Set proper ordering for menu items
-    $menuOrder = [
-        2098 => 100, // Main menu
-        2099 => 101, // Dashboard
-        2100 => 102, // Orders
-        2101 => 103, // Technicians
-        2102 => 104, // Webhook
-        2103 => 105, // Debug
-        2104 => 106  // Settings
-    ];
+    $stmt = $pdo->prepare("SHOW COLUMNS FROM {$dbPrefix}menu LIKE 'ordering'");
+    $stmt->execute();
+    $orderingColumn = $stmt->fetch();
     
-    foreach ($menuOrder as $menuId => $order) {
-        $stmt = $pdo->prepare("UPDATE {$dbPrefix}menu SET ordering = ? WHERE id = ?");
-        $stmt->execute([$order, $menuId]);
-        echo "   ✅ Menu item ID $menuId set to ordering $order\n";
+    if ($orderingColumn) {
+        echo "   ✅ Ordering column exists, setting menu positioning...\n";
+        
+        // Set proper ordering for menu items
+        $menuOrder = [
+            2098 => 100, // Main menu
+            2099 => 101, // Dashboard
+            2100 => 102, // Orders
+            2101 => 103, // Technicians
+            2102 => 104, // Webhook
+            2103 => 105, // Debug
+            2104 => 106  // Settings
+        ];
+        
+        foreach ($menuOrder as $menuId => $order) {
+            $stmt = $pdo->prepare("UPDATE {$dbPrefix}menu SET ordering = ? WHERE id = ?");
+            $stmt->execute([$order, $menuId]);
+            echo "   ✅ Menu item ID $menuId set to ordering $order\n";
+        }
+    } else {
+        echo "   ⚠️  Ordering column not found, skipping positioning fix\n";
+        echo "   💡 Menu positioning will be handled by Joomla automatically\n";
     }
 
     // 6. Clear menu cache
