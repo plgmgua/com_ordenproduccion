@@ -173,8 +173,10 @@ main() {
     log "Copying admin files from $COMPONENT_ROOT/admin/ to $ADMIN_COMPONENT_PATH/"
     sudo cp -r "$COMPONENT_ROOT/admin/"* "$ADMIN_COMPONENT_PATH/" || error "Failed to copy admin files"
     
-    log "Copying site files from $COMPONENT_ROOT/site/ to $SITE_COMPONENT_PATH/"
-    sudo cp -r "$COMPONENT_ROOT/site/"* "$SITE_COMPONENT_PATH/" || error "Failed to copy site files"
+    log "Copying site files from $COMPONENT_ROOT/ to $SITE_COMPONENT_PATH/"
+    # Ensure site directory exists
+    sudo mkdir -p "$SITE_COMPONENT_PATH"
+    sudo cp -r "$COMPONENT_ROOT/"* "$SITE_COMPONENT_PATH/" || error "Failed to copy site files"
     
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
     sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"

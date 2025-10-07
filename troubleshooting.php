@@ -32,8 +32,8 @@ try {
     
     echo "🔍 STEP 1: AJAX Endpoint Debugging\n";
     
-    // Check AJAX endpoint file
-    $ajaxEndpoint = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/change_status.php';
+            // Check AJAX endpoint file
+            $ajaxEndpoint = '/var/www/grimpsa_webserver/components/com_ordenproduccion/change_status.php';
     if (file_exists($ajaxEndpoint)) {
         echo "✅ AJAX endpoint exists: $ajaxEndpoint\n";
         echo "  Size: " . filesize($ajaxEndpoint) . " bytes\n";
@@ -57,14 +57,13 @@ try {
         echo "❌ AJAX endpoint NOT found: $ajaxEndpoint\n";
     }
     
-    // Check component directory structure
-    echo "\nChecking component directory structure:\n";
-    $componentDirs = [
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion',
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site',
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src',
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src/Controller'
-    ];
+            // Check component directory structure
+            echo "\nChecking component directory structure:\n";
+            $componentDirs = [
+                '/var/www/grimpsa_webserver/components/com_ordenproduccion',
+                '/var/www/grimpsa_webserver/components/com_ordenproduccion/admin',
+                '/var/www/grimpsa_webserver/components/com_ordenproduccion/media'
+            ];
     
     foreach ($componentDirs as $dir) {
         if (is_dir($dir)) {
@@ -75,10 +74,10 @@ try {
         }
     }
     
-    // Test AJAX endpoint URL construction
-    echo "\nTesting AJAX URL construction:\n";
-    $baseUrl = 'https://grimpsa_webserver.grantsolutions.cc';
-    $ajaxUrl = $baseUrl . '/components/com_ordenproduccion/site/change_status.php';
+            // Test AJAX endpoint URL construction
+            echo "\nTesting AJAX URL construction:\n";
+            $baseUrl = 'https://grimpsa_webserver.grantsolutions.cc';
+            $ajaxUrl = $baseUrl . '/components/com_ordenproduccion/change_status.php';
     echo "Constructed AJAX URL: $ajaxUrl\n";
     
     // Check if URL is accessible (basic test)
@@ -149,9 +148,32 @@ try {
     echo "Total work orders: $orderCount\n";
     
     if ($orderCount > 0) {
-        // Get a sample work order
+        // Get a sample work order - check what columns exist first
+        echo "Checking available columns in work orders table...\n";
+        $query = "SHOW COLUMNS FROM `#__ordenproduccion_ordenes`";
+        $db->setQuery($query);
+        $columns = $db->loadObjectList();
+        
+        $availableColumns = [];
+        foreach ($columns as $column) {
+            $availableColumns[] = $column->Field;
+        }
+        echo "Available columns: " . implode(', ', $availableColumns) . "\n";
+        
+        // Build select query based on available columns
+        $selectFields = ['id'];
+        if (in_array('numero_de_orden', $availableColumns)) {
+            $selectFields[] = 'numero_de_orden';
+        }
+        if (in_array('client_name', $availableColumns)) {
+            $selectFields[] = 'client_name';
+        }
+        if (in_array('status', $availableColumns)) {
+            $selectFields[] = 'status';
+        }
+        
         $query = $db->getQuery(true)
-            ->select('id, numero_de_orden, client_name, status')
+            ->select(implode(', ', $selectFields))
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1')
             ->setLimit(1);
@@ -162,9 +184,15 @@ try {
         if ($sampleOrder) {
             echo "Sample work order:\n";
             echo "  ID: " . $sampleOrder->id . "\n";
-            echo "  Number: " . $sampleOrder->numero_de_orden . "\n";
-            echo "  Client: " . $sampleOrder->client_name . "\n";
-            echo "  Status: " . $sampleOrder->status . "\n";
+            if (isset($sampleOrder->numero_de_orden)) {
+                echo "  Number: " . $sampleOrder->numero_de_orden . "\n";
+            }
+            if (isset($sampleOrder->client_name)) {
+                echo "  Client: " . $sampleOrder->client_name . "\n";
+            }
+            if (isset($sampleOrder->status)) {
+                echo "  Status: " . $sampleOrder->status . "\n";
+            }
         }
     }
     

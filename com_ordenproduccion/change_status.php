@@ -3,6 +3,11 @@
  * Simple endpoint to change work order status
  */
 
+// Set proper headers for JSON response FIRST
+header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
+header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+
 // Include Joomla framework
 define('_JEXEC', 1);
 define('JPATH_BASE', '/var/www/grimpsa_webserver');
@@ -11,9 +16,6 @@ require_once JPATH_BASE . '/includes/framework.php';
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
-
-// Set proper headers for JSON response
-header('Content-Type: application/json');
 
 try {
     $app = Factory::getApplication('site');
@@ -71,11 +73,24 @@ try {
     }
     
 } catch (Exception $e) {
+    // Ensure we're still outputting JSON even on errors
+    http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'message' => 'Error: ' . $e->getMessage(),
-        'file' => $e->getFile(),
-        'line' => $e->getLine()
+        'message' => 'Server Error: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+} catch (Error $e) {
+    // Handle fatal errors
+    http_response_code(500);
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Fatal Error: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
+        'timestamp' => date('Y-m-d H:i:s')
     ]);
 }
 ?>

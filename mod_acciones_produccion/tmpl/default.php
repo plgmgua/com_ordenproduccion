@@ -217,8 +217,8 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
             submitBtn.disabled = true;
             
-            // Make AJAX request
-            fetch('/components/com_ordenproduccion/site/change_status.php', {
+                    // Make AJAX request
+                    fetch('/components/com_ordenproduccion/change_status.php', {
                 method: 'POST',
                 body: formData,
                 headers: {
