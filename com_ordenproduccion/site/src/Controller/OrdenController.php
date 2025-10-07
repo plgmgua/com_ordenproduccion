@@ -186,16 +186,16 @@ class OrdenController extends BaseController
                 $startY = $pdf->GetY();
 
                 // ROW 1: Logo + ORDEN DE TRABAJO # and number
-                // Add GRIMPSA logo (left side) - correct path, maintain aspect ratio
+                // Add GRIMPSA logo (left side) - correct path, maintain aspect ratio, 100% larger
                 $logoPath = JPATH_ROOT . '/images/grimpsa_logo.gif';
                 if (file_exists($logoPath)) {
-                    // Add logo image (25mm width, auto height to maintain aspect ratio)
-                    $pdf->Image($logoPath, 15, $startY, 25, 0, 'GIF');
+                    // Add logo image (50mm width, auto height to maintain aspect ratio - 100% larger)
+                    $pdf->Image($logoPath, 15, $startY, 50, 0, 'GIF');
                 } else {
                     // Fallback if logo not found
                     $pdf->SetXY(15, $startY);
                     $pdf->SetFont('Arial', 'B', 12);
-                    $pdf->Cell(25, 15, 'GRIMPSA', 1, 0, 'C');
+                    $pdf->Cell(50, 15, 'GRIMPSA', 1, 0, 'C');
                 }
 
                 // Right side: ORDEN DE TRABAJO # and number with borders
