@@ -321,7 +321,7 @@ class OrdenController extends BaseController
                 'TROQUEL' => 'troquel',
                 'TROQUEL CAMEO' => 'troquel_cameo',
                 'BARNIZ' => 'barniz',
-                'IMP. EN BLANCO' => 'imp_en_blanco',
+                'IMP. EN BLANCO' => 'impresion_blanco',
                 'DESPUNTADO' => 'despuntado',
                 'OJETES' => 'ojetes',
                 'PERFORADO' => 'perforado'
@@ -360,34 +360,6 @@ class OrdenController extends BaseController
         // Ensure text fits within cell boundaries
         $pdf->MultiCell(0, 6, $instructions, 1, 'L');
         
-        // Additional information (non-acabados data only, excluding specified fields)
-        if (isset($workOrderData->eav_data) && !empty($workOrderData->eav_data)) {
-            $pdf->Ln(5);
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(0, 8, 'INFORMACION ADICIONAL', 1, 1, 'L');
-            
-            $pdf->SetFont('Arial', '', 9);
-            
-            // Filter out acabados-related data and excluded fields
-            $acabadosKeys = ['blocado', 'corte', 'doblado', 'laminado', 'lomo', 'numerado', 
-                           'pegado', 'sizado', 'engrapado', 'troquel', 'troquel_cameo', 
-                           'barniz', 'imp_en_blanco', 'despuntado', 'ojetes', 'perforado'];
-            
-            $detailsKeys = array_map(function($key) { return 'detalles_' . $key; }, $acabadosKeys);
-            $excludeKeys = array_merge($acabadosKeys, $detailsKeys);
-            
-            // Additional fields to exclude (including production spec fields that are shown in tables above)
-            $additionalExcludeKeys = ['arte', 'valor_factura', 'client_id', 'color_impresion', 'tiro_retiro', 'medidas', 'descripcion_de_trabajo'];
-            $excludeKeys = array_merge($excludeKeys, $additionalExcludeKeys);
-            
-            foreach ($workOrderData->eav_data as $attributeName => $data) {
-                // Skip acabados data and excluded fields
-                if (!in_array($attributeName, $excludeKeys)) {
-                    $pdf->Cell(40, 6, ucfirst($attributeName) . ':', 1, 0, 'L');
-                    $pdf->Cell(0, 6, $data->attribute_value ?? 'N/A', 1, 1, 'L');
-                }
-            }
-        }
         
         // Set headers for inline PDF viewing in new tab
         header('Content-Type: application/pdf');
