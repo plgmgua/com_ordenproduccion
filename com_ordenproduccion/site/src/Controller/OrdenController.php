@@ -251,29 +251,41 @@ class OrdenController extends BaseController
         $pdf->Cell(0, 8, 'MEDIDAS:', 1, 1, 'C');
         
         $pdf->SetFont('Arial', '', 8);
-        $color = $workOrderData->color ?? 'N/A';
-        if (strlen($color) > 15) {
-            $color = substr($color, 0, 12) . '...';
-        }
-        $pdf->Cell(49, 8, $color, 1, 0, 'C'); // 35 * 1.4 = 49
-        
-        $tiroRetiro = $workOrderData->tiro_retiro ?? 'N/A';
-        if (strlen($tiroRetiro) > 15) {
-            $tiroRetiro = substr($tiroRetiro, 0, 12) . '...';
-        }
-        $pdf->Cell(49, 8, $tiroRetiro, 1, 0, 'C'); // 35 * 1.4 = 49
-        
-        $material = $workOrderData->material ?? 'N/A';
-        if (strlen($material) > 15) {
-            $material = substr($material, 0, 12) . '...';
-        }
-        $pdf->Cell(49, 8, $material, 1, 0, 'C'); // 35 * 1.4 = 49
-        
-        $medidas = $workOrderData->medidas ?? 'N/A';
-        if (strlen($medidas) > 20) {
-            $medidas = substr($medidas, 0, 17) . '...';
-        }
-        $pdf->Cell(0, 8, $medidas, 1, 1, 'C');
+                // Get color from EAV data (Color de Impresion)
+                $color = 'N/A';
+                if (isset($workOrderData->eav_data['color_impresion'])) {
+                    $color = $workOrderData->eav_data['color_impresion']->attribute_value;
+                }
+                if (strlen($color) > 15) {
+                    $color = substr($color, 0, 12) . '...';
+                }
+                $pdf->Cell(49, 8, $color, 1, 0, 'C'); // 35 * 1.4 = 49
+                
+                // Get tiro/retiro from EAV data
+                $tiroRetiro = 'N/A';
+                if (isset($workOrderData->eav_data['tiro_retiro'])) {
+                    $tiroRetiro = $workOrderData->eav_data['tiro_retiro']->attribute_value;
+                }
+                if (strlen($tiroRetiro) > 15) {
+                    $tiroRetiro = substr($tiroRetiro, 0, 12) . '...';
+                }
+                $pdf->Cell(49, 8, $tiroRetiro, 1, 0, 'C'); // 35 * 1.4 = 49
+                
+                $material = $workOrderData->material ?? 'N/A';
+                if (strlen($material) > 15) {
+                    $material = substr($material, 0, 12) . '...';
+                }
+                $pdf->Cell(49, 8, $material, 1, 0, 'C'); // 35 * 1.4 = 49
+                
+                // Get medidas from EAV data
+                $medidas = 'N/A';
+                if (isset($workOrderData->eav_data['medidas'])) {
+                    $medidas = $workOrderData->eav_data['medidas']->attribute_value;
+                }
+                if (strlen($medidas) > 20) {
+                    $medidas = substr($medidas, 0, 17) . '...';
+                }
+                $pdf->Cell(0, 8, $medidas, 1, 1, 'C');
         
         $pdf->Ln(5);
         
@@ -365,8 +377,8 @@ class OrdenController extends BaseController
             $detailsKeys = array_map(function($key) { return 'detalles_' . $key; }, $acabadosKeys);
             $excludeKeys = array_merge($acabadosKeys, $detailsKeys);
             
-            // Additional fields to exclude
-            $additionalExcludeKeys = ['arte', 'valor_factura', 'client_id'];
+            // Additional fields to exclude (including production spec fields that are shown in tables above)
+            $additionalExcludeKeys = ['arte', 'valor_factura', 'client_id', 'color_impresion', 'tiro_retiro', 'medidas'];
             $excludeKeys = array_merge($excludeKeys, $additionalExcludeKeys);
             
             foreach ($workOrderData->eav_data as $attributeName => $data) {
