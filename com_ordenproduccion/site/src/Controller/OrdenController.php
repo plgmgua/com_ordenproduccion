@@ -205,21 +205,25 @@ class OrdenController extends BaseController
                 
                 $pdf->SetX(100);
                 $pdf->SetFont('Arial', '', 12);
-                // Get orden_de_trabajo from EAV data (check multiple possible field names)
+                // Get orden_de_trabajo from main table (as shown in screenshot)
                 $numeroOrden = 'N/A';
                 
-                // Try different possible field names in EAV data
-                $possibleFields = ['orden_de_trabajo', 'numero_de_orden', 'orden_trabajo', 'numero_orden'];
-                foreach ($possibleFields as $field) {
-                    if (isset($workOrderData->eav_data[$field])) {
-                        $numeroOrden = $workOrderData->eav_data[$field]->attribute_value;
-                        break;
-                    }
+                // Check main table field first (orden_de_trabajo from joomla_ordenproduccion_ordenes)
+                if (isset($workOrderData->orden_de_trabajo)) {
+                    $numeroOrden = $workOrderData->orden_de_trabajo;
+                } elseif (isset($workOrderData->numero_de_orden)) {
+                    $numeroOrden = $workOrderData->numero_de_orden;
                 }
                 
-                // Fallback to main table field
-                if ($numeroOrden === 'N/A' && isset($workOrderData->numero_de_orden)) {
-                    $numeroOrden = $workOrderData->numero_de_orden;
+                // Try EAV data as fallback
+                if ($numeroOrden === 'N/A') {
+                    $possibleFields = ['orden_de_trabajo', 'numero_de_orden', 'orden_trabajo', 'numero_orden'];
+                    foreach ($possibleFields as $field) {
+                        if (isset($workOrderData->eav_data[$field])) {
+                            $numeroOrden = $workOrderData->eav_data[$field]->attribute_value;
+                            break;
+                        }
+                    }
                 }
                 
                 // Format as ORD-000000 if numeric
