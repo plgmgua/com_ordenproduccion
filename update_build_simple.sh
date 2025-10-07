@@ -173,31 +173,37 @@ main() {
     log "Copying admin files from $COMPONENT_ROOT/admin/ to $ADMIN_COMPONENT_PATH/"
     sudo cp -r "$COMPONENT_ROOT/admin/"* "$ADMIN_COMPONENT_PATH/" || error "Failed to copy admin files"
     
-    log "Copying site files from $COMPONENT_ROOT/site/ to $SITE_COMPONENT_PATH/"
+    log "Copying component files to $SITE_COMPONENT_PATH/"
     # Ensure site directory exists
     sudo mkdir -p "$SITE_COMPONENT_PATH"
-    # Copy site folder contents to the site component path (flattened structure)
-    sudo cp -r "$COMPONENT_ROOT/site/"* "$SITE_COMPONENT_PATH/" || error "Failed to copy site files"
-    
-    log "Copying additional component files to $SITE_COMPONENT_PATH/"
-    # Copy any additional root component files that should be in site
+    # Copy all component files (excluding admin and media which are handled separately)
     sudo cp "$COMPONENT_ROOT"/*.php "$SITE_COMPONENT_PATH/" 2>/dev/null || true
     sudo cp "$COMPONENT_ROOT"/*.xml "$SITE_COMPONENT_PATH/" 2>/dev/null || true
+    sudo cp "$COMPONENT_ROOT"/*.md "$SITE_COMPONENT_PATH/" 2>/dev/null || true
+    sudo cp "$COMPONENT_ROOT"/*.txt "$SITE_COMPONENT_PATH/" 2>/dev/null || true
     
-    log "Ensuring critical model files are copied..."
-    # Explicitly copy OrdenModel.php from site/src/Model/ to component root
-    if [ -f "$COMPONENT_ROOT/site/src/Model/OrdenModel.php" ]; then
-        sudo cp "$COMPONENT_ROOT/site/src/Model/OrdenModel.php" "$SITE_COMPONENT_PATH/" || error "Failed to copy OrdenModel.php"
-        log "✅ OrdenModel.php copied successfully"
-        
-        # Verify the file was copied correctly
-        if [ -f "$SITE_COMPONENT_PATH/OrdenModel.php" ]; then
-            log "✅ OrdenModel.php verified in destination"
-        else
-            error "OrdenModel.php not found after copy - deployment failed"
-        fi
-    else
-        warning "OrdenModel.php not found in source - this may cause issues"
+    # Copy src directory if it exists
+    if [ -d "$COMPONENT_ROOT/src" ]; then
+        sudo cp -r "$COMPONENT_ROOT/src" "$SITE_COMPONENT_PATH/" || error "Failed to copy src directory"
+        log "✅ src directory copied successfully"
+    fi
+    
+    # Copy forms directory if it exists
+    if [ -d "$COMPONENT_ROOT/forms" ]; then
+        sudo cp -r "$COMPONENT_ROOT/forms" "$SITE_COMPONENT_PATH/" || error "Failed to copy forms directory"
+        log "✅ forms directory copied successfully"
+    fi
+    
+    # Copy language directory if it exists
+    if [ -d "$COMPONENT_ROOT/language" ]; then
+        sudo cp -r "$COMPONENT_ROOT/language" "$SITE_COMPONENT_PATH/" || error "Failed to copy language directory"
+        log "✅ language directory copied successfully"
+    fi
+    
+    # Copy tmpl directory if it exists
+    if [ -d "$COMPONENT_ROOT/tmpl" ]; then
+        sudo cp -r "$COMPONENT_ROOT/tmpl" "$SITE_COMPONENT_PATH/" || error "Failed to copy tmpl directory"
+        log "✅ tmpl directory copied successfully"
     fi
     
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
