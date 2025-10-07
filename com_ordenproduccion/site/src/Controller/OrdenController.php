@@ -181,18 +181,33 @@ class OrdenController extends BaseController
         // Set margins
         $pdf->SetMargins(15, 15, 15);
         
-        // Header with logo and title
-        $pdf->SetFont('Arial', 'B', 16);
-        $pdf->Cell(60, 15, 'GRIMPSA', 0, 0, 'L');
-        $pdf->Cell(60, 15, 'Impresion Digital', 0, 0, 'L');
-        
-        // Right side - Work order number
-        $pdf->SetFont('Arial', 'B', 14);
-        $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R');
-        $pdf->SetFont('Arial', '', 12);
-        $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R');
-        
-        $pdf->Ln(5);
+                // Header with logo and title - matching screenshot layout
+                // Store current Y position for alignment
+                $startY = $pdf->GetY();
+
+                // Left side: GRIMPSA
+                $pdf->SetFont('Arial', 'B', 16);
+                $pdf->Cell(60, 8, 'GRIMPSA', 0, 0, 'L'); // Print GRIMPSA, cursor stays on same line
+
+                // Right side: ORDEN DE TRABAJO #:
+                // Move cursor to the right, starting at X = 100mm (arbitrary point to ensure it's on the right)
+                $pdf->SetX(100);
+                $pdf->SetFont('Arial', 'B', 14);
+                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R'); // Print, then move to next line
+
+                // Right side: Work order number
+                $pdf->SetX(100); // Maintain X position for right alignment
+                $pdf->SetFont('Arial', '', 12);
+                $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R'); // Print, then move to next line
+
+                // Go back to left side for "Impresion Digital"
+                // Set Y explicitly to be below GRIMPSA, and X to left margin
+                $pdf->SetXY(15, $startY + 8); // 15 is left margin, 8 is height of GRIMPSA cell
+                $pdf->SetFont('Arial', '', 10);
+                $pdf->Cell(60, 6, 'Impresion Digital', 0, 1, 'L'); // Print, then move to next line
+
+                // Add a line break to ensure subsequent content starts below the lowest point of this header block
+                $pdf->Ln(5);
         
         // Date information
         $pdf->SetFont('Arial', 'B', 10);
