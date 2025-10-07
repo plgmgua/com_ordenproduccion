@@ -280,13 +280,21 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(49, 8, 'TRABAJO:', 1, 0, 'L'); // 35 * 1.4 = 49
         $pdf->SetFont('Arial', '', 9);
-        // Get job description from EAV data (Descripcion de trabajo)
+        // Get job description from correct field name
         $jobDesc = 'N/A';
-        if (isset($workOrderData->eav_data['descripcion_de_trabajo'])) {
-            $jobDesc = $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value;
+        if (isset($workOrderData->work_description)) {
+            $jobDesc = $workOrderData->work_description;
         } elseif (isset($workOrderData->description)) {
             $jobDesc = $workOrderData->description;
         }
+        
+        // Try EAV data as fallback
+        if ($jobDesc === 'N/A' && isset($workOrderData->eav_data['work_description'])) {
+            $jobDesc = $workOrderData->eav_data['work_description']->attribute_value;
+        } elseif ($jobDesc === 'N/A' && isset($workOrderData->eav_data['descripcion_de_trabajo'])) {
+            $jobDesc = $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value;
+        }
+        
         if (strlen($jobDesc) > 50) {
             $jobDesc = substr($jobDesc, 0, 47) . '...';
         }
