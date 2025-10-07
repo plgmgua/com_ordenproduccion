@@ -679,6 +679,11 @@ EOF
     log "Checking component registration in database..."
     COMPONENT_EXISTS=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT COUNT(*) FROM joomla_extensions WHERE element = '$COMPONENT_NAME';" 2>/dev/null || echo "0")
     
+    # Ensure COMPONENT_EXISTS is numeric
+    if ! [[ "$COMPONENT_EXISTS" =~ ^[0-9]+$ ]]; then
+        COMPONENT_EXISTS="0"
+    fi
+    
     if [ "$COMPONENT_EXISTS" -eq 0 ]; then
         warning "Component not found in database. Please run install_manual.sh first."
     else
@@ -698,6 +703,11 @@ EOF
     # Enable Extension - Namespace Updater plugin if disabled
     log "Checking Extension - Namespace Updater plugin..."
     PLUGIN_ENABLED=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT enabled FROM joomla_extensions WHERE element = 'namespaceupdater' AND type = 'plugin';" 2>/dev/null || echo "0")
+    
+    # Ensure PLUGIN_ENABLED is numeric
+    if ! [[ "$PLUGIN_ENABLED" =~ ^[0-9]+$ ]]; then
+        PLUGIN_ENABLED="0"
+    fi
     
     if [ "$PLUGIN_ENABLED" -eq 0 ]; then
         warning "Extension - Namespace Updater plugin is disabled. Enabling it..."
