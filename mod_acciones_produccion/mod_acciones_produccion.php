@@ -48,6 +48,46 @@ if ($option !== 'com_ordenproduccion') {
     return; // Don't display the module
 }
 
+// Handle status change via AJAX
+if ($app->input->get('task') === 'change_status' && $hasProductionAccess) {
+    if (!Session::checkToken()) {
+        echo json_encode(['success' => false, 'message' => 'Invalid token']);
+        $app->close();
+        return;
+    }
+    
+    $orderId = $app->input->getInt('order_id', 0);
+    $newStatus = $app->input->getString('new_status', '');
+    
+    if ($orderId > 0 && !empty($newStatus)) {
+        try {
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                ->set($db->quoteName('status') . ' = ' . $db->quote($newStatus))
+                ->set($db->quoteName('modified') . ' = NOW()')
+                ->set($db->quoteName('modified_by') . ' = ' . (int)$user->id)
+                ->where($db->quoteName('id') . ' = ' . (int)$orderId);
+
+            $db->setQuery($query);
+            $result = $db->execute();
+            
+            if ($result) {
+                echo json_encode(['success' => true, 'message' => 'Estado actualizado correctamente']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error al actualizar el estado']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
+    }
+    
+    $app->close();
+    return;
+}
+
 // Generate PDF action - redirect to component
 if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
     if (!Session::checkToken()) {
@@ -58,6 +98,33 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
     
     // No need to handle PDF generation in module - let template handle it
 }
+
+// Get work order data for display
+$workOrderData = null;
+if ($orderId > 0) {
+    try {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('id') . ' = ' . (int)$orderId)
+            ->where($db->quoteName('state') . ' = 1');
+
+        $db->setQuery($query);
+        $workOrderData = $db->loadObject();
+    } catch (Exception $e) {
+        // Handle error silently
+    }
+}
+
+// Get status options for dropdown
+$statusOptions = [
+    'pending' => 'Pendiente',
+    'in_progress' => 'En Progreso',
+    'completed' => 'Completado',
+    'cancelled' => 'Cancelado',
+    'on_hold' => 'En Espera'
+];
 
 // Load the template
 require ModuleHelper::getLayoutPath('mod_acciones_produccion', $params->get('layout', 'default'));
