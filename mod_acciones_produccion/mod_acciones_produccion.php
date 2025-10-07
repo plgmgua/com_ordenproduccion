@@ -48,46 +48,6 @@ if ($option !== 'com_ordenproduccion') {
     return; // Don't display the module
 }
 
-// Handle status change via AJAX
-if ($app->input->get('task') === 'change_status' && $hasProductionAccess) {
-    // Set proper headers for JSON response
-    header('Content-Type: application/json');
-    
-    if (!Session::checkToken()) {
-        echo json_encode(['success' => false, 'message' => 'Invalid token']);
-        exit;
-    }
-    
-    $orderId = $app->input->getInt('order_id', 0);
-    $newStatus = $app->input->getString('new_status', '');
-    
-    if ($orderId > 0 && !empty($newStatus)) {
-        try {
-            $db = Factory::getDbo();
-            $query = $db->getQuery(true)
-                ->update($db->quoteName('#__ordenproduccion_ordenes'))
-                ->set($db->quoteName('status') . ' = ' . $db->quote($newStatus))
-                ->set($db->quoteName('modified') . ' = NOW()')
-                ->set($db->quoteName('modified_by') . ' = ' . (int)$user->id)
-                ->where($db->quoteName('id') . ' = ' . (int)$orderId);
-
-            $db->setQuery($query);
-            $result = $db->execute();
-            
-            if ($result) {
-                echo json_encode(['success' => true, 'message' => 'Estado actualizado correctamente']);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Error al actualizar el estado']);
-            }
-        } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
-        }
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
-    }
-    
-    exit;
-}
 
 // Generate PDF action - redirect to component
 if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
