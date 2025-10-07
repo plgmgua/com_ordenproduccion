@@ -142,8 +142,9 @@ class OrdenController extends BaseController
             return;
         }
 
-        $orderId = $this->input->getInt('id', 0);
-        $tipoEnvio = $this->input->getString('tipo_envio', 'completo');
+                $orderId = $this->input->getInt('id', 0);
+                $tipoEnvio = $this->input->getString('tipo_envio', 'completo');
+                $tipoTransporte = $this->input->getString('tipo_transporte', 'propio');
         
         if (!$orderId) {
             $app->enqueueMessage('ID de orden no válido.', 'error');
@@ -161,8 +162,8 @@ class OrdenController extends BaseController
                 return;
             }
 
-            // Generate shipping slip PDF using FPDF
-            $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio);
+                    // Generate shipping slip PDF using FPDF
+                    $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoTransporte);
             
         } catch (Exception $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
@@ -539,18 +540,19 @@ class OrdenController extends BaseController
         exit;
     }
 
-    /**
-     * Method to generate shipping slip PDF using FPDF.
-     *
-     * @param   int     $orderId        Work order ID
-     * @param   object  $workOrderData  Work order data
-     * @param   string  $tipoEnvio      Tipo de envio (completo/parcial)
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     */
-    private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo')
+            /**
+             * Method to generate shipping slip PDF using FPDF.
+             *
+             * @param   int     $orderId        Work order ID
+             * @param   object  $workOrderData  Work order data
+             * @param   string  $tipoEnvio      Tipo de envio (completo/parcial)
+             * @param   string  $tipoTransporte Tipo de transporte (propio/terceros)
+             *
+             * @return  void
+             *
+             * @since   1.0.0
+             */
+            private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo', $tipoTransporte = 'propio')
     {
         // Include FPDF library (same path as working PDF generation)
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
@@ -577,9 +579,11 @@ class OrdenController extends BaseController
             $startY = $slip * 130; // 130mm spacing between slips
             
             // Header with logo and title - clean layout
-            // Logo (top left) - using the actual GRIMPSA logo
-            $logoPath = 'https://grimpsa_webserver.grantsolutions.cc/images/grimpsa_logo.gif';
-            $pdf->Image($logoPath, 10, $startY + 20, 55, 0); // 55mm width, auto height
+            // Logo (top left) - only show for "Propio" transport
+            if ($tipoTransporte === 'propio') {
+                $logoPath = 'https://grimpsa_webserver.grantsolutions.cc/images/grimpsa_logo.gif';
+                $pdf->Image($logoPath, 10, $startY + 20, 55, 0); // 55mm width, auto height
+            }
             
             // Envio number only (center) - no "Envio #" label
             $pdf->SetFont('Arial', 'B', 26);

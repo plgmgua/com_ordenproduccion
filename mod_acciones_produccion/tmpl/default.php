@@ -94,6 +94,20 @@ $currentUrl = Uri::current();
                             </div>
                         </div>
                         
+                        <div class="form-group">
+                            <label class="form-label">Tipo de Transporte:</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="tipo_transporte" value="propio" checked>
+                                    <span class="radio-text">Propio</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="tipo_transporte" value="terceros">
+                                    <span class="radio-text">Terceros</span>
+                                </label>
+                            </div>
+                        </div>
+                        
                         <button type="submit" class="btn btn-info btn-block">
                             <i class="fas fa-shipping-fast"></i>
                             Generar Envio
@@ -366,14 +380,20 @@ $currentUrl = Uri::current();
                 shippingForm.addEventListener('submit', function(e) {
                     e.preventDefault();
                     
-                    const formData = new FormData(shippingForm);
-                    const orderId = formData.get('order_id');
-                    const tipoEnvio = formData.get('tipo_envio');
-                    
-                    if (!tipoEnvio) {
-                        showShippingMessage('Por favor selecciona un tipo de envio', 'error');
-                        return;
-                    }
+                            const formData = new FormData(shippingForm);
+                            const orderId = formData.get('order_id');
+                            const tipoEnvio = formData.get('tipo_envio');
+                            const tipoTransporte = formData.get('tipo_transporte');
+                            
+                            if (!tipoEnvio) {
+                                showShippingMessage('Por favor selecciona un tipo de envio', 'error');
+                                return;
+                            }
+                            
+                            if (!tipoTransporte) {
+                                showShippingMessage('Por favor selecciona un tipo de transporte', 'error');
+                                return;
+                            }
                     
                     // Show loading state
                     const submitBtn = shippingForm.querySelector('button[type="submit"]');
@@ -384,24 +404,24 @@ $currentUrl = Uri::current();
                     // Convert FormData to URL-encoded string
                     const urlEncodedData = new URLSearchParams(formData).toString();
                     
-                    // Make request to generate shipping slip
-                    fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio, {
-                        method: 'POST',
-                        body: urlEncodedData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            // Open PDF in new tab
-                            window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio, '_blank');
-                            showShippingMessage('Envio generado correctamente', 'success');
-                        } else {
-                            throw new Error('HTTP error! status: ' + response.status);
-                        }
-                    })
+                            // Make request to generate shipping slip
+                            fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_transporte=' + tipoTransporte, {
+                                method: 'POST',
+                                body: urlEncodedData,
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            })
+                            .then(response => {
+                                if (response.ok) {
+                                    // Open PDF in new tab
+                                    window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_transporte=' + tipoTransporte, '_blank');
+                                    showShippingMessage('Envio generado correctamente', 'success');
+                                } else {
+                                    throw new Error('HTTP error! status: ' + response.status);
+                                }
+                            })
                     .catch(error => {
                         console.error('Shipping Error:', error);
                         showShippingMessage('Error al generar envio: ' + error.message, 'error');
