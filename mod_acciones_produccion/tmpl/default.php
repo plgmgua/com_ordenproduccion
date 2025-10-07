@@ -220,21 +220,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // Make AJAX request
             fetch('index.php?option=com_ordenproduccion&task=change_status', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showMessage(data.message, 'success');
-                    // Reload page after 2 seconds to show updated status
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
-                } else {
-                    showMessage(data.message, 'error');
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.text(); // Get as text first
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showMessage(data.message, 'success');
+                        // Reload page after 2 seconds to show updated status
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                } catch (e) {
+                    console.error('Response text:', text);
+                    showMessage('Error: Respuesta no válida del servidor', 'error');
                 }
             })
             .catch(error => {
+                console.error('AJAX Error:', error);
                 showMessage('Error de conexión: ' + error.message, 'error');
             })
             .finally(() => {

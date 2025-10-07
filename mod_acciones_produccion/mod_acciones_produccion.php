@@ -50,10 +50,12 @@ if ($option !== 'com_ordenproduccion') {
 
 // Handle status change via AJAX
 if ($app->input->get('task') === 'change_status' && $hasProductionAccess) {
+    // Set proper headers for JSON response
+    header('Content-Type: application/json');
+    
     if (!Session::checkToken()) {
         echo json_encode(['success' => false, 'message' => 'Invalid token']);
-        $app->close();
-        return;
+        exit;
     }
     
     $orderId = $app->input->getInt('order_id', 0);
@@ -84,8 +86,7 @@ if ($app->input->get('task') === 'change_status' && $hasProductionAccess) {
         echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
     }
     
-    $app->close();
-    return;
+    exit;
 }
 
 // Generate PDF action - redirect to component
