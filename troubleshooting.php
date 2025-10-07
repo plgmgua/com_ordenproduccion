@@ -14,7 +14,7 @@
 
 echo "=== AJAX TROUBLESHOOTING ===\n";
 echo "Module: mod_acciones_produccion\n";
-echo "Version: 1.8.184\n";
+echo "Version: 1.8.192\n";
 echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 
 // Joomla bootstrap for database access
@@ -32,8 +32,8 @@ try {
     
     echo "🔍 STEP 1: AJAX Endpoint Debugging\n";
     
-            // Check AJAX endpoint file
-            $ajaxEndpoint = '/var/www/grimpsa_webserver/components/com_ordenproduccion/change_status.php';
+    // Check AJAX endpoint file (NO site folder - component root only)
+    $ajaxEndpoint = '/var/www/grimpsa_webserver/components/com_ordenproduccion/change_status.php';
     if (file_exists($ajaxEndpoint)) {
         echo "✅ AJAX endpoint exists: $ajaxEndpoint\n";
         echo "  Size: " . filesize($ajaxEndpoint) . " bytes\n";
@@ -53,17 +53,33 @@ try {
         } else {
             echo "❌ AJAX endpoint is NOT executable\n";
         }
+        
+        // Check file content for proper JSON headers
+        $content = file_get_contents($ajaxEndpoint);
+        if (strpos($content, 'Content-Type: application/json') !== false) {
+            echo "✅ AJAX endpoint has proper JSON headers\n";
+        } else {
+            echo "❌ AJAX endpoint missing JSON headers\n";
+        }
+        
+        if (strpos($content, 'json_encode') !== false) {
+            echo "✅ AJAX endpoint uses json_encode for output\n";
+        } else {
+            echo "❌ AJAX endpoint may not return JSON\n";
+        }
     } else {
         echo "❌ AJAX endpoint NOT found: $ajaxEndpoint\n";
     }
     
-            // Check component directory structure
-            echo "\nChecking component directory structure:\n";
-            $componentDirs = [
-                '/var/www/grimpsa_webserver/components/com_ordenproduccion',
-                '/var/www/grimpsa_webserver/components/com_ordenproduccion/admin',
-                '/var/www/grimpsa_webserver/components/com_ordenproduccion/media'
-            ];
+    // Check component directory structure (NO site folder)
+    echo "\n🔍 STEP 2: Component Directory Structure\n";
+    $componentDirs = [
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/admin',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/media',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/src',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/src/Model'
+    ];
     
     foreach ($componentDirs as $dir) {
         if (is_dir($dir)) {
@@ -74,10 +90,10 @@ try {
         }
     }
     
-            // Test AJAX endpoint URL construction
-            echo "\nTesting AJAX URL construction:\n";
-            $baseUrl = 'https://grimpsa_webserver.grantsolutions.cc';
-            $ajaxUrl = $baseUrl . '/components/com_ordenproduccion/change_status.php';
+    // Test AJAX endpoint URL construction
+    echo "\n🔍 STEP 3: AJAX URL Testing\n";
+    $baseUrl = 'https://grimpsa_webserver.grantsolutions.cc';
+    $ajaxUrl = $baseUrl . '/components/com_ordenproduccion/change_status.php';
     echo "Constructed AJAX URL: $ajaxUrl\n";
     
     // Check if URL is accessible (basic test)
@@ -196,7 +212,75 @@ try {
         }
     }
     
-    echo "\n🔍 STEP 2: Checking Module in Extensions Table\n";
+    echo "\n🔍 STEP 4: AJAX Functionality Testing\n";
+    
+    // Test AJAX endpoint with actual request
+    echo "Testing AJAX endpoint with POST request...\n";
+    $postData = http_build_query([
+        'order_id' => 1,
+        'new_status' => 'en_progreso',
+        'token' => $app->getFormToken()
+    ]);
+    
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => 'Content-Type: application/x-www-form-urlencoded',
+            'content' => $postData,
+            'timeout' => 10,
+            'ignore_errors' => true
+        ]
+    ]);
+    
+    $ajaxResponse = @file_get_contents($ajaxUrl, false, $context);
+    if ($ajaxResponse !== false) {
+        echo "✅ AJAX endpoint responded\n";
+        echo "Response length: " . strlen($ajaxResponse) . " bytes\n";
+        
+        // Try to parse as JSON
+        $jsonData = json_decode($ajaxResponse, true);
+        if ($jsonData !== null) {
+            echo "✅ Response is valid JSON\n";
+            echo "Response: " . $ajaxResponse . "\n";
+        } else {
+            echo "❌ Response is NOT valid JSON\n";
+            echo "Raw response: " . substr($ajaxResponse, 0, 200) . "...\n";
+        }
+    } else {
+        echo "❌ AJAX endpoint did not respond\n";
+    }
+    
+    echo "\n🔍 STEP 5: Module JavaScript Testing\n";
+    
+    // Check if module template exists and has correct AJAX URL
+    $moduleTemplate = '/var/www/grimpsa_webserver/modules/mod_acciones_produccion/tmpl/default.php';
+    if (file_exists($moduleTemplate)) {
+        echo "✅ Module template exists\n";
+        $templateContent = file_get_contents($moduleTemplate);
+        
+        if (strpos($templateContent, '/components/com_ordenproduccion/change_status.php') !== false) {
+            echo "✅ Module template has correct AJAX URL\n";
+        } else {
+            echo "❌ Module template has incorrect AJAX URL\n";
+            echo "Looking for: /components/com_ordenproduccion/change_status.php\n";
+        }
+        
+        if (strpos($templateContent, 'fetch(') !== false) {
+            echo "✅ Module template uses fetch() for AJAX\n";
+        } else {
+            echo "❌ Module template missing fetch() function\n";
+        }
+        
+        if (strpos($templateContent, 'XMLHttpRequest') !== false) {
+            echo "✅ Module template sets XMLHttpRequest header\n";
+        } else {
+            echo "❌ Module template missing XMLHttpRequest header\n";
+        }
+    } else {
+        echo "❌ Module template NOT found: $moduleTemplate\n";
+    }
+    
+    echo "\n🔍 STEP 6: Database and User Permissions\n";
     
     // Check if module exists in joomla_extensions table
     $query = $db->getQuery(true)
