@@ -219,10 +219,13 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
             submitBtn.disabled = true;
             
+            // Convert FormData to URL-encoded string
+            const urlEncodedData = new URLSearchParams(formData).toString();
+            
             // Make AJAX request
             fetch('/components/com_ordenproduccion/change_status.php', {
                 method: 'POST',
-                body: formData,
+                body: urlEncodedData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Content-Type': 'application/x-www-form-urlencoded'

@@ -22,7 +22,19 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
 
 try {
-    $app = Factory::getApplication('site');
+    // Try to get application with error handling
+    try {
+        $app = Factory::getApplication('site');
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Application startup error: ' . $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ]);
+        exit;
+    }
+    
     $user = Factory::getUser();
     
     // Debug: Log all received data
