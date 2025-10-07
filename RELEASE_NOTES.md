@@ -1,5 +1,57 @@
 # Release Notes
 
+## Version 2.0.2 - Stable Release
+
+**Release Date:** January 27, 2025  
+**Release Type:** Patch Release
+
+### 🐛 Bug Fixes
+- **Menu Name Consistency**: Component menu now displays as "Ordenes Produccion" in both English and Spanish
+- **Deployment Script**: Fixed filename references for production component fix script
+- **Database Version Sync**: Added SQL scripts to update Joomla database version numbers
+- **Branch Synchronization**: Updated version-control branch with latest changes
+
+### 🔧 Technical Improvements
+- Updated language files for consistent menu display
+- Fixed deployment script to correctly reference renamed files
+- Added helpers/update_versions_simple.sql for database version updates
+- Synchronized both main and version-control branches
+
+## Version 2.0.1 - Deployment Fix
+
+**Release Date:** January 27, 2025  
+**Release Type:** Patch Release
+
+### 🐛 Bug Fixes
+- **Deployment Error**: Fixed "fix_produccion_component.php not found in repository" error
+- **Filename References**: Updated all deployment script references to use correct filename
+- **Deployment Success**: Deployment now completes successfully without filename mismatch
+
+### 🔧 Technical Improvements
+- Updated update_build_simple.sh with correct filename references
+- Fixed all copy operations, permissions, and verification steps
+- Deployment process now works end-to-end
+
+## Version 2.0.0 - Production Ready
+
+**Release Date:** January 27, 2025  
+**Release Type:** Major Release
+
+### 🎉 Major Features
+- **Complete Component**: Full production-ready component with all functionality
+- **PDF Generation**: Working PDF generation for work orders and shipping slips
+- **AJAX Updates**: Real-time status updates for production orders
+- **Language Support**: Complete English and Spanish language support
+- **Admin Interface**: Full admin interface with proper menu items
+- **Production Module**: mod_acciones_produccion module for production actions
+
+### 🔧 Technical Improvements
+- **Database Integration**: EAV pattern for flexible data storage
+- **Webhook System**: External integration system for order imports
+- **Debug Console**: Advanced debugging and logging capabilities
+- **Repository Cleanup**: Removed all debug and temporary files
+- **Version Management**: Proper semantic versioning implementation
+
 ## Version 1.0.0 - Initial Release
 
 **Release Date:** January 27, 2025  

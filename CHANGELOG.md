@@ -8,10 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial component structure
-- README.md with component description
-- .gitignore for Joomla component development
-- CHANGELOG.md for version tracking
+- Future features and improvements
 
 ### Changed
 - N/A
@@ -21,6 +18,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - N/A
+
+## [2.0.2-STABLE] - 2025-01-27
+
+### Fixed
+- Updated component menu name to "Ordenes Produccion" for both English and Spanish
+- Fixed deployment script filename references (fix_production_component.php)
+- Added SQL scripts for updating Joomla database versions
+- Synchronized version-control branch with latest changes
+
+### Changed
+- Component menu displays consistently as "Ordenes Produccion" regardless of language
+- Deployment script now correctly references renamed files
+
+## [2.0.1-STABLE] - 2025-01-27
+
+### Fixed
+- Fixed deployment script error: "fix_produccion_component.php not found in repository"
+- Updated all filename references from fix_produccion_component.php to fix_production_component.php
+- Deployment now completes successfully without filename mismatch errors
+
+## [2.0.0-STABLE] - 2025-01-27
+
+### Added
+- Complete production-ready component with full functionality
+- Working PDF generation for work orders and shipping slips
+- AJAX status updates for production orders
+- Proper language support (English/Spanish)
+- Full admin interface with menu items
+- Production actions module (mod_acciones_produccion)
+- Database integration with EAV pattern
+- Webhook system for external integrations
+- Debug console and logging system
+
+### Changed
+- Major version bump to 2.0.0 indicating stable, production-ready release
+- Component and module both updated to 2.0.0-STABLE
+- Cleaned repository of debug and temporary files
 
 ## [1.0.0-ALPHA] - 2025-01-27
 

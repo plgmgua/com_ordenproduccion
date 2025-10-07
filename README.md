@@ -98,6 +98,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ---
 
-**Version**: 1.0.0-ALPHA  
+**Version**: 2.0.2-STABLE  
 **Last Updated**: January 2025  
 **Compatibility**: Joomla 5.0+

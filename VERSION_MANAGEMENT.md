@@ -1,7 +1,7 @@
 # Version Management Guide
 
 **Component:** com_ordenproduccion  
-**Current Version:** 1.0.0  
+**Current Version:** 2.0.2-STABLE  
 **Last Updated:** January 2025  
 
 ---

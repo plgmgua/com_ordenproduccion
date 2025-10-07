@@ -4,8 +4,8 @@
 The `com_ordenproduction` component is a comprehensive **Production Management System** designed specifically for **Grimpsa**, a printing company. This Joomla 5.x component manages work orders, production processes, technician assignments, and shipping operations with full multilingual support (English and Spanish).
 
 ## Component Details
-- **Component Name**: `com_ordenproduction` (Production Management System)
-- **Version**: 1.0.34
+- **Component Name**: `com_ordenproduccion` (Ordenes Produccion)
+- **Version**: 2.0.2-STABLE
 - **Author**: Grimpsa
 - **Target**: Joomla 5.x (minimum Joomla 4.0, PHP 7.4+)
 - **License**: GNU General Public License v2
