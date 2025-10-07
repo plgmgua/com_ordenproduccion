@@ -16,23 +16,45 @@ echo "=== FIXING PRODUCTION COMPONENT ===\n";
 echo "Version: 1.8.135\n";
 echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 
-// Check if we're in the right directory
-if (!file_exists('com_ordenproduccion')) {
-    echo "ERROR: com_ordenproduccion directory not found!\n";
-    echo "Please run this script from the component root directory.\n";
+// Check if we're in the right directory - try multiple possible locations
+$componentPath = '';
+$possiblePaths = [
+    'com_ordenproduccion',
+    './com_ordenproduccion',
+    '../com_ordenproduccion',
+    '/var/www/grimpsa_webserver/components/com_ordenproduccion'
+];
+
+foreach ($possiblePaths as $path) {
+    if (file_exists($path)) {
+        $componentPath = $path;
+        break;
+    }
+}
+
+if (empty($componentPath)) {
+    echo "ERROR: com_ordenproduccion directory not found in any expected location!\n";
+    echo "Searched in:\n";
+    foreach ($possiblePaths as $path) {
+        echo "  - $path\n";
+    }
+    echo "Current working directory: " . getcwd() . "\n";
+    echo "Please ensure the component is properly deployed.\n";
     exit(1);
 }
+
+echo "Found component at: $componentPath\n";
 
 echo "1. Setting up production actions module...\n";
 
 // Create production directories if they don't exist
 $productionDirs = [
-    'com_ordenproduccion/site/src/Helper',
-    'com_ordenproduccion/site/src/Controller',
-    'com_ordenproduccion/site/src/View/Production',
-    'com_ordenproduccion/site/tmpl/production',
-    'com_ordenproduccion/media/css',
-    'com_ordenproduccion/media/js'
+    $componentPath . '/site/src/Helper',
+    $componentPath . '/site/src/Controller',
+    $componentPath . '/site/src/View/Production',
+    $componentPath . '/site/tmpl/production',
+    $componentPath . '/media/css',
+    $componentPath . '/media/js'
 ];
 
 foreach ($productionDirs as $dir) {
@@ -126,7 +148,7 @@ $productionCSS = '/* Production Actions Styles */
     }
 }';
 
-file_put_contents('com_ordenproduccion/media/css/production.css', $productionCSS);
+file_put_contents($componentPath . '/media/css/production.css', $productionCSS);
 echo "   Created: com_ordenproduccion/media/css/production.css\n";
 
 echo "3. Creating production JavaScript file...\n";
@@ -211,7 +233,7 @@ function showNotification(message, type = \'info\') {
     }
 }';
 
-file_put_contents('com_ordenproduccion/media/js/production.js', $productionJS);
+file_put_contents($componentPath . '/media/js/production.js', $productionJS);
 echo "   Created: com_ordenproduccion/media/js/production.js\n";
 
 echo "4. Setting up production module access control...\n";
@@ -279,7 +301,7 @@ class ProductionAccessHelper
     }
 }';
 
-file_put_contents('com_ordenproduccion/site/src/Helper/ProductionAccessHelper.php', $accessHelper);
+file_put_contents($componentPath . '/site/src/Helper/ProductionAccessHelper.php', $accessHelper);
 echo "   Created: com_ordenproduccion/site/src/Helper/ProductionAccessHelper.php\n";
 
 echo "5. Creating production module menu item...\n";
@@ -319,13 +341,13 @@ INSERT INTO `#__menu` (
     \'0000-00-00 00:00:00\'
 );';
 
-file_put_contents('com_ordenproduccion/admin/sql/install_production_menu.sql', $menuItemSQL);
+file_put_contents($componentPath . '/admin/sql/install_production_menu.sql', $menuItemSQL);
 echo "   Created: com_ordenproduccion/admin/sql/install_production_menu.sql\n";
 
 echo "6. Updating component manifest...\n";
 
 // Read current manifest
-$manifestPath = 'com_ordenproduccion.xml';
+$manifestPath = $componentPath . '/com_ordenproduccion.xml';
 if (file_exists($manifestPath)) {
     $manifest = file_get_contents($manifestPath);
     
@@ -437,7 +459,7 @@ media/
 - 1.8.117: Initial production module implementation
 ';
 
-file_put_contents('com_ordenproduccion/PRODUCTION_MODULE.md', $documentation);
+file_put_contents($componentPath . '/PRODUCTION_MODULE.md', $documentation);
 echo "   Created: com_ordenproduccion/PRODUCTION_MODULE.md\n";
 
 echo "\n=== PRODUCTION MODULE SETUP COMPLETE ===\n";
