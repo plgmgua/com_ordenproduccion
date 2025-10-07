@@ -95,14 +95,14 @@ $currentUrl = Uri::current();
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Tipo de Transporte:</label>
+                            <label class="form-label">Tipo de Mensajería:</label>
                             <div class="radio-group">
                                 <label class="radio-label">
-                                    <input type="radio" name="tipo_transporte" value="propio" checked>
+                                    <input type="radio" name="tipo_mensajeria" value="propio" checked>
                                     <span class="radio-text">Propio</span>
                                 </label>
                                 <label class="radio-label">
-                                    <input type="radio" name="tipo_transporte" value="terceros">
+                                    <input type="radio" name="tipo_mensajeria" value="terceros">
                                     <span class="radio-text">Terceros</span>
                                 </label>
                             </div>
@@ -383,15 +383,15 @@ $currentUrl = Uri::current();
                             const formData = new FormData(shippingForm);
                             const orderId = formData.get('order_id');
                             const tipoEnvio = formData.get('tipo_envio');
-                            const tipoTransporte = formData.get('tipo_transporte');
+                            const tipoMensajeria = formData.get('tipo_mensajeria');
                             
                             if (!tipoEnvio) {
                                 showShippingMessage('Por favor selecciona un tipo de envio', 'error');
                                 return;
                             }
                             
-                            if (!tipoTransporte) {
-                                showShippingMessage('Por favor selecciona un tipo de transporte', 'error');
+                            if (!tipoMensajeria) {
+                                showShippingMessage('Por favor selecciona un tipo de mensajería', 'error');
                                 return;
                             }
                     
@@ -405,7 +405,7 @@ $currentUrl = Uri::current();
                     const urlEncodedData = new URLSearchParams(formData).toString();
                     
                             // Make request to generate shipping slip
-                            fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_transporte=' + tipoTransporte, {
+                            fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, {
                                 method: 'POST',
                                 body: urlEncodedData,
                                 headers: {
@@ -416,7 +416,7 @@ $currentUrl = Uri::current();
                             .then(response => {
                                 if (response.ok) {
                                     // Open PDF in new tab
-                                    window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_transporte=' + tipoTransporte, '_blank');
+                                    window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, '_blank');
                                     showShippingMessage('Envio generado correctamente', 'success');
                                 } else {
                                     throw new Error('HTTP error! status: ' + response.status);

@@ -144,7 +144,7 @@ class OrdenController extends BaseController
 
                 $orderId = $this->input->getInt('id', 0);
                 $tipoEnvio = $this->input->getString('tipo_envio', 'completo');
-                $tipoTransporte = $this->input->getString('tipo_transporte', 'propio');
+                $tipoMensajeria = $this->input->getString('tipo_mensajeria', 'propio');
         
         if (!$orderId) {
             $app->enqueueMessage('ID de orden no válido.', 'error');
@@ -163,7 +163,7 @@ class OrdenController extends BaseController
             }
 
                     // Generate shipping slip PDF using FPDF
-                    $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoTransporte);
+                    $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoMensajeria);
             
         } catch (Exception $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
@@ -546,13 +546,13 @@ class OrdenController extends BaseController
              * @param   int     $orderId        Work order ID
              * @param   object  $workOrderData  Work order data
              * @param   string  $tipoEnvio      Tipo de envio (completo/parcial)
-             * @param   string  $tipoTransporte Tipo de transporte (propio/terceros)
+             * @param   string  $tipoMensajeria Tipo de mensajería (propio/terceros)
              *
              * @return  void
              *
              * @since   1.0.0
              */
-            private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo', $tipoTransporte = 'propio')
+            private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo', $tipoMensajeria = 'propio')
     {
         // Include FPDF library (same path as working PDF generation)
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
@@ -579,8 +579,8 @@ class OrdenController extends BaseController
             $startY = $slip * 130; // 130mm spacing between slips
             
             // Header with logo and title - clean layout
-            // Logo (top left) - only show for "Propio" transport
-            if ($tipoTransporte === 'propio') {
+            // Logo (top left) - only show for "Propio" mensajería
+            if ($tipoMensajeria === 'propio') {
                 $logoPath = 'https://grimpsa_webserver.grantsolutions.cc/images/grimpsa_logo.gif';
                 $pdf->Image($logoPath, 10, $startY + 20, 55, 0); // 55mm width, auto height
             }
