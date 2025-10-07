@@ -732,8 +732,8 @@ EOF
     echo "Downloading latest language files..."
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/en-GB/com_ordenproduccion.ini -O "$TEMP_DIR/en-GB.ini"
     wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/admin/language/es-ES/com_ordenproduccion.ini -O "$TEMP_DIR/es-ES.ini"
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/site/language/en-GB/com_ordenproduccion.ini -O "$TEMP_DIR/site-en-GB.ini"
-    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/site/language/es-ES/com_ordenproduccion.ini -O "$TEMP_DIR/site-es-ES.ini"
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/language/en-GB/com_ordenproduccion.ini -O "$TEMP_DIR/site-en-GB.ini"
+    wget -q https://raw.githubusercontent.com/plgmgua/com_ordenproduccion/main/com_ordenproduccion/language/es-ES/com_ordenproduccion.ini -O "$TEMP_DIR/site-es-ES.ini"
 
     if [ $? -eq 0 ]; then
         success "Language files downloaded successfully"

@@ -53,6 +53,8 @@ $currentUrl = Uri::current();
             <form id="status-change-form" class="status-form">
                 <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
                 <input type="hidden" name="<?php echo $app->getFormToken(); ?>" value="1">
+                <input type="hidden" name="option" value="com_ordenproduccion">
+                <input type="hidden" name="task" value="ajax.changeStatus">
                 
                 <div class="form-group">
                     <select name="new_status" id="new_status" class="form-control" required>
@@ -217,12 +219,13 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
             submitBtn.disabled = true;
             
-                    // Make AJAX request
-                    fetch('/components/com_ordenproduccion/change_status.php', {
+            // Make AJAX request
+            fetch('/components/com_ordenproduccion/change_status.php', {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 }
             })
             .then(response => {
