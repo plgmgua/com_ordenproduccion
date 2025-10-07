@@ -818,11 +818,11 @@ EOF
     # Step 12: Fix menu items in database
     log "Step 12: Fixing menu items in database..."
     
-    echo "Checking fix_produccion_component.php in repository..."
-    if [ -f "$REPO_DIR/fix_produccion_component.php" ]; then
-        success "fix_produccion_component.php found in repository"
+    echo "Checking fix_production_component.php in repository..."
+    if [ -f "$REPO_DIR/fix_production_component.php" ]; then
+        success "fix_production_component.php found in repository"
     else
-        error "fix_produccion_component.php not found in repository. Aborting deployment."
+        error "fix_production_component.php not found in repository. Aborting deployment."
         exit 1
     fi
 
@@ -835,7 +835,7 @@ EOF
     fi
     
     echo "Executing production component fix script..."
-    php "$REPO_DIR/fix_produccion_component.php" 2>/dev/null
+    php "$REPO_DIR/fix_production_component.php" 2>/dev/null
     
     if [ $? -eq 0 ]; then
         success "Production component fixed in database"
@@ -844,10 +844,10 @@ EOF
     fi
     
     # Copy utility files to Joomla root directory before cleanup
-    echo "Copying fix_produccion_component.php to Joomla root (overwriting if exists)..."
-    sudo cp -f "$REPO_DIR/fix_produccion_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_produccion_component.php"
-    sudo chmod 644 "$JOOMLA_ROOT/fix_produccion_component.php" || warning "Failed to set permissions on fix_produccion_component.php"
-    success "fix_produccion_component.php copied to Joomla root"
+    echo "Copying fix_production_component.php to Joomla root (overwriting if exists)..."
+    sudo cp -f "$REPO_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
+    sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
+    success "fix_production_component.php copied to Joomla root"
     
     # No cleanup needed - files are in repository
 
@@ -860,7 +860,7 @@ EOF
     success "troubleshooting.php copied to Joomla root"
     
     echo "Setting proper ownership for utility files..."
-    sudo chown www-data:www-data "$JOOMLA_ROOT/fix_produccion_component.php" || warning "Failed to set ownership for fix_produccion_component.php"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set ownership for fix_production_component.php"
     sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
     success "Utility files ownership set"
 
@@ -877,7 +877,7 @@ EOF
     log "Step 15: Final verification (FINAL STEP)..."
     
     echo "Verifying deployment files exist in Joomla root directory:"
-    ls -la "$JOOMLA_ROOT/fix_produccion_component.php" || echo "❌ fix_produccion_component.php not found in Joomla root directory"
+    ls -la "$JOOMLA_ROOT/fix_production_component.php" || echo "❌ fix_production_component.php not found in Joomla root directory"
     ls -la "$JOOMLA_ROOT/troubleshooting.php" || echo "❌ troubleshooting.php not found in Joomla root directory"
     echo ""
 
