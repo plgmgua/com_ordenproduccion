@@ -609,64 +609,78 @@ class OrdenController extends BaseController
             $pdf->SetXY(150, 35);
             $pdf->Cell(30, 5, 'QR: ' . $envioNumber, 0, 0, 'C');
             
-            // Client and delivery information table - matching original cell sizes
-            $pdf->SetFont('Arial', 'B', 10);
+            // Client and delivery information table - using exact dimensions from working code
+            $cellHeight = 5;
             
             // Row 1: Cliente
             $pdf->SetXY(20, 50);
-            $pdf->Cell(40, 8, 'Cliente', 1, 0, 'L');
-            $pdf->Cell(120, 8, $clientName, 1, 0, 'L');
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Cliente', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(153, $cellHeight, $clientName, 1, 0, 'L');
+            $pdf->Ln();
             
             // Row 2: Agente de Ventas
-            $pdf->SetXY(20, 58);
-            $pdf->Cell(40, 8, 'Agente de Ventas', 1, 0, 'L');
-            $pdf->Cell(120, 8, $salesAgent, 1, 0, 'L');
-            
-            // Row 3: Contacto
-            $pdf->SetXY(20, 66);
-            $pdf->Cell(40, 8, 'Contacto', 1, 0, 'L');
-            $pdf->Cell(120, 8, '', 1, 0, 'L');
-            
-            // Row 4: Direccion de entrega (taller row)
-            $pdf->SetXY(20, 74);
-            $pdf->Cell(40, 12, 'Direccion de entrega', 1, 0, 'L');
-            $pdf->Cell(120, 12, '', 1, 0, 'L');
-            
-            // Row 5: Telefono
-            $pdf->SetXY(20, 86);
-            $pdf->Cell(40, 8, 'Telefono', 1, 0, 'L');
-            $pdf->Cell(120, 8, '', 1, 0, 'L');
-            
-            // Row 6: Instrucciones de entrega (taller row)
-            $pdf->SetXY(20, 94);
-            $pdf->Cell(160, 8, 'Instrucciones de entrega', 1, 0, 'L');
-            $pdf->SetXY(20, 102);
-            $pdf->Cell(160, 20, '', 1, 0, 'L');
-            
-            // Delivery and work details table
-            $pdf->SetXY(20, 130);
-            $pdf->Cell(40, 8, 'Tipo de Entrega', 1, 0, 'L');
-            $pdf->Cell(120, 8, $tipoEnvio, 1, 0, 'L');
-            
-            $pdf->SetXY(20, 138);
-            $pdf->Cell(40, 8, 'Trabajo', 1, 0, 'L');
-            $pdf->Cell(120, 8, $workDescription, 1, 0, 'L');
-            
-            // Large empty cell for additional work details
-            $pdf->SetXY(20, 146);
-            $pdf->Cell(160, 20, '', 1, 0, 'L');
-            
-            // Footer with signature fields
-            $pdf->SetXY(20, 180);
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 8, 'FECHA', 0, 0, 'L');
-            $pdf->Cell(50, 8, 'NOMBRE Y FIRMA', 0, 0, 'L');
-            $pdf->Cell(50, 8, 'Sello', 0, 0, 'L');
+            $pdf->Cell(37, $cellHeight, 'Agente de Ventas', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(153, $cellHeight, $salesAgent, 1, 0, 'L');
+            $pdf->Ln();
             
-            $pdf->SetXY(20, 188);
-            $pdf->Cell(50, 15, '', 1, 0, 'L');
-            $pdf->Cell(50, 15, '', 1, 0, 'L');
-            $pdf->Cell(50, 15, '', 1, 0, 'L');
+            // Row 3: Contacto and Telefono (split row)
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Contacto', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(81, $cellHeight, '', 1, 0, 'L');
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(32, $cellHeight, 'Telefono', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(40, $cellHeight, '', 1, 0, 'L');
+            $pdf->Ln();
+            
+            // Row 4: Direccion de entrega (with MultiCell for long text)
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Direccion de entrega', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(153, $cellHeight, '', 1, 0, 'L');
+            $pdf->Ln();
+            
+            // Row 5: Instrucciones de entrega (full width)
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(190, $cellHeight, 'Instrucciones de entrega', 1, 1, 'C');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
+            $pdf->Ln();
+            
+            // Row 6: Tipo de Entrega
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Tipo de Entrega', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(153, $cellHeight, $tipoEnvio, 1, 0, 'L');
+            $pdf->Ln();
+            
+            // Row 7: Trabajo
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Trabajo', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(153, $cellHeight, $workDescription, 1, 0, 'L');
+            $pdf->Ln();
+            
+            // Row 8: Large empty cell for additional work details
+            $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
+            $pdf->Ln();
+            
+            // Row 9: Light gray separator
+            $pdf->SetFillColor(211, 211, 211);
+            $pdf->Cell(190, 2, '', 0, 0, '', true);
+            $pdf->Ln();
+            
+            // Row 10: Footer with signature fields (no borders, centered)
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(45, $cellHeight, 'FECHA', 0, 0, 'C');
+            $pdf->Cell(95, $cellHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
+            $pdf->Cell(50, $cellHeight, 'Sello', 0, 0, 'C');
+            $pdf->Ln();
         }
         
         // Output PDF
