@@ -12,9 +12,9 @@
  * @since       1.0.0
  */
 
-echo "=== MODULE TROUBLESHOOTING ===\n";
+echo "=== AJAX TROUBLESHOOTING ===\n";
 echo "Module: mod_acciones_produccion\n";
-echo "Version: 1.8.138\n";
+echo "Version: 1.8.184\n";
 echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 
 // Joomla bootstrap for database access
@@ -30,7 +30,145 @@ try {
     $app = Factory::getApplication('administrator');
     $db = Factory::getDbo();
     
-    echo "🔍 STEP 1: Checking Module in Extensions Table\n";
+    echo "🔍 STEP 1: AJAX Endpoint Debugging\n";
+    
+    // Check AJAX endpoint file
+    $ajaxEndpoint = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/change_status.php';
+    if (file_exists($ajaxEndpoint)) {
+        echo "✅ AJAX endpoint exists: $ajaxEndpoint\n";
+        echo "  Size: " . filesize($ajaxEndpoint) . " bytes\n";
+        echo "  Permissions: " . substr(sprintf('%o', fileperms($ajaxEndpoint)), -4) . "\n";
+        echo "  Owner: " . posix_getpwuid(fileowner($ajaxEndpoint))['name'] . "\n";
+        
+        // Test if file is readable
+        if (is_readable($ajaxEndpoint)) {
+            echo "✅ AJAX endpoint is readable\n";
+        } else {
+            echo "❌ AJAX endpoint is NOT readable\n";
+        }
+        
+        // Test if file is executable
+        if (is_executable($ajaxEndpoint)) {
+            echo "✅ AJAX endpoint is executable\n";
+        } else {
+            echo "❌ AJAX endpoint is NOT executable\n";
+        }
+    } else {
+        echo "❌ AJAX endpoint NOT found: $ajaxEndpoint\n";
+    }
+    
+    // Check component directory structure
+    echo "\nChecking component directory structure:\n";
+    $componentDirs = [
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src',
+        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src/Controller'
+    ];
+    
+    foreach ($componentDirs as $dir) {
+        if (is_dir($dir)) {
+            $perms = substr(sprintf('%o', fileperms($dir)), -4);
+            echo "✅ Directory: $dir (perms: $perms)\n";
+        } else {
+            echo "❌ Directory NOT found: $dir\n";
+        }
+    }
+    
+    // Test AJAX endpoint URL construction
+    echo "\nTesting AJAX URL construction:\n";
+    $baseUrl = 'https://grimpsa_webserver.grantsolutions.cc';
+    $ajaxUrl = $baseUrl . '/components/com_ordenproduccion/site/change_status.php';
+    echo "Constructed AJAX URL: $ajaxUrl\n";
+    
+    // Check if URL is accessible (basic test)
+    echo "Testing URL accessibility...\n";
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => 5,
+            'ignore_errors' => true
+        ]
+    ]);
+    
+    $result = @file_get_contents($ajaxUrl, false, $context);
+    if ($result !== false) {
+        echo "✅ AJAX endpoint is accessible\n";
+        echo "Response length: " . strlen($result) . " bytes\n";
+        if (strpos($result, 'json') !== false) {
+            echo "✅ Response contains JSON content\n";
+        } else {
+            echo "⚠️ Response may not be JSON\n";
+        }
+    } else {
+        echo "❌ AJAX endpoint is NOT accessible\n";
+        echo "This could be due to:\n";
+        echo "  - File permissions\n";
+        echo "  - Web server configuration\n";
+        echo "  - URL rewriting issues\n";
+    }
+    
+    // Check user permissions for AJAX
+    echo "\nChecking user permissions for AJAX:\n";
+    $user = Factory::getUser();
+    echo "Current user ID: " . $user->id . "\n";
+    echo "Current user name: " . $user->name . "\n";
+    echo "User groups: " . implode(', ', $user->getAuthorisedGroups()) . "\n";
+    
+    // Check produccion group
+    $query = $db->getQuery(true)
+        ->select('id, title')
+        ->from($db->quoteName('#__usergroups'))
+        ->where($db->quoteName('title') . ' = ' . $db->quote('produccion'));
+
+    $db->setQuery($query);
+    $produccionGroup = $db->loadObject();
+    
+    if ($produccionGroup) {
+        echo "Produccion group ID: " . $produccionGroup->id . "\n";
+        $hasProductionAccess = in_array($produccionGroup->id, $user->getAuthorisedGroups());
+        echo "User has production access: " . ($hasProductionAccess ? 'YES' : 'NO') . "\n";
+    } else {
+        echo "❌ Produccion group not found\n";
+    }
+    
+    // Test CSRF token
+    echo "\nTesting CSRF token:\n";
+    $token = $app->getFormToken();
+    echo "CSRF token: $token\n";
+    echo "Token length: " . strlen($token) . " characters\n";
+    
+    // Check database table for work orders
+    echo "\nChecking work orders table:\n";
+    $query = $db->getQuery(true)
+        ->select('COUNT(*)')
+        ->from($db->quoteName('#__ordenproduccion_ordenes'));
+    
+    $db->setQuery($query);
+    $orderCount = $db->loadResult();
+    echo "Total work orders: $orderCount\n";
+    
+    if ($orderCount > 0) {
+        // Get a sample work order
+        $query = $db->getQuery(true)
+            ->select('id, numero_de_orden, client_name, status')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->setLimit(1);
+        
+        $db->setQuery($query);
+        $sampleOrder = $db->loadObject();
+        
+        if ($sampleOrder) {
+            echo "Sample work order:\n";
+            echo "  ID: " . $sampleOrder->id . "\n";
+            echo "  Number: " . $sampleOrder->numero_de_orden . "\n";
+            echo "  Client: " . $sampleOrder->client_name . "\n";
+            echo "  Status: " . $sampleOrder->status . "\n";
+        }
+    }
+    
+    echo "\n🔍 STEP 2: Checking Module in Extensions Table\n";
     
     // Check if module exists in joomla_extensions table
     $query = $db->getQuery(true)
@@ -257,145 +395,7 @@ try {
         }
     }
 
-    echo "\n🔍 STEP 7: AJAX Endpoint Debugging\n";
-    
-    // Check AJAX endpoint file
-    $ajaxEndpoint = '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/change_status.php';
-    if (file_exists($ajaxEndpoint)) {
-        echo "✅ AJAX endpoint exists: $ajaxEndpoint\n";
-        echo "  Size: " . filesize($ajaxEndpoint) . " bytes\n";
-        echo "  Permissions: " . substr(sprintf('%o', fileperms($ajaxEndpoint)), -4) . "\n";
-        echo "  Owner: " . posix_getpwuid(fileowner($ajaxEndpoint))['name'] . "\n";
-        
-        // Test if file is readable
-        if (is_readable($ajaxEndpoint)) {
-            echo "✅ AJAX endpoint is readable\n";
-        } else {
-            echo "❌ AJAX endpoint is NOT readable\n";
-        }
-        
-        // Test if file is executable
-        if (is_executable($ajaxEndpoint)) {
-            echo "✅ AJAX endpoint is executable\n";
-        } else {
-            echo "❌ AJAX endpoint is NOT executable\n";
-        }
-    } else {
-        echo "❌ AJAX endpoint NOT found: $ajaxEndpoint\n";
-    }
-    
-    // Check component directory structure
-    echo "\nChecking component directory structure:\n";
-    $componentDirs = [
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion',
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site',
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src',
-        '/var/www/grimpsa_webserver/components/com_ordenproduccion/site/src/Controller'
-    ];
-    
-    foreach ($componentDirs as $dir) {
-        if (is_dir($dir)) {
-            $perms = substr(sprintf('%o', fileperms($dir)), -4);
-            echo "✅ Directory: $dir (perms: $perms)\n";
-        } else {
-            echo "❌ Directory NOT found: $dir\n";
-        }
-    }
-    
-    // Test AJAX endpoint URL construction
-    echo "\nTesting AJAX URL construction:\n";
-    $baseUrl = 'https://grimpsa_webserver.grantsolutions.cc';
-    $ajaxUrl = $baseUrl . '/components/com_ordenproduccion/site/change_status.php';
-    echo "Constructed AJAX URL: $ajaxUrl\n";
-    
-    // Check if URL is accessible (basic test)
-    echo "Testing URL accessibility...\n";
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'timeout' => 5,
-            'ignore_errors' => true
-        ]
-    ]);
-    
-    $result = @file_get_contents($ajaxUrl, false, $context);
-    if ($result !== false) {
-        echo "✅ AJAX endpoint is accessible\n";
-        echo "Response length: " . strlen($result) . " bytes\n";
-        if (strpos($result, 'json') !== false) {
-            echo "✅ Response contains JSON content\n";
-        } else {
-            echo "⚠️ Response may not be JSON\n";
-        }
-    } else {
-        echo "❌ AJAX endpoint is NOT accessible\n";
-        echo "This could be due to:\n";
-        echo "  - File permissions\n";
-        echo "  - Web server configuration\n";
-        echo "  - URL rewriting issues\n";
-    }
-    
-    // Check user permissions for AJAX
-    echo "\nChecking user permissions for AJAX:\n";
-    $user = Factory::getUser();
-    echo "Current user ID: " . $user->id . "\n";
-    echo "Current user name: " . $user->name . "\n";
-    echo "User groups: " . implode(', ', $user->getAuthorisedGroups()) . "\n";
-    
-    // Check produccion group
-    $query = $db->getQuery(true)
-        ->select('id, title')
-        ->from($db->quoteName('#__usergroups'))
-        ->where($db->quoteName('title') . ' = ' . $db->quote('produccion'));
-
-    $db->setQuery($query);
-    $produccionGroup = $db->loadObject();
-    
-    if ($produccionGroup) {
-        echo "Produccion group ID: " . $produccionGroup->id . "\n";
-        $hasProductionAccess = in_array($produccionGroup->id, $user->getAuthorisedGroups());
-        echo "User has production access: " . ($hasProductionAccess ? 'YES' : 'NO') . "\n";
-    } else {
-        echo "❌ Produccion group not found\n";
-    }
-    
-    // Test CSRF token
-    echo "\nTesting CSRF token:\n";
-    $token = $app->getFormToken();
-    echo "CSRF token: $token\n";
-    echo "Token length: " . strlen($token) . " characters\n";
-    
-    // Check database table for work orders
-    echo "\nChecking work orders table:\n";
-    $query = $db->getQuery(true)
-        ->select('COUNT(*)')
-        ->from($db->quoteName('#__ordenproduccion_ordenes'));
-    
-    $db->setQuery($query);
-    $orderCount = $db->loadResult();
-    echo "Total work orders: $orderCount\n";
-    
-    if ($orderCount > 0) {
-        // Get a sample work order
-        $query = $db->getQuery(true)
-            ->select('id, numero_de_orden, client_name, status')
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->setLimit(1);
-        
-        $db->setQuery($query);
-        $sampleOrder = $db->loadObject();
-        
-        if ($sampleOrder) {
-            echo "Sample work order:\n";
-            echo "  ID: " . $sampleOrder->id . "\n";
-            echo "  Number: " . $sampleOrder->numero_de_orden . "\n";
-            echo "  Client: " . $sampleOrder->client_name . "\n";
-            echo "  Status: " . $sampleOrder->status . "\n";
-        }
-    }
-
-    echo "\n🔍 STEP 8: Summary and Recommendations\n";
+    echo "\n🔍 STEP 7: Summary and Recommendations\n";
     
     $successes = [];
     $issues = [];
