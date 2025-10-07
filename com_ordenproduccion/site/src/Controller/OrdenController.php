@@ -247,7 +247,21 @@ class OrdenController extends BaseController
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
                 $pdf->SetXY(15, $startY + 26); // Position below dates
                 $pdf->SetFont('Arial', 'B', 10);
-                $agentText = 'AGENTE DE VENTAS: ' . ($workOrderData->agente_de_ventas ?? 'N/A');
+                
+                // Get sales agent from correct field name
+                $salesAgent = 'N/A';
+                if (isset($workOrderData->sales_agent)) {
+                    $salesAgent = $workOrderData->sales_agent;
+                } elseif (isset($workOrderData->agente_de_ventas)) {
+                    $salesAgent = $workOrderData->agente_de_ventas;
+                }
+                
+                // Try EAV data as fallback
+                if ($salesAgent === 'N/A' && isset($workOrderData->eav_data['sales_agent'])) {
+                    $salesAgent = $workOrderData->eav_data['sales_agent']->attribute_value;
+                }
+                
+                $agentText = 'AGENTE DE VENTAS: ' . $salesAgent;
                 $pdf->Cell(0, 6, $agentText, 1, 1, 'L');
 
                 $pdf->Ln(5);
