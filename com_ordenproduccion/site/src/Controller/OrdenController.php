@@ -212,7 +212,7 @@ class OrdenController extends BaseController
                 $pdf->SetFont('Arial', '', 10);
                 $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
 
-                // ROW 3: AGENTE DE VENTAS
+                // ROW 3: AGENTE DE VENTAS (spans full width)
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell(30, 6, 'AGENTE DE VENTAS:', 0, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
