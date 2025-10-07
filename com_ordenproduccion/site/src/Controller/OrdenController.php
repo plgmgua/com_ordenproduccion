@@ -181,41 +181,54 @@ class OrdenController extends BaseController
         // Set margins
         $pdf->SetMargins(15, 15, 15);
         
-                // Header with logo and work order info - 3 rows layout
+                // Header with logo and work order info - 3 rows layout with borders
                 // Store current Y position for alignment
                 $startY = $pdf->GetY();
 
                 // ROW 1: Logo + ORDEN DE TRABAJO # and number
-                // Add GRIMPSA logo (left side)
-                $logoPath = JPATH_ROOT . '/media/com_ordenproduccion/grimpsa_logo.gif';
+                // Add GRIMPSA logo (left side) - correct path
+                $logoPath = JPATH_ROOT . '/images/grimpsa_logo.gif';
                 if (file_exists($logoPath)) {
-                    // Add logo image (25mm width, auto height)
-                    $pdf->Image($logoPath, 15, $startY, 25, 0, 'GIF');
+                    // Add logo image (25mm width, 15mm height)
+                    $pdf->Image($logoPath, 15, $startY, 25, 15, 'GIF');
+                } else {
+                    // Fallback if logo not found
+                    $pdf->SetXY(15, $startY);
+                    $pdf->SetFont('Arial', 'B', 12);
+                    $pdf->Cell(25, 15, 'GRIMPSA', 1, 0, 'C');
                 }
 
-                // Right side: ORDEN DE TRABAJO # and number
-                $pdf->SetX(100);
+                // Right side: ORDEN DE TRABAJO # and number with borders
+                $pdf->SetXY(100, $startY);
                 $pdf->SetFont('Arial', 'B', 14);
-                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R');
+                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 1, 1, 'R');
+                
                 $pdf->SetX(100);
                 $pdf->SetFont('Arial', '', 12);
-                $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R');
+                // Format numero de orden as ORD-000000
+                $numeroOrden = $workOrderData->numero_de_orden ?? 'N/A';
+                if (is_numeric($numeroOrden)) {
+                    $numeroOrden = 'ORD-' . str_pad($numeroOrden, 6, '0', STR_PAD_LEFT);
+                }
+                $pdf->Cell(0, 7, $numeroOrden, 1, 1, 'R');
 
-                // ROW 2: FECHA SOLICITUD + FECHA ENTREGA
+                // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
+                $pdf->SetXY(15, $startY + 15); // Position below logo
                 $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(30, 6, 'FECHA SOLICITUD:', 0, 0, 'L');
+                $pdf->Cell(40, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(40, 6, $workOrderData->request_date ?? 'N/A', 0, 0, 'L');
+                $pdf->Cell(50, 6, $workOrderData->request_date ?? 'N/A', 1, 0, 'L');
                 
                 $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(30, 6, 'FECHA ENTREGA:', 0, 0, 'L');
+                $pdf->Cell(40, 6, 'FECHA ENTREGA:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
+                $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
 
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
+                $pdf->SetXY(15, $startY + 21); // Position below dates
                 $pdf->SetFont('Arial', 'B', 10);
                 $agentText = 'AGENTE DE VENTAS: ' . ($workOrderData->agente_de_ventas ?? 'N/A');
-                $pdf->Cell(0, 6, $agentText, 0, 1, 'L');
+                $pdf->Cell(0, 6, $agentText, 1, 1, 'L');
 
                 $pdf->Ln(5);
         
