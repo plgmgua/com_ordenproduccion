@@ -184,6 +184,22 @@ main() {
     sudo cp "$COMPONENT_ROOT"/*.php "$SITE_COMPONENT_PATH/" 2>/dev/null || true
     sudo cp "$COMPONENT_ROOT"/*.xml "$SITE_COMPONENT_PATH/" 2>/dev/null || true
     
+    log "Ensuring critical model files are copied..."
+    # Explicitly copy OrdenModel.php from site/src/Model/ to component root
+    if [ -f "$COMPONENT_ROOT/site/src/Model/OrdenModel.php" ]; then
+        sudo cp "$COMPONENT_ROOT/site/src/Model/OrdenModel.php" "$SITE_COMPONENT_PATH/" || error "Failed to copy OrdenModel.php"
+        log "✅ OrdenModel.php copied successfully"
+        
+        # Verify the file was copied correctly
+        if [ -f "$SITE_COMPONENT_PATH/OrdenModel.php" ]; then
+            log "✅ OrdenModel.php verified in destination"
+        else
+            error "OrdenModel.php not found after copy - deployment failed"
+        fi
+    else
+        warning "OrdenModel.php not found in source - this may cause issues"
+    fi
+    
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
     sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"
     
