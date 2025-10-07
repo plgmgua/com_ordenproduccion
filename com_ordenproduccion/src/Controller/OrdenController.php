@@ -571,49 +571,34 @@ class OrdenController extends BaseController
         $salesAgent = $workOrderData->agente_de_ventas ?? $workOrderData->eav_data['agente_de_ventas']->attribute_value ?? 'N/A';
         $workDescription = $workOrderData->work_description ?? $workOrderData->eav_data['work_description']->attribute_value ?? $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value ?? 'N/A';
         
-        // Generate two identical shipping slips
+        // Generate two identical shipping slips on one page
         for ($slip = 0; $slip < 2; $slip++) {
-            if ($slip > 0) {
-                $pdf->AddPage();
-            }
+            // Calculate Y position for each slip (8.5x11 page = 279mm height)
+            $startY = $slip * 130; // 130mm spacing between slips
             
-            // Header with logo and title - matching original layout exactly
-            // Logo (top left) - using the same logo as orden de trabajo
-            $logoPath = JPATH_ROOT . '/media/com_ordenproduccion/images/grimpsa_logo.gif';
-            if (file_exists($logoPath)) {
-                $pdf->Image($logoPath, 10, 20, 55, 0); // Same dimensions as orden de trabajo
-            } else {
-                // Fallback text logo
-                $pdf->SetFont('Arial', 'B', 16);
-                $pdf->SetXY(10, 20);
-                $pdf->Cell(55, 10, 'GRIMPSA', 0, 0, 'L');
-                
-                $pdf->SetFont('Arial', '', 10);
-                $pdf->SetXY(10, 30);
-                $pdf->Cell(55, 5, 'Impresion Digital', 0, 0, 'L');
-            }
+            // Header with logo and title - clean layout
+            // Logo (top left) - using the actual GRIMPSA logo
+            $logoPath = 'https://grimpsa_webserver.grantsolutions.cc/images/grimpsa_logo.gif';
+            $pdf->Image($logoPath, 10, $startY + 20, 55, 0); // 55mm width, auto height
             
-            // Envio number and date (center) - matching original positioning
+            // Envio number only (center) - no "Envio #" label
             $pdf->SetFont('Arial', 'B', 26);
-            $pdf->SetXY(0, 30);
-            $pdf->Cell(0, 10, 'Envio # ' . $envioNumber, 0, 1, 'C');
+            $pdf->SetXY(0, $startY + 30);
+            $pdf->Cell(0, 10, $envioNumber, 0, 1, 'C');
             
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->SetXY(0, 40);
+            $pdf->SetXY(0, $startY + 40);
             $pdf->Cell(0, 6, 'GUATEMALA, ' . $currentDate, 0, 1, 'C');
             
-            // QR Code placeholder (top right) - matching original size
-            $pdf->SetXY(159, 20);
-            $pdf->Cell(40, 40, '', 1, 0, 'C');
-            $pdf->SetFont('Arial', '', 8);
-            $pdf->SetXY(159, 45);
-            $pdf->Cell(40, 5, 'QR: ' . $envioNumber, 0, 0, 'C');
+            // QR Code (top right) - no square border, no label
+            $pdf->SetXY(159, $startY + 20);
+            $pdf->Cell(40, 40, '', 0, 0, 'C'); // No border
             
             // Client and delivery information table - using exact dimensions from working code
             $cellHeight = 5;
             
             // Start table below header area
-            $pdf->SetY(50);
+            $pdf->SetY($startY + 50);
             
             // Row 1: Cliente
             $pdf->SetFont('Arial', 'B', 10);
