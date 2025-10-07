@@ -282,23 +282,50 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', '', 9);
         // Get job description from correct field name
         $jobDesc = 'N/A';
+        
+        // Debug: Check what fields are available
+        $debugInfo = [];
         if (isset($workOrderData->work_description)) {
             $jobDesc = $workOrderData->work_description;
+            $debugInfo[] = 'work_description: ' . $workOrderData->work_description;
         } elseif (isset($workOrderData->description)) {
             $jobDesc = $workOrderData->description;
+            $debugInfo[] = 'description: ' . $workOrderData->description;
         }
         
         // Try EAV data as fallback
-        if ($jobDesc === 'N/A' && isset($workOrderData->eav_data['work_description'])) {
-            $jobDesc = $workOrderData->eav_data['work_description']->attribute_value;
-        } elseif ($jobDesc === 'N/A' && isset($workOrderData->eav_data['descripcion_de_trabajo'])) {
-            $jobDesc = $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value;
+        if ($jobDesc === 'N/A') {
+            if (isset($workOrderData->eav_data['work_description'])) {
+                $jobDesc = $workOrderData->eav_data['work_description']->attribute_value;
+                $debugInfo[] = 'EAV work_description: ' . $jobDesc;
+            } elseif (isset($workOrderData->eav_data['descripcion_de_trabajo'])) {
+                $jobDesc = $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value;
+                $debugInfo[] = 'EAV descripcion_de_trabajo: ' . $jobDesc;
+            }
+        }
+        
+        // If still N/A, try to get from EAV data directly
+        if ($jobDesc === 'N/A' && isset($workOrderData->eav_data)) {
+            foreach ($workOrderData->eav_data as $key => $data) {
+                if (strpos($key, 'work') !== false || strpos($key, 'description') !== false || strpos($key, 'trabajo') !== false) {
+                    $jobDesc = $data->attribute_value;
+                    $debugInfo[] = 'EAV ' . $key . ': ' . $jobDesc;
+                    break;
+                }
+            }
         }
         
         if (strlen($jobDesc) > 50) {
             $jobDesc = substr($jobDesc, 0, 47) . '...';
         }
-        $pdf->Cell(0, 8, $jobDesc, 1, 1, 'L');
+        
+        // Add debug info to PDF for troubleshooting
+        $debugText = $jobDesc;
+        if (!empty($debugInfo)) {
+            $debugText .= ' [' . implode(', ', $debugInfo) . ']';
+        }
+        
+        $pdf->Cell(0, 8, $debugText, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(49, 8, 'DIRECCION DE ENTREGA', 1, 0, 'L'); // 35 * 1.4 = 49
