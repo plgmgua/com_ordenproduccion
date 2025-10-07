@@ -31,11 +31,12 @@ class AjaxController extends BaseController
      */
     public function changeStatus()
     {
-        // Set proper headers for JSON response
-        header('Content-Type: application/json');
-        
-        $app = Factory::getApplication();
-        $user = Factory::getUser();
+        try {
+            // Set proper headers for JSON response
+            header('Content-Type: application/json');
+            
+            $app = Factory::getApplication();
+            $user = Factory::getUser();
         
         // Check CSRF token
         if (!Session::checkToken()) {
@@ -90,6 +91,10 @@ class AjaxController extends BaseController
             }
         } else {
             echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
+        }
+        
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
         }
         
         exit;
