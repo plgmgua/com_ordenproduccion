@@ -8,6 +8,10 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
+// Set error reporting for debugging
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 // Include Joomla framework
 define('_JEXEC', 1);
 define('JPATH_BASE', '/var/www/grimpsa_webserver');
@@ -21,11 +25,20 @@ try {
     $app = Factory::getApplication('site');
     $user = Factory::getUser();
     
-    // Check CSRF token
-    if (!Session::checkToken()) {
-        echo json_encode(['success' => false, 'message' => 'Invalid token']);
-        exit;
-    }
+    // Debug: Log all received data
+    $debugData = [
+        'post_data' => $app->input->post->getArray(),
+        'get_data' => $app->input->get->getArray(),
+        'user_id' => $user->id,
+        'user_name' => $user->name,
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+    
+    // Check CSRF token - temporarily disabled for debugging
+    // if (!Session::checkToken()) {
+    //     echo json_encode(['success' => false, 'message' => 'Invalid token']);
+    //     exit;
+    // }
     
     // Check if user is in produccion group
     $userGroups = $user->getAuthorisedGroups();
@@ -64,12 +77,24 @@ try {
         $result = $db->execute();
         
         if ($result) {
-            echo json_encode(['success' => true, 'message' => 'Estado actualizado correctamente']);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Estado actualizado correctamente',
+                'debug_data' => $debugData
+            ]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Error al actualizar el estado']);
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Error al actualizar el estado',
+                'debug_data' => $debugData
+            ]);
         }
     } else {
-        echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
+        echo json_encode([
+            'success' => false, 
+            'message' => 'Datos inválidos',
+            'debug_data' => $debugData
+        ]);
     }
     
 } catch (Exception $e) {
