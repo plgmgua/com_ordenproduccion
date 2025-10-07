@@ -552,8 +552,17 @@ class OrdenController extends BaseController
      */
     private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo')
     {
+        // Check if FPDF library exists
+        $fpdfPath = JPATH_ROOT . '/libraries/fpdf/fpdf.php';
+        
+        if (!file_exists($fpdfPath)) {
+            // Generate HTML-based PDF as fallback
+            $this->generateShippingSlipHTML($orderId, $workOrderData, $tipoEnvio);
+            return;
+        }
+        
         // Include FPDF library
-        require_once JPATH_ROOT . '/libraries/fpdf/fpdf.php';
+        require_once $fpdfPath;
 
         // Create PDF
         $pdf = new \FPDF('P', 'mm', 'A4');
@@ -663,6 +672,171 @@ class OrdenController extends BaseController
         
         // Output PDF
         $pdf->Output('I', 'envio_' . $envioNumber . '.pdf');
+        exit;
+    }
+
+    /**
+     * Method to generate shipping slip HTML as fallback when FPDF is not available.
+     *
+     * @param   int     $orderId        Work order ID
+     * @param   object  $workOrderData  Work order data
+     * @param   string  $tipoEnvio      Tipo de envio (completo/parcial)
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    private function generateShippingSlipHTML($orderId, $workOrderData, $tipoEnvio = 'completo')
+    {
+        // Get shipping number (convert ORD-000000 to ENV-000000)
+        $ordenNumber = $workOrderData->numero_de_orden ?? 'ORD-' . str_pad($orderId, 6, '0', STR_PAD_LEFT);
+        $envioNumber = str_replace('ORD-', 'ENV-', $ordenNumber);
+        
+        // Get current date
+        $currentDate = date('d/m/Y');
+        
+        // Get client data
+        $clientName = $workOrderData->client_name ?? 'N/A';
+        $salesAgent = $workOrderData->agente_de_ventas ?? $workOrderData->eav_data['agente_de_ventas']->attribute_value ?? 'N/A';
+        $workDescription = $workOrderData->work_description ?? $workOrderData->eav_data['work_description']->attribute_value ?? $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value ?? 'N/A';
+        
+        // Set headers for PDF-like output
+        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Disposition: inline; filename="envio_' . $envioNumber . '.html"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+        
+        // Generate HTML for two identical shipping slips
+        $html = '<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envio ' . $envioNumber . '</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .shipping-slip { 
+            width: 100%; 
+            max-width: 800px; 
+            margin: 0 auto 30px auto; 
+            border: 2px solid #000; 
+            padding: 20px; 
+            page-break-after: always;
+        }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .logo { font-size: 24px; font-weight: bold; }
+        .logo-sub { font-size: 14px; color: #666; }
+        .envio-info { text-align: center; }
+        .envio-number { font-size: 28px; font-weight: bold; margin: 0; }
+        .envio-date { font-size: 16px; margin: 5px 0; }
+        .qr-placeholder { 
+            width: 80px; 
+            height: 80px; 
+            border: 2px solid #000; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 10px; 
+            text-align: center;
+        }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .info-table td { border: 1px solid #000; padding: 8px; }
+        .info-table .label { font-weight: bold; width: 30%; background: #f0f0f0; }
+        .work-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .work-table td { border: 1px solid #000; padding: 8px; }
+        .work-table .label { font-weight: bold; width: 30%; background: #f0f0f0; }
+        .signature-section { display: flex; justify-content: space-between; margin-top: 30px; }
+        .signature-box { width: 30%; text-align: center; }
+        .signature-label { font-weight: bold; margin-bottom: 5px; }
+        .signature-line { border-bottom: 1px solid #000; height: 40px; }
+        @media print {
+            .shipping-slip { page-break-after: always; }
+            body { margin: 0; padding: 0; }
+        }
+    </style>
+</head>
+<body>';
+
+        // Generate two identical shipping slips
+        for ($slip = 0; $slip < 2; $slip++) {
+            $html .= '<div class="shipping-slip">
+                <div class="header">
+                    <div class="logo">
+                        GRIMPSA<br>
+                        <span class="logo-sub">Impresion Digital</span>
+                    </div>
+                    <div class="envio-info">
+                        <div class="envio-number">Envio # ' . $envioNumber . '</div>
+                        <div class="envio-date">GUATEMALA, ' . $currentDate . '</div>
+                    </div>
+                    <div class="qr-placeholder">
+                        QR: ' . $envioNumber . '
+                    </div>
+                </div>
+                
+                <table class="info-table">
+                    <tr>
+                        <td class="label">Cliente</td>
+                        <td>' . htmlspecialchars($clientName) . '</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Agente de Ventas</td>
+                        <td>' . htmlspecialchars($salesAgent) . '</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Contacto</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Direccion de entrega</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Telefono</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="label" colspan="2">Instrucciones de entrega</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="height: 60px;"></td>
+                    </tr>
+                </table>
+                
+                <table class="work-table">
+                    <tr>
+                        <td class="label">Tipo de Entrega</td>
+                        <td>' . htmlspecialchars($tipoEnvio) . '</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Trabajo</td>
+                        <td>' . htmlspecialchars($workDescription) . '</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="height: 60px;"></td>
+                    </tr>
+                </table>
+                
+                <div class="signature-section">
+                    <div class="signature-box">
+                        <div class="signature-label">FECHA</div>
+                        <div class="signature-line"></div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-label">NOMBRE Y FIRMA</div>
+                        <div class="signature-line"></div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-label">Sello</div>
+                        <div class="signature-line"></div>
+                    </div>
+                </div>
+            </div>';
+        }
+        
+        $html .= '</body></html>';
+        
+        echo $html;
         exit;
     }
 }
