@@ -91,7 +91,7 @@ try {
     }
     
     // Validate status value
-    $validStatuses = ['en_progreso', 'terminada', 'entregada'];
+    $validStatuses = ['nueva', 'en_proceso', 'terminada', 'cerrada'];
     if (!in_array($newStatus, $validStatuses)) {
         echo json_encode([
             'success' => false,

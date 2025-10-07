@@ -78,11 +78,12 @@ if ($orderId > 0) {
     }
 }
 
-// Get status options for dropdown
+// Get status options for dropdown - matching the main interface
 $statusOptions = [
-    'en_progreso' => 'En Progreso',
+    'nueva' => 'Nueva',
+    'en_proceso' => 'En Proceso', 
     'terminada' => 'Terminada',
-    'entregada' => 'Entregada'
+    'cerrada' => 'Cerrada'
 ];
 
 // Load the template

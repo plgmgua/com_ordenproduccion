@@ -39,8 +39,8 @@ $currentUrl = Uri::current();
                 <!-- Work Order Info with Status Change -->
                 <div class="work-order-info">
                     <p><strong>Estado Actual:</strong> 
-                        <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'en_progreso'); ?>">
-                            <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'en_progreso'] ?? 'En Progreso'); ?>
+                        <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'nueva'); ?>">
+                            <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'nueva'] ?? 'Nueva'); ?>
                         </span>
                     </p>
                     
@@ -184,7 +184,11 @@ $currentUrl = Uri::current();
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        .status-en_progreso { 
+        .status-nueva { 
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); 
+            color: #fff; 
+        }
+        .status-en_proceso { 
             background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); 
             color: #fff; 
         }
@@ -192,7 +196,7 @@ $currentUrl = Uri::current();
             background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); 
             color: #fff; 
         }
-        .status-entregada { 
+        .status-cerrada { 
             background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); 
             color: #fff; 
         }
