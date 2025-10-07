@@ -26,20 +26,13 @@ $currentUrl = Uri::current();
         </div>
     <?php elseif ($orderId && $workOrderData): ?>
         
-                <!-- PDF Generation Buttons (Top) -->
+                <!-- PDF Generation Button (Top) -->
                 <div class="pdf-actions">
                     <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
                        target="_blank" 
                        class="btn btn-primary btn-block">
-                        <i class="fas fa-file-pdf"></i>
-                        Generar PDF
-                    </a>
-                    
-                    <a href="index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=<?php echo $orderId; ?>" 
-                       target="_blank" 
-                       class="btn btn-info btn-block">
-                        <i class="fas fa-shipping-fast"></i>
-                        Generar Envio
+                        <i class="fas fa-print"></i>
+                        Imprimir Orden
                     </a>
                 </div>
         
@@ -76,6 +69,38 @@ $currentUrl = Uri::current();
                     </form>
                     
                     <div id="status-message" class="status-message" style="display: none;"></div>
+                </div>
+
+                <!-- Shipping Slip Form -->
+                <div class="shipping-form-section">
+                    <h6><i class="fas fa-shipping-fast"></i> Generar Envio</h6>
+                    <form id="shipping-form" class="shipping-form">
+                        <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+                        <input type="hidden" name="<?php echo $app->getFormToken(); ?>" value="1">
+                        <input type="hidden" name="option" value="com_ordenproduccion">
+                        <input type="hidden" name="task" value="orden.generateShippingSlip">
+                        
+                        <div class="form-group">
+                            <label class="form-label">Tipo de Envio:</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="tipo_envio" value="completo" checked>
+                                    <span class="radio-text">Completo</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="tipo_envio" value="parcial">
+                                    <span class="radio-text">Parcial</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-info btn-block">
+                            <i class="fas fa-shipping-fast"></i>
+                            Generar Envio
+                        </button>
+                    </form>
+                    
+                    <div id="shipping-message" class="shipping-message" style="display: none;"></div>
                 </div>
 
     <?php else: ?>
@@ -168,6 +193,68 @@ $currentUrl = Uri::current();
             margin-bottom: 8px;
         }
 
+        .shipping-form-section {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .shipping-form-section h6 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .radio-label input[type="radio"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+
+        .radio-text {
+            color: #495057;
+        }
+
+        .shipping-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .shipping-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .shipping-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
 .status-message {
     margin-top: 10px;
     padding: 10px;
@@ -200,85 +287,153 @@ $currentUrl = Uri::current();
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('status-change-form');
-    const messageDiv = document.getElementById('status-message');
-    
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
+        document.addEventListener('DOMContentLoaded', function() {
+            // Status change form
+            const statusForm = document.getElementById('status-change-form');
+            const statusMessageDiv = document.getElementById('status-message');
             
-            const formData = new FormData(form);
-            const orderId = formData.get('order_id');
-            const newStatus = formData.get('new_status');
-            
-            if (!newStatus) {
-                showMessage('Por favor selecciona un estado', 'error');
-                return;
+            if (statusForm) {
+                statusForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(statusForm);
+                    const orderId = formData.get('order_id');
+                    const newStatus = formData.get('new_status');
+                    
+                    if (!newStatus) {
+                        showStatusMessage('Por favor selecciona un estado', 'error');
+                        return;
+                    }
+                    
+                    // Show loading state
+                    const submitBtn = statusForm.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+                    submitBtn.disabled = true;
+                    
+                    // Convert FormData to URL-encoded string
+                    const urlEncodedData = new URLSearchParams(formData).toString();
+                    
+                    // Make AJAX request - use direct database version (gets user from session table)
+                    fetch('/components/com_ordenproduccion/change_status_direct_db.php', {
+                        method: 'POST',
+                        body: urlEncodedData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('HTTP error! status: ' + response.status);
+                        }
+                        return response.text(); // Get as text first
+                    })
+                    .then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            if (data.success) {
+                                showStatusMessage(data.message, 'success');
+                                // Reload page after 2 seconds to show updated status
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 2000);
+                            } else {
+                                showStatusMessage(data.message, 'error');
+                            }
+                        } catch (e) {
+                            console.error('Response text:', text);
+                            showStatusMessage('Error: Respuesta no válida del servidor', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('AJAX Error:', error);
+                        showStatusMessage('Error de conexión: ' + error.message, 'error');
+                    })
+                    .finally(() => {
+                        // Restore button state
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    });
+                });
             }
             
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
-            submitBtn.disabled = true;
+            // Shipping form
+            const shippingForm = document.getElementById('shipping-form');
+            const shippingMessageDiv = document.getElementById('shipping-message');
             
-            // Convert FormData to URL-encoded string
-            const urlEncodedData = new URLSearchParams(formData).toString();
-            
-            // Make AJAX request - use direct database version (gets user from session table)
-            fetch('/components/com_ordenproduccion/change_status_direct_db.php', {
-                method: 'POST',
-                body: urlEncodedData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('HTTP error! status: ' + response.status);
-                }
-                return response.text(); // Get as text first
-            })
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        showMessage(data.message, 'success');
-                        // Reload page after 2 seconds to show updated status
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 2000);
-                    } else {
-                        showMessage(data.message, 'error');
+            if (shippingForm) {
+                shippingForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(shippingForm);
+                    const orderId = formData.get('order_id');
+                    const tipoEnvio = formData.get('tipo_envio');
+                    
+                    if (!tipoEnvio) {
+                        showShippingMessage('Por favor selecciona un tipo de envio', 'error');
+                        return;
                     }
-                } catch (e) {
-                    console.error('Response text:', text);
-                    showMessage('Error: Respuesta no válida del servidor', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('AJAX Error:', error);
-                showMessage('Error de conexión: ' + error.message, 'error');
-            })
-            .finally(() => {
-                // Restore button state
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            });
+                    
+                    // Show loading state
+                    const submitBtn = shippingForm.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+                    submitBtn.disabled = true;
+                    
+                    // Convert FormData to URL-encoded string
+                    const urlEncodedData = new URLSearchParams(formData).toString();
+                    
+                    // Make request to generate shipping slip
+                    fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio, {
+                        method: 'POST',
+                        body: urlEncodedData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Open PDF in new tab
+                            window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio, '_blank');
+                            showShippingMessage('Envio generado correctamente', 'success');
+                        } else {
+                            throw new Error('HTTP error! status: ' + response.status);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Shipping Error:', error);
+                        showShippingMessage('Error al generar envio: ' + error.message, 'error');
+                    })
+                    .finally(() => {
+                        // Restore button state
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    });
+                });
+            }
+            
+            function showStatusMessage(message, type) {
+                statusMessageDiv.innerHTML = message;
+                statusMessageDiv.className = 'status-message ' + type;
+                statusMessageDiv.style.display = 'block';
+                
+                // Hide message after 5 seconds
+                setTimeout(() => {
+                    statusMessageDiv.style.display = 'none';
+                }, 5000);
+            }
+            
+            function showShippingMessage(message, type) {
+                shippingMessageDiv.innerHTML = message;
+                shippingMessageDiv.className = 'shipping-message ' + type;
+                shippingMessageDiv.style.display = 'block';
+                
+                // Hide message after 5 seconds
+                setTimeout(() => {
+                    shippingMessageDiv.style.display = 'none';
+                }, 5000);
+            }
         });
-    }
-    
-    function showMessage(message, type) {
-        messageDiv.innerHTML = message;
-        messageDiv.className = 'status-message ' + type;
-        messageDiv.style.display = 'block';
-        
-        // Hide message after 5 seconds
-        setTimeout(() => {
-            messageDiv.style.display = 'none';
-        }, 5000);
-    }
-});
 </script>

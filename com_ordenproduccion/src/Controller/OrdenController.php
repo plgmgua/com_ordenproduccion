@@ -143,6 +143,7 @@ class OrdenController extends BaseController
         }
 
         $orderId = $this->input->getInt('id', 0);
+        $tipoEnvio = $this->input->getString('tipo_envio', 'completo');
         
         if (!$orderId) {
             $app->enqueueMessage('ID de orden no válido.', 'error');
@@ -161,7 +162,7 @@ class OrdenController extends BaseController
             }
 
             // Generate shipping slip PDF using FPDF
-            $this->generateShippingSlipPDF($orderId, $workOrderData);
+            $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio);
             
         } catch (Exception $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
@@ -543,12 +544,13 @@ class OrdenController extends BaseController
      *
      * @param   int     $orderId        Work order ID
      * @param   object  $workOrderData  Work order data
+     * @param   string  $tipoEnvio      Tipo de envio (completo/parcial)
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    private function generateShippingSlipPDF($orderId, $workOrderData)
+    private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo')
     {
         // Include FPDF library
         require_once JPATH_ROOT . '/libraries/fpdf/fpdf.php';
@@ -637,7 +639,7 @@ class OrdenController extends BaseController
             
             $pdf->SetXY(20, 130);
             $pdf->Cell(40, 8, 'Tipo de Entrega', 1, 0, 'L');
-            $pdf->Cell(120, 8, 'completa', 1, 0, 'L');
+            $pdf->Cell(120, 8, $tipoEnvio, 1, 0, 'L');
             
             $pdf->SetXY(20, 138);
             $pdf->Cell(40, 8, 'Trabajo', 1, 0, 'L');
