@@ -174,12 +174,29 @@ class OrdenController extends BaseController
         // Include FPDF library
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
         
-        // Create PDF instance
-        $pdf = new \FPDF('P', 'mm', 'A4');
-        $pdf->AddPage();
+                // Create PDF instance with UTF-8 support
+                $pdf = new \FPDF('P', 'mm', 'A4');
+                $pdf->AddPage();
+                
+                // Set margins
+                $pdf->SetMargins(15, 15, 15);
+                
+        // Set UTF-8 encoding for proper Spanish character support
+        $pdf->SetAutoPageBreak(true, 15);
         
-        // Set margins
-        $pdf->SetMargins(15, 15, 15);
+        // Function to fix Spanish characters for FPDF
+        $fixSpanishChars = function($text) {
+            if (empty($text)) return $text;
+            
+            // Convert common Spanish characters that FPDF doesn't handle well
+            $replacements = [
+                'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
+                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
+                'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c'
+            ];
+            
+            return strtr($text, $replacements);
+        };
         
                 // Header with logo and work order info - 3 rows layout with borders
                 // Store current Y position for alignment
@@ -272,6 +289,7 @@ class OrdenController extends BaseController
         $pdf->Cell(49, 8, 'CLIENTE:', 1, 0, 'L'); // 35 * 1.4 = 49
         $pdf->SetFont('Arial', '', 9);
         $clientName = $workOrderData->client_name ?? 'N/A';
+        $clientName = $fixSpanishChars($clientName); // Fix Spanish characters
         if (strlen($clientName) > 50) {
             $clientName = substr($clientName, 0, 47) . '...';
         }
@@ -315,22 +333,19 @@ class OrdenController extends BaseController
             }
         }
         
+        $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
         if (strlen($jobDesc) > 50) {
             $jobDesc = substr($jobDesc, 0, 47) . '...';
         }
         
-        // Add debug info to PDF for troubleshooting
-        $debugText = $jobDesc;
-        if (!empty($debugInfo)) {
-            $debugText .= ' [' . implode(', ', $debugInfo) . ']';
-        }
-        
-        $pdf->Cell(0, 8, $debugText, 1, 1, 'L');
+        // Remove debug info for production
+        $pdf->Cell(0, 8, $jobDesc, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(49, 8, 'DIRECCION DE ENTREGA', 1, 0, 'L'); // 35 * 1.4 = 49
         $pdf->SetFont('Arial', '', 9);
         $deliveryAddr = $workOrderData->delivery_address ?? 'N/A';
+        $deliveryAddr = $fixSpanishChars($deliveryAddr); // Fix Spanish characters
         if (strlen($deliveryAddr) > 50) {
             $deliveryAddr = substr($deliveryAddr, 0, 47) . '...';
         }
@@ -446,6 +461,7 @@ class OrdenController extends BaseController
         $pdf->Cell(0, 8, 'Instrucciones / Observaciones', 1, 1, 'L');
         $pdf->SetFont('Arial', '', 9);
         $instructions = $workOrderData->instructions ?? 'N/A';
+        $instructions = $fixSpanishChars($instructions); // Fix Spanish characters
         // Ensure text fits within cell boundaries
         $pdf->MultiCell(0, 6, $instructions, 1, 'L');
         
