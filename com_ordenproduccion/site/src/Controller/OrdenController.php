@@ -181,66 +181,45 @@ class OrdenController extends BaseController
         // Set margins
         $pdf->SetMargins(15, 15, 15);
         
-                // Header with logo and title - matching screenshot layout
+                // Header with logo and work order info - 3 rows layout
                 // Store current Y position for alignment
                 $startY = $pdf->GetY();
 
+                // ROW 1: Logo + ORDEN DE TRABAJO # and number
                 // Add GRIMPSA logo (left side)
                 $logoPath = JPATH_ROOT . '/media/com_ordenproduccion/grimpsa_logo.gif';
                 if (file_exists($logoPath)) {
-                    // Add logo image (20mm width, auto height)
-                    $pdf->Image($logoPath, 15, $startY, 20, 0, 'GIF');
-                    
-                    // Position text to the right of logo
-                    $textX = 40; // Start text after logo (15 + 20 + 5 margin)
-                } else {
-                    // Fallback if logo not found
-                    $textX = 15;
+                    // Add logo image (25mm width, auto height)
+                    $pdf->Image($logoPath, 15, $startY, 25, 0, 'GIF');
                 }
 
-                // Left side: GRIMPSA (next to logo)
-                $pdf->SetXY($textX, $startY);
-                $pdf->SetFont('Arial', 'B', 16);
-                $pdf->Cell(60, 8, 'GRIMPSA', 0, 0, 'L'); // Print GRIMPSA, cursor stays on same line
-
-                // Right side: ORDEN DE TRABAJO #:
-                // Move cursor to the right, starting at X = 100mm (arbitrary point to ensure it's on the right)
+                // Right side: ORDEN DE TRABAJO # and number
                 $pdf->SetX(100);
                 $pdf->SetFont('Arial', 'B', 14);
-                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R'); // Print, then move to next line
-
-                // Right side: Work order number
-                $pdf->SetX(100); // Maintain X position for right alignment
+                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R');
+                $pdf->SetX(100);
                 $pdf->SetFont('Arial', '', 12);
-                $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R'); // Print, then move to next line
+                $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R');
 
-                // Go back to left side for "Impresion Digital"
-                // Set Y explicitly to be below GRIMPSA, and X to text position
-                $pdf->SetXY($textX, $startY + 8); // textX position, 8 is height of GRIMPSA cell
+                // ROW 2: FECHA SOLICITUD + FECHA ENTREGA
+                $pdf->SetFont('Arial', 'B', 10);
+                $pdf->Cell(30, 6, 'FECHA SOLICITUD:', 0, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(60, 6, 'Impresion Digital', 0, 1, 'L'); // Print, then move to next line
+                $pdf->Cell(40, 6, $workOrderData->request_date ?? 'N/A', 0, 0, 'L');
+                
+                $pdf->SetFont('Arial', 'B', 10);
+                $pdf->Cell(30, 6, 'FECHA ENTREGA:', 0, 0, 'L');
+                $pdf->SetFont('Arial', '', 10);
+                $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
 
-                // Add a line break to ensure subsequent content starts below the lowest point of this header block
+                // ROW 3: AGENTE DE VENTAS
+                $pdf->SetFont('Arial', 'B', 10);
+                $pdf->Cell(30, 6, 'AGENTE DE VENTAS:', 0, 0, 'L');
+                $pdf->SetFont('Arial', '', 10);
+                $pdf->Cell(0, 6, $workOrderData->agente_de_ventas ?? 'N/A', 0, 1, 'L');
+
                 $pdf->Ln(5);
         
-        // Date information
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 6, 'FECHA SOLICITUD:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(40, 6, $workOrderData->request_date ?? 'N/A', 0, 0, 'L');
-        
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 6, 'FECHA ENTREGA:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 0, 1, 'L');
-        
-        // Sales agent
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(30, 6, 'AGENTE DE VENTAS:', 0, 0, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 6, $workOrderData->agente_de_ventas ?? 'N/A', 0, 1, 'L');
-        
-        $pdf->Ln(5);
         
         // Client and job information table with proper cell sizing (40% larger labels)
         $pdf->SetFont('Arial', 'B', 10);
