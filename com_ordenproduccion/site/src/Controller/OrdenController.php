@@ -185,7 +185,21 @@ class OrdenController extends BaseController
                 // Store current Y position for alignment
                 $startY = $pdf->GetY();
 
-                // Left side: GRIMPSA
+                // Add GRIMPSA logo (left side)
+                $logoPath = JPATH_ROOT . '/media/com_ordenproduccion/grimpsa_logo.gif';
+                if (file_exists($logoPath)) {
+                    // Add logo image (20mm width, auto height)
+                    $pdf->Image($logoPath, 15, $startY, 20, 0, 'GIF');
+                    
+                    // Position text to the right of logo
+                    $textX = 40; // Start text after logo (15 + 20 + 5 margin)
+                } else {
+                    // Fallback if logo not found
+                    $textX = 15;
+                }
+
+                // Left side: GRIMPSA (next to logo)
+                $pdf->SetXY($textX, $startY);
                 $pdf->SetFont('Arial', 'B', 16);
                 $pdf->Cell(60, 8, 'GRIMPSA', 0, 0, 'L'); // Print GRIMPSA, cursor stays on same line
 
@@ -201,8 +215,8 @@ class OrdenController extends BaseController
                 $pdf->Cell(0, 6, $workOrderData->numero_de_orden ?? 'N/A', 0, 1, 'R'); // Print, then move to next line
 
                 // Go back to left side for "Impresion Digital"
-                // Set Y explicitly to be below GRIMPSA, and X to left margin
-                $pdf->SetXY(15, $startY + 8); // 15 is left margin, 8 is height of GRIMPSA cell
+                // Set Y explicitly to be below GRIMPSA, and X to text position
+                $pdf->SetXY($textX, $startY + 8); // textX position, 8 is height of GRIMPSA cell
                 $pdf->SetFont('Arial', '', 10);
                 $pdf->Cell(60, 6, 'Impresion Digital', 0, 1, 'L'); // Print, then move to next line
 
