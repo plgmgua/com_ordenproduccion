@@ -13,6 +13,10 @@ error_reporting(E_ALL);
 // Set proper headers for JSON response
 header('Content-Type: application/json');
 
+// Use statements must be at the top
+use Joomla\CMS\Factory;
+use Joomla\CMS\Session\Session;
+
 echo "=== AJAX 500 ERROR DEBUGGING ===\n";
 echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 
@@ -42,8 +46,6 @@ try {
     echo "✅ framework.php loaded\n";
     
     echo "🔍 STEP 3: Joomla Application Test\n";
-    use Joomla\CMS\Factory;
-    use Joomla\CMS\Session\Session;
     
     $app = Factory::getApplication('site');
     echo "✅ Joomla application created\n";
