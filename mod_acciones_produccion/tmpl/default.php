@@ -26,15 +26,22 @@ $currentUrl = Uri::current();
         </div>
     <?php elseif ($orderId && $workOrderData): ?>
         
-        <!-- PDF Generation Button (Top) -->
-        <div class="pdf-action">
-            <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
-               target="_blank" 
-               class="btn btn-primary btn-block">
-                <i class="fas fa-file-pdf"></i>
-                Generar PDF
-            </a>
-        </div>
+                <!-- PDF Generation Buttons (Top) -->
+                <div class="pdf-actions">
+                    <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
+                       target="_blank" 
+                       class="btn btn-primary btn-block">
+                        <i class="fas fa-file-pdf"></i>
+                        Generar PDF
+                    </a>
+                    
+                    <a href="index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=<?php echo $orderId; ?>" 
+                       target="_blank" 
+                       class="btn btn-info btn-block">
+                        <i class="fas fa-shipping-fast"></i>
+                        Generar Envio
+                    </a>
+                </div>
         
                 <!-- Work Order Info with Status Change -->
                 <div class="work-order-info">
@@ -152,10 +159,14 @@ $currentUrl = Uri::current();
         }
 
 
-.pdf-action {
-    text-align: center;
-    margin-bottom: 15px;
-}
+        .pdf-actions {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .pdf-actions .btn {
+            margin-bottom: 8px;
+        }
 
 .status-message {
     margin-top: 10px;

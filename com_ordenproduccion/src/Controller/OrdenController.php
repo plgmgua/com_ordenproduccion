@@ -109,6 +109,67 @@ class OrdenController extends BaseController
     }
 
     /**
+     * Method to generate shipping slip PDF.
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    public function generateShippingSlip()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        
+        // Check if user is in produccion group
+        $userGroups = $user->getAuthorisedGroups();
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('title') . ' = ' . $db->quote('produccion'));
+
+        $db->setQuery($query);
+        $produccionGroupId = $db->loadResult();
+
+        $hasProductionAccess = false;
+        if ($produccionGroupId && in_array($produccionGroupId, $userGroups)) {
+            $hasProductionAccess = true;
+        }
+
+        if (!$hasProductionAccess) {
+            $app->enqueueMessage('Acceso denegado. Solo usuarios del grupo Producción pueden generar envios.', 'error');
+            $app->redirect('index.php?option=com_ordenproduccion&view=ordenes');
+            return;
+        }
+
+        $orderId = $this->input->getInt('id', 0);
+        
+        if (!$orderId) {
+            $app->enqueueMessage('ID de orden no válido.', 'error');
+            $app->redirect('index.php?option=com_ordenproduccion&view=ordenes');
+            return;
+        }
+
+        try {
+            // Get work order data
+            $workOrderData = $this->getWorkOrderData($orderId);
+            
+            if (!$workOrderData) {
+                $app->enqueueMessage('Orden de trabajo no encontrada.', 'error');
+                $app->redirect('index.php?option=com_ordenproduccion&view=ordenes');
+                return;
+            }
+
+            // Generate shipping slip PDF using FPDF
+            $this->generateShippingSlipPDF($orderId, $workOrderData);
+            
+        } catch (Exception $e) {
+            $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
+            $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
+        }
+    }
+
+    /**
      * Method to get work order data from database.
      *
      * @param   int  $orderId  Work order ID
@@ -474,6 +535,132 @@ class OrdenController extends BaseController
         
         // Output PDF inline (opens in new tab)
         $pdf->Output('I', 'orden_trabajo_' . $orderId . '.pdf');
+        exit;
+    }
+
+    /**
+     * Method to generate shipping slip PDF using FPDF.
+     *
+     * @param   int     $orderId        Work order ID
+     * @param   object  $workOrderData  Work order data
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    private function generateShippingSlipPDF($orderId, $workOrderData)
+    {
+        // Include FPDF library
+        require_once JPATH_ROOT . '/libraries/fpdf/fpdf.php';
+
+        // Create PDF
+        $pdf = new \FPDF('P', 'mm', 'A4');
+        $pdf->AddPage();
+        
+        // Get shipping number (convert ORD-000000 to ENV-000000)
+        $ordenNumber = $workOrderData->numero_de_orden ?? 'ORD-' . str_pad($orderId, 6, '0', STR_PAD_LEFT);
+        $envioNumber = str_replace('ORD-', 'ENV-', $ordenNumber);
+        
+        // Get current date
+        $currentDate = date('d/m/Y');
+        
+        // Get client data
+        $clientName = $workOrderData->client_name ?? 'N/A';
+        $salesAgent = $workOrderData->agente_de_ventas ?? $workOrderData->eav_data['agente_de_ventas']->attribute_value ?? 'N/A';
+        $workDescription = $workOrderData->work_description ?? $workOrderData->eav_data['work_description']->attribute_value ?? $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value ?? 'N/A';
+        
+        // Generate two identical shipping slips
+        for ($slip = 0; $slip < 2; $slip++) {
+            if ($slip > 0) {
+                $pdf->AddPage();
+            }
+            
+            // Header with logo and title
+            $pdf->SetFont('Arial', 'B', 16);
+            $pdf->SetXY(20, 20);
+            $pdf->Cell(40, 10, 'GRIMPSA', 0, 0, 'L');
+            
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->SetXY(20, 30);
+            $pdf->Cell(40, 5, 'Impresion Digital', 0, 0, 'L');
+            
+            // Envio number and date
+            $pdf->SetFont('Arial', 'B', 20);
+            $pdf->SetXY(80, 20);
+            $pdf->Cell(60, 10, 'Envio # ' . $envioNumber, 0, 0, 'C');
+            
+            $pdf->SetFont('Arial', '', 12);
+            $pdf->SetXY(80, 30);
+            $pdf->Cell(60, 5, 'GUATEMALA, ' . $currentDate, 0, 0, 'C');
+            
+            // QR Code placeholder (simple rectangle for now)
+            $pdf->SetXY(150, 20);
+            $pdf->Cell(30, 30, '', 1, 0, 'C');
+            $pdf->SetFont('Arial', '', 8);
+            $pdf->SetXY(150, 35);
+            $pdf->Cell(30, 5, 'QR: ' . $envioNumber, 0, 0, 'C');
+            
+            // Client and delivery information table
+            $pdf->SetXY(20, 50);
+            $pdf->Cell(160, 8, '', 1, 0, 'L'); // Border
+            
+            // Table headers and data
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->SetXY(20, 50);
+            $pdf->Cell(40, 8, 'Cliente', 1, 0, 'L');
+            $pdf->Cell(120, 8, $clientName, 1, 0, 'L');
+            
+            $pdf->SetXY(20, 58);
+            $pdf->Cell(40, 8, 'Agente de Ventas', 1, 0, 'L');
+            $pdf->Cell(120, 8, $salesAgent, 1, 0, 'L');
+            
+            $pdf->SetXY(20, 66);
+            $pdf->Cell(40, 8, 'Contacto', 1, 0, 'L');
+            $pdf->Cell(120, 8, '', 1, 0, 'L');
+            
+            $pdf->SetXY(20, 74);
+            $pdf->Cell(40, 8, 'Direccion de entrega', 1, 0, 'L');
+            $pdf->Cell(120, 8, '', 1, 0, 'L');
+            
+            $pdf->SetXY(20, 82);
+            $pdf->Cell(40, 8, 'Telefono', 1, 0, 'L');
+            $pdf->Cell(120, 8, '', 1, 0, 'L');
+            
+            $pdf->SetXY(20, 90);
+            $pdf->Cell(160, 8, 'Instrucciones de entrega', 1, 0, 'L');
+            $pdf->SetXY(20, 98);
+            $pdf->Cell(160, 20, '', 1, 0, 'L');
+            
+            // Delivery and work details table
+            $pdf->SetXY(20, 130);
+            $pdf->Cell(160, 8, '', 1, 0, 'L'); // Border
+            
+            $pdf->SetXY(20, 130);
+            $pdf->Cell(40, 8, 'Tipo de Entrega', 1, 0, 'L');
+            $pdf->Cell(120, 8, 'completa', 1, 0, 'L');
+            
+            $pdf->SetXY(20, 138);
+            $pdf->Cell(40, 8, 'Trabajo', 1, 0, 'L');
+            $pdf->Cell(120, 8, $workDescription, 1, 0, 'L');
+            
+            $pdf->SetXY(20, 146);
+            $pdf->Cell(160, 20, '', 1, 0, 'L');
+            
+            // Footer with signature fields
+            $pdf->SetXY(20, 180);
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(50, 8, 'FECHA', 0, 0, 'L');
+            $pdf->Cell(50, 8, 'NOMBRE Y FIRMA', 0, 0, 'L');
+            $pdf->Cell(50, 8, 'Sello', 0, 0, 'L');
+            
+            $pdf->SetXY(20, 188);
+            $pdf->Cell(50, 15, '', 1, 0, 'L');
+            $pdf->Cell(50, 15, '', 1, 0, 'L');
+            $pdf->Cell(50, 15, '', 1, 0, 'L');
+        }
+        
+        // Output PDF
+        $pdf->Output('I', 'envio_' . $envioNumber . '.pdf');
         exit;
     }
 }
