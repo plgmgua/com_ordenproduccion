@@ -43,8 +43,8 @@ $orderId = $app->input->getInt('id', 0);
 $option = $app->input->get('option', '');
 $view = $app->input->get('view', '');
 
-// Only show module on ordenproduccion component pages
-if ($option !== 'com_ordenproduccion') {
+// Only show module on ordenproduccion component pages with view=orden
+if ($option !== 'com_ordenproduccion' || $view !== 'orden') {
     return; // Don't display the module
 }
 
