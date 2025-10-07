@@ -186,11 +186,11 @@ class OrdenController extends BaseController
                 $startY = $pdf->GetY();
 
                 // ROW 1: Logo + ORDEN DE TRABAJO # and number
-                // Add GRIMPSA logo (left side) - correct path
+                // Add GRIMPSA logo (left side) - correct path, maintain aspect ratio
                 $logoPath = JPATH_ROOT . '/images/grimpsa_logo.gif';
                 if (file_exists($logoPath)) {
-                    // Add logo image (25mm width, 15mm height)
-                    $pdf->Image($logoPath, 15, $startY, 25, 15, 'GIF');
+                    // Add logo image (25mm width, auto height to maintain aspect ratio)
+                    $pdf->Image($logoPath, 15, $startY, 25, 0, 'GIF');
                 } else {
                     // Fallback if logo not found
                     $pdf->SetXY(15, $startY);
@@ -205,8 +205,15 @@ class OrdenController extends BaseController
                 
                 $pdf->SetX(100);
                 $pdf->SetFont('Arial', '', 12);
-                // Format numero de orden as ORD-000000
-                $numeroOrden = $workOrderData->numero_de_orden ?? 'N/A';
+                // Get orden_de_trabajo from EAV data (correct field name)
+                $numeroOrden = 'N/A';
+                if (isset($workOrderData->eav_data['orden_de_trabajo'])) {
+                    $numeroOrden = $workOrderData->eav_data['orden_de_trabajo']->attribute_value;
+                } elseif (isset($workOrderData->numero_de_orden)) {
+                    $numeroOrden = $workOrderData->numero_de_orden;
+                }
+                
+                // Format as ORD-000000 if numeric
                 if (is_numeric($numeroOrden)) {
                     $numeroOrden = 'ORD-' . str_pad($numeroOrden, 6, '0', STR_PAD_LEFT);
                 }
