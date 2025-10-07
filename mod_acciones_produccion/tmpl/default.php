@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = true;
             
             // Make AJAX request
-            fetch('components/com_ordenproduccion/site/change_status.php', {
+            fetch('/components/com_ordenproduccion/site/change_status.php', {
                 method: 'POST',
                 body: formData,
                 headers: {
