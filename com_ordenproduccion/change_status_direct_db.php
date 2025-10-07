@@ -90,29 +90,59 @@ try {
         $userId = 1; // Default to admin user
     }
     
-    // Update database
-    $stmt = $pdo->prepare("UPDATE joomla_ordenproduccion_ordenes SET status = ?, modified = NOW(), modified_by = ? WHERE id = ?");
-    $result = $stmt->execute([$newStatus, $userId, $orderId]);
-    
-    if ($result) {
-        echo json_encode([
-            'success' => true,
-            'message' => 'Estado actualizado correctamente',
-            'debug' => [
-                'order_id' => $orderId,
-                'new_status' => $newStatus,
-                'user_id' => $userId,
-                'rows_affected' => $stmt->rowCount()
-            ]
-        ]);
-    } else {
+    // Validate status value
+    $validStatuses = ['en_progreso', 'terminada', 'entregada'];
+    if (!in_array($newStatus, $validStatuses)) {
         echo json_encode([
             'success' => false,
-            'message' => 'Error al actualizar el estado',
+            'message' => 'Estado inválido. Valores permitidos: ' . implode(', ', $validStatuses),
             'debug' => [
                 'order_id' => $orderId,
                 'new_status' => $newStatus,
                 'user_id' => $userId
+            ]
+        ]);
+        exit;
+    }
+    
+    // Update database with error handling
+    try {
+        $stmt = $pdo->prepare("UPDATE joomla_ordenproduccion_ordenes SET status = ?, modified = NOW(), modified_by = ? WHERE id = ?");
+        $result = $stmt->execute([$newStatus, $userId, $orderId]);
+        
+        if ($result && $stmt->rowCount() > 0) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Estado actualizado correctamente',
+                'debug' => [
+                    'order_id' => $orderId,
+                    'new_status' => $newStatus,
+                    'user_id' => $userId,
+                    'rows_affected' => $stmt->rowCount()
+                ]
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'No se encontró la orden o no se pudo actualizar',
+                'debug' => [
+                    'order_id' => $orderId,
+                    'new_status' => $newStatus,
+                    'user_id' => $userId,
+                    'rows_affected' => $stmt->rowCount()
+                ]
+            ]);
+        }
+    } catch (PDOException $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error de base de datos: ' . $e->getMessage(),
+            'debug' => [
+                'order_id' => $orderId,
+                'new_status' => $newStatus,
+                'user_id' => $userId,
+                'error_code' => $e->getCode(),
+                'error_info' => $e->errorInfo
             ]
         ]);
     }
