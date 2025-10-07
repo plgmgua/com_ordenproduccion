@@ -198,13 +198,10 @@ class OrdenController extends BaseController
                     $pdf->Cell(50, 15, 'GRIMPSA', 1, 0, 'C');
                 }
 
-                // Right side: ORDEN DE TRABAJO and number (no borders, centered)
+                // Right side: ORDEN DE TRABAJO and number on same line (no borders)
                 $pdf->SetXY(100, $startY);
                 $pdf->SetFont('Arial', 'B', 14);
-                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO', 0, 1, 'R');
                 
-                $pdf->SetX(100);
-                $pdf->SetFont('Arial', '', 12);
                 // Get orden_de_trabajo from main table (as shown in screenshot)
                 $numeroOrden = 'N/A';
                 
@@ -230,7 +227,10 @@ class OrdenController extends BaseController
                 if (is_numeric($numeroOrden)) {
                     $numeroOrden = 'ORD-' . str_pad($numeroOrden, 6, '0', STR_PAD_LEFT);
                 }
-                $pdf->Cell(0, 7, $numeroOrden, 0, 1, 'C'); // Centered
+                
+                // Display label and number on same line, right-aligned
+                $fullText = 'ORDEN DE TRABAJO ' . $numeroOrden;
+                $pdf->Cell(0, 8, $fullText, 0, 1, 'R');
 
                 // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
                 $pdf->SetXY(15, $startY + 20); // Position below logo
