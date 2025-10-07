@@ -36,44 +36,40 @@ $currentUrl = Uri::current();
             </a>
         </div>
         
-                <!-- Work Order Info -->
+                <!-- Work Order Info with Status Change -->
                 <div class="work-order-info">
                     <p><strong>Estado Actual:</strong> 
                         <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'en_progreso'); ?>">
                             <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'en_progreso'] ?? 'En Progreso'); ?>
                         </span>
                     </p>
+                    
+                    <form id="status-change-form" class="status-form">
+                        <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+                        <input type="hidden" name="<?php echo $app->getFormToken(); ?>" value="1">
+                        <input type="hidden" name="option" value="com_ordenproduccion">
+                        <input type="hidden" name="task" value="ajax.changeStatus">
+                        
+                        <div class="form-group">
+                            <select name="new_status" id="new_status" class="form-control" required>
+                                <option value="">Seleccionar nuevo estado...</option>
+                                <?php foreach ($statusOptions as $value => $label): ?>
+                                    <option value="<?php echo htmlspecialchars($value); ?>" 
+                                            <?php echo ($workOrderData->status === $value) ? 'disabled' : ''; ?>>
+                                        <?php echo htmlspecialchars($label); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-block">
+                            <i class="fas fa-save"></i>
+                            Actualizar Estado
+                        </button>
+                    </form>
+                    
+                    <div id="status-message" class="status-message" style="display: none;"></div>
                 </div>
-
-        <!-- Status Change Section -->
-        <div class="status-change-section">
-            <h6><i class="fas fa-edit"></i> Cambiar Estado</h6>
-            <form id="status-change-form" class="status-form">
-                <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
-                <input type="hidden" name="<?php echo $app->getFormToken(); ?>" value="1">
-                <input type="hidden" name="option" value="com_ordenproduccion">
-                <input type="hidden" name="task" value="ajax.changeStatus">
-                
-                <div class="form-group">
-                    <select name="new_status" id="new_status" class="form-control" required>
-                        <option value="">Seleccionar nuevo estado...</option>
-                        <?php foreach ($statusOptions as $value => $label): ?>
-                            <option value="<?php echo htmlspecialchars($value); ?>" 
-                                    <?php echo ($workOrderData->status === $value) ? 'disabled' : ''; ?>>
-                                <?php echo htmlspecialchars($label); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <button type="submit" class="btn btn-success btn-block">
-                    <i class="fas fa-save"></i>
-                    Actualizar Estado
-                </button>
-            </form>
-            
-            <div id="status-message" class="status-message" style="display: none;"></div>
-        </div>
 
     <?php else: ?>
         <div class="alert alert-info">
@@ -103,10 +99,31 @@ $currentUrl = Uri::current();
         }
 
         .work-order-info p {
-            margin: 0;
+            margin: 0 0 15px 0;
             font-size: 16px;
             font-weight: 500;
             color: #495057;
+        }
+
+        .work-order-info .form-group {
+            margin-bottom: 15px;
+        }
+
+        .work-order-info .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        .work-order-info .btn {
+            width: 100%;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
         }
 
         .status-badge {
@@ -134,42 +151,10 @@ $currentUrl = Uri::current();
             color: #fff; 
         }
 
-.status-change-section {
-    background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 15px;
-}
-
-.status-change-section h6 {
-    color: #495057;
-    margin-bottom: 15px;
-    font-size: 14px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-control {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 14px;
-}
 
 .pdf-action {
     text-align: center;
-}
-
-.btn {
-    font-size: 14px;
-    padding: 10px 20px;
-    font-weight: 600;
-    width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
 .status-message {
