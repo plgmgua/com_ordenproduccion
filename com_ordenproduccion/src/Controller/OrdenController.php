@@ -577,16 +577,23 @@ class OrdenController extends BaseController
                 $pdf->AddPage();
             }
             
-            // Header with logo and title
-            $pdf->SetFont('Arial', 'B', 16);
-            $pdf->SetXY(20, 20);
-            $pdf->Cell(40, 10, 'GRIMPSA', 0, 0, 'L');
+            // Header with logo and title - matching original layout
+            // Logo (top left)
+            $logoPath = JPATH_ROOT . '/media/com_ordenproduccion/images/grimpsa_logo.gif';
+            if (file_exists($logoPath)) {
+                $pdf->Image($logoPath, 20, 20, 50, 0); // Auto height, 50mm width
+            } else {
+                // Fallback text logo
+                $pdf->SetFont('Arial', 'B', 16);
+                $pdf->SetXY(20, 20);
+                $pdf->Cell(50, 10, 'GRIMPSA', 0, 0, 'L');
+                
+                $pdf->SetFont('Arial', '', 10);
+                $pdf->SetXY(20, 30);
+                $pdf->Cell(50, 5, 'Impresion Digital', 0, 0, 'L');
+            }
             
-            $pdf->SetFont('Arial', '', 10);
-            $pdf->SetXY(20, 30);
-            $pdf->Cell(40, 5, 'Impresion Digital', 0, 0, 'L');
-            
-            // Envio number and date
+            // Envio number and date (center)
             $pdf->SetFont('Arial', 'B', 20);
             $pdf->SetXY(80, 20);
             $pdf->Cell(60, 10, 'Envio # ' . $envioNumber, 0, 0, 'C');
@@ -595,48 +602,48 @@ class OrdenController extends BaseController
             $pdf->SetXY(80, 30);
             $pdf->Cell(60, 5, 'GUATEMALA, ' . $currentDate, 0, 0, 'C');
             
-            // QR Code placeholder (simple rectangle for now)
+            // QR Code placeholder (top right)
             $pdf->SetXY(150, 20);
             $pdf->Cell(30, 30, '', 1, 0, 'C');
             $pdf->SetFont('Arial', '', 8);
             $pdf->SetXY(150, 35);
             $pdf->Cell(30, 5, 'QR: ' . $envioNumber, 0, 0, 'C');
             
-            // Client and delivery information table
-            $pdf->SetXY(20, 50);
-            $pdf->Cell(160, 8, '', 1, 0, 'L'); // Border
-            
-            // Table headers and data
+            // Client and delivery information table - matching original cell sizes
             $pdf->SetFont('Arial', 'B', 10);
+            
+            // Row 1: Cliente
             $pdf->SetXY(20, 50);
             $pdf->Cell(40, 8, 'Cliente', 1, 0, 'L');
             $pdf->Cell(120, 8, $clientName, 1, 0, 'L');
             
+            // Row 2: Agente de Ventas
             $pdf->SetXY(20, 58);
             $pdf->Cell(40, 8, 'Agente de Ventas', 1, 0, 'L');
             $pdf->Cell(120, 8, $salesAgent, 1, 0, 'L');
             
+            // Row 3: Contacto
             $pdf->SetXY(20, 66);
             $pdf->Cell(40, 8, 'Contacto', 1, 0, 'L');
             $pdf->Cell(120, 8, '', 1, 0, 'L');
             
+            // Row 4: Direccion de entrega (taller row)
             $pdf->SetXY(20, 74);
-            $pdf->Cell(40, 8, 'Direccion de entrega', 1, 0, 'L');
-            $pdf->Cell(120, 8, '', 1, 0, 'L');
+            $pdf->Cell(40, 12, 'Direccion de entrega', 1, 0, 'L');
+            $pdf->Cell(120, 12, '', 1, 0, 'L');
             
-            $pdf->SetXY(20, 82);
+            // Row 5: Telefono
+            $pdf->SetXY(20, 86);
             $pdf->Cell(40, 8, 'Telefono', 1, 0, 'L');
             $pdf->Cell(120, 8, '', 1, 0, 'L');
             
-            $pdf->SetXY(20, 90);
+            // Row 6: Instrucciones de entrega (taller row)
+            $pdf->SetXY(20, 94);
             $pdf->Cell(160, 8, 'Instrucciones de entrega', 1, 0, 'L');
-            $pdf->SetXY(20, 98);
+            $pdf->SetXY(20, 102);
             $pdf->Cell(160, 20, '', 1, 0, 'L');
             
             // Delivery and work details table
-            $pdf->SetXY(20, 130);
-            $pdf->Cell(160, 8, '', 1, 0, 'L'); // Border
-            
             $pdf->SetXY(20, 130);
             $pdf->Cell(40, 8, 'Tipo de Entrega', 1, 0, 'L');
             $pdf->Cell(120, 8, $tipoEnvio, 1, 0, 'L');
@@ -645,6 +652,7 @@ class OrdenController extends BaseController
             $pdf->Cell(40, 8, 'Trabajo', 1, 0, 'L');
             $pdf->Cell(120, 8, $workDescription, 1, 0, 'L');
             
+            // Large empty cell for additional work details
             $pdf->SetXY(20, 146);
             $pdf->Cell(160, 20, '', 1, 0, 'L');
             
