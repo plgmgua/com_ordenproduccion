@@ -198,10 +198,10 @@ class OrdenController extends BaseController
                     $pdf->Cell(50, 15, 'GRIMPSA', 1, 0, 'C');
                 }
 
-                // Right side: ORDEN DE TRABAJO # and number with borders
+                // Right side: ORDEN DE TRABAJO # and number (no borders)
                 $pdf->SetXY(100, $startY);
                 $pdf->SetFont('Arial', 'B', 14);
-                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 1, 1, 'R');
+                $pdf->Cell(0, 8, 'ORDEN DE TRABAJO #:', 0, 1, 'R');
                 
                 $pdf->SetX(100);
                 $pdf->SetFont('Arial', '', 12);
@@ -226,15 +226,10 @@ class OrdenController extends BaseController
                 if (is_numeric($numeroOrden)) {
                     $numeroOrden = 'ORD-' . str_pad($numeroOrden, 6, '0', STR_PAD_LEFT);
                 }
-                $pdf->Cell(0, 7, $numeroOrden, 1, 1, 'R');
-
-                // NEW ROW: Additional info underneath logo (no borders)
-                $pdf->SetXY(15, $startY + 20); // Position below logo with spacing
-                $pdf->SetFont('Arial', '', 9);
-                $pdf->Cell(0, 5, 'Impresion Digital - Servicios de Impresion', 0, 1, 'L');
+                $pdf->Cell(0, 7, $numeroOrden, 0, 1, 'R');
 
                 // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
-                $pdf->SetXY(15, $startY + 30); // Position below new row
+                $pdf->SetXY(15, $startY + 20); // Position below logo
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell(40, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
@@ -246,7 +241,7 @@ class OrdenController extends BaseController
                 $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
 
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
-                $pdf->SetXY(15, $startY + 36); // Position below dates
+                $pdf->SetXY(15, $startY + 26); // Position below dates
                 $pdf->SetFont('Arial', 'B', 10);
                 $agentText = 'AGENTE DE VENTAS: ' . ($workOrderData->agente_de_ventas ?? 'N/A');
                 $pdf->Cell(0, 6, $agentText, 1, 1, 'L');
