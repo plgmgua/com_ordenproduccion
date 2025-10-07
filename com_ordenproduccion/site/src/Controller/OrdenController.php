@@ -205,11 +205,20 @@ class OrdenController extends BaseController
                 
                 $pdf->SetX(100);
                 $pdf->SetFont('Arial', '', 12);
-                // Get orden_de_trabajo from EAV data (correct field name)
+                // Get orden_de_trabajo from EAV data (check multiple possible field names)
                 $numeroOrden = 'N/A';
-                if (isset($workOrderData->eav_data['orden_de_trabajo'])) {
-                    $numeroOrden = $workOrderData->eav_data['orden_de_trabajo']->attribute_value;
-                } elseif (isset($workOrderData->numero_de_orden)) {
+                
+                // Try different possible field names in EAV data
+                $possibleFields = ['orden_de_trabajo', 'numero_de_orden', 'orden_trabajo', 'numero_orden'];
+                foreach ($possibleFields as $field) {
+                    if (isset($workOrderData->eav_data[$field])) {
+                        $numeroOrden = $workOrderData->eav_data[$field]->attribute_value;
+                        break;
+                    }
+                }
+                
+                // Fallback to main table field
+                if ($numeroOrden === 'N/A' && isset($workOrderData->numero_de_orden)) {
                     $numeroOrden = $workOrderData->numero_de_orden;
                 }
                 
@@ -219,8 +228,13 @@ class OrdenController extends BaseController
                 }
                 $pdf->Cell(0, 7, $numeroOrden, 1, 1, 'R');
 
+                // NEW ROW: Additional info underneath logo (no borders)
+                $pdf->SetXY(15, $startY + 20); // Position below logo with spacing
+                $pdf->SetFont('Arial', '', 9);
+                $pdf->Cell(0, 5, 'Impresion Digital - Servicios de Impresion', 0, 1, 'L');
+
                 // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
-                $pdf->SetXY(15, $startY + 15); // Position below logo
+                $pdf->SetXY(15, $startY + 30); // Position below new row
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell(40, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
@@ -232,7 +246,7 @@ class OrdenController extends BaseController
                 $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
 
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
-                $pdf->SetXY(15, $startY + 21); // Position below dates
+                $pdf->SetXY(15, $startY + 36); // Position below dates
                 $pdf->SetFont('Arial', 'B', 10);
                 $agentText = 'AGENTE DE VENTAS: ' . ($workOrderData->agente_de_ventas ?? 'N/A');
                 $pdf->Cell(0, 6, $agentText, 1, 1, 'L');
