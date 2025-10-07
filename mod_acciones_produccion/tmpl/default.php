@@ -36,16 +36,14 @@ $currentUrl = Uri::current();
             </a>
         </div>
         
-        <!-- Work Order Info -->
-        <div class="work-order-info">
-            <h5><i class="fas fa-clipboard-list"></i> Orden de Trabajo #<?php echo htmlspecialchars($workOrderData->numero_de_orden ?? $orderId); ?></h5>
-            <p><strong>Cliente:</strong> <?php echo htmlspecialchars($workOrderData->client_name ?? 'N/A'); ?></p>
-            <p><strong>Estado Actual:</strong> 
-                <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'en_progreso'); ?>">
-                    <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'en_progreso'] ?? 'En Progreso'); ?>
-                </span>
-            </p>
-        </div>
+                <!-- Work Order Info -->
+                <div class="work-order-info">
+                    <p><strong>Estado Actual:</strong> 
+                        <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'en_progreso'); ?>">
+                            <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'en_progreso'] ?? 'En Progreso'); ?>
+                        </span>
+                    </p>
+                </div>
 
         <!-- Status Change Section -->
         <div class="status-change-section">
@@ -94,37 +92,47 @@ $currentUrl = Uri::current();
     margin-bottom: 20px;
 }
 
-.work-order-info {
-    background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 15px;
-}
+        .work-order-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
-.work-order-info h5 {
-    color: #495057;
-    margin-bottom: 10px;
-    font-size: 16px;
-}
+        .work-order-info p {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #495057;
+        }
 
-.work-order-info p {
-    margin-bottom: 8px;
-    font-size: 14px;
-}
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
 
-.status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.status-en_progreso { background: #17a2b8; color: #fff; }
-.status-terminada { background: #28a745; color: #fff; }
-.status-entregada { background: #6f42c1; color: #fff; }
+        .status-en_progreso { 
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); 
+            color: #fff; 
+        }
+        .status-terminada { 
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); 
+            color: #fff; 
+        }
+        .status-entregada { 
+            background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); 
+            color: #fff; 
+        }
 
 .status-change-section {
     background: #fff;
