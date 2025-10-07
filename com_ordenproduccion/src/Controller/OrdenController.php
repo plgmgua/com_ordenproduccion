@@ -577,43 +577,45 @@ class OrdenController extends BaseController
                 $pdf->AddPage();
             }
             
-            // Header with logo and title - matching original layout
-            // Logo (top left)
+            // Header with logo and title - matching original layout exactly
+            // Logo (top left) - using the same logo as orden de trabajo
             $logoPath = JPATH_ROOT . '/media/com_ordenproduccion/images/grimpsa_logo.gif';
             if (file_exists($logoPath)) {
-                $pdf->Image($logoPath, 20, 20, 50, 0); // Auto height, 50mm width
+                $pdf->Image($logoPath, 10, 20, 55, 0); // Same dimensions as orden de trabajo
             } else {
                 // Fallback text logo
                 $pdf->SetFont('Arial', 'B', 16);
-                $pdf->SetXY(20, 20);
-                $pdf->Cell(50, 10, 'GRIMPSA', 0, 0, 'L');
+                $pdf->SetXY(10, 20);
+                $pdf->Cell(55, 10, 'GRIMPSA', 0, 0, 'L');
                 
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->SetXY(20, 30);
-                $pdf->Cell(50, 5, 'Impresion Digital', 0, 0, 'L');
+                $pdf->SetXY(10, 30);
+                $pdf->Cell(55, 5, 'Impresion Digital', 0, 0, 'L');
             }
             
-            // Envio number and date (center)
-            $pdf->SetFont('Arial', 'B', 20);
-            $pdf->SetXY(80, 20);
-            $pdf->Cell(60, 10, 'Envio # ' . $envioNumber, 0, 0, 'C');
+            // Envio number and date (center) - matching original positioning
+            $pdf->SetFont('Arial', 'B', 26);
+            $pdf->SetXY(0, 30);
+            $pdf->Cell(0, 10, 'Envio # ' . $envioNumber, 0, 1, 'C');
             
-            $pdf->SetFont('Arial', '', 12);
-            $pdf->SetXY(80, 30);
-            $pdf->Cell(60, 5, 'GUATEMALA, ' . $currentDate, 0, 0, 'C');
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->SetXY(0, 40);
+            $pdf->Cell(0, 6, 'GUATEMALA, ' . $currentDate, 0, 1, 'C');
             
-            // QR Code placeholder (top right)
-            $pdf->SetXY(150, 20);
-            $pdf->Cell(30, 30, '', 1, 0, 'C');
+            // QR Code placeholder (top right) - matching original size
+            $pdf->SetXY(159, 20);
+            $pdf->Cell(40, 40, '', 1, 0, 'C');
             $pdf->SetFont('Arial', '', 8);
-            $pdf->SetXY(150, 35);
-            $pdf->Cell(30, 5, 'QR: ' . $envioNumber, 0, 0, 'C');
+            $pdf->SetXY(159, 45);
+            $pdf->Cell(40, 5, 'QR: ' . $envioNumber, 0, 0, 'C');
             
             // Client and delivery information table - using exact dimensions from working code
             $cellHeight = 5;
             
+            // Start table below header area
+            $pdf->SetY(50);
+            
             // Row 1: Cliente
-            $pdf->SetXY(20, 50);
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Cliente', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
@@ -627,7 +629,7 @@ class OrdenController extends BaseController
             $pdf->Cell(153, $cellHeight, $salesAgent, 1, 0, 'L');
             $pdf->Ln();
             
-            // Row 3: Contacto and Telefono (split row)
+            // Row 3: Contacto and Telefono (split row) - matching original layout
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Contacto', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
@@ -638,7 +640,7 @@ class OrdenController extends BaseController
             $pdf->Cell(40, $cellHeight, '', 1, 0, 'L');
             $pdf->Ln();
             
-            // Row 4: Direccion de entrega (with MultiCell for long text)
+            // Row 4: Direccion de entrega (full width)
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Direccion de entrega', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
