@@ -1,201 +1,175 @@
 <?php
 /**
- * TROUBLESHOOTING: Order Detail View 500 Error
- * URL: https://grimpsa_webserver.grantsolutions.cc/troubleshooting.php?id=1402
+ * Simple troubleshooting script
  */
 
-// Enable all errors
+// Test 0: Can PHP even run?
+echo 'TEST 0: PHP is working<br>';
+
+// Test 1: Can we enable errors?
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+echo 'TEST 1: Error reporting enabled<br>';
 
-echo '<html><head><title>Order View Debug</title></head><body>';
-echo '<div style="font-family: Arial; margin: 20px; max-width: 1200px;">';
-echo '<h1 style="color: #d32f2f;">🔥 ORDER DETAIL VIEW DEBUG</h1>';
-echo '<hr>';
+// Test 2: Can we define constants?
+if (!defined('_JEXEC')) {
+    define('_JEXEC', 1);
+}
+echo 'TEST 2: Constants defined<br>';
 
-// Step 1: Bootstrap Joomla
-echo '<h2>Step 1: Bootstrap Joomla</h2>';
-try {
-    if (!defined('_JEXEC')) {
-        define('_JEXEC', 1);
-    }
-    if (!defined('JPATH_BASE')) {
-        define('JPATH_BASE', dirname(__FILE__));
-    }
-    
-    if (!file_exists(JPATH_BASE . '/includes/defines.php')) {
-        throw new Exception('defines.php not found at: ' . JPATH_BASE . '/includes/defines.php');
-    }
-    
-    require_once JPATH_BASE . '/includes/defines.php';
-    require_once JPATH_BASE . '/includes/framework.php';
-    
-    echo '<p style="color: green;">✅ Joomla framework loaded</p>';
-} catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    echo '<p>File: ' . htmlspecialchars($e->getFile()) . '</p>';
-    echo '<p>Line: ' . $e->getLine() . '</p>';
-    echo '</div></body></html>';
+// Test 3: Does JPATH_BASE exist?
+if (!defined('JPATH_BASE')) {
+    define('JPATH_BASE', dirname(__FILE__));
+}
+echo 'TEST 3: JPATH_BASE = ' . JPATH_BASE . '<br>';
+
+// Test 4: Does defines.php exist?
+$definesPath = JPATH_BASE . '/includes/defines.php';
+if (file_exists($definesPath)) {
+    echo 'TEST 4: defines.php exists<br>';
+} else {
+    echo 'TEST 4 FAILED: defines.php NOT found at: ' . htmlspecialchars($definesPath) . '<br>';
     exit;
 }
 
-// Step 2: Create application
-echo '<h2>Step 2: Create Application</h2>';
+// Test 5: Can we load defines.php?
+try {
+    require_once $definesPath;
+    echo 'TEST 5: defines.php loaded<br>';
+} catch (Exception $e) {
+    echo 'TEST 5 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
+    exit;
+}
+
+// Test 6: Does framework.php exist?
+$frameworkPath = JPATH_BASE . '/includes/framework.php';
+if (file_exists($frameworkPath)) {
+    echo 'TEST 6: framework.php exists<br>';
+} else {
+    echo 'TEST 6 FAILED: framework.php NOT found at: ' . htmlspecialchars($frameworkPath) . '<br>';
+    exit;
+}
+
+// Test 7: Can we load framework.php?
+try {
+    require_once $frameworkPath;
+    echo 'TEST 7: framework.php loaded<br>';
+} catch (Exception $e) {
+    echo 'TEST 7 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
+    exit;
+}
+
+// Test 8: Can we use Factory?
 try {
     use Joomla\CMS\Factory;
-    $app = Factory::getApplication('site');
-    echo '<p style="color: green;">✅ Application created</p>';
+    echo 'TEST 8: Factory class loaded<br>';
 } catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    echo '</div></body></html>';
+    echo 'TEST 8 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
     exit;
 }
 
-// Step 3: Get database connection
-echo '<h2>Step 3: Database Connection</h2>';
+// Test 9: Can we get database?
 try {
     $db = Factory::getDbo();
-    echo '<p style="color: green;">✅ Database connected</p>';
+    echo 'TEST 9: Database connection OK<br>';
 } catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    echo '</div></body></html>';
+    echo 'TEST 9 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
     exit;
 }
 
-// Step 4: Get order ID
-echo '<h2>Step 4: Get Order ID</h2>';
-$orderId = isset($_GET['id']) ? (int) $_GET['id'] : 1402;
-echo '<p>Testing Order ID: <strong>' . $orderId . '</strong></p>';
-
-// Step 5: Query main table
-echo '<h2>Step 5: Query Main Table</h2>';
+// Test 10: Can we query database?
 try {
-    $query = $db->getQuery(true)
-        ->select('*')
-        ->from($db->quoteName('#__ordenproduccion_ordenes'))
-        ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+    $orderId = isset($_GET['id']) ? (int) $_GET['id'] : 1402;
+    echo 'TEST 10: Testing order ID ' . $orderId . '<br>';
+    
+    $query = $db->getQuery(true);
+    $query->select('*')
+          ->from($db->quoteName('#__ordenproduccion_ordenes'))
+          ->where($db->quoteName('id') . ' = ' . (int) $orderId);
     
     $db->setQuery($query);
     $order = $db->loadObject();
     
     if ($order) {
-        echo '<p style="color: green;">✅ Order found</p>';
-        echo '<p><strong>order_number:</strong> ' . htmlspecialchars($order->order_number) . '</p>';
-        echo '<p><strong>client_name:</strong> ' . htmlspecialchars($order->client_name) . '</p>';
-        echo '<p><strong>status:</strong> ' . htmlspecialchars($order->status) . '</p>';
+        echo 'TEST 10: Order found!<br>';
+        echo 'Order Number: ' . htmlspecialchars($order->order_number) . '<br>';
+        echo 'Client: ' . htmlspecialchars($order->client_name) . '<br>';
     } else {
-        echo '<p style="color: red;">❌ Order not found</p>';
-        echo '</div></body></html>';
+        echo 'TEST 10 FAILED: Order not found<br>';
         exit;
     }
 } catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    echo '</div></body></html>';
+    echo 'TEST 10 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
     exit;
 }
 
-// Step 6: Check if EAV table exists
-echo '<h2>Step 6: Check EAV Table Exists</h2>';
+// Test 11: Check EAV table
 try {
-    $tables = $db->getTableList();
-    $eavTableName = $db->getPrefix() . 'ordenproduccion_info';
+    $query = "SHOW TABLES LIKE '%ordenproduccion_info%'";
+    $db->setQuery($query);
+    $eavTable = $db->loadResult();
     
-    if (in_array($eavTableName, $tables)) {
-        echo '<p style="color: green;">✅ EAV table exists: ' . htmlspecialchars($eavTableName) . '</p>';
+    if ($eavTable) {
+        echo 'TEST 11: EAV table exists: ' . htmlspecialchars($eavTable) . '<br>';
     } else {
-        echo '<p style="color: red;">❌ EAV table does NOT exist!</p>';
-        echo '<p>Expected: ' . htmlspecialchars($eavTableName) . '</p>';
-        echo '<p>Available tables:</p><ul>';
-        foreach ($tables as $table) {
-            if (strpos($table, 'ordenproduccion') !== false) {
-                echo '<li>' . htmlspecialchars($table) . '</li>';
-            }
-        }
-        echo '</ul>';
-        echo '</div></body></html>';
-        exit;
+        echo 'TEST 11 WARNING: EAV table does not exist<br>';
     }
 } catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    echo '</div></body></html>';
-    exit;
+    echo 'TEST 11 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
 }
 
-// Step 7: Show EAV table structure
-echo '<h2>Step 7: EAV Table Structure</h2>';
+// Test 12: Check EAV table columns
 try {
-    $query = "DESCRIBE " . $db->quoteName($eavTableName);
+    $query = "DESCRIBE " . $db->quoteName('#__ordenproduccion_info');
     $db->setQuery($query);
     $columns = $db->loadObjectList();
     
-    echo '<p style="color: green;">✅ Table has ' . count($columns) . ' columns:</p>';
-    echo '<table border="1" cellpadding="5" style="border-collapse: collapse;">';
-    echo '<tr><th>Field</th><th>Type</th><th>Null</th><th>Default</th></tr>';
+    echo 'TEST 12: EAV table columns:<br>';
+    echo '<ul>';
+    $hasState = false;
     foreach ($columns as $col) {
-        $highlight = ($col->Field === 'state') ? 'background: yellow;' : '';
-        echo '<tr style="' . $highlight . '">';
-        echo '<td><strong>' . htmlspecialchars($col->Field) . '</strong></td>';
-        echo '<td>' . htmlspecialchars($col->Type) . '</td>';
-        echo '<td>' . htmlspecialchars($col->Null) . '</td>';
-        echo '<td>' . htmlspecialchars($col->Default) . '</td>';
-        echo '</tr>';
+        echo '<li>' . htmlspecialchars($col->Field) . ' (' . htmlspecialchars($col->Type) . ')';
+        if ($col->Field === 'state') {
+            echo ' <strong style="color: green;">← FOUND!</strong>';
+            $hasState = true;
+        }
+        echo '</li>';
     }
-    echo '</table>';
+    echo '</ul>';
+    
+    if (!$hasState) {
+        echo '<strong style="color: red;">WARNING: "state" column is MISSING!</strong><br>';
+    }
 } catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR: ' . htmlspecialchars($e->getMessage()) . '</p>';
+    echo 'TEST 12 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
 }
 
-// Step 8: Test the exact query from getEAVData()
-echo '<h2>Step 8: Test getEAVData() Query</h2>';
+// Test 13: Test the EAV query
 try {
-    echo '<p><strong>Query 1:</strong> Get order_number for ID ' . $orderId . '</p>';
-    $query = $db->getQuery(true)
-        ->select('order_number')
-        ->from($db->quoteName('#__ordenproduccion_ordenes'))
-        ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+    echo 'TEST 13: Testing EAV query...<br>';
+    
+    $query = $db->getQuery(true);
+    $query->select($db->quoteName('tipo_de_campo') . ' AS attribute_name')
+          ->select($db->quoteName('valor') . ' AS attribute_value')
+          ->from($db->quoteName('#__ordenproduccion_info'))
+          ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($order->order_number))
+          ->where($db->quoteName('state') . ' = 1');
+    
+    echo 'SQL: ' . htmlspecialchars((string)$query) . '<br>';
     
     $db->setQuery($query);
-    $orderNumber = $db->loadResult();
-    echo '<p style="color: green;">✅ order_number = ' . htmlspecialchars($orderNumber) . '</p>';
+    $results = $db->loadObjectList();
     
-    if ($orderNumber) {
-        echo '<p><strong>Query 2:</strong> Get EAV data for order_number</p>';
-        $query = $db->getQuery(true)
-            ->select($db->quoteName('tipo_de_campo') . ' AS attribute_name, ' . $db->quoteName('valor') . ' AS attribute_value')
-            ->from($db->quoteName('#__ordenproduccion_info'))
-            ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($orderNumber))
-            ->where($db->quoteName('state') . ' = 1');
-        
-        echo '<p>SQL: <code>' . htmlspecialchars((string)$query) . '</code></p>';
-        
-        $db->setQuery($query);
-        $results = $db->loadObjectList();
-        
-        if ($results) {
-            echo '<p style="color: green;">✅ Query returned ' . count($results) . ' rows</p>';
-            echo '<table border="1" cellpadding="5" style="border-collapse: collapse;">';
-            echo '<tr><th>attribute_name</th><th>attribute_value</th></tr>';
-            foreach ($results as $row) {
-                echo '<tr>';
-                echo '<td>' . htmlspecialchars($row->attribute_name) . '</td>';
-                echo '<td>' . htmlspecialchars(substr($row->attribute_value, 0, 100)) . '</td>';
-                echo '</tr>';
-            }
-            echo '</table>';
-        } else {
-            echo '<p style="color: orange;">⚠️ Query returned 0 rows (no EAV data)</p>';
-        }
+    if ($results) {
+        echo 'TEST 13: Query returned ' . count($results) . ' rows<br>';
+    } else {
+        echo 'TEST 13: Query returned 0 rows (no EAV data)<br>';
     }
 } catch (Exception $e) {
-    echo '<p style="color: red;">❌ ERROR IN QUERY: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    echo '<p><strong>This is likely the 500 error cause!</strong></p>';
-    echo '<p>File: ' . htmlspecialchars($e->getFile()) . '</p>';
-    echo '<p>Line: ' . $e->getLine() . '</p>';
+    echo 'TEST 13 FAILED: <strong style="color: red;">' . htmlspecialchars($e->getMessage()) . '</strong><br>';
+    echo 'THIS IS LIKELY THE 500 ERROR CAUSE!<br>';
 }
 
 echo '<hr>';
-echo '<h2 style="color: #1976d2;">🔍 DIAGNOSIS SUMMARY</h2>';
-echo '<p>If all steps passed, the error is in the View or Template.</p>';
-echo '<p>If Step 8 failed, the error is in the SQL query (likely missing "state" column).</p>';
-echo '</div></body></html>';
+echo '<h2>ALL TESTS COMPLETE</h2>';
+echo '<p>If you see this message, troubleshooting.php is working!</p>';
