@@ -255,33 +255,33 @@ function displayYesNoBadge($value) {
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TROQUEL'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->die_cutting); ?></td>
                                     <td><?php echo !empty($item->die_cutting_details) ? htmlspecialchars($item->die_cutting_details) : ''; ?></td>
-                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ENGRAPADO'); ?></strong></td>
-                                    <td style="text-align: center;"><?php echo displayYesNoBadge($item->stapling); ?></td>
-                                    <td><?php echo !empty($item->stapling_details) ? htmlspecialchars($item->stapling_details) : ''; ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>TROQUEL CAMEO</strong></td>
-                                    <td style="text-align: center;"><?php echo displayYesNoBadge(''); ?></td>
-                                    <td></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_BARNIZ'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->varnish); ?></td>
                                     <td><?php echo !empty($item->varnish_details) ? htmlspecialchars($item->varnish_details) : ''; ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_IMPRESION_BLANCO'); ?></strong></td>
-                                    <td style="text-align: center;"><?php echo displayYesNoBadge($item->white_print); ?></td>
-                                    <td><?php echo !empty($item->white_print_details) ? htmlspecialchars($item->white_print_details) : ''; ?></td>
+                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ENGRAPADO'); ?></strong></td>
+                                    <td style="text-align: center;"><?php echo displayYesNoBadge($item->stapling); ?></td>
+                                    <td><?php echo !empty($item->stapling_details) ? htmlspecialchars($item->stapling_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DESPUNTADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->trimming); ?></td>
                                     <td><?php echo !empty($item->trimming_details) ? htmlspecialchars($item->trimming_details) : ''; ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_OJETES'); ?></strong></td>
-                                    <td style="text-align: center;"><?php echo displayYesNoBadge($item->eyelets); ?></td>
-                                    <td><?php echo !empty($item->eyelets_details) ? htmlspecialchars($item->eyelets_details) : ''; ?></td>
+                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_IMPRESION_BLANCO'); ?></strong></td>
+                                    <td style="text-align: center;"><?php echo displayYesNoBadge($item->white_print); ?></td>
+                                    <td><?php echo !empty($item->white_print_details) ? htmlspecialchars($item->white_print_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PERFORADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->perforation); ?></td>
                                     <td><?php echo !empty($item->perforation_details) ? htmlspecialchars($item->perforation_details) : ''; ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_OJETES'); ?></strong></td>
+                                    <td style="text-align: center;"><?php echo displayYesNoBadge($item->eyelets); ?></td>
+                                    <td><?php echo !empty($item->eyelets_details) ? htmlspecialchars($item->eyelets_details) : ''; ?></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
                                 </tr>
                             </tbody>
                         </table>

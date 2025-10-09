@@ -464,7 +464,7 @@ class OrdenController extends BaseController
         // List of finishing options with actual data
         $finishingOptions = [
             'BLOCADO', 'CORTE', 'DOBLADO', 'LAMINADO', 'LOMO', 'NUMERADO',
-            'PEGADO', 'SIZADO', 'ENGRAPADO', 'TROQUEL', 'TROQUEL CAMEO',
+            'PEGADO', 'SIZADO', 'ENGRAPADO', 'TROQUEL',
             'BARNIZ', 'IMP. EN BLANCO', 'DESPUNTADO', 'OJETES', 'PERFORADO'
         ];
         
@@ -486,7 +486,6 @@ class OrdenController extends BaseController
                 'SIZADO' => 'sizado',
                 'ENGRAPADO' => 'engrapado',
                 'TROQUEL' => 'troquel',
-                'TROQUEL CAMEO' => 'troquel_cameo',
                 'BARNIZ' => 'barniz',
                 'IMP. EN BLANCO' => 'impresion_blanco',
                 'DESPUNTADO' => 'despuntado',
