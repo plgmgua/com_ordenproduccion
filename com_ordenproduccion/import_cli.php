@@ -114,6 +114,7 @@ try {
     }
 
     $importedCount = 0;
+    $skippedCount = 0;
     $errorCount = 0;
     $errors = [];
 
@@ -123,13 +124,13 @@ try {
         echo "Processing record {$recordNumber}/{$totalRecords}: {$record->orden_de_trabajo}... ";
         
         try {
-            // Use original orden_de_trabajo as-is (don't generate new number)
-            // The old table already has the correct format
-            $ordenDeTrabajo = $record->orden_de_trabajo;
+            // Convert original orden_de_trabajo to ORD-XXXXXX format
+            // Extract numeric part and format it
+            $originalNumber = preg_replace('/[^0-9]/', '', $record->orden_de_trabajo);
+            $ordenDeTrabajo = 'ORD-' . str_pad($originalNumber, 6, '0', STR_PAD_LEFT);
             
-            // Generate order_number in ORD-000000 format (for unique constraint)
-            // Use the record ID or a sequential number to ensure uniqueness
-            $orderNumber = 'ORD-' . str_pad($recordNumber, 6, '0', STR_PAD_LEFT);
+            // order_number is the same as orden_de_trabajo
+            $orderNumber = $ordenDeTrabajo;
             
             // Convert date formats
             $requestDate = convertDate($record->fecha_de_solicitud);
@@ -220,7 +221,18 @@ try {
             // Truncate data to fit column sizes
             $data = truncateDataForColumns($data);
             
-            // Build INSERT query (no duplicate check needed after TRUNCATE)
+            // Check if record already exists (handle duplicates in source table)
+            $checkStmt = $pdo->prepare("SELECT id FROM joomla_ordenproduccion_ordenes WHERE orden_de_trabajo = :orden_de_trabajo");
+            $checkStmt->execute(['orden_de_trabajo' => $data['orden_de_trabajo']]);
+            $existingRecord = $checkStmt->fetch(PDO::FETCH_OBJ);
+            
+            if ($existingRecord) {
+                $skippedCount++;
+                echo "⚠️ Duplicate - Already exists (ID: {$existingRecord->id}), skipping\n";
+                continue;
+            }
+            
+            // Build INSERT query
             $columns = array_keys($data);
             $placeholders = ':' . implode(', :', $columns);
             $sql = "INSERT INTO joomla_ordenproduccion_ordenes (" . implode(', ', $columns) . ") VALUES ($placeholders)";
@@ -246,7 +258,8 @@ try {
     // Display results
     echo "\n=== Import Results ===\n";
     echo "✅ Successfully imported: {$importedCount} records\n";
-    echo "📊 Total processed: " . ($importedCount + $errorCount) . " records\n";
+    echo "⚠️ Skipped (duplicates): {$skippedCount} records\n";
+    echo "📊 Total processed: " . ($importedCount + $skippedCount + $errorCount) . " records\n";
     
     if ($errorCount > 0) {
         echo "❌ Errors: {$errorCount} records\n";
