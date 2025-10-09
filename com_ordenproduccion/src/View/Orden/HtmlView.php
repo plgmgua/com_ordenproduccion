@@ -67,41 +67,72 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $app = Factory::getApplication();
-        $user = Factory::getUser();
+        // ENABLE FULL ERROR REPORTING FOR DEBUGGING
+        ini_set('display_errors', 1);
+        ini_set('display_startup_errors', 1);
+        error_reporting(E_ALL);
+        
+        try {
+            $app = Factory::getApplication();
+            $user = Factory::getUser();
 
-        // Load component language
-        $lang = $app->getLanguage();
-        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site/language');
-        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/admin/language');
+            // Load component language
+            $lang = $app->getLanguage();
+            $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site/language');
+            $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/admin/language');
 
-        // Check if user is logged in
-        if ($user->guest) {
-            $app->redirect(Route::_('index.php?option=com_users&view=login'));
+            // Check if user is logged in
+            if ($user->guest) {
+                $app->redirect(Route::_('index.php?option=com_users&view=login'));
+                return;
+            }
+
+            // Check if user has access to ordenes
+            if (!$user->authorise('core.view', 'com_ordenproduccion')) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+                $app->redirect(Route::_('index.php'));
+                return;
+            }
+
+            $this->state = $this->get('State');
+            $this->item = $this->get('Item');
+            $this->params = $app->getParams('com_ordenproduccion');
+            $this->user = $user;
+
+            // Check for errors.
+            if (count($errors = $this->get('Errors'))) {
+                $app->enqueueMessage(implode("\n", $errors), 'error');
+                return;
+            }
+        } catch (\Exception $e) {
+            // Display error in a visible way
+            echo '<div style="margin: 20px; padding: 20px; background: #ffebee; border: 2px solid #c62828; font-family: monospace;">';
+            echo '<h2 style="color: #c62828;">❌ VIEW ERROR (HtmlView.php)</h2>';
+            echo '<p><strong>Error Message:</strong></p>';
+            echo '<pre style="background: white; padding: 10px; overflow: auto;">' . htmlspecialchars($e->getMessage()) . '</pre>';
+            echo '<p><strong>File:</strong> ' . htmlspecialchars($e->getFile()) . '</p>';
+            echo '<p><strong>Line:</strong> ' . $e->getLine() . '</p>';
+            echo '<p><strong>Stack Trace:</strong></p>';
+            echo '<pre style="background: white; padding: 10px; overflow: auto; max-height: 400px;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+            echo '</div>';
             return;
         }
 
-        // Check if user has access to ordenes
-        if (!$user->authorise('core.view', 'com_ordenproduccion')) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
-            $app->redirect(Route::_('index.php'));
-            return;
+        try {
+            $this->_prepareDocument();
+            parent::display($tpl);
+        } catch (\Exception $e) {
+            // Display error in a visible way
+            echo '<div style="margin: 20px; padding: 20px; background: #ffebee; border: 2px solid #c62828; font-family: monospace;">';
+            echo '<h2 style="color: #c62828;">❌ TEMPLATE RENDERING ERROR</h2>';
+            echo '<p><strong>Error Message:</strong></p>';
+            echo '<pre style="background: white; padding: 10px; overflow: auto;">' . htmlspecialchars($e->getMessage()) . '</pre>';
+            echo '<p><strong>File:</strong> ' . htmlspecialchars($e->getFile()) . '</p>';
+            echo '<p><strong>Line:</strong> ' . $e->getLine() . '</p>';
+            echo '<p><strong>Stack Trace:</strong></p>';
+            echo '<pre style="background: white; padding: 10px; overflow: auto; max-height: 400px;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+            echo '</div>';
         }
-
-        $this->state = $this->get('State');
-        $this->item = $this->get('Item');
-        $this->params = $app->getParams('com_ordenproduccion');
-        $this->user = $user;
-
-        // Check for errors.
-        if (count($errors = $this->get('Errors'))) {
-            $app->enqueueMessage(implode("\n", $errors), 'error');
-            return;
-        }
-
-        $this->_prepareDocument();
-
-        parent::display($tpl);
     }
 
     /**
