@@ -19,6 +19,7 @@
             description="COM_ORDENPRODUCCION_ORDER_PREFIX_DESC"
             default="ORD"
             maxlength="10"
+            required="true"
         />
         
         <field
@@ -27,6 +28,7 @@
             label="COM_ORDENPRODUCCION_ORDER_FORMAT_LABEL"
             description="COM_ORDENPRODUCCION_ORDER_FORMAT_DESC"
             default="PREFIX-NUMBER"
+            required="true"
         >
             <option value="PREFIX-NUMBER">COM_ORDENPRODUCCION_FORMAT_PREFIX_NUMBER</option>
             <option value="NUMBER">COM_ORDENPRODUCCION_FORMAT_NUMBER_ONLY</option>

@@ -123,12 +123,76 @@ class SettingsModel extends BaseModel
     public function save($data)
     {
         try {
-            // For now, just show a success message without database operations
-            // TODO: Implement proper settings storage later
-            Factory::getApplication()->enqueueMessage(
-                'Settings saved successfully (Note: Settings are not persisted yet)',
-                'notice'
-            );
+            $db = Factory::getDbo();
+            
+            // Ensure settings table exists
+            $this->ensureSettingsTableExists();
+            
+            // Validate required fields
+            if (empty($data['order_prefix'])) {
+                Factory::getApplication()->enqueueMessage('Order prefix cannot be empty', 'error');
+                return false;
+            }
+            
+            if (empty($data['order_format'])) {
+                Factory::getApplication()->enqueueMessage('Order format cannot be empty', 'error');
+                return false;
+            }
+            
+            // Check if settings record exists
+            $query = $db->getQuery(true)
+                ->select('id')
+                ->from($db->quoteName('#__ordenproduccion_settings'))
+                ->where($db->quoteName('id') . ' = 1');
+            
+            $db->setQuery($query);
+            $exists = $db->loadResult();
+            
+            if ($exists) {
+                // Update existing record
+                $query = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_order_number') . ' = ' . (int) $data['next_order_number'])
+                    ->set($db->quoteName('order_prefix') . ' = ' . $db->quote($data['order_prefix']))
+                    ->set($db->quoteName('order_format') . ' = ' . $db->quote($data['order_format']))
+                    ->set($db->quoteName('auto_increment') . ' = ' . (int) ($data['auto_increment'] ?? 1))
+                    ->set($db->quoteName('items_per_page') . ' = ' . (int) ($data['items_per_page'] ?? 20))
+                    ->set($db->quoteName('show_creation_date') . ' = ' . (int) ($data['show_creation_date'] ?? 1))
+                    ->set($db->quoteName('show_modification_date') . ' = ' . (int) ($data['show_modification_date'] ?? 1))
+                    ->set($db->quoteName('default_order_status') . ' = ' . $db->quote($data['default_order_status'] ?? 'nueva'))
+                    ->where($db->quoteName('id') . ' = 1');
+            } else {
+                // Insert new record
+                $query = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_settings'))
+                    ->columns([
+                        $db->quoteName('id'),
+                        $db->quoteName('next_order_number'),
+                        $db->quoteName('order_prefix'),
+                        $db->quoteName('order_format'),
+                        $db->quoteName('auto_increment'),
+                        $db->quoteName('items_per_page'),
+                        $db->quoteName('show_creation_date'),
+                        $db->quoteName('show_modification_date'),
+                        $db->quoteName('default_order_status')
+                    ])
+                    ->values(
+                        '1, ' .
+                        (int) $data['next_order_number'] . ', ' .
+                        $db->quote($data['order_prefix']) . ', ' .
+                        $db->quote($data['order_format']) . ', ' .
+                        (int) ($data['auto_increment'] ?? 1) . ', ' .
+                        (int) ($data['items_per_page'] ?? 20) . ', ' .
+                        (int) ($data['show_creation_date'] ?? 1) . ', ' .
+                        (int) ($data['show_modification_date'] ?? 1) . ', ' .
+                        $db->quote($data['default_order_status'] ?? 'nueva')
+                    );
+            }
+            
+            $db->setQuery($query);
+            $db->execute();
+            
+            Factory::getApplication()->enqueueMessage('Settings saved successfully', 'success');
             
             return true;
             
