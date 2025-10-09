@@ -577,17 +577,37 @@ class OrdenController extends BaseController
         $pdf = new \FPDF('P', 'mm', 'A4');
         $pdf->AddPage();
         
+        // Function to fix Spanish characters for FPDF
+        $fixSpanishChars = function($text) {
+            if (empty($text)) return $text;
+            
+            // Convert common Spanish characters that FPDF doesn't handle well
+            $replacements = [
+                'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
+                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
+                'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c'
+            ];
+            
+            return strtr($text, $replacements);
+        };
+        
         // Get shipping number (convert ORD-000000 to ENV-000000)
-        $ordenNumber = $workOrderData->numero_de_orden ?? 'ORD-' . str_pad($orderId, 6, '0', STR_PAD_LEFT);
+        $ordenNumber = $workOrderData->orden_de_trabajo ?? $workOrderData->numero_de_orden ?? 'ORD-' . str_pad($orderId, 6, '0', STR_PAD_LEFT);
         $envioNumber = str_replace('ORD-', 'ENV-', $ordenNumber);
         
         // Get current date
         $currentDate = date('d/m/Y');
         
-        // Get client data
-        $clientName = $workOrderData->client_name ?? 'N/A';
-        $salesAgent = $workOrderData->agente_de_ventas ?? $workOrderData->eav_data['agente_de_ventas']->attribute_value ?? 'N/A';
-        $workDescription = $workOrderData->work_description ?? $workOrderData->eav_data['work_description']->attribute_value ?? $workOrderData->eav_data['descripcion_de_trabajo']->attribute_value ?? 'N/A';
+        // Get client data from main table
+        $clientName = $fixSpanishChars($workOrderData->client_name ?? 'N/A');
+        $salesAgent = $fixSpanishChars($workOrderData->sales_agent ?? 'N/A');
+        $workDescription = $fixSpanishChars($workOrderData->work_description ?? 'N/A');
+        
+        // Get shipping information from main table
+        $shippingContact = $fixSpanishChars($workOrderData->shipping_contact ?? '');
+        $shippingPhone = $workOrderData->shipping_phone ?? '';
+        $shippingAddress = $fixSpanishChars($workOrderData->shipping_address ?? '');
+        $shippingInstructions = $fixSpanishChars($workOrderData->instrucciones_entrega ?? '');
         
         // Generate two identical shipping slips on one page
         for ($slip = 0; $slip < 2; $slip++) {
@@ -638,25 +658,25 @@ class OrdenController extends BaseController
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Contacto', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(81, $cellHeight, '', 1, 0, 'L');
+            $pdf->Cell(81, $cellHeight, $shippingContact, 1, 0, 'L');
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(32, $cellHeight, 'Telefono', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(40, $cellHeight, '', 1, 0, 'L');
+            $pdf->Cell(40, $cellHeight, $shippingPhone, 1, 0, 'L');
             $pdf->Ln();
             
             // Row 4: Direccion de entrega (full width)
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Direccion de entrega', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(153, $cellHeight, '', 1, 0, 'L');
+            $pdf->Cell(153, $cellHeight, $shippingAddress, 1, 0, 'L');
             $pdf->Ln();
             
             // Row 5: Instrucciones de entrega (full width)
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(190, $cellHeight, 'Instrucciones de entrega', 1, 1, 'C');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
+            $pdf->MultiCell(190, $cellHeight, $shippingInstructions, 1, 'L');
             $pdf->Ln();
             
             // Row 6: Tipo de Entrega
