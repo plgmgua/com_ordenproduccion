@@ -39,6 +39,63 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     echo "✅ Database connection successful\n\n";
 
+    // ========================================
+    // TRUNCATE RELATED TABLES
+    // ========================================
+    echo "========================================\n";
+    echo "CLEARING EXISTING DATA\n";
+    echo "========================================\n\n";
+    echo "⚠️  WARNING: This will delete all existing data from the following tables:\n";
+    echo "   - joomla_ordenproduccion_ordenes (main orders)\n";
+    echo "   - joomla_ordenproduccion_info (EAV data)\n";
+    echo "   - joomla_ordenproduccion_technicians (technician assignments)\n";
+    echo "   - joomla_ordenproduccion_shipping (shipping records)\n";
+    echo "   - joomla_ordenproduccion_production_notes (production notes)\n\n";
+    echo "⏳ Waiting 5 seconds before proceeding...\n";
+    sleep(5);
+    
+    try {
+        // Disable foreign key checks temporarily
+        $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+        
+        // Truncate related tables in correct order
+        echo "Truncating joomla_ordenproduccion_production_notes... ";
+        $pdo->exec("TRUNCATE TABLE joomla_ordenproduccion_production_notes");
+        echo "✅ Done\n";
+        
+        echo "Truncating joomla_ordenproduccion_shipping... ";
+        $pdo->exec("TRUNCATE TABLE joomla_ordenproduccion_shipping");
+        echo "✅ Done\n";
+        
+        echo "Truncating joomla_ordenproduccion_technicians... ";
+        $pdo->exec("TRUNCATE TABLE joomla_ordenproduccion_technicians");
+        echo "✅ Done\n";
+        
+        echo "Truncating joomla_ordenproduccion_info... ";
+        $pdo->exec("TRUNCATE TABLE joomla_ordenproduccion_info");
+        echo "✅ Done\n";
+        
+        echo "Truncating joomla_ordenproduccion_ordenes... ";
+        $pdo->exec("TRUNCATE TABLE joomla_ordenproduccion_ordenes");
+        echo "✅ Done\n";
+        
+        // Re-enable foreign key checks
+        $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+        
+        echo "\n✅ All tables cleared successfully\n";
+        echo "📊 Tables preserved:\n";
+        echo "   - joomla_ordenproduccion_webhook_logs (webhook logs)\n";
+        echo "   - joomla_ordenproduccion_config (settings)\n";
+        echo "   - joomla_ordenproduccion_attendance (attendance data)\n\n";
+        
+    } catch (Exception $e) {
+        echo "❌ Error truncating tables: " . $e->getMessage() . "\n";
+        echo "Aborting import process.\n";
+        exit(1);
+    }
+    
+    echo "========================================\n\n";
+
     // Get all records from old table (no date restrictions)
     echo "Fetching all records from old table...\n";
     $stmt = $pdo->prepare("
@@ -57,7 +114,6 @@ try {
     }
 
     $importedCount = 0;
-    $skippedCount = 0;
     $errorCount = 0;
     $errors = [];
 
@@ -158,19 +214,8 @@ try {
 
             // Truncate data to fit column sizes
             $data = truncateDataForColumns($data);
-
-            // Check if record already exists
-            $checkStmt = $pdo->prepare("SELECT id FROM joomla_ordenproduccion_ordenes WHERE orden_de_trabajo = :orden_de_trabajo");
-            $checkStmt->execute(['orden_de_trabajo' => $data['orden_de_trabajo']]);
-            $existingRecord = $checkStmt->fetch(PDO::FETCH_OBJ);
             
-            if ($existingRecord) {
-                $skippedCount++;
-                echo "⚠️ Already exists (ID: {$existingRecord->id}), skipping\n";
-                continue;
-            }
-            
-            // Build INSERT query
+            // Build INSERT query (no duplicate check needed after TRUNCATE)
             $columns = array_keys($data);
             $placeholders = ':' . implode(', :', $columns);
             $sql = "INSERT INTO joomla_ordenproduccion_ordenes (" . implode(', ', $columns) . ") VALUES ($placeholders)";
@@ -196,8 +241,7 @@ try {
     // Display results
     echo "\n=== Import Results ===\n";
     echo "✅ Successfully imported: {$importedCount} records\n";
-    echo "⚠️ Skipped (already exist): {$skippedCount} records\n";
-    echo "📊 Total processed: " . ($importedCount + $skippedCount + $errorCount) . " records\n";
+    echo "📊 Total processed: " . ($importedCount + $errorCount) . " records\n";
     
     if ($errorCount > 0) {
         echo "❌ Errors: {$errorCount} records\n";
