@@ -158,6 +158,9 @@ class OrdenModel extends ItemModel
                 // Apply field visibility based on user groups
                 $this->applyFieldVisibility($data);
 
+                // Load EAV (Entity-Attribute-Value) data from info table
+                $data->eav_data = $this->getEAVData($pk);
+
                 $this->_item[$pk] = $data;
 
             } catch (\Exception $e) {
@@ -348,5 +351,45 @@ class OrdenModel extends ItemModel
             'Shipped' => 'COM_ORDENPRODUCCION_SHIPPING_STATUS_SHIPPED',
             'Delivered' => 'COM_ORDENPRODUCCION_SHIPPING_STATUS_DELIVERED'
         ];
+    }
+
+    /**
+     * Get EAV (Entity-Attribute-Value) data for an order
+     * This loads additional fields stored dynamically in the info table
+     *
+     * @param   int  $orderId  The order ID
+     *
+     * @return  array  Associative array of attribute => value
+     *
+     * @since   2.0.8
+     */
+    protected function getEAVData($orderId)
+    {
+        try {
+            $db = $this->getDatabase();
+            
+            $query = $db->getQuery(true)
+                ->select('attribute_name, attribute_value')
+                ->from($db->quoteName('#__ordenproduccion_info'))
+                ->where($db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where($db->quoteName('state') . ' = 1');
+            
+            $db->setQuery($query);
+            $results = $db->loadObjectList();
+            
+            // Convert to associative array
+            $eavData = [];
+            if ($results) {
+                foreach ($results as $row) {
+                    $eavData[$row->attribute_name] = $row->attribute_value;
+                }
+            }
+            
+            return $eavData;
+            
+        } catch (\Exception $e) {
+            // Return empty array on error
+            return [];
+        }
     }
 }
