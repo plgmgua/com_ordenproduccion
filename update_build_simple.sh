@@ -864,14 +864,31 @@ EOF
     sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
     success "Utility files ownership set"
 
-    # Step 14: Clear Joomla cache to refresh menu items
-    log "Step 14: Clearing Joomla cache to refresh menu items..."
+    # Step 14: Clear ALL Joomla caches
+    log "Step 14: Clearing ALL Joomla caches (site, admin, compiled templates)..."
     
-    echo "Clearing Joomla cache to ensure menu items are refreshed..."
+    echo "Clearing site cache..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
+    
+    echo "Clearing admin cache..."
     sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear admin cache directory"
     
-    success "Cache cleared - menu items should be refreshed from manifest"
+    echo "Clearing compiled templates cache..."
+    sudo rm -rf "$JOOMLA_ROOT/cache/com_templates/*" 2>/dev/null || warning "Failed to clear template cache"
+    sudo rm -rf "$JOOMLA_ROOT/cache/com_content/*" 2>/dev/null || warning "Failed to clear content cache"
+    
+    echo "Clearing Joomla system cache..."
+    sudo rm -rf "$JOOMLA_ROOT/cache/page/*" 2>/dev/null || warning "Failed to clear page cache"
+    
+    echo "Recreating cache directories with proper permissions..."
+    sudo mkdir -p "$JOOMLA_ROOT/cache"
+    sudo mkdir -p "$JOOMLA_ROOT/administrator/cache"
+    sudo chown -R www-data:www-data "$JOOMLA_ROOT/cache"
+    sudo chown -R www-data:www-data "$JOOMLA_ROOT/administrator/cache"
+    sudo chmod -R 755 "$JOOMLA_ROOT/cache"
+    sudo chmod -R 755 "$JOOMLA_ROOT/administrator/cache"
+    
+    success "✅ ALL caches cleared (site, admin, templates, pages)"
 
     # Step 15: Final verification (FINAL STEP)
     log "Step 15: Final verification (FINAL STEP)..."

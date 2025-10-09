@@ -185,9 +185,12 @@ class HtmlView extends BaseHtmlView
         // Load assets
         HTMLHelper::_('bootstrap.framework');
         
+        // Use timestamp for cache busting to ensure latest template changes are loaded
+        $version = time();
+        
         $wa = $this->document->getWebAssetManager();
-        $wa->registerAndUseStyle('com_ordenproduccion.orden', 'media/com_ordenproduccion/css/orden.css', [], ['version' => 'auto']);
-        $wa->registerAndUseScript('com_ordenproduccion.orden', 'media/com_ordenproduccion/js/orden.js', [], ['version' => 'auto']);
+        $wa->registerAndUseStyle('com_ordenproduccion.orden', 'media/com_ordenproduccion/css/orden.css', [], ['version' => $version]);
+        $wa->registerAndUseScript('com_ordenproduccion.orden', 'media/com_ordenproduccion/js/orden.js', [], ['version' => $version]);
     }
 
     /**
