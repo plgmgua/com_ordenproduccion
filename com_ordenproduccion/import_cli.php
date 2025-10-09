@@ -123,8 +123,13 @@ try {
         echo "Processing record {$recordNumber}/{$totalRecords}: {$record->orden_de_trabajo}... ";
         
         try {
-            // Generate new order number in ORD-000000 format
-            $newOrderNumber = generateOrderNumber($record->orden_de_trabajo);
+            // Use original orden_de_trabajo as-is (don't generate new number)
+            // The old table already has the correct format
+            $ordenDeTrabajo = $record->orden_de_trabajo;
+            
+            // Generate order_number in ORD-000000 format (for unique constraint)
+            // Use the record ID or a sequential number to ensure uniqueness
+            $orderNumber = 'ORD-' . str_pad($recordNumber, 6, '0', STR_PAD_LEFT);
             
             // Convert date formats
             $requestDate = convertDate($record->fecha_de_solicitud);
@@ -144,8 +149,8 @@ try {
 
             // Prepare data for insertion (updated with all latest fields)
             $data = [
-                'orden_de_trabajo' => $newOrderNumber,
-                'order_number' => $newOrderNumber,
+                'orden_de_trabajo' => $ordenDeTrabajo,
+                'order_number' => $orderNumber,
                 'client_id' => $record->client_id ?? 0,
                 'client_name' => $record->nombre_del_cliente,
                 'nit' => $record->nit,
