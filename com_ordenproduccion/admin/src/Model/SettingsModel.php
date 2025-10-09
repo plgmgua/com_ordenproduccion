@@ -148,37 +148,83 @@ class SettingsModel extends BaseModel
     public function getNextOrderNumber()
     {
         try {
-            // Get actual settings from database
-            $settings = $this->getSavedSettings();
-
-            if (!$settings) {
-                // Fallback to default settings
-                $settings = (object) [
-                    'next_order_number' => '1000',
-                    'order_prefix' => 'ORD',
-                    'order_format' => 'PREFIX-NUMBER'
-                ];
+            $db = Factory::getDbo();
+            
+            // Ensure settings table exists
+            $this->ensureSettingsTableExists();
+            
+            // Start transaction for atomic operation
+            $db->transactionStart();
+            
+            try {
+                // Lock the row with FOR UPDATE to prevent race conditions
+                $query = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('next_order_number'),
+                        $db->quoteName('order_prefix'),
+                        $db->quoteName('order_format')
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_settings'))
+                    ->where($db->quoteName('id') . ' = 1')
+                    ->setLimit(1);
+                
+                // Add FOR UPDATE clause to lock the row
+                $db->setQuery($query . ' FOR UPDATE');
+                $settings = $db->loadObject();
+                
+                if (!$settings) {
+                    // Insert default settings if not exists
+                    $insertQuery = $db->getQuery(true)
+                        ->insert($db->quoteName('#__ordenproduccion_settings'))
+                        ->columns(['id', 'next_order_number', 'order_prefix', 'order_format', 'auto_increment', 'items_per_page', 'show_creation_date', 'show_modification_date', 'default_order_status'])
+                        ->values('1, 1000, ' . $db->quote('ORD') . ', ' . $db->quote('PREFIX-NUMBER') . ', 1, 20, 1, 1, ' . $db->quote('nueva'));
+                    
+                    $db->setQuery($insertQuery);
+                    $db->execute();
+                    
+                    // Load the newly inserted settings
+                    $settings = (object) [
+                        'next_order_number' => 1000,
+                        'order_prefix' => 'ORD',
+                        'order_format' => 'PREFIX-NUMBER'
+                    ];
+                }
+                
+                // Get the next number
+                $nextNumber = (int) $settings->next_order_number;
+                
+                // Generate the order number based on format
+                $orderNumber = $settings->order_format;
+                $orderNumber = str_replace('PREFIX', $settings->order_prefix, $orderNumber);
+                $orderNumber = str_replace('NUMBER', str_pad($nextNumber, 6, '0', STR_PAD_LEFT), $orderNumber);
+                
+                // Increment the next order number
+                $updateQuery = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_order_number') . ' = ' . (int) ($nextNumber + 1))
+                    ->where($db->quoteName('id') . ' = 1');
+                
+                $db->setQuery($updateQuery);
+                $db->execute();
+                
+                // Commit transaction
+                $db->transactionCommit();
+                
+                return $orderNumber;
+                
+            } catch (\Exception $e) {
+                // Rollback transaction on error
+                $db->transactionRollback();
+                throw $e;
             }
-
-            // Get the next number and increment it
-            $nextNumber = (int) $settings->next_order_number;
-
-            // Generate the order number based on format
-            $orderNumber = $settings->order_format;
-            $orderNumber = str_replace('PREFIX', $settings->order_prefix, $orderNumber);
-            $orderNumber = str_replace('NUMBER', str_pad($nextNumber, 6, '0', STR_PAD_LEFT), $orderNumber);
-
-            // Increment the next order number and save it
-            $this->incrementNextOrderNumber($nextNumber + 1);
-
-            return $orderNumber;
 
         } catch (\Exception $e) {
             Factory::getApplication()->enqueueMessage(
                 'Error generating order number: ' . $e->getMessage(),
                 'error'
             );
-            return 'ORD-001000';
+            // Fallback: use timestamp-based number to avoid duplicates
+            return 'ORD-' . date('YmdHis');
         }
     }
 
