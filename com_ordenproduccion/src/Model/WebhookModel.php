@@ -121,6 +121,9 @@ class WebhookModel extends BaseDatabaseModel
                 'instructions' => $formData['instrucciones'] ?? '',
                 'sales_agent' => $formData['agente_de_ventas'] ?? '',
                 'request_date' => $formData['fecha_de_solicitud'] ?? $now,
+                'shipping_address' => $formData['direccion_entrega'] ?? '',
+                'shipping_contact' => $formData['contacto_nombre'] ?? '',
+                'shipping_phone' => $formData['contacto_telefono'] ?? '',
                 'status' => 'New',
                 'order_type' => 'External',
                 'state' => 1,
@@ -399,7 +402,7 @@ class WebhookModel extends BaseDatabaseModel
 
     /**
      * Format date for database storage
-     * Handles both DD/MM/YYYY and YYYY-MM-DD formats
+     * Handles DD/MM/YYYY, DD-MM-YYYY, and YYYY-MM-DD formats
      *
      * @param   string|null  $date  Date string
      *
@@ -416,6 +419,13 @@ class WebhookModel extends BaseDatabaseModel
         try {
             // Handle DD/MM/YYYY format (from webhook payload)
             if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $date, $matches)) {
+                $day = $matches[1];
+                $month = $matches[2];
+                $year = $matches[3];
+                $date = $year . '-' . $month . '-' . $day;
+            }
+            // Handle DD-MM-YYYY format (from webhook payload)
+            elseif (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $date, $matches)) {
                 $day = $matches[1];
                 $month = $matches[2];
                 $year = $matches[3];
