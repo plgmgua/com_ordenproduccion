@@ -508,6 +508,18 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
+        // INSTRUCCIONES GENERALES section
+        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->SetFillColor(220, 220, 220); // Light gray background
+        $pdf->Cell(0, 8, 'INSTRUCCIONES GENERALES', 1, 1, 'L', true);
+        $pdf->SetFont('Arial', '', 9);
+        $instructions = $workOrderData->instructions ?? 'N/A';
+        $instructions = $fixSpanishChars($instructions); // Fix Spanish characters
+        // Ensure text fits within cell boundaries
+        $pdf->MultiCell(0, 6, $instructions, 1, 'L');
+        
+        $pdf->Ln(5);
+        
         // INFORMACION DE ENVIO section
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetFillColor(220, 220, 220); // Light gray background
@@ -537,24 +549,15 @@ class OrdenController extends BaseController
         $shippingPhone = $fixSpanishChars($shippingPhone);
         $pdf->Cell(0, 7, $shippingPhone, 1, 1, 'L');
         
-        // Instrucciones de Entrega
+        // Instrucciones de Entrega - Label row (spans both columns)
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 7, 'INSTRUCCIONES DE ENTREGA:', 1, 0, 'L');
+        $pdf->Cell(0, 7, 'INSTRUCCIONES DE ENTREGA:', 1, 1, 'L');
+        
+        // Instrucciones de Entrega - Value row (spans both columns)
         $pdf->SetFont('Arial', '', 9);
         $shippingInstructions = $workOrderData->instrucciones_entrega ?? 'N/A';
         $shippingInstructions = $fixSpanishChars($shippingInstructions);
-        $pdf->Cell(0, 7, $shippingInstructions, 1, 1, 'L');
-        
-        $pdf->Ln(5);
-        
-        // INSTRUCCIONES GENERALES section
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->Cell(0, 8, 'INSTRUCCIONES GENERALES', 1, 1, 'L', true);
-        $pdf->SetFont('Arial', '', 9);
-        $instructions = $workOrderData->instructions ?? 'N/A';
-        $instructions = $fixSpanishChars($instructions); // Fix Spanish characters
-        // Ensure text fits within cell boundaries
-        $pdf->MultiCell(0, 6, $instructions, 1, 'L');
+        $pdf->MultiCell(0, 6, $shippingInstructions, 1, 'L');
         
         
         // Set headers for inline PDF viewing in new tab
