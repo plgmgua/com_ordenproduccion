@@ -254,7 +254,8 @@ use Joomla\CMS\Session\Session;
                             <table class="table table-striped table-hover">
                                 <thead>
                                     <tr>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_TYPE'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ENDPOINT_TYPE'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATA'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_IP'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATE'); ?></th>
@@ -262,31 +263,42 @@ use Joomla\CMS\Session\Session;
                                 </thead>
                                 <tbody>
                                     <?php foreach ($this->logs as $log): ?>
-                                        <tr>
+                                        <tr style="cursor: pointer;" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook&log_id=' . $log->id); ?>'">
                                             <td>
-                                                <span class="badge bg-<?php echo $this->getLogTypeColor($log->type); ?>">
-                                                    <?php echo $this->getLogTypeText($log->type); ?>
+                                                <span class="badge bg-<?php echo $log->endpoint_type === 'production' ? 'primary' : 'info'; ?>">
+                                                    <?php echo htmlspecialchars(strtoupper($log->endpoint_type ?? 'N/A')); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-<?php 
+                                                    $status = strtolower($log->status ?? 'pending');
+                                                    echo $status === 'success' ? 'success' : ($status === 'error' ? 'danger' : 'warning'); 
+                                                ?>">
+                                                    <?php echo htmlspecialchars($log->status ?? 'Pending'); ?>
                                                 </span>
                                             </td>
                                             <td>
                                                 <div class="log-data">
-                                                    <?php if ($log->type === 'webhook_request'): ?>
-                                                        <?php 
-                                                        $data = json_decode($log->data, true);
-                                                        if (isset($data['form_data']['cliente'])) {
-                                                            echo '<strong>' . htmlspecialchars($data['form_data']['cliente']) . '</strong><br>';
-                                                            echo '<small class="text-muted">' . htmlspecialchars($data['form_data']['descripcion_trabajo']) . '</small>';
-                                                        } else {
-                                                            echo '<small class="text-muted">' . htmlspecialchars(substr($log->data, 0, 100)) . '...</small>';
+                                                    <?php 
+                                                    $requestBody = json_decode($log->request_body ?? '', true);
+                                                    if (isset($requestBody['form_data']['cliente'])) {
+                                                        echo '<strong>' . htmlspecialchars($requestBody['form_data']['cliente']) . '</strong><br>';
+                                                        if (isset($requestBody['form_data']['descripcion_trabajo'])) {
+                                                            echo '<small class="text-muted">' . htmlspecialchars(substr($requestBody['form_data']['descripcion_trabajo'], 0, 60)) . '...</small>';
                                                         }
-                                                        ?>
-                                                    <?php else: ?>
-                                                        <small class="text-muted"><?php echo htmlspecialchars(substr($log->data, 0, 100)); ?>...</small>
-                                                    <?php endif; ?>
+                                                    } else {
+                                                        echo '<small class="text-muted">' . htmlspecialchars(substr($log->request_body ?? 'No data', 0, 100)) . '...</small>';
+                                                    }
+                                                    ?>
                                                 </div>
                                             </td>
                                             <td>
-                                                <small class="text-muted"><?php echo htmlspecialchars($log->ip_address); ?></small>
+                                                <small class="text-muted">
+                                                    <?php 
+                                                    $headers = json_decode($log->request_headers ?? '{}', true);
+                                                    echo htmlspecialchars($headers['REMOTE-ADDR'] ?? $headers['X-FORWARDED-FOR'] ?? 'N/A'); 
+                                                    ?>
+                                                </small>
                                             </td>
                                             <td>
                                                 <small class="text-muted"><?php echo $this->formatDate($log->created); ?></small>

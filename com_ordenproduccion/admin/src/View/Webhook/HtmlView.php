@@ -60,6 +60,14 @@ class HtmlView extends BaseHtmlView
     protected $endpoints;
 
     /**
+     * Single log entry (for detail view)
+     *
+     * @var    object
+     * @since  2.0.4
+     */
+    protected $log;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -70,10 +78,24 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $this->statistics = $this->get('Statistics');
-        $this->logs = $this->get('Logs');
-        $this->config = $this->get('Config');
-        $this->endpoints = $this->get('Endpoints');
+        // Check if we're displaying a single log (detail view)
+        $input = Factory::getApplication()->input;
+        $logId = $input->getInt('log_id', 0);
+        
+        if ($logId > 0) {
+            // Detail view
+            $this->log = $this->get('Log');
+            if (!$this->log) {
+                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_LOG_NOT_FOUND'), 404);
+            }
+            $tpl = 'detail';
+        } else {
+            // List view
+            $this->statistics = $this->get('Statistics');
+            $this->logs = $this->get('Logs');
+            $this->config = $this->get('Config');
+            $this->endpoints = $this->get('Endpoints');
+        }
 
         $this->addToolbar();
         $this->_prepareDocument();

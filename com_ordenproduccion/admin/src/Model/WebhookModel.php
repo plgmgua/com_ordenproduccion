@@ -341,6 +341,32 @@ class WebhookModel extends BaseDatabaseModel
     }
 
     /**
+     * Get single webhook log by ID
+     *
+     * @param   int  $id  Log ID
+     *
+     * @return  object|null  Webhook log or null if not found
+     *
+     * @since   2.0.4
+     */
+    public function getLog($id)
+    {
+        try {
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_webhook_logs'))
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+            
+            $db->setQuery($query);
+            return $db->loadObject();
+            
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
      * Get webhook configuration for display
      *
      * @return  array  Configuration data
