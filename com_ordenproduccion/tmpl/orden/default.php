@@ -17,6 +17,14 @@ use Joomla\CMS\Router\Route;
 
 $item = $this->item;
 $canSeeInvoice = $this->canSeeInvoiceValue();
+
+// Helper function to display SI/NO badge
+function displayYesNoBadge($value) {
+    $isSi = (strtoupper($value) === 'SI' || strtoupper($value) === 'YES' || $value === '1');
+    $badgeClass = $isSi ? 'badge-success' : 'badge-secondary';
+    $text = $isSi ? 'SI' : 'NO';
+    return '<span class="badge ' . $badgeClass . '">' . $text . '</span>';
+}
 ?>
 
 <div class="com-ordenproduccion-orden">
@@ -194,7 +202,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-cogs"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INFO_PRODUCCION'); ?>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ACABADOS'); ?>
                         </h5>
                     </div>
                     <div class="card-body">
@@ -203,11 +211,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                 <table class="table table-sm">
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CORTE'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->cutting === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->cutting === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->cutting); ?></td>
                                     </tr>
                                     <?php if ($item->cutting === 'SI' && !empty($item->cutting_details)) : ?>
                                         <tr>
@@ -217,11 +221,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_BLOQUEADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->blocking === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->blocking === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->blocking); ?></td>
                                     </tr>
                                     <?php if ($item->blocking === 'SI' && !empty($item->blocking_details)) : ?>
                                         <tr>
@@ -231,11 +231,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DOBLADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->folding === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->folding === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->folding); ?></td>
                                     </tr>
                                     <?php if ($item->folding === 'SI' && !empty($item->folding_details)) : ?>
                                         <tr>
@@ -245,11 +241,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LAMINADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->laminating === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->laminating === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->laminating); ?></td>
                                     </tr>
                                     <?php if ($item->laminating === 'SI' && !empty($item->laminating_details)) : ?>
                                         <tr>
@@ -259,11 +251,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_NUMERADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->numbering === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->numbering === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->numbering); ?></td>
                                     </tr>
                                     <?php if ($item->numbering === 'SI' && !empty($item->numbering_details)) : ?>
                                         <tr>
@@ -273,11 +261,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TROQUEL'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->die_cutting === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->die_cutting === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->die_cutting); ?></td>
                                     </tr>
                                     <?php if ($item->die_cutting === 'SI' && !empty($item->die_cutting_details)) : ?>
                                         <tr>
@@ -287,11 +271,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_BARNIZ'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->varnish === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->varnish === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->varnish); ?></td>
                                     </tr>
                                     <?php if ($item->varnish === 'SI' && !empty($item->varnish_details)) : ?>
                                         <tr>
@@ -305,51 +285,27 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                 <table class="table table-sm">
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LOMO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->spine === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->spine === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->spine); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PEGADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->gluing === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->gluing === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->gluing); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_SIZADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->sizing === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->sizing === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->sizing); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ENGRAPADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->stapling === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->stapling === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->stapling); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_IMPRESION_BLANCO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->white_print === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->white_print === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->white_print); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DESPUNTADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->trimming === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->trimming === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->trimming); ?></td>
                                     </tr>
                                     <?php if ($item->trimming === 'SI' && !empty($item->trimming_details)) : ?>
                                         <tr>
@@ -359,19 +315,11 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                     <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_OJETES'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->eyelets === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->eyelets === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->eyelets); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PERFORADO'); ?>:</strong></td>
-                                        <td>
-                                            <span class="badge <?php echo $item->perforation === 'SI' ? 'badge-success' : 'badge-secondary'; ?>">
-                                                <?php echo ($item->perforation === 'SI') ? 'Sí' : 'No'; ?>
-                                            </span>
-                                        </td>
+                                        <td><?php echo displayYesNoBadge($item->perforation); ?></td>
                                     </tr>
                                     <?php if ($item->perforation === 'SI' && !empty($item->perforation_details)) : ?>
                                         <tr>
