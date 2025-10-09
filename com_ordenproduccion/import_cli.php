@@ -2,10 +2,10 @@
 /**
  * Command Line Import Script
  * 
- * This script imports September and October 2025 records from the old ordenes_de_trabajo table
+ * This script imports ALL records from the old ordenes_de_trabajo table
  * to the new joomla_ordenproduccion_ordenes table using direct MySQL connection.
  * 
- * Scope: September 2025 (month 9) and October 2025 (month 10) only
+ * Scope: ALL records (no date restrictions)
  * 
  * Usage: php import_cli.php
  * 
@@ -39,22 +39,20 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     echo "✅ Database connection successful\n\n";
 
-    // Get September and October 2025 records from old table
-    echo "Fetching September and October 2025 records from old table...\n";
+    // Get all records from old table (no date restrictions)
+    echo "Fetching all records from old table...\n";
     $stmt = $pdo->prepare("
         SELECT * FROM ordenes_de_trabajo 
-        WHERE YEAR(STR_TO_DATE(marca_temporal, '%d/%m/%Y %H:%i:%s')) = 2025 
-        AND MONTH(STR_TO_DATE(marca_temporal, '%d/%m/%Y %H:%i:%s')) IN (9, 10)
         ORDER BY orden_de_trabajo ASC
     ");
     $stmt->execute();
     $records = $stmt->fetchAll(PDO::FETCH_OBJ);
     
     $totalRecords = count($records);
-    echo "Found {$totalRecords} records to import (September-October 2025)\n\n";
+    echo "Found {$totalRecords} records to import\n\n";
 
     if (empty($records)) {
-        echo "❌ No records found for September-October 2025. Import process completed.\n";
+        echo "❌ No records found in ordenes_de_trabajo table. Import process completed.\n";
         exit;
     }
 
