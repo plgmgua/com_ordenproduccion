@@ -83,8 +83,10 @@ class HtmlView extends BaseHtmlView
         $logId = $input->getInt('log_id', 0);
         
         if ($logId > 0) {
-            // Detail view
-            $this->log = $this->get('Log');
+            // Detail view - get log directly from model
+            $model = $this->getModel();
+            $this->log = $model->getLog($logId);
+            
             if (!$this->log) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_LOG_NOT_FOUND'), 404);
             }
