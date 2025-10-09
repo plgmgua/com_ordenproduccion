@@ -16,6 +16,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Orden view class for com_ordenproduccion
@@ -85,8 +86,8 @@ class HtmlView extends BaseHtmlView
                 return;
             }
 
-            // Check if user has access to ordenes
-            if (!$user->authorise('core.view', 'com_ordenproduccion')) {
+            // Check if user has access to ordenes using custom AccessHelper
+            if (!AccessHelper::hasOrderAccess()) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
                 $app->redirect(Route::_('index.php'));
                 return;
@@ -445,6 +446,6 @@ class HtmlView extends BaseHtmlView
     public function getComponentVersion()
     {
         // Hardcoded version - update this with each release
-        return '2.3.6-STABLE';
+        return '2.3.7-STABLE';
     }
 }
