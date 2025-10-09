@@ -33,6 +33,14 @@ class WebhookController extends BaseController
     protected $default_view = 'webhook';
 
     /**
+     * Last webhook ID for tracking
+     *
+     * @var    string
+     * @since  2.1.5
+     */
+    protected $lastWebhookId = null;
+
+    /**
      * Process incoming webhook requests (PRODUCTION endpoint)
      * This is a public endpoint that doesn't require authentication
      *
@@ -76,6 +84,12 @@ class WebhookController extends BaseController
             $result = $this->processOrderData($data);
             
             if ($result['success']) {
+                // Update webhook log with order_id and order_number
+                $this->updateWebhookLogWithOrder(
+                    $result['data']['order_id'] ?? null,
+                    $result['data']['order_number'] ?? null
+                );
+                
                 $this->sendSuccessResponse($result['message'], $result['data'], $startTime);
             } else {
                 $this->logError('Failed to process order: ' . $result['message'], 'production', $startTime);
@@ -380,9 +394,45 @@ class WebhookController extends BaseController
             $db->setQuery($query);
             $db->execute();
             
+            // Store the webhook ID for later updates
+            $this->lastWebhookId = $webhookId;
+            
         } catch (\Exception $e) {
             // Fallback to file logging if database fails
             $this->logToFile('Database logging failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update webhook log with order information after order is created
+     *
+     * @param   int     $orderId        The created order ID
+     * @param   string  $orderNumber    The orden_de_trabajo number
+     *
+     * @return  void
+     *
+     * @since   2.1.5
+     */
+    protected function updateWebhookLogWithOrder($orderId, $orderNumber)
+    {
+        if (!$this->lastWebhookId) {
+            return;
+        }
+
+        try {
+            $db = Factory::getDbo();
+            
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_webhook_logs'))
+                ->set($db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->set($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote($orderNumber))
+                ->where($db->quoteName('webhook_id') . ' = ' . $db->quote($this->lastWebhookId));
+            
+            $db->setQuery($query);
+            $db->execute();
+            
+        } catch (\Exception $e) {
+            $this->logToFile('Failed to update webhook log with order info: ' . $e->getMessage());
         }
     }
 

@@ -256,6 +256,8 @@ use Joomla\CMS\Session\Session;
                                     <tr>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_ENDPOINT_TYPE'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_ID'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TRABAJO'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATA'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_IP'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATE'); ?></th>
@@ -278,16 +280,36 @@ use Joomla\CMS\Session\Session;
                                                 </span>
                                             </td>
                                             <td>
+                                                <?php if (!empty($log->order_id)): ?>
+                                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $log->order_id); ?>" 
+                                                       onclick="event.stopPropagation();" target="_blank" 
+                                                       class="badge bg-success">
+                                                        ID: <?php echo (int) $log->order_id; ?>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if (!empty($log->orden_de_trabajo)): ?>
+                                                    <span class="badge bg-primary">
+                                                        <?php echo htmlspecialchars($log->orden_de_trabajo); ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
                                                 <div class="log-data">
                                                     <?php 
                                                     $requestBody = json_decode($log->request_body ?? '', true);
                                                     if (isset($requestBody['form_data']['cliente'])) {
                                                         echo '<strong>' . htmlspecialchars($requestBody['form_data']['cliente']) . '</strong><br>';
                                                         if (isset($requestBody['form_data']['descripcion_trabajo'])) {
-                                                            echo '<small class="text-muted">' . htmlspecialchars(substr($requestBody['form_data']['descripcion_trabajo'], 0, 60)) . '...</small>';
+                                                            echo '<small class="text-muted">' . htmlspecialchars(substr($requestBody['form_data']['descripcion_trabajo'], 0, 40)) . '...</small>';
                                                         }
                                                     } else {
-                                                        echo '<small class="text-muted">' . htmlspecialchars(substr($log->request_body ?? 'No data', 0, 100)) . '...</small>';
+                                                        echo '<small class="text-muted">' . htmlspecialchars(substr($log->request_body ?? 'No data', 0, 60)) . '...</small>';
                                                     }
                                                     ?>
                                                 </div>

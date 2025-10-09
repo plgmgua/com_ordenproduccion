@@ -71,7 +71,7 @@ function getEndpointBadgeColor($endpoint) {
 
     <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-6 mb-3">
             <div class="card">
                 <div class="card-body">
                     <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></h6>
@@ -84,7 +84,7 @@ function getEndpointBadgeColor($endpoint) {
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-6 mb-3">
             <div class="card">
                 <div class="card-body">
                     <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_ENDPOINT_TYPE'); ?></h6>
@@ -97,7 +97,42 @@ function getEndpointBadgeColor($endpoint) {
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_ID'); ?></h6>
+                    <h4>
+                        <?php if (!empty($log->order_id)): ?>
+                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $log->order_id); ?>" 
+                               target="_blank" class="badge bg-success">
+                                ID: <?php echo (int) $log->order_id; ?>
+                            </a>
+                        <?php else: ?>
+                            <span class="text-muted">N/A</span>
+                        <?php endif; ?>
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TRABAJO'); ?></h6>
+                    <h4>
+                        <?php if (!empty($log->orden_de_trabajo)): ?>
+                            <span class="badge bg-primary">
+                                <?php echo htmlspecialchars($log->orden_de_trabajo); ?>
+                            </span>
+                        <?php else: ?>
+                            <span class="text-muted">N/A</span>
+                        <?php endif; ?>
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6 mb-3">
             <div class="card">
                 <div class="card-body">
                     <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PROCESSING_TIME'); ?></h6>
@@ -106,7 +141,7 @@ function getEndpointBadgeColor($endpoint) {
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-6 mb-3">
             <div class="card">
                 <div class="card-body">
                     <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_RESPONSE_STATUS'); ?></h6>
