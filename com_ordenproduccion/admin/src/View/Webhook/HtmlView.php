@@ -90,7 +90,8 @@ class HtmlView extends BaseHtmlView
             if (!$this->log) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_LOG_NOT_FOUND'), 404);
             }
-            $tpl = 'detail';
+            // Set layout to 'detail' instead of using $tpl
+            $this->setLayout('detail');
         } else {
             // List view
             $this->statistics = $this->get('Statistics');
