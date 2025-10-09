@@ -9,6 +9,14 @@
 
 defined('_JEXEC') or die;
 
+// ENABLE FULL ERROR REPORTING FOR DEBUGGING
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Try-catch wrapper to show exact error
+try {
+
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -537,3 +545,17 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
         </div>
     </div>
 </div>
+
+<?php
+} catch (\Exception $e) {
+    echo '<div class="alert alert-danger" style="margin: 20px; padding: 20px; background: #ffebee; border: 2px solid #c62828;">';
+    echo '<h2 style="color: #c62828;">❌ PHP ERROR CAUGHT</h2>';
+    echo '<p><strong>Error Message:</strong></p>';
+    echo '<pre style="background: white; padding: 10px; overflow: auto;">' . htmlspecialchars($e->getMessage()) . '</pre>';
+    echo '<p><strong>File:</strong> ' . htmlspecialchars($e->getFile()) . '</p>';
+    echo '<p><strong>Line:</strong> ' . $e->getLine() . '</p>';
+    echo '<p><strong>Stack Trace:</strong></p>';
+    echo '<pre style="background: white; padding: 10px; overflow: auto; max-height: 400px;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+    echo '</div>';
+}
+?>
