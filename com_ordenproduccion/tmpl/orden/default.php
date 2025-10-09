@@ -21,9 +21,10 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
 // Helper function to display SI/NO badge
 function displayYesNoBadge($value) {
     $isSi = (strtoupper($value) === 'SI' || strtoupper($value) === 'YES' || $value === '1');
-    $badgeClass = $isSi ? 'badge-success' : 'badge-secondary';
+    $bgColor = $isSi ? '#d4edda' : '#e2e3e5'; // Light green for SI, light gray for NO
+    $textColor = '#000000'; // Black text
     $text = $isSi ? 'SI' : 'NO';
-    return '<span class="badge ' . $badgeClass . '">' . $text . '</span>';
+    return '<span class="badge" style="background-color: ' . $bgColor . '; color: ' . $textColor . ';">' . $text . '</span>';
 }
 ?>
 
