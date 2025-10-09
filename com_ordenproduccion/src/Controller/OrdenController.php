@@ -510,29 +510,47 @@ class OrdenController extends BaseController
         $pdf->SetFillColor(220, 220, 220); // Light gray background
         $pdf->Cell(0, 8, 'INFORMACION DE ENVIO', 1, 1, 'L', true);
         
-        // Direccion de Entrega
+        // Tipo de Entrega
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
+        $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
-        $shippingAddress = $workOrderData->shipping_address ?? 'N/A';
-        $shippingAddress = $fixSpanishChars($shippingAddress);
-        $pdf->Cell(0, 7, $shippingAddress, 1, 1, 'L');
+        $shippingType = $workOrderData->shipping_type ?? 'Entrega a domicilio';
+        $shippingType = $fixSpanishChars($shippingType);
+        $pdf->Cell(0, 7, $shippingType, 1, 1, 'L');
         
-        // Nombre de Contacto
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 7, 'NOMBRE DE CONTACTO:', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 9);
-        $shippingContact = $workOrderData->shipping_contact ?? 'N/A';
-        $shippingContact = $fixSpanishChars($shippingContact);
-        $pdf->Cell(0, 7, $shippingContact, 1, 1, 'L');
-        
-        // Telefono de Contacto
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 7, 'TELEFONO DE CONTACTO:', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 9);
-        $shippingPhone = $workOrderData->shipping_phone ?? 'N/A';
-        $shippingPhone = $fixSpanishChars($shippingPhone);
-        $pdf->Cell(0, 7, $shippingPhone, 1, 1, 'L');
+        // Check if "Recoge en oficina"
+        if ($shippingType === 'Recoge en oficina') {
+            // Only show "Recoge en oficina" message
+            $pdf->SetFont('Arial', 'I', 9);
+            $pdf->SetTextColor(0, 102, 153); // Blue color
+            $pdf->Cell(0, 7, 'El cliente recogera el pedido en la oficina de GRIMPSA', 1, 1, 'L');
+            $pdf->SetTextColor(0, 0, 0); // Reset to black
+        } else {
+            // Show full shipping information
+            // Direccion de Entrega
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(50, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $shippingAddress = $workOrderData->shipping_address ?? 'N/A';
+            $shippingAddress = $fixSpanishChars($shippingAddress);
+            $pdf->Cell(0, 7, $shippingAddress, 1, 1, 'L');
+            
+            // Nombre de Contacto
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(50, 7, 'NOMBRE DE CONTACTO:', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $shippingContact = $workOrderData->shipping_contact ?? 'N/A';
+            $shippingContact = $fixSpanishChars($shippingContact);
+            $pdf->Cell(0, 7, $shippingContact, 1, 1, 'L');
+            
+            // Telefono de Contacto
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(50, 7, 'TELEFONO DE CONTACTO:', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $shippingPhone = $workOrderData->shipping_phone ?? 'N/A';
+            $shippingPhone = $fixSpanishChars($shippingPhone);
+            $pdf->Cell(0, 7, $shippingPhone, 1, 1, 'L');
+        }
         
         // Instrucciones de Entrega - Label row (spans both columns)
         $pdf->SetFont('Arial', 'B', 10);
@@ -603,11 +621,21 @@ class OrdenController extends BaseController
         $salesAgent = $fixSpanishChars($workOrderData->sales_agent ?? 'N/A');
         $workDescription = $fixSpanishChars($workOrderData->work_description ?? 'N/A');
         
-        // Get shipping information from main table
-        $shippingContact = $fixSpanishChars($workOrderData->shipping_contact ?? '');
-        $shippingPhone = $workOrderData->shipping_phone ?? '';
-        $shippingAddress = $fixSpanishChars($workOrderData->shipping_address ?? '');
-        $shippingInstructions = $fixSpanishChars($workOrderData->instrucciones_entrega ?? '');
+        // Get shipping type and information from main table
+        $shippingType = $workOrderData->shipping_type ?? 'Entrega a domicilio';
+        
+        // Handle "Recoge en oficina" vs "Entrega a domicilio"
+        if ($shippingType === 'Recoge en oficina') {
+            $shippingContact = 'N/A';
+            $shippingPhone = 'N/A';
+            $shippingAddress = 'Recoge en oficina';
+            $shippingInstructions = 'El cliente recogera el pedido en la oficina de GRIMPSA';
+        } else {
+            $shippingContact = $fixSpanishChars($workOrderData->shipping_contact ?? 'N/A');
+            $shippingPhone = $workOrderData->shipping_phone ?? 'N/A';
+            $shippingAddress = $fixSpanishChars($workOrderData->shipping_address ?? 'N/A');
+            $shippingInstructions = $fixSpanishChars($workOrderData->instrucciones_entrega ?? '');
+        }
         
         // Generate two identical shipping slips on one page
         for ($slip = 0; $slip < 2; $slip++) {

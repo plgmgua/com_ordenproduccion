@@ -337,23 +337,48 @@ function displayYesNoBadge($value) {
                             <div class="row">
                                 <div class="col-md-6">
                                     <table class="table table-sm">
-                                        <?php if (!empty($item->shipping_address)) : ?>
+                                        <!-- Shipping Type -->
+                                        <tr>
+                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO_ENTREGA'); ?>:</strong></td>
+                                            <td>
+                                                <?php if ($item->shipping_type === 'Recoge en oficina') : ?>
+                                                    <span class="badge badge-info"><?php echo Text::_('COM_ORDENPRODUCCION_SHIPPING_TYPE_PICKUP'); ?></span>
+                                                <?php else : ?>
+                                                    <span class="badge badge-primary"><?php echo Text::_('COM_ORDENPRODUCCION_SHIPPING_TYPE_DELIVERY'); ?></span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        
+                                        <?php if ($item->shipping_type === 'Recoge en oficina') : ?>
+                                            <!-- Show only "Recoge en oficina" message -->
                                             <tr>
-                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DIRECCION_ENTREGA'); ?>:</strong></td>
-                                                <td><?php echo nl2br(htmlspecialchars($item->shipping_address)); ?></td>
+                                                <td colspan="2">
+                                                    <div class="alert alert-info mb-0">
+                                                        <i class="fas fa-store"></i>
+                                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_RECOGE_OFICINA_MSG'); ?>
+                                                    </div>
+                                                </td>
                                             </tr>
-                                        <?php endif; ?>
-                                        <?php if (!empty($item->shipping_contact)) : ?>
-                                            <tr>
-                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_NOMBRE'); ?>:</strong></td>
-                                                <td><?php echo htmlspecialchars($item->shipping_contact); ?></td>
-                                            </tr>
-                                        <?php endif; ?>
-                                        <?php if (!empty($item->shipping_phone)) : ?>
-                                            <tr>
-                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_TELEFONO'); ?>:</strong></td>
-                                                <td><?php echo htmlspecialchars($item->shipping_phone); ?></td>
-                                            </tr>
+                                        <?php else : ?>
+                                            <!-- Show full shipping information -->
+                                            <?php if (!empty($item->shipping_address)) : ?>
+                                                <tr>
+                                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DIRECCION_ENTREGA'); ?>:</strong></td>
+                                                    <td><?php echo nl2br(htmlspecialchars($item->shipping_address)); ?></td>
+                                                </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($item->shipping_contact)) : ?>
+                                                <tr>
+                                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_NOMBRE'); ?>:</strong></td>
+                                                    <td><?php echo htmlspecialchars($item->shipping_contact); ?></td>
+                                                </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($item->shipping_phone)) : ?>
+                                                <tr>
+                                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_TELEFONO'); ?>:</strong></td>
+                                                    <td><?php echo htmlspecialchars($item->shipping_phone); ?></td>
+                                                </tr>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </table>
                                 </div>

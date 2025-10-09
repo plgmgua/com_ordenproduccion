@@ -127,11 +127,12 @@ class WebhookModel extends BaseDatabaseModel
                 'instructions' => $formData['instrucciones'] ?? '',
                 'sales_agent' => $formData['agente_de_ventas'] ?? '',
                 'request_date' => $formData['fecha_de_solicitud'] ?? $now,
-                'shipping_address' => $formData['direccion_entrega'] ?? '',
-                'shipping_contact' => $formData['contacto_nombre'] ?? '',
-                'shipping_phone' => $formData['contacto_telefono'] ?? '',
                 'tiro_retiro' => $formData['tiro_retiro'] ?? '',
                 'instrucciones_entrega' => $formData['instrucciones_entrega'] ?? '',
+                'shipping_type' => $this->getShippingType($formData),
+                'shipping_address' => $this->getShippingAddress($formData),
+                'shipping_contact' => $this->getShippingContact($formData),
+                'shipping_phone' => $this->getShippingPhone($formData),
                 'status' => 'New',
                 'order_type' => 'External',
                 'state' => 1,
@@ -545,5 +546,96 @@ class WebhookModel extends BaseDatabaseModel
                 'success_rate' => 0
             ];
         }
+    }
+
+    /**
+     * Get shipping type from form data
+     *
+     * @param   array  $formData  Form data from webhook
+     *
+     * @return  string  Shipping type
+     *
+     * @since   2.3.8
+     */
+    protected function getShippingType($formData)
+    {
+        // Check for tipo_entrega field (Spanish)
+        if (isset($formData['tipo_entrega'])) {
+            return $formData['tipo_entrega'];
+        }
+        
+        // Check for shipping_type field (English)
+        if (isset($formData['shipping_type'])) {
+            return $formData['shipping_type'];
+        }
+        
+        // Default to "Entrega a domicilio"
+        return 'Entrega a domicilio';
+    }
+
+    /**
+     * Get shipping address based on shipping type
+     *
+     * @param   array  $formData  Form data from webhook
+     *
+     * @return  string  Shipping address
+     *
+     * @since   2.3.8
+     */
+    protected function getShippingAddress($formData)
+    {
+        $shippingType = $this->getShippingType($formData);
+        
+        // If "Recoge en oficina", return hardcoded value
+        if ($shippingType === 'Recoge en oficina') {
+            return 'Recoge en oficina';
+        }
+        
+        // Otherwise, return provided address
+        return $formData['direccion_entrega'] ?? '';
+    }
+
+    /**
+     * Get shipping contact based on shipping type
+     *
+     * @param   array  $formData  Form data from webhook
+     *
+     * @return  string|null  Shipping contact
+     *
+     * @since   2.3.8
+     */
+    protected function getShippingContact($formData)
+    {
+        $shippingType = $this->getShippingType($formData);
+        
+        // If "Recoge en oficina", return null
+        if ($shippingType === 'Recoge en oficina') {
+            return null;
+        }
+        
+        // Otherwise, return provided contact
+        return $formData['contacto_nombre'] ?? '';
+    }
+
+    /**
+     * Get shipping phone based on shipping type
+     *
+     * @param   array  $formData  Form data from webhook
+     *
+     * @return  string|null  Shipping phone
+     *
+     * @since   2.3.8
+     */
+    protected function getShippingPhone($formData)
+    {
+        $shippingType = $this->getShippingType($formData);
+        
+        // If "Recoge en oficina", return null
+        if ($shippingType === 'Recoge en oficina') {
+            return null;
+        }
+        
+        // Otherwise, return provided phone
+        return $formData['contacto_telefono'] ?? '';
     }
 }
