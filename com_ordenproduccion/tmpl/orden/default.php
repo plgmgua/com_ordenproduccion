@@ -211,123 +211,129 @@ function displayYesNoBadge($value) {
                             <div class="col-md-6">
                                 <table class="table table-sm">
                                     <tr>
-                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CORTE'); ?>:</strong></td>
-                                        <td><?php echo displayYesNoBadge($item->cutting); ?></td>
+                                        <td style="width: 120px;"><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CORTE'); ?>:</strong></td>
+                                        <td style="width: 60px;"><?php echo displayYesNoBadge($item->cutting); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->cutting_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_CORTE'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->cutting_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->cutting === 'SI' && !empty($item->cutting_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_CORTE'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->cutting_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_BLOQUEADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->blocking); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->blocking_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_BLOQUEADO'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->blocking_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->blocking === 'SI' && !empty($item->blocking_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_BLOQUEADO'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->blocking_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DOBLADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->folding); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->folding_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_DOBLADO'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->folding_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->folding === 'SI' && !empty($item->folding_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_DOBLADO'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->folding_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LAMINADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->laminating); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->laminating_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_LAMINADO'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->laminating_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->laminating === 'SI' && !empty($item->laminating_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_LAMINADO'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->laminating_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_NUMERADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->numbering); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->numbering_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_NUMERADO'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->numbering_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->numbering === 'SI' && !empty($item->numbering_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_NUMERADO'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->numbering_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TROQUEL'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->die_cutting); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->die_cutting_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_TROQUEL'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->die_cutting_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->die_cutting === 'SI' && !empty($item->die_cutting_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_TROQUEL'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->die_cutting_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_BARNIZ'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->varnish); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->varnish_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_BARNIZ'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->varnish_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->varnish === 'SI' && !empty($item->varnish_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_BARNIZ'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->varnish_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                 </table>
                             </div>
                             <div class="col-md-6">
                                 <table class="table table-sm">
                                     <tr>
-                                        <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LOMO'); ?>:</strong></td>
-                                        <td><?php echo displayYesNoBadge($item->spine); ?></td>
+                                        <td style="width: 180px;"><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LOMO'); ?>:</strong></td>
+                                        <td style="width: 60px;"><?php echo displayYesNoBadge($item->spine); ?></td>
+                                        <td></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PEGADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->gluing); ?></td>
+                                        <td></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_SIZADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->sizing); ?></td>
+                                        <td></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ENGRAPADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->stapling); ?></td>
+                                        <td></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_IMPRESION_BLANCO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->white_print); ?></td>
+                                        <td></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DESPUNTADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->trimming); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->trimming_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_DESPUNTADO'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->trimming_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->trimming === 'SI' && !empty($item->trimming_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_DESPUNTADO'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->trimming_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_OJETES'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->eyelets); ?></td>
+                                        <td></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PERFORADO'); ?>:</strong></td>
                                         <td><?php echo displayYesNoBadge($item->perforation); ?></td>
+                                        <td>
+                                            <?php if (!empty($item->perforation_details)) : ?>
+                                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_PERFORADO'); ?>:</strong>
+                                                <?php echo htmlspecialchars($item->perforation_details); ?>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                    <?php if ($item->perforation === 'SI' && !empty($item->perforation_details)) : ?>
-                                        <tr>
-                                            <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DETALLES_PERFORADO'); ?>:</strong></td>
-                                            <td><?php echo htmlspecialchars($item->perforation_details); ?></td>
-                                        </tr>
-                                    <?php endif; ?>
                                 </table>
                             </div>
                         </div>
