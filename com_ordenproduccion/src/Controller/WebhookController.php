@@ -33,7 +33,7 @@ class WebhookController extends BaseController
     protected $default_view = 'webhook';
 
     /**
-     * Process incoming webhook requests
+     * Process incoming webhook requests (PRODUCTION endpoint)
      * This is a public endpoint that doesn't require authentication
      *
      * @return  void
@@ -51,8 +51,8 @@ class WebhookController extends BaseController
             // Get the raw POST data
             $rawData = file_get_contents('php://input');
             
-            // Log the incoming request
-            $this->logWebhookRequest($rawData);
+            // Log the incoming request with 'production' endpoint type
+            $this->logWebhookRequest($rawData, 'production');
             
             // Parse JSON data
             $data = json_decode($rawData, true);
@@ -233,36 +233,39 @@ class WebhookController extends BaseController
     /**
      * Log webhook request
      *
-     * @param   string  $rawData  Raw request data
+     * @param   string  $rawData       Raw request data
+     * @param   string  $endpointType  Type of endpoint (production or test)
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function logWebhookRequest($rawData)
+    protected function logWebhookRequest($rawData, $endpointType = 'production')
     {
         $logData = [
             'timestamp' => date('Y-m-d H:i:s'),
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
             'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
             'content_length' => strlen($rawData),
-            'data' => $rawData
+            'data' => $rawData,
+            'endpoint_type' => $endpointType
         ];
         
-        $this->logToDatabase('webhook_request', $logData);
-        $this->logToFile('Webhook request received: ' . json_encode($logData));
+        $this->logToDatabase('webhook_request', $logData, $endpointType);
+        $this->logToFile('[' . strtoupper($endpointType) . '] Webhook request received: ' . json_encode($logData));
     }
 
     /**
      * Log error
      *
-     * @param   string  $message  Error message
+     * @param   string  $message       Error message
+     * @param   string  $endpointType  Endpoint type (production or test)
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function logError($message)
+    protected function logError($message, $endpointType = 'production')
     {
         $logData = [
             'timestamp' => date('Y-m-d H:i:s'),
@@ -270,38 +273,72 @@ class WebhookController extends BaseController
             'error' => $message
         ];
         
-        $this->logToDatabase('webhook_error', $logData);
-        $this->logToFile('Webhook error: ' . $message);
+        $this->logToDatabase('webhook_error', $logData, $endpointType);
+        $this->logToFile('[' . strtoupper($endpointType) . '] Webhook error: ' . $message);
     }
 
     /**
      * Log to database
      *
-     * @param   string  $type  Log type
-     * @param   array   $data  Log data
+     * @param   string  $type          Log type
+     * @param   array   $data          Log data
+     * @param   string  $endpointType  Endpoint type (production or test)
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function logToDatabase($type, $data)
+    protected function logToDatabase($type, $data, $endpointType = 'production')
     {
         try {
             $db = Factory::getDbo();
+            
+            // Generate unique webhook ID
+            $webhookId = 'WH-' . date('Ymd-His') . '-' . substr(md5(uniqid()), 0, 8);
+            
+            // Get request URL
+            $requestUrl = $_SERVER['REQUEST_URI'] ?? '';
+            $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'POST';
+            
+            // Get headers
+            $headers = [];
+            foreach ($_SERVER as $key => $value) {
+                if (strpos($key, 'HTTP_') === 0) {
+                    $header = str_replace('HTTP_', '', $key);
+                    $header = str_replace('_', '-', $header);
+                    $headers[$header] = $value;
+                }
+            }
+            
+            // Determine status based on type
+            $status = ($type === 'webhook_error') ? 'error' : 'success';
+            
             $query = $db->getQuery(true)
                 ->insert($db->quoteName('#__ordenproduccion_webhook_logs'))
                 ->columns([
-                    $db->quoteName('type'),
-                    $db->quoteName('data'),
-                    $db->quoteName('ip_address'),
+                    $db->quoteName('webhook_id'),
+                    $db->quoteName('endpoint_type'),
+                    $db->quoteName('request_method'),
+                    $db->quoteName('request_url'),
+                    $db->quoteName('request_headers'),
+                    $db->quoteName('request_body'),
+                    $db->quoteName('response_status'),
+                    $db->quoteName('status'),
+                    $db->quoteName('error_message'),
                     $db->quoteName('created')
                 ])
-                ->values([
-                    $db->quote($type),
-                    $db->quote(json_encode($data)),
-                    $db->quote($data['ip'] ?? 'unknown'),
+                ->values(
+                    $db->quote($webhookId) . ', ' .
+                    $db->quote($endpointType) . ', ' .
+                    $db->quote($requestMethod) . ', ' .
+                    $db->quote($requestUrl) . ', ' .
+                    $db->quote(json_encode($headers)) . ', ' .
+                    $db->quote($data['data'] ?? json_encode($data)) . ', ' .
+                    '200, ' .
+                    $db->quote($status) . ', ' .
+                    $db->quote($data['error'] ?? null) . ', ' .
                     $db->quote(Factory::getDate()->toSql())
-                ]);
+                );
             
             $db->setQuery($query);
             $db->execute();
@@ -333,7 +370,8 @@ class WebhookController extends BaseController
     }
 
     /**
-     * Test endpoint for webhook functionality
+     * Test endpoint for webhook functionality (TEST endpoint)
+     * This is a public endpoint that doesn't require authentication
      *
      * @return  void
      *
@@ -341,45 +379,45 @@ class WebhookController extends BaseController
      */
     public function test()
     {
-        $testData = [
-            'request_title' => 'Solicitud Ventas a Produccion - TEST',
-            'form_data' => [
-                'client_id' => '999',
-                'cliente' => 'Test Client S.A.',
-                'nit' => '123456789',
-                'valor_factura' => '1000',
-                'descripcion_trabajo' => 'Test work order from webhook - 500 Flyers Full Color',
-                'color_impresion' => 'Full Color',
-                'tiro_retiro' => 'Tiro/Retiro',
-                'medidas' => '8.5 x 11',
-                'fecha_entrega' => date('d/m/Y', strtotime('+7 days')),
-                'material' => 'Husky 250 grms',
-                'cotizacion' => ['/media/com_convertforms/uploads/test_cotizacion.pdf'],
-                'arte' => ['/media/com_convertforms/uploads/test_arte.pdf'],
-                'corte' => 'SI',
-                'detalles_corte' => 'Corte recto en guillotina',
-                'blocado' => 'NO',
-                'doblado' => 'NO',
-                'laminado' => 'NO',
-                'lomo' => 'NO',
-                'pegado' => 'NO',
-                'numerado' => 'NO',
-                'sizado' => 'NO',
-                'engrapado' => 'NO',
-                'troquel' => 'NO',
-                'barniz' => 'NO',
-                'impresion_blanco' => 'NO',
-                'despuntado' => 'NO',
-                'ojetes' => 'NO',
-                'perforado' => 'NO',
-                'instrucciones' => 'Test order - please process normally',
-                'agente_de_ventas' => 'Test Agent',
-                'fecha_de_solicitud' => date('Y-m-d H:i:s')
-            ]
-        ];
+        // Enable PHP error reporting for debugging
+        ini_set('display_errors', 1);
+        ini_set('display_startup_errors', 1);
+        error_reporting(E_ALL);
         
-        $this->logToFile('Webhook test endpoint called');
-        $this->sendSuccessResponse('Webhook test successful', $testData);
+        try {
+            // Get the raw POST data
+            $rawData = file_get_contents('php://input');
+            
+            // Log the incoming request with 'test' endpoint type
+            $this->logWebhookRequest($rawData, 'test');
+            
+            // Parse JSON data
+            $data = json_decode($rawData, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->sendErrorResponse('Invalid JSON data', 400);
+                return;
+            }
+            
+            // Validate required fields
+            if (!$this->validateWebhookData($data)) {
+                $this->sendErrorResponse('Missing required fields', 400);
+                return;
+            }
+            
+            // Process the order data (same as production, but logged as test)
+            $result = $this->processOrderData($data);
+            
+            if ($result['success']) {
+                $this->sendSuccessResponse('[TEST] ' . $result['message'], $result['data']);
+            } else {
+                $this->sendErrorResponse('[TEST] ' . $result['message'], 500);
+            }
+            
+        } catch (\Exception $e) {
+            $this->logError('[TEST] Webhook processing error: ' . $e->getMessage(), 'test');
+            $this->sendErrorResponse('[TEST] Internal server error', 500);
+        }
     }
 
     /**
