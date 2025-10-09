@@ -9,6 +9,10 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
+
 // ENABLE FULL ERROR REPORTING FOR DEBUGGING
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -16,10 +20,6 @@ error_reporting(E_ALL);
 
 // Try-catch wrapper to show exact error
 try {
-
-use Joomla\CMS\HTML\HTMLHelper;
-use Joomla\CMS\Language\Text;
-use Joomla\CMS\Router\Route;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Orden\HtmlView $this */
 

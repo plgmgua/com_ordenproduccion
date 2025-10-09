@@ -139,9 +139,9 @@ try {
     echo 'TEST 12 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
 }
 
-// Test 13: Test the EAV query
+// Test 13: Test the OLD (BROKEN) EAV query
 try {
-    echo 'TEST 13: Testing EAV query...<br>';
+    echo 'TEST 13A: Testing OLD (Spanish) EAV query...<br>';
     
     $query = $db->getQuery(true);
     $query->select($db->quoteName('tipo_de_campo') . ' AS attribute_name')
@@ -155,14 +155,63 @@ try {
     $db->setQuery($query);
     $results = $db->loadObjectList();
     
+    echo 'TEST 13A: <strong style="color: red;">This should FAIL with column not found</strong><br>';
+} catch (Exception $e) {
+    echo 'TEST 13A FAILED (expected): <strong style="color: red;">' . htmlspecialchars($e->getMessage()) . '</strong><br>';
+}
+
+// Test 14: Test the NEW (FIXED) EAV query
+try {
+    echo '<br>TEST 14: Testing NEW (English) EAV query...<br>';
+    
+    $query = $db->getQuery(true);
+    $query->select($db->quoteName('attribute_name'))
+          ->select($db->quoteName('attribute_value'))
+          ->from($db->quoteName('#__ordenproduccion_info'))
+          ->where($db->quoteName('order_id') . ' = ' . (int) $orderId)
+          ->where($db->quoteName('state') . ' = 1');
+    
+    echo 'SQL: ' . htmlspecialchars((string)$query) . '<br>';
+    
+    $db->setQuery($query);
+    $results = $db->loadObjectList();
+    
     if ($results) {
-        echo 'TEST 13: Query returned ' . count($results) . ' rows<br>';
+        echo 'TEST 14: <strong style="color: green;">SUCCESS! Query returned ' . count($results) . ' rows</strong><br>';
+        echo '<table border="1" cellpadding="5"><tr><th>attribute_name</th><th>attribute_value</th></tr>';
+        foreach ($results as $row) {
+            echo '<tr><td>' . htmlspecialchars($row->attribute_name) . '</td><td>' . htmlspecialchars(substr($row->attribute_value, 0, 100)) . '</td></tr>';
+        }
+        echo '</table>';
     } else {
-        echo 'TEST 13: Query returned 0 rows (no EAV data)<br>';
+        echo 'TEST 14: Query returned 0 rows (no EAV data - this is OK)<br>';
     }
 } catch (Exception $e) {
-    echo 'TEST 13 FAILED: <strong style="color: red;">' . htmlspecialchars($e->getMessage()) . '</strong><br>';
-    echo 'THIS IS LIKELY THE 500 ERROR CAUSE!<br>';
+    echo 'TEST 14 FAILED: <strong style="color: red;">' . htmlspecialchars($e->getMessage()) . '</strong><br>';
+    echo 'THE FIX DID NOT WORK!<br>';
+}
+
+// Test 15: Try to actually load the OrdenModel and call getItem()
+try {
+    echo '<br>TEST 15: Testing actual OrdenModel::getItem() method...<br>';
+    
+    // Check if the model file exists
+    $modelPath = JPATH_BASE . '/components/com_ordenproduccion/src/Model/OrdenModel.php';
+    if (!file_exists($modelPath)) {
+        echo 'TEST 15 FAILED: OrdenModel.php not found at: ' . htmlspecialchars($modelPath) . '<br>';
+    } else {
+        echo 'Model file exists: ' . htmlspecialchars($modelPath) . '<br>';
+        
+        // Try to include and instantiate
+        // Note: This is a simplified test, the actual MVC does more
+        echo 'Attempting to load model class...<br>';
+        
+        // This is just a file check, actual instantiation requires MVC factory
+        echo '<strong style="color: orange;">To fully test the model, access the actual order URL</strong><br>';
+        echo 'URL: <a href="/index.php/component/ordenproduccion/?view=orden&id=' . $orderId . '">View Order ' . $orderId . '</a><br>';
+    }
+} catch (Exception $e) {
+    echo 'TEST 15 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
 }
 
 echo '<hr>';
