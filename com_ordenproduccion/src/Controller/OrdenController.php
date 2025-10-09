@@ -409,99 +409,84 @@ class OrdenController extends BaseController
         // Production specifications table - 2 columns × 4 rows layout
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'COLOR:', 1, 0, 'L');
-        // Get color from EAV data (Color de Impresion)
-        $color = 'N/A';
-        if (isset($workOrderData->eav_data['color_impresion'])) {
-            $color = $workOrderData->eav_data['color_impresion']->attribute_value;
-        }
+        // Get color from main table (print_color)
+        $color = $workOrderData->print_color ?? 'N/A';
+        $color = $fixSpanishChars($color);
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell(0, 8, $color, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'TIRO / RETIRO:', 1, 0, 'L');
-        // Get tiro/retiro from EAV data
-        $tiroRetiro = 'N/A';
-        if (isset($workOrderData->eav_data['tiro_retiro'])) {
-            $tiroRetiro = $workOrderData->eav_data['tiro_retiro']->attribute_value;
-        }
+        // Get tiro/retiro from main table
+        $tiroRetiro = $workOrderData->tiro_retiro ?? 'N/A';
+        $tiroRetiro = $fixSpanishChars($tiroRetiro);
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell(0, 8, $tiroRetiro, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'MATERIAL:', 1, 0, 'L');
         $material = $workOrderData->material ?? 'N/A';
+        $material = $fixSpanishChars($material);
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell(0, 8, $material, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'MEDIDAS:', 1, 0, 'L');
-        // Get medidas from EAV data
-        $medidas = 'N/A';
-        if (isset($workOrderData->eav_data['medidas'])) {
-            $medidas = $workOrderData->eav_data['medidas']->attribute_value;
-        }
+        // Get medidas from main table (dimensions)
+        $medidas = $workOrderData->dimensions ?? 'N/A';
+        $medidas = $fixSpanishChars($medidas);
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell(0, 8, $medidas, 1, 1, 'L');
         
         $pdf->Ln(5);
         
-        // Finishing options table with real data from EAV
+        // Finishing options table with real data from main table
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(60, 8, 'ACABADOS', 1, 0, 'C');
         $pdf->Cell(30, 8, 'SELECCION', 1, 0, 'C');
         $pdf->Cell(0, 8, 'DETALLES', 1, 1, 'C');
         
-        // List of finishing options with actual data
-        $finishingOptions = [
-            'BLOCADO', 'CORTE', 'DOBLADO', 'LAMINADO', 'LOMO', 'NUMERADO',
-            'PEGADO', 'SIZADO', 'ENGRAPADO', 'TROQUEL',
-            'BARNIZ', 'IMP. EN BLANCO', 'DESPUNTADO', 'OJETES', 'PERFORADO'
+        // Map display names to database field names (main table)
+        $finishingFieldMap = [
+            'BLOCADO' => ['field' => 'blocking', 'details' => 'blocking_details'],
+            'CORTE' => ['field' => 'cutting', 'details' => 'cutting_details'],
+            'DOBLADO' => ['field' => 'folding', 'details' => 'folding_details'],
+            'LAMINADO' => ['field' => 'laminating', 'details' => 'laminating_details'],
+            'LOMO' => ['field' => 'spine', 'details' => 'spine_details'],
+            'NUMERADO' => ['field' => 'numbering', 'details' => 'numbering_details'],
+            'PEGADO' => ['field' => 'gluing', 'details' => 'gluing_details'],
+            'SIZADO' => ['field' => 'sizing', 'details' => 'sizing_details'],
+            'ENGRAPADO' => ['field' => 'stapling', 'details' => 'stapling_details'],
+            'TROQUEL' => ['field' => 'die_cutting', 'details' => 'die_cutting_details'],
+            'BARNIZ' => ['field' => 'varnish', 'details' => 'varnish_details'],
+            'IMP. EN BLANCO' => ['field' => 'white_print', 'details' => 'white_print_details'],
+            'DESPUNTADO' => ['field' => 'trimming', 'details' => 'trimming_details'],
+            'OJETES' => ['field' => 'eyelets', 'details' => 'eyelets_details'],
+            'PERFORADO' => ['field' => 'perforation', 'details' => 'perforation_details']
         ];
         
         $pdf->SetFont('Arial', '', 9);
-        foreach ($finishingOptions as $option) {
-            // Check if this finishing option is selected
-            $isSelected = 'NO';
-            $details = '';
+        foreach ($finishingFieldMap as $displayName => $fields) {
+            // Get selection value (SI/NO) from main table
+            $fieldName = $fields['field'];
+            $detailsFieldName = $fields['details'];
             
-            // Map option names to EAV attribute names
-            $eavMapping = [
-                'BLOCADO' => 'blocado',
-                'CORTE' => 'corte', 
-                'DOBLADO' => 'doblado',
-                'LAMINADO' => 'laminado',
-                'LOMO' => 'lomo',
-                'NUMERADO' => 'numerado',
-                'PEGADO' => 'pegado',
-                'SIZADO' => 'sizado',
-                'ENGRAPADO' => 'engrapado',
-                'TROQUEL' => 'troquel',
-                'BARNIZ' => 'barniz',
-                'IMP. EN BLANCO' => 'impresion_blanco',
-                'DESPUNTADO' => 'despuntado',
-                'OJETES' => 'ojetes',
-                'PERFORADO' => 'perforado'
-            ];
-            
-            $eavKey = $eavMapping[$option] ?? strtolower($option);
-            
-            // Check if this finishing option is selected (SI/NO)
-            if (isset($workOrderData->eav_data[$eavKey])) {
-                $isSelected = $workOrderData->eav_data[$eavKey]->attribute_value;
+            $isSelected = $workOrderData->$fieldName ?? 'NO';
+            $isSelected = strtoupper($isSelected); // Ensure uppercase
+            if (empty($isSelected) || $isSelected === 'NULL') {
+                $isSelected = 'NO';
             }
             
-            // Get details for this finishing option
-            $detailsKey = 'detalles_' . $eavKey;
-            if (isset($workOrderData->eav_data[$detailsKey])) {
-                $details = $workOrderData->eav_data[$detailsKey]->attribute_value;
-            }
+            // Get details from main table
+            $details = $workOrderData->$detailsFieldName ?? '';
+            $details = $fixSpanishChars($details);
             
             // Truncate details if too long
             if (strlen($details) > 30) {
                 $details = substr($details, 0, 27) . '...';
             }
             
-            $pdf->Cell(60, 6, $option, 1, 0, 'L');
+            $pdf->Cell(60, 6, $displayName, 1, 0, 'L');
             $pdf->Cell(30, 6, $isSelected, 1, 0, 'C');
             $pdf->Cell(0, 6, $details, 1, 1, 'L');
         }
