@@ -167,7 +167,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_COLOR_IMPRESION'); ?>:</strong></td>
                                 <td><?php echo htmlspecialchars($item->print_color); ?></td>
                             </tr>
-                            <?php if (!empty($item->eav_data['tiro_retiro'])) : ?>
+                            <?php if (isset($item->eav_data) && is_array($item->eav_data) && !empty($item->eav_data['tiro_retiro'])) : ?>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO'); ?>:</strong></td>
                                     <td><?php echo htmlspecialchars($item->eav_data['tiro_retiro']); ?></td>
@@ -188,7 +188,10 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
         </div>
 
         <!-- Shipping Information (if available) -->
-        <?php if (!empty($item->shipping_address) || !empty($item->shipping_contact) || !empty($item->eav_data['instrucciones_entrega'])) : ?>
+        <?php 
+        $hasEavInstructions = isset($item->eav_data) && is_array($item->eav_data) && !empty($item->eav_data['instrucciones_entrega']);
+        if (!empty($item->shipping_address) || !empty($item->shipping_contact) || $hasEavInstructions) : 
+        ?>
             <div class="row">
                 <div class="col-12 mb-4">
                     <div class="card">
@@ -222,7 +225,7 @@ $canSeeInvoice = $this->canSeeInvoiceValue();
                                         <?php endif; ?>
                                     </table>
                                 </div>
-                                <?php if (!empty($item->eav_data['instrucciones_entrega'])) : ?>
+                                <?php if ($hasEavInstructions) : ?>
                                     <div class="col-md-6">
                                         <h6><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES_ENTREGA'); ?>:</h6>
                                         <p class="text-muted"><?php echo nl2br(htmlspecialchars($item->eav_data['instrucciones_entrega'])); ?></p>

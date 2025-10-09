@@ -159,7 +159,14 @@ class OrdenModel extends ItemModel
                 $this->applyFieldVisibility($data);
 
                 // Load EAV (Entity-Attribute-Value) data from info table
-                $data->eav_data = $this->getEAVData($pk);
+                // Ensure it's always an array, even if empty
+                try {
+                    $data->eav_data = $this->getEAVData($pk);
+                } catch (\Exception $e) {
+                    // If EAV loading fails, set empty array and log the error
+                    $data->eav_data = [];
+                    error_log('EAV data loading failed for order ' . $pk . ': ' . $e->getMessage());
+                }
 
                 $this->_item[$pk] = $data;
 
