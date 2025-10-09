@@ -42,7 +42,7 @@ class OrdenesModel extends ListModel
     {
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = [
-                'id', 'order_number', 'client_name', 'request_date', 'delivery_date', 'status'
+                'id', 'orden_de_trabajo', 'order_number', 'client_name', 'request_date', 'delivery_date', 'status'
             ];
         }
 
@@ -80,7 +80,7 @@ class OrdenesModel extends ListModel
      *
      * @since   1.0.0
      */
-    protected function populateState($ordering = 'request_date', $direction = 'desc')
+    protected function populateState($ordering = 'orden_de_trabajo', $direction = 'desc')
     {
         $app = Factory::getApplication();
 
@@ -168,7 +168,7 @@ class OrdenesModel extends ListModel
         $query->select(
             $this->getState(
                 'list.select',
-                'a.id, a.order_number, a.client_name, a.nit, ' .
+                'a.id, a.orden_de_trabajo, a.order_number, a.client_name, a.nit, ' .
                 'a.invoice_value, a.work_description, a.print_color, a.dimensions, ' .
                 'a.delivery_date, a.material, a.request_date, a.sales_agent, a.status, ' .
                 'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version'
@@ -219,7 +219,7 @@ class OrdenesModel extends ListModel
         }
 
         // Add the list ordering clause.
-        $orderCol = $this->state->get('list.ordering', 'request_date');
+        $orderCol = $this->state->get('list.ordering', 'orden_de_trabajo');
         $orderDirn = $this->state->get('list.direction', 'desc');
 
         if ($orderCol && $orderDirn) {
