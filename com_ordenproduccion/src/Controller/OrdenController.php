@@ -404,16 +404,6 @@ class OrdenController extends BaseController
         // Remove debug info for production
         $pdf->Cell(0, 8, $jobDesc, 1, 1, 'L');
         
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(49, 8, 'DIRECCION DE ENTREGA', 1, 0, 'L'); // 35 * 1.4 = 49
-        $pdf->SetFont('Arial', '', 9);
-        $deliveryAddr = $workOrderData->delivery_address ?? 'N/A';
-        $deliveryAddr = $fixSpanishChars($deliveryAddr); // Fix Spanish characters
-        if (strlen($deliveryAddr) > 50) {
-            $deliveryAddr = substr($deliveryAddr, 0, 47) . '...';
-        }
-        $pdf->Cell(0, 8, $deliveryAddr, 1, 1, 'L');
-        
         $pdf->Ln(5);
         
         // Production specifications table - 2 columns × 4 rows layout
@@ -518,9 +508,48 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
-        // Instructions/Observations with proper text wrapping
+        // INFORMACION DE ENVIO section
+        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->SetFillColor(220, 220, 220); // Light gray background
+        $pdf->Cell(0, 8, 'INFORMACION DE ENVIO', 1, 1, 'L', true);
+        
+        // Direccion de Entrega
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(0, 8, 'Instrucciones / Observaciones', 1, 1, 'L');
+        $pdf->Cell(50, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $shippingAddress = $workOrderData->shipping_address ?? 'N/A';
+        $shippingAddress = $fixSpanishChars($shippingAddress);
+        $pdf->Cell(0, 7, $shippingAddress, 1, 1, 'L');
+        
+        // Nombre de Contacto
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(50, 7, 'NOMBRE DE CONTACTO:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $shippingContact = $workOrderData->shipping_contact ?? 'N/A';
+        $shippingContact = $fixSpanishChars($shippingContact);
+        $pdf->Cell(0, 7, $shippingContact, 1, 1, 'L');
+        
+        // Telefono de Contacto
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(50, 7, 'TELEFONO DE CONTACTO:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $shippingPhone = $workOrderData->shipping_phone ?? 'N/A';
+        $shippingPhone = $fixSpanishChars($shippingPhone);
+        $pdf->Cell(0, 7, $shippingPhone, 1, 1, 'L');
+        
+        // Instrucciones de Entrega
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(50, 7, 'INSTRUCCIONES DE ENTREGA:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $shippingInstructions = $workOrderData->instrucciones_entrega ?? 'N/A';
+        $shippingInstructions = $fixSpanishChars($shippingInstructions);
+        $pdf->Cell(0, 7, $shippingInstructions, 1, 1, 'L');
+        
+        $pdf->Ln(5);
+        
+        // INSTRUCCIONES GENERALES section
+        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->Cell(0, 8, 'INSTRUCCIONES GENERALES', 1, 1, 'L', true);
         $pdf->SetFont('Arial', '', 9);
         $instructions = $workOrderData->instructions ?? 'N/A';
         $instructions = $fixSpanishChars($instructions); // Fix Spanish characters
