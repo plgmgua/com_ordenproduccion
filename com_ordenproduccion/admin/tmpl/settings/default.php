@@ -71,15 +71,17 @@ use Joomla\CMS\Router\Route;
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="jform_order_number_prefix" class="form-label">
+                                    <label for="jform_order_prefix" class="form-label">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER_PREFIX'); ?>
+                                        <span class="text-danger">*</span>
                                     </label>
                                     <input type="text" 
-                                           name="jform[order_number_prefix]" 
-                                           id="jform_order_number_prefix" 
-                                           value="<?php echo htmlspecialchars($this->item->order_number_prefix ?? 'ORD'); ?>" 
-                                           class="form-control" 
-                                           maxlength="10" />
+                                           name="jform[order_prefix]" 
+                                           id="jform_order_prefix" 
+                                           value="<?php echo htmlspecialchars($this->item->order_prefix ?? 'ORD'); ?>" 
+                                           class="form-control required" 
+                                           maxlength="10"
+                                           required />
                                     <small class="form-text text-muted">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER_PREFIX_DESC'); ?>
                                     </small>
@@ -88,19 +90,29 @@ use Joomla\CMS\Router\Route;
                         </div>
 
                         <div class="form-group">
-                            <label for="jform_order_number_format" class="form-label">
+                            <label for="jform_order_format" class="form-label">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER_FORMAT'); ?>
+                                <span class="text-danger">*</span>
                             </label>
-                            <input type="text" 
-                                   name="jform[order_number_format]" 
-                                   id="jform_order_number_format" 
-                                   value="<?php echo htmlspecialchars($this->item->order_number_format ?? '{PREFIX}-{NUMBER}'); ?>" 
-                                   class="form-control" />
+                            <select name="jform[order_format]" 
+                                    id="jform_order_format" 
+                                    class="form-control required"
+                                    required>
+                                <option value="PREFIX-NUMBER" <?php echo ($this->item->order_format ?? 'PREFIX-NUMBER') == 'PREFIX-NUMBER' ? 'selected' : ''; ?>>
+                                    PREFIX-NUMBER (ORD-001234)
+                                </option>
+                                <option value="NUMBER" <?php echo ($this->item->order_format ?? '') == 'NUMBER' ? 'selected' : ''; ?>>
+                                    NUMBER (001234)
+                                </option>
+                                <option value="PREFIX-NUMBER-YEAR" <?php echo ($this->item->order_format ?? '') == 'PREFIX-NUMBER-YEAR' ? 'selected' : ''; ?>>
+                                    PREFIX-NUMBER-YEAR (ORD-001234-2025)
+                                </option>
+                                <option value="NUMBER-YEAR" <?php echo ($this->item->order_format ?? '') == 'NUMBER-YEAR' ? 'selected' : ''; ?>>
+                                    NUMBER-YEAR (001234-2025)
+                                </option>
+                            </select>
                             <small class="form-text text-muted">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER_FORMAT_DESC'); ?>
-                                <br>
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_AVAILABLE_PLACEHOLDERS'); ?>:</strong>
-                                <code>{PREFIX}</code>, <code>{NUMBER}</code>
                             </small>
                         </div>
 
@@ -231,21 +243,38 @@ use Joomla\CMS\Router\Route;
 document.addEventListener('DOMContentLoaded', function() {
     // Update preview when form fields change
     function updatePreview() {
-        const prefix = document.getElementById('jform_order_number_prefix').value || 'ORD';
+        const prefix = document.getElementById('jform_order_prefix').value || 'ORD';
         const number = document.getElementById('jform_next_order_number').value || '1000';
-        const format = document.getElementById('jform_order_number_format').value || '{PREFIX}-{NUMBER}';
+        const format = document.getElementById('jform_order_format').value || 'PREFIX-NUMBER';
         
-        const preview = format
-            .replace('{PREFIX}', prefix)
-            .replace('{NUMBER}', number.padStart(4, '0'));
+        let preview = '';
+        const paddedNumber = number.padStart(6, '0');
+        const year = new Date().getFullYear();
+        
+        switch (format) {
+            case 'PREFIX-NUMBER':
+                preview = `${prefix}-${paddedNumber}`;
+                break;
+            case 'NUMBER':
+                preview = paddedNumber;
+                break;
+            case 'PREFIX-NUMBER-YEAR':
+                preview = `${prefix}-${paddedNumber}-${year}`;
+                break;
+            case 'NUMBER-YEAR':
+                preview = `${paddedNumber}-${year}`;
+                break;
+            default:
+                preview = `${prefix}-${paddedNumber}`;
+        }
         
         document.getElementById('preview-text').textContent = preview;
     }
 
     // Add event listeners
-    document.getElementById('jform_order_number_prefix').addEventListener('input', updatePreview);
+    document.getElementById('jform_order_prefix').addEventListener('input', updatePreview);
     document.getElementById('jform_next_order_number').addEventListener('input', updatePreview);
-    document.getElementById('jform_order_number_format').addEventListener('input', updatePreview);
+    document.getElementById('jform_order_format').addEventListener('change', updatePreview);
 
     // Initial preview update
     updatePreview();
