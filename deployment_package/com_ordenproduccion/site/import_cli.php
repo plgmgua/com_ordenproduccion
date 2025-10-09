@@ -57,6 +57,7 @@ try {
     }
 
     $importedCount = 0;
+    $skippedCount = 0;
     $errorCount = 0;
     $errors = [];
 
@@ -158,6 +159,17 @@ try {
             // Truncate data to fit column sizes
             $data = truncateDataForColumns($data);
 
+            // Check if record already exists
+            $checkStmt = $pdo->prepare("SELECT id FROM joomla_ordenproduccion_ordenes WHERE orden_de_trabajo = :orden_de_trabajo");
+            $checkStmt->execute(['orden_de_trabajo' => $data['orden_de_trabajo']]);
+            $existingRecord = $checkStmt->fetch(PDO::FETCH_OBJ);
+            
+            if ($existingRecord) {
+                $skippedCount++;
+                echo "⚠️ Already exists (ID: {$existingRecord->id}), skipping\n";
+                continue;
+            }
+            
             // Build INSERT query
             $columns = array_keys($data);
             $placeholders = ':' . implode(', :', $columns);
@@ -184,6 +196,8 @@ try {
     // Display results
     echo "\n=== Import Results ===\n";
     echo "✅ Successfully imported: {$importedCount} records\n";
+    echo "⚠️ Skipped (already exist): {$skippedCount} records\n";
+    echo "📊 Total processed: " . ($importedCount + $skippedCount + $errorCount) . " records\n";
     
     if ($errorCount > 0) {
         echo "❌ Errors: {$errorCount} records\n";
