@@ -23,8 +23,25 @@ try {
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Orden\HtmlView $this */
 
+// Debug: Check if $this->item exists
+if (!isset($this->item) || empty($this->item)) {
+    throw new \Exception('TEMPLATE ERROR: $this->item is not set or empty. The View did not load the order data.');
+}
+
 $item = $this->item;
-$canSeeInvoice = $this->canSeeInvoiceValue();
+
+// Debug: Check if item is an object
+if (!is_object($item)) {
+    throw new \Exception('TEMPLATE ERROR: $item is not an object, it is: ' . gettype($item));
+}
+
+// Debug: Try to call canSeeInvoiceValue()
+try {
+    $canSeeInvoice = $this->canSeeInvoiceValue();
+} catch (\Exception $e) {
+    throw new \Exception('TEMPLATE ERROR in canSeeInvoiceValue(): ' . $e->getMessage());
+}
+
 ?>
 
 <div class="com-ordenproduccion-orden">
