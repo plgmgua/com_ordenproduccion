@@ -368,10 +368,24 @@ class OrdenModel extends ItemModel
         try {
             $db = $this->getDatabase();
             
+            // First, get the order number for this order ID
             $query = $db->getQuery(true)
-                ->select('attribute_name, attribute_value')
+                ->select('order_number')
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+            
+            $db->setQuery($query);
+            $orderNumber = $db->loadResult();
+            
+            if (!$orderNumber) {
+                return [];
+            }
+            
+            // Now get EAV data using the actual Spanish column names
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('tipo_de_campo') . ' AS attribute_name, ' . $db->quoteName('valor') . ' AS attribute_value')
                 ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($orderNumber))
                 ->where($db->quoteName('state') . ' = 1');
             
             $db->setQuery($query);

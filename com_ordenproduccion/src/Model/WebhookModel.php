@@ -280,21 +280,34 @@ class WebhookModel extends BaseDatabaseModel
                     $value = json_encode($value);
                 }
                 
-                // Check if attribute already exists
+                // Get order number for this order ID
+                $orderQuery = $db->getQuery(true)
+                    ->select('order_number')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+                
+                $db->setQuery($orderQuery);
+                $orderNumber = $db->loadResult();
+                
+                if (!$orderNumber) {
+                    continue; // Skip if order number not found
+                }
+                
+                // Check if attribute already exists - using Spanish column names
                 $query = $db->getQuery(true)
                     ->select('id')
                     ->from($db->quoteName('#__ordenproduccion_info'))
-                    ->where($db->quoteName('order_id') . ' = ' . $db->quote($orderId))
-                    ->where($db->quoteName('attribute_name') . ' = ' . $db->quote($attribute));
+                    ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($orderNumber))
+                    ->where($db->quoteName('tipo_de_campo') . ' = ' . $db->quote($attribute));
                 
                 $db->setQuery($query);
                 $existingId = $db->loadResult();
                 
                 if ($existingId) {
-                    // Update existing attribute
+                    // Update existing attribute - using Spanish column names
                     $query = $db->getQuery(true)
                         ->update($db->quoteName('#__ordenproduccion_info'))
-                        ->set($db->quoteName('attribute_value') . ' = ' . $db->quote($value))
+                        ->set($db->quoteName('valor') . ' = ' . $db->quote($value))
                         ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
                         ->where($db->quoteName('id') . ' = ' . (int) $existingId);
                     
@@ -304,20 +317,20 @@ class WebhookModel extends BaseDatabaseModel
                         return false;
                     }
                 } else {
-                    // Insert new attribute
+                    // Insert new attribute - using Spanish column names
                     $query = $db->getQuery(true)
                         ->insert($db->quoteName('#__ordenproduccion_info'))
                         ->columns([
-                            $db->quoteName('order_id'),
-                            $db->quoteName('attribute_name'),
-                            $db->quoteName('attribute_value'),
+                            $db->quoteName('numero_de_orden'),
+                            $db->quoteName('tipo_de_campo'),
+                            $db->quoteName('valor'),
                             $db->quoteName('created'),
                             $db->quoteName('created_by')
                         ]);
                     
                     // Add values one by one to avoid array_map issues
                     $eavValues = [
-                        $db->quote($orderId),
+                        $db->quote($orderNumber),
                         $db->quote($attribute),
                         $db->quote($value),
                         $db->quote($now),
