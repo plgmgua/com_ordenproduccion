@@ -192,10 +192,10 @@ try {
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_COLOR_IMPRESION'); ?>:</strong></td>
                                 <td><?php echo htmlspecialchars($item->print_color); ?></td>
                             </tr>
-                            <?php if (isset($item->eav_data) && is_array($item->eav_data) && !empty($item->eav_data['tiro_retiro'])) : ?>
+                            <?php if (!empty($item->tiro_retiro)) : ?>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO'); ?>:</strong></td>
-                                    <td><?php echo htmlspecialchars($item->eav_data['tiro_retiro']); ?></td>
+                                    <td><?php echo htmlspecialchars($item->tiro_retiro); ?></td>
                                 </tr>
                             <?php endif; ?>
                             <tr>
@@ -214,8 +214,7 @@ try {
 
         <!-- Shipping Information (if available) -->
         <?php 
-        $hasEavInstructions = isset($item->eav_data) && is_array($item->eav_data) && !empty($item->eav_data['instrucciones_entrega']);
-        if (!empty($item->shipping_address) || !empty($item->shipping_contact) || $hasEavInstructions) : 
+        if (!empty($item->shipping_address) || !empty($item->shipping_contact) || !empty($item->instrucciones_entrega)) : 
         ?>
             <div class="row">
                 <div class="col-12 mb-4">
@@ -250,10 +249,10 @@ try {
                                         <?php endif; ?>
                                     </table>
                                 </div>
-                                <?php if ($hasEavInstructions) : ?>
+                                <?php if (!empty($item->instrucciones_entrega)) : ?>
                                     <div class="col-md-6">
                                         <h6><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES_ENTREGA'); ?>:</h6>
-                                        <p class="text-muted"><?php echo nl2br(htmlspecialchars($item->eav_data['instrucciones_entrega'])); ?></p>
+                                        <p class="text-muted"><?php echo nl2br(htmlspecialchars($item->instrucciones_entrega)); ?></p>
                                     </div>
                                 <?php endif; ?>
                             </div>

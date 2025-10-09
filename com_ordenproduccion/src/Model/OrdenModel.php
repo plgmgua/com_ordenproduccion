@@ -158,16 +158,6 @@ class OrdenModel extends ItemModel
                 // Apply field visibility based on user groups
                 $this->applyFieldVisibility($data);
 
-                // Load EAV (Entity-Attribute-Value) data from info table
-                // Ensure it's always an array, even if empty
-                try {
-                    $data->eav_data = $this->getEAVData($pk);
-                } catch (\Exception $e) {
-                    // If EAV loading fails, set empty array and log the error
-                    $data->eav_data = [];
-                    error_log('EAV data loading failed for order ' . $pk . ': ' . $e->getMessage());
-                }
-
                 $this->_item[$pk] = $data;
 
             } catch (\Exception $e) {
@@ -360,46 +350,4 @@ class OrdenModel extends ItemModel
         ];
     }
 
-    /**
-     * Get EAV (Entity-Attribute-Value) data for an order
-     * This loads additional fields stored dynamically in the info table
-     *
-     * @param   int  $orderId  The order ID
-     *
-     * @return  array  Associative array of attribute => value
-     *
-     * @since   2.0.8
-     */
-    protected function getEAVData($orderId)
-    {
-        try {
-            $db = $this->getDatabase();
-            
-            // Get EAV data using the ENGLISH column names that actually exist in the table
-            // Table columns: order_id, attribute_name, attribute_value, state
-            $query = $db->getQuery(true)
-                ->select($db->quoteName('attribute_name'))
-                ->select($db->quoteName('attribute_value'))
-                ->from($db->quoteName('#__ordenproduccion_info'))
-                ->where($db->quoteName('order_id') . ' = ' . (int) $orderId)
-                ->where($db->quoteName('state') . ' = 1');
-            
-            $db->setQuery($query);
-            $results = $db->loadObjectList();
-            
-            // Convert to associative array
-            $eavData = [];
-            if ($results) {
-                foreach ($results as $row) {
-                    $eavData[$row->attribute_name] = $row->attribute_value;
-                }
-            }
-            
-            return $eavData;
-            
-        } catch (\Exception $e) {
-            // Return empty array on error
-            return [];
-        }
-    }
 }

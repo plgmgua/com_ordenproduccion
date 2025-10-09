@@ -124,6 +124,8 @@ class WebhookModel extends BaseDatabaseModel
                 'shipping_address' => $formData['direccion_entrega'] ?? '',
                 'shipping_contact' => $formData['contacto_nombre'] ?? '',
                 'shipping_phone' => $formData['contacto_telefono'] ?? '',
+                'tiro_retiro' => $formData['tiro_retiro'] ?? '',
+                'instrucciones_entrega' => $formData['instrucciones_entrega'] ?? '',
                 'status' => 'New',
                 'order_type' => 'External',
                 'state' => 1,
@@ -157,15 +159,6 @@ class WebhookModel extends BaseDatabaseModel
             if (!$orderId) {
                 $this->setError('Failed to get order ID after insertion');
                 return false;
-            }
-            
-            // Store all form data as EAV data
-            if ($orderId) {
-                $eavResult = $this->storeEAVData($orderId, $formData);
-                if (!$eavResult) {
-                    $this->setError('Failed to store EAV data: ' . $this->getError());
-                    return false;
-                }
             }
             
             // Log the creation
