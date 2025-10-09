@@ -12,6 +12,9 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Exception;
 
+// Suppress deprecation warnings for this component
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 // Debug logging
 $debugLog = function($message) {
     $logFile = '/var/www/grimpsa_webserver/component_debug.log';

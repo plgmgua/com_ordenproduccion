@@ -67,10 +67,8 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        // ENABLE FULL ERROR REPORTING FOR DEBUGGING
-        ini_set('display_errors', 1);
-        ini_set('display_startup_errors', 1);
-        error_reporting(E_ALL);
+        // Suppress deprecation warnings in production
+        error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
         
         try {
             $app = Factory::getApplication();
