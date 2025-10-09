@@ -212,56 +212,6 @@ try {
             </div>
         </div>
 
-        <!-- Shipping Information (if available) -->
-        <?php 
-        if (!empty($item->shipping_address) || !empty($item->shipping_contact) || !empty($item->instrucciones_entrega)) : 
-        ?>
-            <div class="row">
-                <div class="col-12 mb-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-truck"></i>
-                                <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INFO_ENVIO'); ?>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <table class="table table-sm">
-                                        <?php if (!empty($item->shipping_address)) : ?>
-                                            <tr>
-                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DIRECCION_ENTREGA'); ?>:</strong></td>
-                                                <td><?php echo htmlspecialchars($item->shipping_address); ?></td>
-                                            </tr>
-                                        <?php endif; ?>
-                                        <?php if (!empty($item->shipping_contact)) : ?>
-                                            <tr>
-                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_NOMBRE'); ?>:</strong></td>
-                                                <td><?php echo htmlspecialchars($item->shipping_contact); ?></td>
-                                            </tr>
-                                        <?php endif; ?>
-                                        <?php if (!empty($item->shipping_phone)) : ?>
-                                            <tr>
-                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_TELEFONO'); ?>:</strong></td>
-                                                <td><?php echo htmlspecialchars($item->shipping_phone); ?></td>
-                                            </tr>
-                                        <?php endif; ?>
-                                    </table>
-                                </div>
-                                <?php if (!empty($item->instrucciones_entrega)) : ?>
-                                    <div class="col-md-6">
-                                        <h6><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES_ENTREGA'); ?>:</h6>
-                                        <p class="text-muted"><?php echo nl2br(htmlspecialchars($item->instrucciones_entrega)); ?></p>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
-
         <!-- Production Details -->
         <div class="row">
             <div class="col-12 mb-4">
@@ -486,6 +436,56 @@ try {
                                     <p class="text-muted"><?php echo nl2br(htmlspecialchars($item->production_notes)); ?></p>
                                 </div>
                             <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Shipping Information -->
+        <?php 
+        if (!empty($item->shipping_address) || !empty($item->shipping_contact) || !empty($item->shipping_phone) || !empty($item->instrucciones_entrega)) : 
+        ?>
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-truck"></i>
+                                <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INFO_ENVIO'); ?>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <?php if (!empty($item->shipping_address)) : ?>
+                                            <tr>
+                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DIRECCION_ENTREGA'); ?>:</strong></td>
+                                                <td><?php echo nl2br(htmlspecialchars($item->shipping_address)); ?></td>
+                                            </tr>
+                                        <?php endif; ?>
+                                        <?php if (!empty($item->shipping_contact)) : ?>
+                                            <tr>
+                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_NOMBRE'); ?>:</strong></td>
+                                                <td><?php echo htmlspecialchars($item->shipping_contact); ?></td>
+                                            </tr>
+                                        <?php endif; ?>
+                                        <?php if (!empty($item->shipping_phone)) : ?>
+                                            <tr>
+                                                <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CONTACTO_TELEFONO'); ?>:</strong></td>
+                                                <td><?php echo htmlspecialchars($item->shipping_phone); ?></td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    </table>
+                                </div>
+                                <?php if (!empty($item->instrucciones_entrega)) : ?>
+                                    <div class="col-md-6">
+                                        <h6><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES_ENTREGA'); ?>:</h6>
+                                        <p class="text-muted"><?php echo nl2br(htmlspecialchars($item->instrucciones_entrega)); ?></p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
