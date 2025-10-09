@@ -13,35 +13,10 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-// ENABLE FULL ERROR REPORTING FOR DEBUGGING
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Try-catch wrapper to show exact error
-try {
-
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Orden\HtmlView $this */
 
-// Debug: Check if $this->item exists
-if (!isset($this->item) || empty($this->item)) {
-    throw new \Exception('TEMPLATE ERROR: $this->item is not set or empty. The View did not load the order data.');
-}
-
 $item = $this->item;
-
-// Debug: Check if item is an object
-if (!is_object($item)) {
-    throw new \Exception('TEMPLATE ERROR: $item is not an object, it is: ' . gettype($item));
-}
-
-// Debug: Try to call canSeeInvoiceValue()
-try {
-    $canSeeInvoice = $this->canSeeInvoiceValue();
-} catch (\Exception $e) {
-    throw new \Exception('TEMPLATE ERROR in canSeeInvoiceValue(): ' . $e->getMessage());
-}
-
+$canSeeInvoice = $this->canSeeInvoiceValue();
 ?>
 
 <div class="com-ordenproduccion-orden">
@@ -561,17 +536,3 @@ try {
         </div>
     </div>
 </div>
-
-<?php
-} catch (\Exception $e) {
-    echo '<div class="alert alert-danger" style="margin: 20px; padding: 20px; background: #ffebee; border: 2px solid #c62828;">';
-    echo '<h2 style="color: #c62828;">❌ PHP ERROR CAUGHT</h2>';
-    echo '<p><strong>Error Message:</strong></p>';
-    echo '<pre style="background: white; padding: 10px; overflow: auto;">' . htmlspecialchars($e->getMessage()) . '</pre>';
-    echo '<p><strong>File:</strong> ' . htmlspecialchars($e->getFile()) . '</p>';
-    echo '<p><strong>Line:</strong> ' . $e->getLine() . '</p>';
-    echo '<p><strong>Stack Trace:</strong></p>';
-    echo '<pre style="background: white; padding: 10px; overflow: auto; max-height: 400px;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
-    echo '</div>';
-}
-?>
