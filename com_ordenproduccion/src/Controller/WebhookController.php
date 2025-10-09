@@ -47,23 +47,27 @@ class WebhookController extends BaseController
         ini_set('display_startup_errors', 1);
         error_reporting(E_ALL);
         
+        $startTime = microtime(true);
+        
         try {
             // Get the raw POST data
             $rawData = file_get_contents('php://input');
             
             // Log the incoming request with 'production' endpoint type
-            $this->logWebhookRequest($rawData, 'production');
+            $this->logWebhookRequest($rawData, 'production', $startTime);
             
             // Parse JSON data
             $data = json_decode($rawData, true);
             
             if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->logError('Invalid JSON data: ' . json_last_error_msg(), 'production', $startTime);
                 $this->sendErrorResponse('Invalid JSON data', 400);
                 return;
             }
             
             // Validate required fields
             if (!$this->validateWebhookData($data)) {
+                $this->logError('Missing required fields', 'production', $startTime);
                 $this->sendErrorResponse('Missing required fields', 400);
                 return;
             }
@@ -72,13 +76,14 @@ class WebhookController extends BaseController
             $result = $this->processOrderData($data);
             
             if ($result['success']) {
-                $this->sendSuccessResponse($result['message'], $result['data']);
+                $this->sendSuccessResponse($result['message'], $result['data'], $startTime);
             } else {
+                $this->logError('Failed to process order: ' . $result['message'], 'production', $startTime);
                 $this->sendErrorResponse($result['message'], 500);
             }
             
         } catch (\Exception $e) {
-            $this->logError('Webhook processing error: ' . $e->getMessage());
+            $this->logError('Webhook processing error: ' . $e->getMessage(), 'production', $startTime);
             $this->sendErrorResponse('Internal server error', 500);
         }
     }
@@ -183,14 +188,15 @@ class WebhookController extends BaseController
     /**
      * Send success response
      *
-     * @param   string  $message  Success message
-     * @param   array   $data     Additional data
+     * @param   string  $message    Success message
+     * @param   array   $data       Additional data
+     * @param   float   $startTime  Request start time for processing duration
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function sendSuccessResponse($message, $data = [])
+    protected function sendSuccessResponse($message, $data = [], $startTime = null)
     {
         $response = [
             'success' => true,
@@ -198,6 +204,10 @@ class WebhookController extends BaseController
             'timestamp' => date('Y-m-d H:i:s'),
             'data' => $data
         ];
+        
+        if ($startTime) {
+            $response['processing_time'] = round((microtime(true) - $startTime), 4) . 's';
+        }
         
         $this->app->setHeader('Content-Type', 'application/json');
         $this->app->setHeader('Status', '200');
@@ -235,12 +245,13 @@ class WebhookController extends BaseController
      *
      * @param   string  $rawData       Raw request data
      * @param   string  $endpointType  Type of endpoint (production or test)
+     * @param   float   $startTime     Request start time for processing duration
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function logWebhookRequest($rawData, $endpointType = 'production')
+    protected function logWebhookRequest($rawData, $endpointType = 'production', $startTime = null)
     {
         $logData = [
             'timestamp' => date('Y-m-d H:i:s'),
@@ -248,10 +259,11 @@ class WebhookController extends BaseController
             'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
             'content_length' => strlen($rawData),
             'data' => $rawData,
-            'endpoint_type' => $endpointType
+            'endpoint_type' => $endpointType,
+            'start_time' => $startTime
         ];
         
-        $this->logToDatabase('webhook_request', $logData, $endpointType);
+        $this->logToDatabase('webhook_request', $logData, $endpointType, $startTime);
         $this->logToFile('[' . strtoupper($endpointType) . '] Webhook request received: ' . json_encode($logData));
     }
 
@@ -260,20 +272,22 @@ class WebhookController extends BaseController
      *
      * @param   string  $message       Error message
      * @param   string  $endpointType  Endpoint type (production or test)
+     * @param   float   $startTime     Request start time for processing duration
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function logError($message, $endpointType = 'production')
+    protected function logError($message, $endpointType = 'production', $startTime = null)
     {
         $logData = [
             'timestamp' => date('Y-m-d H:i:s'),
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-            'error' => $message
+            'error' => $message,
+            'start_time' => $startTime
         ];
         
-        $this->logToDatabase('webhook_error', $logData, $endpointType);
+        $this->logToDatabase('webhook_error', $logData, $endpointType, $startTime);
         $this->logToFile('[' . strtoupper($endpointType) . '] Webhook error: ' . $message);
     }
 
@@ -283,12 +297,13 @@ class WebhookController extends BaseController
      * @param   string  $type          Log type
      * @param   array   $data          Log data
      * @param   string  $endpointType  Endpoint type (production or test)
+     * @param   float   $startTime     Request start time for processing duration
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function logToDatabase($type, $data, $endpointType = 'production')
+    protected function logToDatabase($type, $data, $endpointType = 'production', $startTime = null)
     {
         try {
             $db = Factory::getDbo();
@@ -313,6 +328,22 @@ class WebhookController extends BaseController
             // Determine status based on type
             $status = ($type === 'webhook_error') ? 'error' : 'success';
             
+            // Calculate processing time
+            $processingTime = $startTime ? round((microtime(true) - $startTime), 4) : null;
+            
+            // Prepare response body
+            $responseBody = json_encode([
+                'status' => $status,
+                'type' => $type,
+                'endpoint' => $endpointType,
+                'timestamp' => date('Y-m-d H:i:s'),
+                'processing_time' => $processingTime
+            ]);
+            
+            // Get current user (usually 0 for webhook requests)
+            $user = Factory::getUser();
+            $createdBy = $user->id ?: 0;
+            
             $query = $db->getQuery(true)
                 ->insert($db->quoteName('#__ordenproduccion_webhook_logs'))
                 ->columns([
@@ -323,9 +354,12 @@ class WebhookController extends BaseController
                     $db->quoteName('request_headers'),
                     $db->quoteName('request_body'),
                     $db->quoteName('response_status'),
+                    $db->quoteName('response_body'),
+                    $db->quoteName('processing_time'),
                     $db->quoteName('status'),
                     $db->quoteName('error_message'),
-                    $db->quoteName('created')
+                    $db->quoteName('created'),
+                    $db->quoteName('created_by')
                 ])
                 ->values(
                     $db->quote($webhookId) . ', ' .
@@ -335,9 +369,12 @@ class WebhookController extends BaseController
                     $db->quote(json_encode($headers)) . ', ' .
                     $db->quote($data['data'] ?? json_encode($data)) . ', ' .
                     '200, ' .
+                    $db->quote($responseBody) . ', ' .
+                    ($processingTime !== null ? $processingTime : 'NULL') . ', ' .
                     $db->quote($status) . ', ' .
                     $db->quote($data['error'] ?? null) . ', ' .
-                    $db->quote(Factory::getDate()->toSql())
+                    $db->quote(Factory::getDate()->toSql()) . ', ' .
+                    (int) $createdBy
                 );
             
             $db->setQuery($query);
@@ -371,7 +408,8 @@ class WebhookController extends BaseController
 
     /**
      * Test endpoint for webhook functionality (TEST endpoint)
-     * This is a public endpoint that doesn't require authentication
+     * This endpoint ONLY logs the request and does NOT process/create orders
+     * Used for validating webhook integration and reviewing payloads
      *
      * @return  void
      *
@@ -384,38 +422,43 @@ class WebhookController extends BaseController
         ini_set('display_startup_errors', 1);
         error_reporting(E_ALL);
         
+        $startTime = microtime(true);
+        
         try {
             // Get the raw POST data
             $rawData = file_get_contents('php://input');
             
             // Log the incoming request with 'test' endpoint type
-            $this->logWebhookRequest($rawData, 'test');
+            // This is the ONLY action - we don't process the order
+            $this->logWebhookRequest($rawData, 'test', $startTime);
             
-            // Parse JSON data
+            // Parse JSON data for validation only
             $data = json_decode($rawData, true);
             
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->sendErrorResponse('Invalid JSON data', 400);
+                $this->logError('[TEST] Invalid JSON data: ' . json_last_error_msg(), 'test', $startTime);
+                $this->sendErrorResponse('[TEST] Invalid JSON data', 400);
                 return;
             }
             
-            // Validate required fields
-            if (!$this->validateWebhookData($data)) {
-                $this->sendErrorResponse('Missing required fields', 400);
-                return;
-            }
+            // Send success response without processing
+            $response = [
+                'success' => true,
+                'message' => '[TEST] Webhook request received and logged successfully (NOT processed)',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'endpoint' => 'test',
+                'note' => 'This is a test endpoint - requests are logged but NOT processed into orders',
+                'payload_size' => strlen($rawData),
+                'payload_preview' => substr($rawData, 0, 200) . (strlen($rawData) > 200 ? '...' : '')
+            ];
             
-            // Process the order data (same as production, but logged as test)
-            $result = $this->processOrderData($data);
-            
-            if ($result['success']) {
-                $this->sendSuccessResponse('[TEST] ' . $result['message'], $result['data']);
-            } else {
-                $this->sendErrorResponse('[TEST] ' . $result['message'], 500);
-            }
+            $this->app->setHeader('Content-Type', 'application/json');
+            $this->app->setHeader('Status', '200');
+            echo json_encode($response, JSON_PRETTY_PRINT);
+            $this->app->close();
             
         } catch (\Exception $e) {
-            $this->logError('[TEST] Webhook processing error: ' . $e->getMessage(), 'test');
+            $this->logError('[TEST] Webhook error: ' . $e->getMessage(), 'test', $startTime);
             $this->sendErrorResponse('[TEST] Internal server error', 500);
         }
     }
