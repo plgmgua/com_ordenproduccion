@@ -225,7 +225,7 @@ function displayYesNoBadge($value) {
                                     <td><?php echo !empty($item->blocking_details) ? htmlspecialchars($item->blocking_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LOMO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->spine); ?></td>
-                                    <td></td>
+                                    <td><?php echo !empty($item->spine_details) ? htmlspecialchars($item->spine_details) : ''; ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CORTE'); ?></strong></td>
@@ -241,7 +241,7 @@ function displayYesNoBadge($value) {
                                     <td><?php echo !empty($item->folding_details) ? htmlspecialchars($item->folding_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PEGADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->gluing); ?></td>
-                                    <td></td>
+                                    <td><?php echo !empty($item->gluing_details) ? htmlspecialchars($item->gluing_details) : ''; ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_LAMINADO'); ?></strong></td>
@@ -249,7 +249,7 @@ function displayYesNoBadge($value) {
                                     <td><?php echo !empty($item->laminating_details) ? htmlspecialchars($item->laminating_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_SIZADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->sizing); ?></td>
-                                    <td></td>
+                                    <td><?php echo !empty($item->sizing_details) ? htmlspecialchars($item->sizing_details) : ''; ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TROQUEL'); ?></strong></td>
@@ -257,7 +257,7 @@ function displayYesNoBadge($value) {
                                     <td><?php echo !empty($item->die_cutting_details) ? htmlspecialchars($item->die_cutting_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ENGRAPADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->stapling); ?></td>
-                                    <td></td>
+                                    <td><?php echo !empty($item->stapling_details) ? htmlspecialchars($item->stapling_details) : ''; ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>TROQUEL CAMEO</strong></td>
@@ -270,7 +270,7 @@ function displayYesNoBadge($value) {
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_IMPRESION_BLANCO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->white_print); ?></td>
-                                    <td></td>
+                                    <td><?php echo !empty($item->white_print_details) ? htmlspecialchars($item->white_print_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DESPUNTADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->trimming); ?></td>
                                     <td><?php echo !empty($item->trimming_details) ? htmlspecialchars($item->trimming_details) : ''; ?></td>
@@ -278,7 +278,7 @@ function displayYesNoBadge($value) {
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_OJETES'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->eyelets); ?></td>
-                                    <td></td>
+                                    <td><?php echo !empty($item->eyelets_details) ? htmlspecialchars($item->eyelets_details) : ''; ?></td>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PERFORADO'); ?></strong></td>
                                     <td style="text-align: center;"><?php echo displayYesNoBadge($item->perforation); ?></td>
                                     <td><?php echo !empty($item->perforation_details) ? htmlspecialchars($item->perforation_details) : ''; ?></td>
