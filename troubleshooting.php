@@ -60,13 +60,8 @@ try {
 }
 
 // Test 8: Can we use Factory?
-try {
-    use Joomla\CMS\Factory;
-    echo 'TEST 8: Factory class loaded<br>';
-} catch (Exception $e) {
-    echo 'TEST 8 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-    exit;
-}
+use Joomla\CMS\Factory;
+echo 'TEST 8: Factory class loaded<br>';
 
 // Test 9: Can we get database?
 try {
