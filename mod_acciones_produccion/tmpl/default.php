@@ -332,8 +332,8 @@ $currentUrl = Uri::current();
                     // Convert FormData to URL-encoded string
                     const urlEncodedData = new URLSearchParams(formData).toString();
                     
-                    // Make AJAX request - use direct database version (gets user from session table)
-                    fetch('/components/com_ordenproduccion/change_status_direct_db.php', {
+                    // Make AJAX request
+                    fetch('/components/com_ordenproduccion/change_status.php', {
                         method: 'POST',
                         body: urlEncodedData,
                         headers: {
