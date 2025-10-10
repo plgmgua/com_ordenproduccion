@@ -133,8 +133,8 @@ class WebhookModel extends BaseDatabaseModel
                 'shipping_address' => $this->getShippingAddress($formData),
                 'shipping_contact' => $this->getShippingContact($formData),
                 'shipping_phone' => $this->getShippingPhone($formData),
-                'status' => 'New',
-                'order_type' => 'External',
+                'status' => 'Nueva',
+                'order_type' => 'Interna',
                 'state' => 1,
                 'created' => $now,
                 'created_by' => 0, // System created
