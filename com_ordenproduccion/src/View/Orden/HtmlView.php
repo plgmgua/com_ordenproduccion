@@ -207,6 +207,15 @@ class HtmlView extends BaseHtmlView
             return '-';
         }
 
+        // For DATE fields (YYYY-MM-DD), use direct PHP date formatting to avoid timezone conversion issues
+        // Joomla's HTMLHelper::_('date') applies timezone conversion which can shift dates by one day
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            // This is a DATE field (no time component), format directly without timezone conversion
+            $timestamp = strtotime($date);
+            return date('d F Y', $timestamp); // e.g., "14 October 2025"
+        }
+
+        // For DATETIME fields, use Joomla's date helper with timezone conversion
         return HTMLHelper::_('date', $date, Text::_('DATE_FORMAT_LC3'));
     }
 
@@ -446,6 +455,6 @@ class HtmlView extends BaseHtmlView
     public function getComponentVersion()
     {
         // Hardcoded version - update this with each release
-        return '2.4.5-STABLE';
+        return '2.4.6-STABLE';
     }
 }
