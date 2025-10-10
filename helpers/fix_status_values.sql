@@ -18,52 +18,52 @@
 -- =====================================================
 
 -- Update lowercase 'nueva' to 'Nueva'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Nueva'
 WHERE `status` = 'nueva';
 
 -- Update 'en_proceso' to 'En Proceso'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'En Proceso'
 WHERE `status` = 'en_proceso';
 
 -- Update lowercase 'terminada' to 'Terminada'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Terminada'
 WHERE `status` = 'terminada';
 
 -- Update 'entregada' to 'Entregada'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Entregada'
 WHERE `status` = 'entregada';
 
 -- Update lowercase 'cerrada' to 'Cerrada'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Cerrada'
 WHERE `status` = 'cerrada';
 
 -- Update 'New' to 'Nueva'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Nueva'
 WHERE `status` = 'New';
 
 -- Update 'In Process' or 'In Progress' to 'En Proceso'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'En Proceso'
 WHERE `status` IN ('In Process', 'In Progress', 'en proceso');
 
 -- Update 'Delivered' to 'Entregada'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Entregada'
 WHERE `status` = 'Delivered';
 
 -- Update 'Completed' to 'Terminada'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Terminada'
 WHERE `status` = 'Completed';
 
 -- Update 'Closed' to 'Cerrada'
-UPDATE `#__ordenproduccion_ordenes`
+UPDATE `joomla_ordenproduccion_ordenes`
 SET `status` = 'Cerrada'
 WHERE `status` = 'Closed';
 
@@ -71,7 +71,7 @@ WHERE `status` = 'Closed';
 SELECT 
     `status`,
     COUNT(*) as `count`
-FROM `#__ordenproduccion_ordenes`
+FROM `joomla_ordenproduccion_ordenes`
 GROUP BY `status`
 ORDER BY `count` DESC;
 
@@ -79,5 +79,5 @@ ORDER BY `count` DESC;
 SELECT 
     'Status values have been standardized' as `Message`,
     COUNT(*) as `Total_Records`
-FROM `#__ordenproduccion_ordenes`;
+FROM `joomla_ordenproduccion_ordenes`;
 

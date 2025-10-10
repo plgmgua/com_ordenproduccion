@@ -375,6 +375,153 @@ error_reporting(E_ALL);
         ?>
         
         <!-- ============================================ -->
+        <!-- FIX STATUS VALUES -->
+        <!-- ============================================ -->
+        <h2>🔧 Fix Status Values (Standardize)</h2>
+        
+        <?php
+        // Check current status values
+        $statusCheckStmt = $pdo->query("
+            SELECT 
+                `status`,
+                COUNT(*) as `count`
+            FROM joomla_ordenproduccion_ordenes
+            GROUP BY `status`
+            ORDER BY `count` DESC
+        ");
+        $currentStatuses = $statusCheckStmt->fetchAll();
+        
+        echo "<h3>Current Status Values in Database</h3>";
+        echo "<table>";
+        echo "<tr><th>Status Value</th><th>Count</th><th>Needs Fix?</th></tr>";
+        
+        $needsFix = false;
+        $standardStatuses = ['Nueva', 'En Proceso', 'Terminada', 'Entregada', 'Cerrada'];
+        
+        foreach ($currentStatuses as $status) {
+            echo "<tr>";
+            echo "<td><strong>{$status->status}</strong></td>";
+            echo "<td>{$status->count}</td>";
+            echo "<td>";
+            
+            if (in_array($status->status, $standardStatuses)) {
+                echo "<span class='badge badge-success'>✅ OK</span>";
+            } else {
+                echo "<span class='badge badge-warning'>⚠️ Needs Fix</span>";
+                $needsFix = true;
+            }
+            
+            echo "</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        
+        if ($needsFix) {
+            echo "<div class='section' style='background-color: #fff3cd; border-left: 4px solid #ffc107;'>";
+            echo "<h4>⚠️ Action Required: Fix Status Values</h4>";
+            echo "<p>Some status values are not standardized. Run the fix below to update them.</p>";
+            
+            // Add fix button
+            if (isset($_GET['fix_status']) && $_GET['fix_status'] === 'yes') {
+                echo "<h4>🔄 Fixing Status Values...</h4>";
+                
+                try {
+                    $pdo->beginTransaction();
+                    
+                    $updates = [
+                        ['nueva', 'Nueva'],
+                        ['en_proceso', 'En Proceso'],
+                        ['terminada', 'Terminada'],
+                        ['entregada', 'Entregada'],
+                        ['cerrada', 'Cerrada'],
+                        ['New', 'Nueva'],
+                        ['In Process', 'En Proceso'],
+                        ['In Progress', 'En Proceso'],
+                        ['en proceso', 'En Proceso'],
+                        ['Delivered', 'Entregada'],
+                        ['Completed', 'Terminada'],
+                        ['Closed', 'Cerrada']
+                    ];
+                    
+                    $totalUpdated = 0;
+                    
+                    foreach ($updates as list($oldValue, $newValue)) {
+                        $stmt = $pdo->prepare("UPDATE joomla_ordenproduccion_ordenes SET status = ? WHERE status = ?");
+                        $stmt->execute([$newValue, $oldValue]);
+                        $rowsAffected = $stmt->rowCount();
+                        $totalUpdated += $rowsAffected;
+                        
+                        if ($rowsAffected > 0) {
+                            echo "<p class='success'>✅ Updated {$rowsAffected} records: '{$oldValue}' → '{$newValue}'</p>";
+                        }
+                    }
+                    
+                    $pdo->commit();
+                    
+                    echo "<p class='success'><strong>✅ SUCCESS!</strong> Total records updated: {$totalUpdated}</p>";
+                    echo "<p><a href='?id={$orderId}' class='btn'>Refresh to see updated values</a></p>";
+                    
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+                }
+            } else {
+                echo "<p><a href='?id={$orderId}&fix_status=yes' class='btn' style='display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;' onclick='return confirm(\"This will update all non-standard status values. Continue?\")'>🔧 Fix Status Values Now</a></p>";
+                
+                echo "<h4>SQL Script for Manual Execution (phpMyAdmin)</h4>";
+                echo "<pre style='background:#f4f4f4; padding:15px; border-radius:5px; overflow-x:auto;'>";
+                echo htmlspecialchars("-- Update lowercase 'nueva' to 'Nueva'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'nueva';
+
+-- Update 'en_proceso' to 'En Proceso'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'En Proceso' WHERE `status` = 'en_proceso';
+
+-- Update lowercase 'terminada' to 'Terminada'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Terminada' WHERE `status` = 'terminada';
+
+-- Update 'entregada' to 'Entregada'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Entregada' WHERE `status` = 'entregada';
+
+-- Update lowercase 'cerrada' to 'Cerrada'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` = 'cerrada';
+
+-- Update 'New' to 'Nueva'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'New';
+
+-- Update 'In Process' or 'In Progress' to 'En Proceso'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'En Proceso' WHERE `status` IN ('In Process', 'In Progress', 'en proceso');
+
+-- Update 'Delivered' to 'Entregada'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Entregada' WHERE `status` = 'Delivered';
+
+-- Update 'Completed' to 'Terminada'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Terminada' WHERE `status` = 'Completed';
+
+-- Update 'Closed' to 'Cerrada'
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` = 'Closed';");
+                echo "</pre>";
+            }
+            
+            echo "</div>";
+        } else {
+            echo "<div class='section' style='background-color: #d4edda; border-left: 4px solid #28a745;'>";
+            echo "<p class='success'>✅ <strong>All status values are standardized!</strong></p>";
+            echo "<p>All orders are using the correct status format.</p>";
+            echo "</div>";
+        }
+        
+        echo "<h3>Standard Status Values</h3>";
+        echo "<table>";
+        echo "<tr><th>Status Value</th><th>Description</th></tr>";
+        echo "<tr><td><strong>Nueva</strong></td><td>New order</td></tr>";
+        echo "<tr><td><strong>En Proceso</strong></td><td>Order in process</td></tr>";
+        echo "<tr><td><strong>Terminada</strong></td><td>Order completed</td></tr>";
+        echo "<tr><td><strong>Entregada</strong></td><td>Order delivered</td></tr>";
+        echo "<tr><td><strong>Cerrada</strong></td><td>Order closed</td></tr>";
+        echo "</table>";
+        ?>
+        
+        <!-- ============================================ -->
         <!-- COMPONENT INFO -->
         <!-- ============================================ -->
         <h2>ℹ️ Component Information</h2>
