@@ -39,8 +39,8 @@ $currentUrl = Uri::current();
                 <!-- Work Order Info with Status Change -->
                 <div class="work-order-info">
                     <p><strong>Estado Actual:</strong> 
-                        <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'nueva'); ?>">
-                            <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'nueva'] ?? 'Nueva'); ?>
+                        <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'Nueva'); ?>">
+                            <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'Nueva'] ?? 'Nueva'); ?>
                         </span>
                     </p>
                     

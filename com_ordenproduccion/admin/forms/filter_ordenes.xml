@@ -20,10 +20,11 @@
             default=""
         >
             <option value="">JOPTION_SELECT_STATUS</option>
-            <option value="nueva">COM_ORDENPRODUCCION_STATUS_NUEVA</option>
-            <option value="en_proceso">COM_ORDENPRODUCCION_STATUS_EN_PROCESO</option>
-            <option value="terminada">COM_ORDENPRODUCCION_STATUS_TERMINADA</option>
-            <option value="cerrada">COM_ORDENPRODUCCION_STATUS_CERRADA</option>
+            <option value="Nueva">COM_ORDENPRODUCCION_STATUS_NUEVA</option>
+            <option value="En Proceso">COM_ORDENPRODUCCION_STATUS_EN_PROCESO</option>
+            <option value="Terminada">COM_ORDENPRODUCCION_STATUS_TERMINADA</option>
+            <option value="Entregada">COM_ORDENPRODUCCION_STATUS_ENTREGADA</option>
+            <option value="Cerrada">COM_ORDENPRODUCCION_STATUS_CERRADA</option>
         </field>
 
         <field
