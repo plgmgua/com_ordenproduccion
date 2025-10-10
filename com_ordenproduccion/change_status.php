@@ -10,13 +10,15 @@ header('Cache-Control: no-cache, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
 // Set error reporting for debugging
-ini_set('display_errors', 0); // Don't display errors in JSON response
+ini_set('display_errors', 1); // Show errors for debugging
 error_reporting(E_ALL);
+ini_set('log_errors', 1);
+ini_set('error_log', '/var/www/grimpsa_webserver/logs/change_status_errors.log');
 
 try {
     // Database configuration
     $dbHost = 'localhost';
-    $dbName = 'grimpsa_joomla';
+    $dbName = 'grimpsa_prod';
     $dbUser = 'joomla';
     $dbPass = 'Blob-Repair-Commodore6';
     $dbPrefix = 'joomla_';
@@ -151,6 +153,8 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Error de base de datos: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
         'timestamp' => date('Y-m-d H:i:s')
     ]);
 } catch (Exception $e) {
@@ -158,6 +162,17 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Error del servidor: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+} catch (Error $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'PHP Error: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
         'timestamp' => date('Y-m-d H:i:s')
     ]);
 }

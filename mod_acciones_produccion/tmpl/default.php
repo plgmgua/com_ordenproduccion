@@ -348,8 +348,10 @@ $currentUrl = Uri::current();
                         return response.text(); // Get as text first
                     })
                     .then(text => {
+                        console.log('Server response:', text); // Debug: log raw response
                         try {
                             const data = JSON.parse(text);
+                            console.log('Parsed data:', data); // Debug: log parsed data
                             if (data.success) {
                                 showStatusMessage(data.message, 'success');
                                 // Reload page after 2 seconds to show updated status
@@ -357,11 +359,18 @@ $currentUrl = Uri::current();
                                     window.location.reload();
                                 }, 2000);
                             } else {
-                                showStatusMessage(data.message, 'error');
+                                // Show detailed error message
+                                let errorMsg = data.message;
+                                if (data.file && data.line) {
+                                    errorMsg += ' (' + data.file + ':' + data.line + ')';
+                                }
+                                showStatusMessage(errorMsg, 'error');
+                                console.error('Server error:', data);
                             }
                         } catch (e) {
+                            console.error('Parse error:', e);
                             console.error('Response text:', text);
-                            showStatusMessage('Error: Respuesta no válida del servidor', 'error');
+                            showStatusMessage('Error: Respuesta no válida del servidor. Ver consola para detalles.', 'error');
                         }
                     })
                     .catch(error => {
