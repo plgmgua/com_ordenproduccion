@@ -675,12 +675,14 @@ class OrdenController extends BaseController
             $pdf->Cell(153, $cellHeight, $clientName, 1, 0, 'L');
             $pdf->Ln();
             
-            // Row 2: Agente de Ventas
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(37, $cellHeight, 'Agente de Ventas', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(153, $cellHeight, $salesAgent, 1, 0, 'L');
-            $pdf->Ln();
+            // Row 2: Agente de Ventas (only show if mensajeria is NOT "terceros")
+            if ($tipoMensajeria !== 'terceros') {
+                $pdf->SetFont('Arial', 'B', 10);
+                $pdf->Cell(37, $cellHeight, 'Agente de Ventas', 1, 0, 'L');
+                $pdf->SetFont('Arial', '', 9);
+                $pdf->Cell(153, $cellHeight, $salesAgent, 1, 0, 'L');
+                $pdf->Ln();
+            }
             
             // Row 3: Contacto and Telefono (split row) - matching original layout
             $pdf->SetFont('Arial', 'B', 10);
