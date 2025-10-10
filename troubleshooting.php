@@ -470,8 +470,31 @@ error_reporting(E_ALL);
             } else {
                 echo "<p><a href='?id={$orderId}&fix_status=yes' class='btn' style='display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;' onclick='return confirm(\"This will update all non-standard status values. Continue?\")'>🔧 Fix Status Values Now</a></p>";
                 
-                echo "<h4>SQL Script for Manual Execution (phpMyAdmin)</h4>";
-                echo "<pre style='background:#f4f4f4; padding:15px; border-radius:5px; overflow-x:auto;'>";
+                echo "<h4>📋 SQL Script for Manual Execution (phpMyAdmin)</h4>";
+                echo "<p><strong>Quick Fix for Current Database:</strong></p>";
+                echo "<pre style='background:#f4f4f4; padding:15px; border-radius:5px; overflow-x:auto; font-size:14px;'>";
+                echo htmlspecialchars("-- Fix 'New' to 'Nueva'
+UPDATE `joomla_ordenproduccion_ordenes` 
+SET `status` = 'Nueva' 
+WHERE `status` = 'New';
+
+-- Fix 'terminada' to 'Terminada'
+UPDATE `joomla_ordenproduccion_ordenes` 
+SET `status` = 'Terminada' 
+WHERE `status` = 'terminada';
+
+-- Verify the results
+SELECT 
+    `status`,
+    COUNT(*) as `count`
+FROM `joomla_ordenproduccion_ordenes`
+GROUP BY `status`
+ORDER BY `count` DESC;");
+                echo "</pre>";
+                
+                echo "<details style='margin-top:15px;'>";
+                echo "<summary style='cursor:pointer; color:#0066cc; font-weight:bold;'>📚 Show Complete SQL Script (All Possible Status Values)</summary>";
+                echo "<pre style='background:#f4f4f4; padding:15px; border-radius:5px; overflow-x:auto; margin-top:10px; font-size:13px;'>";
                 echo htmlspecialchars("-- Update lowercase 'nueva' to 'Nueva'
 UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'nueva';
 
@@ -505,6 +528,7 @@ UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Terminada' WHERE `status
 -- Update 'Closed' to 'Cerrada'
 UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` = 'Closed';");
                 echo "</pre>";
+                echo "</details>";
             }
             
             echo "</div>";
