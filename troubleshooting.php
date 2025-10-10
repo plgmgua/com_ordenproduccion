@@ -1,219 +1,399 @@
 <?php
 /**
- * Simple troubleshooting script
+ * Troubleshooting and Diagnostic Tool
+ * 
+ * This file provides comprehensive diagnostics for the Orden Produccion component.
+ * 
+ * @package     Joomla.Site
+ * @subpackage  com_ordenproduccion
+ * @copyright   (C) 2025 Grimpsa. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-// Test 0: Can PHP even run?
-echo 'TEST 0: PHP is working<br>';
-
-// Test 1: Can we enable errors?
+// Enable error display
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-echo 'TEST 1: Error reporting enabled<br>';
 
-// Test 2: Can we define constants?
-if (!defined('_JEXEC')) {
-    define('_JEXEC', 1);
-}
-echo 'TEST 2: Constants defined<br>';
-
-// Test 3: Does JPATH_BASE exist?
-if (!defined('JPATH_BASE')) {
-    define('JPATH_BASE', dirname(__FILE__));
-}
-echo 'TEST 3: JPATH_BASE = ' . JPATH_BASE . '<br>';
-
-// Test 4: Does defines.php exist?
-$definesPath = JPATH_BASE . '/includes/defines.php';
-if (file_exists($definesPath)) {
-    echo 'TEST 4: defines.php exists<br>';
-} else {
-    echo 'TEST 4 FAILED: defines.php NOT found at: ' . htmlspecialchars($definesPath) . '<br>';
-    exit;
-}
-
-// Test 5: Can we load defines.php?
-try {
-    require_once $definesPath;
-    echo 'TEST 5: defines.php loaded<br>';
-} catch (Exception $e) {
-    echo 'TEST 5 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-    exit;
-}
-
-// Test 6: Does framework.php exist?
-$frameworkPath = JPATH_BASE . '/includes/framework.php';
-if (file_exists($frameworkPath)) {
-    echo 'TEST 6: framework.php exists<br>';
-} else {
-    echo 'TEST 6 FAILED: framework.php NOT found at: ' . htmlspecialchars($frameworkPath) . '<br>';
-    exit;
-}
-
-// Test 7: Can we load framework.php?
-try {
-    require_once $frameworkPath;
-    echo 'TEST 7: framework.php loaded<br>';
-} catch (Exception $e) {
-    echo 'TEST 7 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-    exit;
-}
-
-// Test 8: Can we use Factory?
-use Joomla\CMS\Factory;
-echo 'TEST 8: Factory class loaded<br>';
-
-// Test 9: Can we get database?
-try {
-    $db = Factory::getDbo();
-    echo 'TEST 9: Database connection OK<br>';
-} catch (Exception $e) {
-    echo 'TEST 9 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-    exit;
-}
-
-// Test 10: Can we query database?
-try {
-    $orderId = isset($_GET['id']) ? (int) $_GET['id'] : 1402;
-    echo 'TEST 10: Testing order ID ' . $orderId . '<br>';
-    
-    $query = $db->getQuery(true);
-    $query->select('*')
-          ->from($db->quoteName('#__ordenproduccion_ordenes'))
-          ->where($db->quoteName('id') . ' = ' . (int) $orderId);
-    
-    $db->setQuery($query);
-    $order = $db->loadObject();
-    
-    if ($order) {
-        echo 'TEST 10: Order found!<br>';
-        echo 'Order Number: ' . htmlspecialchars($order->order_number) . '<br>';
-        echo 'Client: ' . htmlspecialchars($order->client_name) . '<br>';
-    } else {
-        echo 'TEST 10 FAILED: Order not found<br>';
-        exit;
-    }
-} catch (Exception $e) {
-    echo 'TEST 10 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-    exit;
-}
-
-// Test 11: Check EAV table
-try {
-    $query = "SHOW TABLES LIKE '%ordenproduccion_info%'";
-    $db->setQuery($query);
-    $eavTable = $db->loadResult();
-    
-    if ($eavTable) {
-        echo 'TEST 11: EAV table exists: ' . htmlspecialchars($eavTable) . '<br>';
-    } else {
-        echo 'TEST 11 WARNING: EAV table does not exist<br>';
-    }
-} catch (Exception $e) {
-    echo 'TEST 11 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-}
-
-// Test 12: Check EAV table columns
-try {
-    $query = "DESCRIBE " . $db->quoteName('#__ordenproduccion_info');
-    $db->setQuery($query);
-    $columns = $db->loadObjectList();
-    
-    echo 'TEST 12: EAV table columns:<br>';
-    echo '<ul>';
-    $hasState = false;
-    foreach ($columns as $col) {
-        echo '<li>' . htmlspecialchars($col->Field) . ' (' . htmlspecialchars($col->Type) . ')';
-        if ($col->Field === 'state') {
-            echo ' <strong style="color: green;">← FOUND!</strong>';
-            $hasState = true;
+// Start output
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troubleshooting - Orden Produccion</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
         }
-        echo '</li>';
-    }
-    echo '</ul>';
-    
-    if (!$hasState) {
-        echo '<strong style="color: red;">WARNING: "state" column is MISSING!</strong><br>';
-    }
-} catch (Exception $e) {
-    echo 'TEST 12 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-}
-
-// Test 13: Test the OLD (BROKEN) EAV query
-try {
-    echo 'TEST 13A: Testing OLD (Spanish) EAV query...<br>';
-    
-    $query = $db->getQuery(true);
-    $query->select($db->quoteName('tipo_de_campo') . ' AS attribute_name')
-          ->select($db->quoteName('valor') . ' AS attribute_value')
-          ->from($db->quoteName('#__ordenproduccion_info'))
-          ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($order->order_number))
-          ->where($db->quoteName('state') . ' = 1');
-    
-    echo 'SQL: ' . htmlspecialchars((string)$query) . '<br>';
-    
-    $db->setQuery($query);
-    $results = $db->loadObjectList();
-    
-    echo 'TEST 13A: <strong style="color: red;">This should FAIL with column not found</strong><br>';
-} catch (Exception $e) {
-    echo 'TEST 13A FAILED (expected): <strong style="color: red;">' . htmlspecialchars($e->getMessage()) . '</strong><br>';
-}
-
-// Test 14: Test the NEW (FIXED) EAV query
-try {
-    echo '<br>TEST 14: Testing NEW (English) EAV query...<br>';
-    
-    $query = $db->getQuery(true);
-    $query->select($db->quoteName('attribute_name'))
-          ->select($db->quoteName('attribute_value'))
-          ->from($db->quoteName('#__ordenproduccion_info'))
-          ->where($db->quoteName('order_id') . ' = ' . (int) $orderId)
-          ->where($db->quoteName('state') . ' = 1');
-    
-    echo 'SQL: ' . htmlspecialchars((string)$query) . '<br>';
-    
-    $db->setQuery($query);
-    $results = $db->loadObjectList();
-    
-    if ($results) {
-        echo 'TEST 14: <strong style="color: green;">SUCCESS! Query returned ' . count($results) . ' rows</strong><br>';
-        echo '<table border="1" cellpadding="5"><tr><th>attribute_name</th><th>attribute_value</th></tr>';
-        foreach ($results as $row) {
-            echo '<tr><td>' . htmlspecialchars($row->attribute_name) . '</td><td>' . htmlspecialchars(substr($row->attribute_value, 0, 100)) . '</td></tr>';
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        echo '</table>';
-    } else {
-        echo 'TEST 14: Query returned 0 rows (no EAV data - this is OK)<br>';
-    }
-} catch (Exception $e) {
-    echo 'TEST 14 FAILED: <strong style="color: red;">' . htmlspecialchars($e->getMessage()) . '</strong><br>';
-    echo 'THE FIX DID NOT WORK!<br>';
-}
-
-// Test 15: Try to actually load the OrdenModel and call getItem()
-try {
-    echo '<br>TEST 15: Testing actual OrdenModel::getItem() method...<br>';
-    
-    // Check if the model file exists
-    $modelPath = JPATH_BASE . '/components/com_ordenproduccion/src/Model/OrdenModel.php';
-    if (!file_exists($modelPath)) {
-        echo 'TEST 15 FAILED: OrdenModel.php not found at: ' . htmlspecialchars($modelPath) . '<br>';
-    } else {
-        echo 'Model file exists: ' . htmlspecialchars($modelPath) . '<br>';
+        h1 {
+            color: #0066cc;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            background-color: #e8f4fd;
+            padding: 10px;
+            border-left: 4px solid #0066cc;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #666;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #0066cc;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+            font-weight: bold;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-error {
+            background-color: #dc3545;
+            color: white;
+        }
+        .badge-warning {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .badge-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .url-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Troubleshooting - Orden Produccion Component</h1>
         
-        // Try to include and instantiate
-        // Note: This is a simplified test, the actual MVC does more
-        echo 'Attempting to load model class...<br>';
+        <?php
+        // Database connection
+        try {
+            $dbHost = 'localhost';
+            $dbName = 'grimpsa_prod';
+            $dbUser = 'joomla';
+            $dbPass = 'Blob-Repair-Commodore6';
+            
+            $pdo = new PDO(
+                "mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4",
+                $dbUser,
+                $dbPass,
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+                    PDO::ATTR_EMULATE_PREPARES => false
+                ]
+            );
+            echo '<p class="success">✅ Database connection successful</p>';
+        } catch (PDOException $e) {
+            echo '<p class="error">❌ Database connection failed: ' . htmlspecialchars($e->getMessage()) . '</p>';
+            die();
+        }
         
-        // This is just a file check, actual instantiation requires MVC factory
-        echo '<strong style="color: orange;">To fully test the model, access the actual order URL</strong><br>';
-        echo 'URL: <a href="/index.php/component/ordenproduccion/?view=orden&id=' . $orderId . '">View Order ' . $orderId . '</a><br>';
-    }
-} catch (Exception $e) {
-    echo 'TEST 15 FAILED: ' . htmlspecialchars($e->getMessage()) . '<br>';
-}
-
-echo '<hr>';
-echo '<h2>ALL TESTS COMPLETE</h2>';
-echo '<p>If you see this message, troubleshooting.php is working!</p>';
+        // Get order ID from URL or use default
+        $orderId = isset($_GET['id']) ? (int)$_GET['id'] : null;
+        
+        if (!$orderId) {
+            // Get the most recent order
+            $stmt = $pdo->query("SELECT id FROM joomla_ordenproduccion_ordenes ORDER BY id DESC LIMIT 1");
+            $result = $stmt->fetch();
+            $orderId = $result ? $result->id : 1;
+        }
+        
+        echo '<div class="section">';
+        echo '<h3>📋 Order Selection</h3>';
+        echo '<p>Current Order ID: <strong>' . $orderId . '</strong></p>';
+        echo '<input type="text" class="url-input" value="' . $_SERVER['REQUEST_URI'] . '" readonly onclick="this.select()">';
+        echo '<p><small>Change order: Add <code>?id=XXXX</code> to URL</small></p>';
+        echo '</div>';
+        ?>
+        
+        <!-- ============================================ -->
+        <!-- DELIVERY DATE DIAGNOSTIC -->
+        <!-- ============================================ -->
+        <h2>📅 Delivery Date Diagnostic</h2>
+        
+        <?php
+        // Get order data
+        $stmt = $pdo->prepare("
+            SELECT 
+                id,
+                orden_de_trabajo,
+                client_name,
+                delivery_date,
+                DATE_FORMAT(delivery_date, '%Y-%m-%d') as delivery_date_formatted,
+                DATE_FORMAT(delivery_date, '%d/%m/%Y') as delivery_date_ddmmyyyy,
+                request_date,
+                DATE_FORMAT(request_date, '%Y-%m-%d') as request_date_formatted,
+                DATE_FORMAT(request_date, '%d/%m/%Y') as request_date_ddmmyyyy
+            FROM joomla_ordenproduccion_ordenes 
+            WHERE id = :order_id
+        ");
+        $stmt->execute(['order_id' => $orderId]);
+        $order = $stmt->fetch();
+        
+        if (!$order) {
+            echo "<p class='error'>❌ Order #{$orderId} not found</p>";
+        } else {
+            echo "<h3>📊 Raw Database Values</h3>";
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Value</th><th>Status</th></tr>";
+            echo "<tr><td>ID</td><td>{$order->id}</td><td><span class='badge badge-info'>ID</span></td></tr>";
+            echo "<tr><td>Orden de Trabajo</td><td>{$order->orden_de_trabajo}</td><td><span class='badge badge-info'>Order #</span></td></tr>";
+            echo "<tr><td>Cliente</td><td>{$order->client_name}</td><td><span class='badge badge-info'>Client</span></td></tr>";
+            echo "<tr><td><strong>delivery_date (RAW)</strong></td><td><strong>{$order->delivery_date}</strong></td><td>";
+            if (empty($order->delivery_date) || $order->delivery_date === '0000-00-00') {
+                echo "<span class='badge badge-warning'>EMPTY</span>";
+            } else {
+                echo "<span class='badge badge-success'>OK</span>";
+            }
+            echo "</td></tr>";
+            echo "<tr><td>delivery_date (YYYY-MM-DD)</td><td>{$order->delivery_date_formatted}</td><td><span class='badge badge-info'>ISO Format</span></td></tr>";
+            echo "<tr><td>delivery_date (DD/MM/YYYY)</td><td>{$order->delivery_date_ddmmyyyy}</td><td><span class='badge badge-info'>Display Format</span></td></tr>";
+            echo "<tr><td><strong>request_date (RAW)</strong></td><td><strong>{$order->request_date}</strong></td><td>";
+            if (empty($order->request_date) || $order->request_date === '0000-00-00') {
+                echo "<span class='badge badge-warning'>EMPTY</span>";
+            } else {
+                echo "<span class='badge badge-success'>OK</span>";
+            }
+            echo "</td></tr>";
+            echo "<tr><td>request_date (YYYY-MM-DD)</td><td>{$order->request_date_formatted}</td><td><span class='badge badge-info'>ISO Format</span></td></tr>";
+            echo "<tr><td>request_date (DD/MM/YYYY)</td><td>{$order->request_date_ddmmyyyy}</td><td><span class='badge badge-info'>Display Format</span></td></tr>";
+            echo "</table>";
+            
+            // Check column type
+            echo "<h3>🔧 Column Definitions</h3>";
+            
+            // delivery_date column
+            $stmt = $pdo->query("DESCRIBE joomla_ordenproduccion_ordenes delivery_date");
+            $columnInfo = $stmt->fetch();
+            echo "<h4>delivery_date Column:</h4>";
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr>";
+            echo "<tr>";
+            echo "<td>{$columnInfo->Field}</td>";
+            echo "<td><strong>{$columnInfo->Type}</strong></td>";
+            echo "<td>{$columnInfo->Null}</td>";
+            echo "<td>{$columnInfo->Key}</td>";
+            echo "<td>" . ($columnInfo->Default ?? 'NULL') . "</td>";
+            echo "</tr>";
+            echo "</table>";
+            
+            // request_date column
+            $stmt = $pdo->query("DESCRIBE joomla_ordenproduccion_ordenes request_date");
+            $columnInfo = $stmt->fetch();
+            echo "<h4>request_date Column:</h4>";
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr>";
+            echo "<tr>";
+            echo "<td>{$columnInfo->Field}</td>";
+            echo "<td><strong>{$columnInfo->Type}</strong></td>";
+            echo "<td>{$columnInfo->Null}</td>";
+            echo "<td>{$columnInfo->Key}</td>";
+            echo "<td>" . ($columnInfo->Default ?? 'NULL') . "</td>";
+            echo "</tr>";
+            echo "</table>";
+            
+            // Simulate Joomla's HTMLHelper::_('date', ...) formatting
+            echo "<h3>🎨 Joomla Date Formatting Simulation</h3>";
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Formatted Output</th><th>Method</th></tr>";
+            
+            echo "<tr><td><strong>delivery_date</strong></td><td>";
+            if (empty($order->delivery_date) || $order->delivery_date === '0000-00-00' || $order->delivery_date === '0000-00-00 00:00:00') {
+                echo "-";
+            } else {
+                echo date('l, d F Y', strtotime($order->delivery_date)); // DATE_FORMAT_LC3 equivalent
+            }
+            echo "</td><td>DATE_FORMAT_LC3</td></tr>";
+            
+            echo "<tr><td><strong>request_date</strong></td><td>";
+            if (empty($order->request_date) || $order->request_date === '0000-00-00' || $order->request_date === '0000-00-00 00:00:00') {
+                echo "-";
+            } else {
+                echo date('l, d F Y', strtotime($order->request_date)); // DATE_FORMAT_LC3 equivalent
+            }
+            echo "</td><td>DATE_FORMAT_LC3</td></tr>";
+            echo "</table>";
+            
+            // PDF vs Detail View comparison
+            echo "<h3>📄 PDF vs Detail View Comparison</h3>";
+            echo "<table>";
+            echo "<tr><th>Source</th><th>Field Used</th><th>Formatting</th><th>Output</th></tr>";
+            echo "<tr>";
+            echo "<td><strong>Detail View</strong></td>";
+            echo "<td><code>\$item->delivery_date</code></td>";
+            echo "<td><code>\$this->formatDate()</code> with DATE_FORMAT_LC3</td>";
+            echo "<td>";
+            if (empty($order->delivery_date) || $order->delivery_date === '0000-00-00') {
+                echo "-";
+            } else {
+                echo date('l, d F Y', strtotime($order->delivery_date));
+            }
+            echo "</td>";
+            echo "</tr>";
+            echo "<tr>";
+            echo "<td><strong>PDF</strong></td>";
+            echo "<td><code>\$workOrderData->delivery_date</code></td>";
+            echo "<td><strong>No formatting (RAW)</strong></td>";
+            echo "<td><strong>{$order->delivery_date}</strong></td>";
+            echo "</tr>";
+            echo "</table>";
+            
+            echo "<div class='section'>";
+            echo "<h4>🔍 Analysis:</h4>";
+            if ($order->delivery_date !== $order->delivery_date_formatted && 
+                !empty($order->delivery_date) && 
+                $order->delivery_date !== '0000-00-00') {
+                echo "<p class='warning'>⚠️ <strong>Issue Found:</strong> The delivery_date in the database is not in standard YYYY-MM-DD format.</p>";
+                echo "<p>Database value: <code>{$order->delivery_date}</code></p>";
+                echo "<p>Expected format: <code>YYYY-MM-DD</code> (e.g., 2025-10-15)</p>";
+                echo "<p><strong>Recommendation:</strong> Update the webhook to save dates in YYYY-MM-DD format, or format the date in the PDF generation.</p>";
+            } else {
+                echo "<p class='success'>✅ <strong>Date format is correct:</strong> The delivery_date is stored in standard YYYY-MM-DD format.</p>";
+                echo "<p>The difference you see is because:</p>";
+                echo "<ul>";
+                echo "<li><strong>Detail View:</strong> Uses Joomla formatting (e.g., 'Friday, 10 October 2025')</li>";
+                echo "<li><strong>PDF:</strong> Uses raw database value (e.g., '2025-10-10')</li>";
+                echo "</ul>";
+                echo "<p><strong>Recommendation:</strong> Apply the same formatting in the PDF as in the detail view.</p>";
+            }
+            echo "</div>";
+        }
+        ?>
+        
+        <!-- ============================================ -->
+        <!-- RECENT ORDERS -->
+        <!-- ============================================ -->
+        <h2>📋 Recent Orders (Last 10)</h2>
+        
+        <?php
+        $stmt = $pdo->query("
+            SELECT 
+                id,
+                orden_de_trabajo,
+                client_name,
+                delivery_date,
+                request_date,
+                status
+            FROM joomla_ordenproduccion_ordenes 
+            ORDER BY id DESC 
+            LIMIT 10
+        ");
+        $recentOrders = $stmt->fetchAll();
+        
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Orden</th><th>Cliente</th><th>Fecha Entrega</th><th>Fecha Solicitud</th><th>Estado</th><th>Action</th></tr>";
+        foreach ($recentOrders as $row) {
+            echo "<tr>";
+            echo "<td>{$row->id}</td>";
+            echo "<td>{$row->orden_de_trabajo}</td>";
+            echo "<td>{$row->client_name}</td>";
+            echo "<td>{$row->delivery_date}</td>";
+            echo "<td>{$row->request_date}</td>";
+            echo "<td>{$row->status}</td>";
+            echo "<td><a href='?id={$row->id}'>View</a></td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        ?>
+        
+        <!-- ============================================ -->
+        <!-- COMPONENT INFO -->
+        <!-- ============================================ -->
+        <h2>ℹ️ Component Information</h2>
+        
+        <?php
+        echo "<table>";
+        echo "<tr><th>Item</th><th>Value</th></tr>";
+        echo "<tr><td>PHP Version</td><td>" . phpversion() . "</td></tr>";
+        echo "<tr><td>PDO Available</td><td>" . (extension_loaded('pdo') ? '✅ Yes' : '❌ No') . "</td></tr>";
+        echo "<tr><td>PDO MySQL</td><td>" . (extension_loaded('pdo_mysql') ? '✅ Yes' : '❌ No') . "</td></tr>";
+        echo "<tr><td>Database Name</td><td>grimpsa_prod</td></tr>";
+        echo "<tr><td>Database Host</td><td>localhost</td></tr>";
+        echo "<tr><td>Current URL</td><td>" . htmlspecialchars($_SERVER['REQUEST_URI']) . "</td></tr>";
+        echo "<tr><td>Script Path</td><td>" . __FILE__ . "</td></tr>";
+        echo "</table>";
+        ?>
+        
+        <hr>
+        <p><small>Generated: <?php echo date('Y-m-d H:i:s'); ?></small></p>
+    </div>
+</body>
+</html>
