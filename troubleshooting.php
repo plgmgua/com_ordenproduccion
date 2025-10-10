@@ -435,12 +435,14 @@ error_reporting(E_ALL);
                         ['entregada', 'Entregada'],
                         ['cerrada', 'Cerrada'],
                         ['New', 'Nueva'],
+                        ['new', 'Nueva'],
                         ['In Process', 'En Proceso'],
                         ['In Progress', 'En Proceso'],
                         ['en proceso', 'En Proceso'],
                         ['Delivered', 'Entregada'],
                         ['Completed', 'Terminada'],
-                        ['Closed', 'Cerrada']
+                        ['Closed', 'Cerrada'],
+                        ['en_proceso', 'En Proceso']
                     ];
                     
                     $totalUpdated = 0;
@@ -485,8 +487,11 @@ UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Entregada' WHERE `status
 -- Update lowercase 'cerrada' to 'Cerrada'
 UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` = 'cerrada';
 
--- Update 'New' to 'Nueva'
+-- Update 'New' to 'Nueva' (uppercase)
 UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'New';
+
+-- Update 'new' to 'Nueva' (lowercase)
+UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'new';
 
 -- Update 'In Process' or 'In Progress' to 'En Proceso'
 UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'En Proceso' WHERE `status` IN ('In Process', 'In Progress', 'en proceso');
