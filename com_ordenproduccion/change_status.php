@@ -1,6 +1,7 @@
 <?php
 /**
- * Simple endpoint to change work order status
+ * Standalone endpoint to change work order status
+ * Direct database connection (no Joomla framework)
  */
 
 // Set proper headers for JSON response FIRST
@@ -9,124 +10,154 @@ header('Cache-Control: no-cache, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
 // Set error reporting for debugging
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Don't display errors in JSON response
 error_reporting(E_ALL);
 
-// Include Joomla framework
-define('_JEXEC', 1);
-define('JPATH_BASE', '/var/www/grimpsa_webserver');
-require_once JPATH_BASE . '/includes/defines.php';
-require_once JPATH_BASE . '/includes/framework.php';
-
-use Joomla\CMS\Factory;
-use Joomla\CMS\Session\Session;
-
 try {
-    // Try to get application with error handling
-    try {
-        $app = Factory::getApplication('site');
-    } catch (Exception $e) {
+    // Database configuration
+    $dbHost = 'localhost';
+    $dbName = 'grimpsa_joomla';
+    $dbUser = 'joomla';
+    $dbPass = 'Blob-Repair-Commodore6';
+    $dbPrefix = 'joomla_';
+    
+    // Connect to database
+    $pdo = new PDO(
+        "mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4",
+        $dbUser,
+        $dbPass,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+            PDO::ATTR_EMULATE_PREPARES => false
+        ]
+    );
+    
+    // Get POST data
+    $orderId = isset($_POST['order_id']) ? (int)$_POST['order_id'] : 0;
+    $newStatus = isset($_POST['new_status']) ? trim($_POST['new_status']) : '';
+    
+    // Validate input
+    if ($orderId <= 0) {
         echo json_encode([
             'success' => false,
-            'message' => 'Application startup error: ' . $e->getMessage(),
-            'file' => basename($e->getFile()),
-            'line' => $e->getLine()
+            'message' => 'ID de orden inválido'
         ]);
         exit;
     }
     
-    $user = Factory::getUser();
-    
-    // Debug: Log all received data
-    $debugData = [
-        'post_data' => $app->input->post->getArray(),
-        'get_data' => $app->input->get->getArray(),
-        'user_id' => $user->id,
-        'user_name' => $user->name,
-        'timestamp' => date('Y-m-d H:i:s')
-    ];
-    
-    // Check CSRF token - temporarily disabled for debugging
-    // if (!Session::checkToken()) {
-    //     echo json_encode(['success' => false, 'message' => 'Invalid token']);
-    //     exit;
-    // }
-    
-    // Check if user is in produccion group
-    $userGroups = $user->getAuthorisedGroups();
-    $db = Factory::getDbo();
-    $query = $db->getQuery(true)
-        ->select('id')
-        ->from($db->quoteName('#__usergroups'))
-        ->where($db->quoteName('title') . ' = ' . $db->quote('produccion'));
-
-    $db->setQuery($query);
-    $produccionGroupId = $db->loadResult();
-
-    $hasProductionAccess = false;
-    if ($produccionGroupId && in_array($produccionGroupId, $userGroups)) {
-        $hasProductionAccess = true;
-    }
-
-    if (!$hasProductionAccess) {
-        echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+    if (empty($newStatus)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Estado inválido'
+        ]);
         exit;
     }
     
-    $orderId = $app->input->getInt('order_id', 0);
-    $newStatus = $app->input->getString('new_status', '');
+    // Validate status value
+    $validStatuses = ['Nueva', 'En Proceso', 'Terminada', 'Entregada', 'Cerrada', 'nueva', 'en_proceso', 'terminada', 'entregada', 'cerrada'];
+    if (!in_array($newStatus, $validStatuses)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Estado no válido: ' . $newStatus
+        ]);
+        exit;
+    }
     
-    if ($orderId > 0 && !empty($newStatus)) {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true)
-            ->update($db->quoteName('#__ordenproduccion_ordenes'))
-            ->set($db->quoteName('status') . ' = ' . $db->quote($newStatus))
-            ->set($db->quoteName('modified') . ' = NOW()')
-            ->set($db->quoteName('modified_by') . ' = ' . (int)$user->id)
-            ->where($db->quoteName('id') . ' = ' . (int)$orderId);
-
-        $db->setQuery($query);
-        $result = $db->execute();
-        
-        if ($result) {
-            echo json_encode([
-                'success' => true, 
-                'message' => 'Estado actualizado correctamente',
-                'debug_data' => $debugData
-            ]);
-        } else {
-            echo json_encode([
-                'success' => false, 
-                'message' => 'Error al actualizar el estado',
-                'debug_data' => $debugData
-            ]);
+    // Get user ID from Joomla session (if available)
+    $userId = 0;
+    $userName = 'System';
+    
+    // Try to get user from Joomla session cookie
+    if (isset($_COOKIE) && !empty($_COOKIE)) {
+        foreach ($_COOKIE as $cookieName => $cookieValue) {
+            if (strpos($cookieName, 'joomla_user_state') !== false || strpos($cookieName, 'session') !== false) {
+                // Try to extract session ID
+                $sessionId = $cookieValue;
+                
+                // Query Joomla session table
+                $stmt = $pdo->prepare("
+                    SELECT userid 
+                    FROM {$dbPrefix}session 
+                    WHERE session_id = :session_id 
+                    AND client_id = 0
+                    LIMIT 1
+                ");
+                $stmt->execute(['session_id' => $sessionId]);
+                $session = $stmt->fetch();
+                
+                if ($session && $session->userid > 0) {
+                    $userId = (int)$session->userid;
+                    
+                    // Get user name
+                    $stmt = $pdo->prepare("
+                        SELECT name 
+                        FROM {$dbPrefix}users 
+                        WHERE id = :user_id 
+                        LIMIT 1
+                    ");
+                    $stmt->execute(['user_id' => $userId]);
+                    $user = $stmt->fetch();
+                    
+                    if ($user) {
+                        $userName = $user->name;
+                    }
+                    break;
+                }
+            }
         }
+    }
+    
+    // Update order status
+    $stmt = $pdo->prepare("
+        UPDATE {$dbPrefix}ordenproduccion_ordenes 
+        SET 
+            status = :status,
+            modified = NOW(),
+            modified_by = :user_id
+        WHERE id = :order_id
+    ");
+    
+    $result = $stmt->execute([
+        'status' => $newStatus,
+        'user_id' => $userId,
+        'order_id' => $orderId
+    ]);
+    
+    if ($result && $stmt->rowCount() > 0) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Estado actualizado correctamente',
+            'order_id' => $orderId,
+            'new_status' => $newStatus,
+            'updated_by' => $userName
+        ]);
+    } elseif ($result && $stmt->rowCount() === 0) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Estado ya estaba actualizado',
+            'order_id' => $orderId,
+            'new_status' => $newStatus
+        ]);
     } else {
         echo json_encode([
-            'success' => false, 
-            'message' => 'Datos inválidos',
-            'debug_data' => $debugData
+            'success' => false,
+            'message' => 'Error al actualizar el estado'
         ]);
     }
     
-} catch (Exception $e) {
-    // Ensure we're still outputting JSON even on errors
+} catch (PDOException $e) {
     http_response_code(500);
     echo json_encode([
-        'success' => false, 
-        'message' => 'Server Error: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine(),
+        'success' => false,
+        'message' => 'Error de base de datos: ' . $e->getMessage(),
         'timestamp' => date('Y-m-d H:i:s')
     ]);
-} catch (Error $e) {
-    // Handle fatal errors
+} catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
-        'success' => false, 
-        'message' => 'Fatal Error: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine(),
+        'success' => false,
+        'message' => 'Error del servidor: ' . $e->getMessage(),
         'timestamp' => date('Y-m-d H:i:s')
     ]);
 }
