@@ -160,6 +160,8 @@ class SettingsModel extends BaseModel
                     ->set($db->quoteName('show_creation_date') . ' = ' . (int) ($data['show_creation_date'] ?? 1))
                     ->set($db->quoteName('show_modification_date') . ' = ' . (int) ($data['show_modification_date'] ?? 1))
                     ->set($db->quoteName('default_order_status') . ' = ' . $db->quote($data['default_order_status'] ?? 'nueva'))
+                    ->set($db->quoteName('duplicate_request_endpoint') . ' = ' . $db->quote($data['duplicate_request_endpoint'] ?? ''))
+                    ->set($db->quoteName('duplicate_request_api_key') . ' = ' . $db->quote($data['duplicate_request_api_key'] ?? ''))
                     ->where($db->quoteName('id') . ' = 1');
             } else {
                 // Insert new record
@@ -174,7 +176,9 @@ class SettingsModel extends BaseModel
                         $db->quoteName('items_per_page'),
                         $db->quoteName('show_creation_date'),
                         $db->quoteName('show_modification_date'),
-                        $db->quoteName('default_order_status')
+                        $db->quoteName('default_order_status'),
+                        $db->quoteName('duplicate_request_endpoint'),
+                        $db->quoteName('duplicate_request_api_key')
                     ])
                     ->values(
                         '1, ' .
@@ -185,7 +189,9 @@ class SettingsModel extends BaseModel
                         (int) ($data['items_per_page'] ?? 20) . ', ' .
                         (int) ($data['show_creation_date'] ?? 1) . ', ' .
                         (int) ($data['show_modification_date'] ?? 1) . ', ' .
-                        $db->quote($data['default_order_status'] ?? 'nueva')
+                        $db->quote($data['default_order_status'] ?? 'nueva') . ', ' .
+                        $db->quote($data['duplicate_request_endpoint'] ?? '') . ', ' .
+                        $db->quote($data['duplicate_request_api_key'] ?? '')
                     );
             }
             

@@ -20,20 +20,40 @@ use Joomla\CMS\Uri\Uri;
 $app = Factory::getApplication();
 $user = Factory::getUser();
 
-// Check if user is in produccion group
+// Check if user is in produccion and/or ventas groups
 $userGroups = $user->getAuthorisedGroups();
 $db = Factory::getDbo();
+
+// Check produccion group
 $query = $db->getQuery(true)
     ->select('id')
     ->from($db->quoteName('#__usergroups'))
     ->where($db->quoteName('title') . ' = ' . $db->quote('produccion'));
-
 $db->setQuery($query);
 $produccionGroupId = $db->loadResult();
 
+// Check ventas group
+$query = $db->getQuery(true)
+    ->select('id')
+    ->from($db->quoteName('#__usergroups'))
+    ->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
+$db->setQuery($query);
+$ventasGroupId = $db->loadResult();
+
 $hasProductionAccess = false;
+$hasSalesAccess = false;
+
 if ($produccionGroupId && in_array($produccionGroupId, $userGroups)) {
     $hasProductionAccess = true;
+}
+
+if ($ventasGroupId && in_array($ventasGroupId, $userGroups)) {
+    $hasSalesAccess = true;
+}
+
+// If user has neither access, don't display module
+if (!$hasProductionAccess && !$hasSalesAccess) {
+    return;
 }
 
 // Get current work order ID from URL

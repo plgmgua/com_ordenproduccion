@@ -188,6 +188,53 @@ use Joomla\CMS\Router\Route;
                         </div>
                     </div>
                 </div>
+
+                <!-- Ventas Settings -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="icon-users"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_VENTAS_SETTINGS'); ?>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="jform_duplicate_request_endpoint" class="form-label">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_DUPLICATE_REQUEST_ENDPOINT'); ?>
+                            </label>
+                            <input type="url" 
+                                   name="jform[duplicate_request_endpoint]" 
+                                   id="jform_duplicate_request_endpoint" 
+                                   value="<?php echo htmlspecialchars($this->item->duplicate_request_endpoint ?? ''); ?>" 
+                                   class="form-control" 
+                                   placeholder="https://example.com/api/duplicate-order" />
+                            <small class="form-text text-muted">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_DUPLICATE_REQUEST_ENDPOINT_DESC'); ?>
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="jform_duplicate_request_api_key" class="form-label">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_DUPLICATE_REQUEST_API_KEY'); ?>
+                            </label>
+                            <input type="text" 
+                                   name="jform[duplicate_request_api_key]" 
+                                   id="jform_duplicate_request_api_key" 
+                                   value="<?php echo htmlspecialchars($this->item->duplicate_request_api_key ?? ''); ?>" 
+                                   class="form-control" 
+                                   placeholder="Optional API Key" />
+                            <small class="form-text text-muted">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_DUPLICATE_REQUEST_API_KEY_DESC'); ?>
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="icon-info"></i>
+                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_VENTAS_SETTINGS_INFO'); ?></strong>
+                            <p><?php echo Text::_('COM_ORDENPRODUCCION_VENTAS_SETTINGS_INFO_DESC'); ?></p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Sidebar -->
