@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [2.5.1-STABLE] - 2025-10-11
+
+### Fixed
+- **CRITICAL FIX**: Corrected menu item type XML location for Joomla 5.x
+  - Moved from `views/[viewname]/metadata.xml` (Joomla 3.x) to `tmpl/[viewname]/default.xml` (Joomla 5.x)
+  - Created `tmpl/cotizaciones/default.xml`
+  - Created `tmpl/ordenes/default.xml`
+  - Created `tmpl/orden/default.xml`
+  - Removed obsolete `views/` directory
+
+### Changed
+- Updated troubleshooting.php with menu item type debugging
+- Compared component structure with com_odoocontacts to identify correct XML location
+
 ## [2.0.2-STABLE] - 2025-01-27
 
 ### Fixed
