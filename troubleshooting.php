@@ -568,6 +568,157 @@ UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` 
         echo "</table>";
         ?>
         
+        <!-- ============================================ -->
+        <!-- MENU ITEM TYPE DEBUGGING -->
+        <!-- ============================================ -->
+        <h2>🔍 Menu Item Type Debugging</h2>
+        
+        <?php
+        echo "<h3>Component Comparison: ordenproduccion vs odoocontacts</h3>";
+        
+        $components = [
+            'com_ordenproduccion' => '/var/www/grimpsa_webserver/components/com_ordenproduccion',
+            'com_odoocontacts' => '/var/www/grimpsa_webserver/components/com_odoocontacts'
+        ];
+        
+        foreach ($components as $componentName => $componentPath) {
+            echo "<h4>" . strtoupper($componentName) . "</h4>";
+            
+            if (is_dir($componentPath)) {
+                echo "<p class='success'>✅ Component directory exists</p>";
+                
+                // Check for views directory
+                $viewsPath = $componentPath . '/views';
+                if (is_dir($viewsPath)) {
+                    echo "<p class='success'>✅ Views directory exists: <code>$viewsPath</code></p>";
+                    
+                    $views = scandir($viewsPath);
+                    echo "<h5>Available Views:</h5>";
+                    echo "<table>";
+                    echo "<tr><th>View Name</th><th>Has metadata.xml</th><th>metadata.xml Path</th><th>Readable</th></tr>";
+                    
+                    foreach ($views as $view) {
+                        if ($view === '.' || $view === '..') continue;
+                        
+                        $viewPath = $viewsPath . '/' . $view;
+                        if (is_dir($viewPath)) {
+                            $metadataPath = $viewPath . '/metadata.xml';
+                            $hasMetadata = file_exists($metadataPath);
+                            $isReadable = $hasMetadata ? is_readable($metadataPath) : false;
+                            
+                            echo "<tr>";
+                            echo "<td><strong>$view</strong></td>";
+                            echo "<td>" . ($hasMetadata ? "<span class='badge badge-success'>✅ Yes</span>" : "<span class='badge badge-error'>❌ No</span>") . "</td>";
+                            echo "<td>" . ($hasMetadata ? "<code>$metadataPath</code>" : "N/A") . "</td>";
+                            echo "<td>" . ($isReadable ? "<span class='badge badge-success'>✅ Yes</span>" : "<span class='badge badge-warning'>⚠️ No</span>") . "</td>";
+                            echo "</tr>";
+                            
+                            // If metadata exists, show its contents
+                            if ($hasMetadata && $isReadable) {
+                                $metadataContent = file_get_contents($metadataPath);
+                                echo "<tr>";
+                                echo "<td colspan='4'>";
+                                echo "<details style='margin: 10px 0;'>";
+                                echo "<summary style='cursor: pointer; color: #0066cc;'>📄 View metadata.xml content</summary>";
+                                echo "<pre style='background: #f4f4f4; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 12px; max-height: 300px; overflow: auto;'>";
+                                echo htmlspecialchars($metadataContent);
+                                echo "</pre>";
+                                echo "</details>";
+                                echo "</td>";
+                                echo "</tr>";
+                            }
+                        }
+                    }
+                    echo "</table>";
+                } else {
+                    echo "<p class='error'>❌ Views directory NOT found: <code>$viewsPath</code></p>";
+                }
+                
+                // Check tmpl directory structure
+                $tmplPath = $componentPath . '/tmpl';
+                if (is_dir($tmplPath)) {
+                    echo "<h5>Template Directory Structure:</h5>";
+                    echo "<table>";
+                    echo "<tr><th>Template Name</th><th>Files</th></tr>";
+                    
+                    $tmpls = scandir($tmplPath);
+                    foreach ($tmpls as $tmpl) {
+                        if ($tmpl === '.' || $tmpl === '..') continue;
+                        
+                        $tmplViewPath = $tmplPath . '/' . $tmpl;
+                        if (is_dir($tmplViewPath)) {
+                            $files = scandir($tmplViewPath);
+                            $fileList = [];
+                            foreach ($files as $file) {
+                                if ($file !== '.' && $file !== '..') {
+                                    $fileList[] = $file;
+                                }
+                            }
+                            
+                            echo "<tr>";
+                            echo "<td><strong>$tmpl</strong></td>";
+                            echo "<td><code>" . implode(', ', $fileList) . "</code></td>";
+                            echo "</tr>";
+                        }
+                    }
+                    echo "</table>";
+                }
+                
+                echo "<hr style='margin: 20px 0; border-color: #ddd;'>";
+                
+            } else {
+                echo "<p class='error'>❌ Component directory NOT found: <code>$componentPath</code></p>";
+            }
+        }
+        
+        // Check Joomla extension table for menu item type registration
+        echo "<h3>Database: Extension Registration</h3>";
+        
+        try {
+            $stmt = $pdo->query("
+                SELECT 
+                    extension_id,
+                    name,
+                    type,
+                    element,
+                    folder,
+                    enabled
+                FROM joomla_extensions 
+                WHERE element IN ('com_ordenproduccion', 'com_odoocontacts')
+                ORDER BY name
+            ");
+            $extensions = $stmt->fetchAll();
+            
+            echo "<table>";
+            echo "<tr><th>ID</th><th>Name</th><th>Type</th><th>Element</th><th>Folder</th><th>Enabled</th></tr>";
+            
+            foreach ($extensions as $ext) {
+                echo "<tr>";
+                echo "<td>{$ext->extension_id}</td>";
+                echo "<td><strong>{$ext->name}</strong></td>";
+                echo "<td>{$ext->type}</td>";
+                echo "<td><code>{$ext->element}</code></td>";
+                echo "<td>" . ($ext->folder ?: 'N/A') . "</td>";
+                echo "<td>" . ($ext->enabled ? "<span class='badge badge-success'>✅ Yes</span>" : "<span class='badge badge-error'>❌ No</span>") . "</td>";
+                echo "</tr>";
+            }
+            echo "</table>";
+        } catch (Exception $e) {
+            echo "<p class='error'>❌ Database query error: " . htmlspecialchars($e->getMessage()) . "</p>";
+        }
+        
+        echo "<h3>Key Findings & Recommendations</h3>";
+        echo "<div class='section'>";
+        echo "<p><strong>Menu Item Types in Joomla:</strong></p>";
+        echo "<ul>";
+        echo "<li>Menu item types are defined by <code>metadata.xml</code> files in the <code>views/[viewname]/</code> directory</li>";
+        echo "<li>No database registration required - Joomla scans the filesystem</li>";
+        echo "<li>The view must have a corresponding template in <code>tmpl/[viewname]/default.php</code></li>";
+        echo "<li>The view must have a HtmlView class in <code>src/View/[Viewname]/HtmlView.php</code></li>";
+        echo "</ul>";
+        echo "</div>";
+        ?>
+        
         <hr>
         <p><small>Generated: <?php echo date('Y-m-d H:i:s'); ?></small></p>
     </div>
