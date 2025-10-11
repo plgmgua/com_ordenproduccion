@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="Detalle de Orden de Trabajo">
+        <message>
+            <![CDATA[Muestra los detalles de una orden de trabajo específica]]>
+        </message>
+    </layout>
+</metadata>
+

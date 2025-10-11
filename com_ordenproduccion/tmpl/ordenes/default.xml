@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="Listado de Órdenes">
+        <message>
+            <![CDATA[Muestra la lista de órdenes de trabajo basada en los permisos del usuario]]>
+        </message>
+    </layout>
+</metadata>
+
