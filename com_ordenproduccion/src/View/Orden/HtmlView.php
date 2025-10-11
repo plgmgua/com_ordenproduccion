@@ -262,8 +262,10 @@ class HtmlView extends BaseHtmlView
     {
         switch (strtolower($type)) {
             case 'internal':
+            case 'interna':
                 return 'badge-info';
             case 'external':
+            case 'externa':
                 return 'badge-success';
             default:
                 return 'badge-light';
@@ -455,6 +457,6 @@ class HtmlView extends BaseHtmlView
     public function getComponentVersion()
     {
         // Hardcoded version - update this with each release
-        return '2.4.8-STABLE';
+        return '2.4.9-STABLE';
     }
 }

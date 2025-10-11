@@ -86,15 +86,19 @@ function displayYesNoBadge($value) {
                                 <div>
                                     <span class="badge <?php echo $this->getOrderTypeBadgeClass($item->order_type); ?>" style="color: #333 !important; font-size: 1rem; font-weight: 500;">
                                         <?php 
-                                        // Map order type values
+                                        // Map order type values (supports both English and Spanish)
                                         $orderTypeMap = [
                                             'External' => 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL',
                                             'Internal' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL',
                                             'external' => 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL',
-                                            'internal' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL'
+                                            'internal' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL',
+                                            'Externa' => 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL',
+                                            'Interna' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL',
+                                            'externa' => 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL',
+                                            'interna' => 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL'
                                         ];
                                         
-                                        $orderTypeKey = isset($orderTypeMap[$item->order_type]) ? $orderTypeMap[$item->order_type] : 'COM_ORDENPRODUCCION_ORDER_TYPE_EXTERNAL';
+                                        $orderTypeKey = isset($orderTypeMap[$item->order_type]) ? $orderTypeMap[$item->order_type] : 'COM_ORDENPRODUCCION_ORDER_TYPE_INTERNAL';
                                         echo Text::_($orderTypeKey);
                                         ?>
                                     </span>
