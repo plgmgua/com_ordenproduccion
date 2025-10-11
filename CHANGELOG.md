@@ -19,6 +19,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [2.6.0-STABLE] - 2025-10-11
+
+### Added
+- **Ventas Section** to Actions module (`mod_acciones_produccion`)
+  - New "VENTAS" section with "Duplicar Solicitud" button (dummy for now)
+  - Users in `ventas` group see Ventas section
+  - Users in `produccion` group see Produccion section
+  - Users in both groups see both sections
+- **Settings Page Enhancement**
+  - New "Configuración de Ventas" section
+  - `duplicate_request_endpoint` field (HTTP URL for duplicate requests)
+  - `duplicate_request_api_key` field (Optional Bearer token for authentication)
+  - Information panel explaining Ventas actions
+- **Database Schema**
+  - SQL script: `helpers/add_ventas_settings_columns.sql`
+  - Adds `duplicate_request_endpoint` VARCHAR(500) column
+  - Adds `duplicate_request_api_key` VARCHAR(200) column
+- **Language Strings** (English and Spanish)
+  - COM_ORDENPRODUCCION_VENTAS_SETTINGS
+  - COM_ORDENPRODUCCION_DUPLICATE_REQUEST_ENDPOINT
+  - COM_ORDENPRODUCCION_DUPLICATE_REQUEST_ENDPOINT_DESC
+  - COM_ORDENPRODUCCION_DUPLICATE_REQUEST_API_KEY
+  - COM_ORDENPRODUCCION_DUPLICATE_REQUEST_API_KEY_DESC
+  - COM_ORDENPRODUCCION_VENTAS_SETTINGS_INFO
+  - COM_ORDENPRODUCCION_VENTAS_SETTINGS_INFO_DESC
+
+### Changed
+- **Module Restructure**: `mod_acciones_produccion` v2.1.0-STABLE
+  - Renamed module title to "ACCIONES" (Actions)
+  - Restructured into two sections: "PRODUCCION" and "VENTAS"
+  - Improved visual hierarchy with section titles and icons
+  - Consistent styling for both sections
+- **Access Control Logic**
+  - Module checks both `produccion` and `ventas` user groups
+  - Module hidden if user is not in either group
+  - Section visibility based on group membership
+- **Settings Model Enhancement**
+  - Updated `save()` method to handle new Ventas fields
+  - Added fields to both INSERT and UPDATE queries
+
+### Next Steps
+1. Run SQL script: `helpers/add_ventas_settings_columns.sql` in phpMyAdmin
+2. Configure endpoint URL in Component → Settings → Ventas Settings
+3. Implement actual HTTP request logic for "Duplicar Solicitud" button (future task)
+
 ## [2.5.1-STABLE] - 2025-10-11
 
 ### Fixed
