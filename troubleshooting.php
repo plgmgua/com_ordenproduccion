@@ -353,27 +353,26 @@ try {
             echo '</div>';
             
             // ============================================
-            // STEP 2: FETCH SAMPLE WORK ORDER
+            // STEP 2: FETCH CORRESPONDING WORK ORDER (ID 5380)
             // ============================================
             echo '<div class="section">';
-            echo '<h2>📦 Step 2: Sample Work Order Structure</h2>';
+            echo '<h2>📦 Step 2: Corresponding Work Order (ID: 5380)</h2>';
             
             try {
                 $query = $db->getQuery(true)
                     ->select('*')
                     ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                    ->order($db->quoteName('id') . ' DESC')
-                    ->setLimit(1);
+                    ->where($db->quoteName('id') . ' = 5380');
                 
                 $db->setQuery($query);
                 $sampleOrder = $db->loadObject();
                 
                 if ($sampleOrder) {
-                    echo '<div class="alert alert-success">✅ Sample order found (ID: ' . $sampleOrder->id . ')</div>';
+                    echo '<div class="alert alert-success">✅ Work order ID 5380 found - This order was created from Approval Workflow Request ID 43</div>';
                     
                     echo '<h3>Work Order Fields:</h3>';
                     echo '<table>';
-                    echo '<tr><th>Field Name</th><th>Sample Value</th><th>Type</th></tr>';
+                    echo '<tr><th>Field Name</th><th>Actual Value</th><th>Type</th></tr>';
                     
                     foreach ($sampleOrder as $key => $value) {
                         $type = gettype($value);
@@ -395,7 +394,21 @@ try {
                     }
                     echo '</table>';
                 } else {
-                    echo '<div class="alert alert-warning">⚠️ No work orders found</div>';
+                    echo '<div class="alert alert-warning">⚠️ Work order ID 5380 not found - trying latest order instead</div>';
+                    
+                    // Fallback to latest order
+                    $query = $db->getQuery(true)
+                        ->select('*')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->order($db->quoteName('id') . ' DESC')
+                        ->setLimit(1);
+                    
+                    $db->setQuery($query);
+                    $sampleOrder = $db->loadObject();
+                    
+                    if ($sampleOrder) {
+                        echo '<div class="alert alert-info">ℹ️ Using latest order instead (ID: ' . $sampleOrder->id . ')</div>';
+                    }
                 }
             } catch (Exception $e) {
                 echo '<div class="alert alert-error">❌ Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
@@ -509,6 +522,119 @@ try {
                 }
                 
                 echo '</table>';
+                
+                echo '</div>';
+            }
+            
+            // ============================================
+            // STEP 3.5: DIRECT DATA COMPARISON (ID 43 → ID 5380)
+            // ============================================
+            if (isset($payloadStructure) && isset($sampleOrder) && $sampleOrder->id == 5380) {
+                echo '<div class="section">';
+                echo '<h2>🔍 Step 3.5: Direct Data Comparison (Payload → Work Order)</h2>';
+                echo '<p>Comparing the data from Approval Workflow Request ID 43 with the actual saved Work Order ID 5380:</p>';
+                
+                echo '<table>';
+                echo '<tr>';
+                echo '<th style="width: 25%;">Field Name</th>';
+                echo '<th style="width: 35%;">Payload Value (ID 43)</th>';
+                echo '<th style="width: 35%;">Work Order Value (ID 5380)</th>';
+                echo '<th style="width: 5%;">Match</th>';
+                echo '</tr>';
+                
+                // Field mappings for comparison
+                $comparisonMappings = [
+                    'cliente' => 'client_name',
+                    'nit' => 'client_nit',
+                    'client_id' => 'client_id',
+                    'descripcion_trabajo' => 'work_description',
+                    'fecha_entrega' => 'delivery_date',
+                    'fecha_de_solicitud' => 'request_date',
+                    'agente_de_ventas' => 'sales_agent',
+                    'color_impresion' => 'print_color',
+                    'tiro_retiro' => 'tiro_retiro',
+                    'medidas' => 'dimensions',
+                    'material' => 'material',
+                    'valor_factura' => 'invoice_amount',
+                    'instrucciones' => 'general_instructions',
+                    'direccion_entrega' => 'shipping_address',
+                    'instrucciones_entrega' => 'instrucciones_entrega',
+                    'contacto_nombre' => 'shipping_contact',
+                    'contacto_telefono' => 'shipping_phone',
+                    'corte' => 'cutting',
+                    'blocado' => 'blocking',
+                    'doblado' => 'folding',
+                    'laminado' => 'laminating',
+                    'lomo' => 'spine',
+                    'pegado' => 'gluing',
+                    'numerado' => 'numbering',
+                    'sizado' => 'sizing',
+                    'engrapado' => 'stapling',
+                    'troquel' => 'die_cutting',
+                    'barniz' => 'varnish',
+                    'impresion_blanco' => 'white_print',
+                    'despuntado' => 'trimming',
+                    'ojetes' => 'eyelets',
+                    'perforado' => 'perforation'
+                ];
+                
+                foreach ($comparisonMappings as $payloadKey => $workOrderKey) {
+                    $payloadValue = isset($payloadStructure[$payloadKey]) ? $payloadStructure[$payloadKey] : null;
+                    $workOrderValue = isset($sampleOrder->$workOrderKey) ? $sampleOrder->$workOrderKey : null;
+                    
+                    // Format values for display
+                    $payloadDisplay = $payloadValue;
+                    $workOrderDisplay = $workOrderValue;
+                    
+                    if (is_array($payloadValue)) {
+                        $payloadDisplay = '[Array: ' . count($payloadValue) . ' items]';
+                    } elseif ($payloadValue === null) {
+                        $payloadDisplay = '<em style="color: #999;">NULL</em>';
+                    } elseif (strlen($payloadValue) > 50) {
+                        $payloadDisplay = substr($payloadValue, 0, 50) . '...';
+                    }
+                    
+                    if ($workOrderValue === null) {
+                        $workOrderDisplay = '<em style="color: #999;">NULL</em>';
+                    } elseif (strlen($workOrderValue) > 50) {
+                        $workOrderDisplay = substr($workOrderValue, 0, 50) . '...';
+                    }
+                    
+                    // Determine match status
+                    $match = false;
+                    $matchBadge = '<span class="badge badge-error">❌</span>';
+                    
+                    if ($payloadValue == $workOrderValue) {
+                        $match = true;
+                        $matchBadge = '<span class="badge badge-success">✅</span>';
+                    } elseif ($payloadValue === null && $workOrderValue === null) {
+                        $match = true;
+                        $matchBadge = '<span class="badge badge-info">∅</span>';
+                    } elseif ($payloadValue === null || $workOrderValue === null) {
+                        $matchBadge = '<span class="badge badge-warning">⚠️</span>';
+                    }
+                    
+                    // Highlight row if no match
+                    $rowStyle = $match ? '' : 'style="background: #fff3cd;"';
+                    
+                    echo '<tr ' . $rowStyle . '>';
+                    echo '<td><code>' . htmlspecialchars($payloadKey) . '</code><br><small style="color: #999;">→ ' . htmlspecialchars($workOrderKey) . '</small></td>';
+                    echo '<td>' . htmlspecialchars($payloadDisplay) . '</td>';
+                    echo '<td>' . htmlspecialchars($workOrderDisplay) . '</td>';
+                    echo '<td style="text-align: center;">' . $matchBadge . '</td>';
+                    echo '</tr>';
+                }
+                
+                echo '</table>';
+                
+                echo '<div class="alert alert-info" style="margin-top: 20px;">';
+                echo '<strong>Legend:</strong><br>';
+                echo '<span class="badge badge-success">✅</span> Values match<br>';
+                echo '<span class="badge badge-warning">⚠️</span> One value is NULL<br>';
+                echo '<span class="badge badge-error">❌</span> Values don\'t match<br>';
+                echo '<span class="badge badge-info">∅</span> Both NULL<br>';
+                echo '<em>Yellow rows indicate data differences that may need investigation</em>';
+                echo '</div>';
                 
                 echo '</div>';
             }
