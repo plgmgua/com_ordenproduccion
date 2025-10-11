@@ -1,726 +1,594 @@
 <?php
 /**
- * Troubleshooting and Diagnostic Tool
+ * Troubleshooting Script - Orden Produccion Component
+ * Purpose: Validate payload structure for Duplicar Solicitud functionality
  * 
- * This file provides comprehensive diagnostics for the Orden Produccion component.
- * 
- * @package     Joomla.Site
- * @subpackage  com_ordenproduccion
- * @copyright   (C) 2025 Grimpsa. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ * This script examines joomla_approvalworkflow_requests table (record ID 43)
+ * to understand the payload format needed for the Ventas "Duplicar Solicitud" button
  */
 
-// Enable error display
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+// Joomla initialization
+define('_JEXEC', 1);
+define('JPATH_BASE', __DIR__);
 
-// Start output
+require_once JPATH_BASE . '/includes/defines.php';
+require_once JPATH_BASE . '/includes/framework.php';
+
+use Joomla\CMS\Factory;
+
+// Create the Joomla application
+$app = Factory::getApplication('site');
+
+// Get database connection
+try {
+    $db = Factory::getDbo();
+} catch (Exception $e) {
+    die('❌ Database connection failed: ' . $e->getMessage());
+}
+
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Troubleshooting - Orden Produccion</title>
+    <title>Payload Validation - Duplicar Solicitud</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            line-height: 1.6;
         }
-        h1 {
-            color: #0066cc;
-            border-bottom: 3px solid #0066cc;
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            color: #343a40;
+            font-size: 24px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
             padding-bottom: 10px;
         }
-        h2 {
-            color: #333;
-            background-color: #e8f4fd;
-            padding: 10px;
-            border-left: 4px solid #0066cc;
-            margin-top: 30px;
-        }
+        
         h3 {
-            color: #666;
-            margin-top: 20px;
+            color: #495057;
+            font-size: 18px;
+            margin: 20px 0 10px 0;
         }
+        
         table {
             width: 100%;
             border-collapse: collapse;
             margin: 15px 0;
+            background: #fff;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-        table, th, td {
-            border: 1px solid #ddd;
-        }
-        th {
-            background-color: #0066cc;
-            color: white;
-            padding: 12px;
+        
+        th, td {
+            padding: 12px 15px;
             text-align: left;
+            border-bottom: 1px solid #dee2e6;
         }
-        td {
-            padding: 10px;
+        
+        th {
+            background: #667eea;
+            color: #fff;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
         }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
+        
+        tr:hover {
+            background: #f8f9fa;
         }
-        .success {
-            color: #28a745;
-            font-weight: bold;
-        }
-        .error {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        .warning {
-            color: #ffc107;
-            font-weight: bold;
-        }
-        .info {
-            color: #17a2b8;
-            font-weight: bold;
-        }
+        
         .badge {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 4px 12px;
+            border-radius: 12px;
             font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .json-viewer {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .json-key {
+            color: #e06c75;
+        }
+        
+        .json-string {
+            color: #98c379;
+        }
+        
+        .json-number {
+            color: #d19a66;
+        }
+        
+        .json-boolean {
+            color: #61afef;
+        }
+        
+        .json-null {
+            color: #c678dd;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .comparison-card {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .comparison-card h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .field-mapping {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .field-mapping .source {
+            flex: 1;
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        .field-mapping .arrow {
+            margin: 0 10px;
+            color: #667eea;
             font-weight: bold;
         }
-        .badge-success {
-            background-color: #28a745;
-            color: white;
+        
+        .field-mapping .target {
+            flex: 1;
+            color: #28a745;
+            font-weight: 500;
         }
-        .badge-error {
-            background-color: #dc3545;
-            color: white;
-        }
-        .badge-warning {
-            background-color: #ffc107;
-            color: #333;
-        }
-        .badge-info {
-            background-color: #17a2b8;
-            color: white;
-        }
+        
         code {
-            background-color: #f4f4f4;
+            background: #f4f4f4;
             padding: 2px 6px;
             border-radius: 3px;
-            font-family: 'Courier New', monospace;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: #e83e8c;
         }
-        pre {
-            background-color: #f4f4f4;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin: 15px 0;
         }
-        .section {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
         }
-        .url-input {
-            width: 100%;
-            padding: 8px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+            padding: 20px;
+            border-top: 1px solid #e9ecef;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔧 Troubleshooting - Orden Produccion Component</h1>
+        <div class="header">
+            <h1>🔍 Payload Validation</h1>
+            <p>Analyzing payload structure for "Duplicar Solicitud" functionality</p>
+        </div>
         
-        <?php
-        // Database connection
-        try {
-            $dbHost = 'localhost';
-            $dbName = 'grimpsa_prod';
-            $dbUser = 'joomla';
-            $dbPass = 'Blob-Repair-Commodore6';
+        <div class="content">
             
-            $pdo = new PDO(
-                "mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4",
-                $dbUser,
-                $dbPass,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
-                    PDO::ATTR_EMULATE_PREPARES => false
-                ]
-            );
-            echo '<p class="success">✅ Database connection successful</p>';
-        } catch (PDOException $e) {
-            echo '<p class="error">❌ Database connection failed: ' . htmlspecialchars($e->getMessage()) . '</p>';
-            die();
-        }
-        
-        // Get order ID from URL or use default
-        $orderId = isset($_GET['id']) ? (int)$_GET['id'] : null;
-        
-        if (!$orderId) {
-            // Get the most recent order
-            $stmt = $pdo->query("SELECT id FROM joomla_ordenproduccion_ordenes ORDER BY id DESC LIMIT 1");
-            $result = $stmt->fetch();
-            $orderId = $result ? $result->id : 1;
-        }
-        
-        echo '<div class="section">';
-        echo '<h3>📋 Order Selection</h3>';
-        echo '<p>Current Order ID: <strong>' . $orderId . '</strong></p>';
-        echo '<input type="text" class="url-input" value="' . $_SERVER['REQUEST_URI'] . '" readonly onclick="this.select()">';
-        echo '<p><small>Change order: Add <code>?id=XXXX</code> to URL</small></p>';
-        echo '</div>';
-        ?>
-        
-        <!-- ============================================ -->
-        <!-- DELIVERY DATE DIAGNOSTIC -->
-        <!-- ============================================ -->
-        <h2>📅 Delivery Date Diagnostic</h2>
-        
-        <?php
-        // Get order data
-        $stmt = $pdo->prepare("
-            SELECT 
-                id,
-                orden_de_trabajo,
-                client_name,
-                delivery_date,
-                DATE_FORMAT(delivery_date, '%Y-%m-%d') as delivery_date_formatted,
-                DATE_FORMAT(delivery_date, '%d/%m/%Y') as delivery_date_ddmmyyyy,
-                request_date,
-                DATE_FORMAT(request_date, '%Y-%m-%d') as request_date_formatted,
-                DATE_FORMAT(request_date, '%d/%m/%Y') as request_date_ddmmyyyy
-            FROM joomla_ordenproduccion_ordenes 
-            WHERE id = :order_id
-        ");
-        $stmt->execute(['order_id' => $orderId]);
-        $order = $stmt->fetch();
-        
-        if (!$order) {
-            echo "<p class='error'>❌ Order #{$orderId} not found</p>";
-        } else {
-            echo "<h3>📊 Raw Database Values</h3>";
-            echo "<table>";
-            echo "<tr><th>Field</th><th>Value</th><th>Status</th></tr>";
-            echo "<tr><td>ID</td><td>{$order->id}</td><td><span class='badge badge-info'>ID</span></td></tr>";
-            echo "<tr><td>Orden de Trabajo</td><td>{$order->orden_de_trabajo}</td><td><span class='badge badge-info'>Order #</span></td></tr>";
-            echo "<tr><td>Cliente</td><td>{$order->client_name}</td><td><span class='badge badge-info'>Client</span></td></tr>";
-            echo "<tr><td><strong>delivery_date (RAW)</strong></td><td><strong>{$order->delivery_date}</strong></td><td>";
-            if (empty($order->delivery_date) || $order->delivery_date === '0000-00-00') {
-                echo "<span class='badge badge-warning'>EMPTY</span>";
-            } else {
-                echo "<span class='badge badge-success'>OK</span>";
-            }
-            echo "</td></tr>";
-            echo "<tr><td>delivery_date (YYYY-MM-DD)</td><td>{$order->delivery_date_formatted}</td><td><span class='badge badge-info'>ISO Format</span></td></tr>";
-            echo "<tr><td>delivery_date (DD/MM/YYYY)</td><td>{$order->delivery_date_ddmmyyyy}</td><td><span class='badge badge-info'>Display Format</span></td></tr>";
-            echo "<tr><td><strong>request_date (RAW)</strong></td><td><strong>{$order->request_date}</strong></td><td>";
-            if (empty($order->request_date) || $order->request_date === '0000-00-00') {
-                echo "<span class='badge badge-warning'>EMPTY</span>";
-            } else {
-                echo "<span class='badge badge-success'>OK</span>";
-            }
-            echo "</td></tr>";
-            echo "<tr><td>request_date (YYYY-MM-DD)</td><td>{$order->request_date_formatted}</td><td><span class='badge badge-info'>ISO Format</span></td></tr>";
-            echo "<tr><td>request_date (DD/MM/YYYY)</td><td>{$order->request_date_ddmmyyyy}</td><td><span class='badge badge-info'>Display Format</span></td></tr>";
-            echo "</table>";
+            <?php
+            // ============================================
+            // STEP 1: FETCH APPROVAL WORKFLOW REQUEST
+            // ============================================
+            echo '<div class="section">';
+            echo '<h2>📋 Step 1: Approval Workflow Request (ID: 43)</h2>';
             
-            // Check column type
-            echo "<h3>🔧 Column Definitions</h3>";
-            
-            // delivery_date column
-            $stmt = $pdo->query("DESCRIBE joomla_ordenproduccion_ordenes delivery_date");
-            $columnInfo = $stmt->fetch();
-            echo "<h4>delivery_date Column:</h4>";
-            echo "<table>";
-            echo "<tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr>";
-            echo "<tr>";
-            echo "<td>{$columnInfo->Field}</td>";
-            echo "<td><strong>{$columnInfo->Type}</strong></td>";
-            echo "<td>{$columnInfo->Null}</td>";
-            echo "<td>{$columnInfo->Key}</td>";
-            echo "<td>" . ($columnInfo->Default ?? 'NULL') . "</td>";
-            echo "</tr>";
-            echo "</table>";
-            
-            // request_date column
-            $stmt = $pdo->query("DESCRIBE joomla_ordenproduccion_ordenes request_date");
-            $columnInfo = $stmt->fetch();
-            echo "<h4>request_date Column:</h4>";
-            echo "<table>";
-            echo "<tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr>";
-            echo "<tr>";
-            echo "<td>{$columnInfo->Field}</td>";
-            echo "<td><strong>{$columnInfo->Type}</strong></td>";
-            echo "<td>{$columnInfo->Null}</td>";
-            echo "<td>{$columnInfo->Key}</td>";
-            echo "<td>" . ($columnInfo->Default ?? 'NULL') . "</td>";
-            echo "</tr>";
-            echo "</table>";
-            
-            // Simulate Joomla's HTMLHelper::_('date', ...) formatting
-            echo "<h3>🎨 Joomla Date Formatting Simulation</h3>";
-            echo "<table>";
-            echo "<tr><th>Field</th><th>Formatted Output</th><th>Method</th></tr>";
-            
-            echo "<tr><td><strong>delivery_date</strong></td><td>";
-            if (empty($order->delivery_date) || $order->delivery_date === '0000-00-00' || $order->delivery_date === '0000-00-00 00:00:00') {
-                echo "-";
-            } else {
-                echo date('l, d F Y', strtotime($order->delivery_date)); // DATE_FORMAT_LC3 equivalent
-            }
-            echo "</td><td>DATE_FORMAT_LC3</td></tr>";
-            
-            echo "<tr><td><strong>request_date</strong></td><td>";
-            if (empty($order->request_date) || $order->request_date === '0000-00-00' || $order->request_date === '0000-00-00 00:00:00') {
-                echo "-";
-            } else {
-                echo date('l, d F Y', strtotime($order->request_date)); // DATE_FORMAT_LC3 equivalent
-            }
-            echo "</td><td>DATE_FORMAT_LC3</td></tr>";
-            echo "</table>";
-            
-            // PDF vs Detail View comparison
-            echo "<h3>📄 PDF vs Detail View Comparison</h3>";
-            echo "<table>";
-            echo "<tr><th>Source</th><th>Field Used</th><th>Formatting</th><th>Output</th></tr>";
-            echo "<tr>";
-            echo "<td><strong>Detail View</strong></td>";
-            echo "<td><code>\$item->delivery_date</code></td>";
-            echo "<td><code>\$this->formatDate()</code> with DATE_FORMAT_LC3</td>";
-            echo "<td>";
-            if (empty($order->delivery_date) || $order->delivery_date === '0000-00-00') {
-                echo "-";
-            } else {
-                echo date('l, d F Y', strtotime($order->delivery_date));
-            }
-            echo "</td>";
-            echo "</tr>";
-            echo "<tr>";
-            echo "<td><strong>PDF</strong></td>";
-            echo "<td><code>\$workOrderData->delivery_date</code></td>";
-            echo "<td><strong>No formatting (RAW)</strong></td>";
-            echo "<td><strong>{$order->delivery_date}</strong></td>";
-            echo "</tr>";
-            echo "</table>";
-            
-            echo "<div class='section'>";
-            echo "<h4>🔍 Analysis:</h4>";
-            if ($order->delivery_date !== $order->delivery_date_formatted && 
-                !empty($order->delivery_date) && 
-                $order->delivery_date !== '0000-00-00') {
-                echo "<p class='warning'>⚠️ <strong>Issue Found:</strong> The delivery_date in the database is not in standard YYYY-MM-DD format.</p>";
-                echo "<p>Database value: <code>{$order->delivery_date}</code></p>";
-                echo "<p>Expected format: <code>YYYY-MM-DD</code> (e.g., 2025-10-15)</p>";
-                echo "<p><strong>Recommendation:</strong> Update the webhook to save dates in YYYY-MM-DD format, or format the date in the PDF generation.</p>";
-            } else {
-                echo "<p class='success'>✅ <strong>Date format is correct:</strong> The delivery_date is stored in standard YYYY-MM-DD format.</p>";
-                echo "<p>The difference you see is because:</p>";
-                echo "<ul>";
-                echo "<li><strong>Detail View:</strong> Uses Joomla formatting (e.g., 'Friday, 10 October 2025')</li>";
-                echo "<li><strong>PDF:</strong> Uses raw database value (e.g., '2025-10-10')</li>";
-                echo "</ul>";
-                echo "<p><strong>Recommendation:</strong> Apply the same formatting in the PDF as in the detail view.</p>";
-            }
-            echo "</div>";
-        }
-        ?>
-        
-        <!-- ============================================ -->
-        <!-- RECENT ORDERS -->
-        <!-- ============================================ -->
-        <h2>📋 Recent Orders (Last 10)</h2>
-        
-        <?php
-        $stmt = $pdo->query("
-            SELECT 
-                id,
-                orden_de_trabajo,
-                client_name,
-                delivery_date,
-                request_date,
-                status
-            FROM joomla_ordenproduccion_ordenes 
-            ORDER BY id DESC 
-            LIMIT 10
-        ");
-        $recentOrders = $stmt->fetchAll();
-        
-        echo "<table>";
-        echo "<tr><th>ID</th><th>Orden</th><th>Cliente</th><th>Fecha Entrega</th><th>Fecha Solicitud</th><th>Estado</th><th>Action</th></tr>";
-        foreach ($recentOrders as $row) {
-            echo "<tr>";
-            echo "<td>{$row->id}</td>";
-            echo "<td>{$row->orden_de_trabajo}</td>";
-            echo "<td>{$row->client_name}</td>";
-            echo "<td>{$row->delivery_date}</td>";
-            echo "<td>{$row->request_date}</td>";
-            echo "<td>{$row->status}</td>";
-            echo "<td><a href='?id={$row->id}'>View</a></td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-        ?>
-        
-        <!-- ============================================ -->
-        <!-- FIX STATUS VALUES -->
-        <!-- ============================================ -->
-        <h2>🔧 Fix Status Values (Standardize)</h2>
-        
-        <?php
-        // Check current status values
-        $statusCheckStmt = $pdo->query("
-            SELECT 
-                `status`,
-                COUNT(*) as `count`
-            FROM joomla_ordenproduccion_ordenes
-            GROUP BY `status`
-            ORDER BY `count` DESC
-        ");
-        $currentStatuses = $statusCheckStmt->fetchAll();
-        
-        echo "<h3>Current Status Values in Database</h3>";
-        echo "<table>";
-        echo "<tr><th>Status Value</th><th>Count</th><th>Needs Fix?</th></tr>";
-        
-        $needsFix = false;
-        $standardStatuses = ['Nueva', 'En Proceso', 'Terminada', 'Entregada', 'Cerrada'];
-        
-        foreach ($currentStatuses as $status) {
-            echo "<tr>";
-            echo "<td><strong>{$status->status}</strong></td>";
-            echo "<td>{$status->count}</td>";
-            echo "<td>";
-            
-            if (in_array($status->status, $standardStatuses)) {
-                echo "<span class='badge badge-success'>✅ OK</span>";
-            } else {
-                echo "<span class='badge badge-warning'>⚠️ Needs Fix</span>";
-                $needsFix = true;
-            }
-            
-            echo "</td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-        
-        if ($needsFix) {
-            echo "<div class='section' style='background-color: #fff3cd; border-left: 4px solid #ffc107;'>";
-            echo "<h4>⚠️ Action Required: Fix Status Values</h4>";
-            echo "<p>Some status values are not standardized. Run the fix below to update them.</p>";
-            
-            // Add fix button
-            if (isset($_GET['fix_status']) && $_GET['fix_status'] === 'yes') {
-                echo "<h4>🔄 Fixing Status Values...</h4>";
+            try {
+                $query = $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__approvalworkflow_requests'))
+                    ->where($db->quoteName('id') . ' = 43');
                 
-                try {
-                    $pdo->beginTransaction();
+                $db->setQuery($query);
+                $approvalRequest = $db->loadObject();
+                
+                if ($approvalRequest) {
+                    echo '<div class="alert alert-success">✅ Record found successfully</div>';
                     
-                    $updates = [
-                        ['nueva', 'Nueva'],
-                        ['en_proceso', 'En Proceso'],
-                        ['terminada', 'Terminada'],
-                        ['entregada', 'Entregada'],
-                        ['cerrada', 'Cerrada'],
-                        ['New', 'Nueva'],
-                        ['new', 'Nueva'],
-                        ['In Process', 'En Proceso'],
-                        ['In Progress', 'En Proceso'],
-                        ['en proceso', 'En Proceso'],
-                        ['Delivered', 'Entregada'],
-                        ['Completed', 'Terminada'],
-                        ['Closed', 'Cerrada'],
-                        ['en_proceso', 'En Proceso']
-                    ];
+                    echo '<h3>Raw Database Record:</h3>';
+                    echo '<table>';
+                    echo '<tr><th>Field</th><th>Value</th></tr>';
                     
-                    $totalUpdated = 0;
+                    foreach ($approvalRequest as $key => $value) {
+                        $displayValue = $value;
+                        if (strlen($value) > 200) {
+                            $displayValue = substr($value, 0, 200) . '... <em>(truncated)</em>';
+                        }
+                        echo '<tr>';
+                        echo '<td><strong>' . htmlspecialchars($key) . '</strong></td>';
+                        echo '<td>' . htmlspecialchars($displayValue) . '</td>';
+                        echo '</tr>';
+                    }
+                    echo '</table>';
                     
-                    foreach ($updates as list($oldValue, $newValue)) {
-                        $stmt = $pdo->prepare("UPDATE joomla_ordenproduccion_ordenes SET status = ? WHERE status = ?");
-                        $stmt->execute([$newValue, $oldValue]);
-                        $rowsAffected = $stmt->rowCount();
-                        $totalUpdated += $rowsAffected;
+                    // Try to parse form_data as JSON
+                    if (isset($approvalRequest->form_data)) {
+                        echo '<h3>📦 Parsed JSON Payload (form_data):</h3>';
                         
-                        if ($rowsAffected > 0) {
-                            echo "<p class='success'>✅ Updated {$rowsAffected} records: '{$oldValue}' → '{$newValue}'</p>";
+                        $formData = json_decode($approvalRequest->form_data, true);
+                        
+                        if ($formData !== null) {
+                            echo '<div class="json-viewer">';
+                            echo '<pre>' . json_encode($formData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
+                            echo '</div>';
+                            
+                            // Store for comparison
+                            $payloadStructure = $formData;
+                        } else {
+                            echo '<div class="alert alert-warning">⚠️ form_data is not valid JSON</div>';
+                            echo '<div class="json-viewer">';
+                            echo '<pre>' . htmlspecialchars($approvalRequest->form_data) . '</pre>';
+                            echo '</div>';
                         }
                     }
-                    
-                    $pdo->commit();
-                    
-                    echo "<p class='success'><strong>✅ SUCCESS!</strong> Total records updated: {$totalUpdated}</p>";
-                    echo "<p><a href='?id={$orderId}' class='btn'>Refresh to see updated values</a></p>";
-                    
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-                }
-            } else {
-                echo "<p><a href='?id={$orderId}&fix_status=yes' class='btn' style='display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;' onclick='return confirm(\"This will update all non-standard status values. Continue?\")'>🔧 Fix Status Values Now</a></p>";
-                
-                echo "<h4>📋 SQL Script for Manual Execution (phpMyAdmin)</h4>";
-                echo "<p><strong>Quick Fix for Current Database:</strong></p>";
-                echo "<pre style='background:#f4f4f4; padding:15px; border-radius:5px; overflow-x:auto; font-size:14px;'>";
-                echo htmlspecialchars("-- Fix 'New' to 'Nueva'
-UPDATE `joomla_ordenproduccion_ordenes` 
-SET `status` = 'Nueva' 
-WHERE `status` = 'New';
-
--- Fix 'terminada' to 'Terminada'
-UPDATE `joomla_ordenproduccion_ordenes` 
-SET `status` = 'Terminada' 
-WHERE `status` = 'terminada';
-
--- Verify the results
-SELECT 
-    `status`,
-    COUNT(*) as `count`
-FROM `joomla_ordenproduccion_ordenes`
-GROUP BY `status`
-ORDER BY `count` DESC;");
-                echo "</pre>";
-                
-                echo "<details style='margin-top:15px;'>";
-                echo "<summary style='cursor:pointer; color:#0066cc; font-weight:bold;'>📚 Show Complete SQL Script (All Possible Status Values)</summary>";
-                echo "<pre style='background:#f4f4f4; padding:15px; border-radius:5px; overflow-x:auto; margin-top:10px; font-size:13px;'>";
-                echo htmlspecialchars("-- Update lowercase 'nueva' to 'Nueva'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'nueva';
-
--- Update 'en_proceso' to 'En Proceso'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'En Proceso' WHERE `status` = 'en_proceso';
-
--- Update lowercase 'terminada' to 'Terminada'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Terminada' WHERE `status` = 'terminada';
-
--- Update 'entregada' to 'Entregada'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Entregada' WHERE `status` = 'entregada';
-
--- Update lowercase 'cerrada' to 'Cerrada'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` = 'cerrada';
-
--- Update 'New' to 'Nueva' (uppercase)
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'New';
-
--- Update 'new' to 'Nueva' (lowercase)
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Nueva' WHERE `status` = 'new';
-
--- Update 'In Process' or 'In Progress' to 'En Proceso'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'En Proceso' WHERE `status` IN ('In Process', 'In Progress', 'en proceso');
-
--- Update 'Delivered' to 'Entregada'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Entregada' WHERE `status` = 'Delivered';
-
--- Update 'Completed' to 'Terminada'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Terminada' WHERE `status` = 'Completed';
-
--- Update 'Closed' to 'Cerrada'
-UPDATE `joomla_ordenproduccion_ordenes` SET `status` = 'Cerrada' WHERE `status` = 'Closed';");
-                echo "</pre>";
-                echo "</details>";
-            }
-            
-            echo "</div>";
-        } else {
-            echo "<div class='section' style='background-color: #d4edda; border-left: 4px solid #28a745;'>";
-            echo "<p class='success'>✅ <strong>All status values are standardized!</strong></p>";
-            echo "<p>All orders are using the correct status format.</p>";
-            echo "</div>";
-        }
-        
-        echo "<h3>Standard Status Values</h3>";
-        echo "<table>";
-        echo "<tr><th>Status Value</th><th>Description</th></tr>";
-        echo "<tr><td><strong>Nueva</strong></td><td>New order</td></tr>";
-        echo "<tr><td><strong>En Proceso</strong></td><td>Order in process</td></tr>";
-        echo "<tr><td><strong>Terminada</strong></td><td>Order completed</td></tr>";
-        echo "<tr><td><strong>Entregada</strong></td><td>Order delivered</td></tr>";
-        echo "<tr><td><strong>Cerrada</strong></td><td>Order closed</td></tr>";
-        echo "</table>";
-        ?>
-        
-        <!-- ============================================ -->
-        <!-- COMPONENT INFO -->
-        <!-- ============================================ -->
-        <h2>ℹ️ Component Information</h2>
-        
-        <?php
-        echo "<table>";
-        echo "<tr><th>Item</th><th>Value</th></tr>";
-        echo "<tr><td>PHP Version</td><td>" . phpversion() . "</td></tr>";
-        echo "<tr><td>PDO Available</td><td>" . (extension_loaded('pdo') ? '✅ Yes' : '❌ No') . "</td></tr>";
-        echo "<tr><td>PDO MySQL</td><td>" . (extension_loaded('pdo_mysql') ? '✅ Yes' : '❌ No') . "</td></tr>";
-        echo "<tr><td>Database Name</td><td>grimpsa_prod</td></tr>";
-        echo "<tr><td>Database Host</td><td>localhost</td></tr>";
-        echo "<tr><td>Current URL</td><td>" . htmlspecialchars($_SERVER['REQUEST_URI']) . "</td></tr>";
-        echo "<tr><td>Script Path</td><td>" . __FILE__ . "</td></tr>";
-        echo "</table>";
-        ?>
-        
-        <!-- ============================================ -->
-        <!-- MENU ITEM TYPE DEBUGGING -->
-        <!-- ============================================ -->
-        <h2>🔍 Menu Item Type Debugging</h2>
-        
-        <?php
-        echo "<h3>Component Comparison: ordenproduccion vs odoocontacts</h3>";
-        
-        $components = [
-            'com_ordenproduccion' => '/var/www/grimpsa_webserver/components/com_ordenproduccion',
-            'com_odoocontacts' => '/var/www/grimpsa_webserver/components/com_odoocontacts'
-        ];
-        
-        foreach ($components as $componentName => $componentPath) {
-            echo "<h4>" . strtoupper($componentName) . "</h4>";
-            
-            if (is_dir($componentPath)) {
-                echo "<p class='success'>✅ Component directory exists</p>";
-                
-                // Check for views directory
-                $viewsPath = $componentPath . '/views';
-                if (is_dir($viewsPath)) {
-                    echo "<p class='success'>✅ Views directory exists: <code>$viewsPath</code></p>";
-                    
-                    $views = scandir($viewsPath);
-                    echo "<h5>Available Views:</h5>";
-                    echo "<table>";
-                    echo "<tr><th>View Name</th><th>Has metadata.xml</th><th>metadata.xml Path</th><th>Readable</th></tr>";
-                    
-                    foreach ($views as $view) {
-                        if ($view === '.' || $view === '..') continue;
-                        
-                        $viewPath = $viewsPath . '/' . $view;
-                        if (is_dir($viewPath)) {
-                            $metadataPath = $viewPath . '/metadata.xml';
-                            $hasMetadata = file_exists($metadataPath);
-                            $isReadable = $hasMetadata ? is_readable($metadataPath) : false;
-                            
-                            echo "<tr>";
-                            echo "<td><strong>$view</strong></td>";
-                            echo "<td>" . ($hasMetadata ? "<span class='badge badge-success'>✅ Yes</span>" : "<span class='badge badge-error'>❌ No</span>") . "</td>";
-                            echo "<td>" . ($hasMetadata ? "<code>$metadataPath</code>" : "N/A") . "</td>";
-                            echo "<td>" . ($isReadable ? "<span class='badge badge-success'>✅ Yes</span>" : "<span class='badge badge-warning'>⚠️ No</span>") . "</td>";
-                            echo "</tr>";
-                            
-                            // If metadata exists, show its contents
-                            if ($hasMetadata && $isReadable) {
-                                $metadataContent = file_get_contents($metadataPath);
-                                echo "<tr>";
-                                echo "<td colspan='4'>";
-                                echo "<details style='margin: 10px 0;'>";
-                                echo "<summary style='cursor: pointer; color: #0066cc;'>📄 View metadata.xml content</summary>";
-                                echo "<pre style='background: #f4f4f4; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 12px; max-height: 300px; overflow: auto;'>";
-                                echo htmlspecialchars($metadataContent);
-                                echo "</pre>";
-                                echo "</details>";
-                                echo "</td>";
-                                echo "</tr>";
-                            }
-                        }
-                    }
-                    echo "</table>";
                 } else {
-                    echo "<p class='error'>❌ Views directory NOT found: <code>$viewsPath</code></p>";
+                    echo '<div class="alert alert-warning">⚠️ No record found with ID 43</div>';
                 }
+            } catch (Exception $e) {
+                echo '<div class="alert alert-error">❌ Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+            }
+            
+            echo '</div>';
+            
+            // ============================================
+            // STEP 2: FETCH SAMPLE WORK ORDER
+            // ============================================
+            echo '<div class="section">';
+            echo '<h2>📦 Step 2: Sample Work Order Structure</h2>';
+            
+            try {
+                $query = $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->order($db->quoteName('id') . ' DESC')
+                    ->setLimit(1);
                 
-                // Check tmpl directory structure
-                $tmplPath = $componentPath . '/tmpl';
-                if (is_dir($tmplPath)) {
-                    echo "<h5>Template Directory Structure:</h5>";
-                    echo "<table>";
-                    echo "<tr><th>Template Name</th><th>Files</th></tr>";
+                $db->setQuery($query);
+                $sampleOrder = $db->loadObject();
+                
+                if ($sampleOrder) {
+                    echo '<div class="alert alert-success">✅ Sample order found (ID: ' . $sampleOrder->id . ')</div>';
                     
-                    $tmpls = scandir($tmplPath);
-                    foreach ($tmpls as $tmpl) {
-                        if ($tmpl === '.' || $tmpl === '..') continue;
+                    echo '<h3>Work Order Fields:</h3>';
+                    echo '<table>';
+                    echo '<tr><th>Field Name</th><th>Sample Value</th><th>Type</th></tr>';
+                    
+                    foreach ($sampleOrder as $key => $value) {
+                        $type = gettype($value);
+                        $displayValue = $value;
                         
-                        $tmplViewPath = $tmplPath . '/' . $tmpl;
-                        if (is_dir($tmplViewPath)) {
-                            $files = scandir($tmplViewPath);
-                            $fileList = [];
-                            foreach ($files as $file) {
-                                if ($file !== '.' && $file !== '..') {
-                                    $fileList[] = $file;
-                                }
-                            }
-                            
-                            echo "<tr>";
-                            echo "<td><strong>$tmpl</strong></td>";
-                            echo "<td><code>" . implode(', ', $fileList) . "</code></td>";
-                            echo "</tr>";
+                        if (strlen($value) > 100) {
+                            $displayValue = substr($value, 0, 100) . '...';
                         }
+                        
+                        if ($value === null) {
+                            $displayValue = '<em style="color: #999;">NULL</em>';
+                        }
+                        
+                        echo '<tr>';
+                        echo '<td><code>' . htmlspecialchars($key) . '</code></td>';
+                        echo '<td>' . htmlspecialchars($displayValue) . '</td>';
+                        echo '<td><span class="badge badge-info">' . $type . '</span></td>';
+                        echo '</tr>';
                     }
-                    echo "</table>";
+                    echo '</table>';
+                } else {
+                    echo '<div class="alert alert-warning">⚠️ No work orders found</div>';
+                }
+            } catch (Exception $e) {
+                echo '<div class="alert alert-error">❌ Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+            }
+            
+            echo '</div>';
+            
+            // ============================================
+            // STEP 3: FIELD MAPPING COMPARISON
+            // ============================================
+            if (isset($payloadStructure) && isset($sampleOrder)) {
+                echo '<div class="section">';
+                echo '<h2>🔄 Step 3: Field Mapping Analysis</h2>';
+                
+                echo '<div class="comparison-grid">';
+                
+                // Payload Fields
+                echo '<div class="comparison-card">';
+                echo '<h4>📥 Payload Fields (from ID 43)</h4>';
+                
+                if (is_array($payloadStructure)) {
+                    foreach ($payloadStructure as $key => $value) {
+                        $valuePreview = is_array($value) ? '[Array]' : (string)$value;
+                        if (strlen($valuePreview) > 30) {
+                            $valuePreview = substr($valuePreview, 0, 30) . '...';
+                        }
+                        echo '<div class="field-mapping">';
+                        echo '<div class="source"><code>' . htmlspecialchars($key) . '</code>: ' . htmlspecialchars($valuePreview) . '</div>';
+                        echo '</div>';
+                    }
                 }
                 
-                echo "<hr style='margin: 20px 0; border-color: #ddd;'>";
+                echo '</div>';
                 
-            } else {
-                echo "<p class='error'>❌ Component directory NOT found: <code>$componentPath</code></p>";
+                // Work Order Fields
+                echo '<div class="comparison-card">';
+                echo '<h4>📦 Work Order Fields (joomla_ordenproduccion_ordenes)</h4>';
+                
+                $workOrderFields = array_keys((array)$sampleOrder);
+                foreach ($workOrderFields as $field) {
+                    echo '<div class="field-mapping">';
+                    echo '<div class="target"><code>' . htmlspecialchars($field) . '</code></div>';
+                    echo '</div>';
+                }
+                
+                echo '</div>';
+                
+                echo '</div>';
+                
+                // Suggested Mapping
+                echo '<h3>💡 Suggested Field Mapping:</h3>';
+                echo '<table>';
+                echo '<tr><th>Payload Field</th><th>→</th><th>Work Order Field</th><th>Status</th></tr>';
+                
+                // Common mappings
+                $mappings = [
+                    'cliente' => 'client_name',
+                    'nit' => 'client_nit',
+                    'descripcion_trabajo' => 'work_description',
+                    'fecha_entrega' => 'delivery_date',
+                    'fecha_de_solicitud' => 'request_date',
+                    'agente_de_ventas' => 'sales_agent',
+                    'color_impresion' => 'print_color',
+                    'tiro_retiro' => 'tiro_retiro',
+                    'medidas' => 'dimensions',
+                    'material' => 'material',
+                    'valor_factura' => 'invoice_amount',
+                    'instrucciones' => 'general_instructions',
+                    'direccion_entrega' => 'shipping_address',
+                    'instrucciones_entrega' => 'instrucciones_entrega',
+                    'contacto_nombre' => 'shipping_contact',
+                    'contacto_telefono' => 'shipping_phone',
+                    // Acabados
+                    'corte' => 'cutting',
+                    'blocado' => 'blocking',
+                    'doblado' => 'folding',
+                    'laminado' => 'laminating',
+                    'lomo' => 'spine',
+                    'pegado' => 'gluing',
+                    'numerado' => 'numbering',
+                    'sizado' => 'sizing',
+                    'engrapado' => 'stapling',
+                    'troquel' => 'die_cutting',
+                    'barniz' => 'varnish',
+                    'impresion_blanco' => 'white_print',
+                    'despuntado' => 'trimming',
+                    'ojetes' => 'eyelets',
+                    'perforado' => 'perforation'
+                ];
+                
+                if (is_array($payloadStructure)) {
+                    foreach ($payloadStructure as $payloadKey => $payloadValue) {
+                        $workOrderField = isset($mappings[$payloadKey]) ? $mappings[$payloadKey] : '?';
+                        $exists = property_exists($sampleOrder, $workOrderField);
+                        
+                        echo '<tr>';
+                        echo '<td><code>' . htmlspecialchars($payloadKey) . '</code></td>';
+                        echo '<td style="text-align: center; color: #667eea; font-weight: bold;">→</td>';
+                        echo '<td><code>' . htmlspecialchars($workOrderField) . '</code></td>';
+                        
+                        if ($workOrderField === '?') {
+                            echo '<td><span class="badge badge-warning">❓ Unknown</span></td>';
+                        } elseif ($exists) {
+                            echo '<td><span class="badge badge-success">✅ Exists</span></td>';
+                        } else {
+                            echo '<td><span class="badge badge-error">❌ Missing</span></td>';
+                        }
+                        
+                        echo '</tr>';
+                    }
+                }
+                
+                echo '</table>';
+                
+                echo '</div>';
             }
-        }
-        
-        // Check Joomla extension table for menu item type registration
-        echo "<h3>Database: Extension Registration</h3>";
-        
-        try {
-            $stmt = $pdo->query("
-                SELECT 
-                    extension_id,
-                    name,
-                    type,
-                    element,
-                    folder,
-                    enabled
-                FROM joomla_extensions 
-                WHERE element IN ('com_ordenproduccion', 'com_odoocontacts')
-                ORDER BY name
-            ");
-            $extensions = $stmt->fetchAll();
             
-            echo "<table>";
-            echo "<tr><th>ID</th><th>Name</th><th>Type</th><th>Element</th><th>Folder</th><th>Enabled</th></tr>";
-            
-            foreach ($extensions as $ext) {
-                echo "<tr>";
-                echo "<td>{$ext->extension_id}</td>";
-                echo "<td><strong>{$ext->name}</strong></td>";
-                echo "<td>{$ext->type}</td>";
-                echo "<td><code>{$ext->element}</code></td>";
-                echo "<td>" . ($ext->folder ?: 'N/A') . "</td>";
-                echo "<td>" . ($ext->enabled ? "<span class='badge badge-success'>✅ Yes</span>" : "<span class='badge badge-error'>❌ No</span>") . "</td>";
-                echo "</tr>";
+            // ============================================
+            // STEP 4: GENERATE SAMPLE PAYLOAD
+            // ============================================
+            if (isset($sampleOrder)) {
+                echo '<div class="section">';
+                echo '<h2>🚀 Step 4: Generated Payload for Duplicar Solicitud</h2>';
+                
+                echo '<p>This is the JSON payload that will be sent to the configured endpoint when "Duplicar Solicitud" is clicked:</p>';
+                
+                $generatedPayload = [
+                    'request_title' => 'Solicitud Ventas a Produccion',
+                    'source' => 'Joomla - Orden Produccion Component',
+                    'order_id' => $sampleOrder->id,
+                    'orden_de_trabajo' => $sampleOrder->orden_de_trabajo ?? $sampleOrder->order_number,
+                    'form_data' => [
+                        'client_id' => $sampleOrder->client_id ?? null,
+                        'cliente' => $sampleOrder->client_name ?? '',
+                        'nit' => $sampleOrder->client_nit ?? '0',
+                        'valor_factura' => $sampleOrder->invoice_amount ?? 0,
+                        'descripcion_trabajo' => $sampleOrder->work_description ?? '',
+                        'color_impresion' => $sampleOrder->print_color ?? '',
+                        'tiro_retiro' => $sampleOrder->tiro_retiro ?? '',
+                        'medidas' => $sampleOrder->dimensions ?? '',
+                        'fecha_entrega' => $sampleOrder->delivery_date ?? '',
+                        'material' => $sampleOrder->material ?? '',
+                        'cotizacion' => [],
+                        'arte' => [],
+                        'corte' => $sampleOrder->cutting ?? 'NO',
+                        'blocado' => $sampleOrder->blocking ?? 'NO',
+                        'doblado' => $sampleOrder->folding ?? 'NO',
+                        'laminado' => $sampleOrder->laminating ?? 'NO',
+                        'lomo' => $sampleOrder->spine ?? 'NO',
+                        'pegado' => $sampleOrder->gluing ?? 'NO',
+                        'numerado' => $sampleOrder->numbering ?? 'NO',
+                        'sizado' => $sampleOrder->sizing ?? 'NO',
+                        'engrapado' => $sampleOrder->stapling ?? 'NO',
+                        'troquel' => $sampleOrder->die_cutting ?? 'NO',
+                        'barniz' => $sampleOrder->varnish ?? 'NO',
+                        'impresion_blanco' => $sampleOrder->white_print ?? 'NO',
+                        'despuntado' => $sampleOrder->trimming ?? 'NO',
+                        'ojetes' => $sampleOrder->eyelets ?? 'NO',
+                        'perforado' => $sampleOrder->perforation ?? 'NO',
+                        'instrucciones' => $sampleOrder->general_instructions ?? '',
+                        'agente_de_ventas' => $sampleOrder->sales_agent ?? '',
+                        'fecha_de_solicitud' => $sampleOrder->request_date ?? date('Y-m-d H:i:s'),
+                        'direccion_entrega' => $sampleOrder->shipping_address ?? '',
+                        'instrucciones_entrega' => $sampleOrder->instrucciones_entrega ?? '',
+                        'contacto_nombre' => $sampleOrder->shipping_contact ?? '',
+                        'contacto_telefono' => $sampleOrder->shipping_phone ?? ''
+                    ]
+                ];
+                
+                echo '<h3>📦 JSON Payload:</h3>';
+                echo '<div class="json-viewer">';
+                echo '<pre>' . json_encode($generatedPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
+                echo '</div>';
+                
+                echo '<div class="alert alert-info">';
+                echo '<strong>ℹ️ How to use this payload:</strong><br>';
+                echo '1. Configure endpoint URL in <code>Settings → Ventas Settings</code><br>';
+                echo '2. The button will send this JSON structure via HTTP POST<br>';
+                echo '3. Optional: Add API Key for authentication (sent as Bearer token)<br>';
+                echo '4. The endpoint should return a JSON response with success/error status';
+                echo '</div>';
+                
+                echo '</div>';
             }
-            echo "</table>";
-        } catch (Exception $e) {
-            echo "<p class='error'>❌ Database query error: " . htmlspecialchars($e->getMessage()) . "</p>";
-        }
+            ?>
+            
+        </div>
         
-        echo "<h3>Key Findings & Recommendations</h3>";
-        echo "<div class='section'>";
-        echo "<p><strong>Menu Item Types in Joomla:</strong></p>";
-        echo "<ul>";
-        echo "<li>Menu item types are defined by <code>metadata.xml</code> files in the <code>views/[viewname]/</code> directory</li>";
-        echo "<li>No database registration required - Joomla scans the filesystem</li>";
-        echo "<li>The view must have a corresponding template in <code>tmpl/[viewname]/default.php</code></li>";
-        echo "<li>The view must have a HtmlView class in <code>src/View/[Viewname]/HtmlView.php</code></li>";
-        echo "</ul>";
-        echo "</div>";
-        ?>
-        
-        <hr>
-        <p><small>Generated: <?php echo date('Y-m-d H:i:s'); ?></small></p>
+        <div class="timestamp">
+            Generated: <?php echo date('Y-m-d H:i:s'); ?> | 
+            Database: <?php echo $db->getPrefix(); ?> | 
+            Version: 2.6.0-STABLE
+        </div>
     </div>
 </body>
 </html>
