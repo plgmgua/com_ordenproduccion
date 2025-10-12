@@ -497,12 +497,216 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
         }
         ?>
 
-        <div class="section info">
-            <h3>🔄 Acciones Rápidas</h3>
-            <a href="javascript:location.reload()" class="btn">🔄 Recargar Página</a>
-            <a href="index.php?option=com_ordenproduccion&view=administracion&tab=workorders" class="btn">📊 Ir a Work Orders</a>
-            <a href="index.php?option=com_ordenproduccion&view=ordenes" class="btn">📋 Ir a Órdenes</a>
-        </div>
+        // Quotation View Analysis
+        echo '<div class="section">';
+        echo '<h3>🔍 Análisis de Vista de Cotización (Quotation View)</h3>';
+        echo '<p>Diagnóstico específico para el error 404 en la vista de cotización.</p>';
+        
+        // Check quotation view files
+        $quotationFiles = [
+            'QuotationController.php' => $SITE_COMPONENT_PATH . '/src/Controller/QuotationController.php',
+            'Quotation/HtmlView.php' => $SITE_COMPONENT_PATH . '/src/View/Quotation/HtmlView.php',
+            'quotation/display.php' => $SITE_COMPONENT_PATH . '/tmpl/quotation/display.php'
+        ];
+        
+        echo '<h4>📄 Archivos de Vista de Cotización</h4>';
+        echo '<table>';
+        echo '<tr><th>Archivo</th><th>Ruta</th><th>Estado</th><th>Tamaño</th><th>Permisos</th><th>Propietario</th></tr>';
+        
+        foreach ($quotationFiles as $name => $path) {
+            if (file_exists($path)) {
+                $size = filesize($path);
+                $perms = fileperms($path);
+                $owner = posix_getpwuid(fileowner($path));
+                $group = posix_getgrgid(filegroup($path));
+                
+                echo '<tr>';
+                echo '<td><strong>' . $name . '</strong></td>';
+                echo '<td><code>' . $path . '</code></td>';
+                echo '<td><span class="status status-ok">EXISTS</span></td>';
+                echo '<td>' . formatBytes($size) . '</td>';
+                echo '<td><code>' . substr(sprintf('%o', $perms), -4) . '</code></td>';
+                echo '<td>' . $owner['name'] . ':' . $group['name'] . '</td>';
+                echo '</tr>';
+            } else {
+                echo '<tr>';
+                echo '<td><strong>' . $name . '</strong></td>';
+                echo '<td><code>' . $path . '</code></td>';
+                echo '<td><span class="status status-error">MISSING</span></td>';
+                echo '<td colspan="3">Archivo no encontrado</td>';
+                echo '</tr>';
+            }
+        }
+        echo '</table>';
+        
+        // Test quotation view loading
+        echo '<h4>🧪 Prueba de Carga de Vista de Cotización</h4>';
+        echo '<div class="file-list">';
+        
+        try {
+            // Test if the quotation view can be instantiated
+            $testPath = $SITE_COMPONENT_PATH . '/src/View/Quotation/HtmlView.php';
+            if (file_exists($testPath)) {
+                echo "✅ Quotation HtmlView.php existe\n";
+                
+                // Check if the class is properly defined
+                $content = file_get_contents($testPath);
+                if (strpos($content, 'class OrdenproduccionViewQuotationHtml') !== false) {
+                    echo "✅ Clase OrdenproduccionViewQuotationHtml definida correctamente\n";
+                } else {
+                    echo "❌ Clase OrdenproduccionViewQuotationHtml NO encontrada en el archivo\n";
+                }
+                
+                if (strpos($content, 'display(') !== false) {
+                    echo "✅ Método display() encontrado\n";
+                } else {
+                    echo "❌ Método display() NO encontrado\n";
+                }
+            } else {
+                echo "❌ Quotation HtmlView.php NO existe\n";
+            }
+            
+            // Test controller
+            $controllerPath = $SITE_COMPONENT_PATH . '/src/Controller/QuotationController.php';
+            if (file_exists($controllerPath)) {
+                echo "✅ QuotationController.php existe\n";
+                
+                $content = file_get_contents($controllerPath);
+                if (strpos($content, 'class OrdenproduccionControllerQuotation') !== false) {
+                    echo "✅ Clase OrdenproduccionControllerQuotation definida correctamente\n";
+                } else {
+                    echo "❌ Clase OrdenproduccionControllerQuotation NO encontrada\n";
+                }
+            } else {
+                echo "❌ QuotationController.php NO existe\n";
+            }
+            
+            // Test template
+            $templatePath = $SITE_COMPONENT_PATH . '/tmpl/quotation/display.php';
+            if (file_exists($templatePath)) {
+                echo "✅ quotation/display.php existe\n";
+                
+                $content = file_get_contents($templatePath);
+                if (strpos($content, 'defined(\'_JEXEC\')') !== false) {
+                    echo "✅ Template tiene protección _JEXEC\n";
+                } else {
+                    echo "❌ Template NO tiene protección _JEXEC\n";
+                }
+            } else {
+                echo "❌ quotation/display.php NO existe\n";
+            }
+            
+        } catch (Exception $e) {
+            echo "❌ Error durante la prueba: " . $e->getMessage() . "\n";
+        }
+        
+        echo '</div>';
+        
+        // Test URL construction
+        echo '<h4>🔗 Prueba de Construcción de URL</h4>';
+        echo '<div class="file-list">';
+        
+        $testOrderId = 5389;
+        $testOrderNumber = 'ORD-005543';
+        $testQuotationFiles = '["\\/media\\/com_convertforms\\/uploads\\/9a9945bed17c3630_5336.pdf"]';
+        
+        $testUrl = '?option=com_ordenproduccion&view=quotation&layout=display&order_id=' . $testOrderId . 
+                  '&order_number=' . urlencode($testOrderNumber) . 
+                  '&quotation_files=' . urlencode($testQuotationFiles);
+        
+        echo "URL de prueba: " . $testUrl . "\n";
+        echo "URL completa: " . Factory::getApplication()->get('live_site') . '/index.php' . $testUrl . "\n";
+        
+        // Test quotation file URL processing
+        $quotationFilesDecoded = json_decode($testQuotationFiles, true);
+        if (is_array($quotationFilesDecoded) && !empty($quotationFilesDecoded[0])) {
+            $filePath = str_replace('\\/', '/', $quotationFilesDecoded[0]);
+            echo "Archivo de cotización procesado: " . $filePath . "\n";
+            
+            $fullUrl = Factory::getApplication()->get('live_site') . $filePath;
+            echo "URL completa del archivo: " . $fullUrl . "\n";
+            
+            // Test if file exists
+            $localPath = JPATH_ROOT . $filePath;
+            if (file_exists($localPath)) {
+                echo "✅ Archivo de cotización existe localmente\n";
+                echo "Tamaño: " . formatBytes(filesize($localPath)) . "\n";
+            } else {
+                echo "❌ Archivo de cotización NO existe localmente: " . $localPath . "\n";
+            }
+        } else {
+            echo "❌ Error decodificando quotation_files JSON\n";
+        }
+        
+        echo '</div>';
+        
+        // Joomla routing test
+        echo '<h4>🛣️ Prueba de Enrutamiento de Joomla</h4>';
+        echo '<div class="file-list">';
+        
+        try {
+            // Test if Joomla can resolve the view
+            $app = Factory::getApplication('site');
+            $input = $app->input;
+            
+            // Set test parameters
+            $input->set('option', 'com_ordenproduccion');
+            $input->set('view', 'quotation');
+            $input->set('layout', 'display');
+            $input->set('order_id', $testOrderId);
+            $input->set('order_number', $testOrderNumber);
+            $input->set('quotation_files', $testQuotationFiles);
+            
+            echo "✅ Parámetros de entrada configurados\n";
+            echo "Option: " . $input->get('option') . "\n";
+            echo "View: " . $input->get('view') . "\n";
+            echo "Layout: " . $input->get('layout') . "\n";
+            echo "Order ID: " . $input->get('order_id') . "\n";
+            echo "Order Number: " . $input->get('order_number') . "\n";
+            echo "Quotation Files: " . $input->get('quotation_files') . "\n";
+            
+        } catch (Exception $e) {
+            echo "❌ Error en prueba de enrutamiento: " . $e->getMessage() . "\n";
+        }
+        
+        echo '</div>';
+        
+        // Cache analysis
+        echo '<h4>💾 Análisis de Caché</h4>';
+        echo '<div class="file-list">';
+        
+        $cacheDir = JPATH_ROOT . '/cache';
+        if (is_dir($cacheDir)) {
+            echo "✅ Directorio de caché existe: " . $cacheDir . "\n";
+            
+            $cacheFiles = glob($cacheDir . '/*');
+            echo "Archivos de caché encontrados: " . count($cacheFiles) . "\n";
+            
+            // Check for component-specific cache
+            $componentCache = glob($cacheDir . '/*com_ordenproduccion*');
+            if (!empty($componentCache)) {
+                echo "✅ Caché del componente encontrado: " . count($componentCache) . " archivos\n";
+                foreach ($componentCache as $file) {
+                    echo "  - " . basename($file) . "\n";
+                }
+            } else {
+                echo "ℹ️ No se encontró caché específico del componente\n";
+            }
+        } else {
+            echo "❌ Directorio de caché no existe\n";
+        }
+        
+        echo '</div>';
+        
+        echo '</div>';
+
+        echo '<div class="section info">';
+        echo '<h3>🔄 Acciones Rápidas</h3>';
+        echo '<a href="javascript:location.reload()" class="btn">🔄 Recargar Página</a>';
+        echo '<a href="index.php?option=com_ordenproduccion&view=administracion&tab=workorders" class="btn">📊 Ir a Work Orders</a>';
+        echo '<a href="index.php?option=com_ordenproduccion&view=ordenes" class="btn">📋 Ir a Órdenes</a>';
+        echo '<a href="index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=5389&order_number=ORD-005543&quotation_files=%5B%22%2Fmedia%2Fcom_convertforms%2Fuploads%2F9a9945bed17c3630_5336.pdf%22%5D" class="btn">🧪 Probar Vista de Cotización</a>';
+        echo '</div>';
     </div>
 </body>
 </html>
