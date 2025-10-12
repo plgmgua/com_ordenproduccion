@@ -803,49 +803,54 @@ function getFormData() {
     };
 }
 
-// Build URL parameters from form data
+// Build URL parameters from form data - EXACT MAPPING per user's screenshot
 function buildUrlParams(cotizacionUrl) {
     const params = new URLSearchParams();
     
-    // Meta data
-    params.append('supplier_name', 'TecniSystems');
-    params.append('source', 'Joomla-DuplicarSolicitud');
-    params.append('original_order_id', document.getElementById('dup_order_id').value);
+    // ============================================
+    // CORE FIELDS (as per mapping screenshot)
+    // ============================================
     
-    // Core fields
-    params.append('client_name', document.getElementById('dup_cliente').value);
-    params.append('client_id', document.getElementById('dup_nit').value);
-    params.append('contact_name', 'Navla');
-    params.append('contact_email', document.getElementById('dup_agente_de_ventas').value); // Using agent as email placeholder
-    params.append('contact_phone', document.getElementById('dup_contacto_telefono').value);
-    params.append('supplier_name', document.getElementById('dup_agente_de_ventas').value);
-    params.append('tipo_entrega', 'domicilio');
+    // client_name → contact_name
+    params.append('contact_name', document.getElementById('dup_cliente').value);
     
-    // Delivery address
-    params.append('delivery_address', document.getElementById('dup_direccion_entrega').value);
-    params.append('instrucciones_entrega', document.getElementById('dup_instrucciones_entrega').value);
+    // nit → contact_vat
+    params.append('contact_vat', document.getElementById('dup_nit').value);
     
-    // Contact person
-    params.append('contact_person_name', document.getElementById('dup_contacto_nombre').value);
-    params.append('contact_person_phone', document.getElementById('dup_contacto_telefono').value);
+    // invoice_value → invoice_value
+    params.append('invoice_value', document.getElementById('dup_valor_factura').value);
     
-    // Production details
+    // work_description → work_description
     params.append('work_description', document.getElementById('dup_descripcion_trabajo').value);
-    params.append('print_color', document.getElementById('dup_color_impresion').value);
-    params.append('tiro_retiro', document.getElementById('dup_tiro_retiro').value);
-    params.append('dimensions', document.getElementById('dup_medidas').value);
-    params.append('material', document.getElementById('dup_material').value);
     
-    // Dates
-    params.append('request_date', document.getElementById('dup_fecha_de_solicitud').value);
+    // print_color → print_color
+    params.append('print_color', document.getElementById('dup_color_impresion').value);
+    
+    // tiro_retiro → tiro_retiro
+    params.append('tiro_retiro', document.getElementById('dup_tiro_retiro').value);
+    
+    // dimensions → dimensions
+    params.append('dimensions', document.getElementById('dup_medidas').value);
+    
+    // delivery_date → delivery_date
     params.append('delivery_date', document.getElementById('dup_fecha_entrega').value);
     
-    // File (if uploaded)
+    // material → material
+    params.append('material', document.getElementById('dup_material').value);
+    
+    // quotation_files → quotation
     if (cotizacionUrl) {
-        params.append('cotizacion', cotizacionUrl);
+        params.append('quotation', cotizacionUrl);
     }
     
-    // Acabados (finishing)
+    // art_files → art_files (if exists in form)
+    // Note: Not currently in modal, but keeping for completeness
+    // params.append('art_files', '');
+    
+    // ============================================
+    // ACABADOS (FINISHING) - EXACT FIELD NAMES
+    // ============================================
+    
     const acabadosMapping = {
         'corte': 'cutting',
         'blocado': 'blocking',
@@ -865,20 +870,45 @@ function buildUrlParams(cotizacionUrl) {
     };
     
     Object.keys(acabadosMapping).forEach(spanishName => {
-        const englishName = acabadosMapping[spanishName];
+        const urlFieldName = acabadosMapping[spanishName];
         const checkbox = document.getElementById('dup_' + spanishName);
         const detailsInput = document.getElementById('dup_detalles_' + spanishName);
         
         if (checkbox) {
-            params.append(englishName, checkbox.checked ? 'SI' : 'NO');
+            // Main acabado field (cutting, blocking, etc.)
+            params.append(urlFieldName, checkbox.checked ? 'SI' : 'NO');
+            
+            // Details field (cutting_details, blocking_details, etc.)
             if (checkbox.checked && detailsInput && detailsInput.value) {
-                params.append(englishName + '_details', detailsInput.value);
+                params.append(urlFieldName + '_details', detailsInput.value);
             }
         }
     });
     
-    // Instructions
+    // ============================================
+    // ADDITIONAL FIELDS
+    // ============================================
+    
+    // instructions → instructions
     params.append('instructions', document.getElementById('dup_instrucciones').value);
+    
+    // sales_agent → sales_agent
+    params.append('sales_agent', document.getElementById('dup_agente_de_ventas').value);
+    
+    // request_date → request_date
+    params.append('request_date', document.getElementById('dup_fecha_de_solicitud').value);
+    
+    // shipping_address → shipping_address
+    params.append('shipping_address', document.getElementById('dup_direccion_entrega').value);
+    
+    // instrucciones_entrega → instrucciones_entrega
+    params.append('instrucciones_entrega', document.getElementById('dup_instrucciones_entrega').value);
+    
+    // shipping_contact → shipping_contact
+    params.append('shipping_contact', document.getElementById('dup_contacto_nombre').value);
+    
+    // shipping_phone → shipping_phone
+    params.append('shipping_phone', document.getElementById('dup_contacto_telefono').value);
     
     return params.toString();
 }
