@@ -86,12 +86,31 @@ $activeTab = $input->get('tab', 'statistics', 'string');
 </div>
 
 <div class="tab-content">
+    <!-- DEBUG: Active tab: <?php echo $activeTab; ?> -->
     <?php if ($activeTab === 'statistics'): ?>
         <?php echo $this->loadTemplate('statistics'); ?>
     <?php elseif ($activeTab === 'invoices'): ?>
         <?php echo $this->loadTemplate('invoices'); ?>
     <?php elseif ($activeTab === 'workorders'): ?>
-        <?php echo $this->loadTemplate('workorders'); ?>
+        <!-- DEBUG: Loading workorders template -->
+        <?php 
+        try {
+            echo $this->loadTemplate('workorders');
+            echo '<!-- DEBUG: loadTemplate successful -->';
+        } catch (Exception $e) {
+            echo '<!-- DEBUG: loadTemplate failed: ' . $e->getMessage() . ' -->';
+            // Fallback: include directly
+            $templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/administracion/default_workorders.php';
+            if (file_exists($templatePath)) {
+                echo '<!-- DEBUG: Including template directly -->';
+                include $templatePath;
+            } else {
+                echo '<!-- DEBUG: Template file not found: ' . $templatePath . ' -->';
+            }
+        }
+        ?>
+    <?php else: ?>
+        <!-- DEBUG: No matching tab found for: <?php echo $activeTab; ?> -->
     <?php endif; ?>
 </div>
 
