@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_ORDENPRODUCCION_ADMINISTRACION_MENU_TITLE" option="COM_ORDENPRODUCCION_ADMINISTRACION_MENU_DESC">
+        <help
+            key="JHELP_MENUS_MENU_ITEM_COMPONENT_ORDENPRODUCCION_ADMINISTRACION"
+        />
+        <message>
+            <![CDATA[COM_ORDENPRODUCCION_ADMINISTRACION_MENU_DESC]]>
+        </message>
+    </layout>
+    
+    <fields name="request">
+        <fieldset name="request" addfieldpath="/administrator/components/com_ordenproduccion/models/fields">
+            <field
+                name="id"
+                type="hidden"
+                default="0"
+            />
+        </fieldset>
+    </fields>
+</metadata>
+
