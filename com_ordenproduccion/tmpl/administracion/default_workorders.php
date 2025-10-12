@@ -396,7 +396,7 @@ use Joomla\CMS\Router\Route;
 <script>
 function openQuotationView(orderId, orderNumber, quotationFiles) {
     // Create a new window/tab to display the quotation
-    const url = `index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}`;
+    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}`;
     window.open(url, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
 }
 </script>
