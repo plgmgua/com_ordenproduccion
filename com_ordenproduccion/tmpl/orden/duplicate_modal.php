@@ -57,7 +57,7 @@ use Joomla\CMS\Language\Text;
                     
                     <div class="form-group">
                         <label for="dup_agente_de_ventas"><?php echo Text::_('COM_ORDENPRODUCCION_AGENTE_VENTAS'); ?></label>
-                        <input type="text" id="dup_agente_de_ventas" name="agente_de_ventas" class="form-control">
+                        <input type="text" id="dup_agente_de_ventas" name="agente_de_ventas" class="form-control" readonly style="background-color: #e9ecef; cursor: not-allowed;">
                     </div>
                 </div>
                 
@@ -493,18 +493,39 @@ function openDuplicateModal(orderData) {
         document.getElementById('currentFileSection').style.display = 'none';
     }
     
-    // Populate acabados
-    const acabados = ['corte', 'blocado', 'doblado', 'laminado', 'lomo', 'pegado', 'numerado', 'sizado', 'engrapado', 'troquel', 'barniz', 'impresion_blanco', 'despuntado', 'ojetes', 'perforado'];
+    // Populate acabados - Map English DB field names to Spanish form field names
+    const acabadosMapping = {
+        'corte': 'cutting',
+        'blocado': 'blocking',
+        'doblado': 'folding',
+        'laminado': 'laminating',
+        'lomo': 'spine',
+        'pegado': 'gluing',
+        'numerado': 'numbering',
+        'sizado': 'sizing',
+        'engrapado': 'stapling',
+        'troquel': 'die_cutting',
+        'barniz': 'varnish',
+        'impresion_blanco': 'white_print',
+        'despuntado': 'trimming',
+        'ojetes': 'eyelets',
+        'perforado': 'perforation'
+    };
     
-    acabados.forEach(acabado => {
-        const checkbox = document.getElementById('dup_' + acabado);
-        const detailsInput = document.getElementById('dup_detalles_' + acabado);
-        const value = orderData[acabado] || 'NO';
-        const details = orderData[acabado + '_details'] || '';
+    Object.keys(acabadosMapping).forEach(spanishName => {
+        const englishName = acabadosMapping[spanishName];
+        const checkbox = document.getElementById('dup_' + spanishName);
+        const detailsInput = document.getElementById('dup_detalles_' + spanishName);
         
-        checkbox.checked = (value === 'SI' || value === 'YES');
-        detailsInput.value = details;
-        detailsInput.style.display = checkbox.checked ? 'block' : 'none';
+        // Get value from orderData using English field name
+        const value = orderData[englishName] || 'NO';
+        const details = orderData[englishName + '_details'] || '';
+        
+        if (checkbox && detailsInput) {
+            checkbox.checked = (value === 'SI' || value === 'YES' || value === 'yes' || value === 'si');
+            detailsInput.value = details;
+            detailsInput.style.display = checkbox.checked ? 'block' : 'none';
+        }
     });
     
     // Show modal
@@ -519,14 +540,55 @@ function closeDuplicateModal() {
 // View current file
 function viewCurrentFile() {
     if (currentCotizacionUrl) {
-        window.open(currentCotizacionUrl, '_blank');
+        // Clean the URL before opening
+        const cleanUrl = cleanFileUrl(currentCotizacionUrl);
+        window.open(cleanUrl, '_blank');
     }
+}
+
+// Clean file URL (remove brackets, quotes, fix double slashes)
+function cleanFileUrl(url) {
+    if (!url) return '';
+    
+    // Remove brackets if present
+    url = url.replace(/^\[|\]$/g, '');
+    
+    // Remove quotes if present
+    url = url.replace(/^["']|["']$/g, '');
+    
+    // Parse if it's JSON string
+    try {
+        if (url.startsWith('[') || url.startsWith('"')) {
+            url = JSON.parse(url);
+            if (Array.isArray(url)) {
+                url = url[0]; // Get first file if it's an array
+            }
+        }
+    } catch (e) {
+        // Not JSON, continue with string
+    }
+    
+    // Fix double slashes
+    url = url.replace(/\/\//g, '/');
+    
+    // Ensure it starts with / or http
+    if (!url.startsWith('http') && !url.startsWith('/')) {
+        url = '/' + url;
+    }
+    
+    // If it's a relative URL, prepend the domain
+    if (url.startsWith('/')) {
+        url = window.location.origin + url;
+    }
+    
+    return url;
 }
 
 // Extract filename from URL
 function extractFileName(url) {
     if (!url) return '';
-    const parts = url.split('/');
+    const cleanUrl = cleanFileUrl(url);
+    const parts = cleanUrl.split('/');
     return parts[parts.length - 1];
 }
 
