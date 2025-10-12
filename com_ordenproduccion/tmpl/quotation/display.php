@@ -18,13 +18,10 @@ use Joomla\CMS\Router\Route;
 $orderData = $this->getOrderData();
 ?>
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE'); ?> - <?php echo htmlspecialchars($this->orderNumber); ?></title>
-    <style>
+<!-- Font Awesome for icons (if not already loaded) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -142,9 +139,8 @@ $orderData = $this->getOrderData();
             color: #333;
         }
     </style>
-</head>
-<body>
-    <div class="quotation-form-container">
+
+<div class="quotation-form-container">
         <div class="quotation-header">
             <h2><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE'); ?></h2>
             <div class="order-info">
@@ -207,12 +203,9 @@ $orderData = $this->getOrderData();
                 </button>
             </div>
         </form>
-    </div>
+</div>
 
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
-    <script>
+<script>
     function submitQuotationForm(event) {
         event.preventDefault();
         
@@ -241,10 +234,12 @@ $orderData = $this->getOrderData();
             submitButton.disabled = false;
             submitButton.innerHTML = originalText;
             
-            // Optionally close the window or redirect
-            // window.close();
+            // Optionally close the modal after success
+            setTimeout(() => {
+                if (typeof closeQuotationModal === 'function') {
+                    closeQuotationModal();
+                }
+            }, 1500);
         }, 2000);
     }
-    </script>
-</body>
-</html>
+</script>

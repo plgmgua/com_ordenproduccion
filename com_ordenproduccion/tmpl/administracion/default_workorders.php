@@ -393,10 +393,232 @@ use Joomla\CMS\Router\Route;
     <?php endif; ?>
 </div>
 
+<!-- Floating Modal for Quotation Form -->
+<div id="quotationModal" class="quotation-modal" style="display: none;">
+    <div class="quotation-modal-overlay" onclick="closeQuotationModal()"></div>
+    <div class="quotation-modal-content">
+        <button class="quotation-modal-close" onclick="closeQuotationModal()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div id="quotationModalBody" class="quotation-modal-body">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Floating Modal Styles */
+.quotation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.quotation-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.quotation-modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+    z-index: 1;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.quotation-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #333;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.quotation-modal-close:hover {
+    background: #dc3545;
+    color: white;
+    transform: rotate(90deg);
+}
+
+.quotation-modal-body {
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.loading-spinner {
+    text-align: center;
+    padding: 60px 20px;
+    color: #007cba;
+}
+
+.loading-spinner i {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.loading-spinner p {
+    font-size: 16px;
+    color: #666;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .quotation-modal-content {
+        width: 95%;
+        max-width: none;
+        max-height: 95vh;
+        border-radius: 8px;
+    }
+    
+    .quotation-modal-body {
+        padding: 15px;
+    }
+}
+</style>
+
 <script>
 function openQuotationView(orderId, orderNumber, quotationFiles) {
-    // Create a new window/tab to display the quotation
-    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}`;
-    window.open(url, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    const modal = document.getElementById('quotationModal');
+    const modalBody = document.getElementById('quotationModalBody');
+    
+    // Show modal with loading spinner
+    modal.style.display = 'flex';
+    modalBody.innerHTML = `
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</p>
+        </div>
+    `;
+    
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+    
+    // Build URL with parameters
+    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&format=raw`;
+    
+    // Fetch content via AJAX
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
+        .then(html => {
+            // Extract body content from full HTML response
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const body = doc.querySelector('body');
+            
+            if (body) {
+                modalBody.innerHTML = body.innerHTML;
+                
+                // Execute any scripts in the loaded content
+                const scripts = modalBody.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    if (script.src) {
+                        newScript.src = script.src;
+                    } else {
+                        newScript.textContent = script.textContent;
+                    }
+                    document.body.appendChild(newScript);
+                });
+                
+                // Load any stylesheets
+                const styles = doc.querySelectorAll('style, link[rel="stylesheet"]');
+                styles.forEach(style => {
+                    if (!document.querySelector(`[href="${style.href}"]`) && style.href) {
+                        const newStyle = document.createElement('link');
+                        newStyle.rel = 'stylesheet';
+                        newStyle.href = style.href;
+                        document.head.appendChild(newStyle);
+                    } else if (style.tagName === 'STYLE') {
+                        const newStyle = document.createElement('style');
+                        newStyle.textContent = style.textContent;
+                        document.head.appendChild(newStyle);
+                    }
+                });
+            } else {
+                modalBody.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading quotation:', error);
+            modalBody.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                    <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
+                    <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
+                    </button>
+                </div>
+            `;
+        });
 }
+
+function closeQuotationModal() {
+    const modal = document.getElementById('quotationModal');
+    modal.style.display = 'none';
+    
+    // Restore body scroll
+    document.body.style.overflow = '';
+}
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeQuotationModal();
+    }
+});
 </script>
