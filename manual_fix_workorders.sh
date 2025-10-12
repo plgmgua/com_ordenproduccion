@@ -1,3 +1,16 @@
+#!/bin/bash
+# Manual fix for workorders template - run this on your server
+
+echo "Fixing workorders template loading..."
+
+# Navigate to the component directory
+cd /var/www/grimpsa_webserver/components/com_ordenproduccion
+
+# Backup the current file
+cp tmpl/administracion/default_tabs.php tmpl/administracion/default_tabs.php.backup
+
+# Create the fixed version
+cat > tmpl/administracion/default_tabs.php << 'EOF'
 <?php
 /**
  * @package     Joomla.Site
@@ -22,46 +35,44 @@ $activeTab = $input->get('tab', 'statistics', 'string');
 .admin-tabs {
     display: flex;
     gap: 0;
-    border-bottom: 3px solid #dee2e6;
     margin-bottom: 30px;
+    border-bottom: 2px solid #dee2e6;
+    background: white;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .admin-tab {
-    padding: 15px 30px;
-    background: transparent;
+    padding: 15px 25px;
+    background: none;
     border: none;
     border-bottom: 3px solid transparent;
-    margin-bottom: -3px;
     cursor: pointer;
-    font-size: 16px;
-    font-weight: 600;
+    font-weight: bold;
     color: #666;
+    transition: all 0.3s ease;
     text-decoration: none;
-    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .admin-tab:hover {
     color: #667eea;
-    text-decoration: none;
+    background: #f8f9fa;
 }
 
 .admin-tab.active {
     color: #667eea;
     border-bottom-color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
-}
-
-.admin-tab i {
-    margin-right: 8px;
+    background: #f8f9fa;
 }
 
 .tab-content {
-    animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    background: white;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    min-height: 400px;
 }
 </style>
 
@@ -86,7 +97,6 @@ $activeTab = $input->get('tab', 'statistics', 'string');
 </div>
 
 <div class="tab-content">
-    <!-- DEBUG: Active tab: <?php echo $activeTab; ?> -->
     <?php if ($activeTab === 'statistics'): ?>
         <?php echo $this->loadTemplate('statistics'); ?>
     <?php elseif ($activeTab === 'invoices'): ?>
@@ -101,8 +111,11 @@ $activeTab = $input->get('tab', 'statistics', 'string');
             echo '<div style="padding: 20px; color: red;">Work orders template not found at: ' . $templatePath . '</div>';
         }
         ?>
-    <?php else: ?>
-        <!-- DEBUG: No matching tab found for: <?php echo $activeTab; ?> -->
     <?php endif; ?>
 </div>
+EOF
 
+echo "✅ Template fixed!"
+echo "Clearing cache..."
+rm -rf /var/www/grimpsa_webserver/cache/* 2>/dev/null
+echo "✅ Done! Please refresh your Work Orders tab."
