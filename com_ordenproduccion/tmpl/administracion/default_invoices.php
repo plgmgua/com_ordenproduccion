@@ -193,7 +193,7 @@ $pagination = $this->invoicesPagination ?? null;
         <input type="text" 
                name="filter_search" 
                placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SEARCH_INVOICE'); ?>"
-               value="<?php echo $this->escape($this->state->get('filter.search', '')); ?>" />
+               value="<?php echo isset($this->state) ? $this->escape($this->state->get('filter.search', '')) : ''; ?>" />
         
         <select name="filter_status">
             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ALL_STATUSES'); ?></option>

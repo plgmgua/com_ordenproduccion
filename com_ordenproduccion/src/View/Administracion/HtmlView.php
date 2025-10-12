@@ -95,6 +95,11 @@ class HtmlView extends BaseHtmlView
         $statsModel = $this->getModel('Administracion');
         $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear);
 
+        // Initialize invoices data
+        $this->invoices = [];
+        $this->invoicesPagination = null;
+        $this->state = new \Joomla\Registry\Registry();
+
         // Load invoices data if invoices tab is active
         if ($activeTab === 'invoices') {
             try {
@@ -103,14 +108,10 @@ class HtmlView extends BaseHtmlView
                     $this->invoices = $invoicesModel->getItems();
                     $this->invoicesPagination = $invoicesModel->getPagination();
                     $this->state = $invoicesModel->getState();
-                } else {
-                    $this->invoices = [];
-                    $this->invoicesPagination = null;
                 }
             } catch (\Exception $e) {
-                // If invoices model fails, just show empty array
-                $this->invoices = [];
-                $this->invoicesPagination = null;
+                // If invoices model fails, log error but continue with empty data
+                $app->enqueueMessage('Invoices feature is not yet fully configured. Please run the SQL script: helpers/create_invoices_table.sql', 'warning');
             }
         }
 

@@ -102,6 +102,24 @@ class AdministracionModel extends BaseDatabaseModel
             ? ($stats->totalInvoiceValue / $stats->totalOrders) 
             : 0;
 
+        // 6. Sales by Sales Agent for selected month
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('sales_agent'),
+                'COUNT(*) as order_count',
+                'SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total_sales'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
+            ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->group($db->quoteName('sales_agent'))
+            ->order('total_sales DESC');
+        $db->setQuery($query);
+        $stats->salesByAgent = $db->loadObjectList() ?: [];
+
         return $stats;
     }
 }

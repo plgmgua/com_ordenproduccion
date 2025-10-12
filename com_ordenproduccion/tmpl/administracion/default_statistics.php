@@ -279,6 +279,55 @@ $monthNames = [
         </div>
     </div>
 
+    <!-- Sales by Sales Agent Table -->
+    <div class="top-orders-table" style="margin-bottom: 30px;">
+        <h2>
+            <i class="fas fa-user-tie"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SALES_BY_AGENT'); ?>
+        </h2>
+        
+        <?php if (!empty($stats->salesByAgent)): ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SALES_AGENT'); ?></th>
+                        <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ORDER_COUNT'); ?></th>
+                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_SALES'); ?></th>
+                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_PER_ORDER'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($stats->salesByAgent as $index => $agentData): ?>
+                        <?php $avgPerOrder = $agentData->order_count > 0 ? ($agentData->total_sales / $agentData->order_count) : 0; ?>
+                        <tr>
+                            <td><?php echo $index + 1; ?></td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($agentData->sales_agent); ?></strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <span style="background: #e3f2fd; color: #1976d2; padding: 4px 12px; border-radius: 20px; font-weight: bold;">
+                                    <?php echo number_format($agentData->order_count); ?>
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="invoice-value">Q <?php echo number_format($agentData->total_sales, 2); ?></span>
+                            </td>
+                            <td style="text-align: right;">
+                                <span style="color: #666;">Q <?php echo number_format($avgPerOrder, 2); ?></span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_NO_SALES_DATA'); ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <!-- Top 10 Orders Table -->
     <div class="top-orders-table">
         <h2>
