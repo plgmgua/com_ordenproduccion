@@ -682,48 +682,74 @@ try {
             }
             
             // ============================================
-            // STEP 4: GENERATE SAMPLE PAYLOAD
+            // STEP 4: GENERATE PAYLOAD USING WORK ORDER ID 5380
             // ============================================
             if (isset($sampleOrder)) {
                 echo '<div class="section">';
-                echo '<h2>🚀 Step 4: Generated Payload for Duplicar Solicitud</h2>';
+                echo '<h2>🚀 Step 4: Generated Payload from Work Order ID 5380</h2>';
                 
-                echo '<p>This is the JSON payload that will be sent to the configured endpoint when "Duplicar Solicitud" is clicked:</p>';
+                if ($sampleOrder->id == 5380) {
+                    echo '<div class="alert alert-success">✅ Using actual data from Work Order ID 5380 with user-defined field mapping</div>';
+                } else {
+                    echo '<div class="alert alert-warning">⚠️ Work Order ID 5380 not found - using order ID ' . $sampleOrder->id . ' instead</div>';
+                }
                 
+                echo '<p>This payload is generated using the <strong>exact field mapping</strong> from your screenshot and <strong>actual data</strong> from Work Order ID 5380:</p>';
+                
+                // Generate payload using USER-DEFINED field mapping
                 $generatedPayload = [
                     'request_title' => 'Solicitud Ventas a Produccion',
-                    'source' => 'Joomla - Orden Produccion Component',
-                    'order_id' => $sampleOrder->id,
-                    'orden_de_trabajo' => $sampleOrder->orden_de_trabajo ?? $sampleOrder->order_number,
+                    'source' => 'Joomla - Duplicar Solicitud',
+                    'original_order_id' => $sampleOrder->id,
+                    'original_orden_de_trabajo' => $sampleOrder->orden_de_trabajo ?? $sampleOrder->order_number,
                     'form_data' => [
-                        'client_id' => $sampleOrder->client_id ?? null,
+                        // Core Fields (based on user mapping)
                         'cliente' => $sampleOrder->client_name ?? '',
-                        'nit' => $sampleOrder->client_nit ?? '0',
-                        'valor_factura' => $sampleOrder->invoice_amount ?? 0,
+                        'nit' => $sampleOrder->nit ?? '',
+                        'valor_factura' => $sampleOrder->invoice_value ?? 0,
                         'descripcion_trabajo' => $sampleOrder->work_description ?? '',
                         'color_impresion' => $sampleOrder->print_color ?? '',
                         'tiro_retiro' => $sampleOrder->tiro_retiro ?? '',
                         'medidas' => $sampleOrder->dimensions ?? '',
                         'fecha_entrega' => $sampleOrder->delivery_date ?? '',
                         'material' => $sampleOrder->material ?? '',
-                        'cotizacion' => [],
-                        'arte' => [],
+                        'cotizacion' => $sampleOrder->quotation_files ?? [],
+                        'arte' => [], // No mapping defined
+                        
+                        // Acabados with Details
                         'corte' => $sampleOrder->cutting ?? 'NO',
+                        'detalles_corte' => $sampleOrder->cutting_details ?? '',
                         'blocado' => $sampleOrder->blocking ?? 'NO',
+                        'detalles_blocado' => $sampleOrder->blocking_details ?? '',
                         'doblado' => $sampleOrder->folding ?? 'NO',
+                        'detalles_doblado' => $sampleOrder->folding_details ?? '',
                         'laminado' => $sampleOrder->laminating ?? 'NO',
+                        'detalles_laminado' => $sampleOrder->laminating_details ?? '',
                         'lomo' => $sampleOrder->spine ?? 'NO',
+                        'detalles_lomo' => $sampleOrder->spine_details ?? '',
                         'pegado' => $sampleOrder->gluing ?? 'NO',
+                        'detalles_pegado' => $sampleOrder->gluing_details ?? '',
                         'numerado' => $sampleOrder->numbering ?? 'NO',
+                        'detalles_numerado' => $sampleOrder->numbering_details ?? '',
                         'sizado' => $sampleOrder->sizing ?? 'NO',
+                        'detalles_sizado' => $sampleOrder->sizing_details ?? '',
                         'engrapado' => $sampleOrder->stapling ?? 'NO',
+                        'detalles_engrapado' => $sampleOrder->stapling_details ?? '',
                         'troquel' => $sampleOrder->die_cutting ?? 'NO',
+                        'detalles_troquel' => $sampleOrder->die_cutting_details ?? '',
                         'barniz' => $sampleOrder->varnish ?? 'NO',
+                        'detalles_barniz' => $sampleOrder->varnish_details ?? '',
                         'impresion_blanco' => $sampleOrder->white_print ?? 'NO',
+                        'detalles_impresion_blanco' => $sampleOrder->white_print_details ?? '',
                         'despuntado' => $sampleOrder->trimming ?? 'NO',
+                        'detalles_despuntado' => $sampleOrder->trimming_details ?? '',
                         'ojetes' => $sampleOrder->eyelets ?? 'NO',
+                        'detalles_ojetes' => $sampleOrder->eyelets_details ?? '',
                         'perforado' => $sampleOrder->perforation ?? 'NO',
-                        'instrucciones' => $sampleOrder->general_instructions ?? '',
+                        'detalles_perforado' => $sampleOrder->perforation_details ?? '',
+                        
+                        // Other Fields
+                        'instrucciones' => $sampleOrder->instructions ?? '',
                         'agente_de_ventas' => $sampleOrder->sales_agent ?? '',
                         'fecha_de_solicitud' => $sampleOrder->request_date ?? date('Y-m-d H:i:s'),
                         'direccion_entrega' => $sampleOrder->shipping_address ?? '',
@@ -733,17 +759,83 @@ try {
                     ]
                 ];
                 
-                echo '<h3>📦 JSON Payload:</h3>';
+                echo '<h3>📦 Generated JSON Payload (Work Order ID 5380):</h3>';
                 echo '<div class="json-viewer">';
                 echo '<pre>' . json_encode($generatedPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
                 echo '</div>';
                 
+                // Show original payload for comparison if available
+                if (isset($payloadStructure)) {
+                    echo '<h3>📋 Original Payload (Approval Workflow ID 43):</h3>';
+                    
+                    $originalPayload = [
+                        'request_title' => 'Solicitud Ventas a Produccion',
+                        'form_data' => $payloadStructure
+                    ];
+                    
+                    echo '<div class="json-viewer">';
+                    echo '<pre>' . json_encode($originalPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
+                    echo '</div>';
+                    
+                    echo '<h3>🔍 Payload Comparison Summary:</h3>';
+                    echo '<table>';
+                    echo '<tr><th>Field</th><th>Original (ID 43)</th><th>Generated (ID 5380)</th><th>Match</th></tr>';
+                    
+                    foreach ($generatedPayload['form_data'] as $key => $generatedValue) {
+                        $originalValue = isset($payloadStructure[$key]) ? $payloadStructure[$key] : null;
+                        
+                        // Format values for display
+                        $originalDisplay = $originalValue;
+                        $generatedDisplay = $generatedValue;
+                        
+                        if (is_array($originalValue)) {
+                            $originalDisplay = '[Array: ' . count($originalValue) . ' items]';
+                        } elseif ($originalValue === null) {
+                            $originalDisplay = '<em style="color: #999;">NULL</em>';
+                        } elseif (strlen($originalValue) > 40) {
+                            $originalDisplay = substr($originalValue, 0, 40) . '...';
+                        }
+                        
+                        if (is_array($generatedValue)) {
+                            $generatedDisplay = '[Array: ' . count($generatedValue) . ' items]';
+                        } elseif ($generatedValue === null || $generatedValue === '') {
+                            $generatedDisplay = '<em style="color: #999;">NULL/Empty</em>';
+                        } elseif (strlen($generatedValue) > 40) {
+                            $generatedDisplay = substr($generatedValue, 0, 40) . '...';
+                        }
+                        
+                        // Determine match
+                        $match = ($originalValue == $generatedValue);
+                        $matchBadge = $match ? '<span class="badge badge-success">✅</span>' : '<span class="badge badge-warning">≠</span>';
+                        
+                        $rowStyle = $match ? '' : 'style="background: #fff3cd;"';
+                        
+                        echo '<tr ' . $rowStyle . '>';
+                        echo '<td><code>' . htmlspecialchars($key) . '</code></td>';
+                        echo '<td>' . htmlspecialchars($originalDisplay) . '</td>';
+                        echo '<td>' . htmlspecialchars($generatedDisplay) . '</td>';
+                        echo '<td style="text-align: center;">' . $matchBadge . '</td>';
+                        echo '</tr>';
+                    }
+                    
+                    echo '</table>';
+                    
+                    echo '<div class="alert alert-info" style="margin-top: 20px;">';
+                    echo '<strong>Legend:</strong><br>';
+                    echo '<span class="badge badge-success">✅</span> Values match - Data preserved correctly<br>';
+                    echo '<span class="badge badge-warning">≠</span> Values differ - Check if this is expected (e.g., date format, new data)<br>';
+                    echo '<em>Yellow rows show where the generated payload differs from the original</em>';
+                    echo '</div>';
+                }
+                
                 echo '<div class="alert alert-info">';
-                echo '<strong>ℹ️ How to use this payload:</strong><br>';
-                echo '1. Configure endpoint URL in <code>Settings → Ventas Settings</code><br>';
-                echo '2. The button will send this JSON structure via HTTP POST<br>';
-                echo '3. Optional: Add API Key for authentication (sent as Bearer token)<br>';
-                echo '4. The endpoint should return a JSON response with success/error status';
+                echo '<strong>ℹ️ How this payload will be used:</strong><br>';
+                echo '1. User clicks "Duplicar Solicitud" button in the Ventas section<br>';
+                echo '2. Component reads current work order data from database<br>';
+                echo '3. Applies the field mapping to create this JSON structure<br>';
+                echo '4. Sends payload to configured endpoint via HTTP POST<br>';
+                echo '5. Optional: Includes API Key in Authorization header<br>';
+                echo '6. Endpoint processes and creates a new approval workflow request';
                 echo '</div>';
                 
                 echo '</div>';
