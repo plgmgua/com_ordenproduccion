@@ -7,6 +7,8 @@
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
+namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
+
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
@@ -15,9 +17,11 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 
 /**
- * Quotation controller class
+ * Quotation controller class for com_ordenproduccion
+ *
+ * @since  1.0.0
  */
-class OrdenproduccionControllerQuotation extends BaseController
+class QuotationController extends BaseController
 {
     /**
      * The default view for the display method

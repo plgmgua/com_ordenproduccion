@@ -7,6 +7,8 @@
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
+namespace Grimpsa\Component\Ordenproduccion\Site\View\Quotation;
+
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
@@ -15,9 +17,11 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\HTML\HTMLHelper;
 
 /**
- * Quotation view class
+ * Quotation view class for com_ordenproduccion
+ *
+ * @since  1.0.0
  */
-class OrdenproduccionViewQuotationHtml extends BaseHtmlView
+class HtmlView extends BaseHtmlView
 {
     /**
      * The model state

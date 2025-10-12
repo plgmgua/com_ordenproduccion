@@ -7,7 +7,7 @@
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-namespace YourCompany\Component\Ordenproduccion\Site\Model;
+namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
@@ -15,7 +15,9 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ItemModel;
 
 /**
- * Quotation model class
+ * Quotation model class for com_ordenproduccion
+ *
+ * @since  1.0.0
  */
 class QuotationModel extends ItemModel
 {
