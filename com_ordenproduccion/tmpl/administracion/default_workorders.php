@@ -170,6 +170,35 @@ use Joomla\CMS\Router\Route;
     font-style: italic;
 }
 
+.btn-create-invoice {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-create-invoice:hover {
+    background: #218838;
+}
+
+.btn-create-invoice i {
+    font-size: 11px;
+}
+
+.no-quotation {
+    color: #999;
+    font-size: 12px;
+    font-style: italic;
+}
+
 .pagination-wrapper {
     margin-top: 20px;
     text-align: center;
@@ -294,6 +323,7 @@ use Joomla\CMS\Router\Route;
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NUMBER'); ?></th>
+                    <th style="width: 120px;"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -318,6 +348,17 @@ use Joomla\CMS\Router\Route;
                                 <span class="invoice-number empty"><?php echo Text::_('COM_ORDENPRODUCCION_NOT_ASSIGNED'); ?></span>
                             <?php endif; ?>
                         </td>
+                        <td>
+                            <?php if (!empty($order->quotation_files)): ?>
+                                <button class="btn-create-invoice" 
+                                        onclick="openQuotationView(<?php echo $order->id; ?>, '<?php echo htmlspecialchars($order->orden_de_trabajo); ?>', '<?php echo htmlspecialchars($order->quotation_files); ?>')">
+                                    <i class="fas fa-file-invoice"></i>
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
+                                </button>
+                            <?php else: ?>
+                                <span class="no-quotation"><?php echo Text::_('COM_ORDENPRODUCCION_NO_QUOTATION'); ?></span>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -331,3 +372,11 @@ use Joomla\CMS\Router\Route;
         <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<script>
+function openQuotationView(orderId, orderNumber, quotationFiles) {
+    // Create a new window/tab to display the quotation
+    const url = `index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}`;
+    window.open(url, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+}
+</script>
