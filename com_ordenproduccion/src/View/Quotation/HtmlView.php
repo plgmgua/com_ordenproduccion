@@ -77,8 +77,12 @@ class OrdenproduccionViewQuotationHtml extends BaseHtmlView
         // Process quotation file path
         $this->quotationFile = $this->processQuotationFilePath($quotationFiles);
 
+        // Store order data for template access
+        $this->orderId = $orderId;
+        $this->orderNumber = $orderNumber;
+
         // Set page title
-        $this->setDocumentTitle(Text::_('COM_ORDENPRODUCCION_QUOTATION_VIEW_TITLE') . ' - ' . $orderNumber);
+        $this->setDocumentTitle(Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE') . ' - ' . $orderNumber);
 
         // Add CSS
         HTMLHelper::_('bootstrap.framework');
@@ -187,5 +191,15 @@ class OrdenproduccionViewQuotationHtml extends BaseHtmlView
             default:
                 return 'unknown';
         }
+    }
+
+    /**
+     * Get order data for the form
+     *
+     * @return  object  The order data object
+     */
+    public function getOrderData()
+    {
+        return $this->item;
     }
 }

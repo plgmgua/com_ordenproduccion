@@ -13,6 +13,9 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+
+// Get order data from the database
+$orderData = $this->getOrderData();
 ?>
 
 <!DOCTYPE html>
@@ -20,7 +23,7 @@ use Joomla\CMS\Router\Route;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_VIEW_TITLE'); ?> - <?php echo htmlspecialchars($this->item->orden_de_trabajo); ?></title>
+    <title><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE'); ?> - <?php echo htmlspecialchars($this->orderNumber); ?></title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -29,321 +32,219 @@ use Joomla\CMS\Router\Route;
             background: #f5f5f5;
         }
         
-        .quotation-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
+        .quotation-form-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 30px;
+            background: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
         }
         
         .quotation-header {
-            background: #007cba;
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #007cba;
         }
         
-        .quotation-title {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 600;
+        .quotation-header h2 {
+            color: #007cba;
+            margin-bottom: 10px;
+            font-size: 28px;
         }
         
         .order-info {
-            text-align: right;
-        }
-        
-        .order-number {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        
-        .order-client {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
             font-size: 14px;
-            opacity: 0.9;
+            color: #666;
         }
         
-        .quotation-content {
-            padding: 20px;
+        .form-group {
+            margin-bottom: 25px;
         }
         
-        .quotation-file-container {
-            border: 2px dashed #ddd;
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            background: #fafafa;
-            margin-bottom: 20px;
-        }
-        
-        .quotation-file-container.has-file {
-            border-style: solid;
-            border-color: #28a745;
-            background: #f8fff8;
-        }
-        
-        .quotation-file-container.no-file {
-            border-color: #dc3545;
-            background: #fff8f8;
-        }
-        
-        .file-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
+        .form-group label {
             display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
         }
         
-        .file-icon.pdf {
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #007cba;
+            box-shadow: 0 0 5px rgba(0, 124, 186, 0.3);
+        }
+        
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: Arial, sans-serif;
+        }
+        
+        .btn-submit {
+            background: #007cba;
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 auto;
+        }
+        
+        .btn-submit:hover {
+            background: #005a87;
+        }
+        
+        .btn-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .form-actions {
+            text-align: center;
+            margin-top: 40px;
+        }
+        
+        .required {
             color: #dc3545;
         }
         
-        .file-icon.image {
-            color: #28a745;
-        }
-        
-        .file-icon.document {
-            color: #007cba;
-        }
-        
-        .file-icon.unknown {
-            color: #6c757d;
-        }
-        
-        .file-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .file-url {
-            font-size: 14px;
-            color: #666;
-            word-break: break-all;
-            margin-bottom: 15px;
-        }
-        
-        .file-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background: #007cba;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #005a8b;
-        }
-        
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #218838;
-        }
-        
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-        
-        .order-details {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        
-        .order-details h3 {
-            margin-top: 0;
-            color: #333;
-            border-bottom: 2px solid #007cba;
-            padding-bottom: 10px;
-        }
-        
-        .details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .detail-label {
-            font-weight: 600;
-            color: #555;
-        }
-        
-        .detail-value {
-            color: #333;
-        }
-        
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
+        .form-note {
+            background: #e7f3ff;
             padding: 15px;
             border-radius: 4px;
-            border: 1px solid #f5c6cb;
             margin-bottom: 20px;
-        }
-        
-        @media (max-width: 768px) {
-            .quotation-header {
-                flex-direction: column;
-                text-align: center;
-                gap: 15px;
-            }
-            
-            .order-info {
-                text-align: center;
-            }
-            
-            .file-actions {
-                flex-direction: column;
-            }
-            
-            .details-grid {
-                grid-template-columns: 1fr;
-            }
+            border-left: 4px solid #007cba;
+            font-size: 14px;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <div class="quotation-container">
+    <div class="quotation-form-container">
         <div class="quotation-header">
-            <h1 class="quotation-title">
-                <i class="fas fa-file-invoice"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_VIEW_TITLE'); ?>
-            </h1>
+            <h2><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE'); ?></h2>
             <div class="order-info">
-                <div class="order-number"><?php echo htmlspecialchars($this->item->orden_de_trabajo); ?></div>
-                <div class="order-client"><?php echo htmlspecialchars($this->item->client_name); ?></div>
+                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
         </div>
-        
-        <div class="quotation-content">
-            <?php if ($this->isQuotationFileAccessible()): ?>
-                <div class="quotation-file-container has-file">
-                    <i class="fas fa-file-<?php echo $this->getQuotationFileType(); ?> file-icon <?php echo $this->getQuotationFileType(); ?>"></i>
-                    <div class="file-title">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FILE_AVAILABLE'); ?>
-                    </div>
-                    <div class="file-url">
-                        <?php echo htmlspecialchars($this->getQuotationFileUrl()); ?>
-                    </div>
-                    <div class="file-actions">
-                        <a href="<?php echo htmlspecialchars($this->getQuotationFileUrl()); ?>" 
-                           target="_blank" 
-                           class="btn btn-primary">
-                            <i class="fas fa-external-link-alt"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_OPEN_QUOTATION'); ?>
-                        </a>
-                        
-                        <?php if ($this->getQuotationFileType() === 'pdf'): ?>
-                            <a href="<?php echo htmlspecialchars($this->getQuotationFileUrl()); ?>" 
-                               download 
-                               class="btn btn-success">
-                                <i class="fas fa-download"></i>
-                                <?php echo Text::_('COM_ORDENPRODUCCION_DOWNLOAD_PDF'); ?>
-                            </a>
-                        <?php endif; ?>
-                        
-                        <button onclick="window.print()" class="btn btn-secondary">
-                            <i class="fas fa-print"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_PRINT'); ?>
-                        </button>
-                    </div>
-                </div>
-            <?php else: ?>
-                <div class="quotation-file-container no-file">
-                    <i class="fas fa-exclamation-triangle file-icon unknown"></i>
-                    <div class="file-title">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FILE_NOT_FOUND'); ?>
-                    </div>
-                    <div class="file-url">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FILE_NOT_FOUND_DESC'); ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-            
-            <!-- Order Details -->
-            <div class="order-details">
-                <h3>
-                    <i class="fas fa-info-circle"></i>
-                    <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_DETAILS'); ?>
-                </h3>
-                <div class="details-grid">
-                    <div class="detail-item">
-                        <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($this->item->orden_de_trabajo); ?></span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?>:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($this->item->client_name); ?></span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?>:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($this->item->sales_agent); ?></span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_REQUEST_DATE'); ?>:</span>
-                        <span class="detail-value"><?php echo !empty($this->item->request_date) ? HTMLHelper::_('date', $this->item->request_date, 'Y-m-d') : '-'; ?></span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_DELIVERY_DATE'); ?>:</span>
-                        <span class="detail-value"><?php echo !empty($this->item->delivery_date) ? HTMLHelper::_('date', $this->item->delivery_date, 'Y-m-d') : '-'; ?></span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?>:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($this->item->status); ?></span>
-                    </div>
-                    <?php if (!empty($this->item->work_description)): ?>
-                        <div class="detail-item" style="grid-column: 1 / -1;">
-                            <span class="detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_WORK_DESCRIPTION'); ?>:</span>
-                            <span class="detail-value"><?php echo htmlspecialchars($this->item->work_description); ?></span>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
+
+        <div class="form-note">
+            <i class="fas fa-info-circle"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
         </div>
+
+        <form id="quotationForm" onsubmit="submitQuotationForm(event)">
+            <div class="form-group">
+                <label for="cliente">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span>
+                </label>
+                <input type="text" 
+                       id="cliente" 
+                       name="cliente" 
+                       value="<?php echo htmlspecialchars($orderData->client_name ?? ''); ?>" 
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label for="nit">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span>
+                </label>
+                <input type="text" 
+                       id="nit" 
+                       name="nit" 
+                       value="<?php echo htmlspecialchars($orderData->nit ?? ''); ?>" 
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label for="direccion">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span>
+                </label>
+                <input type="text" 
+                       id="direccion" 
+                       name="direccion" 
+                       value="<?php echo htmlspecialchars($orderData->shipping_address ?? ''); ?>" 
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label for="detalles">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_DETAILS'); ?>
+                </label>
+                <textarea id="detalles" 
+                          name="detalles" 
+                          placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DETAILS_PLACEHOLDER'); ?>"><?php echo htmlspecialchars($orderData->work_description ?? ''); ?></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-save"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_SUBMIT_QUOTATION'); ?>
+                </button>
+            </div>
+        </form>
     </div>
-    
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <script>
+    function submitQuotationForm(event) {
+        event.preventDefault();
+        
+        const submitButton = event.target.querySelector('.btn-submit');
+        const originalText = submitButton.innerHTML;
+        
+        // Disable button and show loading
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROCESSING'); ?>...';
+        
+        // Get form data
+        const formData = {
+            order_id: <?php echo $this->orderId; ?>,
+            order_number: '<?php echo htmlspecialchars($this->orderNumber); ?>',
+            cliente: document.getElementById('cliente').value,
+            nit: document.getElementById('nit').value,
+            direccion: document.getElementById('direccion').value,
+            detalles: document.getElementById('detalles').value
+        };
+        
+        // Simulate form submission (you can modify this to actually save the data)
+        setTimeout(() => {
+            alert('<?php echo Text::_('COM_ORDENPRODUCCION_FORM_SUBMITTED_SUCCESS'); ?>');
+            
+            // Re-enable button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+            
+            // Optionally close the window or redirect
+            // window.close();
+        }, 2000);
+    }
+    </script>
 </body>
 </html>
