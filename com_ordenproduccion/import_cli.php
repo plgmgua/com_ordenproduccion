@@ -133,9 +133,10 @@ try {
             $orderNumber = $ordenDeTrabajo;
             
             // Convert date formats
-            $requestDate = convertDate($record->fecha_de_solicitud);
+            // marca_temporal is the original request date (timestamp)
+            $requestDate = convertDateTime($record->marca_temporal);
             $deliveryDate = convertDate($record->fecha_de_entrega);
-            $createdDate = convertDateTime($record->marca_temporal);
+            $createdDate = convertDateTime($record->marca_temporal); // Use same as request date
             
             // Keep dates as NULL if they couldn't be converted
             // DO NOT use current date as fallback to preserve data integrity
@@ -329,24 +330,55 @@ function convertDate($dateString)
 }
 
 /**
- * Convert datetime from DD/MM/YYYY HH:MM:SS format to YYYY-MM-DD HH:MM:SS
+ * Convert datetime/timestamp to YYYY-MM-DD HH:MM:SS format
+ * Handles: timestamps, DD/MM/YYYY HH:MM:SS, YYYY-MM-DD HH:MM:SS, and various formats
  */
 function convertDateTime($dateTimeString)
 {
     if (empty($dateTimeString) || $dateTimeString === 'NULL') {
-        return date('Y-m-d H:i:s');
+        return null;
     }
 
+    // If it's a numeric timestamp (Unix timestamp)
+    if (is_numeric($dateTimeString)) {
+        return date('Y-m-d H:i:s', intval($dateTimeString));
+    }
+
+    // Try multiple datetime formats
+    $formats = [
+        'd/m/Y H:i:s',     // 08/10/2025 14:30:00
+        'Y-m-d H:i:s',     // 2025-10-08 14:30:00
+        'd-m-Y H:i:s',     // 08-10-2025 14:30:00
+        'd/m/Y H:i',       // 08/10/2025 14:30
+        'Y-m-d H:i',       // 2025-10-08 14:30
+        'd/m/Y',           // 08/10/2025 (date only)
+        'Y-m-d',           // 2025-10-08 (date only)
+    ];
+
+    foreach ($formats as $format) {
+        try {
+            $dateTime = DateTime::createFromFormat($format, $dateTimeString);
+            if ($dateTime) {
+                return $dateTime->format('Y-m-d H:i:s');
+            }
+        } catch (Exception $e) {
+            continue;
+        }
+    }
+    
+    // Try strtotime as last resort
     try {
-        $dateTime = DateTime::createFromFormat('d/m/Y H:i:s', $dateTimeString);
-        if ($dateTime) {
-            return $dateTime->format('Y-m-d H:i:s');
+        $timestamp = strtotime($dateTimeString);
+        if ($timestamp !== false && $timestamp > 0) {
+            return date('Y-m-d H:i:s', $timestamp);
         }
     } catch (Exception $e) {
-        // If conversion fails, return current datetime
+        // Last resort failed
     }
 
-    return date('Y-m-d H:i:s');
+    // Log the problematic datetime for debugging
+    echo "⚠️ Unable to convert datetime: '{$dateTimeString}', setting to NULL\n";
+    return null;
 }
 
 /**
