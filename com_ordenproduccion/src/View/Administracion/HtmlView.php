@@ -136,14 +136,62 @@ class HtmlView extends BaseHtmlView
         // Load work orders data if workorders tab is active
         if ($activeTab === 'workorders') {
             try {
-                $ordenesModel = $this->getModel('Ordenes');
-                if ($ordenesModel) {
-                    $this->workOrders = $ordenesModel->getItems();
-                    $this->workOrdersPagination = $ordenesModel->getPagination();
-                    $this->state = $ordenesModel->getState();
+                // Get work orders directly from database (bypass user group filtering for admin view)
+                $db = Factory::getDbo();
+                $query = $db->getQuery(true);
+                
+                // Select all work order fields
+                $query->select([
+                    'id', 'orden_de_trabajo', 'order_number', 'client_name', 'nit',
+                    'invoice_value', 'work_description', 'print_color', 'dimensions',
+                    'delivery_date', 'material', 'request_date', 'sales_agent', 'status',
+                    'invoice_number', 'created', 'created_by', 'modified', 'modified_by', 'state', 'version'
+                ]);
+                $query->from($db->quoteName('#__ordenproduccion_ordenes'));
+                
+                // Only show published orders
+                $query->where($db->quoteName('state') . ' = 1');
+                
+                // Apply search filter if provided
+                $search = $input->getString('filter_search', '');
+                if (!empty($search)) {
+                    $search = $db->quote('%' . $db->escape($search, true) . '%');
+                    $query->where('(' . $db->quoteName('orden_de_trabajo') . ' LIKE ' . $search .
+                        ' OR ' . $db->quoteName('client_name') . ' LIKE ' . $search . ')');
                 }
+                
+                // Apply status filter if provided
+                $status = $input->getString('filter_status', '');
+                if (!empty($status)) {
+                    $query->where($db->quoteName('status') . ' = ' . $db->quote($status));
+                }
+                
+                // Order by orden_de_trabajo descending
+                $query->order($db->quoteName('orden_de_trabajo') . ' DESC');
+                
+                // Set limit for pagination
+                $limit = $input->getInt('limit', 20);
+                $start = $input->getInt('limitstart', 0);
+                $query->setLimit($limit, $start);
+                
+                $db->setQuery($query);
+                $this->workOrders = $db->loadObjectList() ?: [];
+                
+                // Create a simple pagination object
+                $this->workOrdersPagination = new \stdClass();
+                $this->workOrdersPagination->getListFooter = function() { return ''; }; // No pagination for now
+                
+                // Create state object
+                $this->state = new \Joomla\Registry\Registry();
+                $this->state->set('filter.search', $search);
+                $this->state->set('filter.status', $status);
+                
+                // Debug: Show count of work orders loaded
+                $app->enqueueMessage('Loaded ' . count($this->workOrders) . ' work orders', 'notice');
+                
             } catch (\Exception $e) {
-                // If ordenes model fails, just show empty array
+                // If query fails, log error and show empty array
+                $app->enqueueMessage('Error loading work orders: ' . $e->getMessage(), 'error');
                 $this->workOrders = [];
                 $this->workOrdersPagination = null;
             }
