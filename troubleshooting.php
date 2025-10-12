@@ -1,853 +1,397 @@
 <?php
 /**
- * Troubleshooting Script - Orden Produccion Component
- * Purpose: Validate payload structure for Duplicar Solicitud functionality
- * 
- * This script examines joomla_approvalworkflow_requests table (record ID 43)
- * to understand the payload format needed for the Ventas "Duplicar Solicitud" button
+ * Joomla Component Troubleshooting Script
+ * Validates file structure and deployment status
  */
 
-// Joomla initialization
-define('_JEXEC', 1);
-define('JPATH_BASE', __DIR__);
+// Prevent direct access
+if (!defined('_JEXEC')) {
+    define('_JEXEC', 1);
+}
 
-require_once JPATH_BASE . '/includes/defines.php';
-require_once JPATH_BASE . '/includes/framework.php';
+// Load Joomla framework
+require_once JPATH_ROOT . '/configuration.php';
+require_once JPATH_ROOT . '/includes/defines.php';
+require_once JPATH_ROOT . '/includes/framework.php';
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 
-// Create the Joomla application
 $app = Factory::getApplication('site');
+$user = Factory::getUser();
 
-// Get database connection
-try {
-    $db = Factory::getDbo();
-} catch (Exception $e) {
-    die('❌ Database connection failed: ' . $e->getMessage());
-}
+// Set error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payload Validation - Duplicar Solicitud</title>
+    <title>Joomla Component Troubleshooting</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 30px;
-        }
-        
-        .section {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        h2 {
-            color: #343a40;
-            font-size: 24px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-        
-        h3 {
-            color: #495057;
-            font-size: 18px;
-            margin: 20px 0 10px 0;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            background: #fff;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        th {
-            background: #667eea;
-            color: #fff;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-        }
-        
-        tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .badge-success {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .badge-error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .badge-warning {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .badge-info {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-        
-        .json-viewer {
-            background: #282c34;
-            color: #abb2bf;
-            padding: 20px;
-            border-radius: 6px;
-            overflow-x: auto;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .json-key {
-            color: #e06c75;
-        }
-        
-        .json-string {
-            color: #98c379;
-        }
-        
-        .json-number {
-            color: #d19a66;
-        }
-        
-        .json-boolean {
-            color: #61afef;
-        }
-        
-        .json-null {
-            color: #c678dd;
-        }
-        
-        .comparison-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .comparison-card {
-            background: #fff;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-        }
-        
-        .comparison-card h4 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-        
-        .field-mapping {
-            display: flex;
-            align-items: center;
-            padding: 8px;
-            margin: 5px 0;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-        
-        .field-mapping .source {
-            flex: 1;
-            color: #495057;
-            font-weight: 500;
-        }
-        
-        .field-mapping .arrow {
-            margin: 0 10px;
-            color: #667eea;
-            font-weight: bold;
-        }
-        
-        .field-mapping .target {
-            flex: 1;
-            color: #28a745;
-            font-weight: 500;
-        }
-        
-        code {
-            background: #f4f4f4;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            color: #e83e8c;
-        }
-        
-        .alert {
-            padding: 15px 20px;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-left: 4px solid #28a745;
-        }
-        
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border-left: 4px solid #ffc107;
-        }
-        
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-left: 4px solid #17a2b8;
-        }
-        
-        .timestamp {
-            text-align: center;
-            color: #6c757d;
-            font-size: 14px;
-            padding: 20px;
-            border-top: 1px solid #e9ecef;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: #007cba; color: white; padding: 20px; margin: -20px -20px 20px -20px; border-radius: 8px 8px 0 0; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .file-list { background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+        .status { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
+        .status-ok { background: #28a745; color: white; }
+        .status-error { background: #dc3545; color: white; }
+        .status-warning { background: #ffc107; color: black; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f8f9fa; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 12px; overflow-x: auto; }
+        .btn { display: inline-block; padding: 8px 16px; background: #007cba; color: white; text-decoration: none; border-radius: 4px; margin: 5px; }
+        .btn:hover { background: #005a8b; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Payload Validation</h1>
-            <p>Analyzing payload structure for "Duplicar Solicitud" functionality</p>
+            <h1>🔧 Joomla Component Troubleshooting</h1>
+            <p>Validación de estructura de archivos y estado de despliegue</p>
         </div>
+
+        <?php
+        // Component configuration
+        $componentName = 'com_ordenproduccion';
+        $joomlaRoot = JPATH_ROOT;
+        $adminPath = $joomlaRoot . '/administrator/components/' . $componentName;
+        $sitePath = $joomlaRoot . '/components/' . $componentName;
+        $mediaPath = $joomlaRoot . '/media/' . $componentName;
+        $modulePath = $joomlaRoot . '/modules/mod_acciones_produccion';
+
+        echo '<div class="section info">';
+        echo '<h3>📋 Información del Sistema</h3>';
+        echo '<table>';
+        echo '<tr><td><strong>Joomla Root:</strong></td><td>' . $joomlaRoot . '</td></tr>';
+        echo '<tr><td><strong>Component Name:</strong></td><td>' . $componentName . '</td></tr>';
+        echo '<tr><td><strong>Current User:</strong></td><td>' . ($user->guest ? 'Guest' : $user->name) . '</td></tr>';
+        echo '<tr><td><strong>PHP Version:</strong></td><td>' . PHP_VERSION . '</td></tr>';
+        echo '<tr><td><strong>Joomla Version:</strong></td><td>' . JVERSION . '</td></tr>';
+        echo '</table>';
+        echo '</div>';
+
+        // Check directory structure
+        echo '<div class="section">';
+        echo '<h3>📁 Estructura de Directorios</h3>';
         
-        <div class="content">
+        $directories = [
+            'Admin Component' => $adminPath,
+            'Site Component' => $sitePath,
+            'Media' => $mediaPath,
+            'Module' => $modulePath
+        ];
+
+        echo '<table>';
+        echo '<tr><th>Directorio</th><th>Ruta</th><th>Estado</th><th>Tamaño</th></tr>';
+        
+        foreach ($directories as $name => $path) {
+            $exists = is_dir($path);
+            $status = $exists ? '<span class="status status-ok">EXISTS</span>' : '<span class="status status-error">MISSING</span>';
+            $size = $exists ? formatBytes(getDirSize($path)) : 'N/A';
             
-            <?php
-            // ============================================
-            // STEP 1: FETCH APPROVAL WORKFLOW REQUEST
-            // ============================================
-            echo '<div class="section">';
-            echo '<h2>📋 Step 1: Approval Workflow Request (ID: 43)</h2>';
+            echo '<tr>';
+            echo '<td><strong>' . $name . '</strong></td>';
+            echo '<td><code>' . $path . '</code></td>';
+            echo '<td>' . $status . '</td>';
+            echo '<td>' . $size . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+        echo '</div>';
+
+        // Check critical files
+        echo '<div class="section">';
+        echo '<h3>📄 Archivos Críticos</h3>';
+        
+        $criticalFiles = [
+            // Admin files
+            'Admin Manifest' => $adminPath . '/com_ordenproduccion.xml',
+            'Admin Services' => $adminPath . '/services/provider.php',
             
-            try {
-                $query = $db->getQuery(true)
-                    ->select('*')
-                    ->from($db->quoteName('#__approvalworkflow_requests'))
-                    ->where($db->quoteName('id') . ' = 43');
-                
-                $db->setQuery($query);
-                $approvalRequest = $db->loadObject();
-                
-                if ($approvalRequest) {
-                    echo '<div class="alert alert-success">✅ Record found successfully</div>';
-                    
-                    echo '<h3>Raw Database Record:</h3>';
-                    echo '<table>';
-                    echo '<tr><th>Field</th><th>Value</th></tr>';
-                    
-                    foreach ($approvalRequest as $key => $value) {
-                        $displayValue = $value;
-                        if (strlen($value) > 200) {
-                            $displayValue = substr($value, 0, 200) . '... <em>(truncated)</em>';
-                        }
-                        echo '<tr>';
-                        echo '<td><strong>' . htmlspecialchars($key) . '</strong></td>';
-                        echo '<td>' . htmlspecialchars($displayValue) . '</td>';
-                        echo '</tr>';
-                    }
-                    echo '</table>';
-                    
-                    // Try to parse form_data as JSON
-                    if (isset($approvalRequest->form_data)) {
-                        echo '<h3>📦 Parsed JSON Payload (form_data):</h3>';
-                        
-                        $formData = json_decode($approvalRequest->form_data, true);
-                        
-                        if ($formData !== null) {
-                            echo '<div class="json-viewer">';
-                            echo '<pre>' . json_encode($formData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
-                            echo '</div>';
-                            
-                            // Store for comparison
-                            $payloadStructure = $formData;
-                        } else {
-                            echo '<div class="alert alert-warning">⚠️ form_data is not valid JSON</div>';
-                            echo '<div class="json-viewer">';
-                            echo '<pre>' . htmlspecialchars($approvalRequest->form_data) . '</pre>';
-                            echo '</div>';
-                        }
-                    }
-                } else {
-                    echo '<div class="alert alert-warning">⚠️ No record found with ID 43</div>';
-                }
-            } catch (Exception $e) {
-                echo '<div class="alert alert-error">❌ Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+            // Site files
+            'Site Entry Point' => $sitePath . '/ordenproduccion.php',
+            'Site Manifest' => $sitePath . '/com_ordenproduccion.xml',
+            'Site Services' => $sitePath . '/services/provider.php',
+            
+            // Templates
+            'Admin Templates' => $adminPath . '/tmpl',
+            'Site Templates' => $sitePath . '/tmpl',
+            'Administracion Template' => $sitePath . '/tmpl/administracion',
+            'Default Tabs Template' => $sitePath . '/tmpl/administracion/default_tabs.php',
+            'Workorders Template' => $sitePath . '/tmpl/administracion/default_workorders.php',
+            
+            // Models and Views
+            'Administracion View' => $sitePath . '/src/View/Administracion/HtmlView.php',
+            'Administracion Model' => $sitePath . '/src/Model/AdministracionModel.php',
+            'Ordenes Model' => $sitePath . '/src/Model/OrdenesModel.php',
+            
+            // Module files
+            'Module Entry' => $modulePath . '/mod_acciones_produccion.php',
+            'Module Manifest' => $modulePath . '/mod_acciones_produccion.xml',
+            'Module Template' => $modulePath . '/tmpl/default.php'
+        ];
+
+        echo '<table>';
+        echo '<tr><th>Archivo/Directorio</th><th>Ruta</th><th>Estado</th><th>Tamaño</th><th>Última Modificación</th></tr>';
+        
+        foreach ($criticalFiles as $name => $path) {
+            $exists = file_exists($path) || is_dir($path);
+            $status = $exists ? '<span class="status status-ok">EXISTS</span>' : '<span class="status status-error">MISSING</span>';
+            
+            if ($exists) {
+                $size = is_dir($path) ? formatBytes(getDirSize($path)) : formatBytes(filesize($path));
+                $modified = date('Y-m-d H:i:s', filemtime($path));
+            } else {
+                $size = 'N/A';
+                $modified = 'N/A';
             }
             
+            echo '<tr>';
+            echo '<td><strong>' . $name . '</strong></td>';
+            echo '<td><code>' . $path . '</code></td>';
+            echo '<td>' . $status . '</td>';
+            echo '<td>' . $size . '</td>';
+            echo '<td>' . $modified . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+        echo '</div>';
+
+        // Check template content
+        echo '<div class="section">';
+        echo '<h3>🔍 Análisis de Contenido de Templates</h3>';
+        
+        $defaultTabsPath = $sitePath . '/tmpl/administracion/default_tabs.php';
+        if (file_exists($defaultTabsPath)) {
+            $content = file_get_contents($defaultTabsPath);
+            
+            echo '<h4>📋 default_tabs.php Analysis</h4>';
+            echo '<div class="code">';
+            echo '<strong>File size:</strong> ' . formatBytes(strlen($content)) . '<br>';
+            echo '<strong>Contains "workorders":</strong> ' . (strpos($content, 'workorders') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            echo '<strong>Contains "default_workorders.php":</strong> ' . (strpos($content, 'default_workorders.php') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            echo '<strong>Contains "Direct include":</strong> ' . (strpos($content, 'Direct include') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            echo '<strong>Contains "bypass loadTemplate":</strong> ' . (strpos($content, 'bypass loadTemplate') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            
+            // Show the workorders section
+            if (preg_match('/workorders.*?\{.*?\}/s', $content, $matches)) {
+                echo '<br><strong>Workorders section found:</strong><br>';
+                echo '<pre>' . htmlspecialchars($matches[0]) . '</pre>';
+            }
             echo '</div>';
+        } else {
+            echo '<div class="error">❌ default_tabs.php not found</div>';
+        }
+
+        $workordersPath = $sitePath . '/tmpl/administracion/default_workorders.php';
+        if (file_exists($workordersPath)) {
+            $content = file_get_contents($workordersPath);
             
-            // ============================================
-            // STEP 2: FETCH CORRESPONDING WORK ORDER (ID 5380)
-            // ============================================
-            echo '<div class="section">';
-            echo '<h2>📦 Step 2: Corresponding Work Order (ID: 5380)</h2>';
+            echo '<h4>📋 default_workorders.php Analysis</h4>';
+            echo '<div class="code">';
+            echo '<strong>File size:</strong> ' . formatBytes(strlen($content)) . '<br>';
+            echo '<strong>Contains "workorders-table":</strong> ' . (strpos($content, 'workorders-table') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            echo '<strong>Contains "foreach.*workOrders":</strong> ' . (preg_match('/foreach.*workOrders/', $content) ? '✅ YES' : '❌ NO') . '<br>';
+            echo '<strong>Contains "Assign Invoice Modal":</strong> ' . (strpos($content, 'assign-invoice-modal') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            echo '<strong>Contains "PDF extraction":</strong> ' . (strpos($content, 'extractPDFData') !== false ? '✅ YES' : '❌ NO') . '<br>';
+            echo '</div>';
+        } else {
+            echo '<div class="error">❌ default_workorders.php not found</div>';
+        }
+        echo '</div>';
+
+        // Database check
+        echo '<div class="section">';
+        echo '<h3>🗄️ Verificación de Base de Datos</h3>';
+        
+        try {
+            $db = Factory::getDbo();
             
-            try {
+            // Check if component tables exist
+            $tables = [
+                'joomla_ordenproduccion_ordenes' => 'Main orders table',
+                'joomla_ordenproduccion_webhook_logs' => 'Webhook logs table',
+                'joomla_ordenproduccion_settings' => 'Settings table',
+                'joomla_ordenproduccion_invoices' => 'Invoices table'
+            ];
+            
+            echo '<table>';
+            echo '<tr><th>Tabla</th><th>Descripción</th><th>Estado</th><th>Registros</th></tr>';
+            
+            foreach ($tables as $table => $description) {
                 $query = $db->getQuery(true)
-                    ->select('*')
-                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                    ->where($db->quoteName('id') . ' = 5380');
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName($table));
                 
-                $db->setQuery($query);
-                $sampleOrder = $db->loadObject();
-                
-                if ($sampleOrder) {
-                    echo '<div class="alert alert-success">✅ Work order ID 5380 found - This order was created from Approval Workflow Request ID 43</div>';
-                    
-                    echo '<h3>Work Order Fields:</h3>';
-                    echo '<table>';
-                    echo '<tr><th>Field Name</th><th>Actual Value</th><th>Type</th></tr>';
-                    
-                    foreach ($sampleOrder as $key => $value) {
-                        $type = gettype($value);
-                        $displayValue = $value;
-                        
-                        if (strlen($value) > 100) {
-                            $displayValue = substr($value, 0, 100) . '...';
-                        }
-                        
-                        if ($value === null) {
-                            $displayValue = '<em style="color: #999;">NULL</em>';
-                        }
-                        
-                        echo '<tr>';
-                        echo '<td><code>' . htmlspecialchars($key) . '</code></td>';
-                        echo '<td>' . htmlspecialchars($displayValue) . '</td>';
-                        echo '<td><span class="badge badge-info">' . $type . '</span></td>';
-                        echo '</tr>';
-                    }
-                    echo '</table>';
-                } else {
-                    echo '<div class="alert alert-warning">⚠️ Work order ID 5380 not found - trying latest order instead</div>';
-                    
-                    // Fallback to latest order
-                    $query = $db->getQuery(true)
-                        ->select('*')
-                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                        ->order($db->quoteName('id') . ' DESC')
-                        ->setLimit(1);
-                    
+                try {
                     $db->setQuery($query);
-                    $sampleOrder = $db->loadObject();
-                    
-                    if ($sampleOrder) {
-                        echo '<div class="alert alert-info">ℹ️ Using latest order instead (ID: ' . $sampleOrder->id . ')</div>';
+                    $count = $db->loadResult();
+                    $status = '<span class="status status-ok">EXISTS</span>';
+                    $records = number_format($count);
+                } catch (Exception $e) {
+                    $status = '<span class="status status-error">MISSING</span>';
+                    $records = 'N/A';
+                }
+                
+                echo '<tr>';
+                echo '<td><code>' . $table . '</code></td>';
+                echo '<td>' . $description . '</td>';
+                echo '<td>' . $status . '</td>';
+                echo '<td>' . $records . '</td>';
+                echo '</tr>';
+            }
+            echo '</table>';
+            
+            // Check recent work orders
+            try {
+                $query = $db->getQuery(true)
+                    ->select(['id', 'orden_de_trabajo', 'client_name', 'created'])
+                    ->from($db->quoteName('joomla_ordenproduccion_ordenes'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->order($db->quoteName('created') . ' DESC')
+                    ->setLimit(5);
+                
+                $db->setQuery($query);
+                $recentOrders = $db->loadObjectList();
+                
+                echo '<h4>📋 Últimas 5 Órdenes de Trabajo</h4>';
+                if ($recentOrders) {
+                    echo '<table>';
+                    echo '<tr><th>ID</th><th>Orden</th><th>Cliente</th><th>Creado</th></tr>';
+                    foreach ($recentOrders as $order) {
+                        echo '<tr>';
+                        echo '<td>' . $order->id . '</td>';
+                        echo '<td>' . htmlspecialchars($order->orden_de_trabajo) . '</td>';
+                        echo '<td>' . htmlspecialchars($order->client_name) . '</td>';
+                        echo '<td>' . $order->created . '</td>';
+                        echo '</tr>';
                     }
+                    echo '</table>';
+                } else {
+                    echo '<div class="warning">⚠️ No hay órdenes de trabajo en la base de datos</div>';
                 }
             } catch (Exception $e) {
-                echo '<div class="alert alert-error">❌ Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                echo '<div class="error">❌ Error al consultar órdenes: ' . $e->getMessage() . '</div>';
             }
             
-            echo '</div>';
-            
-            // ============================================
-            // STEP 3: FIELD MAPPING COMPARISON
-            // ============================================
-            if (isset($payloadStructure) && isset($sampleOrder)) {
-                echo '<div class="section">';
-                echo '<h2>🔄 Step 3: Field Mapping Analysis</h2>';
-                
-                echo '<div class="comparison-grid">';
-                
-                // Payload Fields
-                echo '<div class="comparison-card">';
-                echo '<h4>📥 Payload Fields (from ID 43)</h4>';
-                
-                if (is_array($payloadStructure)) {
-                    foreach ($payloadStructure as $key => $value) {
-                        $valuePreview = is_array($value) ? '[Array]' : (string)$value;
-                        if (strlen($valuePreview) > 30) {
-                            $valuePreview = substr($valuePreview, 0, 30) . '...';
-                        }
-                        echo '<div class="field-mapping">';
-                        echo '<div class="source"><code>' . htmlspecialchars($key) . '</code>: ' . htmlspecialchars($valuePreview) . '</div>';
-                        echo '</div>';
-                    }
-                }
-                
-                echo '</div>';
-                
-                // Work Order Fields
-                echo '<div class="comparison-card">';
-                echo '<h4>📦 Work Order Fields (joomla_ordenproduccion_ordenes)</h4>';
-                
-                $workOrderFields = array_keys((array)$sampleOrder);
-                foreach ($workOrderFields as $field) {
-                    echo '<div class="field-mapping">';
-                    echo '<div class="target"><code>' . htmlspecialchars($field) . '</code></div>';
-                    echo '</div>';
-                }
-                
-                echo '</div>';
-                
-                echo '</div>';
-                
-                // Suggested Mapping (USER-DEFINED MAPPING from screenshot)
-                echo '<h3>💡 Confirmed Field Mapping:</h3>';
-                echo '<table>';
-                echo '<tr><th>Payload Field</th><th>→</th><th>Work Order Field</th><th>Status</th></tr>';
-                
-                // User-defined mappings - exact match from screenshot
-                $mappings = [
-                    // Core Fields
-                    'cliente' => 'client_name',
-                    'nit' => 'nit',
-                    'valor_factura' => 'invoice_value',
-                    'descripcion_trabajo' => 'work_description',
-                    'color_impresion' => 'print_color',
-                    'tiro_retiro' => 'tiro_retiro',
-                    'medidas' => 'dimensions',
-                    'fecha_entrega' => 'delivery_date',
-                    'material' => 'material',
-                    'cotizacion' => 'quotation_files',
-                    
-                    // Acabados with Details
-                    'corte' => 'cutting',
-                    'detalles_corte' => 'cutting_details',
-                    'blocado' => 'blocking',
-                    'detalles_blocado' => 'blocking_details',
-                    'doblado' => 'folding',
-                    'detalles_doblado' => 'folding_details',
-                    'laminado' => 'laminating',
-                    'detalles_laminado' => 'laminating_details',
-                    'lomo' => 'spine',
-                    'detalles_lomo' => 'spine_details',
-                    'pegado' => 'gluing',
-                    'detalles_pegado' => 'gluing_details',
-                    'numerado' => 'numbering',
-                    'detalles_numerado' => 'numbering_details',
-                    'sizado' => 'sizing',
-                    'detalles_sizado' => 'sizing_details',
-                    'engrapado' => 'stapling',
-                    'detalles_engrapado' => 'stapling_details',
-                    'troquel' => 'die_cutting',
-                    'detalles_troquel' => 'die_cutting_details',
-                    'barniz' => 'varnish',
-                    'detalles_barniz' => 'varnish_details',
-                    'impresion_blanco' => 'white_print',
-                    'detalles_impresion_blanco' => 'white_print_details',
-                    'despuntado' => 'trimming',
-                    'detalles_despuntado' => 'trimming_details',
-                    'ojetes' => 'eyelets',
-                    'detalles_ojetes' => 'eyelets_details',
-                    'perforado' => 'perforation',
-                    'detalles_perforado' => 'perforation_details',
-                    
-                    // Other Fields
-                    'instrucciones' => 'instructions',
-                    'agente_de_ventas' => 'sales_agent',
-                    'fecha_de_solicitud' => 'request_date',
-                    'direccion_entrega' => 'shipping_address',
-                    'instrucciones_entrega' => 'instrucciones_entrega',
-                    'contacto_nombre' => 'shipping_contact',
-                    'contacto_telefono' => 'shipping_phone'
-                ];
-                
-                if (is_array($payloadStructure)) {
-                    foreach ($payloadStructure as $payloadKey => $payloadValue) {
-                        $workOrderField = isset($mappings[$payloadKey]) ? $mappings[$payloadKey] : '?';
-                        $exists = property_exists($sampleOrder, $workOrderField);
-                        
-                        echo '<tr>';
-                        echo '<td><code>' . htmlspecialchars($payloadKey) . '</code></td>';
-                        echo '<td style="text-align: center; color: #667eea; font-weight: bold;">→</td>';
-                        echo '<td><code>' . htmlspecialchars($workOrderField) . '</code></td>';
-                        
-                        if ($workOrderField === '?') {
-                            echo '<td><span class="badge badge-warning">❓ Unknown</span></td>';
-                        } elseif ($exists) {
-                            echo '<td><span class="badge badge-success">✅ Exists</span></td>';
-                        } else {
-                            echo '<td><span class="badge badge-error">❌ Missing</span></td>';
-                        }
-                        
-                        echo '</tr>';
-                    }
-                }
-                
-                echo '</table>';
-                
-                echo '</div>';
-            }
-            
-            // ============================================
-            // STEP 3.5: DIRECT DATA COMPARISON (ID 43 → ID 5380)
-            // ============================================
-            if (isset($payloadStructure) && isset($sampleOrder) && $sampleOrder->id == 5380) {
-                echo '<div class="section">';
-                echo '<h2>🔍 Step 3.5: Direct Data Comparison (Payload → Work Order)</h2>';
-                echo '<p>Comparing the data from Approval Workflow Request ID 43 with the actual saved Work Order ID 5380:</p>';
-                
-                echo '<table>';
-                echo '<tr>';
-                echo '<th style="width: 25%;">Field Name</th>';
-                echo '<th style="width: 35%;">Payload Value (ID 43)</th>';
-                echo '<th style="width: 35%;">Work Order Value (ID 5380)</th>';
-                echo '<th style="width: 5%;">Match</th>';
-                echo '</tr>';
-                
-                // Field mappings for comparison (USER-DEFINED MAPPING)
-                // Based on screenshot provided by user - exact mapping between payload and database
-                $comparisonMappings = [
-                    // Core Fields
-                    'cliente' => 'client_name',
-                    'nit' => 'nit',
-                    'valor_factura' => 'invoice_value',
-                    'descripcion_trabajo' => 'work_description',
-                    'color_impresion' => 'print_color',
-                    'tiro_retiro' => 'tiro_retiro',
-                    'medidas' => 'dimensions',
-                    'fecha_entrega' => 'delivery_date',
-                    'material' => 'material',
-                    'cotizacion' => 'quotation_files',
-                    // 'arte' => null, // No mapping defined
-                    
-                    // Acabados (Finishing) - Main Fields
-                    'corte' => 'cutting',
-                    'detalles_corte' => 'cutting_details',
-                    'blocado' => 'blocking',
-                    'detalles_blocado' => 'blocking_details',
-                    'doblado' => 'folding',
-                    'detalles_doblado' => 'folding_details',
-                    'laminado' => 'laminating',
-                    'detalles_laminado' => 'laminating_details',
-                    'lomo' => 'spine',
-                    'detalles_lomo' => 'spine_details',
-                    'pegado' => 'gluing',
-                    'detalles_pegado' => 'gluing_details',
-                    'numerado' => 'numbering',
-                    'detalles_numerado' => 'numbering_details',
-                    'sizado' => 'sizing',
-                    'detalles_sizado' => 'sizing_details',
-                    'engrapado' => 'stapling',
-                    'detalles_engrapado' => 'stapling_details',
-                    'troquel' => 'die_cutting',
-                    'detalles_troquel' => 'die_cutting_details',
-                    'barniz' => 'varnish',
-                    'detalles_barniz' => 'varnish_details',
-                    'impresion_blanco' => 'white_print',
-                    'detalles_impresion_blanco' => 'white_print_details',
-                    'despuntado' => 'trimming',
-                    'detalles_despuntado' => 'trimming_details',
-                    'ojetes' => 'eyelets',
-                    'detalles_ojetes' => 'eyelets_details',
-                    'perforado' => 'perforation',
-                    'detalles_perforado' => 'perforation_details',
-                    
-                    // Other Fields
-                    'instrucciones' => 'instructions',
-                    'agente_de_ventas' => 'sales_agent',
-                    'fecha_de_solicitud' => 'request_date',
-                    'direccion_entrega' => 'shipping_address',
-                    'instrucciones_entrega' => 'instrucciones_entrega',
-                    'contacto_nombre' => 'shipping_contact',
-                    'contacto_telefono' => 'shipping_phone'
-                ];
-                
-                foreach ($comparisonMappings as $payloadKey => $workOrderKey) {
-                    $payloadValue = isset($payloadStructure[$payloadKey]) ? $payloadStructure[$payloadKey] : null;
-                    $workOrderValue = isset($sampleOrder->$workOrderKey) ? $sampleOrder->$workOrderKey : null;
-                    
-                    // Format values for display
-                    $payloadDisplay = $payloadValue;
-                    $workOrderDisplay = $workOrderValue;
-                    
-                    if (is_array($payloadValue)) {
-                        $payloadDisplay = '[Array: ' . count($payloadValue) . ' items]';
-                    } elseif ($payloadValue === null) {
-                        $payloadDisplay = '<em style="color: #999;">NULL</em>';
-                    } elseif (strlen($payloadValue) > 50) {
-                        $payloadDisplay = substr($payloadValue, 0, 50) . '...';
-                    }
-                    
-                    if ($workOrderValue === null) {
-                        $workOrderDisplay = '<em style="color: #999;">NULL</em>';
-                    } elseif (strlen($workOrderValue) > 50) {
-                        $workOrderDisplay = substr($workOrderValue, 0, 50) . '...';
-                    }
-                    
-                    // Determine match status
-                    $match = false;
-                    $matchBadge = '<span class="badge badge-error">❌</span>';
-                    
-                    if ($payloadValue == $workOrderValue) {
-                        $match = true;
-                        $matchBadge = '<span class="badge badge-success">✅</span>';
-                    } elseif ($payloadValue === null && $workOrderValue === null) {
-                        $match = true;
-                        $matchBadge = '<span class="badge badge-info">∅</span>';
-                    } elseif ($payloadValue === null || $workOrderValue === null) {
-                        $matchBadge = '<span class="badge badge-warning">⚠️</span>';
-                    }
-                    
-                    // Highlight row if no match
-                    $rowStyle = $match ? '' : 'style="background: #fff3cd;"';
-                    
-                    echo '<tr ' . $rowStyle . '>';
-                    echo '<td><code>' . htmlspecialchars($payloadKey) . '</code><br><small style="color: #999;">→ ' . htmlspecialchars($workOrderKey) . '</small></td>';
-                    echo '<td>' . htmlspecialchars($payloadDisplay) . '</td>';
-                    echo '<td>' . htmlspecialchars($workOrderDisplay) . '</td>';
-                    echo '<td style="text-align: center;">' . $matchBadge . '</td>';
-                    echo '</tr>';
-                }
-                
-                echo '</table>';
-                
-                echo '<div class="alert alert-info" style="margin-top: 20px;">';
-                echo '<strong>Legend:</strong><br>';
-                echo '<span class="badge badge-success">✅</span> Values match<br>';
-                echo '<span class="badge badge-warning">⚠️</span> One value is NULL<br>';
-                echo '<span class="badge badge-error">❌</span> Values don\'t match<br>';
-                echo '<span class="badge badge-info">∅</span> Both NULL<br>';
-                echo '<em>Yellow rows indicate data differences that may need investigation</em>';
-                echo '</div>';
-                
-                echo '</div>';
-            }
-            
-            // ============================================
-            // STEP 4: GENERATE PAYLOAD USING WORK ORDER ID 5380
-            // ============================================
-            if (isset($sampleOrder)) {
-                echo '<div class="section">';
-                echo '<h2>🚀 Step 4: Generated Payload from Work Order ID 5380</h2>';
-                
-                if ($sampleOrder->id == 5380) {
-                    echo '<div class="alert alert-success">✅ Using actual data from Work Order ID 5380 with user-defined field mapping</div>';
-                } else {
-                    echo '<div class="alert alert-warning">⚠️ Work Order ID 5380 not found - using order ID ' . $sampleOrder->id . ' instead</div>';
-                }
-                
-                echo '<p>This payload is generated using the <strong>exact field mapping</strong> from your screenshot and <strong>actual data</strong> from Work Order ID 5380:</p>';
-                
-                // Generate payload using USER-DEFINED field mapping
-                $generatedPayload = [
-                    'request_title' => 'Solicitud Ventas a Produccion',
-                    'source' => 'Joomla - Duplicar Solicitud',
-                    'original_order_id' => $sampleOrder->id,
-                    'original_orden_de_trabajo' => $sampleOrder->orden_de_trabajo ?? $sampleOrder->order_number,
-                    'form_data' => [
-                        // Core Fields (based on user mapping)
-                        'cliente' => $sampleOrder->client_name ?? '',
-                        'nit' => $sampleOrder->nit ?? '',
-                        'valor_factura' => $sampleOrder->invoice_value ?? 0,
-                        'descripcion_trabajo' => $sampleOrder->work_description ?? '',
-                        'color_impresion' => $sampleOrder->print_color ?? '',
-                        'tiro_retiro' => $sampleOrder->tiro_retiro ?? '',
-                        'medidas' => $sampleOrder->dimensions ?? '',
-                        'fecha_entrega' => $sampleOrder->delivery_date ?? '',
-                        'material' => $sampleOrder->material ?? '',
-                        'cotizacion' => $sampleOrder->quotation_files ?? [],
-                        'arte' => [], // No mapping defined
-                        
-                        // Acabados with Details
-                        'corte' => $sampleOrder->cutting ?? 'NO',
-                        'detalles_corte' => $sampleOrder->cutting_details ?? '',
-                        'blocado' => $sampleOrder->blocking ?? 'NO',
-                        'detalles_blocado' => $sampleOrder->blocking_details ?? '',
-                        'doblado' => $sampleOrder->folding ?? 'NO',
-                        'detalles_doblado' => $sampleOrder->folding_details ?? '',
-                        'laminado' => $sampleOrder->laminating ?? 'NO',
-                        'detalles_laminado' => $sampleOrder->laminating_details ?? '',
-                        'lomo' => $sampleOrder->spine ?? 'NO',
-                        'detalles_lomo' => $sampleOrder->spine_details ?? '',
-                        'pegado' => $sampleOrder->gluing ?? 'NO',
-                        'detalles_pegado' => $sampleOrder->gluing_details ?? '',
-                        'numerado' => $sampleOrder->numbering ?? 'NO',
-                        'detalles_numerado' => $sampleOrder->numbering_details ?? '',
-                        'sizado' => $sampleOrder->sizing ?? 'NO',
-                        'detalles_sizado' => $sampleOrder->sizing_details ?? '',
-                        'engrapado' => $sampleOrder->stapling ?? 'NO',
-                        'detalles_engrapado' => $sampleOrder->stapling_details ?? '',
-                        'troquel' => $sampleOrder->die_cutting ?? 'NO',
-                        'detalles_troquel' => $sampleOrder->die_cutting_details ?? '',
-                        'barniz' => $sampleOrder->varnish ?? 'NO',
-                        'detalles_barniz' => $sampleOrder->varnish_details ?? '',
-                        'impresion_blanco' => $sampleOrder->white_print ?? 'NO',
-                        'detalles_impresion_blanco' => $sampleOrder->white_print_details ?? '',
-                        'despuntado' => $sampleOrder->trimming ?? 'NO',
-                        'detalles_despuntado' => $sampleOrder->trimming_details ?? '',
-                        'ojetes' => $sampleOrder->eyelets ?? 'NO',
-                        'detalles_ojetes' => $sampleOrder->eyelets_details ?? '',
-                        'perforado' => $sampleOrder->perforation ?? 'NO',
-                        'detalles_perforado' => $sampleOrder->perforation_details ?? '',
-                        
-                        // Other Fields
-                        'instrucciones' => $sampleOrder->instructions ?? '',
-                        'agente_de_ventas' => $sampleOrder->sales_agent ?? '',
-                        'fecha_de_solicitud' => $sampleOrder->request_date ?? date('Y-m-d H:i:s'),
-                        'direccion_entrega' => $sampleOrder->shipping_address ?? '',
-                        'instrucciones_entrega' => $sampleOrder->instrucciones_entrega ?? '',
-                        'contacto_nombre' => $sampleOrder->shipping_contact ?? '',
-                        'contacto_telefono' => $sampleOrder->shipping_phone ?? ''
-                    ]
-                ];
-                
-                echo '<h3>📦 Generated JSON Payload (Work Order ID 5380):</h3>';
-                echo '<div class="json-viewer">';
-                echo '<pre>' . json_encode($generatedPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
-                echo '</div>';
-                
-                // Show original payload for comparison if available
-                if (isset($payloadStructure)) {
-                    echo '<h3>📋 Original Payload (Approval Workflow ID 43):</h3>';
-                    
-                    $originalPayload = [
-                        'request_title' => 'Solicitud Ventas a Produccion',
-                        'form_data' => $payloadStructure
-                    ];
-                    
-                    echo '<div class="json-viewer">';
-                    echo '<pre>' . json_encode($originalPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
-                    echo '</div>';
-                    
-                    echo '<h3>🔍 Payload Comparison Summary:</h3>';
-                    echo '<table>';
-                    echo '<tr><th>Field</th><th>Original (ID 43)</th><th>Generated (ID 5380)</th><th>Match</th></tr>';
-                    
-                    foreach ($generatedPayload['form_data'] as $key => $generatedValue) {
-                        $originalValue = isset($payloadStructure[$key]) ? $payloadStructure[$key] : null;
-                        
-                        // Format values for display
-                        $originalDisplay = $originalValue;
-                        $generatedDisplay = $generatedValue;
-                        
-                        if (is_array($originalValue)) {
-                            $originalDisplay = '[Array: ' . count($originalValue) . ' items]';
-                        } elseif ($originalValue === null) {
-                            $originalDisplay = '<em style="color: #999;">NULL</em>';
-                        } elseif (strlen($originalValue) > 40) {
-                            $originalDisplay = substr($originalValue, 0, 40) . '...';
-                        }
-                        
-                        if (is_array($generatedValue)) {
-                            $generatedDisplay = '[Array: ' . count($generatedValue) . ' items]';
-                        } elseif ($generatedValue === null || $generatedValue === '') {
-                            $generatedDisplay = '<em style="color: #999;">NULL/Empty</em>';
-                        } elseif (strlen($generatedValue) > 40) {
-                            $generatedDisplay = substr($generatedValue, 0, 40) . '...';
-                        }
-                        
-                        // Determine match
-                        $match = ($originalValue == $generatedValue);
-                        $matchBadge = $match ? '<span class="badge badge-success">✅</span>' : '<span class="badge badge-warning">≠</span>';
-                        
-                        $rowStyle = $match ? '' : 'style="background: #fff3cd;"';
-                        
-                        echo '<tr ' . $rowStyle . '>';
-                        echo '<td><code>' . htmlspecialchars($key) . '</code></td>';
-                        echo '<td>' . htmlspecialchars($originalDisplay) . '</td>';
-                        echo '<td>' . htmlspecialchars($generatedDisplay) . '</td>';
-                        echo '<td style="text-align: center;">' . $matchBadge . '</td>';
-                        echo '</tr>';
-                    }
-                    
-                    echo '</table>';
-                    
-                    echo '<div class="alert alert-info" style="margin-top: 20px;">';
-                    echo '<strong>Legend:</strong><br>';
-                    echo '<span class="badge badge-success">✅</span> Values match - Data preserved correctly<br>';
-                    echo '<span class="badge badge-warning">≠</span> Values differ - Check if this is expected (e.g., date format, new data)<br>';
-                    echo '<em>Yellow rows show where the generated payload differs from the original</em>';
-                    echo '</div>';
-                }
-                
-                echo '<div class="alert alert-info">';
-                echo '<strong>ℹ️ How this payload will be used:</strong><br>';
-                echo '1. User clicks "Duplicar Solicitud" button in the Ventas section<br>';
-                echo '2. Component reads current work order data from database<br>';
-                echo '3. Applies the field mapping to create this JSON structure<br>';
-                echo '4. Sends payload to configured endpoint via HTTP POST<br>';
-                echo '5. Optional: Includes API Key in Authorization header<br>';
-                echo '6. Endpoint processes and creates a new approval workflow request';
-                echo '</div>';
-                
-                echo '</div>';
-            }
-            ?>
-            
-        </div>
+        } catch (Exception $e) {
+            echo '<div class="error">❌ Error de conexión a la base de datos: ' . $e->getMessage() . '</div>';
+        }
+        echo '</div>';
+
+        // AJAX Endpoint Check
+        echo '<div class="section">';
+        echo '<h3>🔗 Verificación de Endpoints AJAX</h3>';
         
-        <div class="timestamp">
-            Generated: <?php echo date('Y-m-d H:i:s'); ?> | 
-            Database: <?php echo $db->getPrefix(); ?> | 
-            Version: 2.6.0-STABLE
+        $ajaxFiles = [
+            'change_status.php' => $sitePath . '/change_status.php',
+            'get_duplicate_settings.php' => $sitePath . '/get_duplicate_settings.php',
+            'upload_cotizacion.php' => $sitePath . '/upload_cotizacion.php'
+        ];
+        
+        echo '<table>';
+        echo '<tr><th>Endpoint</th><th>Archivo</th><th>Estado</th><th>Tamaño</th></tr>';
+        
+        foreach ($ajaxFiles as $name => $path) {
+            $exists = file_exists($path);
+            $status = $exists ? '<span class="status status-ok">EXISTS</span>' : '<span class="status status-error">MISSING</span>';
+            $size = $exists ? formatBytes(filesize($path)) : 'N/A';
+            
+            echo '<tr>';
+            echo '<td><strong>' . $name . '</strong></td>';
+            echo '<td><code>' . $path . '</code></td>';
+            echo '<td>' . $status . '</td>';
+            echo '<td>' . $size . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+        echo '</div>';
+
+        // File permissions check
+        echo '<div class="section">';
+        echo '<h3>🔐 Verificación de Permisos</h3>';
+        
+        $permissionPaths = [
+            'Site Component' => $sitePath,
+            'Admin Component' => $adminPath,
+            'Media' => $mediaPath,
+            'Module' => $modulePath
+        ];
+        
+        echo '<table>';
+        echo '<tr><th>Directorio</th><th>Permisos</th><th>Propietario</th><th>Grupo</th></tr>';
+        
+        foreach ($permissionPaths as $name => $path) {
+            if (is_dir($path)) {
+                $perms = fileperms($path);
+                $owner = posix_getpwuid(fileowner($path));
+                $group = posix_getgrgid(filegroup($path));
+                
+                echo '<tr>';
+                echo '<td><strong>' . $name . '</strong></td>';
+                echo '<td><code>' . substr(sprintf('%o', $perms), -4) . '</code></td>';
+                echo '<td>' . $owner['name'] . '</td>';
+                echo '<td>' . $group['name'] . '</td>';
+                echo '</tr>';
+            } else {
+                echo '<tr>';
+                echo '<td><strong>' . $name . '</strong></td>';
+                echo '<td colspan="3"><span class="status status-error">DIRECTORY NOT FOUND</span></td>';
+                echo '</tr>';
+            }
+        }
+        echo '</table>';
+        echo '</div>';
+
+        // Recommendations
+        echo '<div class="section warning">';
+        echo '<h3>💡 Recomendaciones</h3>';
+        echo '<ul>';
+        echo '<li>Si faltan archivos, ejecuta <code>update_build_simple.sh</code> para redeployar</li>';
+        echo '<li>Si hay problemas de permisos, ejecuta: <code>sudo chown -R www-data:www-data /var/www/grimpsa_webserver/components/com_ordenproduccion</code></li>';
+        echo '<li>Si los templates no cargan, verifica que existan en <code>/components/com_ordenproduccion/tmpl/administracion/</code></li>';
+        echo '<li>Para limpiar caché: <code>sudo rm -rf /var/www/grimpsa_webserver/cache/*</code></li>';
+        echo '</ul>';
+        echo '</div>';
+
+        // Helper functions
+        function formatBytes($bytes, $precision = 2) {
+            $units = array('B', 'KB', 'MB', 'GB', 'TB');
+            for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+                $bytes /= 1024;
+            }
+            return round($bytes, $precision) . ' ' . $units[$i];
+        }
+
+        function getDirSize($dir) {
+            $size = 0;
+            if (is_dir($dir)) {
+                foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir)) as $file) {
+                    if ($file->isFile()) {
+                        $size += $file->getSize();
+                    }
+                }
+            }
+            return $size;
+        }
+        ?>
+
+        <div class="section info">
+            <h3>🔄 Acciones Rápidas</h3>
+            <a href="javascript:location.reload()" class="btn">🔄 Recargar Página</a>
+            <a href="index.php?option=com_ordenproduccion&view=administracion&tab=workorders" class="btn">📊 Ir a Work Orders</a>
+            <a href="index.php?option=com_ordenproduccion&view=ordenes" class="btn">📋 Ir a Órdenes</a>
         </div>
     </div>
 </body>
