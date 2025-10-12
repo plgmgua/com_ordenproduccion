@@ -99,6 +99,18 @@ class HtmlView extends BaseHtmlView
      */
     protected function processQuotationFilePath($quotationFiles)
     {
+        // Handle JSON array format: ["\/media\/com_convertforms\/uploads\/file.pdf"]
+        if (strpos($quotationFiles, '[') === 0 && strpos($quotationFiles, ']') !== false) {
+            $decoded = json_decode($quotationFiles, true);
+            if (is_array($decoded) && !empty($decoded[0])) {
+                $filePath = $decoded[0];
+                // Remove escaped slashes
+                $filePath = str_replace('\\/', '/', $filePath);
+                // Make it a full URL
+                return Factory::getApplication()->get('live_site') . $filePath;
+            }
+        }
+
         // If it's already a full URL, return as is
         if (strpos($quotationFiles, 'http') === 0) {
             return $quotationFiles;

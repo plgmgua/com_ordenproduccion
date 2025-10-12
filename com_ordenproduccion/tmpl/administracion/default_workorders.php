@@ -349,9 +349,29 @@ use Joomla\CMS\Router\Route;
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?php if (!empty($order->quotation_files)): ?>
+                            <?php 
+                            $hasQuotation = false;
+                            $quotationFiles = '';
+                            
+                            // Check if quotation_files is not empty and not just empty JSON array
+                            if (!empty($order->quotation_files) && $order->quotation_files !== '[]' && $order->quotation_files !== '""') {
+                                // Handle JSON array format
+                                if (strpos($order->quotation_files, '[') === 0) {
+                                    $decoded = json_decode($order->quotation_files, true);
+                                    if (is_array($decoded) && !empty($decoded[0])) {
+                                        $hasQuotation = true;
+                                        $quotationFiles = $order->quotation_files;
+                                    }
+                                } else {
+                                    // Handle simple string format
+                                    $hasQuotation = true;
+                                    $quotationFiles = $order->quotation_files;
+                                }
+                            }
+                            
+                            if ($hasQuotation): ?>
                                 <button class="btn-create-invoice" 
-                                        onclick="openQuotationView(<?php echo $order->id; ?>, '<?php echo htmlspecialchars($order->orden_de_trabajo); ?>', '<?php echo htmlspecialchars($order->quotation_files); ?>')">
+                                        onclick="openQuotationView(<?php echo $order->id; ?>, '<?php echo htmlspecialchars($order->orden_de_trabajo); ?>', '<?php echo htmlspecialchars($quotationFiles); ?>')">
                                     <i class="fas fa-file-invoice"></i>
                                     <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
                                 </button>
