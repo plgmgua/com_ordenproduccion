@@ -133,7 +133,7 @@ $currentUrl = Uri::current();
         </h5>
         
         <div class="ventas-actions">
-            <button type="button" id="duplicate-request-btn" class="btn btn-warning btn-block" onclick="confirmDuplicateRequest()">
+            <button type="button" id="duplicate-request-btn" class="btn btn-warning btn-block" onclick="openDuplicateForm()">
                 <i class="fas fa-copy"></i>
                 Duplicar Solicitud
             </button>
@@ -141,63 +141,117 @@ $currentUrl = Uri::current();
         </div>
     </div>
     
+    <!-- Duplicate Request Form Modal -->
+    <div id="duplicate-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;">
+        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #333;">
+                    <i class="fas fa-copy"></i> Duplicar Solicitud
+                </h3>
+                <button onclick="closeDuplicateForm()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+            </div>
+            
+            <form id="duplicate-form" onsubmit="submitDuplicateForm(event)">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                        Cliente <span style="color: red;">*</span>
+                    </label>
+                    <input type="text" id="dup_client_name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                        NIT <span style="color: red;">*</span>
+                    </label>
+                    <input type="text" id="dup_nit" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                        Dirección de Entrega <span style="color: red;">*</span>
+                    </label>
+                    <textarea id="dup_shipping_address" required rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                        Contacto de Entrega <span style="color: red;">*</span>
+                    </label>
+                    <input type="text" id="dup_shipping_contact" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                        Teléfono de Contacto <span style="color: red;">*</span>
+                    </label>
+                    <input type="tel" id="dup_shipping_phone" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                        Instrucciones de Entrega <span style="color: red;">*</span>
+                    </label>
+                    <textarea id="dup_instrucciones_entrega" required rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <button type="button" onclick="closeDuplicateForm()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <script>
-    // Simplified duplicate request - direct URL generation
-    async function confirmDuplicateRequest() {
-        const button = document.getElementById('duplicate-request-btn');
-        const messageDiv = document.getElementById('duplicate-message');
+    // Open duplicate form modal and pre-fill fields
+    function openDuplicateForm() {
+        const orderData = window.currentOrderData || {};
+        
+        // Pre-fill form fields with current order data
+        document.getElementById('dup_client_name').value = orderData.client_name || '';
+        document.getElementById('dup_nit').value = orderData.nit || '';
+        document.getElementById('dup_shipping_address').value = orderData.shipping_address || '';
+        document.getElementById('dup_shipping_contact').value = orderData.shipping_contact || '';
+        document.getElementById('dup_shipping_phone').value = orderData.shipping_phone || '';
+        document.getElementById('dup_instrucciones_entrega').value = orderData.instrucciones_entrega || '';
+        
+        // Show modal
+        document.getElementById('duplicate-modal-overlay').style.display = 'block';
+    }
+    
+    // Close duplicate form modal
+    function closeDuplicateForm() {
+        document.getElementById('duplicate-modal-overlay').style.display = 'none';
+    }
+    
+    // Submit duplicate form
+    async function submitDuplicateForm(event) {
+        event.preventDefault();
+        
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
         
         try {
-            // STEP 1: Validate required fields
+            // Get form values (edited by user)
+            const formData = {
+                client_name: document.getElementById('dup_client_name').value,
+                nit: document.getElementById('dup_nit').value,
+                shipping_address: document.getElementById('dup_shipping_address').value,
+                shipping_contact: document.getElementById('dup_shipping_contact').value,
+                shipping_phone: document.getElementById('dup_shipping_phone').value,
+                instrucciones_entrega: document.getElementById('dup_instrucciones_entrega').value
+            };
+            
+            // Get original order data for other fields
             const orderData = window.currentOrderData || {};
-            const validationErrors = [];
             
-            // Required fields validation
-            if (!orderData.client_name || orderData.client_name.trim() === '') {
-                validationErrors.push('Cliente');
-            }
-            if (!orderData.nit || orderData.nit.trim() === '') {
-                validationErrors.push('NIT');
-            }
-            if (!orderData.shipping_address || orderData.shipping_address.trim() === '') {
-                validationErrors.push('Dirección de Entrega');
-            }
-            if (!orderData.shipping_contact || orderData.shipping_contact.trim() === '') {
-                validationErrors.push('Contacto de Entrega');
-            }
-            if (!orderData.shipping_phone || orderData.shipping_phone.trim() === '') {
-                validationErrors.push('Teléfono de Contacto');
-            }
-            if (!orderData.instrucciones_entrega || orderData.instrucciones_entrega.trim() === '') {
-                validationErrors.push('Instrucciones de Entrega');
-            }
-            
-            // If validation fails, show error and stop
-            if (validationErrors.length > 0) {
-                messageDiv.className = 'duplicate-message alert alert-warning';
-                messageDiv.innerHTML = '<strong>⚠️ Campos requeridos faltantes:</strong><br>' + 
-                                      '• ' + validationErrors.join('<br>• ') + '<br><br>' +
-                                      '<em>Por favor complete estos campos antes de duplicar la solicitud.</em>';
-                messageDiv.style.display = 'block';
-                
-                // Hide message after 8 seconds
-                setTimeout(() => {
-                    messageDiv.style.display = 'none';
-                }, 8000);
-                
-                return;
-            }
-            
-            // STEP 2: Show confirmation dialog
-            if (!confirm('¿Desea generar una nueva solicitud basada en esta orden de compra?')) {
-                return;
-            }
-            
-            // STEP 3: Disable button and show processing
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-            
-            // STEP 4: Fetch settings
+            // Fetch settings
             const settingsResponse = await fetch('/components/com_ordenproduccion/get_duplicate_settings.php');
             if (!settingsResponse.ok) {
                 throw new Error('No se pudo obtener la configuración del endpoint');
@@ -208,8 +262,8 @@ $currentUrl = Uri::current();
                 throw new Error('Endpoint no configurado. Por favor configure el endpoint en Configuración.');
             }
             
-            // STEP 5: Build URL with current order data
-            const urlParams = buildDuplicateUrlParams(orderData);
+            // Build URL parameters with edited values
+            const urlParams = buildDuplicateUrlParamsWithFormData(orderData, formData);
             const finalUrl = settings.endpoint + (settings.endpoint.includes('?') ? '&' : '?') + urlParams;
             
             console.log('========================================');
@@ -218,28 +272,32 @@ $currentUrl = Uri::current();
             console.log(finalUrl);
             console.log('========================================');
             
-            // STEP 6: Navigate to URL in current tab
+            // Navigate to URL in current tab
             window.location.href = finalUrl;
             
         } catch (error) {
             console.error('Error al duplicar solicitud:', error);
+            alert('❌ Error: ' + error.message);
             
-            messageDiv.className = 'duplicate-message alert alert-danger';
-            messageDiv.textContent = '❌ Error: ' + error.message;
-            messageDiv.style.display = 'block';
-            
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-copy"></i> Duplicar Solicitud';
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
         }
     }
     
-    // Build URL parameters from order data (no editing, direct from database)
-    function buildDuplicateUrlParams(orderData) {
+    // Close modal when clicking overlay
+    document.getElementById('duplicate-modal-overlay')?.addEventListener('click', function(e) {
+        if (e.target.id === 'duplicate-modal-overlay') {
+            closeDuplicateForm();
+        }
+    });
+    
+    // Build URL parameters with edited form data
+    function buildDuplicateUrlParamsWithFormData(orderData, formData) {
         const params = new URLSearchParams();
         
-        // Core fields
-        if (orderData.client_name) params.append('contact_name', orderData.client_name);
-        if (orderData.nit) params.append('contact_vat', orderData.nit);
+        // Use EDITED values from form for required fields
+        if (formData.client_name) params.append('contact_name', formData.client_name);
+        if (formData.nit) params.append('contact_vat', formData.nit);
         if (orderData.invoice_value) params.append('invoice_value', orderData.invoice_value);
         if (orderData.work_description) params.append('work_description', orderData.work_description);
         if (orderData.print_color) params.append('print_color', orderData.print_color);
@@ -276,11 +334,11 @@ $currentUrl = Uri::current();
         const requestDate = now.toISOString().slice(0, 19).replace('T', ' ');
         params.append('request_date', requestDate);
         
-        // Shipping
-        if (orderData.shipping_address) params.append('shipping_address', orderData.shipping_address);
-        if (orderData.instrucciones_entrega) params.append('instrucciones_entrega', orderData.instrucciones_entrega);
-        if (orderData.shipping_contact) params.append('shipping_contact', orderData.shipping_contact);
-        if (orderData.shipping_phone) params.append('shipping_phone', orderData.shipping_phone);
+        // Use EDITED values from form for shipping fields
+        if (formData.shipping_address) params.append('shipping_address', formData.shipping_address);
+        if (formData.instrucciones_entrega) params.append('instrucciones_entrega', formData.instrucciones_entrega);
+        if (formData.shipping_contact) params.append('shipping_contact', formData.shipping_contact);
+        if (formData.shipping_phone) params.append('shipping_phone', formData.shipping_phone);
         
         return params.toString();
     }
@@ -697,3 +755,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
