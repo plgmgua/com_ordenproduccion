@@ -284,13 +284,6 @@ $currentUrl = Uri::current();
         }
     }
     
-    // Close modal when clicking overlay
-    document.getElementById('duplicate-modal-overlay')?.addEventListener('click', function(e) {
-        if (e.target.id === 'duplicate-modal-overlay') {
-            closeDuplicateForm();
-        }
-    });
-    
     // Build URL parameters with edited form data
     function buildDuplicateUrlParamsWithFormData(orderData, formData) {
         const params = new URLSearchParams();
