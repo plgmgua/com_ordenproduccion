@@ -137,13 +137,9 @@ try {
             $deliveryDate = convertDate($record->fecha_de_entrega);
             $createdDate = convertDateTime($record->marca_temporal);
             
-            // Handle empty dates - use current date as fallback
-            if (empty($requestDate)) {
-                $requestDate = date('Y-m-d');
-            }
-            if (empty($deliveryDate)) {
-                $deliveryDate = date('Y-m-d', strtotime('+7 days'));
-            }
+            // Keep dates as NULL if they couldn't be converted
+            // DO NOT use current date as fallback to preserve data integrity
+            // Database allows NULL for these fields
 
             // Map order type
             $orderType = mapOrderType($record->tipo_de_orden);
@@ -286,23 +282,49 @@ function generateOrderNumber($oldOrderNumber)
 }
 
 /**
- * Convert date from DD/MM/YYYY format to YYYY-MM-DD
+ * Convert date from various formats to YYYY-MM-DD
+ * Handles: DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY, timestamps
  */
 function convertDate($dateString)
 {
-    if (empty($dateString) || $dateString === 'NULL') {
+    if (empty($dateString) || $dateString === 'NULL' || $dateString === '0000-00-00') {
         return null;
     }
 
+    // Try multiple date formats
+    $formats = [
+        'd/m/Y',           // 08/10/2025
+        'Y-m-d',           // 2025-10-08
+        'd-m-Y',           // 08-10-2025
+        'm/d/Y',           // 10/08/2025
+        'Y/m/d',           // 2025/10/08
+        'd/m/Y H:i:s',     // 08/10/2025 14:30:00
+        'Y-m-d H:i:s',     // 2025-10-08 14:30:00
+    ];
+
+    foreach ($formats as $format) {
+        try {
+            $date = DateTime::createFromFormat($format, $dateString);
+            if ($date && $date->format($format) === $dateString) {
+                return $date->format('Y-m-d');
+            }
+        } catch (Exception $e) {
+            continue;
+        }
+    }
+    
+    // Try strtotime as last resort
     try {
-        $date = DateTime::createFromFormat('d/m/Y', $dateString);
-        if ($date) {
-            return $date->format('Y-m-d');
+        $timestamp = strtotime($dateString);
+        if ($timestamp !== false && $timestamp > 0) {
+            return date('Y-m-d', $timestamp);
         }
     } catch (Exception $e) {
-        // If conversion fails, return null
+        // Last resort failed
     }
 
+    // Log the problematic date for debugging
+    echo "⚠️ Unable to convert date: '{$dateString}', setting to NULL\n";
     return null;
 }
 
