@@ -169,6 +169,13 @@ class HtmlView extends BaseHtmlView
                 // Order by orden_de_trabajo descending
                 $query->order($db->quoteName('orden_de_trabajo') . ' DESC');
                 
+                // Get total count first
+                $countQuery = clone $query;
+                $countQuery->clear('select');
+                $countQuery->select('COUNT(*)');
+                $db->setQuery($countQuery);
+                $total = $db->loadResult();
+                
                 // Set limit for pagination
                 $limit = $input->getInt('limit', 20);
                 $start = $input->getInt('limitstart', 0);
@@ -177,9 +184,8 @@ class HtmlView extends BaseHtmlView
                 $db->setQuery($query);
                 $this->workOrders = $db->loadObjectList() ?: [];
                 
-                // Create a simple pagination object
-                $this->workOrdersPagination = new \stdClass();
-                $this->workOrdersPagination->getListFooter = function() { return ''; }; // No pagination for now
+                // Create a proper pagination object
+                $this->workOrdersPagination = new \Joomla\CMS\Pagination\Pagination($total, $start, $limit);
                 
                 // Create state object
                 $this->state = new \Joomla\Registry\Registry();
