@@ -144,17 +144,60 @@ $currentUrl = Uri::current();
     <script>
     // Simplified duplicate request - direct URL generation
     async function confirmDuplicateRequest() {
-        // Show confirmation dialog
-        if (!confirm('¿Desea generar una nueva solicitud basada en esta orden de compra?')) {
-            return;
-        }
-        
         const button = document.getElementById('duplicate-request-btn');
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        const messageDiv = document.getElementById('duplicate-message');
         
         try {
-            // Fetch settings
+            // STEP 1: Validate required fields
+            const orderData = window.currentOrderData || {};
+            const validationErrors = [];
+            
+            // Required fields validation
+            if (!orderData.client_name || orderData.client_name.trim() === '') {
+                validationErrors.push('Cliente');
+            }
+            if (!orderData.nit || orderData.nit.trim() === '') {
+                validationErrors.push('NIT');
+            }
+            if (!orderData.shipping_address || orderData.shipping_address.trim() === '') {
+                validationErrors.push('Dirección de Entrega');
+            }
+            if (!orderData.shipping_contact || orderData.shipping_contact.trim() === '') {
+                validationErrors.push('Contacto de Entrega');
+            }
+            if (!orderData.shipping_phone || orderData.shipping_phone.trim() === '') {
+                validationErrors.push('Teléfono de Contacto');
+            }
+            if (!orderData.instrucciones_entrega || orderData.instrucciones_entrega.trim() === '') {
+                validationErrors.push('Instrucciones de Entrega');
+            }
+            
+            // If validation fails, show error and stop
+            if (validationErrors.length > 0) {
+                messageDiv.className = 'duplicate-message alert alert-warning';
+                messageDiv.innerHTML = '<strong>⚠️ Campos requeridos faltantes:</strong><br>' + 
+                                      '• ' + validationErrors.join('<br>• ') + '<br><br>' +
+                                      '<em>Por favor complete estos campos antes de duplicar la solicitud.</em>';
+                messageDiv.style.display = 'block';
+                
+                // Hide message after 8 seconds
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 8000);
+                
+                return;
+            }
+            
+            // STEP 2: Show confirmation dialog
+            if (!confirm('¿Desea generar una nueva solicitud basada en esta orden de compra?')) {
+                return;
+            }
+            
+            // STEP 3: Disable button and show processing
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+            
+            // STEP 4: Fetch settings
             const settingsResponse = await fetch('/components/com_ordenproduccion/get_duplicate_settings.php');
             if (!settingsResponse.ok) {
                 throw new Error('No se pudo obtener la configuración del endpoint');
@@ -165,8 +208,7 @@ $currentUrl = Uri::current();
                 throw new Error('Endpoint no configurado. Por favor configure el endpoint en Configuración.');
             }
             
-            // Build URL with current order data
-            const orderData = window.currentOrderData || {};
+            // STEP 5: Build URL with current order data
             const urlParams = buildDuplicateUrlParams(orderData);
             const finalUrl = settings.endpoint + (settings.endpoint.includes('?') ? '&' : '?') + urlParams;
             
@@ -176,17 +218,16 @@ $currentUrl = Uri::current();
             console.log(finalUrl);
             console.log('========================================');
             
-            // Navigate to URL in current tab
+            // STEP 6: Navigate to URL in current tab
             window.location.href = finalUrl;
             
         } catch (error) {
             console.error('Error al duplicar solicitud:', error);
             
-            const messageDiv = document.getElementById('duplicate-message');
             messageDiv.className = 'duplicate-message alert alert-danger';
             messageDiv.textContent = '❌ Error: ' + error.message;
             messageDiv.style.display = 'block';
-        } finally {
+            
             button.disabled = false;
             button.innerHTML = '<i class="fas fa-copy"></i> Duplicar Solicitud';
         }
