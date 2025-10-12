@@ -87,8 +87,13 @@ class HtmlView extends BaseHtmlView
         $this->orderNumber = $orderNumber;
 
         // Check if this is an AJAX request (for modal display)
-        $isAjax = $input->get('format') === 'raw' || 
+        $format = $input->get('format', '', 'string');
+        $isAjax = $format === 'raw' || 
                   (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
+        
+        // Debug logging
+        error_log("Quotation View Debug - Format: " . $format . ", IsAjax: " . ($isAjax ? 'YES' : 'NO'));
+        error_log("HTTP_X_REQUESTED_WITH: " . ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? 'NOT_SET'));
 
         if (!$isAjax) {
             // Set page title only for full page requests

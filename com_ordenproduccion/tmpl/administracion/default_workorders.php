@@ -561,6 +561,8 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
             return response.text();
         })
         .then(html => {
+            console.log('Received HTML length:', html.length);
+            console.log('First 200 chars:', html.substring(0, 200));
             // With format=raw, we should get just the form content
             modalBody.innerHTML = html;
             
@@ -577,10 +579,14 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
             });
         })
         .catch(error => {
+            console.error('Fetch error:', error);
+            console.error('URL attempted:', url);
             modalBody.innerHTML = `
                 <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
                     <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
+                    <p style="font-size: 12px; color: #666; margin-top: 10px;">Error: ${error.message}</p>
+                    <p style="font-size: 12px; color: #666;">URL: ${url}</p>
                     <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
                     </button>
