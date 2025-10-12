@@ -211,6 +211,10 @@ use Joomla\CMS\Language\Text;
         </form>
         
         <div class="modal-footer">
+            <button type="button" class="btn btn-info" onclick="previewPayload()" title="Preview and copy payload for testing">
+                <i class="fas fa-eye"></i>
+                Preview Payload
+            </button>
             <button type="button" class="btn btn-secondary" onclick="closeDuplicateModal()">
                 <i class="fas fa-times"></i>
                 <?php echo Text::_('JCANCEL'); ?>
@@ -678,6 +682,28 @@ async function submitDuplicateRequest() {
         // Step 3: Build JSON payload
         const payload = buildPayload(uploadedFileUrl);
         
+        console.log('========================================');
+        console.log('PAYLOAD TO BE SENT:');
+        console.log('========================================');
+        console.log(JSON.stringify(payload, null, 2));
+        console.log('========================================');
+        console.log('Payload size:', JSON.stringify(payload).length, 'bytes');
+        console.log('========================================');
+        
+        // Show payload preview in modal (for testing)
+        if (confirm('📋 Payload ready to send!\n\n✅ Check browser console (F12) to see the full payload.\n\n📊 Payload preview:\n' + 
+                    'Cliente: ' + payload.form_data.cliente + '\n' +
+                    'NIT: ' + payload.form_data.nit + '\n' +
+                    'Valor: ' + payload.form_data.valor_factura + '\n' +
+                    'Agente: ' + payload.form_data.agente_de_ventas + '\n' +
+                    'Descripción: ' + payload.form_data.descripcion_trabajo.substring(0, 50) + '...\n\n' +
+                    '🚀 Click OK to send, CANCEL to abort')) {
+            console.log('✅ User confirmed - sending payload...');
+        } else {
+            console.log('❌ User cancelled - aborting submission');
+            throw new Error('Envío cancelado por el usuario');
+        }
+        
         // Step 4: Send HTTP POST to configured endpoint
         const headers = {
             'Content-Type': 'application/json'
@@ -889,6 +915,61 @@ function showErrorMessage(message) {
     modalBody.scrollTop = 0;
     
     console.log('Error alert added to DOM');
+}
+
+// Preview payload before sending
+function previewPayload() {
+    console.log('=== PREVIEWING PAYLOAD ===');
+    
+    // Get current file URL
+    let uploadedFileUrl = document.getElementById('dup_cotizacion_url').value;
+    const fileInput = document.getElementById('dup_cotizacion');
+    
+    if (fileInput.files.length > 0) {
+        uploadedFileUrl = 'NEW FILE WILL BE UPLOADED: ' + fileInput.files[0].name;
+    }
+    
+    // Build payload
+    const payload = buildPayload(uploadedFileUrl);
+    
+    // Format as pretty JSON
+    const payloadJSON = JSON.stringify(payload, null, 2);
+    
+    console.log('========================================');
+    console.log('PAYLOAD PREVIEW:');
+    console.log('========================================');
+    console.log(payloadJSON);
+    console.log('========================================');
+    console.log('Size:', payloadJSON.length, 'bytes');
+    console.log('Fields in form_data:', Object.keys(payload.form_data).length);
+    console.log('========================================');
+    
+    // Copy to clipboard
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(payloadJSON).then(() => {
+            alert('✅ Payload copied to clipboard!\n\n' +
+                  '📋 The complete JSON payload has been copied.\n\n' +
+                  '🔍 You can paste it into:\n' +
+                  '  • Postman\n' +
+                  '  • curl command\n' +
+                  '  • API testing tool\n\n' +
+                  '📊 Payload Stats:\n' +
+                  '  • Size: ' + payloadJSON.length + ' bytes\n' +
+                  '  • Fields: ' + Object.keys(payload.form_data).length + '\n' +
+                  '  • Source: ' + payload.source + '\n\n' +
+                  '💡 Check browser console (F12) for full details!');
+        }).catch(err => {
+            console.error('Failed to copy to clipboard:', err);
+            // Fallback: show in alert
+            alert('Payload (check console for formatted version):\n\n' + payloadJSON.substring(0, 500) + '...');
+        });
+    } else {
+        // Fallback: show in alert
+        alert('Payload (check console for full version):\n\n' + payloadJSON.substring(0, 500) + '...');
+    }
+    
+    // Also show a nice summary
+    showSuccessMessage('Payload preview generated! Check console and clipboard.');
 }
 
 // Close modal when clicking overlay
