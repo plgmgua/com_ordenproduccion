@@ -171,7 +171,7 @@ use Joomla\CMS\Router\Route;
 }
 
 .btn-create-invoice {
-    background: #28a745;
+    background: #17a2b8;
     color: white;
     border: none;
     padding: 6px 12px;
@@ -186,7 +186,7 @@ use Joomla\CMS\Router\Route;
 }
 
 .btn-create-invoice:hover {
-    background: #218838;
+    background: #138496;
 }
 
 .btn-create-invoice i {
