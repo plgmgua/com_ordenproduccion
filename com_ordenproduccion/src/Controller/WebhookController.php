@@ -475,41 +475,121 @@ class WebhookController extends BaseController
         $startTime = microtime(true);
         
         try {
-            // Get the raw POST data
+            // ============================================
+            // CAPTURE EVERYTHING - NO VALIDATION
+            // ============================================
+            
+            // Get the raw POST data (EXACT body as received)
             $rawData = file_get_contents('php://input');
             
-            // Log the incoming request with 'test' endpoint type
-            // This is the ONLY action - we don't process the order
-            $this->logWebhookRequest($rawData, 'test', $startTime);
+            // Get ALL request data
+            $allData = [
+                'raw_body' => $rawData,
+                'raw_body_length' => strlen($rawData),
+                'post_data' => $_POST,
+                'get_data' => $_GET,
+                'request_method' => $_SERVER['REQUEST_METHOD'] ?? '',
+                'content_type' => $_SERVER['CONTENT_TYPE'] ?? '',
+                'http_headers' => [],
+                'server_vars' => []
+            ];
             
-            // Parse JSON data for validation only
-            $data = json_decode($rawData, true);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logError('[TEST] Invalid JSON data: ' . json_last_error_msg(), 'test', $startTime);
-                $this->sendErrorResponse('[TEST] Invalid JSON data', 400);
-                return;
+            // Capture ALL HTTP headers
+            foreach ($_SERVER as $key => $value) {
+                if (strpos($key, 'HTTP_') === 0) {
+                    $allData['http_headers'][$key] = $value;
+                }
+                // Also capture important SERVER vars
+                if (in_array($key, ['REQUEST_URI', 'QUERY_STRING', 'REMOTE_ADDR', 'REQUEST_TIME'])) {
+                    $allData['server_vars'][$key] = $value;
+                }
             }
             
-            // Send success response without processing
+            // Try to detect content type
+            $isJSON = false;
+            $isFormData = false;
+            $contentType = strtolower($_SERVER['CONTENT_TYPE'] ?? '');
+            
+            if (strpos($contentType, 'application/json') !== false) {
+                $isJSON = true;
+            } elseif (strpos($contentType, 'application/x-www-form-urlencoded') !== false || 
+                      strpos($contentType, 'multipart/form-data') !== false) {
+                $isFormData = true;
+            }
+            
+            // Try to parse JSON (but don't fail if it's not JSON)
+            $parsedJSON = null;
+            $jsonError = null;
+            if ($rawData && $isJSON) {
+                $parsedJSON = json_decode($rawData, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $jsonError = json_last_error_msg();
+                }
+            }
+            
+            // Build comprehensive log data
+            $logData = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                'content_length' => strlen($rawData),
+                'data' => json_encode($allData, JSON_PRETTY_PRINT), // Save EVERYTHING
+                'endpoint_type' => 'test',
+                'start_time' => $startTime,
+                'is_json' => $isJSON,
+                'is_form_data' => $isFormData,
+                'json_valid' => $parsedJSON !== null,
+                'json_error' => $jsonError
+            ];
+            
+            // Log to database (saves EXACT raw body + all metadata)
+            $this->logToDatabase('webhook_request', $logData, 'test', $startTime);
+            
+            // Log to file for additional debugging
+            $this->logToFile('[TEST] Complete request captured: ' . json_encode([
+                'content_type' => $contentType,
+                'body_length' => strlen($rawData),
+                'is_json' => $isJSON,
+                'is_form_data' => $isFormData,
+                'has_post_data' => !empty($_POST),
+                'has_get_data' => !empty($_GET),
+                'json_valid' => $parsedJSON !== null
+            ]));
+            
+            // Send success response
             $response = [
                 'success' => true,
-                'message' => '[TEST] Webhook request received and logged successfully (NOT processed)',
+                'message' => '[TEST] Complete request captured and saved',
                 'timestamp' => date('Y-m-d H:i:s'),
                 'endpoint' => 'test',
-                'note' => 'This is a test endpoint - requests are logged but NOT processed into orders',
-                'payload_size' => strlen($rawData),
-                'payload_preview' => substr($rawData, 0, 200) . (strlen($rawData) > 200 ? '...' : '')
+                'captured' => [
+                    'raw_body_length' => strlen($rawData),
+                    'content_type' => $contentType,
+                    'is_json' => $isJSON,
+                    'is_form_data' => $isFormData,
+                    'json_valid' => $parsedJSON !== null,
+                    'json_error' => $jsonError,
+                    'post_fields' => count($_POST),
+                    'get_fields' => count($_GET),
+                    'http_headers' => count($allData['http_headers'])
+                ],
+                'note' => 'ALL data saved to database - check webhook logs for complete details',
+                'preview' => [
+                    'first_100_chars' => substr($rawData, 0, 100),
+                    'post_keys' => !empty($_POST) ? array_keys($_POST) : [],
+                    'parsed_json_keys' => $parsedJSON ? array_keys($parsedJSON) : null
+                ]
             ];
             
             $this->app->setHeader('Content-Type', 'application/json');
             $this->app->setHeader('Status', '200');
-            echo json_encode($response, JSON_PRETTY_PRINT);
+            echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             $this->app->close();
             
         } catch (\Exception $e) {
-            $this->logError('[TEST] Webhook error: ' . $e->getMessage(), 'test', $startTime);
-            $this->sendErrorResponse('[TEST] Internal server error', 500);
+            // Even if there's an error, try to save what we got
+            $this->logError('[TEST] Exception: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString(), 'test', $startTime);
+            $this->sendErrorResponse('[TEST] Internal server error: ' . $e->getMessage(), 500);
         }
     }
 
