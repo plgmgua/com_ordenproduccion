@@ -7,8 +7,6 @@
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-namespace YourCompany\Component\Ordenproduccion\Site\View;
-
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
@@ -19,7 +17,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 /**
  * Quotation view class
  */
-class HtmlView extends BaseHtmlView
+class OrdenproduccionViewQuotationHtml extends BaseHtmlView
 {
     /**
      * The model state

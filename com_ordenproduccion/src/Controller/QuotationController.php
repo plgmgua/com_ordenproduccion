@@ -7,8 +7,6 @@
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-namespace YourCompany\Component\Ordenproduccion\Site\Controller;
-
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
@@ -19,7 +17,7 @@ use Joomla\CMS\Router\Route;
 /**
  * Quotation controller class
  */
-class QuotationController extends BaseController
+class OrdenproduccionControllerQuotation extends BaseController
 {
     /**
      * The default view for the display method
