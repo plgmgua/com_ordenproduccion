@@ -126,21 +126,139 @@ $currentUrl = Uri::current();
         <?php endif; ?>
         
         <!-- VENTAS SECTION -->
-        <?php if ($hasSalesAccess): ?>
-        <div class="section-ventas">
-            <h5 class="section-title">
-                <i class="fas fa-handshake"></i> VENTAS
-            </h5>
-            
-            <div class="ventas-actions">
-                <button type="button" id="duplicate-request-btn" class="btn btn-warning btn-block" onclick="openDuplicateModal(window.currentOrderData)">
-                    <i class="fas fa-copy"></i>
-                    Duplicar Solicitud
-                </button>
-                <div id="duplicate-message" class="duplicate-message" style="display: none;"></div>
-            </div>
+    <?php if ($hasSalesAccess): ?>
+    <div class="section-ventas">
+        <h5 class="section-title">
+            <i class="fas fa-handshake"></i> VENTAS
+        </h5>
+        
+        <div class="ventas-actions">
+            <button type="button" id="duplicate-request-btn" class="btn btn-warning btn-block" onclick="confirmDuplicateRequest()">
+                <i class="fas fa-copy"></i>
+                Duplicar Solicitud
+            </button>
+            <div id="duplicate-message" class="duplicate-message" style="display: none;"></div>
         </div>
-        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    
+    <script>
+    // Simplified duplicate request - direct URL generation
+    async function confirmDuplicateRequest() {
+        // Show confirmation dialog
+        if (!confirm('¿Desea generar una nueva solicitud basada en esta orden de compra?')) {
+            return;
+        }
+        
+        const button = document.getElementById('duplicate-request-btn');
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        
+        try {
+            // Fetch settings
+            const settingsResponse = await fetch('/components/com_ordenproduccion/get_duplicate_settings.php');
+            if (!settingsResponse.ok) {
+                throw new Error('No se pudo obtener la configuración del endpoint');
+            }
+            
+            const settings = await settingsResponse.json();
+            if (!settings.success || !settings.endpoint) {
+                throw new Error('Endpoint no configurado. Por favor configure el endpoint en Configuración.');
+            }
+            
+            // Build URL with current order data
+            const orderData = window.currentOrderData || {};
+            const urlParams = buildDuplicateUrlParams(orderData);
+            const finalUrl = settings.endpoint + (settings.endpoint.includes('?') ? '&' : '?') + urlParams;
+            
+            console.log('========================================');
+            console.log('DUPLICAR SOLICITUD - URL GENERADA:');
+            console.log('========================================');
+            console.log(finalUrl);
+            console.log('========================================');
+            
+            // Open in new tab
+            const resultWindow = window.open(finalUrl, '_blank');
+            
+            if (!resultWindow) {
+                throw new Error('No se pudo abrir la ventana. Por favor permite ventanas emergentes.');
+            }
+            
+            // Show success message
+            const messageDiv = document.getElementById('duplicate-message');
+            messageDiv.className = 'duplicate-message alert alert-success';
+            messageDiv.textContent = '✅ Solicitud duplicada enviada correctamente';
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+            
+        } catch (error) {
+            console.error('Error al duplicar solicitud:', error);
+            
+            const messageDiv = document.getElementById('duplicate-message');
+            messageDiv.className = 'duplicate-message alert alert-danger';
+            messageDiv.textContent = '❌ Error: ' + error.message;
+            messageDiv.style.display = 'block';
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-copy"></i> Duplicar Solicitud';
+        }
+    }
+    
+    // Build URL parameters from order data (no editing, direct from database)
+    function buildDuplicateUrlParams(orderData) {
+        const params = new URLSearchParams();
+        
+        // Core fields
+        if (orderData.client_name) params.append('contact_name', orderData.client_name);
+        if (orderData.nit) params.append('contact_vat', orderData.nit);
+        if (orderData.invoice_value) params.append('invoice_value', orderData.invoice_value);
+        if (orderData.work_description) params.append('work_description', orderData.work_description);
+        if (orderData.print_color) params.append('print_color', orderData.print_color);
+        if (orderData.tiro_retiro) params.append('tiro_retiro', orderData.tiro_retiro);
+        if (orderData.dimensions) params.append('dimensions', orderData.dimensions);
+        if (orderData.delivery_date) params.append('delivery_date', orderData.delivery_date);
+        if (orderData.material) params.append('material', orderData.material);
+        if (orderData.quotation_files) params.append('quotation', orderData.quotation_files);
+        
+        // Acabados (finishing) - SI/NO values
+        const acabadosFields = [
+            'cutting', 'blocking', 'folding', 'laminating', 'spine', 
+            'gluing', 'numbering', 'sizing', 'stapling', 'die_cutting', 
+            'varnish', 'white_print', 'trimming', 'eyelets', 'perforation'
+        ];
+        
+        acabadosFields.forEach(field => {
+            if (orderData[field]) {
+                params.append(field, orderData[field]);
+                // Add details if exists
+                const detailsField = field + '_details';
+                if (orderData[detailsField]) {
+                    params.append(detailsField, orderData[detailsField]);
+                }
+            }
+        });
+        
+        // Additional fields
+        if (orderData.instructions) params.append('instructions', orderData.instructions);
+        if (orderData.sales_agent) params.append('sales_agent', orderData.sales_agent);
+        
+        // Use current date/time for request_date
+        const now = new Date();
+        const requestDate = now.toISOString().slice(0, 19).replace('T', ' ');
+        params.append('request_date', requestDate);
+        
+        // Shipping
+        if (orderData.shipping_address) params.append('shipping_address', orderData.shipping_address);
+        if (orderData.instrucciones_entrega) params.append('instrucciones_entrega', orderData.instrucciones_entrega);
+        if (orderData.shipping_contact) params.append('shipping_contact', orderData.shipping_contact);
+        if (orderData.shipping_phone) params.append('shipping_phone', orderData.shipping_phone);
+        
+        return params.toString();
+    }
+    </script><?php endif; ?>
 
     <?php else: ?>
         <div class="alert alert-info">

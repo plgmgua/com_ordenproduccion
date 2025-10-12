@@ -469,12 +469,9 @@ function displayYesNoBadge($value) {
     </div>
 </div>
 
-<!-- Include Duplicate Modal -->
-<?php require __DIR__ . '/duplicate_modal.php'; ?>
-
-<!-- Pass order data to JavaScript -->
+<!-- Pass order data to JavaScript for duplicate request -->
 <script>
-// Make order data available for duplicate modal
+// Make order data available for duplicate request button (VENTAS section)
 window.currentOrderData = <?php echo json_encode([
     'id' => $item->id ?? '',
     'client_name' => $item->client_name ?? '',
