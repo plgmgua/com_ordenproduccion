@@ -19,6 +19,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [3.1.2-STABLE] - 2025-10-12
+
+### Fixed
+- **CRITICAL: Data Import Date Preservation**
+  - Fixed `import_cli.php` to use `marca_temporal` (timestamp field) for `request_date`
+  - **Previous Issue**: All imported work orders had `request_date` set to October 8th, 2025 (import date)
+  - **Root Cause**: Script used `fecha_de_solicitud` instead of `marca_temporal`, with fallback to current date
+  - **Correct Mapping**: `marca_temporal` → `request_date` (preserves original timestamps)
+  - **Enhanced Date Conversion Functions**:
+    - `convertDate()`: Handles 7+ date formats (DD/MM/YYYY, YYYY-MM-DD, timestamps, etc.)
+    - `convertDateTime()`: Handles Unix timestamps + multiple datetime formats
+    - Removed fallback to current date (preserves data integrity)
+    - Logs problematic dates for debugging
+    - Allows NULL values (database supports it)
+  - **Benefits**: Historical dates preserved, no data loss, better error reporting
+  - **To Re-import**: Run `php import_cli.php` with corrected date mapping
+
+### Changed
+- Import script no longer uses current date as fallback for failed date conversions
+- NULL values allowed for dates that cannot be converted
+
+## [3.1.1-STABLE] - 2025-10-12
+
+### Fixed
+- **Bootstrap Loading Issue** in "Administracion" dashboard view
+  - Error: "There is no 'bootstrap.bundle' asset of a 'script' type in the registry"
+  - Fixed by replacing WebAssetManager calls with HTMLHelper::_('bootstrap.framework')
+  - Proper Joomla 5.x asset loading for Bootstrap and jQuery
+
+## [3.1.0-STABLE] - 2025-10-12
+
+### Added
+- **New "Administracion" Dashboard** (Menu Item Type)
+  - Statistics dashboard for work order management
+  - Displays count of work orders for current month
+  - Month/Year filter for custom date ranges
+  - Top 10 orders by "valor_factura" (invoice value)
+  - Responsive Bootstrap-based layout
+  - Real-time statistics with SQL aggregation
+  - New view: `com_ordenproduccion/src/View/Administracion/HtmlView.php`
+  - New model: `com_ordenproduccion/src/Model/AdministracionModel.php`
+  - New template: `com_ordenproduccion/tmpl/administracion/default.php`
+  - New menu item type: `com_ordenproduccion/tmpl/administracion/default.xml`
+  - Language strings for dashboard (English and Spanish)
+
+### Changed
+- Component version updated to 3.1.0-STABLE for new major feature
+
 ## [2.6.0-STABLE] - 2025-10-11
 
 ### Added
