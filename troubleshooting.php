@@ -555,15 +555,24 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
                     echo "✅ Clase OrdenproduccionViewQuotationHtml definida correctamente\n";
                 } else {
                     echo "❌ Clase OrdenproduccionViewQuotationHtml NO encontrada en el archivo\n";
+                    echo "Contenido del archivo (primeras 500 chars):\n";
+                    echo htmlspecialchars(substr($content, 0, 500)) . "\n";
                 }
                 
-                if (strpos($content, 'display(') !== false) {
+                if (strpos($content, 'function display(') !== false) {
                     echo "✅ Método display() encontrado\n";
                 } else {
                     echo "❌ Método display() NO encontrado\n";
                 }
+                
+                if (strpos($content, 'getQuotationFileUrl()') !== false) {
+                    echo "✅ Método getQuotationFileUrl() encontrado\n";
+                } else {
+                    echo "❌ Método getQuotationFileUrl() NO encontrado\n";
+                }
             } else {
                 echo "❌ Quotation HtmlView.php NO existe\n";
+                echo "Ruta esperada: " . $testPath . "\n";
             }
             
             // Test controller
@@ -576,9 +585,12 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
                     echo "✅ Clase OrdenproduccionControllerQuotation definida correctamente\n";
                 } else {
                     echo "❌ Clase OrdenproduccionControllerQuotation NO encontrada\n";
+                    echo "Contenido del archivo (primeras 500 chars):\n";
+                    echo htmlspecialchars(substr($content, 0, 500)) . "\n";
                 }
             } else {
                 echo "❌ QuotationController.php NO existe\n";
+                echo "Ruta esperada: " . $controllerPath . "\n";
             }
             
             // Test template
@@ -592,12 +604,20 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
                 } else {
                     echo "❌ Template NO tiene protección _JEXEC\n";
                 }
+                
+                if (strpos($content, 'getQuotationFileUrl()') !== false) {
+                    echo "✅ Template llama a getQuotationFileUrl()\n";
+                } else {
+                    echo "❌ Template NO llama a getQuotationFileUrl()\n";
+                }
             } else {
                 echo "❌ quotation/display.php NO existe\n";
+                echo "Ruta esperada: " . $templatePath . "\n";
             }
             
         } catch (Exception $e) {
             echo "❌ Error durante la prueba: " . $e->getMessage() . "\n";
+            echo "Stack trace: " . $e->getTraceAsString() . "\n";
         }
         
         echo '</div>';
@@ -694,6 +714,111 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
             }
         } else {
             echo "❌ Directorio de caché no existe\n";
+        }
+        
+        echo '</div>';
+        
+        // Direct instantiation test
+        echo '<h4>🚀 Prueba de Instanciación Directa</h4>';
+        echo '<div class="file-list">';
+        
+        try {
+            // Try to directly instantiate the quotation view
+            echo "Intentando instanciar la vista de cotización directamente...\n";
+            
+            // Check if we can load the view class
+            $viewPath = $SITE_COMPONENT_PATH . '/src/View/Quotation/HtmlView.php';
+            if (file_exists($viewPath)) {
+                echo "✅ Archivo de vista existe, intentando incluir...\n";
+                
+                // Try to include the file
+                ob_start();
+                include_once $viewPath;
+                $includeOutput = ob_get_clean();
+                
+                if (!empty($includeOutput)) {
+                    echo "⚠️ Output durante include: " . $includeOutput . "\n";
+                } else {
+                    echo "✅ Archivo incluido sin output\n";
+                }
+                
+                // Try to instantiate the class
+                if (class_exists('OrdenproduccionViewQuotationHtml')) {
+                    echo "✅ Clase OrdenproduccionViewQuotationHtml disponible\n";
+                    
+                    try {
+                        $view = new OrdenproduccionViewQuotationHtml();
+                        echo "✅ Vista instanciada correctamente\n";
+                        
+                        // Try to call display method
+                        ob_start();
+                        $view->display();
+                        $displayOutput = ob_get_clean();
+                        
+                        if (!empty($displayOutput)) {
+                            echo "⚠️ Output durante display(): " . substr($displayOutput, 0, 200) . "...\n";
+                        } else {
+                            echo "✅ Método display() ejecutado sin output\n";
+                        }
+                        
+                    } catch (Exception $e) {
+                        echo "❌ Error instanciando vista: " . $e->getMessage() . "\n";
+                        echo "Stack trace: " . $e->getTraceAsString() . "\n";
+                    }
+                } else {
+                    echo "❌ Clase OrdenproduccionViewQuotationHtml NO disponible después del include\n";
+                }
+            } else {
+                echo "❌ Archivo de vista no existe: $viewPath\n";
+            }
+            
+        } catch (Exception $e) {
+            echo "❌ Error durante prueba de instanciación: " . $e->getMessage() . "\n";
+            echo "Stack trace: " . $e->getTraceAsString() . "\n";
+        }
+        
+        echo '</div>';
+        
+        // Joomla routing simulation
+        echo '<h4>🎭 Simulación de Enrutamiento Joomla</h4>';
+        echo '<div class="file-list">';
+        
+        try {
+            echo "Simulando el proceso de enrutamiento de Joomla...\n";
+            
+            // Simulate the URL parameters
+            $_GET['option'] = 'com_ordenproduccion';
+            $_GET['view'] = 'quotation';
+            $_GET['layout'] = 'display';
+            $_GET['order_id'] = '5389';
+            $_GET['order_number'] = 'ORD-005543';
+            $_GET['quotation_files'] = '["\/media\/com_convertforms\/uploads\/9a9945bed17c3630_5336.pdf"]';
+            
+            echo "✅ Parámetros GET configurados\n";
+            echo "Option: " . $_GET['option'] . "\n";
+            echo "View: " . $_GET['view'] . "\n";
+            echo "Layout: " . $_GET['layout'] . "\n";
+            echo "Order ID: " . $_GET['order_id'] . "\n";
+            echo "Order Number: " . $_GET['order_number'] . "\n";
+            echo "Quotation Files: " . $_GET['quotation_files'] . "\n";
+            
+            // Try to get Joomla application
+            $app = Factory::getApplication('site');
+            echo "✅ Aplicación Joomla obtenida\n";
+            
+            // Try to get input
+            $input = $app->input;
+            echo "✅ Input obtenido\n";
+            
+            // Check what Joomla sees
+            echo "Joomla ve:\n";
+            echo "- Option: " . $input->get('option') . "\n";
+            echo "- View: " . $input->get('view') . "\n";
+            echo "- Layout: " . $input->get('layout') . "\n";
+            
+        } catch (Exception $e) {
+            echo "❌ Error durante simulación: " . $e->getMessage() . "\n";
+            echo "Stack trace: " . $e->getTraceAsString() . "\n";
         }
         
         echo '</div>';
