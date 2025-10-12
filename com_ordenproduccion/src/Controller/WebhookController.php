@@ -474,9 +474,12 @@ class WebhookController extends BaseController
         
         $startTime = microtime(true);
         
+        // Get request method
+        $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN';
+        
         try {
             // ============================================
-            // CAPTURE EVERYTHING - NO VALIDATION
+            // ACCEPT BOTH GET AND POST FOR TESTING
             // ============================================
             
             // Get the raw POST data (EXACT body as received)
@@ -556,12 +559,13 @@ class WebhookController extends BaseController
                 'json_valid' => $parsedJSON !== null
             ]));
             
-            // Send success response
+            // Build response based on request method
             $response = [
                 'success' => true,
-                'message' => '[TEST] Complete request captured and saved',
+                'message' => '[TEST] Request received and saved',
                 'timestamp' => date('Y-m-d H:i:s'),
                 'endpoint' => 'test',
+                'request_method' => $requestMethod,
                 'captured' => [
                     'raw_body_length' => strlen($rawData),
                     'content_type' => $contentType,
@@ -573,13 +577,32 @@ class WebhookController extends BaseController
                     'get_fields' => count($_GET),
                     'http_headers' => count($allData['http_headers'])
                 ],
-                'note' => 'ALL data saved to database - check webhook logs for complete details',
+                'note' => 'ALL data saved to database - check Administrator → Orden Produccion → Webhook → Recent Logs',
                 'preview' => [
                     'first_100_chars' => substr($rawData, 0, 100),
                     'post_keys' => !empty($_POST) ? array_keys($_POST) : [],
                     'parsed_json_keys' => $parsedJSON ? array_keys($parsedJSON) : null
                 ]
             ];
+            
+            // Add helpful info for GET requests
+            if ($requestMethod === 'GET') {
+                $response['info'] = [
+                    'message' => 'This endpoint accepts both GET and POST requests',
+                    'get_usage' => 'Visit this URL in browser to test connectivity',
+                    'post_usage' => 'Send POST request with JSON body to test data capture',
+                    'example_curl' => 'curl -X POST ' . ($_SERVER['HTTP_HOST'] ?? 'your-domain') . $_SERVER['REQUEST_URI'] . ' -H "Content-Type: application/json" -d \'{"test": "data"}\'',
+                    'configure_in' => 'Administrator → Orden Produccion → Settings → Configuración de Ventas'
+                ];
+                $response['message'] = '[TEST] GET request successful - endpoint is reachable';
+            } else {
+                $response['info'] = [
+                    'message' => 'POST request captured successfully',
+                    'payload_saved' => 'View full details in webhook logs',
+                    'beautified_display' => 'Click on log entry to see formatted JSON'
+                ];
+                $response['message'] = '[TEST] POST request captured and saved';
+            }
             
             $this->app->setHeader('Content-Type', 'application/json');
             $this->app->setHeader('Status', '200');
