@@ -77,6 +77,12 @@ $activeTab = $input->get('tab', 'statistics', 'string');
         <i class="fas fa-file-invoice-dollar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_INVOICES'); ?>
     </a>
+    
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=workorders'); ?>" 
+       class="admin-tab <?php echo $activeTab === 'workorders' ? 'active' : ''; ?>">
+        <i class="fas fa-clipboard-list"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_WORK_ORDERS'); ?>
+    </a>
 </div>
 
 <div class="tab-content">
@@ -84,6 +90,8 @@ $activeTab = $input->get('tab', 'statistics', 'string');
         <?php echo $this->loadTemplate('statistics'); ?>
     <?php elseif ($activeTab === 'invoices'): ?>
         <?php echo $this->loadTemplate('invoices'); ?>
+    <?php elseif ($activeTab === 'workorders'): ?>
+        <?php echo $this->loadTemplate('workorders'); ?>
     <?php endif; ?>
 </div>
 

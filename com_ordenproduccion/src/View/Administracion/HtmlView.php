@@ -71,6 +71,22 @@ class HtmlView extends BaseHtmlView
     protected $state;
 
     /**
+     * Work orders list
+     *
+     * @var    array
+     * @since  3.2.0
+     */
+    protected $workOrders;
+
+    /**
+     * Work orders pagination
+     *
+     * @var    object
+     * @since  3.2.0
+     */
+    protected $workOrdersPagination;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -95,9 +111,11 @@ class HtmlView extends BaseHtmlView
         $statsModel = $this->getModel('Administracion');
         $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear);
 
-        // Initialize invoices data
+        // Initialize data arrays
         $this->invoices = [];
         $this->invoicesPagination = null;
+        $this->workOrders = [];
+        $this->workOrdersPagination = null;
         $this->state = new \Joomla\Registry\Registry();
 
         // Load invoices data if invoices tab is active
@@ -112,6 +130,22 @@ class HtmlView extends BaseHtmlView
             } catch (\Exception $e) {
                 // If invoices model fails, log error but continue with empty data
                 $app->enqueueMessage('Invoices feature is not yet fully configured. Please run the SQL script: helpers/create_invoices_table.sql', 'warning');
+            }
+        }
+
+        // Load work orders data if workorders tab is active
+        if ($activeTab === 'workorders') {
+            try {
+                $ordenesModel = $this->getModel('Ordenes');
+                if ($ordenesModel) {
+                    $this->workOrders = $ordenesModel->getItems();
+                    $this->workOrdersPagination = $ordenesModel->getPagination();
+                    $this->state = $ordenesModel->getState();
+                }
+            } catch (\Exception $e) {
+                // If ordenes model fails, just show empty array
+                $this->workOrders = [];
+                $this->workOrdersPagination = null;
             }
         }
 
