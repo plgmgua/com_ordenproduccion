@@ -457,6 +457,6 @@ class HtmlView extends BaseHtmlView
     public function getComponentVersion()
     {
         // Hardcoded version - update this with each release
-        return '3.0.2-STABLE';
+        return '3.1.0-STABLE';
     }
 }
