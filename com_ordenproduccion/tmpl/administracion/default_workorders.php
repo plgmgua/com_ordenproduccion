@@ -543,8 +543,15 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
     // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
     
-    // Build URL with parameters (use format=raw for AJAX)
-    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&format=raw`;
+    // Try multiple URL formats to find working one
+    const urls = [
+        `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&format=raw`,
+        `?option=com_ordenproduccion&view=quotation&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&format=raw`,
+        `index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&format=raw`
+    ];
+    
+    let urlIndex = 0;
+    const url = urls[urlIndex];
     
     // Fetch content via AJAX with proper headers
     fetch(url, {
@@ -579,19 +586,80 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
             });
         })
         .catch(error => {
-            console.error('Fetch error:', error);
-            console.error('URL attempted:', url);
-            modalBody.innerHTML = `
-                <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                    <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
-                    <p style="font-size: 12px; color: #666; margin-top: 10px;">Error: ${error.message}</p>
-                    <p style="font-size: 12px; color: #666;">URL: ${url}</p>
-                    <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
-                    </button>
-                </div>
-            `;
+            console.error('Fetch error for URL:', url);
+            urlIndex++;
+            
+            // Try next URL if available
+            if (urlIndex < urls.length) {
+                console.log('Trying next URL:', urls[urlIndex]);
+                modalBody.innerHTML = `
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>... (${urlIndex + 1}/${urls.length})</p>
+                    </div>
+                `;
+                
+                // Try next URL
+                fetch(urls[urlIndex], {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    console.log('Success with URL:', urls[urlIndex]);
+                    modalBody.innerHTML = html;
+                    
+                    // Execute any scripts in the loaded content
+                    const scripts = modalBody.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const newScript = document.createElement('script');
+                        if (script.src) {
+                            newScript.src = script.src;
+                        } else {
+                            newScript.textContent = script.textContent;
+                        }
+                        document.body.appendChild(newScript);
+                    });
+                })
+                .catch(finalError => {
+                    console.error('All URLs failed. Final error:', finalError);
+                    modalBody.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                            <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
+                            <p style="font-size: 12px; color: #666; margin-top: 10px;">All URLs failed. Quotation view not found.</p>
+                            <p style="font-size: 12px; color: #666;">Tried ${urls.length} different URL formats.</p>
+                            <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
+                            </button>
+                            <button onclick="testQuotationUrls()" style="margin-top: 10px; margin-left: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Test URLs
+                            </button>
+                        </div>
+                    `;
+                });
+            } else {
+                // All URLs failed
+                console.error('All URLs failed');
+                modalBody.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">All URL formats failed. Quotation view not accessible.</p>
+                        <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
+                        </button>
+                    </div>
+                `;
+            }
         });
 }
 
@@ -609,4 +677,31 @@ document.addEventListener('keydown', function(event) {
         closeQuotationModal();
     }
 });
+
+// Test function to check URL accessibility
+function testQuotationUrls() {
+    const testUrls = [
+        '?option=com_ordenproduccion&view=quotation&format=raw',
+        'index.php?option=com_ordenproduccion&view=quotation&format=raw',
+        '?option=com_ordenproduccion&view=quotation',
+        'index.php?option=com_ordenproduccion&view=quotation'
+    ];
+    
+    console.log('Testing quotation URLs...');
+    
+    testUrls.forEach((url, index) => {
+        fetch(url)
+            .then(response => {
+                console.log(`URL ${index + 1} (${url}): Status ${response.status}`);
+                return response.text();
+            })
+            .then(html => {
+                console.log(`URL ${index + 1} content length:`, html.length);
+                console.log(`URL ${index + 1} first 100 chars:`, html.substring(0, 100));
+            })
+            .catch(error => {
+                console.log(`URL ${index + 1} (${url}): Error`, error.message);
+            });
+    });
+}
 </script>
