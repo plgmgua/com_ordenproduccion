@@ -458,45 +458,65 @@ try {
                 
                 echo '</div>';
                 
-                // Suggested Mapping
-                echo '<h3>💡 Suggested Field Mapping:</h3>';
+                // Suggested Mapping (USER-DEFINED MAPPING from screenshot)
+                echo '<h3>💡 Confirmed Field Mapping:</h3>';
                 echo '<table>';
                 echo '<tr><th>Payload Field</th><th>→</th><th>Work Order Field</th><th>Status</th></tr>';
                 
-                // Common mappings
+                // User-defined mappings - exact match from screenshot
                 $mappings = [
+                    // Core Fields
                     'cliente' => 'client_name',
-                    'nit' => 'client_nit',
+                    'nit' => 'nit',
+                    'valor_factura' => 'invoice_value',
                     'descripcion_trabajo' => 'work_description',
-                    'fecha_entrega' => 'delivery_date',
-                    'fecha_de_solicitud' => 'request_date',
-                    'agente_de_ventas' => 'sales_agent',
                     'color_impresion' => 'print_color',
                     'tiro_retiro' => 'tiro_retiro',
                     'medidas' => 'dimensions',
+                    'fecha_entrega' => 'delivery_date',
                     'material' => 'material',
-                    'valor_factura' => 'invoice_amount',
-                    'instrucciones' => 'general_instructions',
+                    'cotizacion' => 'quotation_files',
+                    
+                    // Acabados with Details
+                    'corte' => 'cutting',
+                    'detalles_corte' => 'cutting_details',
+                    'blocado' => 'blocking',
+                    'detalles_blocado' => 'blocking_details',
+                    'doblado' => 'folding',
+                    'detalles_doblado' => 'folding_details',
+                    'laminado' => 'laminating',
+                    'detalles_laminado' => 'laminating_details',
+                    'lomo' => 'spine',
+                    'detalles_lomo' => 'spine_details',
+                    'pegado' => 'gluing',
+                    'detalles_pegado' => 'gluing_details',
+                    'numerado' => 'numbering',
+                    'detalles_numerado' => 'numbering_details',
+                    'sizado' => 'sizing',
+                    'detalles_sizado' => 'sizing_details',
+                    'engrapado' => 'stapling',
+                    'detalles_engrapado' => 'stapling_details',
+                    'troquel' => 'die_cutting',
+                    'detalles_troquel' => 'die_cutting_details',
+                    'barniz' => 'varnish',
+                    'detalles_barniz' => 'varnish_details',
+                    'impresion_blanco' => 'white_print',
+                    'detalles_impresion_blanco' => 'white_print_details',
+                    'despuntado' => 'trimming',
+                    'detalles_despuntado' => 'trimming_details',
+                    'ojetes' => 'eyelets',
+                    'detalles_ojetes' => 'eyelets_details',
+                    'perforado' => 'perforation',
+                    'detalles_perforado' => 'perforation_details',
+                    
+                    // Other Fields
+                    'instrucciones' => 'instructions',
+                    'agente_de_ventas' => 'sales_agent',
+                    'fecha_de_solicitud' => 'request_date',
                     'direccion_entrega' => 'shipping_address',
                     'instrucciones_entrega' => 'instrucciones_entrega',
                     'contacto_nombre' => 'shipping_contact',
-                    'contacto_telefono' => 'shipping_phone',
-                    // Acabados
-                    'corte' => 'cutting',
-                    'blocado' => 'blocking',
-                    'doblado' => 'folding',
-                    'laminado' => 'laminating',
-                    'lomo' => 'spine',
-                    'pegado' => 'gluing',
-                    'numerado' => 'numbering',
-                    'sizado' => 'sizing',
-                    'engrapado' => 'stapling',
-                    'troquel' => 'die_cutting',
-                    'barniz' => 'varnish',
-                    'impresion_blanco' => 'white_print',
-                    'despuntado' => 'trimming',
-                    'ojetes' => 'eyelets',
-                    'perforado' => 'perforation'
+                    'contacto_telefono' => 'shipping_phone'
                 ];
                 
                 if (is_array($payloadStructure)) {
@@ -542,40 +562,62 @@ try {
                 echo '<th style="width: 5%;">Match</th>';
                 echo '</tr>';
                 
-                // Field mappings for comparison
+                // Field mappings for comparison (USER-DEFINED MAPPING)
+                // Based on screenshot provided by user - exact mapping between payload and database
                 $comparisonMappings = [
+                    // Core Fields
                     'cliente' => 'client_name',
-                    'nit' => 'client_nit',
-                    'client_id' => 'client_id',
+                    'nit' => 'nit',
+                    'valor_factura' => 'invoice_value',
                     'descripcion_trabajo' => 'work_description',
-                    'fecha_entrega' => 'delivery_date',
-                    'fecha_de_solicitud' => 'request_date',
-                    'agente_de_ventas' => 'sales_agent',
                     'color_impresion' => 'print_color',
                     'tiro_retiro' => 'tiro_retiro',
                     'medidas' => 'dimensions',
+                    'fecha_entrega' => 'delivery_date',
                     'material' => 'material',
-                    'valor_factura' => 'invoice_amount',
-                    'instrucciones' => 'general_instructions',
+                    'cotizacion' => 'quotation_files',
+                    // 'arte' => null, // No mapping defined
+                    
+                    // Acabados (Finishing) - Main Fields
+                    'corte' => 'cutting',
+                    'detalles_corte' => 'cutting_details',
+                    'blocado' => 'blocking',
+                    'detalles_blocado' => 'blocking_details',
+                    'doblado' => 'folding',
+                    'detalles_doblado' => 'folding_details',
+                    'laminado' => 'laminating',
+                    'detalles_laminado' => 'laminating_details',
+                    'lomo' => 'spine',
+                    'detalles_lomo' => 'spine_details',
+                    'pegado' => 'gluing',
+                    'detalles_pegado' => 'gluing_details',
+                    'numerado' => 'numbering',
+                    'detalles_numerado' => 'numbering_details',
+                    'sizado' => 'sizing',
+                    'detalles_sizado' => 'sizing_details',
+                    'engrapado' => 'stapling',
+                    'detalles_engrapado' => 'stapling_details',
+                    'troquel' => 'die_cutting',
+                    'detalles_troquel' => 'die_cutting_details',
+                    'barniz' => 'varnish',
+                    'detalles_barniz' => 'varnish_details',
+                    'impresion_blanco' => 'white_print',
+                    'detalles_impresion_blanco' => 'white_print_details',
+                    'despuntado' => 'trimming',
+                    'detalles_despuntado' => 'trimming_details',
+                    'ojetes' => 'eyelets',
+                    'detalles_ojetes' => 'eyelets_details',
+                    'perforado' => 'perforation',
+                    'detalles_perforado' => 'perforation_details',
+                    
+                    // Other Fields
+                    'instrucciones' => 'instructions',
+                    'agente_de_ventas' => 'sales_agent',
+                    'fecha_de_solicitud' => 'request_date',
                     'direccion_entrega' => 'shipping_address',
                     'instrucciones_entrega' => 'instrucciones_entrega',
                     'contacto_nombre' => 'shipping_contact',
-                    'contacto_telefono' => 'shipping_phone',
-                    'corte' => 'cutting',
-                    'blocado' => 'blocking',
-                    'doblado' => 'folding',
-                    'laminado' => 'laminating',
-                    'lomo' => 'spine',
-                    'pegado' => 'gluing',
-                    'numerado' => 'numbering',
-                    'sizado' => 'sizing',
-                    'engrapado' => 'stapling',
-                    'troquel' => 'die_cutting',
-                    'barniz' => 'varnish',
-                    'impresion_blanco' => 'white_print',
-                    'despuntado' => 'trimming',
-                    'ojetes' => 'eyelets',
-                    'perforado' => 'perforation'
+                    'contacto_telefono' => 'shipping_phone'
                 ];
                 
                 foreach ($comparisonMappings as $payloadKey => $workOrderKey) {
