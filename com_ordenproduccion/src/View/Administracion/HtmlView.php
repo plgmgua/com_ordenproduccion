@@ -145,7 +145,7 @@ class HtmlView extends BaseHtmlView
                     'id', 'orden_de_trabajo', 'order_number', 'client_name', 'nit',
                     'invoice_value', 'work_description', 'print_color', 'dimensions',
                     'delivery_date', 'material', 'request_date', 'sales_agent', 'status',
-                    'invoice_number', 'created', 'created_by', 'modified', 'modified_by', 'state', 'version'
+                    'invoice_number', 'quotation_files', 'created', 'created_by', 'modified', 'modified_by', 'state', 'version'
                 ]);
                 $query->from($db->quoteName('#__ordenproduccion_ordenes'));
                 
