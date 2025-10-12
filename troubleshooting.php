@@ -333,6 +333,7 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
                             
                             echo '<strong>Primer archivo:</strong> ' . htmlspecialchars($filePath) . '<br>';
                             echo '<strong>Ruta limpia:</strong> ' . htmlspecialchars($cleanPath) . '<br>';
+                            echo '<strong>Live Site:</strong> ' . htmlspecialchars(Factory::getApplication()->get('live_site')) . '<br>';
                             echo '<strong>URL completa:</strong> <a href="' . htmlspecialchars($fullUrl) . '" target="_blank">' . htmlspecialchars($fullUrl) . '</a><br>';
                             
                             // Check if file exists

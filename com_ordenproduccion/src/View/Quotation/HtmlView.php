@@ -106,8 +106,13 @@ class HtmlView extends BaseHtmlView
                 $filePath = $decoded[0];
                 // Remove escaped slashes
                 $filePath = str_replace('\\/', '/', $filePath);
-                // Make it a full URL
-                return Factory::getApplication()->get('live_site') . $filePath;
+                // Make it a full URL - use URI to get the base URL
+                $uri = Factory::getApplication()->get('uri');
+                $baseUrl = $uri->toString(['scheme', 'host']);
+                if (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] != 80 && $_SERVER['SERVER_PORT'] != 443) {
+                    $baseUrl .= ':' . $_SERVER['SERVER_PORT'];
+                }
+                return $baseUrl . $filePath;
             }
         }
 
