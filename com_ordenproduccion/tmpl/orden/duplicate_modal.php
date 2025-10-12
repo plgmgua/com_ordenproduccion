@@ -616,6 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Submit duplicate request
 async function submitDuplicateRequest() {
     const form = document.getElementById('duplicateForm');
+    const submitBtn = document.querySelector('.modal-footer .btn-primary');
     
     // Validate required fields
     if (!form.checkValidity()) {
@@ -623,11 +624,198 @@ async function submitDuplicateRequest() {
         return;
     }
     
-    // TODO: Implement actual submission
-    console.log('Submitting duplicate request...');
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     
-    // Close modal
-    closeDuplicateModal();
+    try {
+        // Step 1: Get endpoint settings
+        const settingsResponse = await fetch('/components/com_ordenproduccion/get_duplicate_settings.php');
+        const settings = await settingsResponse.json();
+        
+        if (!settings.success || !settings.endpoint) {
+            throw new Error('Endpoint no configurado. Por favor configure el endpoint en Configuración de Ventas.');
+        }
+        
+        // Step 2: Handle file upload (if new file selected)
+        let uploadedFileUrl = document.getElementById('dup_cotizacion_url').value;
+        const fileInput = document.getElementById('dup_cotizacion');
+        
+        if (fileInput.files.length > 0) {
+            uploadedFileUrl = await uploadFile(fileInput.files[0]);
+        }
+        
+        // Step 3: Build JSON payload
+        const payload = buildPayload(uploadedFileUrl);
+        
+        // Step 4: Send HTTP POST to configured endpoint
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        // Add Authorization header if API key is configured
+        if (settings.api_key) {
+            headers['Authorization'] = 'Bearer ' + settings.api_key;
+        }
+        
+        const response = await fetch(settings.endpoint, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al enviar solicitud: ' + response.statusText);
+        }
+        
+        const result = await response.json();
+        
+        // Step 5: Show success message
+        showSuccessMessage('Solicitud duplicada enviada correctamente');
+        
+        // Step 6: Close modal after 2 seconds
+        setTimeout(() => {
+            closeDuplicateModal();
+            // Optionally reload page to show new request
+            // window.location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showErrorMessage(error.message);
+        
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> <?php echo Text::_('COM_ORDENPRODUCCION_SEND_REQUEST'); ?>';
+    }
+}
+
+// Upload file to server
+async function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/components/com_ordenproduccion/upload_cotizacion.php', {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (!response.ok) {
+        throw new Error('Error al subir archivo');
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+        throw new Error(result.error || 'Error al subir archivo');
+    }
+    
+    return result.file_url;
+}
+
+// Build JSON payload from form data
+function buildPayload(cotizacionUrl) {
+    // Get acabados data
+    const acabadosMapping = {
+        'corte': 'cutting',
+        'blocado': 'blocking',
+        'doblado': 'folding',
+        'laminado': 'laminating',
+        'lomo': 'spine',
+        'pegado': 'gluing',
+        'numerado': 'numbering',
+        'sizado': 'sizing',
+        'engrapado': 'stapling',
+        'troquel': 'die_cutting',
+        'barniz': 'varnish',
+        'impresion_blanco': 'white_print',
+        'despuntado': 'trimming',
+        'ojetes': 'eyelets',
+        'perforado': 'perforation'
+    };
+    
+    const formData = {};
+    
+    // Add acabados to form_data
+    Object.keys(acabadosMapping).forEach(spanishName => {
+        const checkbox = document.getElementById('dup_' + spanishName);
+        const detailsInput = document.getElementById('dup_detalles_' + spanishName);
+        
+        if (checkbox && detailsInput) {
+            formData[spanishName] = checkbox.checked ? 'SI' : 'NO';
+            if (checkbox.checked && detailsInput.value) {
+                formData['detalles_' + spanishName] = detailsInput.value;
+            }
+        }
+    });
+    
+    // Build complete payload matching the structure from troubleshooting.php
+    const payload = {
+        request_title: 'Solicitud Ventas a Produccion - Duplicada',
+        source: 'Joomla - Duplicar Solicitud',
+        original_order_id: document.getElementById('dup_order_id').value,
+        form_data: {
+            // Core fields
+            cliente: document.getElementById('dup_cliente').value,
+            nit: document.getElementById('dup_nit').value,
+            valor_factura: parseFloat(document.getElementById('dup_valor_factura').value) || 0,
+            descripcion_trabajo: document.getElementById('dup_descripcion_trabajo').value,
+            agente_de_ventas: document.getElementById('dup_agente_de_ventas').value,
+            
+            // Production specs
+            color_impresion: document.getElementById('dup_color_impresion').value,
+            tiro_retiro: document.getElementById('dup_tiro_retiro').value,
+            medidas: document.getElementById('dup_medidas').value,
+            material: document.getElementById('dup_material').value,
+            
+            // Dates
+            fecha_de_solicitud: document.getElementById('dup_fecha_de_solicitud').value,
+            fecha_entrega: document.getElementById('dup_fecha_entrega').value,
+            
+            // File
+            cotizacion: cotizacionUrl,
+            
+            // Shipping
+            direccion_entrega: document.getElementById('dup_direccion_entrega').value,
+            contacto_nombre: document.getElementById('dup_contacto_nombre').value,
+            contacto_telefono: document.getElementById('dup_contacto_telefono').value,
+            instrucciones_entrega: document.getElementById('dup_instrucciones_entrega').value,
+            
+            // Instructions
+            instrucciones: document.getElementById('dup_instrucciones').value,
+            
+            // Acabados
+            ...formData
+        }
+    };
+    
+    return payload;
+}
+
+// Show success message
+function showSuccessMessage(message) {
+    const modalBody = document.querySelector('.modal-body');
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success';
+    alert.style.position = 'sticky';
+    alert.style.top = '0';
+    alert.style.zIndex = '1000';
+    alert.innerHTML = '<i class="fas fa-check-circle"></i> <strong>' + message + '</strong>';
+    modalBody.insertBefore(alert, modalBody.firstChild);
+    modalBody.scrollTop = 0;
+}
+
+// Show error message
+function showErrorMessage(message) {
+    const modalBody = document.querySelector('.modal-body');
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger';
+    alert.style.position = 'sticky';
+    alert.style.top = '0';
+    alert.style.zIndex = '1000';
+    alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> ' + message;
+    modalBody.insertBefore(alert, modalBody.firstChild);
+    modalBody.scrollTop = 0;
 }
 
 // Close modal when clicking overlay
