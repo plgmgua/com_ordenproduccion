@@ -93,6 +93,11 @@ $activeTab = $input->get('tab', 'statistics', 'string');
         <?php echo $this->loadTemplate('invoices'); ?>
     <?php elseif ($activeTab === 'workorders'): ?>
         <?php 
+        // Pass variables to the included template
+        $workOrders = $this->workOrders ?? [];
+        $pagination = $this->workOrdersPagination ?? null;
+        $state = $this->state ?? null;
+        
         // Direct include - bypass loadTemplate completely
         $templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/administracion/default_workorders.php';
         if (file_exists($templatePath)) {

@@ -14,9 +14,8 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-// Get work orders data (we'll load this from the view)
-$workOrders = $this->workOrders ?? [];
-$pagination = $this->workOrdersPagination ?? null;
+// Variables passed from default_tabs.php (since we use include instead of loadTemplate)
+// $workOrders, $pagination, and $state are already defined in the including template
 ?>
 
 <style>
@@ -364,7 +363,7 @@ $pagination = $this->workOrdersPagination ?? null;
         <input type="text" 
                name="filter_search" 
                placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SEARCH_WORK_ORDER'); ?>"
-               value="<?php echo isset($this->state) ? htmlspecialchars($this->state->get('filter.search', '')) : ''; ?>" />
+               value="<?php echo isset($state) ? htmlspecialchars($state->get('filter.search', '')) : ''; ?>" />
         
         <select name="filter_status">
             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ALL_STATUSES'); ?></option>
@@ -393,7 +392,7 @@ $pagination = $this->workOrdersPagination ?? null;
     <?php 
     // Fallback: Try to get workOrders from different sources
     if (!isset($workOrders) || empty($workOrders)) {
-        $workOrders = $this->workOrders ?? [];
+        // $workOrders is already defined from the including template
     }
     ?>
     <?php if (!empty($workOrders)): ?>
