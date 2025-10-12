@@ -253,37 +253,146 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
             }
             echo '</table>';
             
-            // Check recent work orders
-            try {
-                $query = $db->getQuery(true)
-                    ->select(['id', 'orden_de_trabajo', 'client_name', 'created'])
-                    ->from($db->quoteName('joomla_ordenproduccion_ordenes'))
-                    ->where($db->quoteName('state') . ' = 1')
-                    ->order($db->quoteName('created') . ' DESC')
-                    ->setLimit(5);
-                
-                $db->setQuery($query);
-                $recentOrders = $db->loadObjectList();
-                
-                echo '<h4>📋 Últimas 5 Órdenes de Trabajo</h4>';
-                if ($recentOrders) {
-                    echo '<table>';
-                    echo '<tr><th>ID</th><th>Orden</th><th>Cliente</th><th>Creado</th></tr>';
-                    foreach ($recentOrders as $order) {
-                        echo '<tr>';
-                        echo '<td>' . $order->id . '</td>';
-                        echo '<td>' . htmlspecialchars($order->orden_de_trabajo) . '</td>';
-                        echo '<td>' . htmlspecialchars($order->client_name) . '</td>';
-                        echo '<td>' . $order->created . '</td>';
-                        echo '</tr>';
-                    }
-                    echo '</table>';
-                } else {
-                    echo '<div class="warning">⚠️ No hay órdenes de trabajo en la base de datos</div>';
+        // Check recent work orders
+        try {
+            $query = $db->getQuery(true)
+                ->select(['id', 'orden_de_trabajo', 'client_name', 'created', 'quotation_files'])
+                ->from($db->quoteName('joomla_ordenproduccion_ordenes'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->order($db->quoteName('created') . ' DESC')
+                ->setLimit(5);
+            
+            $db->setQuery($query);
+            $recentOrders = $db->loadObjectList();
+            
+            echo '<h4>📋 Últimas 5 Órdenes de Trabajo</h4>';
+            if ($recentOrders) {
+                echo '<table>';
+                echo '<tr><th>ID</th><th>Orden</th><th>Cliente</th><th>Creado</th><th>Cotización</th></tr>';
+                foreach ($recentOrders as $order) {
+                    echo '<tr>';
+                    echo '<td>' . $order->id . '</td>';
+                    echo '<td>' . htmlspecialchars($order->orden_de_trabajo) . '</td>';
+                    echo '<td>' . htmlspecialchars($order->client_name) . '</td>';
+                    echo '<td>' . $order->created . '</td>';
+                    echo '<td>' . htmlspecialchars($order->quotation_files ?: 'NULL') . '</td>';
+                    echo '</tr>';
                 }
-            } catch (Exception $e) {
-                echo '<div class="error">❌ Error al consultar órdenes: ' . $e->getMessage() . '</div>';
+                echo '</table>';
+            } else {
+                echo '<div class="warning">⚠️ No hay órdenes de trabajo en la base de datos</div>';
             }
+        } catch (Exception $e) {
+            echo '<div class="error">❌ Error al consultar órdenes: ' . $e->getMessage() . '</div>';
+        }
+        
+        // Specific check for order 5543 (ORD-005543)
+        try {
+            echo '<h4>🔍 Análisis Específico - Orden ORD-005543</h4>';
+            
+            $query = $db->getQuery(true)
+                ->select(['id', 'orden_de_trabajo', 'client_name', 'quotation_files', 'created', 'modified'])
+                ->from($db->quoteName('joomla_ordenproduccion_ordenes'))
+                ->where($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote('ORD-005543'))
+                ->where($db->quoteName('state') . ' = 1');
+            
+            $db->setQuery($query);
+            $order5543 = $db->loadObject();
+            
+            if ($order5543) {
+                echo '<div class="info">';
+                echo '<h5>✅ Orden ORD-005543 Encontrada</h5>';
+                echo '<table>';
+                echo '<tr><th>Campo</th><th>Valor</th></tr>';
+                echo '<tr><td><strong>ID:</strong></td><td>' . $order5543->id . '</td></tr>';
+                echo '<tr><td><strong>Orden de Trabajo:</strong></td><td>' . htmlspecialchars($order5543->orden_de_trabajo) . '</td></tr>';
+                echo '<tr><td><strong>Cliente:</strong></td><td>' . htmlspecialchars($order5543->client_name) . '</td></tr>';
+                echo '<tr><td><strong>Creado:</strong></td><td>' . $order5543->created . '</td></tr>';
+                echo '<tr><td><strong>Modificado:</strong></td><td>' . $order5543->modified . '</td></tr>';
+                echo '<tr><td><strong>quotation_files (RAW):</strong></td><td><code>' . htmlspecialchars($order5543->quotation_files ?: 'NULL') . '</code></td></tr>';
+                echo '</table>';
+                
+                // Analyze quotation_files field
+                if (!empty($order5543->quotation_files)) {
+                    echo '<h5>🔍 Análisis de quotation_files:</h5>';
+                    echo '<div class="code">';
+                    echo '<strong>Valor original:</strong> ' . htmlspecialchars($order5543->quotation_files) . '<br>';
+                    echo '<strong>Longitud:</strong> ' . strlen($order5543->quotation_files) . ' caracteres<br>';
+                    echo '<strong>Es JSON válido:</strong> ' . (json_decode($order5543->quotation_files) !== null ? '✅ SÍ' : '❌ NO') . '<br>';
+                    
+                    // Try to decode JSON
+                    $decoded = json_decode($order5543->quotation_files, true);
+                    if ($decoded !== null) {
+                        echo '<strong>JSON decodificado:</strong><br>';
+                        echo '<pre>' . htmlspecialchars(json_encode($decoded, JSON_PRETTY_PRINT)) . '</pre>';
+                        
+                        if (is_array($decoded) && !empty($decoded[0])) {
+                            $filePath = $decoded[0];
+                            $cleanPath = str_replace('\\/', '/', $filePath);
+                            $fullUrl = Factory::getApplication()->get('live_site') . $cleanPath;
+                            
+                            echo '<strong>Primer archivo:</strong> ' . htmlspecialchars($filePath) . '<br>';
+                            echo '<strong>Ruta limpia:</strong> ' . htmlspecialchars($cleanPath) . '<br>';
+                            echo '<strong>URL completa:</strong> <a href="' . htmlspecialchars($fullUrl) . '" target="_blank">' . htmlspecialchars($fullUrl) . '</a><br>';
+                            
+                            // Check if file exists
+                            $localPath = JPATH_ROOT . $cleanPath;
+                            echo '<strong>Ruta local:</strong> ' . htmlspecialchars($localPath) . '<br>';
+                            echo '<strong>Archivo existe:</strong> ' . (file_exists($localPath) ? '✅ SÍ' : '❌ NO') . '<br>';
+                            
+                            if (file_exists($localPath)) {
+                                echo '<strong>Tamaño del archivo:</strong> ' . formatBytes(filesize($localPath)) . '<br>';
+                                echo '<strong>Última modificación:</strong> ' . date('Y-m-d H:i:s', filemtime($localPath)) . '<br>';
+                            }
+                        }
+                    } else {
+                        echo '<strong>Error JSON:</strong> ' . json_last_error_msg() . '<br>';
+                    }
+                    echo '</div>';
+                } else {
+                    echo '<div class="warning">⚠️ El campo quotation_files está vacío o es NULL</div>';
+                }
+                echo '</div>';
+            } else {
+                echo '<div class="error">❌ Orden ORD-005543 no encontrada en la base de datos</div>';
+            }
+        } catch (Exception $e) {
+            echo '<div class="error">❌ Error al analizar orden 5543: ' . $e->getMessage() . '</div>';
+        }
+        
+        // Check quotation files statistics
+        try {
+            echo '<h4>📊 Estadísticas de Archivos de Cotización</h4>';
+            
+            $query = $db->getQuery(true)
+                ->select('COUNT(*) as total')
+                ->from($db->quoteName('joomla_ordenproduccion_ordenes'))
+                ->where($db->quoteName('state') . ' = 1');
+            
+            $db->setQuery($query);
+            $totalOrders = $db->loadResult();
+            
+            $query = $db->getQuery(true)
+                ->select('COUNT(*) as with_quotation')
+                ->from($db->quoteName('joomla_ordenproduccion_ordenes'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('quotation_files') . ' IS NOT NULL')
+                ->where($db->quoteName('quotation_files') . ' != ' . $db->quote(''))
+                ->where($db->quoteName('quotation_files') . ' != ' . $db->quote('[]'));
+            
+            $db->setQuery($query);
+            $ordersWithQuotation = $db->loadResult();
+            
+            echo '<table>';
+            echo '<tr><th>Métrica</th><th>Valor</th><th>Porcentaje</th></tr>';
+            echo '<tr><td>Total de órdenes</td><td>' . number_format($totalOrders) . '</td><td>100%</td></tr>';
+            echo '<tr><td>Con archivos de cotización</td><td>' . number_format($ordersWithQuotation) . '</td><td>' . number_format(($ordersWithQuotation / $totalOrders) * 100, 1) . '%</td></tr>';
+            echo '<tr><td>Sin archivos de cotización</td><td>' . number_format($totalOrders - $ordersWithQuotation) . '</td><td>' . number_format((($totalOrders - $ordersWithQuotation) / $totalOrders) * 100, 1) . '%</td></tr>';
+            echo '</table>';
+            
+        } catch (Exception $e) {
+            echo '<div class="error">❌ Error al obtener estadísticas: ' . $e->getMessage() . '</div>';
+        }
             
         } catch (Exception $e) {
             echo '<div class="error">❌ Error de conexión a la base de datos: ' . $e->getMessage() . '</div>';
