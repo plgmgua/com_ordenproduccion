@@ -898,6 +898,51 @@ EOF
     ls -la "$JOOMLA_ROOT/troubleshooting.php" || echo "❌ troubleshooting.php not found in Joomla root directory"
     echo ""
 
+    # Deploy quotation view files (ensure they exist)
+    log "Step 10: Ensuring quotation view files are deployed..."
+    
+    # Create quotation view directories
+    sudo mkdir -p "$SITE_COMPONENT_PATH/src/View/Quotation" || warning "Failed to create Quotation view directory"
+    sudo mkdir -p "$SITE_COMPONENT_PATH/tmpl/quotation" || warning "Failed to create quotation template directory"
+    
+    # Copy quotation view files if they exist in the component
+    if [ -f "$COMPONENT_ROOT/src/View/Quotation/HtmlView.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/View/Quotation/HtmlView.php" "$SITE_COMPONENT_PATH/src/View/Quotation/" || warning "Failed to copy Quotation HtmlView"
+        log "✅ Quotation HtmlView.php deployed"
+    else
+        warning "Quotation HtmlView.php not found in component source"
+    fi
+    
+    if [ -f "$COMPONENT_ROOT/src/Controller/QuotationController.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Controller/QuotationController.php" "$SITE_COMPONENT_PATH/src/Controller/" || warning "Failed to copy QuotationController"
+        log "✅ QuotationController.php deployed"
+    else
+        warning "QuotationController.php not found in component source"
+    fi
+    
+    if [ -f "$COMPONENT_ROOT/tmpl/quotation/display.php" ]; then
+        sudo cp "$COMPONENT_ROOT/tmpl/quotation/display.php" "$SITE_COMPONENT_PATH/tmpl/quotation/" || warning "Failed to copy quotation display template"
+        log "✅ quotation/display.php deployed"
+    else
+        warning "quotation/display.php not found in component source"
+    fi
+    
+    # Set proper permissions for quotation view files
+    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/View/Quotation" 2>/dev/null || warning "Failed to set Quotation view ownership"
+    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/tmpl/quotation" 2>/dev/null || warning "Failed to set quotation template ownership"
+    sudo chmod -R 755 "$SITE_COMPONENT_PATH/src/View/Quotation" 2>/dev/null || warning "Failed to set Quotation view permissions"
+    sudo chmod -R 755 "$SITE_COMPONENT_PATH/tmpl/quotation" 2>/dev/null || warning "Failed to set quotation template permissions"
+    
+    # Verify quotation files exist
+    if [ -f "$SITE_COMPONENT_PATH/src/View/Quotation/HtmlView.php" ] && \
+       [ -f "$SITE_COMPONENT_PATH/src/Controller/QuotationController.php" ] && \
+       [ -f "$SITE_COMPONENT_PATH/tmpl/quotation/display.php" ]; then
+        success "Quotation view files deployed and verified"
+        log "✅ 'Crear Factura' button should now work properly"
+    else
+        warning "Some quotation view files may be missing - check manually"
+    fi
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
@@ -906,6 +951,7 @@ EOF
     log "Autoloading issues have been addressed."
     log "Language files have been updated with proper labels."
     log "Component manifest has been updated with new configuration fields."
+    log "Quotation view files have been deployed and verified."
 }
 
 # Run main function
