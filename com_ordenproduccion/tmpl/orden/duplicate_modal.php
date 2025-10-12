@@ -615,14 +615,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Submit duplicate request
 async function submitDuplicateRequest() {
+    console.log('=== STARTING DUPLICATE REQUEST SUBMISSION ===');
+    
     const form = document.getElementById('duplicateForm');
     const submitBtn = document.querySelector('.modal-footer .btn-primary');
     
+    console.log('Form element:', form);
+    console.log('Submit button:', submitBtn);
+    
     // Validate required fields
     if (!form.checkValidity()) {
+        console.log('Form validation failed');
         form.reportValidity();
         return;
     }
+    
+    console.log('Form validation passed');
     
     // Disable submit button
     submitBtn.disabled = true;
@@ -630,12 +638,34 @@ async function submitDuplicateRequest() {
     
     try {
         // Step 1: Get endpoint settings
+        console.log('Fetching settings from get_duplicate_settings.php...');
         const settingsResponse = await fetch('/components/com_ordenproduccion/get_duplicate_settings.php');
-        const settings = await settingsResponse.json();
         
-        if (!settings.success || !settings.endpoint) {
-            throw new Error('Endpoint no configurado. Por favor configure el endpoint en Configuración de Ventas.');
+        if (!settingsResponse.ok) {
+            console.error('Settings fetch failed:', settingsResponse.status, settingsResponse.statusText);
+            throw new Error('No se pudo obtener la configuración del endpoint. Error: ' + settingsResponse.status);
         }
+        
+        let settings;
+        try {
+            settings = await settingsResponse.json();
+            console.log('Settings received:', settings);
+        } catch (jsonError) {
+            console.error('JSON parse error:', jsonError);
+            throw new Error('Error al leer la configuración del endpoint (formato JSON inválido)');
+        }
+        
+        if (!settings.success) {
+            const errorMsg = settings.error || 'Error desconocido al obtener configuración';
+            console.error('Settings error:', errorMsg);
+            throw new Error(errorMsg);
+        }
+        
+        if (!settings.endpoint || settings.endpoint.trim() === '') {
+            throw new Error('Endpoint no configurado. Por favor vaya a: Administrador → Orden Produccion → Settings → Configuración de Ventas y configure el "Endpoint para Duplicar Solicitud".');
+        }
+        
+        console.log('Using endpoint:', settings.endpoint);
         
         // Step 2: Handle file upload (if new file selected)
         let uploadedFileUrl = document.getElementById('dup_cotizacion_url').value;
@@ -681,8 +711,23 @@ async function submitDuplicateRequest() {
         }, 2000);
         
     } catch (error) {
-        console.error('Error:', error);
-        showErrorMessage(error.message);
+        console.error('Submission error:', error);
+        console.error('Error type:', typeof error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Ensure we have a meaningful error message
+        let errorMessage = 'Error desconocido';
+        
+        if (error && error.message) {
+            errorMessage = error.message;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else if (error && error.toString) {
+            errorMessage = error.toString();
+        }
+        
+        showErrorMessage(errorMessage);
         
         // Re-enable submit button
         submitBtn.disabled = false;
@@ -807,15 +852,43 @@ function showSuccessMessage(message) {
 
 // Show error message
 function showErrorMessage(message) {
+    console.log('Showing error message:', message);
+    
     const modalBody = document.querySelector('.modal-body');
+    
+    // Remove any existing error alerts
+    const existingAlerts = modalBody.querySelectorAll('.alert-danger');
+    existingAlerts.forEach(alert => alert.remove());
+    
     const alert = document.createElement('div');
     alert.className = 'alert alert-danger';
     alert.style.position = 'sticky';
     alert.style.top = '0';
     alert.style.zIndex = '1000';
-    alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> ' + message;
+    alert.style.marginBottom = '20px';
+    alert.style.padding = '15px';
+    alert.style.border = '2px solid #dc3545';
+    alert.style.borderRadius = '8px';
+    alert.style.backgroundColor = '#f8d7da';
+    alert.style.color = '#721c24';
+    
+    // Escape HTML to prevent XSS
+    const escapedMessage = String(message).replace(/[&<>"']/g, function (match) {
+        const escape = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return escape[match];
+    });
+    
+    alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> ' + escapedMessage;
     modalBody.insertBefore(alert, modalBody.firstChild);
     modalBody.scrollTop = 0;
+    
+    console.log('Error alert added to DOM');
 }
 
 // Close modal when clicking overlay
