@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Uri\Uri;
 
 /**
  * Quotation view class for com_ordenproduccion
@@ -113,12 +114,8 @@ class HtmlView extends BaseHtmlView
                 // Remove escaped slashes
                 $filePath = str_replace('\\/', '/', $filePath);
                 // Make it a full URL - construct from current request
-                $app = Factory::getApplication();
-                $uri = $app->get('uri');
-                $baseUrl = $uri->toString(['scheme', 'host']);
-                if (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] != 80 && $_SERVER['SERVER_PORT'] != 443) {
-                    $baseUrl .= ':' . $_SERVER['SERVER_PORT'];
-                }
+                $uri = Uri::getInstance();
+                $baseUrl = $uri->toString(['scheme', 'host', 'port']);
                 return $baseUrl . $filePath;
             }
         }
