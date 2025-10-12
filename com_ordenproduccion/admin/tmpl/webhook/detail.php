@@ -16,11 +16,20 @@ use Joomla\CMS\Router\Route;
 
 $log = $this->log;
 
-// Function to beautify JSON
+// Function to beautify JSON with special handling for nested JSON
 function beautifyJson($json) {
     if (is_string($json)) {
         $decoded = json_decode($json, true);
         if (json_last_error() === JSON_ERROR_NONE) {
+            // Check if there's a nested raw_body that's also JSON
+            if (isset($decoded['raw_body']) && is_string($decoded['raw_body'])) {
+                $nestedDecoded = json_decode($decoded['raw_body'], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    // Replace raw_body with formatted nested JSON
+                    $decoded['raw_body'] = $nestedDecoded;
+                }
+            }
+            
             return json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
     }
@@ -208,14 +217,27 @@ function getEndpointBadgeColor($endpoint) {
     <div class="row">
         <div class="col-lg-6 mb-4">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
                         <i class="icon-code"></i>
                         <?php echo Text::_('COM_ORDENPRODUCCION_REQUEST_BODY'); ?>
                     </h5>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="copyToClipboard('request-body-content', this)">
+                        <i class="icon-copy"></i> Copy
+                    </button>
                 </div>
                 <div class="card-body">
-                    <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code><?php echo htmlspecialchars(beautifyJson($log->request_body)); ?></code></pre>
+                    <pre class="json-display bg-dark text-light p-3 rounded" style="max-height: 600px; overflow-y: auto;" id="request-body-content"><code><?php echo htmlspecialchars(beautifyJson($log->request_body)); ?></code></pre>
+                    <?php 
+                    // Show raw body size
+                    $requestBodySize = strlen($log->request_body);
+                    $beautified = beautifyJson($log->request_body);
+                    $beautifiedSize = strlen($beautified);
+                    ?>
+                    <small class="text-muted">
+                        <strong>Size:</strong> <?php echo number_format($requestBodySize); ?> bytes (raw) | 
+                        <?php echo number_format($beautifiedSize); ?> bytes (formatted)
+                    </small>
                 </div>
             </div>
         </div>
@@ -249,9 +271,107 @@ function getEndpointBadgeColor($endpoint) {
 }
 
 pre code {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
+    letter-spacing: 0.3px;
+}
+
+/* JSON Display Enhancements */
+.json-display {
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    border: 1px solid #333;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.json-display code {
+    color: #d4d4d4 !important;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+}
+
+/* Make scrollbars prettier */
+.json-display::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.json-display::-webkit-scrollbar-track {
+    background: #2d2d2d;
+    border-radius: 4px;
+}
+
+.json-display::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.json-display::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* Copy button feedback */
+.btn-success-flash {
+    animation: flashSuccess 0.5s ease-in-out;
+}
+
+@keyframes flashSuccess {
+    0%, 100% {
+        background-color: #0d6efd;
+    }
+    50% {
+        background-color: #28a745;
+    }
 }
 </style>
+
+<script>
+// Copy to clipboard function
+function copyToClipboard(elementId, button) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent || element.innerText;
+    
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Success feedback
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="icon-check"></i> Copied!';
+            button.classList.add('btn-success-flash');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-success-flash');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy to clipboard');
+        });
+    } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="icon-check"></i> Copied!';
+            button.classList.add('btn-success-flash');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-success-flash');
+            }, 2000);
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert('Failed to copy to clipboard');
+        }
+        
+        document.body.removeChild(textArea);
+    }
+}
+</script>
 
