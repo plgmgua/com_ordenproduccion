@@ -47,6 +47,30 @@ class HtmlView extends BaseHtmlView
     protected $currentYear;
 
     /**
+     * Invoices list
+     *
+     * @var    array
+     * @since  3.2.0
+     */
+    protected $invoices;
+
+    /**
+     * Invoices pagination
+     *
+     * @var    object
+     * @since  3.2.0
+     */
+    protected $invoicesPagination;
+
+    /**
+     * Model state
+     *
+     * @var    object
+     * @since  3.2.0
+     */
+    protected $state;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -57,16 +81,38 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        // Get model
-        $model = $this->getModel();
+        $app = Factory::getApplication();
+        $input = $app->input;
 
         // Get filter parameters
-        $app = Factory::getApplication();
-        $this->currentMonth = $app->input->getInt('month', date('m'));
-        $this->currentYear = $app->input->getInt('year', date('Y'));
+        $this->currentMonth = $input->getInt('month', date('m'));
+        $this->currentYear = $input->getInt('year', date('Y'));
 
-        // Get statistics from model
-        $this->stats = $model->getStatistics($this->currentMonth, $this->currentYear);
+        // Get active tab
+        $activeTab = $input->get('tab', 'statistics', 'string');
+
+        // Get statistics model and data
+        $statsModel = $this->getModel('Administracion');
+        $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear);
+
+        // Load invoices data if invoices tab is active
+        if ($activeTab === 'invoices') {
+            try {
+                $invoicesModel = $this->getModel('Invoices');
+                if ($invoicesModel) {
+                    $this->invoices = $invoicesModel->getItems();
+                    $this->invoicesPagination = $invoicesModel->getPagination();
+                    $this->state = $invoicesModel->getState();
+                } else {
+                    $this->invoices = [];
+                    $this->invoicesPagination = null;
+                }
+            } catch (\Exception $e) {
+                // If invoices model fails, just show empty array
+                $this->invoices = [];
+                $this->invoicesPagination = null;
+            }
+        }
 
         // Prepare document
         $this->_prepareDocument();
