@@ -92,21 +92,13 @@ $activeTab = $input->get('tab', 'statistics', 'string');
     <?php elseif ($activeTab === 'invoices'): ?>
         <?php echo $this->loadTemplate('invoices'); ?>
     <?php elseif ($activeTab === 'workorders'): ?>
-        <!-- DEBUG: Loading workorders template -->
         <?php 
-        try {
-            echo $this->loadTemplate('workorders');
-            echo '<!-- DEBUG: loadTemplate successful -->';
-        } catch (Exception $e) {
-            echo '<!-- DEBUG: loadTemplate failed: ' . $e->getMessage() . ' -->';
-            // Fallback: include directly
-            $templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/administracion/default_workorders.php';
-            if (file_exists($templatePath)) {
-                echo '<!-- DEBUG: Including template directly -->';
-                include $templatePath;
-            } else {
-                echo '<!-- DEBUG: Template file not found: ' . $templatePath . ' -->';
-            }
+        // Simple direct include - bypass loadTemplate completely
+        $templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/administracion/default_workorders.php';
+        if (file_exists($templatePath)) {
+            include $templatePath;
+        } else {
+            echo '<div style="padding: 20px; color: red;">Work orders template not found at: ' . $templatePath . '</div>';
         }
         ?>
     <?php else: ?>
