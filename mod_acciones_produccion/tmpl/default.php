@@ -126,7 +126,7 @@ $currentUrl = Uri::current();
         <?php endif; ?>
         
         <!-- VENTAS SECTION -->
-    <?php if ($hasSalesAccess): ?>
+    <?php if ($hasSalesAccess && $isOwner): ?>
     <div class="section-ventas">
         <h5 class="section-title">
             <i class="fas fa-handshake"></i> VENTAS

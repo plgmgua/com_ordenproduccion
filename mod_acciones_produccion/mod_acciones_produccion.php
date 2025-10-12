@@ -82,6 +82,8 @@ if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
 
 // Get work order data for display
 $workOrderData = null;
+$isOwner = false; // Check if current user is the owner of this work order
+
 if ($orderId > 0) {
     try {
         $db = Factory::getDbo();
@@ -93,6 +95,12 @@ if ($orderId > 0) {
 
         $db->setQuery($query);
         $workOrderData = $db->loadObject();
+        
+        // Check if current user is the owner (sales_agent matches user name)
+        if ($workOrderData && !empty($workOrderData->sales_agent)) {
+            $currentUserName = $user->name;
+            $isOwner = (trim($workOrderData->sales_agent) === trim($currentUserName));
+        }
     } catch (Exception $e) {
         // Handle error silently
     }
