@@ -86,11 +86,8 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
         $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TITLE'));
 
-        // Load Bootstrap
-        $wa = $this->document->getWebAssetManager();
-        $wa->useScript('jquery');
-        $wa->useScript('bootstrap.bundle');
-        $wa->useStyle('bootstrap.css');
+        // Load Bootstrap and jQuery
+        \Joomla\CMS\HTML\HTMLHelper::_('bootstrap.framework');
     }
 }
 
