@@ -133,7 +133,7 @@ $currentUrl = Uri::current();
             </h5>
             
             <div class="ventas-actions">
-                <button type="button" id="duplicate-request-btn" class="btn btn-warning btn-block">
+                <button type="button" id="duplicate-request-btn" class="btn btn-warning btn-block" onclick="openDuplicateModal(window.currentOrderData)">
                     <i class="fas fa-copy"></i>
                     Duplicar Solicitud
                 </button>
@@ -520,20 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Duplicate request button (Ventas)
-    const duplicateBtn = document.getElementById('duplicate-request-btn');
-    const duplicateMessageDiv = document.getElementById('duplicate-message');
-    
-    if (duplicateBtn) {
-        duplicateBtn.addEventListener('click', function() {
-            showDuplicateMessage('Funcionalidad en desarrollo - Endpoint no configurado', 'error');
-            
-            // TODO: Implement HTTP request to configured endpoint
-            // const orderId = <?php echo $orderId; ?>;
-            // const endpointUrl = '...'; // Get from settings
-            // Send work order data as JSON payload
-        });
-    }
+    // Duplicate request button now handled by modal in orden/duplicate_modal.php
     
     function showStatusMessage(message, type) {
         statusMessageDiv.innerHTML = message;

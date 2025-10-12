@@ -468,3 +468,61 @@ function displayYesNoBadge($value) {
         </div>
     </div>
 </div>
+
+<!-- Include Duplicate Modal -->
+<?php require __DIR__ . '/duplicate_modal.php'; ?>
+
+<!-- Pass order data to JavaScript -->
+<script>
+// Make order data available for duplicate modal
+window.currentOrderData = <?php echo json_encode([
+    'id' => $item->id ?? '',
+    'client_name' => $item->client_name ?? '',
+    'nit' => $item->nit ?? '',
+    'invoice_value' => $item->invoice_value ?? '',
+    'work_description' => $item->work_description ?? '',
+    'print_color' => $item->print_color ?? '',
+    'tiro_retiro' => $item->tiro_retiro ?? '',
+    'dimensions' => $item->dimensions ?? '',
+    'delivery_date' => $item->delivery_date ?? '',
+    'material' => $item->material ?? '',
+    'quotation_files' => $item->quotation_files ?? '',
+    'sales_agent' => $item->sales_agent ?? '',
+    'request_date' => $item->request_date ?? '',
+    'shipping_address' => $item->shipping_address ?? '',
+    'shipping_contact' => $item->shipping_contact ?? '',
+    'shipping_phone' => $item->shipping_phone ?? '',
+    'instrucciones_entrega' => $item->instrucciones_entrega ?? '',
+    'instructions' => $item->instructions ?? '',
+    'cutting' => $item->cutting ?? '',
+    'cutting_details' => $item->cutting_details ?? '',
+    'blocking' => $item->blocking ?? '',
+    'blocking_details' => $item->blocking_details ?? '',
+    'folding' => $item->folding ?? '',
+    'folding_details' => $item->folding_details ?? '',
+    'laminating' => $item->laminating ?? '',
+    'laminating_details' => $item->laminating_details ?? '',
+    'spine' => $item->spine ?? '',
+    'spine_details' => $item->spine_details ?? '',
+    'gluing' => $item->gluing ?? '',
+    'gluing_details' => $item->gluing_details ?? '',
+    'numbering' => $item->numbering ?? '',
+    'numbering_details' => $item->numbering_details ?? '',
+    'sizing' => $item->sizing ?? '',
+    'sizing_details' => $item->sizing_details ?? '',
+    'stapling' => $item->stapling ?? '',
+    'stapling_details' => $item->stapling_details ?? '',
+    'die_cutting' => $item->die_cutting ?? '',
+    'die_cutting_details' => $item->die_cutting_details ?? '',
+    'varnish' => $item->varnish ?? '',
+    'varnish_details' => $item->varnish_details ?? '',
+    'white_print' => $item->white_print ?? '',
+    'white_print_details' => $item->white_print_details ?? '',
+    'trimming' => $item->trimming ?? '',
+    'trimming_details' => $item->trimming_details ?? '',
+    'eyelets' => $item->eyelets ?? '',
+    'eyelets_details' => $item->eyelets_details ?? '',
+    'perforation' => $item->perforation ?? '',
+    'perforation_details' => $item->perforation_details ?? ''
+], JSON_UNESCAPED_UNICODE); ?>;
+</script>
