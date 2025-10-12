@@ -476,7 +476,17 @@ function openDuplicateModal(orderData) {
     document.getElementById('dup_fecha_entrega').value = orderData.delivery_date || '';
     document.getElementById('dup_material').value = orderData.material || '';
     document.getElementById('dup_agente_de_ventas').value = orderData.sales_agent || '';
-    document.getElementById('dup_fecha_de_solicitud').value = orderData.request_date ? orderData.request_date.replace(' ', 'T') : '';
+    
+    // Set request date to CURRENT date/time (not from old order)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const currentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    document.getElementById('dup_fecha_de_solicitud').value = currentDateTime;
+    
     document.getElementById('dup_direccion_entrega').value = orderData.shipping_address || '';
     document.getElementById('dup_contacto_nombre').value = orderData.shipping_contact || '';
     document.getElementById('dup_contacto_telefono').value = orderData.shipping_phone || '';
