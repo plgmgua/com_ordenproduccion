@@ -543,11 +543,17 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
     // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
     
-    // Build URL with parameters (try without format=raw first)
-    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}`;
+    // Build URL with parameters (use format=raw for AJAX)
+    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&format=raw`;
     
-    // Fetch content via AJAX
-    fetch(url)
+    // Fetch content via AJAX with proper headers
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'text/html'
+        }
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
@@ -555,43 +561,20 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
             return response.text();
         })
         .then(html => {
-            // Extract body content from full HTML response
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const body = doc.querySelector('body');
+            // With format=raw, we should get just the form content
+            modalBody.innerHTML = html;
             
-            if (body) {
-                modalBody.innerHTML = body.innerHTML;
-                
-                // Execute any scripts in the loaded content
-                const scripts = modalBody.querySelectorAll('script');
-                scripts.forEach(script => {
-                    const newScript = document.createElement('script');
-                    if (script.src) {
-                        newScript.src = script.src;
-                    } else {
-                        newScript.textContent = script.textContent;
-                    }
-                    document.body.appendChild(newScript);
-                });
-                
-                // Load any stylesheets
-                const styles = doc.querySelectorAll('style, link[rel="stylesheet"]');
-                styles.forEach(style => {
-                    if (!document.querySelector(`[href="${style.href}"]`) && style.href) {
-                        const newStyle = document.createElement('link');
-                        newStyle.rel = 'stylesheet';
-                        newStyle.href = style.href;
-                        document.head.appendChild(newStyle);
-                    } else if (style.tagName === 'STYLE') {
-                        const newStyle = document.createElement('style');
-                        newStyle.textContent = style.textContent;
-                        document.head.appendChild(newStyle);
-                    }
-                });
-            } else {
-                modalBody.innerHTML = html;
-            }
+            // Execute any scripts in the loaded content
+            const scripts = modalBody.querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                if (script.src) {
+                    newScript.src = script.src;
+                } else {
+                    newScript.textContent = script.textContent;
+                }
+                document.body.appendChild(newScript);
+            });
         })
         .catch(error => {
             modalBody.innerHTML = `

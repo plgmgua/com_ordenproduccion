@@ -86,13 +86,19 @@ class HtmlView extends BaseHtmlView
         $this->orderId = $orderId;
         $this->orderNumber = $orderNumber;
 
-        // Set page title
-        $this->setDocumentTitle(Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE') . ' - ' . $orderNumber);
+        // Check if this is an AJAX request (for modal display)
+        $isAjax = $input->get('format') === 'raw' || 
+                  (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
 
-        // Add CSS
-        HTMLHelper::_('bootstrap.framework');
-        $wa = $this->document->getWebAssetManager();
-        $wa->registerAndUseStyle('com_ordenproduccion.quotation', 'media/com_ordenproduccion/css/quotation.css', [], ['version' => 'auto']);
+        if (!$isAjax) {
+            // Set page title only for full page requests
+            $this->setDocumentTitle(Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE') . ' - ' . $orderNumber);
+
+            // Add CSS only for full page requests
+            HTMLHelper::_('bootstrap.framework');
+            $wa = $this->document->getWebAssetManager();
+            $wa->registerAndUseStyle('com_ordenproduccion.quotation', 'media/com_ordenproduccion/css/quotation.css', [], ['version' => 'auto']);
+        }
 
         parent::display($tpl);
     }
