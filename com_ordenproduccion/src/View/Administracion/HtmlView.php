@@ -155,9 +155,9 @@ class HtmlView extends BaseHtmlView
                 // Apply search filter if provided
                 $search = $input->getString('filter_search', '');
                 if (!empty($search)) {
-                    $search = $db->quote('%' . $db->escape($search, true) . '%');
-                    $query->where('(' . $db->quoteName('orden_de_trabajo') . ' LIKE ' . $search .
-                        ' OR ' . $db->quoteName('client_name') . ' LIKE ' . $search . ')');
+                    $searchEscaped = $db->quote('%' . $db->escape($search, true) . '%');
+                    $query->where('(' . $db->quoteName('orden_de_trabajo') . ' LIKE ' . $searchEscaped .
+                        ' OR ' . $db->quoteName('client_name') . ' LIKE ' . $searchEscaped . ')');
                 }
                 
                 // Apply status filter if provided
@@ -194,6 +194,12 @@ class HtmlView extends BaseHtmlView
                 
                 // Debug: Show count of work orders loaded
                 $app->enqueueMessage('Loaded ' . count($this->workOrders) . ' work orders', 'notice');
+                
+                // Additional debug info
+                if (!empty($this->workOrders)) {
+                    $firstOrder = $this->workOrders[0];
+                    $app->enqueueMessage('First order: ' . $firstOrder->orden_de_trabajo . ' - ' . $firstOrder->client_name, 'notice');
+                }
                 
             } catch (\Exception $e) {
                 // If query fails, log error and show empty array

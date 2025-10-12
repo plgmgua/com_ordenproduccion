@@ -364,7 +364,7 @@ $pagination = $this->workOrdersPagination ?? null;
         <input type="text" 
                name="filter_search" 
                placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SEARCH_WORK_ORDER'); ?>"
-               value="<?php echo isset($this->state) ? $this->escape($this->state->get('filter.search', '')) : ''; ?>" />
+               value="<?php echo isset($this->state) ? htmlspecialchars($this->state->get('filter.search', '')) : ''; ?>" />
         
         <select name="filter_status">
             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ALL_STATUSES'); ?></option>
@@ -382,7 +382,22 @@ $pagination = $this->workOrdersPagination ?? null;
     </form>
 
     <!-- Work Orders Table -->
+    <?php 
+    // Debug: Show work orders data
+    echo '<!-- DEBUG: workOrders count: ' . (isset($workOrders) ? count($workOrders) : 'NOT SET') . ' -->';
+    echo '<!-- DEBUG: workOrders type: ' . (isset($workOrders) ? gettype($workOrders) : 'NOT SET') . ' -->';
+    if (isset($workOrders) && !empty($workOrders)) {
+        echo '<!-- DEBUG: First order: ' . print_r($workOrders[0], true) . ' -->';
+    }
+    ?>
+    <?php 
+    // Fallback: Try to get workOrders from different sources
+    if (!isset($workOrders) || empty($workOrders)) {
+        $workOrders = $this->workOrders ?? [];
+    }
+    ?>
     <?php if (!empty($workOrders)): ?>
+        <!-- DEBUG: About to render table with <?php echo count($workOrders); ?> orders -->
         <table class="workorders-table">
             <thead>
                 <tr>
