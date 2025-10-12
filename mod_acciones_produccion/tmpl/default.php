@@ -176,22 +176,8 @@ $currentUrl = Uri::current();
             console.log(finalUrl);
             console.log('========================================');
             
-            // Open in new tab
-            const resultWindow = window.open(finalUrl, '_blank');
-            
-            if (!resultWindow) {
-                throw new Error('No se pudo abrir la ventana. Por favor permite ventanas emergentes.');
-            }
-            
-            // Show success message
-            const messageDiv = document.getElementById('duplicate-message');
-            messageDiv.className = 'duplicate-message alert alert-success';
-            messageDiv.textContent = '✅ Solicitud duplicada enviada correctamente';
-            messageDiv.style.display = 'block';
-            
-            setTimeout(() => {
-                messageDiv.style.display = 'none';
-            }, 5000);
+            // Navigate to URL in current tab
+            window.location.href = finalUrl;
             
         } catch (error) {
             console.error('Error al duplicar solicitud:', error);
