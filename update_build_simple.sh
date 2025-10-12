@@ -920,6 +920,13 @@ EOF
         warning "QuotationController.php not found in component source"
     fi
     
+    if [ -f "$COMPONENT_ROOT/src/Model/QuotationModel.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Model/QuotationModel.php" "$SITE_COMPONENT_PATH/src/Model/" || warning "Failed to copy QuotationModel"
+        log "✅ QuotationModel.php deployed"
+    else
+        warning "QuotationModel.php not found in component source"
+    fi
+    
     if [ -f "$COMPONENT_ROOT/tmpl/quotation/display.php" ]; then
         sudo cp "$COMPONENT_ROOT/tmpl/quotation/display.php" "$SITE_COMPONENT_PATH/tmpl/quotation/" || warning "Failed to copy quotation display template"
         log "✅ quotation/display.php deployed"
@@ -936,6 +943,7 @@ EOF
     # Verify quotation files exist
     if [ -f "$SITE_COMPONENT_PATH/src/View/Quotation/HtmlView.php" ] && \
        [ -f "$SITE_COMPONENT_PATH/src/Controller/QuotationController.php" ] && \
+       [ -f "$SITE_COMPONENT_PATH/src/Model/QuotationModel.php" ] && \
        [ -f "$SITE_COMPONENT_PATH/tmpl/quotation/display.php" ]; then
         success "Quotation view files deployed and verified"
         log "✅ 'Crear Factura' button should now work properly"
