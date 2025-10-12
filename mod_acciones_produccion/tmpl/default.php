@@ -140,7 +140,6 @@ $currentUrl = Uri::current();
             <div id="duplicate-message" class="duplicate-message" style="display: none;"></div>
         </div>
     </div>
-    <?php endif; ?>
     
     <script>
     // Simplified duplicate request - direct URL generation
