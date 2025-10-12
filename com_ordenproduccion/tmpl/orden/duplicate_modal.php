@@ -679,52 +679,40 @@ async function submitDuplicateRequest() {
             uploadedFileUrl = await uploadFile(fileInput.files[0]);
         }
         
-        // Step 3: Build JSON payload
-        const payload = buildPayload(uploadedFileUrl);
+        // Step 3: Build URL with all parameters (GET request)
+        const urlParams = buildUrlParams(uploadedFileUrl);
+        const finalUrl = settings.endpoint + (settings.endpoint.includes('?') ? '&' : '?') + urlParams;
         
         console.log('========================================');
-        console.log('PAYLOAD TO BE SENT:');
+        console.log('URL TO BE SENT (GET REQUEST):');
         console.log('========================================');
-        console.log(JSON.stringify(payload, null, 2));
+        console.log(finalUrl);
         console.log('========================================');
-        console.log('Payload size:', JSON.stringify(payload).length, 'bytes');
+        console.log('URL length:', finalUrl.length, 'characters');
         console.log('========================================');
         
-        // Show payload preview in modal (for testing)
-        if (confirm('📋 Payload ready to send!\n\n✅ Check browser console (F12) to see the full payload.\n\n📊 Payload preview:\n' + 
-                    'Cliente: ' + payload.form_data.cliente + '\n' +
-                    'NIT: ' + payload.form_data.nit + '\n' +
-                    'Valor: ' + payload.form_data.valor_factura + '\n' +
-                    'Agente: ' + payload.form_data.agente_de_ventas + '\n' +
-                    'Descripción: ' + payload.form_data.descripcion_trabajo.substring(0, 50) + '...\n\n' +
+        // Show URL preview
+        const formData = getFormData();
+        if (confirm('📋 URL ready to send!\n\n✅ Check browser console (F12) to see the full URL.\n\n📊 Data preview:\n' + 
+                    'Cliente: ' + formData.cliente + '\n' +
+                    'NIT: ' + formData.nit + '\n' +
+                    'Valor: ' + formData.valor_factura + '\n' +
+                    'Agente: ' + formData.agente_de_ventas + '\n' +
+                    'Descripción: ' + formData.descripcion_trabajo.substring(0, 50) + '...\n\n' +
                     '🚀 Click OK to send, CANCEL to abort')) {
-            console.log('✅ User confirmed - sending payload...');
+            console.log('✅ User confirmed - sending request...');
         } else {
             console.log('❌ User cancelled - aborting submission');
             throw new Error('Envío cancelado por el usuario');
         }
         
-        // Step 4: Send HTTP POST to configured endpoint
-        const headers = {
-            'Content-Type': 'application/json'
-        };
+        // Step 4: Send GET request by navigating to URL in new window/tab
+        console.log('Opening URL in new window...');
+        const resultWindow = window.open(finalUrl, '_blank');
         
-        // Add Authorization header if API key is configured
-        if (settings.api_key) {
-            headers['Authorization'] = 'Bearer ' + settings.api_key;
+        if (!resultWindow) {
+            throw new Error('No se pudo abrir la ventana. Por favor permite ventanas emergentes.');
         }
-        
-        const response = await fetch(settings.endpoint, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) {
-            throw new Error('Error al enviar solicitud: ' + response.statusText);
-        }
-        
-        const result = await response.json();
         
         // Step 5: Show success message
         showSuccessMessage('Solicitud duplicada enviada correctamente');
@@ -784,9 +772,80 @@ async function uploadFile(file) {
     return result.file_url;
 }
 
-// Build JSON payload from form data
-function buildPayload(cotizacionUrl) {
-    // Get acabados data
+// Get form data as simple object
+function getFormData() {
+    return {
+        // Core fields
+        cliente: document.getElementById('dup_cliente').value,
+        nit: document.getElementById('dup_nit').value,
+        valor_factura: document.getElementById('dup_valor_factura').value,
+        descripcion_trabajo: document.getElementById('dup_descripcion_trabajo').value,
+        agente_de_ventas: document.getElementById('dup_agente_de_ventas').value,
+        
+        // Production specs
+        color_impresion: document.getElementById('dup_color_impresion').value,
+        tiro_retiro: document.getElementById('dup_tiro_retiro').value,
+        medidas: document.getElementById('dup_medidas').value,
+        material: document.getElementById('dup_material').value,
+        
+        // Dates
+        fecha_de_solicitud: document.getElementById('dup_fecha_de_solicitud').value,
+        fecha_entrega: document.getElementById('dup_fecha_entrega').value,
+        
+        // Shipping
+        direccion_entrega: document.getElementById('dup_direccion_entrega').value,
+        contacto_nombre: document.getElementById('dup_contacto_nombre').value,
+        contacto_telefono: document.getElementById('dup_contacto_telefono').value,
+        instrucciones_entrega: document.getElementById('dup_instrucciones_entrega').value,
+        
+        // Instructions
+        instrucciones: document.getElementById('dup_instrucciones').value
+    };
+}
+
+// Build URL parameters from form data
+function buildUrlParams(cotizacionUrl) {
+    const params = new URLSearchParams();
+    
+    // Meta data
+    params.append('supplier_name', 'TecniSystems');
+    params.append('source', 'Joomla-DuplicarSolicitud');
+    params.append('original_order_id', document.getElementById('dup_order_id').value);
+    
+    // Core fields
+    params.append('client_name', document.getElementById('dup_cliente').value);
+    params.append('client_id', document.getElementById('dup_nit').value);
+    params.append('contact_name', 'Navla');
+    params.append('contact_email', document.getElementById('dup_agente_de_ventas').value); // Using agent as email placeholder
+    params.append('contact_phone', document.getElementById('dup_contacto_telefono').value);
+    params.append('supplier_name', document.getElementById('dup_agente_de_ventas').value);
+    params.append('tipo_entrega', 'domicilio');
+    
+    // Delivery address
+    params.append('delivery_address', document.getElementById('dup_direccion_entrega').value);
+    params.append('instrucciones_entrega', document.getElementById('dup_instrucciones_entrega').value);
+    
+    // Contact person
+    params.append('contact_person_name', document.getElementById('dup_contacto_nombre').value);
+    params.append('contact_person_phone', document.getElementById('dup_contacto_telefono').value);
+    
+    // Production details
+    params.append('work_description', document.getElementById('dup_descripcion_trabajo').value);
+    params.append('print_color', document.getElementById('dup_color_impresion').value);
+    params.append('tiro_retiro', document.getElementById('dup_tiro_retiro').value);
+    params.append('dimensions', document.getElementById('dup_medidas').value);
+    params.append('material', document.getElementById('dup_material').value);
+    
+    // Dates
+    params.append('request_date', document.getElementById('dup_fecha_de_solicitud').value);
+    params.append('delivery_date', document.getElementById('dup_fecha_entrega').value);
+    
+    // File (if uploaded)
+    if (cotizacionUrl) {
+        params.append('cotizacion', cotizacionUrl);
+    }
+    
+    // Acabados (finishing)
     const acabadosMapping = {
         'corte': 'cutting',
         'blocado': 'blocking',
@@ -805,62 +864,23 @@ function buildPayload(cotizacionUrl) {
         'perforado': 'perforation'
     };
     
-    const formData = {};
-    
-    // Add acabados to form_data
     Object.keys(acabadosMapping).forEach(spanishName => {
+        const englishName = acabadosMapping[spanishName];
         const checkbox = document.getElementById('dup_' + spanishName);
         const detailsInput = document.getElementById('dup_detalles_' + spanishName);
         
-        if (checkbox && detailsInput) {
-            formData[spanishName] = checkbox.checked ? 'SI' : 'NO';
-            if (checkbox.checked && detailsInput.value) {
-                formData['detalles_' + spanishName] = detailsInput.value;
+        if (checkbox) {
+            params.append(englishName, checkbox.checked ? 'SI' : 'NO');
+            if (checkbox.checked && detailsInput && detailsInput.value) {
+                params.append(englishName + '_details', detailsInput.value);
             }
         }
     });
     
-    // Build complete payload matching the structure from troubleshooting.php
-    const payload = {
-        request_title: 'Solicitud Ventas a Produccion - Duplicada',
-        source: 'Joomla - Duplicar Solicitud',
-        original_order_id: document.getElementById('dup_order_id').value,
-        form_data: {
-            // Core fields
-            cliente: document.getElementById('dup_cliente').value,
-            nit: document.getElementById('dup_nit').value,
-            valor_factura: parseFloat(document.getElementById('dup_valor_factura').value) || 0,
-            descripcion_trabajo: document.getElementById('dup_descripcion_trabajo').value,
-            agente_de_ventas: document.getElementById('dup_agente_de_ventas').value,
-            
-            // Production specs
-            color_impresion: document.getElementById('dup_color_impresion').value,
-            tiro_retiro: document.getElementById('dup_tiro_retiro').value,
-            medidas: document.getElementById('dup_medidas').value,
-            material: document.getElementById('dup_material').value,
-            
-            // Dates
-            fecha_de_solicitud: document.getElementById('dup_fecha_de_solicitud').value,
-            fecha_entrega: document.getElementById('dup_fecha_entrega').value,
-            
-            // File
-            cotizacion: cotizacionUrl,
-            
-            // Shipping
-            direccion_entrega: document.getElementById('dup_direccion_entrega').value,
-            contacto_nombre: document.getElementById('dup_contacto_nombre').value,
-            contacto_telefono: document.getElementById('dup_contacto_telefono').value,
-            instrucciones_entrega: document.getElementById('dup_instrucciones_entrega').value,
-            
-            // Instructions
-            instrucciones: document.getElementById('dup_instrucciones').value,
-            
-            // Acabados
-            ...formData
-        }
-    };
+    // Instructions
+    params.append('instructions', document.getElementById('dup_instrucciones').value);
     
-    return payload;
+    return params.toString();
 }
 
 // Show success message
@@ -917,9 +937,9 @@ function showErrorMessage(message) {
     console.log('Error alert added to DOM');
 }
 
-// Preview payload before sending
+// Preview URL before sending
 function previewPayload() {
-    console.log('=== PREVIEWING PAYLOAD ===');
+    console.log('=== PREVIEWING URL ===');
     
     // Get current file URL
     let uploadedFileUrl = document.getElementById('dup_cotizacion_url').value;
@@ -929,47 +949,53 @@ function previewPayload() {
         uploadedFileUrl = 'NEW FILE WILL BE UPLOADED: ' + fileInput.files[0].name;
     }
     
-    // Build payload
-    const payload = buildPayload(uploadedFileUrl);
+    // Build URL parameters
+    const urlParams = buildUrlParams(uploadedFileUrl);
     
-    // Format as pretty JSON
-    const payloadJSON = JSON.stringify(payload, null, 2);
+    // Get endpoint (or use placeholder)
+    const endpoint = 'https://your-endpoint.com/api';
+    const fullUrl = endpoint + '?' + urlParams;
     
     console.log('========================================');
-    console.log('PAYLOAD PREVIEW:');
+    console.log('URL PREVIEW (GET REQUEST):');
     console.log('========================================');
-    console.log(payloadJSON);
+    console.log(fullUrl);
     console.log('========================================');
-    console.log('Size:', payloadJSON.length, 'bytes');
-    console.log('Fields in form_data:', Object.keys(payload.form_data).length);
+    console.log('URL Length:', fullUrl.length, 'characters');
+    console.log('Parameters:', urlParams.split('&').length);
+    console.log('========================================');
+    
+    // Show parameter breakdown
+    const params = new URLSearchParams(urlParams);
+    console.log('PARAMETERS:');
+    for (const [key, value] of params) {
+        console.log('  ' + key + ' = ' + value);
+    }
     console.log('========================================');
     
     // Copy to clipboard
     if (navigator.clipboard) {
-        navigator.clipboard.writeText(payloadJSON).then(() => {
-            alert('✅ Payload copied to clipboard!\n\n' +
-                  '📋 The complete JSON payload has been copied.\n\n' +
-                  '🔍 You can paste it into:\n' +
-                  '  • Postman\n' +
-                  '  • curl command\n' +
-                  '  • API testing tool\n\n' +
-                  '📊 Payload Stats:\n' +
-                  '  • Size: ' + payloadJSON.length + ' bytes\n' +
-                  '  • Fields: ' + Object.keys(payload.form_data).length + '\n' +
-                  '  • Source: ' + payload.source + '\n\n' +
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            alert('✅ URL copied to clipboard!\n\n' +
+                  '📋 The complete URL with parameters has been copied.\n\n' +
+                  '🔍 You can:\n' +
+                  '  • Paste it in browser address bar\n' +
+                  '  • Test it directly\n' +
+                  '  • Share it with your team\n\n' +
+                  '📊 URL Stats:\n' +
+                  '  • Length: ' + fullUrl.length + ' characters\n' +
+                  '  • Parameters: ' + urlParams.split('&').length + '\n' +
+                  '  • Method: GET request\n\n' +
                   '💡 Check browser console (F12) for full details!');
         }).catch(err => {
             console.error('Failed to copy to clipboard:', err);
-            // Fallback: show in alert
-            alert('Payload (check console for formatted version):\n\n' + payloadJSON.substring(0, 500) + '...');
+            alert('URL (check console for full version):\n\n' + fullUrl.substring(0, 500) + '...');
         });
     } else {
-        // Fallback: show in alert
-        alert('Payload (check console for full version):\n\n' + payloadJSON.substring(0, 500) + '...');
+        alert('URL (check console for full version):\n\n' + fullUrl.substring(0, 500) + '...');
     }
     
-    // Also show a nice summary
-    showSuccessMessage('Payload preview generated! Check console and clipboard.');
+    showSuccessMessage('URL preview generated! Check console and clipboard.');
 }
 
 // Close modal when clicking overlay
