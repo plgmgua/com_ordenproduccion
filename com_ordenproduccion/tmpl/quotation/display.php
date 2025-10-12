@@ -22,51 +22,53 @@ $orderData = $this->getOrderData();
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
+        /* Reset and base styles for standalone form */
+        * {
+            box-sizing: border-box;
         }
         
         .quotation-form-container {
-            max-width: 800px;
-            margin: 20px auto;
+            font-family: Arial, sans-serif;
+            margin: 0;
             padding: 30px;
             background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 0;
+            box-shadow: none;
+            width: 100%;
+            max-width: none;
         }
         
         .quotation-header {
             text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #007cba;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
         }
         
         .quotation-header h2 {
             color: #007cba;
-            margin-bottom: 10px;
-            font-size: 28px;
+            margin: 0 0 8px 0;
+            font-size: 24px;
+            font-weight: 600;
         }
         
         .order-info {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 10px 15px;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             color: #666;
+            display: inline-block;
         }
         
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
         
         .form-group label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
+            margin-bottom: 6px;
+            font-weight: 600;
             color: #333;
             font-size: 14px;
         }
@@ -74,40 +76,42 @@ $orderData = $this->getOrderData();
         .form-group input,
         .form-group textarea {
             width: 100%;
-            padding: 12px;
+            padding: 10px 12px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
             box-sizing: border-box;
             transition: border-color 0.3s;
+            background: #fff;
         }
         
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
             border-color: #007cba;
-            box-shadow: 0 0 5px rgba(0, 124, 186, 0.3);
+            box-shadow: 0 0 3px rgba(0, 124, 186, 0.2);
         }
         
         .form-group textarea {
-            min-height: 150px;
+            min-height: 120px;
             resize: vertical;
             font-family: Arial, sans-serif;
+            line-height: 1.4;
         }
         
         .btn-submit {
             background: #007cba;
             color: white;
-            padding: 15px 40px;
+            padding: 12px 30px;
             border: none;
             border-radius: 4px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.3s;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             margin: 0 auto;
         }
         
@@ -122,7 +126,7 @@ $orderData = $this->getOrderData();
         
         .form-actions {
             text-align: center;
-            margin-top: 40px;
+            margin-top: 30px;
         }
         
         .required {
@@ -131,11 +135,11 @@ $orderData = $this->getOrderData();
         
         .form-note {
             background: #e7f3ff;
-            padding: 15px;
+            padding: 12px 15px;
             border-radius: 4px;
             margin-bottom: 20px;
-            border-left: 4px solid #007cba;
-            font-size: 14px;
+            border-left: 3px solid #007cba;
+            font-size: 13px;
             color: #333;
         }
     </style>

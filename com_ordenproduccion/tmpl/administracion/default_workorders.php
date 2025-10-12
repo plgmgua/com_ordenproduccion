@@ -549,15 +549,12 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
     // Fetch content via AJAX
     fetch(url)
         .then(response => {
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
             if (!response.ok) {
                 throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
             }
             return response.text();
         })
         .then(html => {
-            console.log('Received HTML:', html.substring(0, 500) + '...');
             // Extract body content from full HTML response
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
@@ -597,14 +594,10 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
             }
         })
         .catch(error => {
-            console.error('Error loading quotation:', error);
-            console.error('URL attempted:', url);
             modalBody.innerHTML = `
                 <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
                     <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
-                    <p style="font-size: 12px; color: #666; margin-top: 10px;">Error: ${error.message}</p>
-                    <p style="font-size: 12px; color: #666;">URL: ${url}</p>
                     <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
                     </button>
