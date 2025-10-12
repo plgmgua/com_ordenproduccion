@@ -253,6 +253,97 @@ $pagination = $this->workOrdersPagination ?? null;
 .btn:hover {
     opacity: 0.9;
 }
+
+/* Invoice Modal Tabs */
+.invoice-tabs {
+    display: flex;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-weight: bold;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.tab-button.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.tab-button:hover {
+    color: #667eea;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* PDF Extraction Styles */
+.pdf-extraction-section {
+    padding: 20px 0;
+}
+
+.extracted-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.extracted-items-table th,
+.extracted-items-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.extracted-items-table th {
+    background: #f8f9fa;
+    font-weight: bold;
+}
+
+.extracted-items-table input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.extracted-items-table .cantidad-input {
+    width: 80px;
+}
+
+.extracted-items-table .precio-input {
+    width: 120px;
+}
+
+.loading-spinner {
+    color: #667eea;
+    font-weight: bold;
+}
+
+.extracted-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.no-quotation-files {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 5px;
+    margin: 20px 0;
+}
 </style>
 
 <div class="workorders-section">
@@ -329,7 +420,7 @@ $pagination = $this->workOrdersPagination ?? null;
                         </td>
                         <td>
                             <button class="btn-assign-invoice" 
-                                    onclick="openAssignInvoiceModal(<?php echo $order->id; ?>, '<?php echo htmlspecialchars($order->orden_de_trabajo); ?>', '<?php echo htmlspecialchars($order->invoice_number); ?>')">
+                                    onclick="openAssignInvoiceModal(<?php echo $order->id; ?>, '<?php echo htmlspecialchars($order->orden_de_trabajo); ?>', '<?php echo htmlspecialchars($order->invoice_number); ?>', '<?php echo htmlspecialchars($order->quotation_files); ?>')">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASSIGN_INVOICE'); ?>
                             </button>
                         </td>
@@ -354,43 +445,234 @@ $pagination = $this->workOrdersPagination ?? null;
 
 <!-- Assign Invoice Modal -->
 <div id="assign-invoice-modal" class="assign-invoice-modal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 900px;">
         <div class="modal-header">
             <h3><?php echo Text::_('COM_ORDENPRODUCCION_ASSIGN_INVOICE_TITLE'); ?></h3>
             <button class="close-modal" onclick="closeAssignInvoiceModal()">&times;</button>
         </div>
         
-        <form id="assign-invoice-form">
-            <input type="hidden" id="order-id" name="order_id" value="" />
-            
-            <div class="form-group">
-                <label for="order-number"><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</label>
-                <input type="text" id="order-number" readonly style="background: #f5f5f5;" />
+        <!-- Tabs for Invoice Assignment -->
+        <div class="invoice-tabs" style="margin-bottom: 20px;">
+            <button class="tab-button active" onclick="showTab('invoice-details')">
+                <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DETAILS'); ?>
+            </button>
+            <button class="tab-button" onclick="showTab('quotation-data')">
+                <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_DATA'); ?>
+            </button>
+        </div>
+        
+        <!-- Invoice Details Tab -->
+        <div id="invoice-details" class="tab-content active">
+            <form id="assign-invoice-form">
+                <input type="hidden" id="order-id" name="order_id" value="" />
+                
+                <div class="form-group">
+                    <label for="order-number"><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</label>
+                    <input type="text" id="order-number" readonly style="background: #f5f5f5;" />
+                </div>
+                
+                <div class="form-group">
+                    <label for="invoice-number"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NUMBER'); ?>:</label>
+                    <input type="text" id="invoice-number" name="invoice_number" required />
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAssignInvoiceModal()">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_CANCEL'); ?>
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_ASSIGN'); ?>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Quotation Data Tab -->
+        <div id="quotation-data" class="tab-content">
+            <div class="pdf-extraction-section">
+                <div class="extract-controls" style="margin-bottom: 20px;">
+                    <button type="button" class="btn btn-primary" onclick="extractPDFData()" id="extract-pdf-btn">
+                        <i class="fas fa-file-pdf"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_EXTRACT_PDF_DATA'); ?>
+                    </button>
+                    <div class="loading-spinner" id="extraction-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_EXTRACTING_DATA'); ?>...
+                    </div>
+                </div>
+                
+                <div id="pdf-extraction-results" style="display: none;">
+                    <h4><?php echo Text::_('COM_ORDENPRODUCCION_EXTRACTED_DATA'); ?>:</h4>
+                    <div id="extracted-items-container">
+                        <!-- Extracted items will be populated here -->
+                    </div>
+                    
+                    <div class="extracted-actions" style="margin-top: 20px;">
+                        <button type="button" class="btn btn-success" onclick="useExtractedData()">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_USE_FOR_INVOICE'); ?>
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="editExtractedData()">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_EDIT_DATA'); ?>
+                        </button>
+                    </div>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="invoice-number"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NUMBER'); ?>:</label>
-                <input type="text" id="invoice-number" name="invoice_number" required />
-            </div>
-            
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeAssignInvoiceModal()">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_CANCEL'); ?>
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_ASSIGN'); ?>
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <script>
-function openAssignInvoiceModal(orderId, orderNumber, currentInvoiceNumber) {
+let currentOrderData = {};
+
+function openAssignInvoiceModal(orderId, orderNumber, currentInvoiceNumber, quotationFiles) {
+    currentOrderData = {
+        orderId: orderId,
+        orderNumber: orderNumber,
+        currentInvoiceNumber: currentInvoiceNumber,
+        quotationFiles: quotationFiles
+    };
+    
     document.getElementById('order-id').value = orderId;
     document.getElementById('order-number').value = orderNumber;
     document.getElementById('invoice-number').value = currentInvoiceNumber || '';
+    
+    // Show first tab by default
+    showTab('invoice-details');
+    
     document.getElementById('assign-invoice-modal').style.display = 'block';
+}
+
+function showTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName).classList.add('active');
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+}
+
+async function extractPDFData() {
+    if (!currentOrderData.quotationFiles || currentOrderData.quotationFiles.trim() === '') {
+        alert('<?php echo Text::_('COM_ORDENPRODUCCION_NO_QUOTATION_FILES'); ?>');
+        return;
+    }
+    
+    const extractBtn = document.getElementById('extract-pdf-btn');
+    const loadingSpinner = document.getElementById('extraction-loading');
+    const resultsDiv = document.getElementById('pdf-extraction-results');
+    
+    // Show loading
+    extractBtn.style.display = 'none';
+    loadingSpinner.style.display = 'block';
+    resultsDiv.style.display = 'none';
+    
+    try {
+        const response = await fetch('/components/com_ordenproduccion/extract_pdf_data.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'order_id=' + encodeURIComponent(currentOrderData.orderId)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayExtractedData(data.extracted_data);
+            resultsDiv.style.display = 'block';
+        } else {
+            alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR'); ?>: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error extracting PDF data:', error);
+        alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_EXTRACTING_PDF'); ?>');
+    } finally {
+        // Hide loading
+        extractBtn.style.display = 'block';
+        loadingSpinner.style.display = 'none';
+    }
+}
+
+function displayExtractedData(extractedData) {
+    const container = document.getElementById('extracted-items-container');
+    
+    let html = '';
+    
+    extractedData.forEach((fileData, fileIndex) => {
+        html += '<div class="pdf-file-section" style="margin-bottom: 30px;">';
+        html += '<h5><i class="fas fa-file-pdf"></i> ' + fileData.file + '</h5>';
+        
+        if (fileData.data && fileData.data.items && fileData.data.items.length > 0) {
+            html += '<table class="extracted-items-table">';
+            html += '<thead><tr><th>Cantidad</th><th>Descripción</th><th>Precio</th></tr></thead>';
+            html += '<tbody>';
+            
+            fileData.data.items.forEach((item, itemIndex) => {
+                html += '<tr>';
+                html += '<td><input type="text" class="cantidad-input" value="' + item.cantidad + '" data-file="' + fileIndex + '" data-item="' + itemIndex + '" data-field="cantidad"></td>';
+                html += '<td><input type="text" value="' + escapeHtml(item.descripcion) + '" data-file="' + fileIndex + '" data-item="' + itemIndex + '" data-field="descripcion"></td>';
+                html += '<td><input type="text" class="precio-input" value="' + item.precio + '" data-file="' + fileIndex + '" data-item="' + itemIndex + '" data-field="precio"></td>';
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+        } else {
+            html += '<div class="no-quotation-files">No se encontraron datos de tabla en este archivo PDF</div>';
+        }
+        
+        html += '</div>';
+    });
+    
+    container.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function useExtractedData() {
+    // Collect all extracted data
+    const extractedItems = [];
+    
+    document.querySelectorAll('.extracted-items-table input').forEach(input => {
+        const fileIndex = input.dataset.file;
+        const itemIndex = input.dataset.item;
+        const field = input.dataset.field;
+        
+        if (!extractedItems[fileIndex]) {
+            extractedItems[fileIndex] = {};
+        }
+        if (!extractedItems[fileIndex][itemIndex]) {
+            extractedItems[fileIndex][itemIndex] = {};
+        }
+        
+        extractedItems[fileIndex][itemIndex][field] = input.value;
+    });
+    
+    // Store extracted data for invoice creation
+    window.extractedInvoiceData = extractedItems;
+    
+    // Switch to invoice details tab
+    showTab('invoice-details');
+    
+    // Show success message
+    alert('<?php echo Text::_('COM_ORDENPRODUCCION_DATA_READY_FOR_INVOICE'); ?>');
+}
+
+function editExtractedData() {
+    // Enable editing of all input fields (they're already editable)
+    alert('<?php echo Text::_('COM_ORDENPRODUCCION_EDIT_MODE_ENABLED'); ?>');
 }
 
 function closeAssignInvoiceModal() {
