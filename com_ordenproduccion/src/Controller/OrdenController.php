@@ -358,9 +358,11 @@ class OrdenController extends BaseController
         }
         $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
         
+        // TRABAJO section with dynamic height
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(49, 8, 'TRABAJO:', 1, 0, 'L'); // 35 * 1.4 = 49
         $pdf->SetFont('Arial', '', 9);
+        
         // Get job description from correct field name
         $jobDesc = 'N/A';
         
@@ -397,12 +399,9 @@ class OrdenController extends BaseController
         }
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
-        if (strlen($jobDesc) > 50) {
-            $jobDesc = substr($jobDesc, 0, 47) . '...';
-        }
         
-        // Remove debug info for production
-        $pdf->Cell(0, 8, $jobDesc, 1, 1, 'L');
+        // Use MultiCell for dynamic height - no truncation
+        $pdf->MultiCell(141, 6, $jobDesc, 1, 'L'); // 190 - 49 = 141
         
         $pdf->Ln(5);
         
@@ -423,12 +422,15 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell(0, 8, $tiroRetiro, 1, 1, 'L');
         
+        // MATERIAL section with dynamic height
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'MATERIAL:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
         $material = $workOrderData->material ?? 'N/A';
         $material = $fixSpanishChars($material);
-        $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, 8, $material, 1, 1, 'L');
+        
+        // Use MultiCell for dynamic height - no truncation
+        $pdf->MultiCell(110, 6, $material, 1, 'L'); // 190 - 80 = 110
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'MEDIDAS:', 1, 0, 'L');
@@ -440,7 +442,7 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
-        // Finishing options table with real data from main table
+        // Finishing options table with conditional display (only SI values) and dynamic height
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(60, 8, 'ACABADOS', 1, 0, 'C');
         $pdf->Cell(30, 8, 'SELECCION', 1, 0, 'C');
@@ -466,6 +468,8 @@ class OrdenController extends BaseController
         ];
         
         $pdf->SetFont('Arial', '', 9);
+        $hasAnyAcabados = false;
+        
         foreach ($finishingFieldMap as $displayName => $fields) {
             // Get selection value (SI/NO) from main table
             $fieldName = $fields['field'];
@@ -477,30 +481,49 @@ class OrdenController extends BaseController
                 $isSelected = 'NO';
             }
             
-            // Get details from main table
-            $details = $workOrderData->$detailsFieldName ?? '';
-            $details = $fixSpanishChars($details);
-            
-            // Truncate details if too long
-            if (strlen($details) > 30) {
-                $details = substr($details, 0, 27) . '...';
+            // Only show rows where selection is "SI"
+            if ($isSelected === 'SI') {
+                $hasAnyAcabados = true;
+                
+                // Get details from main table
+                $details = $workOrderData->$detailsFieldName ?? '';
+                $details = $fixSpanishChars($details);
+                
+                // Calculate height needed for details text
+                $detailsWidth = 100; // Available width for details column
+                $lineHeight = 6;
+                
+                // Split text into lines to calculate height
+                $lines = explode("\n", wordwrap($details, $detailsWidth / 3, "\n")); // Approximate chars per unit
+                $textHeight = max(6, count($lines) * $lineHeight); // Minimum height of 6
+                
+                // Draw the row with calculated height
+                $pdf->Cell(60, $textHeight, $displayName, 1, 0, 'L');
+                $pdf->Cell(30, $textHeight, $isSelected, 1, 0, 'C');
+                
+                // Use MultiCell for details with dynamic height
+                $pdf->MultiCell(100, $lineHeight, $details, 1, 'L');
             }
-            
-            $pdf->Cell(60, 6, $displayName, 1, 0, 'L');
-            $pdf->Cell(30, 6, $isSelected, 1, 0, 'C');
-            $pdf->Cell(0, 6, $details, 1, 1, 'L');
+        }
+        
+        // If no acabados are selected, show a message
+        if (!$hasAnyAcabados) {
+            $pdf->Cell(60, 6, 'NINGUNO SELECCIONADO', 1, 0, 'L');
+            $pdf->Cell(30, 6, '-', 1, 0, 'C');
+            $pdf->Cell(100, 6, 'No se han seleccionado acabados', 1, 1, 'L');
         }
         
         $pdf->Ln(5);
         
-        // INSTRUCCIONES GENERALES section
+        // INSTRUCCIONES GENERALES section with dynamic height
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetFillColor(220, 220, 220); // Light gray background
         $pdf->Cell(0, 8, 'INSTRUCCIONES GENERALES', 1, 1, 'L', true);
         $pdf->SetFont('Arial', '', 9);
         $instructions = $workOrderData->instructions ?? 'N/A';
         $instructions = $fixSpanishChars($instructions); // Fix Spanish characters
-        // Ensure text fits within cell boundaries
+        
+        // Use MultiCell for dynamic height - expand as much as needed
         $pdf->MultiCell(0, 6, $instructions, 1, 'L');
         
         $pdf->Ln(5);
@@ -556,10 +579,12 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(0, 7, 'INSTRUCCIONES DE ENTREGA:', 1, 1, 'L');
         
-        // Instrucciones de Entrega - Value row (spans both columns)
+        // Instrucciones de Entrega - Value row with dynamic height
         $pdf->SetFont('Arial', '', 9);
         $shippingInstructions = $workOrderData->instrucciones_entrega ?? 'N/A';
         $shippingInstructions = $fixSpanishChars($shippingInstructions);
+        
+        // Use MultiCell for dynamic height - expand as much as needed
         $pdf->MultiCell(0, 6, $shippingInstructions, 1, 'L');
         
         
