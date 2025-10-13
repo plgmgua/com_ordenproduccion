@@ -576,12 +576,6 @@ class OrdenController extends BaseController
         // Use MultiCell with proper line height for 3-row display
         $pdf->MultiCell(0, 6, $shippingInstructions, 1, 'L');
         
-        // Add version number in lower right corner
-        $pdf->SetFont('Arial', '', 6);
-        $version = trim(file_get_contents(JPATH_ROOT . '/components/com_ordenproduccion/VERSION'));
-        $pdf->SetXY(150, 270); // Position in lower right corner with more space
-        $pdf->Cell(40, 5, 'v' . $version, 0, 0, 'R'); // Wider cell to fit full version
-        
         // Set headers for inline PDF viewing in new tab
         header('Content-Type: application/pdf');
         header('Content-Disposition: inline; filename="orden_trabajo_' . $orderId . '.pdf"');
