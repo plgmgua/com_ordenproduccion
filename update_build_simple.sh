@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simplified Build Update Script for com_ordenproduccion
-# Version: 1.8.117
+# Version: 1.9.0
 # Downloads latest code from GitHub and deploys to Joomla webserver
 # No validation, just simple copy operations
 
@@ -120,14 +120,57 @@ main() {
     # Trap to ensure version display on exit
     trap 'if [ $? -eq 0 ]; then display_version_info; else display_error_info; fi' EXIT
 
-    log "Step 1: Cleaning up old repository directory..."
+    log "Step 1: Installing and configuring ImageMagick for PDF to JPG conversion..."
+    
+    # Check if ImageMagick is installed
+    if ! command -v convert &> /dev/null; then
+        log "ImageMagick not found. Installing ImageMagick..."
+        sudo apt-get update || warning "Failed to update package list"
+        sudo apt-get install -y imagemagick || error "Failed to install ImageMagick"
+        success "ImageMagick installed successfully"
+    else
+        log "ImageMagick already installed: $(convert -version | head -n1)"
+    fi
+    
+    # Check if PHP ImageMagick extension is installed
+    if ! php -m | grep -q imagick; then
+        log "PHP ImageMagick extension not found. Installing..."
+        sudo apt-get install -y php-imagick || error "Failed to install PHP ImageMagick extension"
+        
+        # Restart PHP-FPM if available
+        if systemctl is-active --quiet php8.1-fpm; then
+            sudo systemctl restart php8.1-fpm || warning "Failed to restart PHP8.1-FPM"
+        elif systemctl is-active --quiet php8.0-fpm; then
+            sudo systemctl restart php8.0-fpm || warning "Failed to restart PHP8.0-FPM"
+        elif systemctl is-active --quiet php7.4-fpm; then
+            sudo systemctl restart php7.4-fpm || warning "Failed to restart PHP7.4-FPM"
+        fi
+        
+        # Restart Apache if available
+        if systemctl is-active --quiet apache2; then
+            sudo systemctl restart apache2 || warning "Failed to restart Apache"
+        fi
+        
+        success "PHP ImageMagick extension installed and services restarted"
+    else
+        log "PHP ImageMagick extension already installed"
+    fi
+    
+    # Create cache directory for quotation images
+    log "Creating cache directory for quotation images..."
+    sudo mkdir -p "$JOOMLA_ROOT/cache/com_ordenproduccion/quotation_images" || warning "Failed to create quotation images cache directory"
+    sudo chown -R www-data:www-data "$JOOMLA_ROOT/cache/com_ordenproduccion" || warning "Failed to set ownership on quotation images cache directory"
+    sudo chmod -R 755 "$JOOMLA_ROOT/cache/com_ordenproduccion" || warning "Failed to set permissions on quotation images cache directory"
+    success "Quotation images cache directory created"
+    
+    log "Step 2: Cleaning up old repository directory..."
     if [ -d "$REPO_DIR" ]; then
         rm -rf "$REPO_DIR"
         log "Removed old repository directory: $REPO_DIR"
     fi
     success "Cleanup completed"
 
-    log "Step 2: Creating github directory and cloning repository..."
+    log "Step 3: Creating github directory and cloning repository..."
     mkdir -p "$GITHUB_DIR"
     
     # Force clean clone to ensure latest changes
@@ -145,10 +188,10 @@ main() {
         error "Repository directory not created after clone"
     fi
 
-    log "Step 3: Getting version information..."
+    log "Step 4: Getting version information..."
     get_version_info
 
-    log "Step 4: Removing existing Joomla component directories..."
+    log "Step 5: Removing existing Joomla component directories..."
     if [ -d "$ADMIN_COMPONENT_PATH" ]; then
         sudo rm -rf "$ADMIN_COMPONENT_PATH"
         log "Removed admin component directory: $ADMIN_COMPONENT_PATH"
@@ -163,13 +206,13 @@ main() {
     fi
     success "Existing directories removed"
 
-    log "Step 5: Creating new Joomla component directories..."
+    log "Step 6: Creating new Joomla component directories..."
     sudo mkdir -p "$ADMIN_COMPONENT_PATH" || error "Failed to create admin component directory"
     sudo mkdir -p "$SITE_COMPONENT_PATH" || error "Failed to create site component directory"
     sudo mkdir -p "$MEDIA_PATH" || error "Failed to create media directory"
     success "New directories created"
 
-    log "Step 6: Copying component files..."
+    log "Step 7: Copying component files..."
     log "Copying admin files from $COMPONENT_ROOT/admin/ to $ADMIN_COMPONENT_PATH/"
     sudo cp -r "$COMPONENT_ROOT/admin/"* "$ADMIN_COMPONENT_PATH/" || error "Failed to copy admin files"
     
@@ -654,7 +697,7 @@ EOF
     
     success "Component files copied"
 
-    log "Step 7: Setting file permissions..."
+    log "Step 8: Setting file permissions..."
     sudo find "$ADMIN_COMPONENT_PATH" -type f -exec chmod 644 {} \; || error "Failed to set admin file permissions"
     sudo find "$ADMIN_COMPONENT_PATH" -type d -exec chmod 755 {} \; || error "Failed to set admin directory permissions"
     sudo find "$SITE_COMPONENT_PATH" -type f -exec chmod 644 {} \; || error "Failed to set site file permissions"
@@ -668,12 +711,12 @@ EOF
     
     success "File permissions set"
 
-    log "Step 8: Clearing Joomla cache..."
+    log "Step 9: Clearing Joomla cache..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear Joomla cache"
     sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear Joomla admin cache"
     success "Joomla cache cleared"
 
-    log "Step 9: Fixing Joomla autoloading issues..."
+    log "Step 10: Fixing Joomla autoloading issues..."
     
     # Check if component is properly registered in database
     log "Checking component registration in database..."
@@ -723,7 +766,7 @@ EOF
     success "Autoloading fixes applied"
 
     # Step 10: Update language files
-    log "Step 10: Updating language files..."
+    log "Step 11: Updating language files..."
     
     # Create temporary directory in user's github folder
     TEMP_DIR="$GITHUB_DIR/temp_lang"
@@ -779,7 +822,7 @@ EOF
     success "Language files update completed"
 
     # Step 11: Update component manifest
-    log "Step 11: Updating component manifest..."
+    log "Step 12: Updating component manifest..."
     
     # Create temporary directory for manifest
     TEMP_MANIFEST_DIR="$GITHUB_DIR/temp_manifest"
@@ -816,7 +859,7 @@ EOF
     success "Manifest update completed"
 
     # Step 12: Fix menu items in database
-    log "Step 12: Fixing menu items in database..."
+    log "Step 13: Fixing menu items in database..."
     
     echo "Checking fix_production_component.php in repository..."
     if [ -f "$REPO_DIR/fix_production_component.php" ]; then
@@ -852,7 +895,7 @@ EOF
     # No cleanup needed - files are in repository
 
     # Step 13: Copy remaining utility files to Joomla root directory
-    log "Step 13: Copying remaining utility files to Joomla root directory..."
+    log "Step 14: Copying remaining utility files to Joomla root directory..."
     
     echo "Copying troubleshooting.php to Joomla root (overwriting if exists)..."
     sudo cp -f "$REPO_DIR/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
@@ -865,7 +908,7 @@ EOF
     success "Utility files ownership set"
 
     # Step 14: Clear ALL Joomla caches
-    log "Step 14: Clearing ALL Joomla caches (site, admin, compiled templates)..."
+    log "Step 15: Clearing ALL Joomla caches (site, admin, compiled templates)..."
     
     echo "Clearing site cache..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
@@ -891,7 +934,7 @@ EOF
     success "✅ ALL caches cleared (site, admin, templates, pages)"
 
     # Step 15: Final verification (FINAL STEP)
-    log "Step 15: Final verification (FINAL STEP)..."
+    log "Step 16: Final verification (FINAL STEP)..."
     
     echo "Verifying deployment files exist in Joomla root directory:"
     ls -la "$JOOMLA_ROOT/fix_production_component.php" || echo "❌ fix_production_component.php not found in Joomla root directory"
@@ -899,7 +942,7 @@ EOF
     echo ""
 
     # Deploy quotation view files (ensure they exist)
-    log "Step 10: Ensuring quotation view files are deployed..."
+    log "Step 17: Ensuring quotation view files are deployed..."
     
     # Create quotation view directories
     sudo mkdir -p "$SITE_COMPONENT_PATH/src/View/Quotation" || warning "Failed to create Quotation view directory"
