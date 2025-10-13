@@ -87,6 +87,7 @@ $orderData = $this->getOrderData();
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            table-layout: fixed;
         }
         
         .client-table th {
@@ -426,14 +427,14 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.15.0-STABLE</small>
+                <small>v3.16.0-STABLE</small>
             </div>
         </div>
 
         <div class="form-note">
             <i class="fas fa-info-circle"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
-            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.15.0 - Template Updated</small>
+            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.16.0 - PDF to JPG Conversion</small>
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
@@ -444,9 +445,9 @@ $orderData = $this->getOrderData();
             <table class="client-table">
                 <thead>
                     <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span></th>
+                        <th style="width: 35%;"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span></th>
+                        <th style="width: 25%;"><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span></th>
+                        <th style="width: 40%;"><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -484,11 +485,16 @@ $orderData = $this->getOrderData();
                             <td colspan="3" style="padding: 15px; text-align: center;">
                                 <div class="quotation-image-container">
                                     <h5 style="margin: 0 0 10px 0; color: #495057;">Cotización Original</h5>
-                                    <?php if (!empty($this->quotationFile)): ?>
-                                        <img src="<?php echo htmlspecialchars($this->quotationFile); ?>" 
-                                             alt="Cotización PDF" 
+                                    <?php 
+                                    $quotationImageUrl = $this->getQuotationImageUrl();
+                                    if (!empty($quotationImageUrl)): 
+                                    ?>
+                                        <img src="<?php echo htmlspecialchars($quotationImageUrl); ?>" 
+                                             alt="Cotización Original" 
                                              class="quotation-image"
-                                             style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;">
+                                             style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"
+                                             onclick="window.open('<?php echo htmlspecialchars($this->quotationFile); ?>', '_blank')"
+                                             title="Hacer clic para ver PDF completo">
                                     <?php else: ?>
                                         <p style="color: #6c757d; font-style: italic;">No hay cotización disponible</p>
                                     <?php endif; ?>
