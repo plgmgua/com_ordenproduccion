@@ -705,12 +705,12 @@ class OrdenController extends BaseController
             $pdf->Cell(40, $cellHeight, $shippingPhone, 1, 0, 'L');
             $pdf->Ln();
             
-            // Row 4: Direccion de entrega (full width)
+            // Row 4: Direccion de entrega - using MultiCell for text wrapping
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Direccion de entrega', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(153, $cellHeight, $shippingAddress, 1, 0, 'L');
-            $pdf->Ln();
+            // Use MultiCell to allow text wrapping like TRABAJO row
+            $pdf->MultiCell(153, $cellHeight, $shippingAddress, 1, 'L');
             
             // Row 5: Instrucciones de entrega (full width)
             $pdf->SetFont('Arial', 'B', 10);
