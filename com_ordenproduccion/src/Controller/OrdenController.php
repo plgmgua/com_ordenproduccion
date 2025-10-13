@@ -358,9 +358,6 @@ class OrdenController extends BaseController
         }
         $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
         
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 18, 'TRABAJO:', 1, 0, 'L'); // Fixed height to match details cell
-        $pdf->SetFont('Arial', '', 9);
         // Get job description from correct field name
         $jobDesc = 'N/A';
         
@@ -398,8 +395,14 @@ class OrdenController extends BaseController
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
         
-        // Use MultiCell with proper width and height matching
-        $pdf->MultiCell(140, 6, $jobDesc, 1, 'L'); // 190 - 50 = 140, 6mm line height
+        // Use fixed height for 3 rows (3 * 6mm = 18mm)
+        $fixedHeight = 18; // 3 rows * 6mm line height
+        
+        // Draw both cells with matching fixed height
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(50, $fixedHeight, 'TRABAJO:', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->MultiCell(140, 6, $jobDesc, 1, 'L'); // 6mm line height for 3 rows
         
         $pdf->Ln(5);
         
