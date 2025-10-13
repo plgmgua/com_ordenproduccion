@@ -599,30 +599,61 @@ $orderData = $this->getOrderData();
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROCESSING'); ?>...';
         
         // Get form data
-        const formData = {
-            order_id: <?php echo $this->orderId; ?>,
-            order_number: '<?php echo htmlspecialchars($this->orderNumber); ?>',
-            cliente: document.getElementById('cliente').value,
-            nit: document.getElementById('nit').value,
-            direccion: document.getElementById('direccion').value,
-            detalles: document.getElementById('detalles').value
-        };
+        const formData = new FormData();
+        formData.append('task', 'invoice.create');
+        formData.append('order_id', <?php echo $this->orderId; ?>);
+        formData.append('order_number', '<?php echo htmlspecialchars($this->orderNumber); ?>');
+        formData.append('cliente', document.getElementById('cliente').value);
+        formData.append('nit', document.getElementById('nit').value);
+        formData.append('direccion', document.getElementById('direccion').value);
         
-        // Simulate form submission (you can modify this to actually save the data)
-        setTimeout(() => {
-            alert('<?php echo Text::_('COM_ORDENPRODUCCION_FORM_SUBMITTED_SUCCESS'); ?>');
+        // Get invoice items data
+        const items = [];
+        const rows = document.querySelectorAll('.invoice-item-row');
+        rows.forEach((row, index) => {
+            const cantidad = row.querySelector('.cantidad-input').value;
+            const descripcion = row.querySelector('input[name*="[descripcion]"]').value;
+            const precioUnitario = row.querySelector('.precio-unitario-input').value;
+            const subtotal = row.querySelector('.subtotal-input').value;
             
-            // Re-enable button
+            if (cantidad && precioUnitario) {
+                items.push({
+                    cantidad: cantidad,
+                    descripcion: descripcion,
+                    precio_unitario: precioUnitario,
+                    subtotal: subtotal
+                });
+            }
+        });
+        
+        // Add items to form data
+        items.forEach((item, index) => {
+            formData.append(`items[${index + 1}][cantidad]`, item.cantidad);
+            formData.append(`items[${index + 1}][descripcion]`, item.descripcion);
+            formData.append(`items[${index + 1}][precio_unitario]`, item.precio_unitario);
+            formData.append(`items[${index + 1}][subtotal]`, item.subtotal);
+        });
+        
+        // Submit to backend
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                // Success - redirect to work orders page
+                window.location.href = 'index.php?option=com_ordenproduccion&view=administracion&tab=workorders';
+            } else {
+                throw new Error('Server error');
+            }
+        })
+        .catch(error => {
+            // Error - re-enable button and show error
             submitButton.disabled = false;
             submitButton.innerHTML = originalText;
-            
-            // Optionally close the modal after success
-            setTimeout(() => {
-                if (typeof closeQuotationModal === 'function') {
-                    closeQuotationModal();
-                }
-            }, 1500);
-        }, 2000);
+            alert('Error al crear la factura. Por favor, intente nuevamente.');
+            console.error('Error:', error);
+        });
     }
 
     // PDF Viewer Controls
