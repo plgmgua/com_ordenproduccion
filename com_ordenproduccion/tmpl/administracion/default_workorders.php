@@ -442,7 +442,7 @@ use Joomla\CMS\Router\Route;
 .quotation-modal-content {
     position: relative;
     width: 90%;
-    max-width: 900px;
+    max-width: none;
     max-height: 90vh;
     background: white;
     border-radius: 12px;

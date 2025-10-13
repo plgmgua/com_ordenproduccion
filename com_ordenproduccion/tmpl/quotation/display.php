@@ -30,7 +30,7 @@ $orderData = $this->getOrderData();
         .quotation-form-container {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 35px;
+            padding: 25px;
             background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -161,9 +161,12 @@ $orderData = $this->getOrderData();
         
         .pdf-viewer-section {
             margin-top: 25px;
+            margin-left: -25px;
+            margin-right: -25px;
+            margin-bottom: -25px;
             padding: 20px;
             background: #f8f9fa;
-            border-radius: 12px;
+            border-radius: 0 0 12px 12px;
             border: 1px solid #e9ecef;
         }
         
@@ -216,7 +219,8 @@ $orderData = $this->getOrderData();
         .pdf-embed-container {
             position: relative;
             width: 100%;
-            height: 500px;
+            height: 70vh;
+            min-height: 600px;
             border: 2px solid #dee2e6;
             border-radius: 8px;
             overflow: hidden;
@@ -430,10 +434,14 @@ $orderData = $this->getOrderData();
         
         if (isPdfExpanded) {
             // Collapse to normal size
-            container.style.height = '500px';
+            container.style.height = '70vh';
+            container.style.minHeight = '600px';
             container.style.position = 'relative';
             container.style.zIndex = 'auto';
             container.style.borderRadius = '8px';
+            container.style.width = '100%';
+            container.style.left = 'auto';
+            container.style.top = 'auto';
             expandBtn.className = 'fas fa-expand';
             expandText.textContent = ' Expandir';
             isPdfExpanded = false;
