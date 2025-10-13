@@ -18,11 +18,11 @@ use Joomla\CMS\Router\Route;
 $orderData = $this->getOrderData();
 ?>
 
-<!-- Font Awesome for icons (if not already loaded) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<!-- Font Awesome for icons (if not already loaded) - v3.12.0 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css?v=3.12.0">
 
 <style>
-        /* Reset and base styles for standalone form */
+        /* Reset and base styles for standalone form - v3.12.0 */
         * {
             box-sizing: border-box;
         }
@@ -375,7 +375,7 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.11.0-STABLE</small>
+                <small>v3.12.0-STABLE</small>
             </div>
         </div>
 
