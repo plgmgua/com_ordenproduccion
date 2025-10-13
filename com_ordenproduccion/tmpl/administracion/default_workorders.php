@@ -543,8 +543,9 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
     // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
     
-    // Use working URL format (without format=raw)
-    const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}`;
+            // Use working URL format (without format=raw) with cache busting
+            const timestamp = new Date().getTime();
+            const url = `?option=com_ordenproduccion&view=quotation&layout=display&order_id=${orderId}&order_number=${encodeURIComponent(orderNumber)}&quotation_files=${encodeURIComponent(quotationFiles)}&v=${timestamp}`;
     
     // Fetch content via AJAX with proper headers
     fetch(url, {

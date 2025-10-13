@@ -66,6 +66,17 @@ $orderData = $this->getOrderData();
             display: inline-block;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 8px;
+        }
+        
+        .version-info {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
         
         .form-grid {
@@ -362,6 +373,9 @@ $orderData = $this->getOrderData();
             <h2>Crear Factura</h2>
             <div class="order-info">
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
+            </div>
+            <div class="version-info">
+                <small>v3.11.0-STABLE</small>
             </div>
         </div>
 
