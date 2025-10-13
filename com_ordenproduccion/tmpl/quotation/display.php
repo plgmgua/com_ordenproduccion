@@ -97,11 +97,12 @@ $orderData = $this->getOrderData();
             text-align: left;
             font-weight: 600;
             font-size: 14px;
+            border: 1px solid #dee2e6;
         }
         
         .client-table td {
             padding: 0;
-            border-bottom: none;
+            border: 1px solid #dee2e6;
         }
         
         .client-table input {
@@ -369,15 +370,16 @@ $orderData = $this->getOrderData();
             text-align: left;
             font-weight: 600;
             font-size: 14px;
+            border: 1px solid #dee2e6;
         }
         
         .items-table td {
             padding: 8px;
-            border-bottom: 1px solid #e9ecef;
+            border: 1px solid #dee2e6;
         }
         
         .items-table tr:last-child td {
-            border-bottom: none;
+            border-bottom: 1px solid #dee2e6;
         }
         
         .items-table input {
@@ -427,14 +429,14 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.18.0-STABLE</small>
+                <small>v3.19.0-STABLE</small>
             </div>
         </div>
 
         <div class="form-note">
             <i class="fas fa-info-circle"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
-            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.18.0 - Bootstrap Modal</small>
+            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.19.0 - Simplified & Bordered</small>
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
@@ -445,9 +447,9 @@ $orderData = $this->getOrderData();
             <table class="client-table">
                 <thead>
                     <tr>
-                        <th style="width: 35%;"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span></th>
-                        <th style="width: 25%;"><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span></th>
-                        <th style="width: 40%;"><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span></th>
+                        <th style="width: 25%;"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span></th>
+                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span></th>
+                        <th style="width: 55%;"><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -466,13 +468,13 @@ $orderData = $this->getOrderData();
                     Detalles de Factura
                 </h4>
                 <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 15%;">Cantidad</th>
-                            <th style="width: 70%;">Descripción</th>
-                            <th style="width: 15%;">Precio</th>
-                        </tr>
-                    </thead>
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Cantidad</th>
+                                <th style="width: 60%;">Descripción</th>
+                                <th style="width: 25%;">Precio</th>
+                            </tr>
+                        </thead>
                     <tbody>
                         <?php for ($i = 1; $i <= 5; $i++): ?>
                         <tr>
@@ -482,42 +484,20 @@ $orderData = $this->getOrderData();
                         </tr>
                         <?php endfor; ?>
                         <tr>
-                            <td colspan="3" style="padding: 15px; text-align: center;">
-                                <div class="quotation-image-container">
-                                    <h5 style="margin: 0 0 10px 0; color: #495057;">Cotización Original</h5>
-                                    <?php 
-                                    try {
-                                        $quotationImageUrl = $this->getQuotationImageUrl();
-                                    } catch (Exception $e) {
-                                        error_log('Error getting quotation image URL: ' . $e->getMessage());
-                                        $quotationImageUrl = null;
-                                    }
-                                    
-                                    if (!empty($quotationImageUrl)): 
-                                    ?>
-                                        <img src="<?php echo htmlspecialchars($quotationImageUrl); ?>" 
-                                             alt="Cotización Original" 
-                                             class="quotation-image"
-                                             style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"
-                                             onclick="window.open('<?php echo htmlspecialchars($this->quotationFile); ?>', '_blank')"
-                                             title="Hacer clic para ver PDF completo">
+                            <td colspan="3" style="padding: 15px; text-align: center; border: 1px solid #dee2e6;">
+                                <div class="quotation-link-container">
+                                    <h5 style="margin: 0 0 15px 0; color: #495057;">Cotización Original</h5>
+                                    <?php if (!empty($this->quotationFile)): ?>
+                                        <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" 
+                                           target="_blank" 
+                                           style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: #dc3545; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500; transition: all 0.3s ease; border: 1px solid #dc3545;"
+                                           onmouseover="this.style.background='#c82333'; this.style.borderColor='#c82333';" 
+                                           onmouseout="this.style.background='#dc3545'; this.style.borderColor='#dc3545';">
+                                            <i class="fas fa-file-pdf"></i>
+                                            Ver Cotización PDF
+                                        </a>
                                     <?php else: ?>
-                                        <?php if (!empty($this->quotationFile)): ?>
-                                            <div style="padding: 20px; text-align: center; background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
-                                                <i class="fas fa-file-pdf" style="font-size: 48px; color: #dc3545; margin-bottom: 15px;"></i>
-                                                <p style="color: #495057; margin-bottom: 15px;">Cotización PDF disponible</p>
-                                                <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" 
-                                                   target="_blank" 
-                                                   style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #dc3545; color: white; text-decoration: none; border-radius: 20px; font-size: 14px; font-weight: 500; transition: all 0.3s ease;"
-                                                   onmouseover="this.style.background='#c82333'" 
-                                                   onmouseout="this.style.background='#dc3545'">
-                                                    <i class="fas fa-external-link-alt"></i>
-                                                    Ver PDF Completo
-                                                </a>
-                                            </div>
-                                        <?php else: ?>
-                                            <p style="color: #6c757d; font-style: italic;">No hay cotización disponible</p>
-                                        <?php endif; ?>
+                                        <p style="color: #6c757d; font-style: italic; margin: 0;">No hay cotización disponible</p>
                                     <?php endif; ?>
                                 </div>
                             </td>
