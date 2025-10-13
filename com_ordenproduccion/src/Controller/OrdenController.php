@@ -397,10 +397,10 @@ class OrdenController extends BaseController
         
         // Use MultiCell approach like INSTRUCCIONES GENERALES for text wrapping
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(40, 7, 'TRABAJO:', 1, 0, 'L'); // Label cell
+        $pdf->Cell(49, 8, 'TRABAJO:', 1, 0, 'L'); // Same width as CLIENTE label (49mm)
         $pdf->SetFont('Arial', '', 9);
         // Use MultiCell to allow text wrapping like INSTRUCCIONES GENERALES
-        $pdf->MultiCell(150, 6, $jobDesc, 1, 'L'); // Details cell with text wrapping
+        $pdf->MultiCell(0, 6, $jobDesc, 1, 'L'); // Full remaining width like CLIENTE
         
         $pdf->Ln(5);
         
