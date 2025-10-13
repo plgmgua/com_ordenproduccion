@@ -22,7 +22,7 @@ $orderData = $this->getOrderData();
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css?v=3.12.0">
 
 <style>
-        /* Reset and base styles for standalone form - v3.12.0 */
+        /* Reset and base styles for standalone form - v3.15.0 - CLIENT TABLE LAYOUT */
         * {
             box-sizing: border-box;
         }
@@ -426,13 +426,14 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.14.0-STABLE</small>
+                <small>v3.15.0-STABLE</small>
             </div>
         </div>
 
         <div class="form-note">
             <i class="fas fa-info-circle"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
+            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.15.0 - Template Updated</small>
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
