@@ -159,23 +159,100 @@ $orderData = $this->getOrderData();
             color: #333;
         }
         
-        .original-quotation-link {
+        .pdf-viewer-section {
             margin-top: 25px;
-            padding: 15px;
+            padding: 20px;
             background: #f8f9fa;
-            border-radius: 8px;
+            border-radius: 12px;
             border: 1px solid #e9ecef;
-            text-align: center;
         }
         
-        .original-quotation-link h4 {
-            margin: 0 0 10px 0;
+        .pdf-viewer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .pdf-viewer-title {
+            margin: 0;
+            color: #495057;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .pdf-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .pdf-control-btn {
+            padding: 6px 12px;
+            background: #007cba;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .pdf-control-btn:hover {
+            background: #005a87;
+            transform: translateY(-1px);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .pdf-embed-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        
+        .pdf-embed {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .pdf-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+        }
+        
+        .pdf-fallback-icon {
+            font-size: 48px;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+        
+        .pdf-fallback-text {
             color: #495057;
             font-size: 14px;
-            font-weight: 600;
+            margin-bottom: 15px;
         }
         
-        .quotation-link {
+        .pdf-fallback-link {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -190,7 +267,7 @@ $orderData = $this->getOrderData();
             box-shadow: 0 2px 8px rgba(0, 124, 186, 0.3);
         }
         
-        .quotation-link:hover {
+        .pdf-fallback-link:hover {
             background: linear-gradient(135deg, #005a87 0%, #007cba 100%);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 124, 186, 0.4);
@@ -263,17 +340,44 @@ $orderData = $this->getOrderData();
             </div>
         </form>
         
-        <!-- Original Quotation File Link -->
+        <!-- Embedded PDF Viewer -->
         <?php if (!empty($this->quotationFile)): ?>
-        <div class="original-quotation-link">
-            <h4>
-                <i class="fas fa-file-alt"></i>
-                Cotización Original
-            </h4>
-            <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" target="_blank" class="quotation-link">
-                <i class="fas fa-external-link-alt"></i>
-                Ver Cotización PDF
-            </a>
+        <div class="pdf-viewer-section">
+            <div class="pdf-viewer-header">
+                <h4 class="pdf-viewer-title">
+                    <i class="fas fa-file-pdf"></i>
+                    Cotización Original
+                </h4>
+                <div class="pdf-controls">
+                    <button type="button" class="pdf-control-btn" onclick="togglePdfSize()">
+                        <i class="fas fa-expand"></i>
+                        Expandir
+                    </button>
+                    <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" target="_blank" class="pdf-control-btn">
+                        <i class="fas fa-external-link-alt"></i>
+                        Abrir
+                    </a>
+                </div>
+            </div>
+            
+            <div class="pdf-embed-container" id="pdfContainer">
+                <iframe 
+                    src="<?php echo htmlspecialchars($this->quotationFile); ?>#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH" 
+                    class="pdf-embed"
+                    id="pdfEmbed"
+                    title="Cotización PDF">
+                    <div class="pdf-fallback">
+                        <i class="fas fa-file-pdf pdf-fallback-icon"></i>
+                        <p class="pdf-fallback-text">
+                            Tu navegador no soporta la visualización de PDFs embebidos.
+                        </p>
+                        <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" target="_blank" class="pdf-fallback-link">
+                            <i class="fas fa-external-link-alt"></i>
+                            Abrir PDF en nueva ventana
+                        </a>
+                    </div>
+                </iframe>
+            </div>
         </div>
         <?php endif; ?>
 </div>
@@ -315,4 +419,44 @@ $orderData = $this->getOrderData();
             }, 1500);
         }, 2000);
     }
+
+    // PDF Viewer Controls
+    let isPdfExpanded = false;
+    
+    function togglePdfSize() {
+        const container = document.getElementById('pdfContainer');
+        const expandBtn = document.querySelector('.pdf-control-btn i');
+        const expandText = expandBtn.nextSibling;
+        
+        if (isPdfExpanded) {
+            // Collapse to normal size
+            container.style.height = '500px';
+            container.style.position = 'relative';
+            container.style.zIndex = 'auto';
+            container.style.borderRadius = '8px';
+            expandBtn.className = 'fas fa-expand';
+            expandText.textContent = ' Expandir';
+            isPdfExpanded = false;
+        } else {
+            // Expand to full size
+            container.style.height = '80vh';
+            container.style.position = 'fixed';
+            container.style.top = '10vh';
+            container.style.left = '5%';
+            container.style.width = '90%';
+            container.style.zIndex = '9999';
+            container.style.borderRadius = '12px';
+            container.style.boxShadow = '0 10px 40px rgba(0,0,0,0.3)';
+            expandBtn.className = 'fas fa-compress';
+            expandText.textContent = ' Contraer';
+            isPdfExpanded = true;
+        }
+    }
+
+    // Close expanded PDF on ESC key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && isPdfExpanded) {
+            togglePdfSize();
+        }
+    });
 </script>
