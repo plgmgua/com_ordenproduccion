@@ -419,8 +419,8 @@ $orderData = $this->getOrderData();
                     <thead>
                         <tr>
                             <th style="width: 15%;">Cantidad</th>
-                            <th style="width: 60%;">Descripción</th>
-                            <th style="width: 25%;">Precio</th>
+                            <th style="width: 70%;">Descripción</th>
+                            <th style="width: 15%;">Precio</th>
                         </tr>
                     </thead>
                     <tbody>
