@@ -476,25 +476,6 @@ $orderData = $this->getOrderData();
                             <td><input type="text" name="items[<?php echo $i; ?>][precio]" placeholder="0.00"></td>
                         </tr>
                         <?php endfor; ?>
-                        <tr>
-                            <td colspan="3" style="padding: 15px; text-align: center; border: 1px solid #dee2e6;">
-                                <div class="quotation-link-container">
-                                    <h5 style="margin: 0 0 15px 0; color: #495057;">Cotización Original</h5>
-                                    <?php if (!empty($this->quotationFile)): ?>
-                                        <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" 
-                                           target="_blank" 
-                                           style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: #dc3545; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500; transition: all 0.3s ease; border: 1px solid #dc3545;"
-                                           onmouseover="this.style.background='#c82333'; this.style.borderColor='#c82333';" 
-                                           onmouseout="this.style.background='#dc3545'; this.style.borderColor='#dc3545';">
-                                            <i class="fas fa-file-pdf"></i>
-                                            Ver Cotización PDF
-                                        </a>
-                                    <?php else: ?>
-                                        <p style="color: #6c757d; font-style: italic; margin: 0;">No hay cotización disponible</p>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
