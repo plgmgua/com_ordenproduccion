@@ -726,12 +726,12 @@ class OrdenController extends BaseController
             $pdf->Cell(153, $cellHeight, $tipoEnvio, 1, 0, 'L');
             $pdf->Ln();
             
-            // Row 7: Trabajo
+            // Row 7: Trabajo - using MultiCell for text wrapping
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Trabajo', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(153, $cellHeight, $workDescription, 1, 0, 'L');
-            $pdf->Ln();
+            // Use MultiCell to allow text wrapping like work order PDF
+            $pdf->MultiCell(153, $cellHeight, $workDescription, 1, 'L');
             
             // Row 8: Large empty cell for additional work details
             $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
