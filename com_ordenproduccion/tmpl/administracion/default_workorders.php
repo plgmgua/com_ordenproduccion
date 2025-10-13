@@ -393,21 +393,29 @@ use Joomla\CMS\Router\Route;
     <?php endif; ?>
 </div>
 
-<!-- Floating Modal for Quotation Form -->
-<div id="quotationModal" class="quotation-modal" style="display: none;">
-    <div class="quotation-modal-overlay" onclick="closeQuotationModal()"></div>
-    <div class="quotation-modal-content">
-        <button class="quotation-modal-close" onclick="closeQuotationModal()">
-            <i class="fas fa-times"></i>
-        </button>
-        <div id="quotationModalBody" class="quotation-modal-body">
-            <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</p>
+        <!-- Bootstrap Modal for Quotation Form -->
+        <div class="modal fade" id="quotationModal" tabindex="-1" aria-labelledby="quotationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="quotationModalLabel">
+                            <i class="fas fa-file-invoice"></i> <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE'); ?>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="quotationModalBody">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</span>
+                                </div>
+                                <p class="mt-3"><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
 <style>
 /* Floating Modal Styles */
@@ -528,20 +536,21 @@ use Joomla\CMS\Router\Route;
 
 <script>
 function openQuotationView(orderId, orderNumber, quotationFiles) {
-    const modal = document.getElementById('quotationModal');
     const modalBody = document.getElementById('quotationModalBody');
     
-    // Show modal with loading spinner
-    modal.style.display = 'flex';
+    // Show loading spinner
     modalBody.innerHTML = `
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</p>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</span>
+            </div>
+            <p class="mt-3"><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?>...</p>
         </div>
     `;
-    
-    // Prevent body scroll when modal is open
-    document.body.style.overflow = 'hidden';
+
+    // Show Bootstrap modal
+    const modal = new bootstrap.Modal(document.getElementById('quotationModal'));
+    modal.show();
     
             // Use working URL format (without format=raw) with cache busting
             const timestamp = new Date().getTime();
@@ -603,11 +612,11 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
         .catch(error => {
             console.error('Fetch error:', error);
             modalBody.innerHTML = `
-                <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                    <p style="font-size: 16px;"><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></p>
-                    <p style="font-size: 12px; color: #666; margin-top: 10px;">Error: ${error.message}</p>
-                    <button onclick="closeQuotationModal()" style="margin-top: 20px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h5><?php echo Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION'); ?></h5>
+                    <p class="mb-3">Error: ${error.message}</p>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <?php echo Text::_('COM_ORDENPRODUCCION_CLOSE'); ?>
                     </button>
                 </div>
@@ -615,20 +624,7 @@ function openQuotationView(orderId, orderNumber, quotationFiles) {
         });
 }
 
-function closeQuotationModal() {
-    const modal = document.getElementById('quotationModal');
-    modal.style.display = 'none';
-    
-    // Restore body scroll
-    document.body.style.overflow = '';
-}
-
-// Close modal on ESC key
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeQuotationModal();
-    }
-});
+// Bootstrap modal handles closing automatically
 
 // Test function to check URL accessibility
 function testQuotationUrls() {
