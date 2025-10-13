@@ -347,20 +347,23 @@ class OrdenController extends BaseController
                 $pdf->Ln(5);
         
         
-        // Client and job information table with proper cell sizing (40% larger labels)
+        // Client and job information table with consistent fixed widths
+        $labelWidth = 50; // Fixed width for all labels
+        $valueWidth = 140; // Fixed width for all values (190 - 50 = 140)
+        
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(49, 8, 'CLIENTE:', 1, 0, 'L'); // 35 * 1.4 = 49
+        $pdf->Cell($labelWidth, 8, 'CLIENTE:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         $clientName = $workOrderData->client_name ?? 'N/A';
         $clientName = $fixSpanishChars($clientName); // Fix Spanish characters
         if (strlen($clientName) > 50) {
             $clientName = substr($clientName, 0, 47) . '...';
         }
-        $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
+        $pdf->Cell($valueWidth, 8, $clientName, 1, 1, 'L');
         
-        // TRABAJO section with dynamic height
+        // TRABAJO section with dynamic height and fixed width
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(49, 8, 'TRABAJO:', 1, 0, 'L'); // 35 * 1.4 = 49
+        $pdf->Cell($labelWidth, 8, 'TRABAJO:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         
         // Get job description from correct field name
@@ -400,53 +403,57 @@ class OrdenController extends BaseController
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
         
-        // Use MultiCell for dynamic height - no truncation
-        $pdf->MultiCell(141, 6, $jobDesc, 1, 'L'); // 190 - 49 = 141
+        // Use MultiCell for dynamic height with fixed width - no truncation
+        $pdf->MultiCell($valueWidth, 6, $jobDesc, 1, 'L');
         
         $pdf->Ln(5);
         
-        // Production specifications table - 2 columns × 4 rows layout
+        // Production specifications table with consistent fixed widths
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(80, 8, 'COLOR:', 1, 0, 'L');
+        $pdf->Cell($labelWidth, 8, 'COLOR:', 1, 0, 'L');
         // Get color from main table (print_color)
         $color = $workOrderData->print_color ?? 'N/A';
         $color = $fixSpanishChars($color);
         $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, 8, $color, 1, 1, 'L');
+        $pdf->Cell($valueWidth, 8, $color, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(80, 8, 'TIRO / RETIRO:', 1, 0, 'L');
+        $pdf->Cell($labelWidth, 8, 'TIRO / RETIRO:', 1, 0, 'L');
         // Get tiro/retiro from main table
         $tiroRetiro = $workOrderData->tiro_retiro ?? 'N/A';
         $tiroRetiro = $fixSpanishChars($tiroRetiro);
         $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, 8, $tiroRetiro, 1, 1, 'L');
+        $pdf->Cell($valueWidth, 8, $tiroRetiro, 1, 1, 'L');
         
-        // MATERIAL section with dynamic height
+        // MATERIAL section with dynamic height and fixed width
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(80, 8, 'MATERIAL:', 1, 0, 'L');
+        $pdf->Cell($labelWidth, 8, 'MATERIAL:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         $material = $workOrderData->material ?? 'N/A';
         $material = $fixSpanishChars($material);
         
-        // Use MultiCell for dynamic height - no truncation
-        $pdf->MultiCell(110, 6, $material, 1, 'L'); // 190 - 80 = 110
+        // Use MultiCell for dynamic height with fixed width - no truncation
+        $pdf->MultiCell($valueWidth, 6, $material, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(80, 8, 'MEDIDAS:', 1, 0, 'L');
+        $pdf->Cell($labelWidth, 8, 'MEDIDAS:', 1, 0, 'L');
         // Get medidas from main table (dimensions)
         $medidas = $workOrderData->dimensions ?? 'N/A';
         $medidas = $fixSpanishChars($medidas);
         $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, 8, $medidas, 1, 1, 'L');
+        $pdf->Cell($valueWidth, 8, $medidas, 1, 1, 'L');
         
         $pdf->Ln(5);
         
-        // Finishing options table with conditional display (only SI values) and dynamic height
+        // Finishing options table with conditional display (only SI values) and fixed widths
+        $acabadosLabelWidth = 60; // Fixed width for acabados names
+        $acabadosSelectionWidth = 30; // Fixed width for SI/NO
+        $acabadosDetailsWidth = 100; // Fixed width for details (190 - 60 - 30 = 100)
+        
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(60, 8, 'ACABADOS', 1, 0, 'C');
-        $pdf->Cell(30, 8, 'SELECCION', 1, 0, 'C');
-        $pdf->Cell(0, 8, 'DETALLES', 1, 1, 'C');
+        $pdf->Cell($acabadosLabelWidth, 8, 'ACABADOS', 1, 0, 'C');
+        $pdf->Cell($acabadosSelectionWidth, 8, 'SELECCION', 1, 0, 'C');
+        $pdf->Cell($acabadosDetailsWidth, 8, 'DETALLES', 1, 1, 'C');
         
         // Map display names to database field names (main table)
         $finishingFieldMap = [
@@ -490,27 +497,26 @@ class OrdenController extends BaseController
                 $details = $fixSpanishChars($details);
                 
                 // Calculate height needed for details text
-                $detailsWidth = 100; // Available width for details column
                 $lineHeight = 6;
                 
                 // Split text into lines to calculate height
-                $lines = explode("\n", wordwrap($details, $detailsWidth / 3, "\n")); // Approximate chars per unit
+                $lines = explode("\n", wordwrap($details, $acabadosDetailsWidth / 3, "\n")); // Approximate chars per unit
                 $textHeight = max(6, count($lines) * $lineHeight); // Minimum height of 6
                 
-                // Draw the row with calculated height
-                $pdf->Cell(60, $textHeight, $displayName, 1, 0, 'L');
-                $pdf->Cell(30, $textHeight, $isSelected, 1, 0, 'C');
+                // Draw the row with calculated height using fixed widths
+                $pdf->Cell($acabadosLabelWidth, $textHeight, $displayName, 1, 0, 'L');
+                $pdf->Cell($acabadosSelectionWidth, $textHeight, $isSelected, 1, 0, 'C');
                 
-                // Use MultiCell for details with dynamic height
-                $pdf->MultiCell(100, $lineHeight, $details, 1, 'L');
+                // Use MultiCell for details with dynamic height and fixed width
+                $pdf->MultiCell($acabadosDetailsWidth, $lineHeight, $details, 1, 'L');
             }
         }
         
-        // If no acabados are selected, show a message
+        // If no acabados are selected, show a message with fixed widths
         if (!$hasAnyAcabados) {
-            $pdf->Cell(60, 6, 'NINGUNO SELECCIONADO', 1, 0, 'L');
-            $pdf->Cell(30, 6, '-', 1, 0, 'C');
-            $pdf->Cell(100, 6, 'No se han seleccionado acabados', 1, 1, 'L');
+            $pdf->Cell($acabadosLabelWidth, 6, 'NINGUNO SELECCIONADO', 1, 0, 'L');
+            $pdf->Cell($acabadosSelectionWidth, 6, '-', 1, 0, 'C');
+            $pdf->Cell($acabadosDetailsWidth, 6, 'No se han seleccionado acabados', 1, 1, 'L');
         }
         
         $pdf->Ln(5);
@@ -533,13 +539,13 @@ class OrdenController extends BaseController
         $pdf->SetFillColor(220, 220, 220); // Light gray background
         $pdf->Cell(0, 8, 'INFORMACION DE ENVIO', 1, 1, 'L', true);
         
-        // Tipo de Entrega
+        // Tipo de Entrega with consistent fixed width
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
+        $pdf->Cell($labelWidth, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         $shippingType = $workOrderData->shipping_type ?? 'Entrega a domicilio';
         $shippingType = $fixSpanishChars($shippingType);
-        $pdf->Cell(0, 7, $shippingType, 1, 1, 'L');
+        $pdf->Cell($valueWidth, 7, $shippingType, 1, 1, 'L');
         
         // Check if "Recoge en oficina"
         if ($shippingType === 'Recoge en oficina') {
@@ -550,29 +556,29 @@ class OrdenController extends BaseController
             $pdf->SetTextColor(0, 0, 0); // Reset to black
         } else {
             // Show full shipping information
-            // Direccion de Entrega
+            // Direccion de Entrega with consistent fixed width
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
+            $pdf->Cell($labelWidth, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
             $shippingAddress = $workOrderData->shipping_address ?? 'N/A';
             $shippingAddress = $fixSpanishChars($shippingAddress);
-            $pdf->Cell(0, 7, $shippingAddress, 1, 1, 'L');
+            $pdf->Cell($valueWidth, 7, $shippingAddress, 1, 1, 'L');
             
-            // Nombre de Contacto
+            // Nombre de Contacto with consistent fixed width
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 7, 'NOMBRE DE CONTACTO:', 1, 0, 'L');
+            $pdf->Cell($labelWidth, 7, 'NOMBRE DE CONTACTO:', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
             $shippingContact = $workOrderData->shipping_contact ?? 'N/A';
             $shippingContact = $fixSpanishChars($shippingContact);
-            $pdf->Cell(0, 7, $shippingContact, 1, 1, 'L');
+            $pdf->Cell($valueWidth, 7, $shippingContact, 1, 1, 'L');
             
-            // Telefono de Contacto
+            // Telefono de Contacto with consistent fixed width
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 7, 'TELEFONO DE CONTACTO:', 1, 0, 'L');
+            $pdf->Cell($labelWidth, 7, 'TELEFONO DE CONTACTO:', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
             $shippingPhone = $workOrderData->shipping_phone ?? 'N/A';
             $shippingPhone = $fixSpanishChars($shippingPhone);
-            $pdf->Cell(0, 7, $shippingPhone, 1, 1, 'L');
+            $pdf->Cell($valueWidth, 7, $shippingPhone, 1, 1, 'L');
         }
         
         // Instrucciones de Entrega - Label row (spans both columns)
