@@ -427,14 +427,14 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.16.0-STABLE</small>
+                <small>v3.17.0-STABLE</small>
             </div>
         </div>
 
         <div class="form-note">
             <i class="fas fa-info-circle"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
-            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.16.0 - PDF to JPG Conversion</small>
+            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.17.0 - Error Handling Enhanced</small>
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
@@ -486,7 +486,13 @@ $orderData = $this->getOrderData();
                                 <div class="quotation-image-container">
                                     <h5 style="margin: 0 0 10px 0; color: #495057;">Cotización Original</h5>
                                     <?php 
-                                    $quotationImageUrl = $this->getQuotationImageUrl();
+                                    try {
+                                        $quotationImageUrl = $this->getQuotationImageUrl();
+                                    } catch (Exception $e) {
+                                        error_log('Error getting quotation image URL: ' . $e->getMessage());
+                                        $quotationImageUrl = null;
+                                    }
+                                    
                                     if (!empty($quotationImageUrl)): 
                                     ?>
                                         <img src="<?php echo htmlspecialchars($quotationImageUrl); ?>" 
@@ -496,7 +502,22 @@ $orderData = $this->getOrderData();
                                              onclick="window.open('<?php echo htmlspecialchars($this->quotationFile); ?>', '_blank')"
                                              title="Hacer clic para ver PDF completo">
                                     <?php else: ?>
-                                        <p style="color: #6c757d; font-style: italic;">No hay cotización disponible</p>
+                                        <?php if (!empty($this->quotationFile)): ?>
+                                            <div style="padding: 20px; text-align: center; background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                                                <i class="fas fa-file-pdf" style="font-size: 48px; color: #dc3545; margin-bottom: 15px;"></i>
+                                                <p style="color: #495057; margin-bottom: 15px;">Cotización PDF disponible</p>
+                                                <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" 
+                                                   target="_blank" 
+                                                   style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #dc3545; color: white; text-decoration: none; border-radius: 20px; font-size: 14px; font-weight: 500; transition: all 0.3s ease;"
+                                                   onmouseover="this.style.background='#c82333'" 
+                                                   onmouseout="this.style.background='#dc3545'">
+                                                    <i class="fas fa-external-link-alt"></i>
+                                                    Ver PDF Completo
+                                                </a>
+                                            </div>
+                                        <?php else: ?>
+                                            <p style="color: #6c757d; font-style: italic;">No hay cotización disponible</p>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                             </td>
