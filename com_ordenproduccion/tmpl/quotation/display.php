@@ -70,13 +70,13 @@ $orderData = $this->getOrderData();
         
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
             margin-bottom: 25px;
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
         
         .form-group.full-width {
@@ -175,7 +175,7 @@ $orderData = $this->getOrderData();
             margin-left: -25px;
             margin-right: -25px;
             margin-bottom: -25px;
-            padding: 15px 10px;
+            padding: 10px 5px;
             background: #f8f9fa;
             border-radius: 0 0 12px 12px;
             border: 1px solid #e9ecef;
@@ -236,6 +236,7 @@ $orderData = $this->getOrderData();
             border-radius: 8px;
             overflow: hidden;
             background: #fff;
+            margin: 0;
         }
         
         .pdf-embed {
@@ -395,7 +396,7 @@ $orderData = $this->getOrderData();
                            required>
                 </div>
 
-                <div class="form-group full-width">
+                <div class="form-group">
                     <label for="direccion">
                         <?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span>
                     </label>
@@ -404,15 +405,6 @@ $orderData = $this->getOrderData();
                            name="direccion" 
                            value="<?php echo htmlspecialchars($orderData->shipping_address ?? ''); ?>" 
                            required>
-                </div>
-
-                <div class="form-group full-width">
-                    <label for="detalles">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_DETAILS'); ?>
-                    </label>
-                    <textarea id="detalles" 
-                              name="detalles" 
-                              placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DETAILS_PLACEHOLDER'); ?>"><?php echo htmlspecialchars($orderData->work_description ?? ''); ?></textarea>
                 </div>
             </div>
 
