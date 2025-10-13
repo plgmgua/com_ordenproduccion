@@ -320,7 +320,7 @@ class OrdenController extends BaseController
                 $pdf->Cell(0, 8, $fullText, 0, 1, 'R');
 
                 // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
-                $pdf->SetXY(15, $startY + 20); // Position below logo
+                $pdf->Ln(10); // Add proper spacing below logo
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell($labelWidth, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
@@ -332,7 +332,7 @@ class OrdenController extends BaseController
                 $pdf->Cell($valueWidth, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
 
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
-                $pdf->SetXY(15, $startY + 26); // Position below dates
+                $pdf->Ln(2); // Add proper spacing below dates
                 $pdf->SetFont('Arial', 'B', 10);
                 
                 // Get sales agent from correct field name
@@ -366,7 +366,7 @@ class OrdenController extends BaseController
         }
         $pdf->Cell($valueWidth, 8, $clientName, 1, 1, 'L');
         
-        // TRABAJO section with dynamic height and fixed width
+        // TRABAJO section with matching cell heights
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelWidth, 8, 'TRABAJO:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
@@ -407,9 +407,10 @@ class OrdenController extends BaseController
         }
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
+        $jobDesc = trim($jobDesc); // Remove any line feeds and extra spaces
         
-        // Use MultiCell for dynamic height with fixed width - no truncation
-        $pdf->MultiCell($valueWidth, 6, $jobDesc, 1, 'L');
+        // Use fixed height cell to match label cell height
+        $pdf->Cell($valueWidth, 8, $jobDesc, 1, 1, 'L');
         
         $pdf->Ln(5);
         
@@ -430,21 +431,23 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell($valueWidth, 8, $tiroRetiro, 1, 1, 'L');
         
-        // MATERIAL section with dynamic height and fixed width
+        // MATERIAL section with fixed height and trimmed text
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelWidth, 8, 'MATERIAL:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         $material = $workOrderData->material ?? 'N/A';
         $material = $fixSpanishChars($material);
+        $material = trim($material); // Remove any line feeds and extra spaces
         
-        // Use MultiCell for dynamic height with fixed width - no truncation
-        $pdf->MultiCell($valueWidth, 6, $material, 1, 'L');
+        // Use fixed height cell to match other cells
+        $pdf->Cell($valueWidth, 8, $material, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelWidth, 8, 'MEDIDAS:', 1, 0, 'L');
         // Get medidas from main table (dimensions)
         $medidas = $workOrderData->dimensions ?? 'N/A';
         $medidas = $fixSpanishChars($medidas);
+        $medidas = trim($medidas); // Remove any line feeds and extra spaces
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell($valueWidth, 8, $medidas, 1, 1, 'L');
         
