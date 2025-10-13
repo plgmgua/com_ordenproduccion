@@ -402,7 +402,8 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(50, $fixedHeight, 'TRABAJO:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
-        $pdf->MultiCell(140, 6, $jobDesc, 1, 'L'); // 6mm line height for 3 rows
+        // Use Cell with fixed height instead of MultiCell to ensure exact height matching
+        $pdf->Cell(140, $fixedHeight, $jobDesc, 1, 1, 'L');
         
         $pdf->Ln(5);
         
@@ -577,6 +578,11 @@ class OrdenController extends BaseController
         // Use MultiCell with proper line height for 3-row display
         $pdf->MultiCell(0, 6, $shippingInstructions, 1, 'L');
         
+        // Add version number in lower right corner
+        $pdf->SetFont('Arial', '', 6);
+        $version = trim(file_get_contents(JPATH_ROOT . '/components/com_ordenproduccion/VERSION'));
+        $pdf->SetXY(170, 270); // Position in lower right corner
+        $pdf->Cell(20, 5, 'v' . $version, 0, 0, 'R');
         
         // Set headers for inline PDF viewing in new tab
         header('Content-Type: application/pdf');
