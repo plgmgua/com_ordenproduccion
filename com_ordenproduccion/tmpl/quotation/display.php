@@ -460,23 +460,32 @@ $orderData = $this->getOrderData();
                     <i class="fas fa-list"></i>
                     Detalles de Factura
                 </h4>
-                <table class="items-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 15%;">Cantidad</th>
-                                <th style="width: 60%;">Descripción</th>
-                                <th style="width: 25%;">Precio</th>
-                            </tr>
-                        </thead>
-                    <tbody>
-                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                <table class="items-table" id="invoiceItemsTable">
+                    <thead>
                         <tr>
-                            <td><input type="text" name="items[<?php echo $i; ?>][cantidad]" placeholder="1"></td>
-                            <td><input type="text" name="items[<?php echo $i; ?>][descripcion]" placeholder="Descripción del artículo"></td>
-                            <td><input type="text" name="items[<?php echo $i; ?>][precio]" placeholder="0.00"></td>
+                            <th style="width: 15%;">Cantidad</th>
+                            <th style="width: 40%;">Descripción</th>
+                            <th style="width: 20%;">Precio Unitario</th>
+                            <th style="width: 20%;">Subtotal</th>
+                            <th style="width: 5%;">Acción</th>
                         </tr>
-                        <?php endfor; ?>
+                    </thead>
+                    <tbody id="invoiceItemsBody">
+                        <tr class="invoice-item-row">
+                            <td><input type="number" name="items[1][cantidad]" class="cantidad-input" placeholder="1" min="1" step="1" oninput="calculateSubtotal(this)"></td>
+                            <td><input type="text" name="items[1][descripcion]" placeholder="Descripción del artículo"></td>
+                            <td><input type="number" name="items[1][precio_unitario]" class="precio-unitario-input" placeholder="0.00" min="0" step="0.01" oninput="calculateSubtotal(this)"></td>
+                            <td><input type="number" name="items[1][subtotal]" class="subtotal-input" placeholder="0.00" readonly></td>
+                            <td><button type="button" class="btn-delete-row" onclick="deleteRow(this)" style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;"><i class="fas fa-trash"></i></button></td>
+                        </tr>
                     </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align: right; font-weight: bold; padding: 10px;">TOTAL:</td>
+                            <td><input type="number" id="totalAmount" name="total_amount" placeholder="0.00" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                            <td><button type="button" class="btn-add-row" onclick="addRow()" style="background: #28a745; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;"><i class="fas fa-plus"></i></button></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
 
@@ -531,6 +540,54 @@ $orderData = $this->getOrderData();
 </div>
 
 <script>
+    let rowCounter = 1; // Keep track of row numbers
+    
+    function addRow() {
+        rowCounter++;
+        const tbody = document.getElementById('invoiceItemsBody');
+        const newRow = document.createElement('tr');
+        newRow.className = 'invoice-item-row';
+        newRow.innerHTML = `
+            <td><input type="number" name="items[${rowCounter}][cantidad]" class="cantidad-input" placeholder="1" min="1" step="1" oninput="calculateSubtotal(this)"></td>
+            <td><input type="text" name="items[${rowCounter}][descripcion]" placeholder="Descripción del artículo"></td>
+            <td><input type="number" name="items[${rowCounter}][precio_unitario]" class="precio-unitario-input" placeholder="0.00" min="0" step="0.01" oninput="calculateSubtotal(this)"></td>
+            <td><input type="number" name="items[${rowCounter}][subtotal]" class="subtotal-input" placeholder="0.00" readonly></td>
+            <td><button type="button" class="btn-delete-row" onclick="deleteRow(this)" style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;"><i class="fas fa-trash"></i></button></td>
+        `;
+        tbody.appendChild(newRow);
+    }
+    
+    function deleteRow(button) {
+        const row = button.closest('tr');
+        row.remove();
+        calculateTotal();
+    }
+    
+    function calculateSubtotal(input) {
+        const row = input.closest('tr');
+        const cantidad = parseFloat(row.querySelector('.cantidad-input').value) || 0;
+        const precioUnitario = parseFloat(row.querySelector('.precio-unitario-input').value) || 0;
+        const subtotal = cantidad * precioUnitario;
+        
+        const subtotalInput = row.querySelector('.subtotal-input');
+        subtotalInput.value = subtotal.toFixed(2);
+        
+        calculateTotal();
+    }
+    
+    function calculateTotal() {
+        const subtotalInputs = document.querySelectorAll('.subtotal-input');
+        let total = 0;
+        
+        subtotalInputs.forEach(input => {
+            const value = parseFloat(input.value) || 0;
+            total += value;
+        });
+        
+        const totalInput = document.getElementById('totalAmount');
+        totalInput.value = total.toFixed(2);
+    }
+    
     function submitQuotationForm(event) {
         event.preventDefault();
         
