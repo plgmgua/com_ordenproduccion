@@ -485,14 +485,11 @@ class OrdenController extends BaseController
                 $details = $workOrderData->$detailsFieldName ?? '';
                 $details = $fixSpanishChars($details);
                 
-                // Truncate details if too long
-                if (strlen($details) > 30) {
-                    $details = substr($details, 0, 27) . '...';
-                }
-                
+                // No truncation - let MultiCell handle text wrapping
                 $pdf->Cell(60, 6, $displayName, 1, 0, 'L');
                 $pdf->Cell(30, 6, $isSelected, 1, 0, 'C');
-                $pdf->Cell(0, 6, $details, 1, 1, 'L');
+                // Use MultiCell like INSTRUCCIONES GENERALES to allow text wrapping
+                $pdf->MultiCell(0, 6, $details, 1, 'L');
             }
         }
         
