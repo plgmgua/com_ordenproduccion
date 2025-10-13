@@ -79,19 +79,50 @@ $orderData = $this->getOrderData();
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
         
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
+        .client-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 25px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .client-table th {
+            background: #007cba;
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .client-table td {
+            padding: 0;
+            border-bottom: none;
+        }
+        
+        .client-table input {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            font-size: 14px;
+            background: transparent;
+            transition: background-color 0.3s;
+        }
+        
+        .client-table input:focus {
+            outline: none;
+            background: #f8f9fa;
+        }
+        
+        .client-table tr:hover {
+            background: #f8f9fa;
         }
         
         .form-group {
-            margin-bottom: 0;
-        }
-        
-        .form-group.full-width {
-            grid-column: 1 / -1;
+            margin-bottom: 20px;
         }
         
         .form-group label {
@@ -366,6 +397,26 @@ $orderData = $this->getOrderData();
         .items-table tr:hover {
             background: #f8f9fa;
         }
+        
+        .quotation-image-container {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .quotation-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .quotation-image:hover {
+            transform: scale(1.02);
+        }
     </style>
 
 <div class="quotation-form-container">
@@ -375,7 +426,7 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.13.0-STABLE</small>
+                <small>v3.14.0-STABLE</small>
             </div>
         </div>
 
@@ -388,40 +439,23 @@ $orderData = $this->getOrderData();
             <input type="hidden" name="order_id" value="<?php echo htmlspecialchars($this->orderId); ?>">
             <input type="hidden" name="order_number" value="<?php echo htmlspecialchars($this->orderNumber); ?>">
 
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="cliente">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span>
-                    </label>
-                    <input type="text" 
-                           id="cliente" 
-                           name="cliente" 
-                           value="<?php echo htmlspecialchars($orderData->client_name ?? ''); ?>" 
-                           required>
-                </div>
-
-                <div class="form-group">
-                    <label for="nit">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span>
-                    </label>
-                    <input type="text" 
-                           id="nit" 
-                           name="nit" 
-                           value="<?php echo htmlspecialchars($orderData->nit ?? ''); ?>" 
-                           required>
-                </div>
-
-                <div class="form-group">
-                    <label for="direccion">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span>
-                    </label>
-                    <input type="text" 
-                           id="direccion" 
-                           name="direccion" 
-                           value="<?php echo htmlspecialchars($orderData->shipping_address ?? ''); ?>" 
-                           required>
-                </div>
-            </div>
+            <!-- Client Information Table -->
+            <table class="client-table">
+                <thead>
+                    <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" id="cliente" name="cliente" value="<?php echo htmlspecialchars($orderData->client_name ?? ''); ?>" required></td>
+                        <td><input type="text" id="nit" name="nit" value="<?php echo htmlspecialchars($orderData->nit ?? ''); ?>" required></td>
+                        <td><input type="text" id="direccion" name="direccion" value="<?php echo htmlspecialchars($orderData->shipping_address ?? ''); ?>" required></td>
+                    </tr>
+                </tbody>
+            </table>
 
             <!-- Items Table Section -->
             <div class="items-table-section">
@@ -438,13 +472,28 @@ $orderData = $this->getOrderData();
                         </tr>
                     </thead>
                     <tbody>
-                        <?php for ($i = 1; $i <= 10; $i++): ?>
+                        <?php for ($i = 1; $i <= 5; $i++): ?>
                         <tr>
                             <td><input type="text" name="items[<?php echo $i; ?>][cantidad]" placeholder="1"></td>
                             <td><input type="text" name="items[<?php echo $i; ?>][descripcion]" placeholder="Descripción del artículo"></td>
                             <td><input type="text" name="items[<?php echo $i; ?>][precio]" placeholder="0.00"></td>
                         </tr>
                         <?php endfor; ?>
+                        <tr>
+                            <td colspan="3" style="padding: 15px; text-align: center;">
+                                <div class="quotation-image-container">
+                                    <h5 style="margin: 0 0 10px 0; color: #495057;">Cotización Original</h5>
+                                    <?php if (!empty($this->quotationFile)): ?>
+                                        <img src="<?php echo htmlspecialchars($this->quotationFile); ?>" 
+                                             alt="Cotización PDF" 
+                                             class="quotation-image"
+                                             style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;">
+                                    <?php else: ?>
+                                        <p style="color: #6c757d; font-style: italic;">No hay cotización disponible</p>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
