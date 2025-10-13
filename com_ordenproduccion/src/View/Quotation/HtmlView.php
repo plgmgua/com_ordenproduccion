@@ -54,8 +54,9 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $app = Factory::getApplication();
-        $input = $app->input;
+        try {
+            $app = Factory::getApplication();
+            $input = $app->input;
 
         // Get order information from URL parameters
         $orderId = $input->getInt('order_id', 0);
@@ -80,7 +81,12 @@ class HtmlView extends BaseHtmlView
         }
 
         // Process quotation file path
-        $this->quotationFile = $this->processQuotationFilePath($quotationFiles);
+        try {
+            $this->quotationFile = $this->processQuotationFilePath($quotationFiles);
+        } catch (Exception $e) {
+            error_log('Error processing quotation file path: ' . $e->getMessage());
+            $this->quotationFile = $quotationFiles; // Fallback to original value
+        }
 
         // Store order data for template access
         $this->orderId = $orderId;
@@ -105,7 +111,22 @@ class HtmlView extends BaseHtmlView
             $wa->registerAndUseStyle('com_ordenproduccion.quotation', 'media/com_ordenproduccion/css/quotation.css', [], ['version' => 'auto']);
         }
 
-        parent::display($tpl);
+            parent::display($tpl);
+        } catch (Exception $e) {
+            error_log('Fatal error in Quotation view display: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
+            
+            // Try to show a simple error message
+            if (isset($app)) {
+                $app->enqueueMessage('Error loading quotation form: ' . $e->getMessage(), 'error');
+            }
+            
+            // If we can't redirect, show a basic error
+            if (!headers_sent()) {
+                http_response_code(500);
+                echo '<div style="padding: 20px; text-align: center; color: red;">Error loading quotation form. Please try again.</div>';
+            }
+        }
     }
 
     /**
@@ -117,32 +138,38 @@ class HtmlView extends BaseHtmlView
      */
     protected function processQuotationFilePath($quotationFiles)
     {
-        // Handle JSON array format: ["\/media\/com_convertforms\/uploads\/file.pdf"]
-        if (strpos($quotationFiles, '[') === 0 && strpos($quotationFiles, ']') !== false) {
-            $decoded = json_decode($quotationFiles, true);
-            if (is_array($decoded) && !empty($decoded[0])) {
-                $filePath = $decoded[0];
-                // Remove escaped slashes
-                $filePath = str_replace('\\/', '/', $filePath);
-                // Make it a full URL - construct from current request
-                $uri = Uri::getInstance();
-                $baseUrl = $uri->toString(['scheme', 'host', 'port']);
-                return $baseUrl . $filePath;
+        try {
+            // Handle JSON array format: ["\/media\/com_convertforms\/uploads\/file.pdf"]
+            if (strpos($quotationFiles, '[') === 0 && strpos($quotationFiles, ']') !== false) {
+                $decoded = json_decode($quotationFiles, true);
+                if (is_array($decoded) && !empty($decoded[0])) {
+                    $filePath = $decoded[0];
+                    // Remove escaped slashes
+                    $filePath = str_replace('\\/', '/', $filePath);
+                    // Make it a full URL - construct from current request
+                    $uri = Uri::getInstance();
+                    $baseUrl = $uri->toString(['scheme', 'host', 'port']);
+                    return $baseUrl . $filePath;
+                }
             }
-        }
 
-        // If it's already a full URL, return as is
-        if (strpos($quotationFiles, 'http') === 0) {
+            // If it's already a full URL, return as is
+            if (strpos($quotationFiles, 'http') === 0) {
+                return $quotationFiles;
+            }
+
+            // If it's a relative path, make it absolute
+            if (strpos($quotationFiles, '/') === 0) {
+                return Factory::getApplication()->get('live_site') . $quotationFiles;
+            }
+
+            // If it's a relative path without leading slash, add media path
+            return Factory::getApplication()->get('live_site') . '/media/' . $quotationFiles;
+        } catch (Exception $e) {
+            error_log('Error in processQuotationFilePath: ' . $e->getMessage());
+            // Return the original value as fallback
             return $quotationFiles;
         }
-
-        // If it's a relative path, make it absolute
-        if (strpos($quotationFiles, '/') === 0) {
-            return Factory::getApplication()->get('live_site') . $quotationFiles;
-        }
-
-        // If it's a relative path without leading slash, add media path
-        return Factory::getApplication()->get('live_site') . '/media/' . $quotationFiles;
     }
 
     /**

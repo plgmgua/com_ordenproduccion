@@ -429,14 +429,14 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.19.0-STABLE</small>
+                <small>v3.20.0-STABLE</small>
             </div>
         </div>
 
         <div class="form-note">
             <i class="fas fa-info-circle"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
-            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.19.0 - Simplified & Bordered</small>
+            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.20.0 - Error Handling Enhanced</small>
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
