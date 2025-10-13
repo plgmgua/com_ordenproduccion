@@ -395,15 +395,12 @@ class OrdenController extends BaseController
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
         
-        // Use fixed height for 3 rows (3 * 6mm = 18mm)
-        $fixedHeight = 18; // 3 rows * 6mm line height
-        
-        // Draw both cells with matching fixed height and better width proportions
+        // Use MultiCell approach like INSTRUCCIONES GENERALES for text wrapping
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(40, $fixedHeight, 'TRABAJO:', 1, 0, 'L'); // Narrower label (40mm)
+        $pdf->Cell(40, 7, 'TRABAJO:', 1, 0, 'L'); // Label cell
         $pdf->SetFont('Arial', '', 9);
-        // Use Cell with same fixed height to ensure perfect matching
-        $pdf->Cell(150, $fixedHeight, $jobDesc, 1, 1, 'L'); // Wider details cell (150mm) with same height
+        // Use MultiCell to allow text wrapping like INSTRUCCIONES GENERALES
+        $pdf->MultiCell(150, 6, $jobDesc, 1, 'L'); // Details cell with text wrapping
         
         $pdf->Ln(5);
         
