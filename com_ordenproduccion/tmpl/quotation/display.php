@@ -175,7 +175,7 @@ $orderData = $this->getOrderData();
             margin-left: -25px;
             margin-right: -25px;
             margin-bottom: -25px;
-            padding: 10px 5px;
+            padding: 0;
             background: #f8f9fa;
             border-radius: 0 0 12px 12px;
             border: 1px solid #e9ecef;
@@ -185,8 +185,8 @@ $orderData = $this->getOrderData();
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
+            margin-bottom: 10px;
+            padding: 15px 20px 10px 20px;
             border-bottom: 1px solid #dee2e6;
         }
         
@@ -232,11 +232,12 @@ $orderData = $this->getOrderData();
             width: 100%;
             height: 70vh;
             min-height: 600px;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
+            border: none;
+            border-radius: 0;
             overflow: hidden;
             background: #fff;
             margin: 0;
+            padding: 0;
         }
         
         .pdf-embed {
