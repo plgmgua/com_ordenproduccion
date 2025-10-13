@@ -424,19 +424,12 @@ $orderData = $this->getOrderData();
 
 <div class="quotation-form-container">
         <div class="quotation-header">
-            <h2>Crear Factura</h2>
-            <div class="order-info">
-                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
-            </div>
-            <div class="version-info">
-                <small>v3.21.0-STABLE</small>
-            </div>
+            <h2>Crear Factura para orden de trabajo #<?php echo htmlspecialchars($this->orderNumber); ?></h2>
         </div>
 
         <div class="form-note">
             <i class="fas fa-info-circle"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FORM_NOTE'); ?>
-            <br><small style="color: #28a745; font-weight: bold;">✅ CLIENT TABLE LAYOUT v3.21.0 - Duplicate Method Fixed</small>
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
