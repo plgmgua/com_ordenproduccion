@@ -370,11 +370,11 @@ use Joomla\CMS\Router\Route;
                             }
                             
                             if ($hasQuotation): ?>
-                                <button class="btn-create-invoice" 
-                                        onclick="openQuotationView(<?php echo $order->id; ?>, '<?php echo htmlspecialchars($order->orden_de_trabajo); ?>', '<?php echo htmlspecialchars($quotationFiles); ?>')">
+                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=' . $order->id . '&order_number=' . urlencode($order->orden_de_trabajo) . '&quotation_files=' . urlencode($quotationFiles)); ?>" 
+                                   class="btn-create-invoice">
                                     <i class="fas fa-file-invoice"></i>
                                     <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
-                                </button>
+                                </a>
                             <?php else: ?>
                                 <span class="no-quotation"><?php echo Text::_('COM_ORDENPRODUCCION_NO_QUOTATION'); ?></span>
                             <?php endif; ?>

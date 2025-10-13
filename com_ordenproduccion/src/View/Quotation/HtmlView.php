@@ -92,24 +92,13 @@ class HtmlView extends BaseHtmlView
         $this->orderId = $orderId;
         $this->orderNumber = $orderNumber;
 
-        // Check if this is an AJAX request (for modal display)
-        $format = $input->get('format', '', 'string');
-        $isAjax = $format === 'raw' || 
-                  (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
-        
-        // Debug logging
-        error_log("Quotation View Debug - Format: " . $format . ", IsAjax: " . ($isAjax ? 'YES' : 'NO'));
-        error_log("HTTP_X_REQUESTED_WITH: " . ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? 'NOT_SET'));
+        // Set page title for full page display
+        $this->setDocumentTitle(Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE') . ' - ' . $orderNumber);
 
-        if (!$isAjax) {
-            // Set page title only for full page requests
-            $this->setDocumentTitle(Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE') . ' - ' . $orderNumber);
-
-            // Add CSS only for full page requests
-            HTMLHelper::_('bootstrap.framework');
-            $wa = $this->document->getWebAssetManager();
-            $wa->registerAndUseStyle('com_ordenproduccion.quotation', 'media/com_ordenproduccion/css/quotation.css', [], ['version' => 'auto']);
-        }
+        // Add CSS for full page display
+        HTMLHelper::_('bootstrap.framework');
+        $wa = $this->document->getWebAssetManager();
+        $wa->registerAndUseStyle('com_ordenproduccion.quotation', 'media/com_ordenproduccion/css/quotation.css', [], ['version' => 'auto']);
 
             parent::display($tpl);
         } catch (Exception $e) {
