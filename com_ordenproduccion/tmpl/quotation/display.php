@@ -28,37 +28,44 @@ $orderData = $this->getOrderData();
         }
         
         .quotation-form-container {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 30px;
-            background: #fff;
-            border-radius: 0;
-            box-shadow: none;
+            padding: 35px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .quotation-header {
             text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+            border-radius: 10px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 124, 186, 0.3);
         }
         
         .quotation-header h2 {
-            color: #007cba;
-            margin: 0 0 8px 0;
-            font-size: 24px;
-            font-weight: 600;
+            color: white;
+            margin: 0 0 12px 0;
+            font-size: 28px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
         .order-info {
-            background: #f8f9fa;
-            padding: 10px 15px;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #666;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
             display: inline-block;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .form-group {
@@ -76,20 +83,22 @@ $orderData = $this->getOrderData();
         .form-group input,
         .form-group textarea {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
             background: #fff;
+            font-family: inherit;
         }
         
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
             border-color: #007cba;
-            box-shadow: 0 0 3px rgba(0, 124, 186, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+            transform: translateY(-1px);
         }
         
         .form-group textarea {
@@ -100,28 +109,35 @@ $orderData = $this->getOrderData();
         }
         
         .btn-submit {
-            background: #007cba;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
-            padding: 12px 30px;
+            padding: 14px 35px;
             border: none;
-            border-radius: 4px;
-            font-size: 15px;
+            border-radius: 25px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             margin: 0 auto;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .btn-submit:hover {
-            background: #005a87;
+            background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
         }
         
         .btn-submit:disabled {
-            background: #ccc;
+            background: #6c757d;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
         .form-actions {
@@ -142,11 +158,50 @@ $orderData = $this->getOrderData();
             font-size: 13px;
             color: #333;
         }
+        
+        .original-quotation-link {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        
+        .original-quotation-link h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .quotation-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 124, 186, 0.3);
+        }
+        
+        .quotation-link:hover {
+            background: linear-gradient(135deg, #005a87 0%, #007cba 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 124, 186, 0.4);
+            color: white;
+            text-decoration: none;
+        }
     </style>
 
 <div class="quotation-form-container">
         <div class="quotation-header">
-            <h2><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_TITLE'); ?></h2>
+            <h2>Crear Factura</h2>
             <div class="order-info">
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
@@ -207,6 +262,20 @@ $orderData = $this->getOrderData();
                 </button>
             </div>
         </form>
+        
+        <!-- Original Quotation File Link -->
+        <?php if (!empty($this->quotationFile)): ?>
+        <div class="original-quotation-link">
+            <h4>
+                <i class="fas fa-file-alt"></i>
+                Cotización Original
+            </h4>
+            <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" target="_blank" class="quotation-link">
+                <i class="fas fa-external-link-alt"></i>
+                Ver Cotización PDF
+            </a>
+        </div>
+        <?php endif; ?>
 </div>
 
 <script>
