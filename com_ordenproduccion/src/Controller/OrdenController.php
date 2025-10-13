@@ -244,6 +244,13 @@ class OrdenController extends BaseController
                 // Set margins
                 $pdf->SetMargins(15, 15, 15);
                 
+                // Define consistent fixed widths for entire PDF
+                $labelWidth = 50; // Fixed width for all labels
+                $valueWidth = 140; // Fixed width for all values (190 - 50 = 140)
+                $acabadosLabelWidth = 60; // Fixed width for acabados names
+                $acabadosSelectionWidth = 30; // Fixed width for SI/NO
+                $acabadosDetailsWidth = 100; // Fixed width for details (190 - 60 - 30 = 100)
+                
         // Set UTF-8 encoding for proper Spanish character support
         $pdf->SetAutoPageBreak(true, 15);
         
@@ -315,14 +322,14 @@ class OrdenController extends BaseController
                 // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
                 $pdf->SetXY(15, $startY + 20); // Position below logo
                 $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(40, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
+                $pdf->Cell($labelWidth, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(50, 6, $workOrderData->request_date ?? 'N/A', 1, 0, 'L');
+                $pdf->Cell($valueWidth, 6, $workOrderData->request_date ?? 'N/A', 1, 0, 'L');
                 
                 $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(40, 6, 'FECHA ENTREGA:', 1, 0, 'L');
+                $pdf->Cell($labelWidth, 6, 'FECHA ENTREGA:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
+                $pdf->Cell($valueWidth, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
 
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
                 $pdf->SetXY(15, $startY + 26); // Position below dates
@@ -348,8 +355,6 @@ class OrdenController extends BaseController
         
         
         // Client and job information table with consistent fixed widths
-        $labelWidth = 50; // Fixed width for all labels
-        $valueWidth = 140; // Fixed width for all values (190 - 50 = 140)
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelWidth, 8, 'CLIENTE:', 1, 0, 'L');
@@ -446,10 +451,6 @@ class OrdenController extends BaseController
         $pdf->Ln(5);
         
         // Finishing options table with conditional display (only SI values) and fixed widths
-        $acabadosLabelWidth = 60; // Fixed width for acabados names
-        $acabadosSelectionWidth = 30; // Fixed width for SI/NO
-        $acabadosDetailsWidth = 100; // Fixed width for details (190 - 60 - 30 = 100)
-        
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($acabadosLabelWidth, 8, 'ACABADOS', 1, 0, 'C');
         $pdf->Cell($acabadosSelectionWidth, 8, 'SELECCION', 1, 0, 'C');
