@@ -241,9 +241,4 @@ class HtmlView extends BaseHtmlView
     {
         return $this->item;
     }
-    
-    public function getQuotationFileUrl()
-    {
-        return $this->quotationFile;
-    }
 }
