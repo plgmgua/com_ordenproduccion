@@ -542,13 +542,14 @@ class OrdenController extends BaseController
             $pdf->SetTextColor(0, 0, 0); // Reset to black
         } else {
             // Show full shipping information
-            // Direccion de Entrega
+            // Direccion de Entrega - using MultiCell like INSTRUCCIONES GENERALES
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(50, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
             $pdf->SetFont('Arial', '', 9);
             $shippingAddress = $workOrderData->shipping_address ?? 'N/A';
             $shippingAddress = $fixSpanishChars($shippingAddress);
-            $pdf->Cell(0, 7, $shippingAddress, 1, 1, 'L');
+            // Use MultiCell to allow text wrapping like INSTRUCCIONES GENERALES
+            $pdf->MultiCell(0, 6, $shippingAddress, 1, 'L');
             
             // Nombre de Contacto
             $pdf->SetFont('Arial', 'B', 10);
