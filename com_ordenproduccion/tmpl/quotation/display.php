@@ -68,8 +68,19 @@ $orderData = $this->getOrderData();
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
         .form-group {
             margin-bottom: 20px;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
         }
         
         .form-group label {
@@ -164,7 +175,7 @@ $orderData = $this->getOrderData();
             margin-left: -25px;
             margin-right: -25px;
             margin-bottom: -25px;
-            padding: 20px;
+            padding: 15px 10px;
             background: #f8f9fa;
             border-radius: 0 0 12px 12px;
             border: 1px solid #e9ecef;
@@ -278,6 +289,70 @@ $orderData = $this->getOrderData();
             color: white;
             text-decoration: none;
         }
+        
+        .items-table-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .items-table-title {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .items-table th {
+            background: #007cba;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .items-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .items-table input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: border-color 0.3s;
+        }
+        
+        .items-table input:focus {
+            outline: none;
+            border-color: #007cba;
+            box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.1);
+        }
+        
+        .items-table tr:hover {
+            background: #f8f9fa;
+        }
     </style>
 
 <div class="quotation-form-container">
@@ -294,46 +369,77 @@ $orderData = $this->getOrderData();
         </div>
 
         <form id="quotationForm" onsubmit="submitQuotationForm(event)">
-            <div class="form-group">
-                <label for="cliente">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span>
-                </label>
-                <input type="text" 
-                       id="cliente" 
-                       name="cliente" 
-                       value="<?php echo htmlspecialchars($orderData->client_name ?? ''); ?>" 
-                       required>
+            <input type="hidden" name="order_id" value="<?php echo htmlspecialchars($this->orderId); ?>">
+            <input type="hidden" name="order_number" value="<?php echo htmlspecialchars($this->orderNumber); ?>">
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="cliente">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="cliente" 
+                           name="cliente" 
+                           value="<?php echo htmlspecialchars($orderData->client_name ?? ''); ?>" 
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="nit">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="nit" 
+                           name="nit" 
+                           value="<?php echo htmlspecialchars($orderData->nit ?? ''); ?>" 
+                           required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="direccion">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="direccion" 
+                           name="direccion" 
+                           value="<?php echo htmlspecialchars($orderData->shipping_address ?? ''); ?>" 
+                           required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="detalles">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_DETAILS'); ?>
+                    </label>
+                    <textarea id="detalles" 
+                              name="detalles" 
+                              placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DETAILS_PLACEHOLDER'); ?>"><?php echo htmlspecialchars($orderData->work_description ?? ''); ?></textarea>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="nit">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?> <span class="required">*</span>
-                </label>
-                <input type="text" 
-                       id="nit" 
-                       name="nit" 
-                       value="<?php echo htmlspecialchars($orderData->nit ?? ''); ?>" 
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label for="direccion">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?> <span class="required">*</span>
-                </label>
-                <input type="text" 
-                       id="direccion" 
-                       name="direccion" 
-                       value="<?php echo htmlspecialchars($orderData->shipping_address ?? ''); ?>" 
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label for="detalles">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_DETAILS'); ?>
-                </label>
-                <textarea id="detalles" 
-                          name="detalles" 
-                          placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DETAILS_PLACEHOLDER'); ?>"><?php echo htmlspecialchars($orderData->work_description ?? ''); ?></textarea>
+            <!-- Items Table Section -->
+            <div class="items-table-section">
+                <h4 class="items-table-title">
+                    <i class="fas fa-list"></i>
+                    Detalles de Factura
+                </h4>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Cantidad</th>
+                            <th style="width: 60%;">Descripción</th>
+                            <th style="width: 25%;">Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php for ($i = 1; $i <= 10; $i++): ?>
+                        <tr>
+                            <td><input type="text" name="items[<?php echo $i; ?>][cantidad]" placeholder="1"></td>
+                            <td><input type="text" name="items[<?php echo $i; ?>][descripcion]" placeholder="Descripción del artículo"></td>
+                            <td><input type="text" name="items[<?php echo $i; ?>][precio]" placeholder="0.00"></td>
+                        </tr>
+                        <?php endfor; ?>
+                    </tbody>
+                </table>
             </div>
 
             <div class="form-actions">
