@@ -359,7 +359,7 @@ class OrdenController extends BaseController
         $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
         
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(49, 8, 'TRABAJO:', 1, 0, 'L'); // 35 * 1.4 = 49
+        $pdf->Cell(50, 18, 'TRABAJO:', 1, 0, 'L'); // Fixed height to match details cell
         $pdf->SetFont('Arial', '', 9);
         // Get job description from correct field name
         $jobDesc = 'N/A';
@@ -398,8 +398,8 @@ class OrdenController extends BaseController
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
         
-        // Use MultiCell for 3-row height - no truncation
-        $pdf->MultiCell(141, 6, $jobDesc, 1, 'L'); // 190 - 49 = 141
+        // Use MultiCell with proper width and height matching
+        $pdf->MultiCell(140, 6, $jobDesc, 1, 'L'); // 190 - 50 = 140, 6mm line height
         
         $pdf->Ln(5);
         
@@ -463,6 +463,8 @@ class OrdenController extends BaseController
         ];
         
         $pdf->SetFont('Arial', '', 9);
+        $hasSelectedAcabados = false; // Track if any acabados are selected
+        
         foreach ($finishingFieldMap as $displayName => $fields) {
             // Get selection value (SI/NO) from main table
             $fieldName = $fields['field'];
@@ -474,18 +476,30 @@ class OrdenController extends BaseController
                 $isSelected = 'NO';
             }
             
-            // Get details from main table
-            $details = $workOrderData->$detailsFieldName ?? '';
-            $details = $fixSpanishChars($details);
-            
-            // Truncate details if too long
-            if (strlen($details) > 30) {
-                $details = substr($details, 0, 27) . '...';
+            // Only display rows where selection is "SI"
+            if ($isSelected === 'SI') {
+                $hasSelectedAcabados = true;
+                
+                // Get details from main table
+                $details = $workOrderData->$detailsFieldName ?? '';
+                $details = $fixSpanishChars($details);
+                
+                // Truncate details if too long
+                if (strlen($details) > 30) {
+                    $details = substr($details, 0, 27) . '...';
+                }
+                
+                $pdf->Cell(60, 6, $displayName, 1, 0, 'L');
+                $pdf->Cell(30, 6, $isSelected, 1, 0, 'C');
+                $pdf->Cell(0, 6, $details, 1, 1, 'L');
             }
-            
-            $pdf->Cell(60, 6, $displayName, 1, 0, 'L');
-            $pdf->Cell(30, 6, $isSelected, 1, 0, 'C');
-            $pdf->Cell(0, 6, $details, 1, 1, 'L');
+        }
+        
+        // If no acabados are selected, show a message
+        if (!$hasSelectedAcabados) {
+            $pdf->Cell(60, 6, 'NINGUNO SELECCIONADO', 1, 0, 'L');
+            $pdf->Cell(30, 6, '', 1, 0, 'C');
+            $pdf->Cell(0, 6, '', 1, 1, 'L');
         }
         
         $pdf->Ln(5);
