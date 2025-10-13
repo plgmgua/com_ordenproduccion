@@ -375,7 +375,7 @@ $orderData = $this->getOrderData();
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($this->orderNumber); ?>
             </div>
             <div class="version-info">
-                <small>v3.12.0-STABLE</small>
+                <small>v3.13.0-STABLE</small>
             </div>
         </div>
 
