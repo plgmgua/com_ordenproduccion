@@ -237,11 +237,11 @@ class OrdenController extends BaseController
         // Include FPDF library
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
         
-                // Create PDF instance with UTF-8 support
-                $pdf = new \FPDF('P', 'mm', 'A4');
+                // Create PDF instance with UTF-8 support for 8.5" x 11" paper
+                $pdf = new \FPDF('P', 'mm', array(215.9, 279.4)); // 8.5" x 11" in mm
                 $pdf->AddPage();
                 
-                // Set margins
+                // Set margins for letter size
                 $pdf->SetMargins(15, 15, 15);
                 
         // Set UTF-8 encoding for proper Spanish character support
@@ -398,12 +398,12 @@ class OrdenController extends BaseController
         // Use fixed height for 3 rows (3 * 6mm = 18mm)
         $fixedHeight = 18; // 3 rows * 6mm line height
         
-        // Draw both cells with matching fixed height
+        // Draw both cells with matching fixed height and better width proportions
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, $fixedHeight, 'TRABAJO:', 1, 0, 'L');
+        $pdf->Cell(40, $fixedHeight, 'TRABAJO:', 1, 0, 'L'); // Narrower label (40mm)
         $pdf->SetFont('Arial', '', 9);
-        // Use Cell with fixed height instead of MultiCell to ensure exact height matching
-        $pdf->Cell(140, $fixedHeight, $jobDesc, 1, 1, 'L');
+        // Use Cell with same fixed height to ensure perfect matching
+        $pdf->Cell(150, $fixedHeight, $jobDesc, 1, 1, 'L'); // Wider details cell (150mm) with same height
         
         $pdf->Ln(5);
         
@@ -581,8 +581,8 @@ class OrdenController extends BaseController
         // Add version number in lower right corner
         $pdf->SetFont('Arial', '', 6);
         $version = trim(file_get_contents(JPATH_ROOT . '/components/com_ordenproduccion/VERSION'));
-        $pdf->SetXY(170, 270); // Position in lower right corner
-        $pdf->Cell(20, 5, 'v' . $version, 0, 0, 'R');
+        $pdf->SetXY(150, 270); // Position in lower right corner with more space
+        $pdf->Cell(40, 5, 'v' . $version, 0, 0, 'R'); // Wider cell to fit full version
         
         // Set headers for inline PDF viewing in new tab
         header('Content-Type: application/pdf');
@@ -612,8 +612,8 @@ class OrdenController extends BaseController
         // Include FPDF library (same path as working PDF generation)
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
 
-        // Create PDF
-        $pdf = new \FPDF('P', 'mm', 'A4');
+        // Create PDF for 8.5" x 11" paper
+        $pdf = new \FPDF('P', 'mm', array(215.9, 279.4)); // 8.5" x 11" in mm
         $pdf->AddPage();
         
         // Function to fix Spanish characters for FPDF
