@@ -206,8 +206,25 @@ class HtmlView extends BaseHtmlView
         }
         
         if ($fileId) {
-            // Convert to direct view URL for embedding
-            return 'https://drive.google.com/file/d/' . $fileId . '/preview';
+            // Try multiple embedding methods
+            // Method 1: Direct preview (requires public sharing)
+            $previewUrl = 'https://drive.google.com/file/d/' . $fileId . '/preview';
+            
+            // Method 2: Google Docs viewer (alternative embedding)
+            $docsViewerUrl = 'https://docs.google.com/gview?url=https://drive.google.com/uc?export=download&id=' . $fileId . '&embedded=true';
+            
+            // Method 3: Original sharing URL (for fallback)
+            $sharingUrl = 'https://drive.google.com/file/d/' . $fileId . '/view';
+            
+            // Store all URLs for JavaScript to use
+            return json_encode([
+                'file_id' => $fileId,
+                'preview_url' => $previewUrl,
+                'docs_viewer_url' => $docsViewerUrl,
+                'sharing_url' => $sharingUrl,
+                'download_url' => 'https://drive.google.com/uc?export=download&id=' . $fileId,
+                'original_url' => $url
+            ]);
         }
         
         // Fallback to original URL if conversion fails

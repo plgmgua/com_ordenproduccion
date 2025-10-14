@@ -592,7 +592,15 @@ $orderData = $this->getOrderData();
             
             <div class="pdf-embed-container" id="pdfContainer">
                 <iframe 
-                    src="<?php echo htmlspecialchars($this->quotationFile); ?><?php echo (strpos($this->quotationFile, 'drive.google.com') !== false) ? '' : '#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH'; ?>" 
+                    src="<?php 
+                        if (strpos($this->quotationFile, 'drive.google.com') !== false) {
+                            // For Google Drive, start with the original URL, JavaScript will handle the conversion
+                            echo htmlspecialchars($this->quotationFile);
+                        } else {
+                            // For local files, add PDF parameters
+                            echo htmlspecialchars($this->quotationFile) . '#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH';
+                        }
+                    ?>" 
                     class="pdf-embed"
                     id="pdfEmbed"
                     title="Cotización PDF"
@@ -862,21 +870,96 @@ $orderData = $this->getOrderData();
 
     // Check for Google Drive access issues after page load
     document.addEventListener('DOMContentLoaded', function() {
+        const embed = document.getElementById('pdfEmbed');
+        if (embed && embed.src.includes('drive.google.com')) {
+            // Try multiple embedding methods before showing fallback
+            tryMultipleGoogleDriveMethods();
+        }
+    });
+
+    // Try multiple Google Drive embedding methods
+    function tryMultipleGoogleDriveMethods() {
+        const embed = document.getElementById('pdfEmbed');
+        const originalSrc = embed.src;
+        
+        // Parse the JSON data if it's a Google Drive URL
+        let driveData = null;
+        try {
+            driveData = JSON.parse(originalSrc);
+        } catch (e) {
+            // Not JSON, treat as regular URL
+            driveData = {
+                preview_url: originalSrc,
+                sharing_url: originalSrc,
+                download_url: originalSrc
+            };
+        }
+        
+        // Method 1: Try direct preview first
+        if (driveData.preview_url) {
+            embed.src = driveData.preview_url;
+            checkEmbedAccess(driveData, 0);
+        }
+    }
+
+    // Check if embedding method works
+    function checkEmbedAccess(driveData, methodIndex) {
+        const embed = document.getElementById('pdfEmbed');
+        const methods = [
+            { url: driveData.preview_url, name: 'Direct Preview' },
+            { url: driveData.docs_viewer_url, name: 'Google Docs Viewer' },
+            { url: driveData.sharing_url, name: 'Sharing URL' }
+        ];
+        
+        if (methodIndex >= methods.length) {
+            // All methods failed, show fallback
+            showPdfFallback();
+            return;
+        }
+        
+        const currentMethod = methods[methodIndex];
+        console.log(`Trying Google Drive method ${methodIndex + 1}: ${currentMethod.name}`);
+        
+        // Wait 2 seconds to check if current method works
         setTimeout(function() {
-            const embed = document.getElementById('pdfEmbed');
-            if (embed && embed.src.includes('drive.google.com')) {
-                // Check if iframe content indicates access issues
-                try {
-                    const iframeDoc = embed.contentDocument || embed.contentWindow.document;
-                    if (iframeDoc && iframeDoc.body && iframeDoc.body.innerHTML.includes('Necesitas acceso')) {
-                        showPdfFallback();
+            try {
+                const iframeDoc = embed.contentDocument || embed.contentWindow.document;
+                if (iframeDoc && iframeDoc.body) {
+                    const bodyText = iframeDoc.body.innerHTML.toLowerCase();
+                    
+                    // Check for access denied indicators
+                    if (bodyText.includes('necesitas acceso') || 
+                        bodyText.includes('you need access') ||
+                        bodyText.includes('access denied') ||
+                        bodyText.includes('sign in') ||
+                        bodyText.includes('iniciar sesión')) {
+                        console.log(`${currentMethod.name} failed: Access denied`);
+                        // Try next method
+                        if (methodIndex + 1 < methods.length) {
+                            embed.src = methods[methodIndex + 1].url;
+                            checkEmbedAccess(driveData, methodIndex + 1);
+                        } else {
+                            showPdfFallback();
+                        }
+                    } else {
+                        console.log(`${currentMethod.name} succeeded!`);
+                        // Hide any existing fallback
+                        const errorDiv = document.getElementById('pdfError');
+                        if (errorDiv) {
+                            errorDiv.style.display = 'none';
+                        }
                     }
-                } catch (e) {
-                    // Cross-origin access denied, likely means access issue
-                    console.log('Cross-origin access detected, showing fallback');
+                }
+            } catch (e) {
+                // Cross-origin access denied, try next method
+                console.log(`${currentMethod.name} failed: Cross-origin access denied`);
+                if (methodIndex + 1 < methods.length) {
+                    embed.src = methods[methodIndex + 1].url;
+                    checkEmbedAccess(driveData, methodIndex + 1);
+                } else {
                     showPdfFallback();
                 }
             }
-        }, 3000); // Wait 3 seconds for iframe to load
-    });
+        }, 2000);
+    }
 </script>
