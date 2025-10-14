@@ -51,9 +51,15 @@ class InvoiceController extends BaseController
                 return false;
             }
 
-            // Get work order data
-            $ordenModel = $this->getModel('Orden');
-            $workOrder = $ordenModel->getItem($orderId);
+            // Get work order data directly from database
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+            
+            $db->setQuery($query);
+            $workOrder = $db->loadObject();
             
             if (!$workOrder) {
                 $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ORDER_NOT_FOUND'), 'error');
