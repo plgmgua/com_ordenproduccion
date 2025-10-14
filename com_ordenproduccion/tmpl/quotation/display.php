@@ -601,6 +601,8 @@ $orderData = $this->getOrderData();
         // Get form data
         const formData = new FormData();
         formData.append('task', 'invoice.create');
+        formData.append('option', 'com_ordenproduccion');
+        formData.append('<?php echo JSession::getFormToken(); ?>', '1');  // CSRF token
         formData.append('order_id', <?php echo $this->orderId; ?>);
         formData.append('order_number', '<?php echo htmlspecialchars($this->orderNumber); ?>');
         formData.append('cliente', document.getElementById('cliente').value);
@@ -608,7 +610,6 @@ $orderData = $this->getOrderData();
         formData.append('direccion', document.getElementById('direccion').value);
         
         // Get invoice items data
-        const items = [];
         const rows = document.querySelectorAll('.invoice-item-row');
         rows.forEach((row, index) => {
             const cantidad = row.querySelector('.cantidad-input').value;
@@ -617,34 +618,27 @@ $orderData = $this->getOrderData();
             const subtotal = row.querySelector('.subtotal-input').value;
             
             if (cantidad && precioUnitario) {
-                items.push({
-                    cantidad: cantidad,
-                    descripcion: descripcion,
-                    precio_unitario: precioUnitario,
-                    subtotal: subtotal
-                });
+                formData.append(`items[${index + 1}][cantidad]`, cantidad);
+                formData.append(`items[${index + 1}][descripcion]`, descripcion);
+                formData.append(`items[${index + 1}][precio_unitario]`, precioUnitario);
+                formData.append(`items[${index + 1}][subtotal]`, subtotal);
             }
         });
         
-        // Add items to form data
-        items.forEach((item, index) => {
-            formData.append(`items[${index + 1}][cantidad]`, item.cantidad);
-            formData.append(`items[${index + 1}][descripcion]`, item.descripcion);
-            formData.append(`items[${index + 1}][precio_unitario]`, item.precio_unitario);
-            formData.append(`items[${index + 1}][subtotal]`, item.subtotal);
-        });
-        
-        // Submit to backend
-        fetch(window.location.href, {
+        // Submit to backend via Joomla's index.php
+        fetch('index.php', {
             method: 'POST',
             body: formData
         })
         .then(response => {
-            if (response.ok) {
+            // Check if redirect or success
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else if (response.ok) {
                 // Success - redirect to work orders page
                 window.location.href = 'index.php?option=com_ordenproduccion&view=administracion&tab=workorders';
             } else {
-                throw new Error('Server error');
+                throw new Error('Server error: ' + response.status);
             }
         })
         .catch(error => {
