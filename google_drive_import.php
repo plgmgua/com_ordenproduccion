@@ -158,7 +158,8 @@ try {
 
     // --- PROCESS RECORDS ---
     logMessage("Fetching records with Google Drive URLs...");
-    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND quotation_files LIKE '%drive.google.com%'";
+    // Only select records with Google Drive URLs that don't already have local paths
+    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND quotation_files LIKE '%drive.google.com%' AND quotation_files NOT LIKE 'media/%'";
     $result = $mysqli->query($query);
 
     if (!$result) {
@@ -187,6 +188,20 @@ try {
         $createdDate = $row['created'];
         
         logMessage("Processing record $processedCount/$totalRecords: $ordenDeTrabajo (ID: $recordId)");
+
+        // Skip if already a local path
+        if (strpos($quotationFiles, 'media/') === 0 || strpos($quotationFiles, '/media/') !== false) {
+            logMessage("Record already has local path, skipping: $quotationFiles", 'warning');
+            $skippedCount++;
+            continue;
+        }
+
+        // Verify it's a Google Drive URL
+        if (strpos($quotationFiles, 'drive.google.com') === false) {
+            logMessage("Not a Google Drive URL, skipping: $quotationFiles", 'warning');
+            $skippedCount++;
+            continue;
+        }
 
         // Extract file ID from URL
         $fileId = getDriveFileId($quotationFiles);
