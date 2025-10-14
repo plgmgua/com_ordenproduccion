@@ -135,11 +135,32 @@ class HtmlView extends BaseHtmlView
                     $filePath = $decoded[0];
                     // Remove escaped slashes
                     $filePath = str_replace('\\/', '/', $filePath);
+                    
+                    // Handle Google Drive URLs
+                    if (strpos($filePath, 'drive.google.com') !== false) {
+                        return $this->convertGoogleDriveUrl($filePath);
+                    }
+                    
+                    // Handle OneDrive URLs
+                    if (strpos($filePath, 'onedrive.live.com') !== false || strpos($filePath, '1drv.ms') !== false) {
+                        return $this->convertOneDriveUrl($filePath);
+                    }
+                    
                     // Make it a full URL - construct from current request
                     $uri = Uri::getInstance();
                     $baseUrl = $uri->toString(['scheme', 'host', 'port']);
                     return $baseUrl . $filePath;
                 }
+            }
+
+            // Handle Google Drive URLs directly
+            if (strpos($quotationFiles, 'drive.google.com') !== false) {
+                return $this->convertGoogleDriveUrl($quotationFiles);
+            }
+            
+            // Handle OneDrive URLs directly
+            if (strpos($quotationFiles, 'onedrive.live.com') !== false || strpos($quotationFiles, '1drv.ms') !== false) {
+                return $this->convertOneDriveUrl($quotationFiles);
             }
 
             // If it's already a full URL, return as is
@@ -159,6 +180,67 @@ class HtmlView extends BaseHtmlView
             // Return the original value as fallback
             return $quotationFiles;
         }
+    }
+
+    /**
+     * Convert Google Drive sharing URL to direct view URL
+     *
+     * @param   string  $url  Google Drive URL
+     *
+     * @return  string  Direct view URL
+     *
+     * @since   3.52.12
+     */
+    protected function convertGoogleDriveUrl($url)
+    {
+        // Extract file ID from various Google Drive URL formats
+        $fileId = '';
+        
+        // Format: https://drive.google.com/open?id=FILE_ID
+        if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $url, $matches)) {
+            $fileId = $matches[1];
+        }
+        // Format: https://drive.google.com/file/d/FILE_ID/view
+        elseif (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
+            $fileId = $matches[1];
+        }
+        
+        if ($fileId) {
+            // Convert to direct view URL for embedding
+            return 'https://drive.google.com/file/d/' . $fileId . '/preview';
+        }
+        
+        // Fallback to original URL if conversion fails
+        return $url;
+    }
+
+    /**
+     * Convert OneDrive sharing URL to direct view URL
+     *
+     * @param   string  $url  OneDrive URL
+     *
+     * @return  string  Direct view URL
+     *
+     * @since   3.52.12
+     */
+    protected function convertOneDriveUrl($url)
+    {
+        // Extract file ID from OneDrive URL
+        $fileId = '';
+        
+        // Format: https://1drv.ms/b/s!FILE_ID or similar
+        if (preg_match('/1drv\.ms\/[a-z]\/s!(.+)/', $url, $matches)) {
+            $fileId = $matches[1];
+        }
+        
+        if ($fileId) {
+            // Convert to direct view URL for embedding
+            // Note: OneDrive embedding is more complex and may require additional setup
+            return 'https://onedrive.live.com/embed?resid=' . $fileId . '&authkey=!FILE_ID&em=2';
+        }
+        
+        // Fallback to original URL if conversion fails
+        return $url;
     }
 
     /**

@@ -360,6 +360,50 @@ $orderData = $this->getOrderData();
             color: white;
             text-decoration: none;
         }
+
+        .pdf-error-message {
+            padding: 20px;
+        }
+
+        .pdf-error-message .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .pdf-error-message .btn-primary {
+            background: #007cba;
+            color: white;
+        }
+
+        .pdf-error-message .btn-primary:hover {
+            background: #005a8b;
+            transform: translateY(-2px);
+        }
+
+        .pdf-error-message .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .pdf-error-message .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+
+        .pdf-error-message .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .pdf-error-message .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
         
         .items-table-section {
             margin-top: 25px;
@@ -548,10 +592,12 @@ $orderData = $this->getOrderData();
             
             <div class="pdf-embed-container" id="pdfContainer">
                 <iframe 
-                    src="<?php echo htmlspecialchars($this->quotationFile); ?>#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH" 
+                    src="<?php echo htmlspecialchars($this->quotationFile); ?><?php echo (strpos($this->quotationFile, 'drive.google.com') !== false) ? '' : '#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH'; ?>" 
                     class="pdf-embed"
                     id="pdfEmbed"
-                    title="Cotización PDF">
+                    title="Cotización PDF"
+                    onload="handlePdfLoad(this)"
+                    onerror="handlePdfError(this)">
                     <div class="pdf-fallback">
                         <i class="fas fa-file-pdf pdf-fallback-icon"></i>
                         <p class="pdf-fallback-text">
@@ -723,5 +769,114 @@ $orderData = $this->getOrderData();
         if (event.key === 'Escape' && isPdfExpanded) {
             togglePdfSize();
         }
+    });
+
+    // Handle PDF loading success
+    function handlePdfLoad(iframe) {
+        console.log('PDF loaded successfully');
+        // Hide any error messages
+        const errorDiv = document.getElementById('pdfError');
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
+        }
+    }
+
+    // Handle PDF loading errors
+    function handlePdfError(iframe) {
+        console.log('PDF loading error');
+        showPdfFallback();
+    }
+
+    // Show fallback options for Google Drive files
+    function showPdfFallback() {
+        const container = document.getElementById('pdfContainer');
+        const embed = document.getElementById('pdfEmbed');
+        
+        // Check if this is a Google Drive file
+        if (embed.src.includes('drive.google.com')) {
+            // Hide the iframe
+            embed.style.display = 'none';
+            
+            // Show fallback message
+            let fallbackDiv = document.getElementById('pdfError');
+            if (!fallbackDiv) {
+                fallbackDiv = document.createElement('div');
+                fallbackDiv.id = 'pdfError';
+                fallbackDiv.className = 'pdf-error-message';
+                fallbackDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                        <i class="fas fa-cloud" style="font-size: 48px; color: #6c757d; margin-bottom: 20px;"></i>
+                        <h4 style="color: #495057; margin-bottom: 15px;">Archivo en Google Drive</h4>
+                        <p style="color: #6c757d; margin-bottom: 20px;">
+                            Este archivo está almacenado en Google Drive y requiere acceso especial para visualización embebida.
+                        </p>
+                        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                            <a href="${embed.src}" target="_blank" class="btn btn-primary">
+                                <i class="fas fa-external-link-alt"></i>
+                                Abrir en Google Drive
+                            </a>
+                            <button onclick="requestGoogleDriveAccess()" class="btn btn-secondary">
+                                <i class="fas fa-key"></i>
+                                Solicitar Acceso
+                            </button>
+                            <button onclick="downloadFromGoogleDrive()" class="btn btn-success">
+                                <i class="fas fa-download"></i>
+                                Descargar PDF
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(fallbackDiv);
+            }
+            fallbackDiv.style.display = 'block';
+        }
+    }
+
+    // Request Google Drive access
+    function requestGoogleDriveAccess() {
+        const embed = document.getElementById('pdfEmbed');
+        if (embed.src.includes('drive.google.com')) {
+            // Extract file ID and create sharing request URL
+            const fileIdMatch = embed.src.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (fileIdMatch) {
+                const fileId = fileIdMatch[1];
+                const requestUrl = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
+                window.open(requestUrl, '_blank');
+            }
+        }
+    }
+
+    // Download from Google Drive
+    function downloadFromGoogleDrive() {
+        const embed = document.getElementById('pdfEmbed');
+        if (embed.src.includes('drive.google.com')) {
+            // Extract file ID and create download URL
+            const fileIdMatch = embed.src.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (fileIdMatch) {
+                const fileId = fileIdMatch[1];
+                const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                window.open(downloadUrl, '_blank');
+            }
+        }
+    }
+
+    // Check for Google Drive access issues after page load
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            const embed = document.getElementById('pdfEmbed');
+            if (embed && embed.src.includes('drive.google.com')) {
+                // Check if iframe content indicates access issues
+                try {
+                    const iframeDoc = embed.contentDocument || embed.contentWindow.document;
+                    if (iframeDoc && iframeDoc.body && iframeDoc.body.innerHTML.includes('Necesitas acceso')) {
+                        showPdfFallback();
+                    }
+                } catch (e) {
+                    // Cross-origin access denied, likely means access issue
+                    console.log('Cross-origin access detected, showing fallback');
+                    showPdfFallback();
+                }
+            }
+        }, 3000); // Wait 3 seconds for iframe to load
     });
 </script>
