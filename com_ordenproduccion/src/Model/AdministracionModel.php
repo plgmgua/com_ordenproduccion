@@ -36,10 +36,17 @@ class AdministracionModel extends BaseDatabaseModel
         $db = Factory::getDbo();
         $stats = new \stdClass();
 
-        // Format month and year for queries
-        $monthStr = str_pad($month, 2, '0', STR_PAD_LEFT);
-        $startDate = $year . '-' . $monthStr . '-01';
-        $endDate = date('Y-m-t', strtotime($startDate)); // Last day of month
+        // Handle "All Year" case (month = 0) vs specific month
+        if ($month == 0) {
+            // All Year: from January 1st to December 31st
+            $startDate = $year . '-01-01';
+            $endDate = $year . '-12-31';
+        } else {
+            // Specific month: first day to last day of month
+            $monthStr = str_pad($month, 2, '0', STR_PAD_LEFT);
+            $startDate = $year . '-' . $monthStr . '-01';
+            $endDate = date('Y-m-t', strtotime($startDate)); // Last day of month
+        }
 
         // 1. Total work orders in selected month
         $query = $db->getQuery(true)

@@ -101,7 +101,7 @@ class HtmlView extends BaseHtmlView
         $input = $app->input;
 
         // Get filter parameters
-        $this->currentMonth = $input->getInt('month', date('m'));
+        $this->currentMonth = $input->getInt('month', 0); // 0 = All Year, 1-12 = specific month
         $this->currentYear = $input->getInt('year', date('Y'));
 
         // Get active tab - default to workorders for better UX

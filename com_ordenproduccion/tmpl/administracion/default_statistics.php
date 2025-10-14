@@ -523,7 +523,7 @@ $monthNames = [
             <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_ORDERS'); ?></h3>
             <div class="value-compact"><?php echo number_format($stats->totalOrders); ?></div>
             <div class="subtitle-compact">
-                <?php echo $monthNames[$currentMonth] . ' ' . $currentYear; ?>
+                <?php echo ($currentMonth == 0) ? 'Todo el Año ' . $currentYear : $monthNames[$currentMonth] . ' ' . $currentYear; ?>
             </div>
         </div>
 
@@ -577,6 +577,7 @@ $monthNames = [
                 </label>
                 
                 <select name="month" id="month-select">
+                    <option value="0" <?php echo $currentMonth == 0 ? 'selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ALL_YEAR'); ?></option>
                     <?php foreach ($monthNames as $num => $name): ?>
                         <option value="<?php echo $num; ?>" <?php echo $num == $currentMonth ? 'selected' : ''; ?>>
                             <?php echo $name; ?>
