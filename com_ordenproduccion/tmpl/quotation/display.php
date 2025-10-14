@@ -813,23 +813,28 @@ $orderData = $this->getOrderData();
                 fallbackDiv.className = 'pdf-error-message';
                 fallbackDiv.innerHTML = `
                     <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
-                        <i class="fas fa-cloud" style="font-size: 48px; color: #6c757d; margin-bottom: 20px;"></i>
-                        <h4 style="color: #495057; margin-bottom: 15px;">Archivo en Google Drive</h4>
-                        <p style="color: #6c757d; margin-bottom: 20px;">
-                            Este archivo está almacenado en Google Drive y requiere acceso especial para visualización embebida.
+                        <i class="fas fa-shield-alt" style="font-size: 48px; color: #ffc107; margin-bottom: 20px;"></i>
+                        <h4 style="color: #495057; margin-bottom: 15px;">Archivo en Google Drive - Restricciones de Seguridad</h4>
+                        <p style="color: #6c757d; margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                            Google Drive ha bloqueado la visualización embebida de este archivo por políticas de seguridad (CSP). 
+                            Esto es normal para archivos que no están configurados como "públicos" o "cualquiera con el enlace puede ver".
                         </p>
+                        <div style="background: #e7f3ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #007cba;">
+                            <strong style="color: #007cba;">💡 Solución:</strong> 
+                            <span style="color: #495057;">Haz clic en "Abrir en Google Drive" para ver el archivo, o descárgalo para revisarlo localmente.</span>
+                        </div>
                         <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
                             <a href="${embed.src}" target="_blank" class="btn btn-primary">
                                 <i class="fas fa-external-link-alt"></i>
                                 Abrir en Google Drive
                             </a>
-                            <button onclick="requestGoogleDriveAccess()" class="btn btn-secondary">
-                                <i class="fas fa-key"></i>
-                                Solicitar Acceso
-                            </button>
                             <button onclick="downloadFromGoogleDrive()" class="btn btn-success">
                                 <i class="fas fa-download"></i>
                                 Descargar PDF
+                            </button>
+                            <button onclick="requestGoogleDriveAccess()" class="btn btn-secondary">
+                                <i class="fas fa-cog"></i>
+                                Configurar Acceso
                             </button>
                         </div>
                     </div>
@@ -872,8 +877,10 @@ $orderData = $this->getOrderData();
     document.addEventListener('DOMContentLoaded', function() {
         const embed = document.getElementById('pdfEmbed');
         if (embed && embed.src.includes('drive.google.com')) {
-            // Try multiple embedding methods before showing fallback
-            tryMultipleGoogleDriveMethods();
+            // Set a shorter timeout to detect CSP issues faster
+            setTimeout(function() {
+                tryMultipleGoogleDriveMethods();
+            }, 1000); // Reduced from 2000ms to 1000ms
         }
     });
 
@@ -918,6 +925,7 @@ $orderData = $this->getOrderData();
         
         if (methodIndex >= methods.length) {
             // All methods failed, show fallback
+            console.log('All Google Drive embedding methods failed, showing fallback options');
             showPdfFallback();
             return;
         }
@@ -925,7 +933,7 @@ $orderData = $this->getOrderData();
         const currentMethod = methods[methodIndex];
         console.log(`Trying Google Drive method ${methodIndex + 1}: ${currentMethod.name}`);
         
-        // Wait 2 seconds to check if current method works
+        // Wait 1.5 seconds to check if current method works (reduced from 2 seconds)
         setTimeout(function() {
             try {
                 const iframeDoc = embed.contentDocument || embed.contentWindow.document;
@@ -937,8 +945,9 @@ $orderData = $this->getOrderData();
                         bodyText.includes('you need access') ||
                         bodyText.includes('access denied') ||
                         bodyText.includes('sign in') ||
-                        bodyText.includes('iniciar sesión')) {
-                        console.log(`${currentMethod.name} failed: Access denied`);
+                        bodyText.includes('iniciar sesión') ||
+                        bodyText.includes('content security policy')) {
+                        console.log(`${currentMethod.name} failed: Access denied or CSP blocked`);
                         // Try next method
                         if (methodIndex + 1 < methods.length) {
                             const nextMethod = methods[methodIndex + 1];
@@ -958,8 +967,16 @@ $orderData = $this->getOrderData();
                     }
                 }
             } catch (e) {
-                // Cross-origin access denied, try next method
-                console.log(`${currentMethod.name} failed: Cross-origin access denied`);
+                // Cross-origin access denied or CSP blocked
+                console.log(`${currentMethod.name} failed: ${e.message}`);
+                
+                // Check if it's a CSP error
+                if (e.message.includes('Content Security Policy') || 
+                    e.message.includes('frame-ancestors') ||
+                    e.message.includes('Refused to frame')) {
+                    console.log('CSP (Content Security Policy) blocking detected');
+                }
+                
                 if (methodIndex + 1 < methods.length) {
                     const nextMethod = methods[methodIndex + 1];
                     const cleanUrl = nextMethod.url.replace(/\/\//g, '/').replace(':/', '://');
@@ -969,6 +986,6 @@ $orderData = $this->getOrderData();
                     showPdfFallback();
                 }
             }
-        }, 2000);
+        }, 1500); // Reduced timeout for faster detection
     }
 </script>

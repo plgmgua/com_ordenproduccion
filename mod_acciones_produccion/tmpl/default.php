@@ -320,7 +320,7 @@ $currentUrl = Uri::current();
         
         // Additional fields
         if (orderData.instructions) params.append('instructions', orderData.instructions);
-        if (orderData.sales_agent) params.append('sales_agent', orderData.sales_agent);
+        if (orderData.sales_agent) params.append('x_studio_agente_de_ventas', orderData.sales_agent);
         
         // Use current date/time for request_date
         const now = new Date();
