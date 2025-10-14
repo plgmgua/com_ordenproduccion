@@ -91,6 +91,13 @@ if (!class_exists('Google\Client')) {
     exit(1);
 }
 
+// Load Google API library
+require __DIR__ . '/vendor/autoload.php';
+
+// Import Google classes
+use Google\Client;
+use Google\Service\Drive;
+
 try {
     // --- MYSQL CONNECTION ---
     logMessage("Connecting to database...");
@@ -102,11 +109,6 @@ try {
 
     // --- GOOGLE CLIENT SETUP ---
     logMessage("Setting up Google Drive client...");
-    
-    require __DIR__ . '/vendor/autoload.php';
-    
-    use Google\Client;
-    use Google\Service\Drive;
     
     $client = new Client();
     $client->setAuthConfig($pathToCredentials);
