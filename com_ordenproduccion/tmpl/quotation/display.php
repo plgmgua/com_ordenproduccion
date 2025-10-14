@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 
 // Get order data from the database
 $orderData = $this->getOrderData();
@@ -626,7 +627,7 @@ $orderData = $this->getOrderData();
         });
         
         // Submit to backend via Joomla's index.php
-        fetch('index.php', {
+        fetch('<?php echo Uri::root(); ?>index.php', {
             method: 'POST',
             body: formData
         })
