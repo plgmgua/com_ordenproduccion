@@ -457,6 +457,19 @@ $monthNames = [
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.chart-subtitle {
+    color: #495057;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
 }
 
 .chart-wrapper {
@@ -670,7 +683,7 @@ $monthNames = [
         <?php endif; ?>
     </div>
 
-    <!-- Sales Agents Annual Trend Chart -->
+    <!-- Sales Agents Annual Trend Charts -->
     <div class="agent-trend-section">
         <div class="chart-header">
             <h2>
@@ -692,9 +705,25 @@ $monthNames = [
             </div>
         </div>
         
+        <!-- Line Chart -->
         <div class="chart-container-single">
+            <div class="chart-subtitle">
+                <i class="fas fa-chart-line"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_LINE_CHART'); ?>
+            </div>
             <div class="chart-wrapper">
                 <canvas id="agentAnnualChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Bar Chart -->
+        <div class="chart-container-single">
+            <div class="chart-subtitle">
+                <i class="fas fa-chart-bar"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_BAR_CHART'); ?>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="agentAnnualBarChart"></canvas>
             </div>
         </div>
     </div>
@@ -774,20 +803,27 @@ function getColor(index, alpha = 1) {
     return colors[index % colors.length];
 }
 
-// Store chart instance globally
+// Store chart instances globally
 let agentAnnualChart = null;
+let agentAnnualBarChart = null;
 
 // Store agent trend data (only yearly data)
 const agentAnnualData = <?php echo json_encode($stats->agentTrend ?? []); ?>;
 
-// Initialize agent annual chart
+// Initialize agent annual charts (line and bar)
 function initializeAgentChart() {
     <?php if (!empty($stats->agentTrend) && !empty($stats->agentTrend['agents'])): ?>
+    
+    // Destroy existing charts
     if (agentAnnualChart) {
         agentAnnualChart.destroy();
     }
+    if (agentAnnualBarChart) {
+        agentAnnualBarChart.destroy();
+    }
     
-    const agentAnnualChartData = {
+    // Common data for both charts
+    const chartData = {
         labels: agentAnnualData.labels,
         datasets: agentAnnualData.agents.map((agent, index) => ({
             label: agent.agent_name,
@@ -802,43 +838,68 @@ function initializeAgentChart() {
         }))
     };
 
-    const agentAnnualConfig = {
-        type: 'line',
-        data: agentAnnualChartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 12,
-                        padding: 20,
-                        font: { size: 12 }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        }
-                    }
+    // Common options for both charts
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 20,
+                    font: { size: 12 }
                 }
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return 'Q ' + value.toLocaleString('es-GT');
-                        }
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'Q ' + value.toLocaleString('es-GT');
                     }
                 }
             }
         }
     };
 
-    agentAnnualChart = new Chart(document.getElementById('agentAnnualChart'), agentAnnualConfig);
+    // Line Chart Configuration
+    const lineConfig = {
+        type: 'line',
+        data: chartData,
+        options: commonOptions
+    };
+
+    // Bar Chart Configuration
+    const barConfig = {
+        type: 'bar',
+        data: {
+            labels: agentAnnualData.labels,
+            datasets: agentAnnualData.agents.map((agent, index) => ({
+                label: agent.agent_name,
+                data: agent.data,
+                backgroundColor: getColor(index, 0.8),
+                borderColor: getColor(index),
+                borderWidth: 2,
+                borderRadius: 4,
+                borderSkipped: false
+            }))
+        },
+        options: commonOptions
+    };
+
+    // Initialize both charts
+    agentAnnualChart = new Chart(document.getElementById('agentAnnualChart'), lineConfig);
+    agentAnnualBarChart = new Chart(document.getElementById('agentAnnualBarChart'), barConfig);
+    
     <?php endif; ?>
 }
 
