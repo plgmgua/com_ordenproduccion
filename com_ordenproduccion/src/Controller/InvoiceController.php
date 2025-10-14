@@ -53,7 +53,7 @@ class InvoiceController extends BaseController
 
             // Get work order data
             $ordenModel = $this->getModel('Orden');
-            $workOrder = $ordenModel->getWorkOrderData($orderId);
+            $workOrder = $ordenModel->getItem($orderId);
             
             if (!$workOrder) {
                 $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ORDER_NOT_FOUND'), 'error');
@@ -85,25 +85,25 @@ class InvoiceController extends BaseController
                 }
             }
 
-            // Prepare invoice data
+            // Prepare invoice data (matching actual database schema)
             $invoiceData = [
                 'invoice_number' => $invoiceNumber,
                 'orden_id' => $orderId,
                 'orden_de_trabajo' => $orderNumber,
                 'client_name' => $cliente,
                 'client_nit' => $nit,
-                'client_address' => $direccion,
+                // Note: Your schema doesn't have client_address column in invoices table
                 'sales_agent' => $workOrder->sales_agent ?? '',
-                'request_date' => $workOrder->request_date ?? '',
-                'delivery_date' => $workOrder->delivery_date ?? '',
-                'invoice_date' => Factory::getDate()->toSql(),
+                'request_date' => $workOrder->request_date ? Factory::getDate($workOrder->request_date)->format('Y-m-d') : null,
+                'delivery_date' => $workOrder->delivery_date ?? null,
+                'invoice_date' => Factory::getDate()->format('Y-m-d'),  // DATE format, not DATETIME
                 'invoice_amount' => $totalAmount,
                 'currency' => 'Q',
                 'work_description' => $workOrder->work_description ?? '',
                 'material' => $workOrder->material ?? '',
-                'dimensions' => $workOrder->medidas ?? '',
+                'dimensions' => $workOrder->dimensions ?? '',  // Your schema uses 'dimensions', not 'medidas'
                 'print_color' => $workOrder->print_color ?? '',
-                'line_items' => $lineItems,
+                'line_items' => json_encode($lineItems),  // TEXT column, must be JSON string
                 'quotation_file' => $workOrder->quotation_files ?? '',
                 'extraction_status' => 'manual',
                 'status' => 'created',
