@@ -329,7 +329,15 @@ class AdministracionModel extends BaseDatabaseModel
                 $db->setQuery($query);
                 $total = $db->loadResult() ?: 0;
                 
-                $agentTrend['data'][] = (float) $total;
+                // Ensure we're not getting inflated values
+                $cleanTotal = (float) $total;
+                
+                // Debug output (remove in production)
+                if (Factory::getApplication()->get('debug')) {
+                    error_log("Agent: $agentName, Month: $m, Total: $cleanTotal");
+                }
+                
+                $agentTrend['data'][] = $cleanTotal;
             }
             
             $trendData[] = $agentTrend;

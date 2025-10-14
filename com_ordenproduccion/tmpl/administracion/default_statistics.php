@@ -552,6 +552,7 @@ $monthNames = [
             <input type="hidden" name="option" value="com_ordenproduccion" />
             <input type="hidden" name="view" value="administracion" />
             <input type="hidden" name="tab" value="statistics" />
+            <input type="hidden" name="_t" value="<?php echo time(); ?>" />
             
             <div class="month-filter">
                 <label for="month-select">
@@ -814,20 +815,34 @@ const agentAnnualData = <?php echo json_encode($stats->agentTrend ?? []); ?>;
 function initializeAgentChart() {
     <?php if (!empty($stats->agentTrend) && !empty($stats->agentTrend['agents'])): ?>
     
-    // Destroy existing charts
+    // Destroy existing charts completely
     if (agentAnnualChart) {
         agentAnnualChart.destroy();
+        agentAnnualChart = null;
     }
     if (agentAnnualBarChart) {
         agentAnnualBarChart.destroy();
+        agentAnnualBarChart = null;
     }
     
-    // Common data for both charts
-    const chartData = {
-        labels: agentAnnualData.labels,
-        datasets: agentAnnualData.agents.map((agent, index) => ({
+    // Ensure we have fresh data
+    console.log('Initializing charts with fresh data:', agentAnnualData);
+    
+    // Validate and prepare chart data
+    if (!agentAnnualData || !agentAnnualData.agents || !Array.isArray(agentAnnualData.agents)) {
+        console.error('Invalid chart data:', agentAnnualData);
+        return;
+    }
+    
+    // Process data to ensure no duplication and proper values
+    const processedAgents = agentAnnualData.agents.map((agent, index) => {
+        // Ensure data is a proper array of numbers
+        const cleanData = Array.isArray(agent.data) ? agent.data.map(val => parseFloat(val) || 0) : [];
+        console.log(`Agent ${agent.agent_name} data:`, cleanData);
+        
+        return {
             label: agent.agent_name,
-            data: agent.data,
+            data: cleanData,
             borderColor: getColor(index),
             backgroundColor: getColor(index, 0.2),
             borderWidth: 3,
@@ -835,7 +850,13 @@ function initializeAgentChart() {
             fill: true,
             pointRadius: 6,
             pointHoverRadius: 8
-        }))
+        };
+    });
+    
+    // Common data for both charts
+    const chartData = {
+        labels: agentAnnualData.labels || ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+        datasets: processedAgents
     };
 
     // Common options for both charts
@@ -878,13 +899,13 @@ function initializeAgentChart() {
         options: commonOptions
     };
 
-    // Bar Chart Configuration
+    // Bar Chart Configuration with processed data
     const barConfig = {
         type: 'bar',
         data: {
-            labels: agentAnnualData.labels,
-            datasets: agentAnnualData.agents.map((agent, index) => ({
-                label: agent.agent_name,
+            labels: chartData.labels,
+            datasets: processedAgents.map((agent, index) => ({
+                label: agent.label,
                 data: agent.data,
                 backgroundColor: getColor(index, 0.8),
                 borderColor: getColor(index),
@@ -907,11 +928,25 @@ function initializeAgentChart() {
 function updateAgentChart() {
     const selectedYear = parseInt(document.getElementById('agent-year-select').value);
     
-    // Reload page with new year parameter
-    const url = new URL(window.location.href);
-    url.searchParams.set('year', selectedYear);
-    url.searchParams.set('month', 0); // Always use yearly view for agent chart
-    window.location.href = url.toString();
+    // Clear chart instances and data completely
+    if (agentAnnualChart) {
+        agentAnnualChart.destroy();
+        agentAnnualChart = null;
+    }
+    if (agentAnnualBarChart) {
+        agentAnnualBarChart.destroy();
+        agentAnnualBarChart = null;
+    }
+    
+    // Clear any cached data
+    if (typeof agentAnnualData !== 'undefined') {
+        // Force data refresh by reloading page
+        const url = new URL(window.location.href);
+        url.searchParams.set('year', selectedYear);
+        url.searchParams.set('month', 0); // Always use yearly view for agent chart
+        url.searchParams.set('_t', Date.now()); // Add timestamp to prevent caching
+        window.location.href = url.toString();
+    }
 }
 
 // Initialize agent chart on page load
