@@ -104,8 +104,8 @@ class HtmlView extends BaseHtmlView
         $this->currentMonth = $input->getInt('month', date('m'));
         $this->currentYear = $input->getInt('year', date('Y'));
 
-        // Get active tab
-        $activeTab = $input->get('tab', 'statistics', 'string');
+        // Get active tab - default to workorders for better UX
+        $activeTab = $input->get('tab', 'workorders', 'string');
 
         // Get statistics model and data
         $statsModel = $this->getModel('Administracion');

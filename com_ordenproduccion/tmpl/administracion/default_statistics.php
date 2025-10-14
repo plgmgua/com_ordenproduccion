@@ -203,9 +203,10 @@ $monthNames = [
             <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TITLE'); ?>
         </h1>
         
-        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion'); ?>">
+        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=statistics'); ?>">
             <input type="hidden" name="option" value="com_ordenproduccion" />
             <input type="hidden" name="view" value="administracion" />
+            <input type="hidden" name="tab" value="statistics" />
             
             <div class="month-filter">
                 <label for="month-select">

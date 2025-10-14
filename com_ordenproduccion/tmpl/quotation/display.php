@@ -199,6 +199,30 @@ $orderData = $this->getOrderData();
         .form-actions {
             text-align: center;
             margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .btn-back {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-back:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         
         .required {
@@ -491,6 +515,10 @@ $orderData = $this->getOrderData();
             </div>
 
             <div class="form-actions">
+                <button type="button" class="btn-back" onclick="window.location.href='index.php?option=com_ordenproduccion&view=administracion&tab=workorders'">
+                    <i class="fas fa-arrow-left"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_BACK_TO_ORDERS'); ?>
+                </button>
                 <button type="submit" class="btn-submit">
                     <i class="fas fa-save"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_SUBMIT_QUOTATION'); ?>
