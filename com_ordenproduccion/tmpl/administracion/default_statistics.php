@@ -193,6 +193,144 @@ $monthNames = [
 .status-terminada { background: #e8f5e9; color: #388e3c; }
 .status-entregada { background: #f3e5f5; color: #7b1fa2; }
 .status-cerrada { background: #eceff1; color: #546e7a; }
+
+/* Sales Agents with Clients Styles */
+.sales-agents-clients-table {
+    margin-bottom: 30px;
+}
+
+.agent-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.agent-header {
+    background: linear-gradient(135deg, #007cba 0%, #0056b3 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.agent-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-summary {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.summary-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.summary-badge i {
+    font-size: 12px;
+}
+
+.clients-table {
+    padding: 20px;
+    background: white;
+}
+
+.clients-table h4 {
+    color: #007cba;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.clients-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.clients-table thead {
+    background: #f8f9fa;
+}
+
+.clients-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.clients-table td {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.clients-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.clients-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .agent-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .agent-summary {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .summary-badge {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
+    }
+    
+    .clients-table {
+        padding: 15px;
+    }
+    
+    .clients-table table {
+        font-size: 13px;
+    }
+    
+    .clients-table th,
+    .clients-table td {
+        padding: 8px;
+    }
+}
 </style>
 
 <div class="admin-dashboard">
@@ -280,100 +418,93 @@ $monthNames = [
         </div>
     </div>
 
-    <!-- Sales by Sales Agent Table -->
-    <div class="top-orders-table" style="margin-bottom: 30px;">
+    <!-- Sales Agents with Top 5 Clients -->
+    <div class="sales-agents-clients-table">
         <h2>
             <i class="fas fa-user-tie"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SALES_BY_AGENT'); ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SALES_AGENTS_AND_CLIENTS'); ?>
         </h2>
         
-        <?php if (!empty($stats->salesByAgent)): ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SALES_AGENT'); ?></th>
-                        <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ORDER_COUNT'); ?></th>
-                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_SALES'); ?></th>
-                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_PER_ORDER'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($stats->salesByAgent as $index => $agentData): ?>
-                        <?php $avgPerOrder = $agentData->order_count > 0 ? ($agentData->total_sales / $agentData->order_count) : 0; ?>
-                        <tr>
-                            <td><?php echo $index + 1; ?></td>
-                            <td>
-                                <strong><?php echo htmlspecialchars($agentData->sales_agent); ?></strong>
-                            </td>
-                            <td style="text-align: center;">
-                                <span style="background: #e3f2fd; color: #1976d2; padding: 4px 12px; border-radius: 20px; font-weight: bold;">
-                                    <?php echo number_format($agentData->order_count); ?>
-                                </span>
-                            </td>
-                            <td style="text-align: right;">
-                                <span class="invoice-value">Q <?php echo number_format($agentData->total_sales, 2); ?></span>
-                            </td>
-                            <td style="text-align: right;">
-                                <span style="color: #666;">Q <?php echo number_format($avgPerOrder, 2); ?></span>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        <?php if (!empty($stats->salesAgentsWithClients)): ?>
+            <?php foreach ($stats->salesAgentsWithClients as $agentIndex => $agentData): ?>
+                <?php $avgPerOrder = $agentData->total_orders > 0 ? ($agentData->total_sales / $agentData->total_orders) : 0; ?>
+                
+                <!-- Sales Agent Header -->
+                <div class="agent-section">
+                    <div class="agent-header">
+                        <h3>
+                            <i class="fas fa-user-tie"></i>
+                            #<?php echo $agentIndex + 1; ?> - <?php echo htmlspecialchars($agentData->sales_agent); ?>
+                        </h3>
+                        <div class="agent-summary">
+                            <span class="summary-badge orders">
+                                <i class="fas fa-list"></i>
+                                <?php echo number_format($agentData->total_orders); ?> <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ORDERS'); ?>
+                            </span>
+                            <span class="summary-badge sales">
+                                <i class="fas fa-dollar-sign"></i>
+                                Q <?php echo number_format($agentData->total_sales, 2); ?>
+                            </span>
+                            <span class="summary-badge average">
+                                <i class="fas fa-chart-line"></i>
+                                Q <?php echo number_format($avgPerOrder, 2); ?> <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_PER_ORDER'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Top 5 Clients for this Agent -->
+                    <?php if (!empty($agentData->topClients)): ?>
+                        <div class="clients-table">
+                            <h4>
+                                <i class="fas fa-users"></i>
+                                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOP_5_CLIENTS'); ?>
+                            </h4>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_NAME'); ?></th>
+                                        <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ORDERS'); ?></th>
+                                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_VALUE'); ?></th>
+                                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_ORDER'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($agentData->topClients as $clientIndex => $clientData): ?>
+                                        <?php $clientAvgPerOrder = $clientData->order_count > 0 ? ($clientData->total_value / $clientData->order_count) : 0; ?>
+                                        <tr>
+                                            <td><?php echo $clientIndex + 1; ?></td>
+                                            <td>
+                                                <strong><?php echo htmlspecialchars($clientData->client_name); ?></strong>
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-weight: bold;">
+                                                    <?php echo number_format($clientData->order_count); ?>
+                                                </span>
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <span class="invoice-value">Q <?php echo number_format($clientData->total_value, 2); ?></span>
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <span style="color: #666;">Q <?php echo number_format($clientAvgPerOrder, 2); ?></span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_NO_CLIENTS_DATA'); ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
         <?php else: ?>
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_NO_SALES_DATA'); ?>
-            </div>
-        <?php endif; ?>
-    </div>
-
-    <!-- Top 5 Clients Table -->
-    <div class="top-clients-table">
-        <h2>
-            <i class="fas fa-users"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOP_CLIENTS'); ?>
-        </h2>
-        
-        <?php if (!empty($stats->topClients)): ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_NAME'); ?></th>
-                        <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ORDERS'); ?></th>
-                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_VALUE'); ?></th>
-                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_ORDER'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($stats->topClients as $index => $clientData): ?>
-                        <?php $avgPerOrder = $clientData->order_count > 0 ? ($clientData->total_value / $clientData->order_count) : 0; ?>
-                        <tr>
-                            <td><?php echo $index + 1; ?></td>
-                            <td>
-                                <strong><?php echo htmlspecialchars($clientData->client_name); ?></strong>
-                            </td>
-                            <td style="text-align: center;">
-                                <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-weight: bold;">
-                                    <?php echo number_format($clientData->order_count); ?>
-                                </span>
-                            </td>
-                            <td style="text-align: right;">
-                                <span class="invoice-value">Q <?php echo number_format($clientData->total_value, 2); ?></span>
-                            </td>
-                            <td style="text-align: right;">
-                                <span style="color: #666;">Q <?php echo number_format($avgPerOrder, 2); ?></span>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_NO_CLIENTS_DATA'); ?>
             </div>
         <?php endif; ?>
     </div>
