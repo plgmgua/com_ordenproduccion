@@ -120,6 +120,25 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $stats->salesByAgent = $db->loadObjectList() ?: [];
 
+        // 7. Top 5 Clients by Invoice Value for selected month
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('client_name'),
+                'COUNT(*) as order_count',
+                'SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total_value'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
+            ->where($db->quoteName('client_name') . ' IS NOT NULL')
+            ->where($db->quoteName('client_name') . ' != ' . $db->quote(''))
+            ->group($db->quoteName('client_name'))
+            ->order('total_value DESC')
+            ->setLimit(5);
+        $db->setQuery($query);
+        $stats->topClients = $db->loadObjectList() ?: [];
+
         return $stats;
     }
 }

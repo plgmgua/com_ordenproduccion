@@ -329,6 +329,55 @@ $monthNames = [
         <?php endif; ?>
     </div>
 
+    <!-- Top 5 Clients Table -->
+    <div class="top-clients-table">
+        <h2>
+            <i class="fas fa-users"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOP_CLIENTS'); ?>
+        </h2>
+        
+        <?php if (!empty($stats->topClients)): ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_NAME'); ?></th>
+                        <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ORDERS'); ?></th>
+                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_VALUE'); ?></th>
+                        <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_ORDER'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($stats->topClients as $index => $clientData): ?>
+                        <?php $avgPerOrder = $clientData->order_count > 0 ? ($clientData->total_value / $clientData->order_count) : 0; ?>
+                        <tr>
+                            <td><?php echo $index + 1; ?></td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($clientData->client_name); ?></strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-weight: bold;">
+                                    <?php echo number_format($clientData->order_count); ?>
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="invoice-value">Q <?php echo number_format($clientData->total_value, 2); ?></span>
+                            </td>
+                            <td style="text-align: right;">
+                                <span style="color: #666;">Q <?php echo number_format($avgPerOrder, 2); ?></span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_NO_CLIENTS_DATA'); ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <!-- Top 10 Orders Table -->
     <div class="top-orders-table">
         <h2>
