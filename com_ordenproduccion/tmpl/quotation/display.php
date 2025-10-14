@@ -882,24 +882,29 @@ $orderData = $this->getOrderData();
         const embed = document.getElementById('pdfEmbed');
         const originalSrc = embed.src;
         
-        // Parse the JSON data if it's a Google Drive URL
-        let driveData = null;
-        try {
-            driveData = JSON.parse(originalSrc);
-        } catch (e) {
-            // Not JSON, treat as regular URL
-            driveData = {
-                preview_url: originalSrc,
-                sharing_url: originalSrc,
-                download_url: originalSrc
-            };
+        // Extract file ID from the preview URL
+        const fileIdMatch = originalSrc.match(/\/d\/([a-zA-Z0-9_-]+)\/preview/);
+        if (!fileIdMatch) {
+            console.log('No file ID found in URL, treating as regular URL');
+            return;
         }
         
-        // Method 1: Try direct preview first
-        if (driveData.preview_url) {
-            embed.src = driveData.preview_url;
-            checkEmbedAccess(driveData, 0);
-        }
+        const fileId = fileIdMatch[1];
+        
+        // Create drive data with all methods
+        const driveData = {
+            file_id: fileId,
+            preview_url: originalSrc,
+            docs_viewer_url: `https://docs.google.com/gview?url=https://drive.google.com/uc?export=download&id=${fileId}&embedded=true`,
+            sharing_url: `https://drive.google.com/file/d/${fileId}/view`,
+            download_url: `https://drive.google.com/uc?export=download&id=${fileId}`
+        };
+        
+        console.log('Google Drive file ID:', fileId);
+        console.log('Generated URLs:', driveData);
+        
+        // Method 1: Try direct preview first (already set)
+        checkEmbedAccess(driveData, 0);
     }
 
     // Check if embedding method works
@@ -936,7 +941,9 @@ $orderData = $this->getOrderData();
                         console.log(`${currentMethod.name} failed: Access denied`);
                         // Try next method
                         if (methodIndex + 1 < methods.length) {
-                            embed.src = methods[methodIndex + 1].url;
+                            const nextMethod = methods[methodIndex + 1];
+                            const cleanUrl = nextMethod.url.replace(/\/\//g, '/').replace(':/', '://');
+                            embed.src = cleanUrl;
                             checkEmbedAccess(driveData, methodIndex + 1);
                         } else {
                             showPdfFallback();
@@ -954,7 +961,9 @@ $orderData = $this->getOrderData();
                 // Cross-origin access denied, try next method
                 console.log(`${currentMethod.name} failed: Cross-origin access denied`);
                 if (methodIndex + 1 < methods.length) {
-                    embed.src = methods[methodIndex + 1].url;
+                    const nextMethod = methods[methodIndex + 1];
+                    const cleanUrl = nextMethod.url.replace(/\/\//g, '/').replace(':/', '://');
+                    embed.src = cleanUrl;
                     checkEmbedAccess(driveData, methodIndex + 1);
                 } else {
                     showPdfFallback();
