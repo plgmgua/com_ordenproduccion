@@ -231,6 +231,70 @@ $app = Factory::getApplication('site');
             }
             
             echo '</div>';
+        }
+
+        // Test 4: Check InvoiceModel access
+        echo '<h2>🔧 Test 4: InvoiceModel Access Test</h2>';
+        
+        if (isset($_POST['test_model'])) {
+            echo '<div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
+            echo '<h3>Testing InvoiceModel...</h3>';
+            
+            try {
+                // Check if InvoiceModel file exists
+                $modelPath = JPATH_ROOT . '/components/com_ordenproduccion/src/Model/InvoiceModel.php';
+                if (file_exists($modelPath)) {
+                    echo '<p class="success">✅ InvoiceModel file found</p>';
+                    
+                    include_once $modelPath;
+                    
+                    try {
+                        $invoiceModel = new \Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceModel();
+                        echo '<p class="success">✅ InvoiceModel instantiated</p>';
+                        
+                        // Test save method with sample data
+                        $testData = [
+                            'invoice_number' => 'FAC-TEST-001',
+                            'orden_id' => 5397,
+                            'orden_de_trabajo' => 'ORD-005551',
+                            'client_name' => 'Test Client',
+                            'client_nit' => 'TEST-123',
+                            'invoice_amount' => 100.00,
+                            'currency' => 'Q',
+                            'line_items' => [['cantidad' => 1, 'descripcion' => 'Test', 'precio_unitario' => 100, 'subtotal' => 100]],
+                            'status' => 'draft',
+                            'state' => 1
+                        ];
+                        
+                        echo '<p><strong>Testing save with data:</strong></p>';
+                        echo '<pre>' . htmlspecialchars(print_r($testData, true)) . '</pre>';
+                        
+                        $result = $invoiceModel->save($testData);
+                        echo '<p>Save result: ' . ($result ? 'SUCCESS' : 'FAILED') . '</p>';
+                        
+                        if (!$result) {
+                            echo '<p class="error">❌ Save failed - check for database errors</p>';
+                        }
+                        
+                    } catch (Exception $modelError) {
+                        echo '<p class="error">❌ Model Error: ' . htmlspecialchars($modelError->getMessage()) . '</p>';
+                        echo '<pre>' . htmlspecialchars($modelError->getTraceAsString()) . '</pre>';
+                    }
+                    
+                } else {
+                    echo '<p class="error">❌ InvoiceModel file not found: ' . $modelPath . '</p>';
+                }
+                
+            } catch (Exception $e) {
+                echo '<p class="error">❌ Exception: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+            }
+            
+            echo '</div>';
+        } else {
+            echo '<form method="POST">';
+            echo '<p><button class="test-button" type="submit" name="test_model" value="1">🔧 Test InvoiceModel</button></p>';
+            echo '</form>';
         } else {
             echo '<form method="POST">';
             echo '<p><button class="test-button" type="submit" name="test_form" value="1">🔧 Test Form Submission</button></p>';

@@ -237,4 +237,152 @@ class AjaxController extends BaseController
         
         exit;
     }
+
+    /**
+     * Method to create quotation via AJAX
+     *
+     * @return  void
+     *
+     * @since   3.52.0
+     */
+    public function createQuotation()
+    {
+        try {
+            // Set proper headers for JSON response
+            header('Content-Type: application/json');
+            
+            $app = Factory::getApplication();
+            $user = Factory::getUser();
+        
+            // Check CSRF token
+            if (!Session::checkToken()) {
+                echo json_encode(['success' => false, 'message' => 'Invalid token']);
+                exit;
+            }
+            
+            // Check if user is in ventas group
+            $userGroups = $user->getAuthorisedGroups();
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->select('id')
+                ->from($db->quoteName('#__usergroups'))
+                ->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
+
+            $db->setQuery($query);
+            $ventasGroupId = $db->loadResult();
+
+            $hasVentasAccess = false;
+            if ($ventasGroupId && in_array($ventasGroupId, $userGroups)) {
+                $hasVentasAccess = true;
+            }
+
+            if (!$hasVentasAccess) {
+                echo json_encode(['success' => false, 'message' => 'Acceso denegado - Solo usuarios del grupo ventas']);
+                exit;
+            }
+            
+            $input = $app->input;
+            
+            // Get form data
+            $clientName = $input->getString('client_name', '');
+            $clientNit = $input->getString('client_nit', '');
+            $clientAddress = $input->getString('client_address', '');
+            $contactName = $input->getString('contact_name', '');
+            $contactPhone = $input->getString('contact_phone', '');
+            $quoteDate = $input->getString('quote_date', '');
+            $items = $input->get('items', [], 'array');
+            
+            // Validate required fields
+            if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
+                echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+                exit;
+            }
+
+            // Generate autonumeric quotation number
+            $query = $db->getQuery(true)
+                ->select('MAX(id) + 1')
+                ->from($db->quoteName('#__ordenproduccion_quotations'));
+            $db->setQuery($query);
+            $nextId = $db->loadResult() ?: 1;
+            $quotationNumber = 'COT-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+            
+            // Calculate total amount from items
+            $totalAmount = 0;
+            $lineItems = [];
+            
+            foreach ($items as $lineOrder => $item) {
+                if (!empty($item['cantidad']) && !empty($item['valor_unitario'])) {
+                    $cantidad = floatval($item['cantidad']);
+                    $valorUnitario = floatval($item['valor_unitario']);
+                    $subtotal = $cantidad * $valorUnitario;
+                    
+                    $lineItems[] = [
+                        'line_order' => $lineOrder,
+                        'cantidad' => $cantidad,
+                        'descripcion' => $item['descripcion'] ?? '',
+                        'valor_unitario' => $valorUnitario,
+                        'subtotal' => $subtotal
+                    ];
+                    
+                    $totalAmount += $subtotal;
+                }
+            }
+
+            // Prepare quotation header data
+            $quotationData = (object) [
+                'quotation_number' => $quotationNumber,
+                'client_name' => $clientName,
+                'client_nit' => $clientNit,
+                'client_address' => $clientAddress,
+                'contact_name' => $contactName,
+                'contact_phone' => $contactPhone,
+                'creation_date' => Factory::getDate()->toSql(),
+                'quote_date' => $quoteDate,
+                'total_amount' => $totalAmount,
+                'currency' => 'Q',
+                'status' => 'draft',
+                'notes' => 'Created from quotation form',
+                'state' => 1,
+                'created' => Factory::getDate()->toSql(),
+                'created_by' => $user->id,
+                'version' => '3.52.0'
+            ];
+
+            // Save quotation header to database
+            $result = $db->insertObject('#__ordenproduccion_quotations', $quotationData, 'id');
+
+            if ($result) {
+                $quotationId = $quotationData->id;
+                
+                // Save quotation items
+                foreach ($lineItems as $item) {
+                    $itemData = (object) [
+                        'quotation_id' => $quotationId,
+                        'cantidad' => $item['cantidad'],
+                        'descripcion' => $item['descripcion'],
+                        'valor_unitario' => $item['valor_unitario'],
+                        'subtotal' => $item['subtotal'],
+                        'line_order' => $item['line_order'],
+                        'created' => Factory::getDate()->toSql()
+                    ];
+                    
+                    $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
+                }
+                
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Quotation created successfully: ' . $quotationNumber,
+                    'quotation_number' => $quotationNumber,
+                    'quotation_id' => $quotationId
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error creating quotation']);
+            }
+            
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+        }
+        
+        exit;
+    }
 }

@@ -57,3 +57,4 @@ ADD KEY `idx_invoice_number` (`invoice_number`);
 
 -- Update component version
 UPDATE `#__ordenproduccion_config` SET `setting_value` = '3.43.0-STABLE' WHERE `setting_key` = 'component_version';
+
