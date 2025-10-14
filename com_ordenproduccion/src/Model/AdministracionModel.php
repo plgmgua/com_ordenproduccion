@@ -145,7 +145,125 @@ class AdministracionModel extends BaseDatabaseModel
             $stats->salesAgentsWithClients[] = $agent;
         }
 
+        // 7. Top 10 Clients Yearly Trend (current year and previous 2 years)
+        $currentYear = (int) $year;
+        $stats->clientYearlyTrend = $this->getClientYearlyTrend($currentYear);
+
+        // 8. Sales Agents Yearly Trend (current year and previous 2 years)
+        $stats->agentYearlyTrend = $this->getAgentYearlyTrend($currentYear);
+
         return $stats;
+    }
+
+    /**
+     * Get top 10 clients yearly trend data
+     *
+     * @param   int  $currentYear  Current year
+     *
+     * @return  array  Trend data by client
+     *
+     * @since   3.52.6
+     */
+    protected function getClientYearlyTrend($currentYear)
+    {
+        $db = Factory::getDbo();
+        $years = [$currentYear - 2, $currentYear - 1, $currentYear];
+        
+        // First, get top 10 clients from current year
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('client_name'),
+                'SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total_value'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('YEAR(' . $db->quoteName('created') . ') = ' . $currentYear)
+            ->where($db->quoteName('client_name') . ' IS NOT NULL')
+            ->where($db->quoteName('client_name') . ' != ' . $db->quote(''))
+            ->group($db->quoteName('client_name'))
+            ->order('total_value DESC')
+            ->setLimit(10);
+        $db->setQuery($query);
+        $topClients = $db->loadObjectList('client_name') ?: [];
+
+        // Get trend data for these top 10 clients across all years
+        $trendData = [];
+        foreach (array_keys($topClients) as $clientName) {
+            $clientTrend = ['client_name' => $clientName, 'years' => []];
+            
+            foreach ($years as $yr) {
+                $query = $db->getQuery(true)
+                    ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where('YEAR(' . $db->quoteName('created') . ') = ' . $yr)
+                    ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+                $db->setQuery($query);
+                $total = $db->loadResult() ?: 0;
+                
+                $clientTrend['years'][$yr] = (float) $total;
+            }
+            
+            $trendData[] = $clientTrend;
+        }
+
+        return [
+            'years' => $years,
+            'clients' => $trendData
+        ];
+    }
+
+    /**
+     * Get sales agents yearly trend data
+     *
+     * @param   int  $currentYear  Current year
+     *
+     * @return  array  Trend data by agent
+     *
+     * @since   3.52.6
+     */
+    protected function getAgentYearlyTrend($currentYear)
+    {
+        $db = Factory::getDbo();
+        $years = [$currentYear - 2, $currentYear - 1, $currentYear];
+        
+        // Get all sales agents who have orders in any of the 3 years
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('sales_agent'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('YEAR(' . $db->quoteName('created') . ') IN (' . implode(',', $years) . ')')
+            ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->order($db->quoteName('sales_agent'));
+        $db->setQuery($query);
+        $agents = $db->loadColumn() ?: [];
+
+        // Get trend data for each agent across all years
+        $trendData = [];
+        foreach ($agents as $agentName) {
+            $agentTrend = ['agent_name' => $agentName, 'years' => []];
+            
+            foreach ($years as $yr) {
+                $query = $db->getQuery(true)
+                    ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where('YEAR(' . $db->quoteName('created') . ') = ' . $yr)
+                    ->where($db->quoteName('sales_agent') . ' = ' . $db->quote($agentName));
+                $db->setQuery($query);
+                $total = $db->loadResult() ?: 0;
+                
+                $agentTrend['years'][$yr] = (float) $total;
+            }
+            
+            $trendData[] = $agentTrend;
+        }
+
+        return [
+            'years' => $years,
+            'agents' => $trendData
+        ];
     }
 }
 

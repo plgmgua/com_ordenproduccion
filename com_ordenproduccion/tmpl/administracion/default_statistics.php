@@ -313,6 +313,61 @@ $monthNames = [
         font-size: 16px;
     }
 }
+
+/* Yearly Trend Charts */
+.trend-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container h2 {
+    color: #007cba;
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chart-wrapper {
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .trend-charts {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-wrapper {
+        height: 350px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        padding: 15px;
+    }
+    
+    .chart-container h2 {
+        font-size: 16px;
+    }
+    
+    .chart-wrapper {
+        height: 300px;
+    }
+}
 </style>
 
 <div class="admin-dashboard">
@@ -551,5 +606,178 @@ $monthNames = [
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- Yearly Trend Charts -->
+    <div class="trend-charts">
+        <!-- Top 10 Clients Yearly Trend -->
+        <div class="chart-container">
+            <h2>
+                <i class="fas fa-chart-line"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_YEARLY_TREND'); ?>
+            </h2>
+            <div class="chart-wrapper">
+                <canvas id="clientTrendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Sales Agents Yearly Trend -->
+        <div class="chart-container">
+            <h2>
+                <i class="fas fa-chart-area"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AGENT_YEARLY_TREND'); ?>
+            </h2>
+            <div class="chart-wrapper">
+                <canvas id="agentTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Load Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+// Top 10 Clients Yearly Trend Chart
+<?php if (!empty($stats->clientYearlyTrend) && !empty($stats->clientYearlyTrend['clients'])): ?>
+const clientTrendData = {
+    labels: <?php echo json_encode($stats->clientYearlyTrend['years']); ?>,
+    datasets: [
+        <?php foreach ($stats->clientYearlyTrend['clients'] as $index => $client): ?>
+        {
+            label: <?php echo json_encode($client['client_name']); ?>,
+            data: <?php echo json_encode(array_values($client['years'])); ?>,
+            borderColor: getColor(<?php echo $index; ?>),
+            backgroundColor: getColor(<?php echo $index; ?>, 0.1),
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }<?php echo $index < count($stats->clientYearlyTrend['clients']) - 1 ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ]
+};
+
+const clientTrendConfig = {
+    type: 'line',
+    data: clientTrendData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 15,
+                    font: { size: 11 }
+                }
+            },
+            title: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'Q ' + value.toLocaleString('es-GT');
+                    }
+                }
+            }
+        }
+    }
+};
+
+new Chart(document.getElementById('clientTrendChart'), clientTrendConfig);
+<?php endif; ?>
+
+// Sales Agents Yearly Trend Chart
+<?php if (!empty($stats->agentYearlyTrend) && !empty($stats->agentYearlyTrend['agents'])): ?>
+const agentTrendData = {
+    labels: <?php echo json_encode($stats->agentYearlyTrend['years']); ?>,
+    datasets: [
+        <?php foreach ($stats->agentYearlyTrend['agents'] as $index => $agent): ?>
+        {
+            label: <?php echo json_encode($agent['agent_name']); ?>,
+            data: <?php echo json_encode(array_values($agent['years'])); ?>,
+            borderColor: getColor(<?php echo $index; ?>),
+            backgroundColor: getColor(<?php echo $index; ?>, 0.2),
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }<?php echo $index < count($stats->agentYearlyTrend['agents']) - 1 ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ]
+};
+
+const agentTrendConfig = {
+    type: 'line',
+    data: agentTrendData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 15,
+                    font: { size: 11 }
+                }
+            },
+            title: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'Q ' + value.toLocaleString('es-GT');
+                    }
+                }
+            }
+        }
+    }
+};
+
+new Chart(document.getElementById('agentTrendChart'), agentTrendConfig);
+<?php endif; ?>
+
+// Helper function to generate colors for chart lines
+function getColor(index, alpha = 1) {
+    const colors = [
+        `rgba(0, 124, 186, ${alpha})`,   // Blue
+        `rgba(76, 175, 80, ${alpha})`,   // Green
+        `rgba(255, 152, 0, ${alpha})`,   // Orange
+        `rgba(156, 39, 176, ${alpha})`,  // Purple
+        `rgba(244, 67, 54, ${alpha})`,   // Red
+        `rgba(0, 188, 212, ${alpha})`,   // Cyan
+        `rgba(255, 193, 7, ${alpha})`,   // Amber
+        `rgba(96, 125, 139, ${alpha})`,  // Blue Grey
+        `rgba(233, 30, 99, ${alpha})`,   // Pink
+        `rgba(139, 195, 74, ${alpha})`   // Light Green
+    ];
+    return colors[index % colors.length];
+}
+</script>
 
