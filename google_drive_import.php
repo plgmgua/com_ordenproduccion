@@ -19,7 +19,6 @@ set_time_limit(0); // No time limit
 ini_set('memory_limit', '512M'); // Increase memory limit
 
 // --- CONFIGURATION ---
-$pathToCredentials = __DIR__ . '/helpers/leernuevacotizacion-7b11714cae3f.json';
 $downloadPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaciones/';
 $tableName = 'joomla_ordenproduccion_ordenes';
 $fieldWithUrl = 'quotation_files';
@@ -78,25 +77,10 @@ logMessage("Starting Google Drive import process at: " . date('Y-m-d H:i:s'));
 logMessage("Memory limit: " . ini_get('memory_limit'));
 logMessage("Time limit: " . ini_get('max_execution_time') . " seconds");
 
-// Check if credentials file exists
-if (!file_exists($pathToCredentials)) {
-    logMessage("Google service account credentials file not found: $pathToCredentials", 'error');
-    logMessage("Please ensure the file 'leernuevacotizacion-7b11714cae3f.json' is in the helpers folder", 'error');
-    exit(1);
-}
+// Note: No credentials file needed for direct download method
 
-// Check if Google API library is available
-if (!class_exists('Google\Client')) {
-    logMessage("Google API library not found. Please install it with: composer require google/apiclient", 'error');
-    exit(1);
-}
-
-// Load Google API library
-require __DIR__ . '/vendor/autoload.php';
-
-// Import Google classes
-use Google\Client;
-use Google\Service\Drive;
+// Note: Using direct Google Drive download without Google API library
+// This approach works with publicly accessible Google Drive files
 
 try {
     // --- MYSQL CONNECTION ---
@@ -107,15 +91,9 @@ try {
     }
     logMessage("✅ Database connection successful", 'success');
 
-    // --- GOOGLE CLIENT SETUP ---
-    logMessage("Setting up Google Drive client...");
-    
-    $client = new Client();
-    $client->setAuthConfig($pathToCredentials);
-    $client->addScope(Drive::DRIVE_READONLY);
-    
-    $service = new Drive($client);
-    logMessage("✅ Google Drive client configured", 'success');
+    // --- GOOGLE DRIVE DOWNLOAD SETUP ---
+    logMessage("Setting up Google Drive download system...");
+    logMessage("✅ Using direct download method (no API library required)", 'success');
 
     // --- FUNCTION: EXTRACT FILE ID ---
     function getDriveFileId($url) {
@@ -214,11 +192,39 @@ try {
         }
 
         try {
-            // Get file metadata
-            logMessage("Getting file metadata for file ID: $fileId");
-            $file = $service->files->get($fileId, ['fields' => 'name,size,createdTime']);
-            $fileName = $file->name;
-            $fileSize = $file->size ?? 'unknown';
+            // Get file metadata using direct download URL
+            $downloadUrl = "https://drive.google.com/uc?export=download&id=" . $fileId;
+            logMessage("Getting file info for file ID: $fileId");
+            
+            // Try to get filename from headers
+            $fileName = "COT_" . $fileId . ".pdf"; // Default filename
+            $fileSize = 'unknown';
+            
+            // Make a HEAD request to get file info
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $downloadUrl);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            
+            $headers = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            
+            if ($httpCode == 200) {
+                // Extract filename from Content-Disposition header
+                if (preg_match('/filename="([^"]+)"/', $headers, $matches)) {
+                    $fileName = $matches[1];
+                }
+                // Extract file size from Content-Length header
+                if (preg_match('/Content-Length: (\d+)/', $headers, $matches)) {
+                    $fileSize = $matches[1];
+                }
+            }
+            
+            curl_close($ch);
             
             logMessage("File: $fileName (Size: $fileSize bytes)");
 
@@ -253,10 +259,29 @@ try {
                 continue;
             }
 
-            // Download file content
+            // Download file content using cURL
             logMessage("Downloading file content...");
-            $content = $service->files->get($fileId, ['alt' => 'media']);
-            $fileContent = $content->getBody()->getContents();
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $downloadUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            curl_setopt($ch, CURLOPT_TIMEOUT, 300); // 5 minutes timeout
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+            
+            $fileContent = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+            
+            if ($fileContent === false || !empty($error)) {
+                throw new Exception("Failed to download file: " . $error);
+            }
+            
+            if ($httpCode != 200) {
+                throw new Exception("HTTP error $httpCode while downloading file");
+            }
             
             // Save file
             if (file_put_contents($filePath, $fileContent) === false) {
