@@ -104,8 +104,142 @@ $app = Factory::getApplication('site');
             echo '<p class="error">❌ Database Error: ' . htmlspecialchars($e->getMessage()) . '</p>';
         }
 
-        // Test 2: Manual test invoice creation
-        echo '<h2>🧪 Test 2: Manual Invoice Creation Test</h2>';
+        // Test 2: Check PHP Error Logs
+        echo '<h2>📝 Test 2: PHP Error Logs</h2>';
+        
+        $logFiles = [
+            '/var/log/apache2/error.log',
+            '/var/log/nginx/error.log',
+            '/var/log/php_errors.log',
+            ini_get('error_log'),
+            JPATH_ROOT . '/logs/error.php',
+            JPATH_ROOT . '/logs/joomla.log'
+        ];
+        
+        echo '<table>';
+        echo '<tr><th>Log File</th><th>Exists</th><th>Size</th><th>Recent Invoice Errors</th></tr>';
+        
+        foreach ($logFiles as $logFile) {
+            $exists = file_exists($logFile);
+            $size = $exists ? filesize($logFile) : 0;
+            $recentErrors = 0;
+            
+            if ($exists && $size > 0) {
+                $logContent = file_get_contents($logFile);
+                $recentErrors = substr_count($logContent, 'invoice') + substr_count($logContent, 'ordenproduccion');
+            }
+            
+            echo '<tr>';
+            echo '<td style="font-size: 11px;">' . htmlspecialchars($logFile) . '</td>';
+            echo '<td>' . ($exists ? '<span class="success">✅</span>' : '<span class="error">❌</span>') . '</td>';
+            echo '<td>' . ($exists ? number_format($size) . ' bytes' : '-') . '</td>';
+            echo '<td>' . ($recentErrors > 0 ? '<span class="warning">⚠️ ' . $recentErrors . ' entries</span>' : '-') . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+
+        // Test 3: Check Form Submission Simulation
+        echo '<h2>🔧 Test 3: Form Submission Test</h2>';
+        
+        if (isset($_POST['test_form'])) {
+            echo '<div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
+            echo '<h3>Simulating Form Submission...</h3>';
+            
+            // Enable error reporting for debugging
+            error_reporting(E_ALL);
+            ini_set('display_errors', 1);
+            
+            // Simulate the exact form data that would be sent
+            $testFormData = [
+                'task' => 'invoice.create',
+                'option' => 'com_ordenproduccion',
+                'order_id' => 5397,
+                'order_number' => 'ORD-005551',
+                'cliente' => 'MULTI IMPRESOS',
+                'nit' => 'CF',
+                'direccion' => 'Ciudad',
+                'items' => [
+                    1 => [
+                        'cantidad' => 2,
+                        'descripcion' => 'tarjetas',
+                        'precio_unitario' => 300,
+                        'subtotal' => 600
+                    ],
+                    2 => [
+                        'cantidad' => 3,
+                        'descripcion' => 'libros',
+                        'precio_unitario' => 30,
+                        'subtotal' => 90
+                    ]
+                ]
+            ];
+            
+            echo '<p><strong>Simulated Form Data:</strong></p>';
+            echo '<pre>' . htmlspecialchars(print_r($testFormData, true)) . '</pre>';
+            
+            // Try to create invoice using the controller
+            try {
+                echo '<p class="info">Attempting to create invoice via controller...</p>';
+                
+                // Set up the input data
+                $input = $app->input;
+                foreach ($testFormData as $key => $value) {
+                    $input->set($key, $value);
+                }
+                
+                // Set CSRF token
+                $token = JSession::getFormToken();
+                $_POST[$token] = '1';
+                
+                echo '<p>CSRF Token: ' . $token . '</p>';
+                
+                // Include the controller
+                $controllerPath = JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/InvoiceController.php';
+                if (file_exists($controllerPath)) {
+                    echo '<p class="success">✅ Controller file found</p>';
+                    
+                    // Capture any output
+                    ob_start();
+                    include_once $controllerPath;
+                    
+                    try {
+                        $controller = new \Grimpsa\Component\Ordenproduccion\Site\Controller\InvoiceController();
+                        echo '<p class="success">✅ Controller instantiated</p>';
+                        
+                        $result = $controller->create();
+                        echo '<p class="success">✅ Controller::create() executed</p>';
+                        echo '<p>Result: ' . ($result ? 'SUCCESS' : 'FAILED') . '</p>';
+                        
+                    } catch (Exception $controllerError) {
+                        echo '<p class="error">❌ Controller Error: ' . htmlspecialchars($controllerError->getMessage()) . '</p>';
+                        echo '<pre>' . htmlspecialchars($controllerError->getTraceAsString()) . '</pre>';
+                    }
+                    
+                    $output = ob_get_clean();
+                    if (!empty($output)) {
+                        echo '<p><strong>Controller Output:</strong></p>';
+                        echo '<pre>' . htmlspecialchars($output) . '</pre>';
+                    }
+                    
+                } else {
+                    echo '<p class="error">❌ Controller file not found: ' . $controllerPath . '</p>';
+                }
+                
+            } catch (Exception $e) {
+                echo '<p class="error">❌ Exception: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+            }
+            
+            echo '</div>';
+        } else {
+            echo '<form method="POST">';
+            echo '<p><button class="test-button" type="submit" name="test_form" value="1">🔧 Test Form Submission</button></p>';
+            echo '</form>';
+            echo '<p class="warning">⚠️ This simulates the exact form submission from the web interface</p>';
+        }
+
+        // Test 3: Manual test invoice creation
+        echo '<h2>🧪 Test 3: Manual Invoice Creation Test</h2>';
         
         if (isset($_GET['test_create'])) {
             echo '<div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
