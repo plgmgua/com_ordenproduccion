@@ -399,6 +399,14 @@ $monthNames = [
     padding: 25px;
 }
 
+/* Client Annual Trend Chart */
+.client-trend-section {
+    margin: 30px 0;
+    background: #f0f8ff;
+    border-radius: 8px;
+    padding: 25px;
+}
+
 .chart-header {
     display: flex;
     justify-content: space-between;
@@ -729,6 +737,51 @@ $monthNames = [
         </div>
     </div>
 
+    <!-- Client Annual Trend Charts -->
+    <div class="client-trend-section">
+        <div class="chart-header">
+            <h2>
+                <i class="fas fa-users"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_ANNUAL_TREND'); ?>
+            </h2>
+            <div class="year-selector">
+                <label for="client-year-select">
+                    <i class="fas fa-calendar"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SELECT_YEAR'); ?>:
+                </label>
+                <select id="client-year-select" onchange="updateClientChart()">
+                    <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
+                        <option value="<?php echo $y; ?>" <?php echo $y == $currentYear ? 'selected' : ''; ?>>
+                            <?php echo $y; ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Line Chart -->
+        <div class="chart-container-single">
+            <div class="chart-subtitle">
+                <i class="fas fa-chart-line"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_LINE_CHART'); ?>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="clientAnnualChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Bar Chart -->
+        <div class="chart-container-single">
+            <div class="chart-subtitle">
+                <i class="fas fa-chart-bar"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_BAR_CHART'); ?>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="clientAnnualBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- Top 10 Orders Table -->
     <div class="top-orders-table">
         <h2>
@@ -807,9 +860,12 @@ function getColor(index, alpha = 1) {
 // Store chart instances globally
 let agentAnnualChart = null;
 let agentAnnualBarChart = null;
+let clientAnnualChart = null;
+let clientAnnualBarChart = null;
 
-// Store agent trend data (only yearly data)
+// Store trend data (yearly data)
 const agentAnnualData = <?php echo json_encode($stats->agentTrend ?? []); ?>;
+const clientAnnualData = <?php echo json_encode($stats->clientTrend ?? []); ?>;
 
 // Initialize agent annual charts (line and bar)
 function initializeAgentChart() {
@@ -924,6 +980,119 @@ function initializeAgentChart() {
     <?php endif; ?>
 }
 
+// Initialize client annual charts (line and bar)
+function initializeClientChart() {
+    <?php if (!empty($stats->clientTrend) && !empty($stats->clientTrend['clients'])): ?>
+    
+    // Destroy existing charts completely
+    if (clientAnnualChart) {
+        clientAnnualChart.destroy();
+        clientAnnualChart = null;
+    }
+    if (clientAnnualBarChart) {
+        clientAnnualBarChart.destroy();
+        clientAnnualBarChart = null;
+    }
+    
+    // Ensure we have fresh data
+    console.log('Initializing client charts with fresh data:', clientAnnualData);
+    
+    // Validate and prepare chart data
+    if (!clientAnnualData || !clientAnnualData.clients || !Array.isArray(clientAnnualData.clients)) {
+        console.error('Invalid client chart data:', clientAnnualData);
+        return;
+    }
+    
+    // Process data to ensure no duplication and proper values
+    const processedClients = clientAnnualData.clients.map((client, index) => {
+        // Ensure data is a proper array of numbers
+        const cleanData = Array.isArray(client.data) ? client.data.map(val => parseFloat(val) || 0) : [];
+        console.log(`Client ${client.client_name} data:`, cleanData);
+        
+        return {
+            label: client.client_name,
+            data: cleanData,
+            borderColor: getColor(index),
+            backgroundColor: getColor(index, 0.2),
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 6,
+            pointHoverRadius: 8
+        };
+    });
+    
+    // Common data for both charts
+    const chartData = {
+        labels: clientAnnualData.labels || ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+        datasets: processedClients
+    };
+
+    // Common options for both charts
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 20,
+                    font: { size: 12 }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'Q ' + value.toLocaleString('es-GT');
+                    }
+                }
+            }
+        }
+    };
+
+    // Line Chart Configuration
+    const lineConfig = {
+        type: 'line',
+        data: chartData,
+        options: commonOptions
+    };
+
+    // Bar Chart Configuration with processed data
+    const barConfig = {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: processedClients.map((client, index) => ({
+                label: client.label,
+                data: client.data,
+                backgroundColor: getColor(index, 0.8),
+                borderColor: getColor(index),
+                borderWidth: 2,
+                borderRadius: 4,
+                borderSkipped: false
+            }))
+        },
+        options: commonOptions
+    };
+
+    // Initialize both charts
+    clientAnnualChart = new Chart(document.getElementById('clientAnnualChart'), lineConfig);
+    clientAnnualBarChart = new Chart(document.getElementById('clientAnnualBarChart'), barConfig);
+    
+    <?php endif; ?>
+}
+
 // Function to update agent chart when year changes
 function updateAgentChart() {
     const selectedYear = parseInt(document.getElementById('agent-year-select').value);
@@ -949,9 +1118,35 @@ function updateAgentChart() {
     }
 }
 
-// Initialize agent chart on page load
+// Function to update client chart when year changes
+function updateClientChart() {
+    const selectedYear = parseInt(document.getElementById('client-year-select').value);
+    
+    // Clear chart instances and data completely
+    if (clientAnnualChart) {
+        clientAnnualChart.destroy();
+        clientAnnualChart = null;
+    }
+    if (clientAnnualBarChart) {
+        clientAnnualBarChart.destroy();
+        clientAnnualBarChart = null;
+    }
+    
+    // Clear any cached data
+    if (typeof clientAnnualData !== 'undefined') {
+        // Force data refresh by reloading page
+        const url = new URL(window.location.href);
+        url.searchParams.set('year', selectedYear);
+        url.searchParams.set('month', 0); // Always use yearly view for client chart
+        url.searchParams.set('_t', Date.now()); // Add timestamp to prevent caching
+        window.location.href = url.toString();
+    }
+}
+
+// Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
     initializeAgentChart();
+    initializeClientChart();
 });
 </script>
 

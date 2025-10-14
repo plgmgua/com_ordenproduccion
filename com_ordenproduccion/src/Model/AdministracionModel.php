@@ -155,6 +155,9 @@ class AdministracionModel extends BaseDatabaseModel
         // 7. Sales Agents Annual Trend Data (yearly view only)
         $currentYear = (int) $year;
         $stats->agentTrend = $this->getAgentAnnualTrend($currentYear);
+        
+        // 8. Top 10 Clients Annual Trend Data (yearly view only)
+        $stats->clientTrend = $this->getClientAnnualTrend($currentYear);
 
         return $stats;
     }
@@ -346,6 +349,79 @@ class AdministracionModel extends BaseDatabaseModel
         return [
             'labels' => $labels,
             'agents' => $trendData
+        ];
+    }
+
+    /**
+     * Get top 10 clients annual trend data (yearly view only)
+     *
+     * @param   int  $year   Year
+     *
+     * @return  array  Annual trend data by client
+     *
+     * @since   3.52.11
+     */
+    protected function getClientAnnualTrend($year)
+    {
+        $db = Factory::getDbo();
+        
+        // Always show monthly data for selected year
+        $labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        
+        // Get top 10 clients for this year
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('client_name'),
+                'SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total_value'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('YEAR(' . $db->quoteName('created') . ') = ' . $year)
+            ->where($db->quoteName('client_name') . ' IS NOT NULL')
+            ->where($db->quoteName('client_name') . ' != ' . $db->quote(''))
+            ->group($db->quoteName('client_name'))
+            ->order('total_value DESC')
+            ->setLimit(10);
+        $db->setQuery($query);
+        $topClients = $db->loadObjectList('client_name') ?: [];
+        
+        // Get monthly data for each client
+        $trendData = [];
+        foreach (array_keys($topClients) as $clientName) {
+            $clientTrend = ['client_name' => $clientName, 'data' => []];
+            
+            for ($m = 1; $m <= 12; $m++) {
+                $monthStr = str_pad($m, 2, '0', STR_PAD_LEFT);
+                $startDate = $year . '-' . $monthStr . '-01';
+                $endDate = date('Y-m-t', strtotime($startDate));
+                
+                $query = $db->getQuery(true)
+                    ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                    ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
+                    ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+                $db->setQuery($query);
+                $total = $db->loadResult() ?: 0;
+                
+                // Ensure we're not getting inflated values
+                $cleanTotal = (float) $total;
+                
+                // Debug output (remove in production)
+                if (Factory::getApplication()->get('debug')) {
+                    error_log("Client: $clientName, Month: $m, Total: $cleanTotal");
+                }
+                
+                $clientTrend['data'][] = $cleanTotal;
+            }
+            
+            $trendData[] = $clientTrend;
+        }
+
+        return [
+            'labels' => $labels,
+            'clients' => $trendData
         ];
     }
 }
