@@ -226,9 +226,15 @@ class InvoiceModel extends BaseDatabaseModel
      */
     public function save($data)
     {
+        error_log('=== InvoiceModel::save() called ===');
+        error_log('Input data: ' . print_r($data, true));
+        
         $db = $this->getDatabase();
         $user = Factory::getUser();
         $date = Factory::getDate()->toSql();
+        
+        error_log('User ID: ' . $user->id);
+        error_log('Current date: ' . $date);
 
         try {
             // Prepare data
