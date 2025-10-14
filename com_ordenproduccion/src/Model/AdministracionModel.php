@@ -152,13 +152,9 @@ class AdministracionModel extends BaseDatabaseModel
             $stats->salesAgentsWithClients[] = $agent;
         }
 
-        // 7. Top 10 Clients Trend Data (supports yearly/monthly/daily views)
+        // 7. Sales Agents Annual Trend Data (yearly view only)
         $currentYear = (int) $year;
-        $currentMonth = (int) $month;
-        $stats->clientTrend = $this->getClientTrend($currentYear, $currentMonth);
-
-        // 8. Sales Agents Trend Data (supports yearly/monthly/daily views)
-        $stats->agentTrend = $this->getAgentTrend($currentYear, $currentMonth);
+        $stats->agentTrend = $this->getAgentAnnualTrend($currentYear);
 
         return $stats;
     }
@@ -286,114 +282,62 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get sales agents trend data
+     * Get sales agents annual trend data (yearly view only)
      *
      * @param   int  $year   Year
-     * @param   int  $month  Month (0 for yearly view)
      *
-     * @return  array  Trend data by agent
+     * @return  array  Annual trend data by agent
      *
-     * @since   3.52.7
+     * @since   3.52.8
      */
-    protected function getAgentTrend($year, $month)
+    protected function getAgentAnnualTrend($year)
     {
         $db = Factory::getDbo();
         
-        // Determine if we're showing yearly (12 months) or monthly (days) view
-        $isMonthlyView = ($month > 0);
+        // Always show monthly data for selected year
+        $labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         
-        if ($isMonthlyView) {
-            // Monthly view: show daily data for selected month
-            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
-            $labels = range(1, $daysInMonth);
+        // Get all agents for this year
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('sales_agent'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('YEAR(' . $db->quoteName('created') . ') = ' . $year)
+            ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->order($db->quoteName('sales_agent'));
+        $db->setQuery($query);
+        $agents = $db->loadColumn() ?: [];
+        
+        // Get monthly data for each agent
+        $trendData = [];
+        foreach ($agents as $agentName) {
+            $agentTrend = ['agent_name' => $agentName, 'data' => []];
             
-            // Get all agents for this month
-            $monthStr = str_pad($month, 2, '0', STR_PAD_LEFT);
-            $startDate = $year . '-' . $monthStr . '-01';
-            $endDate = date('Y-m-t', strtotime($startDate));
-            
-            $query = $db->getQuery(true)
-                ->select('DISTINCT ' . $db->quoteName('sales_agent'))
-                ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($db->quoteName('state') . ' = 1')
-                ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-                ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
-                ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
-                ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
-                ->order($db->quoteName('sales_agent'));
-            $db->setQuery($query);
-            $agents = $db->loadColumn() ?: [];
-            
-            // Get daily data for each agent
-            $trendData = [];
-            foreach ($agents as $agentName) {
-                $agentTrend = ['agent_name' => $agentName, 'data' => []];
+            for ($m = 1; $m <= 12; $m++) {
+                $monthStr = str_pad($m, 2, '0', STR_PAD_LEFT);
+                $startDate = $year . '-' . $monthStr . '-01';
+                $endDate = date('Y-m-t', strtotime($startDate));
                 
-                foreach ($labels as $day) {
-                    $dayStr = str_pad($day, 2, '0', STR_PAD_LEFT);
-                    $dateStr = $year . '-' . $monthStr . '-' . $dayStr;
-                    
-                    $query = $db->getQuery(true)
-                        ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
-                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                        ->where($db->quoteName('state') . ' = 1')
-                        ->where('DATE(' . $db->quoteName('created') . ') = ' . $db->quote($dateStr))
-                        ->where($db->quoteName('sales_agent') . ' = ' . $db->quote($agentName));
-                    $db->setQuery($query);
-                    $total = $db->loadResult() ?: 0;
-                    
-                    $agentTrend['data'][] = (float) $total;
-                }
+                $query = $db->getQuery(true)
+                    ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                    ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
+                    ->where($db->quoteName('sales_agent') . ' = ' . $db->quote($agentName));
+                $db->setQuery($query);
+                $total = $db->loadResult() ?: 0;
                 
-                $trendData[] = $agentTrend;
+                $agentTrend['data'][] = (float) $total;
             }
-        } else {
-            // Yearly view: show monthly data for selected year
-            $labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             
-            // Get all agents for this year
-            $query = $db->getQuery(true)
-                ->select('DISTINCT ' . $db->quoteName('sales_agent'))
-                ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($db->quoteName('state') . ' = 1')
-                ->where('YEAR(' . $db->quoteName('created') . ') = ' . $year)
-                ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
-                ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
-                ->order($db->quoteName('sales_agent'));
-            $db->setQuery($query);
-            $agents = $db->loadColumn() ?: [];
-            
-            // Get monthly data for each agent
-            $trendData = [];
-            foreach ($agents as $agentName) {
-                $agentTrend = ['agent_name' => $agentName, 'data' => []];
-                
-                for ($m = 1; $m <= 12; $m++) {
-                    $monthStr = str_pad($m, 2, '0', STR_PAD_LEFT);
-                    $startDate = $year . '-' . $monthStr . '-01';
-                    $endDate = date('Y-m-t', strtotime($startDate));
-                    
-                    $query = $db->getQuery(true)
-                        ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
-                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                        ->where($db->quoteName('state') . ' = 1')
-                        ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-                        ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
-                        ->where($db->quoteName('sales_agent') . ' = ' . $db->quote($agentName));
-                    $db->setQuery($query);
-                    $total = $db->loadResult() ?: 0;
-                    
-                    $agentTrend['data'][] = (float) $total;
-                }
-                
-                $trendData[] = $agentTrend;
-            }
+            $trendData[] = $agentTrend;
         }
 
         return [
             'labels' => $labels,
-            'agents' => $trendData,
-            'view' => $isMonthlyView ? 'daily' : 'monthly'
+            'agents' => $trendData
         ];
     }
 }
