@@ -599,16 +599,14 @@ $orderData = $this->getOrderData();
         submitButton.disabled = true;
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROCESSING'); ?>...';
         
-        // Get form data
-        const formData = new FormData();
-        formData.append('task', 'invoice.create');
-        formData.append('option', 'com_ordenproduccion');
-        formData.append('<?php echo JSession::getFormToken(); ?>', '1');  // CSRF token
-        formData.append('order_id', <?php echo $this->orderId; ?>);
-        formData.append('order_number', '<?php echo htmlspecialchars($this->orderNumber); ?>');
-        formData.append('cliente', document.getElementById('cliente').value);
-        formData.append('nit', document.getElementById('nit').value);
-        formData.append('direccion', document.getElementById('direccion').value);
+            // Get form data
+            const formData = new FormData();
+            formData.append('<?php echo JSession::getFormToken(); ?>', '1');  // CSRF token
+            formData.append('order_id', <?php echo $this->orderId; ?>);
+            formData.append('order_number', '<?php echo htmlspecialchars($this->orderNumber); ?>');
+            formData.append('cliente', document.getElementById('cliente').value);
+            formData.append('nit', document.getElementById('nit').value);
+            formData.append('direccion', document.getElementById('direccion').value);
         
         // Get invoice items data
         const rows = document.querySelectorAll('.invoice-item-row');
@@ -626,27 +624,31 @@ $orderData = $this->getOrderData();
             }
         });
         
-        // Submit to backend via Joomla's index.php
-        fetch('<?php echo Uri::root(); ?>index.php', {
+        // Submit to AJAX endpoint (following working pattern from changeStatus)
+        fetch('<?php echo Uri::root(); ?>index.php?option=com_ordenproduccion&task=ajax.createInvoice', {
             method: 'POST',
             body: formData
         })
         .then(response => {
-            // Check if redirect or success
-            if (response.redirected) {
-                window.location.href = response.url;
-            } else if (response.ok) {
-                // Success - redirect to work orders page
+            if (!response.ok) {
+                throw new Error('Server error: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Success - show message and redirect
+                alert('Factura creada exitosamente: ' + data.invoice_number);
                 window.location.href = 'index.php?option=com_ordenproduccion&view=administracion&tab=workorders';
             } else {
-                throw new Error('Server error: ' + response.status);
+                throw new Error(data.message || 'Error creating invoice');
             }
         })
         .catch(error => {
             // Error - re-enable button and show error
             submitButton.disabled = false;
             submitButton.innerHTML = originalText;
-            alert('Error al crear la factura. Por favor, intente nuevamente.');
+            alert('Error al crear la factura: ' + error.message);
             console.error('Error:', error);
         });
     }
