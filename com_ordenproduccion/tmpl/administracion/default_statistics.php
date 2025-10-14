@@ -314,29 +314,165 @@ $monthNames = [
     }
 }
 
-/* Yearly Trend Charts */
+/* Compact Statistics Cards */
+.stats-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-card-compact {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #007cba;
+    transition: transform 0.2s;
+}
+
+.stat-card-compact:hover {
+    transform: translateY(-2px);
+}
+
+.stat-card-compact.primary { border-left-color: #007cba; }
+.stat-card-compact.success { border-left-color: #28a745; }
+.stat-card-compact.warning { border-left-color: #ffc107; }
+.stat-card-compact.info { border-left-color: #17a2b8; }
+
+.stat-card-compact h3 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.value-compact {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.subtitle-compact {
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.status-details-compact {
+    margin-top: 8px;
+}
+
+.status-item-compact {
+    font-size: 11px;
+    margin-bottom: 3px;
+    color: #495057;
+}
+
+.status-item-compact strong {
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .stats-grid-compact {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .stat-card-compact {
+        padding: 12px;
+    }
+    
+    .value-compact {
+        font-size: 18px;
+    }
+}
+
+/* Yearly Trend Charts Section */
+.trend-charts-section {
+    margin: 30px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 25px;
+}
+
+.charts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.charts-header h2 {
+    color: #007cba;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chart-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chart-filters label {
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.chart-filters select {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.chart-filters select:hover {
+    border-color: #007cba;
+}
+
+.chart-filters select:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 0.2rem rgba(0, 124, 186, 0.25);
+}
+
 .trend-charts {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
-    margin-top: 30px;
+    gap: 25px;
 }
 
 .chart-container {
     background: white;
     border-radius: 8px;
-    padding: 25px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.chart-container h2 {
-    color: #007cba;
-    margin: 0 0 20px 0;
-    font-size: 18px;
+.chart-container h3 {
+    color: #495057;
+    margin: 0 0 15px 0;
+    font-size: 16px;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .chart-wrapper {
@@ -356,12 +492,21 @@ $monthNames = [
 }
 
 @media (max-width: 768px) {
+    .trend-charts-section {
+        padding: 15px;
+    }
+    
+    .charts-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
     .chart-container {
         padding: 15px;
     }
     
-    .chart-container h2 {
-        font-size: 16px;
+    .chart-container h3 {
+        font-size: 14px;
     }
     
     .chart-wrapper {
@@ -371,6 +516,48 @@ $monthNames = [
 </style>
 
 <div class="admin-dashboard">
+    <!-- Statistics Cards (Compact) -->
+    <div class="stats-grid-compact">
+        <!-- Total Orders -->
+        <div class="stat-card-compact primary">
+            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_ORDERS'); ?></h3>
+            <div class="value-compact"><?php echo number_format($stats->totalOrders); ?></div>
+            <div class="subtitle-compact">
+                <?php echo $monthNames[$currentMonth] . ' ' . $currentYear; ?>
+            </div>
+        </div>
+
+        <!-- Total Invoice Value -->
+        <div class="stat-card-compact success">
+            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_VALUE'); ?></h3>
+            <div class="value-compact">Q <?php echo number_format($stats->totalInvoiceValue, 2); ?></div>
+            <div class="subtitle-compact">
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_INVOICE_VALUE'); ?>
+            </div>
+        </div>
+
+        <!-- Average Invoice Value -->
+        <div class="stat-card-compact warning">
+            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_VALUE'); ?></h3>
+            <div class="value-compact">Q <?php echo number_format($stats->averageInvoiceValue, 2); ?></div>
+            <div class="subtitle-compact">
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_PER_ORDER'); ?>
+            </div>
+        </div>
+
+        <!-- Orders by Status -->
+        <div class="stat-card-compact info">
+            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_BY_STATUS'); ?></h3>
+            <div class="status-details-compact">
+                <?php foreach ($stats->ordersByStatus as $statusData): ?>
+                    <div class="status-item-compact">
+                        <strong><?php echo $statusData->status; ?>:</strong> <?php echo $statusData->count; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+
     <!-- Header with Month/Year Filter -->
     <div class="dashboard-header">
         <h1>
@@ -411,48 +598,6 @@ $monthNames = [
                 </button>
             </div>
         </form>
-    </div>
-
-    <!-- Statistics Cards -->
-    <div class="stats-grid">
-        <!-- Total Orders -->
-        <div class="stat-card primary">
-            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_ORDERS'); ?></h3>
-            <div class="value"><?php echo number_format($stats->totalOrders); ?></div>
-            <div class="subtitle">
-                <?php echo $monthNames[$currentMonth] . ' ' . $currentYear; ?>
-            </div>
-        </div>
-
-        <!-- Total Invoice Value -->
-        <div class="stat-card success">
-            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_TOTAL_VALUE'); ?></h3>
-            <div class="value">Q <?php echo number_format($stats->totalInvoiceValue, 2); ?></div>
-            <div class="subtitle">
-                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_INVOICE_VALUE'); ?>
-            </div>
-        </div>
-
-        <!-- Average Invoice Value -->
-        <div class="stat-card warning">
-            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AVERAGE_VALUE'); ?></h3>
-            <div class="value">Q <?php echo number_format($stats->averageInvoiceValue, 2); ?></div>
-            <div class="subtitle">
-                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_PER_ORDER'); ?>
-            </div>
-        </div>
-
-        <!-- Orders by Status -->
-        <div class="stat-card info">
-            <h3><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_BY_STATUS'); ?></h3>
-            <div style="margin-top: 10px;">
-                <?php foreach ($stats->ordersByStatus as $statusData): ?>
-                    <div style="margin-bottom: 5px; font-size: 14px;">
-                        <strong><?php echo $statusData->status; ?>:</strong> <?php echo $statusData->count; ?>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
     </div>
 
     <!-- Sales Agents with Top 5 Clients - Expandable Table -->
@@ -554,6 +699,72 @@ $monthNames = [
         <?php endif; ?>
     </div>
 
+    <!-- Yearly Trend Charts -->
+    <div class="trend-charts-section">
+        <div class="charts-header">
+            <h2>
+                <i class="fas fa-chart-line"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_YEARLY_TRENDS'); ?>
+            </h2>
+            <div class="chart-filters">
+                <label for="chart-year-select">
+                    <i class="fas fa-calendar-alt"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CHART_YEAR'); ?>:
+                </label>
+                <select id="chart-year-select" onchange="updateCharts()">
+                    <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
+                        <option value="<?php echo $y; ?>" <?php echo $y == $currentYear ? 'selected' : ''; ?>>
+                            <?php echo $y; ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+                
+                <label for="chart-month-select" style="margin-left: 20px;">
+                    <i class="fas fa-calendar-day"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CHART_MONTH'); ?>:
+                </label>
+                <select id="chart-month-select" onchange="updateCharts()">
+                    <option value="0" <?php echo $currentMonth == 0 ? 'selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_ALL_YEAR'); ?></option>
+                    <?php 
+                    $monthNames = [
+                        1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+                        5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+                        9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+                    ];
+                    foreach ($monthNames as $num => $name): ?>
+                        <option value="<?php echo $num; ?>" <?php echo $num == $currentMonth ? 'selected' : ''; ?>>
+                            <?php echo $name; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        
+        <div class="trend-charts">
+            <!-- Top 10 Clients Yearly Trend -->
+            <div class="chart-container">
+                <h3>
+                    <i class="fas fa-users"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_YEARLY_TREND'); ?>
+                </h3>
+                <div class="chart-wrapper">
+                    <canvas id="clientTrendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Sales Agents Yearly Trend -->
+            <div class="chart-container">
+                <h3>
+                    <i class="fas fa-user-tie"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AGENT_YEARLY_TREND'); ?>
+                </h3>
+                <div class="chart-wrapper">
+                    <canvas id="agentTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Top 10 Orders Table -->
     <div class="top-orders-table">
         <h2>
@@ -606,163 +817,12 @@ $monthNames = [
             </div>
         <?php endif; ?>
     </div>
-
-    <!-- Yearly Trend Charts -->
-    <div class="trend-charts">
-        <!-- Top 10 Clients Yearly Trend -->
-        <div class="chart-container">
-            <h2>
-                <i class="fas fa-chart-line"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_CLIENT_YEARLY_TREND'); ?>
-            </h2>
-            <div class="chart-wrapper">
-                <canvas id="clientTrendChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Sales Agents Yearly Trend -->
-        <div class="chart-container">
-            <h2>
-                <i class="fas fa-chart-area"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_AGENT_YEARLY_TREND'); ?>
-            </h2>
-            <div class="chart-wrapper">
-                <canvas id="agentTrendChart"></canvas>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Load Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
-// Top 10 Clients Yearly Trend Chart
-<?php if (!empty($stats->clientYearlyTrend) && !empty($stats->clientYearlyTrend['clients'])): ?>
-const clientTrendData = {
-    labels: <?php echo json_encode($stats->clientYearlyTrend['years']); ?>,
-    datasets: [
-        <?php foreach ($stats->clientYearlyTrend['clients'] as $index => $client): ?>
-        {
-            label: <?php echo json_encode($client['client_name']); ?>,
-            data: <?php echo json_encode(array_values($client['years'])); ?>,
-            borderColor: getColor(<?php echo $index; ?>),
-            backgroundColor: getColor(<?php echo $index; ?>, 0.1),
-            borderWidth: 3,
-            tension: 0.4,
-            fill: true,
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }<?php echo $index < count($stats->clientYearlyTrend['clients']) - 1 ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ]
-};
-
-const clientTrendConfig = {
-    type: 'line',
-    data: clientTrendData,
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    boxWidth: 12,
-                    padding: 15,
-                    font: { size: 11 }
-                }
-            },
-            title: {
-                display: false
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return 'Q ' + value.toLocaleString('es-GT');
-                    }
-                }
-            }
-        }
-    }
-};
-
-new Chart(document.getElementById('clientTrendChart'), clientTrendConfig);
-<?php endif; ?>
-
-// Sales Agents Yearly Trend Chart
-<?php if (!empty($stats->agentYearlyTrend) && !empty($stats->agentYearlyTrend['agents'])): ?>
-const agentTrendData = {
-    labels: <?php echo json_encode($stats->agentYearlyTrend['years']); ?>,
-    datasets: [
-        <?php foreach ($stats->agentYearlyTrend['agents'] as $index => $agent): ?>
-        {
-            label: <?php echo json_encode($agent['agent_name']); ?>,
-            data: <?php echo json_encode(array_values($agent['years'])); ?>,
-            borderColor: getColor(<?php echo $index; ?>),
-            backgroundColor: getColor(<?php echo $index; ?>, 0.2),
-            borderWidth: 3,
-            tension: 0.4,
-            fill: true,
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }<?php echo $index < count($stats->agentYearlyTrend['agents']) - 1 ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ]
-};
-
-const agentTrendConfig = {
-    type: 'line',
-    data: agentTrendData,
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    boxWidth: 12,
-                    padding: 15,
-                    font: { size: 11 }
-                }
-            },
-            title: {
-                display: false
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return 'Q ' + value.toLocaleString('es-GT');
-                    }
-                }
-            }
-        }
-    }
-};
-
-new Chart(document.getElementById('agentTrendChart'), agentTrendConfig);
-<?php endif; ?>
-
 // Helper function to generate colors for chart lines
 function getColor(index, alpha = 1) {
     const colors = [
@@ -779,5 +839,165 @@ function getColor(index, alpha = 1) {
     ];
     return colors[index % colors.length];
 }
+
+// Store chart instances globally
+let clientTrendChart = null;
+let agentTrendChart = null;
+
+// Store all trend data
+const allClientTrendData = <?php echo json_encode($stats->clientTrend ?? []); ?>;
+const allAgentTrendData = <?php echo json_encode($stats->agentTrend ?? []); ?>;
+
+// Initialize charts
+function initializeCharts() {
+    // Top 10 Clients Trend Chart
+    <?php if (!empty($stats->clientTrend) && !empty($stats->clientTrend['clients'])): ?>
+    if (clientTrendChart) {
+        clientTrendChart.destroy();
+    }
+    
+    const clientTrendData = {
+        labels: allClientTrendData.labels,
+        datasets: allClientTrendData.clients.map((client, index) => ({
+            label: client.client_name,
+            data: client.data,
+            borderColor: getColor(index),
+            backgroundColor: getColor(index, 0.1),
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }))
+    };
+
+    const clientTrendConfig = {
+        type: 'line',
+        data: clientTrendData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15,
+                        font: { size: 11 }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: allClientTrendData.view === 'daily' ? '<?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_DAILY_VIEW'); ?>' : '<?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_MONTHLY_VIEW'); ?>',
+                    font: { size: 14, weight: 'normal' },
+                    color: '#666'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Q ' + value.toLocaleString('es-GT');
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    clientTrendChart = new Chart(document.getElementById('clientTrendChart'), clientTrendConfig);
+    <?php endif; ?>
+
+    // Sales Agents Trend Chart
+    <?php if (!empty($stats->agentTrend) && !empty($stats->agentTrend['agents'])): ?>
+    if (agentTrendChart) {
+        agentTrendChart.destroy();
+    }
+    
+    const agentTrendData = {
+        labels: allAgentTrendData.labels,
+        datasets: allAgentTrendData.agents.map((agent, index) => ({
+            label: agent.agent_name,
+            data: agent.data,
+            borderColor: getColor(index),
+            backgroundColor: getColor(index, 0.2),
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }))
+    };
+
+    const agentTrendConfig = {
+        type: 'line',
+        data: agentTrendData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15,
+                        font: { size: 11 }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: allAgentTrendData.view === 'daily' ? '<?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_DAILY_VIEW'); ?>' : '<?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_MONTHLY_VIEW'); ?>',
+                    font: { size: 14, weight: 'normal' },
+                    color: '#666'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': Q ' + context.parsed.y.toLocaleString('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Q ' + value.toLocaleString('es-GT');
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    agentTrendChart = new Chart(document.getElementById('agentTrendChart'), agentTrendConfig);
+    <?php endif; ?>
+}
+
+// Function to update charts when year/month changes
+function updateCharts() {
+    const selectedYear = parseInt(document.getElementById('chart-year-select').value);
+    const selectedMonth = parseInt(document.getElementById('chart-month-select').value);
+    
+    // Reload page with new year and month parameters
+    const url = new URL(window.location.href);
+    url.searchParams.set('year', selectedYear);
+    url.searchParams.set('month', selectedMonth);
+    window.location.href = url.toString();
+}
+
+// Initialize charts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});
 </script>
 
