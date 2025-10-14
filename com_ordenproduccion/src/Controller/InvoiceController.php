@@ -116,6 +116,9 @@ class InvoiceController extends BaseController
             $result = $invoiceModel->save($invoiceData);
 
             if ($result) {
+                // Update work order with invoice number
+                $this->updateWorkOrderInvoiceNumber($orderId, $invoiceNumber);
+                
                 $message = Text::sprintf('COM_ORDENPRODUCCION_INVOICE_CREATED_SUCCESS', $invoiceNumber);
                 $this->app->enqueueMessage($message, 'success');
             } else {
@@ -159,5 +162,28 @@ class InvoiceController extends BaseController
         }
 
         return 'FAC-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Update work order with invoice number
+     */
+    private function updateWorkOrderInvoiceNumber($orderId, $invoiceNumber)
+    {
+        try {
+            $db = Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                ->set($db->quoteName('invoice_number') . ' = ' . $db->quote($invoiceNumber))
+                ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+
+            $db->setQuery($query);
+            $db->execute();
+            
+            return true;
+        } catch (\Exception $e) {
+            // Log error but don't fail the invoice creation
+            Factory::getApplication()->enqueueMessage('Warning: Could not update work order with invoice number', 'warning');
+            return false;
+        }
     }
 }
