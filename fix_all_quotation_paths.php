@@ -240,16 +240,9 @@ function isCorrectFormat($url) {
         return false;
     }
     
-    // Check if it's a JSON array format
-    $decoded = json_decode($url, true);
-    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-        if (isset($decoded[0]) && is_string($decoded[0])) {
-            // After JSON decode, escaped slashes become regular slashes
-            // So we check for /media/ pattern
-            return strpos($decoded[0], '/media/') === 0;
-        }
-    }
-    return false;
+    // Check if it's a plain string path starting with media/
+    // We want format: 'media/com_ordenproduccion/cotizaciones/...'
+    return strpos($url, 'media/') === 0 && strpos($url, 'com_ordenproduccion') !== false;
 }
 
 function isGoogleDriveUrl($url) {
@@ -275,17 +268,13 @@ function formatUrlCorrectly($localPath) {
     // Remove leading slash if present for consistency
     $cleanPath = ltrim($localPath, '/');
     
-    // Ensure the path starts with media/
+    // Ensure the path starts with media/ (not /media/)
     if (strpos($cleanPath, 'media/') !== 0) {
         $cleanPath = 'media/' . $cleanPath;
     }
     
-    // Add leading slash for absolute path
-    $cleanPath = '/' . $cleanPath;
-    
-    // Use json_encode to handle escaping properly
-    // This will create: ["\/media\/path\/file.pdf"]
-    return json_encode([$cleanPath]);
+    // Return plain string format: 'media/com_ordenproduccion/cotizaciones/...'
+    return $cleanPath;
 }
 
 function getOrderNumberFromOrden($ordenDeTrabajo) {
@@ -304,8 +293,8 @@ function getLocalPathForOrder($ordenDeTrabajo, $createdDate) {
     $year = date('Y', strtotime($createdDate));
     $month = date('m', strtotime($createdDate));
     
-    // Return the local path in the format your system expects
-    return "/media/com_ordenproduccion/cotizaciones/$year/$month/$cotNumber.pdf";
+    // Return the local path in plain string format (no leading slash)
+    return "media/com_ordenproduccion/cotizaciones/$year/$month/$cotNumber.pdf";
 }
 
 function extractDriveFileId($url) {
@@ -435,7 +424,7 @@ try {
                 
                 // Generate the correct local path based on created date
                 $localPath = getLocalPathForOrder($ordenDeTrabajo, $createdDate);
-                $absoluteLocalPath = '/var/www/grimpsa_webserver' . $localPath;
+                $absoluteLocalPath = '/var/www/grimpsa_webserver/' . $localPath;
                 
                 // Check if file already exists locally
                 if (file_exists($absoluteLocalPath)) {
@@ -470,14 +459,14 @@ try {
                 $skipped++;
             }
         }
-        // Check if it's a local path that needs formatting
-        elseif (isLocalPath($quotationFiles)) {
-            logMessage("Fixing local path format");
+        // Check if it's a local path that needs formatting OR if it's JSON format that should be plain string
+        elseif (isLocalPath($quotationFiles) || (strpos($quotationFiles, '[') === 0 && strpos($quotationFiles, 'media') !== false)) {
+            logMessage("Converting to plain string format");
             
-            // Check if it's already in JSON format but wrong
+            // Check if it's already in JSON format
             $decoded = json_decode($quotationFiles, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded[0])) {
-                // It's already JSON but might be wrong format (with double escaping etc)
+                // It's JSON format, extract the path and convert to plain string
                 $existingPath = $decoded[0];
                 logMessage("Existing JSON path: $existingPath");
                 
@@ -487,13 +476,13 @@ try {
                 
                 $formattedPath = formatUrlCorrectly($cleanPath);
                 
-                logMessage("Reformatted path: $formattedPath");
+                logMessage("Converted to plain string: $formattedPath");
             } else {
-                // It's a plain text path
+                // It's a plain text path but might need cleanup
                 $cleanPath = ltrim($quotationFiles, '/');
                 $formattedPath = formatUrlCorrectly($cleanPath);
                 
-                logMessage("Converting plain text path: $formattedPath");
+                logMessage("Formatting plain text path: $formattedPath");
             }
             
             // Update database with correctly formatted URL
