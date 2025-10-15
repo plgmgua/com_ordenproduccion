@@ -120,44 +120,10 @@ main() {
     # Trap to ensure version display on exit
     trap 'if [ $? -eq 0 ]; then display_version_info; else display_error_info; fi' EXIT
 
-    log "Step 1: Installing and configuring ImageMagick for PDF to JPG conversion..."
+    log "Step 1: Skipping ImageMagick/imagick installation (managed elsewhere)"
     
-    # Check if ImageMagick is installed
-    if ! command -v convert &> /dev/null; then
-        log "ImageMagick not found. Installing ImageMagick..."
-        sudo apt-get update || warning "Failed to update package list"
-        sudo apt-get install -y imagemagick || error "Failed to install ImageMagick"
-        success "ImageMagick installed successfully"
-    else
-        log "ImageMagick already installed: $(convert -version | head -n1)"
-    fi
-    
-    # Check if PHP ImageMagick extension is installed
-    if ! php -m | grep -q imagick; then
-        log "PHP ImageMagick extension not found. Installing..."
-        sudo apt-get install -y php-imagick || error "Failed to install PHP ImageMagick extension"
-        
-        # Restart PHP-FPM if available
-        if systemctl is-active --quiet php8.1-fpm; then
-            sudo systemctl restart php8.1-fpm || warning "Failed to restart PHP8.1-FPM"
-        elif systemctl is-active --quiet php8.0-fpm; then
-            sudo systemctl restart php8.0-fpm || warning "Failed to restart PHP8.0-FPM"
-        elif systemctl is-active --quiet php7.4-fpm; then
-            sudo systemctl restart php7.4-fpm || warning "Failed to restart PHP7.4-FPM"
-        fi
-        
-        # Restart Apache if available
-        if systemctl is-active --quiet apache2; then
-            sudo systemctl restart apache2 || warning "Failed to restart Apache"
-        fi
-        
-        success "PHP ImageMagick extension installed and services restarted"
-    else
-        log "PHP ImageMagick extension already installed"
-    fi
-    
-    # Create cache directory for quotation images
-    log "Creating cache directory for quotation images..."
+    # Create cache directory for quotation images (if still used elsewhere)
+    log "Ensuring cache directory for quotation images exists..."
     sudo mkdir -p "$JOOMLA_ROOT/cache/com_ordenproduccion/quotation_images" || warning "Failed to create quotation images cache directory"
     sudo chown -R www-data:www-data "$JOOMLA_ROOT/cache/com_ordenproduccion" || warning "Failed to set ownership on quotation images cache directory"
     sudo chmod -R 755 "$JOOMLA_ROOT/cache/com_ordenproduccion" || warning "Failed to set permissions on quotation images cache directory"
@@ -191,7 +157,7 @@ main() {
     log "Step 4: Getting version information..."
     get_version_info
 
-    log "Step 5: Removing existing Joomla component directories..."
+    log "Step 5: Removing existing Joomla component directories (preserving media files)..."
     if [ -d "$ADMIN_COMPONENT_PATH" ]; then
         sudo rm -rf "$ADMIN_COMPONENT_PATH"
         log "Removed admin component directory: $ADMIN_COMPONENT_PATH"
@@ -200,11 +166,14 @@ main() {
         sudo rm -rf "$SITE_COMPONENT_PATH"
         log "Removed site component directory: $SITE_COMPONENT_PATH"
     fi
+    # IMPORTANT: Do NOT delete the media directory to preserve uploaded quotation files
     if [ -d "$MEDIA_PATH" ]; then
-        sudo rm -rf "$MEDIA_PATH"
-        log "Removed media directory: $MEDIA_PATH"
+        log "Preserving media directory (no deletion): $MEDIA_PATH"
+    else
+        sudo mkdir -p "$MEDIA_PATH"
+        log "Media directory was missing; created: $MEDIA_PATH"
     fi
-    success "Existing directories removed"
+    success "Existing component directories removed (media preserved)"
 
     log "Step 6: Creating new Joomla component directories..."
     sudo mkdir -p "$ADMIN_COMPONENT_PATH" || error "Failed to create admin component directory"
