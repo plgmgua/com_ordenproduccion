@@ -95,6 +95,25 @@ try {
     logMessage("Setting up Google Drive download system...");
     logMessage("✅ Using direct download method (no API library required)", 'success');
 
+    // --- FUNCTION: CHECK IF URL IS IN CORRECT FORMAT ---
+    function isCorrectFormat($url) {
+        // Check if it's a JSON array with escaped slashes
+        $decoded = json_decode($url, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            if (isset($decoded[0]) && is_string($decoded[0])) {
+                return strpos($decoded[0], '\/media\/') === 0;
+            }
+        }
+        return false;
+    }
+    
+    // --- FUNCTION: FORMAT URL CORRECTLY ---
+    function formatUrlCorrectly($localPath) {
+        // Convert plain path to JSON array format with escaped slashes
+        $escapedPath = str_replace('/', '\/', $localPath);
+        return json_encode([$escapedPath]);
+    }
+    
     // --- FUNCTION: EXTRACT FILE ID ---
     function getDriveFileId($url) {
         // Handle both plain URLs and JSON arrays
@@ -138,8 +157,8 @@ try {
 
     // --- PROCESS RECORDS ---
     logMessage("Fetching records with Google Drive URLs...");
-    // Only select records with Google Drive URLs that don't already have local paths
-    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND quotation_files LIKE '%drive.google.com%' AND quotation_files NOT LIKE 'media/%'";
+    // Select records with Google Drive URLs OR incorrectly formatted local paths
+    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND (quotation_files LIKE '%drive.google.com%' OR (quotation_files LIKE 'media/%' AND quotation_files NOT LIKE '%[%'))";
     $result = $mysqli->query($query);
 
     if (!$result) {
@@ -147,10 +166,10 @@ try {
     }
 
     $totalRecords = $result->num_rows;
-    logMessage("Found $totalRecords records with Google Drive URLs");
+    logMessage("Found $totalRecords records with Google Drive URLs or incorrectly formatted local paths");
 
     if ($totalRecords == 0) {
-        logMessage("No records found with Google Drive URLs", 'warning');
+        logMessage("No records found to process", 'warning');
         exit(0);
     }
 
@@ -158,6 +177,7 @@ try {
     $successCount = 0;
     $errorCount = 0;
     $skippedCount = 0;
+    $formatFixedCount = 0;
 
     // Process each record
     while ($row = $result->fetch_assoc()) {
@@ -169,16 +189,36 @@ try {
         
         logMessage("Processing record $processedCount/$totalRecords: $ordenDeTrabajo (ID: $recordId)");
 
-        // Skip if already a local path
-        if (strpos($quotationFiles, 'media/') === 0 || strpos($quotationFiles, '/media/') !== false) {
-            logMessage("Record already has local path, skipping: $quotationFiles", 'warning');
+        // Check if already in correct format
+        if (isCorrectFormat($quotationFiles)) {
+            logMessage("Record already has correct format, skipping: $quotationFiles", 'warning');
             $skippedCount++;
+            continue;
+        }
+
+        // Check if it's a local path that needs formatting
+        if (strpos($quotationFiles, 'media/') === 0 && !isCorrectFormat($quotationFiles)) {
+            logMessage("Fixing format for local path: $quotationFiles");
+            $correctFormat = formatUrlCorrectly($quotationFiles);
+            
+            // Update database with correctly formatted URL
+            $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE id = ?");
+            $stmt->bind_param('si', $correctFormat, $recordId);
+            
+            if (!$stmt->execute()) {
+                logMessage("❌ Failed to update database format: " . $stmt->error, 'error');
+                $errorCount++;
+            } else {
+                logMessage("✅ Format fixed: $correctFormat", 'success');
+                $formatFixedCount++;
+            }
+            $stmt->close();
             continue;
         }
 
         // Verify it's a Google Drive URL
         if (strpos($quotationFiles, 'drive.google.com') === false) {
-            logMessage("Not a Google Drive URL, skipping: $quotationFiles", 'warning');
+            logMessage("Not a Google Drive URL or local path, skipping: $quotationFiles", 'warning');
             $skippedCount++;
             continue;
         }
@@ -296,17 +336,18 @@ try {
             $savedSize = filesize($filePath);
             logMessage("✅ File saved successfully: $filePath (Size: $savedSize bytes)", 'success');
 
-            // Update database with local path
+            // Update database with local path in correct format
             $localPath = "media/com_ordenproduccion/cotizaciones/$year/$month/$newFileName";
+            $formattedPath = formatUrlCorrectly($localPath);
             $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE id = ?");
-            $stmt->bind_param('si', $localPath, $recordId);
+            $stmt->bind_param('si', $formattedPath, $recordId);
             
             if (!$stmt->execute()) {
                 throw new Exception("Failed to update database: " . $stmt->error);
             }
             
             $stmt->close();
-            logMessage("✅ Database updated with local path: $localPath", 'success');
+            logMessage("✅ Database updated with formatted path: $formattedPath", 'success');
             $successCount++;
 
         } catch (Exception $e) {
@@ -324,7 +365,8 @@ try {
     echo "\n==========================================\n";
     echo "  IMPORT RESULTS\n";
     echo "==========================================\n";
-    logMessage("✅ Successfully processed: $successCount records", 'success');
+    logMessage("✅ Successfully downloaded: $successCount records", 'success');
+    logMessage("🔧 Format fixed: $formatFixedCount records", 'success');
     logMessage("⚠️ Skipped: $skippedCount records", 'warning');
     logMessage("❌ Errors: $errorCount records", 'error');
     logMessage("📊 Total processed: $processedCount records");
