@@ -41,6 +41,21 @@ $colors = [
 ];
 
 // Logging functions
+function initLogging() {
+    global $logFile;
+    $testMessage = '[' . date('Y-m-d H:i:s') . "] [init] Logging test\n";
+    $logDir = dirname($logFile);
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0775, true);
+    }
+    $ok = @file_put_contents($logFile, $testMessage, FILE_APPEND | LOCK_EX);
+    if ($ok === false) {
+        // Fallback to /tmp if not writable
+        $logFile = '/tmp/download_from_google_sheet.log';
+        @file_put_contents($logFile, $testMessage, FILE_APPEND | LOCK_EX);
+    }
+}
+
 function logMessage($message, $type = 'info') {
     global $logFile, $colors;
     
@@ -66,8 +81,26 @@ function logMessage($message, $type = 'info') {
             break;
     }
     
-    // Write to log file
-    file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+    // Write to log file (with fallback handled by initLogging)
+    @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+}
+
+/**
+ * Ensure directory exists with proper permissions and ownership
+ */
+function ensureDirectory($dir) {
+    if (is_dir($dir)) {
+        return true;
+    }
+    if (!@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        logMessage("Failed to create directory: $dir", 'error');
+        return false;
+    }
+    @chmod($dir, 0775);
+    // Attempt to set owner/group to www-data (will only work with sufficient privileges)
+    @chown($dir, 'www-data');
+    @chgrp($dir, 'www-data');
+    return true;
 }
 
 /**
@@ -100,10 +133,8 @@ function downloadGoogleDriveFile($fileId, $localPath) {
     
     // Create directory if it doesn't exist
     $dir = dirname($localPath);
-    if (!is_dir($dir)) {
-        if (!mkdir($dir, 0755, true)) {
-            return false;
-        }
+    if (!ensureDirectory($dir)) {
+        return false;
     }
     
     // Download using cURL
@@ -130,6 +161,11 @@ function downloadGoogleDriveFile($fileId, $localPath) {
         logMessage("Failed to save file to $localPath", 'error');
         return false;
     }
+    
+    // Set permissions/ownership on saved file
+    @chmod($localPath, 0644);
+    @chown($localPath, 'www-data');
+    @chgrp($localPath, 'www-data');
     
     // Verify file was saved correctly
     if (file_exists($localPath) && filesize($localPath) > 0) {
@@ -282,6 +318,7 @@ echo "==========================================\n";
 echo "  Download PDF Files from Google Sheet\n";
 echo "==========================================\n\n";
 
+initLogging();
 logMessage("Starting PDF download process from Google Sheet");
 
 try {
@@ -360,6 +397,21 @@ try {
     echo "\n🚀 Starting download process...\n";
     echo str_repeat("=", 60) . "\n";
     // === END CONFIRMATION SECTION ===
+    
+    // Before proceeding, ensure base path exists and is writable
+    if (!ensureDirectory($basePath)) {
+        logMessage("Base target directory is not writable or cannot be created: $basePath", 'error');
+    } else {
+        // Try to touch a test file to verify write permissions
+        $testFile = rtrim($basePath, '/').'/.__write_test__';
+        $testOk = @file_put_contents($testFile, 'ok');
+        if ($testOk === false) {
+            logMessage("Permission check failed in target directory: $basePath", 'error');
+        } else {
+            @unlink($testFile);
+            logMessage("Write permission verified for: $basePath", 'success');
+        }
+    }
     
     $downloadCount = 0;
     $errorCount = 0;
