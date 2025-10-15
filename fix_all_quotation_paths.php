@@ -253,7 +253,18 @@ function isCorrectFormat($url) {
 }
 
 function isGoogleDriveUrl($url) {
-    return strpos($url, 'drive.google.com') !== false;
+    // Check if it's a plain Google Drive URL
+    if (strpos($url, 'drive.google.com') !== false) {
+        return true;
+    }
+    
+    // Check if it's a JSON array containing a Google Drive URL
+    $decoded = json_decode($url, true);
+    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded[0])) {
+        return strpos($decoded[0], 'drive.google.com') !== false;
+    }
+    
+    return false;
 }
 
 function isLocalPath($url) {
@@ -264,7 +275,7 @@ function formatUrlCorrectly($localPath) {
     // Remove leading slash if present for consistency
     $cleanPath = ltrim($localPath, '/');
     
-    // Ensure the path starts with media/ (not /media/)
+    // Ensure the path starts with media/
     if (strpos($cleanPath, 'media/') !== 0) {
         $cleanPath = 'media/' . $cleanPath;
     }
@@ -272,10 +283,9 @@ function formatUrlCorrectly($localPath) {
     // Add leading slash for absolute path
     $cleanPath = '/' . $cleanPath;
     
-    // Create the correct format without double escaping
-    // We want: ["\/media\/path\/file.pdf"] not ["media\\\/path\\\/file.pdf"]
-    $escapedPath = str_replace('/', '\/', $cleanPath);
-    return '["' . $escapedPath . '"]';
+    // Use json_encode to handle escaping properly
+    // This will create: ["\/media\/path\/file.pdf"]
+    return json_encode([$cleanPath]);
 }
 
 function getOrderNumberFromOrden($ordenDeTrabajo) {
@@ -296,6 +306,73 @@ function getLocalPathForOrder($ordenDeTrabajo, $createdDate) {
     
     // Return the local path in the format your system expects
     return "/media/com_ordenproduccion/cotizaciones/$year/$month/$cotNumber.pdf";
+}
+
+function extractDriveFileId($url) {
+    // Handle both plain URLs and JSON arrays
+    $urls = [];
+    
+    // Try to decode as JSON first
+    $decoded = json_decode($url, true);
+    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+        $urls = $decoded;
+    } else {
+        // Treat as plain URL
+        $urls = [$url];
+    }
+    
+    foreach ($urls as $singleUrl) {
+        // Extract Google Drive file ID from various URL formats
+        if (preg_match('/\/d\/([-\w]{25,})/', $singleUrl, $matches)) {
+            return $matches[1];
+        }
+        if (preg_match('/id=([-\w]{25,})/', $singleUrl, $matches)) {
+            return $matches[1];
+        }
+        if (preg_match('/([-\w]{25,})/', $singleUrl, $matches)) {
+            return $matches[1];
+        }
+    }
+    
+    return null;
+}
+
+function downloadGoogleDriveFile($fileId, $localPath) {
+    $downloadUrl = "https://drive.google.com/uc?export=download&id=" . $fileId;
+    
+    // Create directory if it doesn't exist
+    $dir = dirname($localPath);
+    if (!is_dir($dir)) {
+        if (!mkdir($dir, 0755, true)) {
+            return false;
+        }
+    }
+    
+    // Download using cURL
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $downloadUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+    
+    $fileContent = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($fileContent === false || !empty($error) || $httpCode != 200) {
+        return false;
+    }
+    
+    // Save file
+    if (file_put_contents($localPath, $fileContent) === false) {
+        return false;
+    }
+    
+    // Verify file was saved correctly
+    return file_exists($localPath) && filesize($localPath) > 0;
 }
 
 try {
@@ -350,17 +427,33 @@ try {
         if (isGoogleDriveUrl($quotationFiles)) {
             $orderNum = getOrderNumberFromOrden($ordenDeTrabajo);
             
-            // Check if we have a mapping for this order
-            if ($orderNum && isset($googleDriveMappings[$orderNum])) {
-                logMessage("Converting Google Drive URL to local path");
+            // Check if we have a mapping for this order OR try to download directly
+            $fileId = extractDriveFileId($quotationFiles);
+            
+            if ($fileId) {
+                logMessage("Processing Google Drive URL with file ID: $fileId");
                 
                 // Generate the correct local path based on created date
                 $localPath = getLocalPathForOrder($ordenDeTrabajo, $createdDate);
-                $formattedPath = formatUrlCorrectly($localPath);
+                $absoluteLocalPath = '/var/www/grimpsa_webserver' . $localPath;
                 
+                // Check if file already exists locally
+                if (file_exists($absoluteLocalPath)) {
+                    logMessage("File already exists locally, just updating database path");
+                } else {
+                    logMessage("Downloading file from Google Drive...");
+                    if (!downloadGoogleDriveFile($fileId, $absoluteLocalPath)) {
+                        logMessage("❌ Failed to download file for $ordenDeTrabajo", 'error');
+                        $errors++;
+                        continue;
+                    }
+                    logMessage("✅ Successfully downloaded file to: $absoluteLocalPath");
+                }
+                
+                // Update database with local path
+                $formattedPath = formatUrlCorrectly($localPath);
                 logMessage("New path: $formattedPath");
                 
-                // Update the record
                 $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE id = ?");
                 $stmt->bind_param('si', $formattedPath, $recordId);
                 
@@ -373,7 +466,7 @@ try {
                 }
                 $stmt->close();
             } else {
-                logMessage("⚠️ Google Drive URL but no mapping found - skipping", 'warning');
+                logMessage("⚠️ Could not extract file ID from Google Drive URL - skipping", 'warning');
                 $skipped++;
             }
         }
@@ -384,12 +477,14 @@ try {
             // Check if it's already in JSON format but wrong
             $decoded = json_decode($quotationFiles, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded[0])) {
-                // It's already JSON but might be wrong format
+                // It's already JSON but might be wrong format (with double escaping etc)
                 $existingPath = $decoded[0];
                 logMessage("Existing JSON path: $existingPath");
                 
-                // Clean up the path and reformat
-                $cleanPath = ltrim($existingPath, '/');
+                // Clean up the path - remove any double escaping and leading slashes
+                $cleanPath = str_replace('\\/', '/', $existingPath); // Fix double escaping
+                $cleanPath = ltrim($cleanPath, '/');
+                
                 $formattedPath = formatUrlCorrectly($cleanPath);
                 
                 logMessage("Reformatted path: $formattedPath");
