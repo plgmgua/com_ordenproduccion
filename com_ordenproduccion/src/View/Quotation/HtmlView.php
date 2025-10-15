@@ -136,65 +136,39 @@ class HtmlView extends BaseHtmlView
                 if (is_array($decoded) && !empty($decoded[0])) {
                     $filePath = $decoded[0];
                     // Remove escaped slashes
-                    $filePath = str_replace('\\/', '/', $filePath);
+                    $filePath = str_replace('\/', '/', $filePath);
                 }
             } else {
-                // Handle plain string format: media/com_ordenproduccion/cotizaciones/2025/05/COT-000000.pdf
+                // Handle plain string format
                 $filePath = $quotationFiles;
             }
             
-            // If we have a file path, process it
             if (!empty($filePath)) {
-                // Handle Google Drive URLs
-                if (strpos($filePath, 'drive.google.com') !== false) {
-                    return $this->convertGoogleDriveUrl($filePath);
-                }
-                
-                // Handle OneDrive URLs
-                if (strpos($filePath, 'onedrive.live.com') !== false || strpos($filePath, '1drv.ms') !== false) {
-                    return $this->convertOneDriveUrl($filePath);
-                }
-                
-                // Handle full URLs
+                // If it's already a full URL, return as is
                 if (strpos($filePath, 'http') === 0) {
                     return $filePath;
                 }
                 
-                // Handle absolute paths starting with /
+                // Absolute path starting with /
                 if (strpos($filePath, '/') === 0) {
                     $uri = Uri::getInstance();
                     $baseUrl = $uri->toString(['scheme', 'host', 'port']);
                     return $baseUrl . $filePath;
                 }
                 
-                // Handle relative paths starting with media/ (new format)
+                // Relative path starting with media/
                 if (strpos($filePath, 'media/') === 0) {
                     $uri = Uri::getInstance();
                     $baseUrl = $uri->toString(['scheme', 'host', 'port']);
                     return $baseUrl . '/' . $filePath;
                 }
                 
-                // Fallback: add /media/ prefix for backwards compatibility
+                // Fallback: assume media relative
                 $uri = Uri::getInstance();
                 $baseUrl = $uri->toString(['scheme', 'host', 'port']);
-                return $baseUrl . '/media/' . $filePath;
+                return $baseUrl . '/media/' . ltrim($filePath, '/');
             }
             
-            // Handle Google Drive URLs directly if not processed above
-            if (strpos($quotationFiles, 'drive.google.com') !== false) {
-                return $this->convertGoogleDriveUrl($quotationFiles);
-            }
-            
-            // Handle OneDrive URLs directly if not processed above
-            if (strpos($quotationFiles, 'onedrive.live.com') !== false || strpos($quotationFiles, '1drv.ms') !== false) {
-                return $this->convertOneDriveUrl($quotationFiles);
-            }
-
-            // If it's already a full URL, return as is
-            if (strpos($quotationFiles, 'http') === 0) {
-                return $quotationFiles;
-            }
-
             // Final fallback - return original value
             return $quotationFiles;
         } catch (Exception $e) {
@@ -202,68 +176,6 @@ class HtmlView extends BaseHtmlView
             // Return the original value as fallback
             return $quotationFiles;
         }
-    }
-
-    /**
-     * Convert Google Drive sharing URL to direct view URL
-     *
-     * @param   string  $url  Google Drive URL
-     *
-     * @return  string  Direct view URL
-     *
-     * @since   3.52.12
-     */
-    protected function convertGoogleDriveUrl($url)
-    {
-        // Extract file ID from various Google Drive URL formats
-        $fileId = '';
-        
-        // Format: https://drive.google.com/open?id=FILE_ID
-        if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $url, $matches)) {
-            $fileId = $matches[1];
-        }
-        // Format: https://drive.google.com/file/d/FILE_ID/view
-        elseif (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
-            $fileId = $matches[1];
-        }
-        
-        if ($fileId) {
-            // Return the direct preview URL for immediate embedding
-            // JavaScript will handle fallback methods if needed
-            return 'https://drive.google.com/file/d/' . $fileId . '/preview';
-        }
-        
-        // Fallback to original URL if conversion fails
-        return $url;
-    }
-
-    /**
-     * Convert OneDrive sharing URL to direct view URL
-     *
-     * @param   string  $url  OneDrive URL
-     *
-     * @return  string  Direct view URL
-     *
-     * @since   3.52.12
-     */
-    protected function convertOneDriveUrl($url)
-    {
-        // Extract file ID from OneDrive URL
-        $fileId = '';
-        
-        // Format: https://1drv.ms/b/s!FILE_ID or similar
-        if (preg_match('/1drv\.ms\/[a-z]\/s!(.+)/', $url, $matches)) {
-            $fileId = $matches[1];
-        }
-        
-        if ($fileId) {
-            // Convert to direct view URL for embedding
-            // Note: OneDrive embedding is more complex and may require additional setup
-            return 'https://onedrive.live.com/embed?resid=' . $fileId . '&authkey=!FILE_ID&em=2';
-        }
-        
-        // Fallback to original URL if conversion fails
-        return $url;
     }
 
     /**
@@ -344,20 +256,15 @@ class HtmlView extends BaseHtmlView
 
         $extension = strtolower(pathinfo($this->quotationFile, PATHINFO_EXTENSION));
         
-        switch ($extension) {
-            case 'pdf':
-                return 'pdf';
-            case 'jpg':
-            case 'jpeg':
-            case 'png':
-            case 'gif':
-                return 'image';
-            case 'doc':
-            case 'docx':
-                return 'document';
-            default:
-                return 'unknown';
+        if (in_array($extension, ['pdf'])) {
+            return 'pdf';
         }
+        
+        if (in_array($extension, ['png', 'jpg', 'jpeg', 'gif', 'webp'])) {
+            return 'image';
+        }
+        
+        return 'unknown';
     }
 
     /**

@@ -649,13 +649,8 @@ $orderData = $this->getOrderData();
                 <?php if ($this->isQuotationFileAccessible()): ?>
                     <iframe 
                         src="<?php 
-                            if (strpos($this->quotationFile, 'drive.google.com') !== false) {
-                                // For Google Drive, start with the original URL, JavaScript will handle the conversion
-                                echo htmlspecialchars($this->quotationFile);
-                            } else {
-                                // For local files, add PDF parameters (hide side pane and fit width)
+                                // Always treat as local/absolute URL; add PDF parameters for consistent viewer
                                 echo htmlspecialchars($this->quotationFile) . '#toolbar=1&navpanes=0&pagemode=none&view=FitH&zoom=page-width&page=1';
-                            }
                         ?>" 
                         class="pdf-embed"
                         id="pdfEmbed"
