@@ -261,16 +261,21 @@ function isLocalPath($url) {
 }
 
 function formatUrlCorrectly($localPath) {
-    // Ensure the path starts with /media/ for consistency
+    // Remove leading slash if present for consistency
     $cleanPath = ltrim($localPath, '/');
+    
+    // Ensure the path starts with media/ (not /media/)
     if (strpos($cleanPath, 'media/') !== 0) {
         $cleanPath = 'media/' . $cleanPath;
     }
+    
+    // Add leading slash for absolute path
     $cleanPath = '/' . $cleanPath;
     
-    // Let json_encode handle the escaping automatically
-    // This will create the correct format: ["\/media\/path\/file.pdf"]
-    return json_encode([$cleanPath]);
+    // Create the correct format without double escaping
+    // We want: ["\/media\/path\/file.pdf"] not ["media\\\/path\\\/file.pdf"]
+    $escapedPath = str_replace('/', '\/', $cleanPath);
+    return '["' . $escapedPath . '"]';
 }
 
 function getOrderNumberFromOrden($ordenDeTrabajo) {
@@ -302,100 +307,120 @@ try {
     }
     logMessage("✅ Database connection successful", 'success');
 
-    // --- PROCESS GOOGLE DRIVE URLS ---
-    logMessage("Processing Google Drive URLs with provided mappings...");
+    // --- PROCESS ALL RECORDS INDIVIDUALLY ---
+    logMessage("Reading and analyzing all records with quotation_files...");
     
-    $googleDriveFixed = 0;
-    $googleDriveErrors = 0;
-    
-    foreach ($googleDriveMappings as $orderNum => $googleDriveUrl) {
-        $ordenDeTrabajo = 'ORD-' . $orderNum;
-        
-        logMessage("Processing order: $ordenDeTrabajo");
-        
-        // Get the record
-        $query = "SELECT id, created FROM $tableName WHERE orden_de_trabajo = ? AND quotation_files = ?";
-        $stmt = $mysqli->prepare($query);
-        $stmt->bind_param('ss', $ordenDeTrabajo, $googleDriveUrl);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($row = $result->fetch_assoc()) {
-            $recordId = $row['id'];
-            $createdDate = $row['created'];
-            
-            // Generate the correct local path
-            $localPath = getLocalPathForOrder($ordenDeTrabajo, $createdDate);
-            $formattedPath = formatUrlCorrectly($localPath);
-            
-            logMessage("Converting to: $formattedPath");
-            
-            // Update the record
-            $updateQuery = "UPDATE $tableName SET quotation_files = ? WHERE id = ?";
-            $updateStmt = $mysqli->prepare($updateQuery);
-            $updateStmt->bind_param('si', $formattedPath, $recordId);
-            
-            if ($updateStmt->execute()) {
-                logMessage("✅ Successfully updated $ordenDeTrabajo (ID: $recordId)", 'success');
-                $googleDriveFixed++;
-            } else {
-                logMessage("❌ Failed to update $ordenDeTrabajo: " . $updateStmt->error, 'error');
-                $googleDriveErrors++;
-            }
-            $updateStmt->close();
-        } else {
-            logMessage("⚠️ Record not found for $ordenDeTrabajo with URL: $googleDriveUrl", 'warning');
-        }
-        
-        $stmt->close();
-    }
-
-    // --- PROCESS OTHER INCORRECTLY FORMATTED PATHS ---
-    logMessage("Processing other incorrectly formatted paths...");
-    
-    // Get all records with quotation_files that are not in correct format
-    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND quotation_files NOT LIKE '%[%'";
+    // Get all records with quotation_files
+    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' ORDER BY id";
     $result = $mysqli->query($query);
 
-    $otherFixed = 0;
-    $otherErrors = 0;
-    $otherSkipped = 0;
+    if (!$result) {
+        throw new Exception("Query failed: " . $mysqli->error);
+    }
 
+    $totalRecords = $result->num_rows;
+    logMessage("Found $totalRecords records with quotation_files to analyze");
+
+    $processedCount = 0;
+    $googleDriveFixed = 0;
+    $localPathFixed = 0;
+    $alreadyCorrect = 0;
+    $errors = 0;
+    $skipped = 0;
+
+    // Process each record individually
     while ($row = $result->fetch_assoc()) {
+        $processedCount++;
         $recordId = $row['id'];
         $ordenDeTrabajo = $row['orden_de_trabajo'];
         $quotationFiles = $row['quotation_files'];
         $createdDate = $row['created'];
+        
+        logMessage("Processing record $processedCount/$totalRecords: $ordenDeTrabajo (ID: $recordId)");
+        logMessage("Current path: " . substr($quotationFiles, 0, 100) . (strlen($quotationFiles) > 100 ? '...' : ''));
 
-        // Skip if already processed as Google Drive URL
-        $orderNum = getOrderNumberFromOrden($ordenDeTrabajo);
-        if ($orderNum && isset($googleDriveMappings[$orderNum])) {
-            $otherSkipped++;
+        // Analyze the current path format
+        if (isCorrectFormat($quotationFiles)) {
+            logMessage("✅ Already in correct format - skipping", 'warning');
+            $alreadyCorrect++;
             continue;
         }
 
-        // Check if it's a local path that needs formatting
-        if (isLocalPath($quotationFiles)) {
-            logMessage("Fixing local path for: $ordenDeTrabajo");
+        // Check if it's a Google Drive URL that needs conversion
+        if (isGoogleDriveUrl($quotationFiles)) {
+            $orderNum = getOrderNumberFromOrden($ordenDeTrabajo);
             
-            // Remove leading slash if present for consistency
-            $cleanPath = ltrim($quotationFiles, '/');
-            $correctFormat = formatUrlCorrectly($cleanPath);
+            // Check if we have a mapping for this order
+            if ($orderNum && isset($googleDriveMappings[$orderNum])) {
+                logMessage("Converting Google Drive URL to local path");
+                
+                // Generate the correct local path based on created date
+                $localPath = getLocalPathForOrder($ordenDeTrabajo, $createdDate);
+                $formattedPath = formatUrlCorrectly($localPath);
+                
+                logMessage("New path: $formattedPath");
+                
+                // Update the record
+                $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE id = ?");
+                $stmt->bind_param('si', $formattedPath, $recordId);
+                
+                if ($stmt->execute()) {
+                    logMessage("✅ Successfully converted Google Drive URL for $ordenDeTrabajo (ID: $recordId)", 'success');
+                    $googleDriveFixed++;
+                } else {
+                    logMessage("❌ Failed to update $ordenDeTrabajo: " . $stmt->error, 'error');
+                    $errors++;
+                }
+                $stmt->close();
+            } else {
+                logMessage("⚠️ Google Drive URL but no mapping found - skipping", 'warning');
+                $skipped++;
+            }
+        }
+        // Check if it's a local path that needs formatting
+        elseif (isLocalPath($quotationFiles)) {
+            logMessage("Fixing local path format");
+            
+            // Check if it's already in JSON format but wrong
+            $decoded = json_decode($quotationFiles, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded[0])) {
+                // It's already JSON but might be wrong format
+                $existingPath = $decoded[0];
+                logMessage("Existing JSON path: $existingPath");
+                
+                // Clean up the path and reformat
+                $cleanPath = ltrim($existingPath, '/');
+                $formattedPath = formatUrlCorrectly($cleanPath);
+                
+                logMessage("Reformatted path: $formattedPath");
+            } else {
+                // It's a plain text path
+                $cleanPath = ltrim($quotationFiles, '/');
+                $formattedPath = formatUrlCorrectly($cleanPath);
+                
+                logMessage("Converting plain text path: $formattedPath");
+            }
             
             // Update database with correctly formatted URL
             $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE id = ?");
-            $stmt->bind_param('si', $correctFormat, $recordId);
+            $stmt->bind_param('si', $formattedPath, $recordId);
             
             if ($stmt->execute()) {
-                logMessage("✅ Format fixed for $ordenDeTrabajo (ID: $recordId)", 'success');
-                $otherFixed++;
+                logMessage("✅ Successfully fixed local path format for $ordenDeTrabajo (ID: $recordId)", 'success');
+                $localPathFixed++;
             } else {
                 logMessage("❌ Failed to update format for $ordenDeTrabajo: " . $stmt->error, 'error');
-                $otherErrors++;
+                $errors++;
             }
             $stmt->close();
         } else {
-            $otherSkipped++;
+            logMessage("⚠️ Unknown format - skipping: " . substr($quotationFiles, 0, 50), 'warning');
+            $skipped++;
+        }
+
+        // Show progress every 50 records
+        if ($processedCount % 50 == 0) {
+            logMessage("Progress: $processedCount/$totalRecords records processed");
         }
     }
 
@@ -403,19 +428,19 @@ try {
     echo "\n==========================================\n";
     echo "  FIX RESULTS\n";
     echo "==========================================\n";
+    logMessage("📊 Total records processed: $totalRecords", 'info');
     logMessage("🔄 Google Drive URLs fixed: $googleDriveFixed", 'success');
-    logMessage("❌ Google Drive URL errors: $googleDriveErrors", 'error');
-    logMessage("🔧 Other paths fixed: $otherFixed", 'success');
-    logMessage("❌ Other path errors: $otherErrors", 'error');
-    logMessage("⚠️ Other paths skipped: $otherSkipped", 'warning');
+    logMessage("🔧 Local paths fixed: $localPathFixed", 'success');
+    logMessage("✅ Already correct format: $alreadyCorrect", 'info');
+    logMessage("⚠️ Skipped (no mapping/unknown): $skipped", 'warning');
+    logMessage("❌ Errors: $errors", 'error');
     
-    $totalFixed = $googleDriveFixed + $otherFixed;
-    $totalErrors = $googleDriveErrors + $otherErrors;
+    $totalFixed = $googleDriveFixed + $localPathFixed;
     
     logMessage("📊 Total records fixed: $totalFixed", 'success');
-    logMessage("📊 Total errors: $totalErrors", 'error');
+    logMessage("📊 Total errors: $errors", 'error');
     
-    if ($totalErrors > 0) {
+    if ($errors > 0) {
         logMessage("Check the log file for detailed error information: $logFile", 'warning');
     }
 
