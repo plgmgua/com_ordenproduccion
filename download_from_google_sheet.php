@@ -287,14 +287,23 @@ logMessage("Starting PDF download process from Google Sheet");
 try {
     // Connect to database
     logMessage("Connecting to database...");
-    $mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name);
+    $mysqli = null;
+    $dbConnectError = false;
     
-    if ($mysqli->connect_error) {
-        throw new Exception("Database connection failed: " . $mysqli->connect_error);
+    try {
+        $mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name);
+        
+        if ($mysqli->connect_error) {
+            throw new Exception("Database connection failed: " . $mysqli->connect_error);
+        }
+        
+        $mysqli->set_charset("utf8");
+        logMessage("Database connected successfully", 'success');
+    } catch (Exception $dbError) {
+        logMessage("Database connection failed: " . $dbError->getMessage(), 'warning');
+        logMessage("Continuing without database updates...", 'warning');
+        $dbConnectError = true;
     }
-    
-    $mysqli->set_charset("utf8");
-    logMessage("Database connected successfully", 'success');
     
     // Get data from Google Sheet
     logMessage("Fetching data from Google Sheet...");
@@ -354,10 +363,12 @@ try {
             echo "   🕐 Modified: {$fileInfo['modified']}\n";
             echo "   ℹ️ Status: Already downloaded\n\n";
             
-            // Still update database even if file exists
-            if (updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
+            // Still update database even if file exists (if connection available)
+            if (!$dbConnectError && $mysqli && updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
                 $dbUpdateCount++;
                 echo "🗄️ DATABASE: Updated quotation_files for ORD-$id\n\n";
+            } else if ($dbConnectError) {
+                echo "⚠️ DATABASE: Skipped (no database connection)\n\n";
             } else {
                 echo "⚠️ DATABASE: Failed to update quotation_files for ORD-$id\n\n";
             }
@@ -386,10 +397,12 @@ try {
                 echo "   🕐 Modified: {$fileInfo['modified']}\n";
                 echo "   ✅ Status: Ready for use\n\n";
                 
-                // Update database with the new local path
-                if (updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
+                // Update database with the new local path (if connection available)
+                if (!$dbConnectError && $mysqli && updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
                     $dbUpdateCount++;
                     echo "🗄️ DATABASE: Updated quotation_files for ORD-$id\n\n";
+                } else if ($dbConnectError) {
+                    echo "⚠️ DATABASE: Skipped (no database connection)\n\n";
                 } else {
                     echo "⚠️ DATABASE: Failed to update quotation_files for ORD-$id\n\n";
                 }
@@ -416,8 +429,10 @@ try {
         logMessage("Check the log file for detailed error information: $logFile", 'warning');
     }
     
-    // Close database connection
-    $mysqli->close();
+    // Close database connection if it was established
+    if ($mysqli && !$dbConnectError) {
+        $mysqli->close();
+    }
 
 } catch (Exception $e) {
     logMessage("Fatal error: " . $e->getMessage(), 'error');
