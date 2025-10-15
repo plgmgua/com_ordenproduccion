@@ -292,8 +292,27 @@ class HtmlView extends BaseHtmlView
             return true; // Assume it exists
         }
 
-        // For local files, check if file exists
-        $localPath = str_replace(Factory::getApplication()->get('live_site'), JPATH_ROOT, $this->quotationFile);
+        // For local files, convert URL to file system path
+        $app = Factory::getApplication();
+        $liveSite = $app->get('live_site');
+        
+        // Remove the base URL to get the relative path
+        $relativePath = str_replace($liveSite, '', $this->quotationFile);
+        
+        // Remove any URL parameters (like #toolbar=1&navpanes=1...)
+        $relativePath = preg_replace('/#[^?]*$/', '', $relativePath);
+        
+        // Ensure path starts with /
+        if (strpos($relativePath, '/') !== 0) {
+            $relativePath = '/' . $relativePath;
+        }
+        
+        // Convert to absolute file system path
+        $localPath = JPATH_ROOT . $relativePath;
+        
+        // Debug: Log the path check
+        error_log('Checking file accessibility: ' . $localPath . ' - Exists: ' . (file_exists($localPath) ? 'YES' : 'NO'));
+        
         return file_exists($localPath);
     }
 

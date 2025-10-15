@@ -360,6 +360,61 @@ $orderData = $this->getOrderData();
             color: white;
             text-decoration: none;
         }
+        
+        .pdf-error {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px 20px;
+            text-align: center;
+            background: #fff5f5;
+            border: 2px dashed #f56565;
+            border-radius: 8px;
+        }
+        
+        .pdf-error-icon {
+            margin-bottom: 20px;
+        }
+        
+        .pdf-error-icon i {
+            font-size: 48px;
+            color: #e53e3e;
+        }
+        
+        .pdf-error-content h5 {
+            color: #c53030;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 15px 0;
+        }
+        
+        .pdf-error-content p {
+            color: #4a5568;
+            font-size: 14px;
+            margin: 0 0 15px 0;
+            line-height: 1.5;
+        }
+        
+        .pdf-error-content code {
+            display: block;
+            background: #fed7d7;
+            color: #c53030;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0 15px 0;
+        }
+        
+        .pdf-error-suggestion {
+            color: #2d3748;
+            font-size: 13px;
+            font-style: italic;
+            margin-top: 15px;
+        }
 
         .pdf-error-message {
             padding: 20px;
@@ -591,32 +646,48 @@ $orderData = $this->getOrderData();
             </div>
             
             <div class="pdf-embed-container" id="pdfContainer">
-                <iframe 
-                    src="<?php 
-                        if (strpos($this->quotationFile, 'drive.google.com') !== false) {
-                            // For Google Drive, start with the original URL, JavaScript will handle the conversion
-                            echo htmlspecialchars($this->quotationFile);
-                        } else {
-                            // For local files, add PDF parameters
-                            echo htmlspecialchars($this->quotationFile) . '#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH';
-                        }
-                    ?>" 
-                    class="pdf-embed"
-                    id="pdfEmbed"
-                    title="Cotización PDF"
-                    onload="handlePdfLoad(this)"
-                    onerror="handlePdfError(this)">
-                    <div class="pdf-fallback">
-                        <i class="fas fa-file-pdf pdf-fallback-icon"></i>
-                        <p class="pdf-fallback-text">
-                            Tu navegador no soporta la visualización de PDFs embebidos.
-                        </p>
-                        <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" target="_blank" class="pdf-fallback-link">
-                            <i class="fas fa-external-link-alt"></i>
-                            Abrir PDF en nueva ventana
-                        </a>
+                <?php if ($this->isQuotationFileAccessible()): ?>
+                    <iframe 
+                        src="<?php 
+                            if (strpos($this->quotationFile, 'drive.google.com') !== false) {
+                                // For Google Drive, start with the original URL, JavaScript will handle the conversion
+                                echo htmlspecialchars($this->quotationFile);
+                            } else {
+                                // For local files, add PDF parameters
+                                echo htmlspecialchars($this->quotationFile) . '#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH';
+                            }
+                        ?>" 
+                        class="pdf-embed"
+                        id="pdfEmbed"
+                        title="Cotización PDF"
+                        onload="handlePdfLoad(this)"
+                        onerror="handlePdfError(this)">
+                        <div class="pdf-fallback">
+                            <i class="fas fa-file-pdf pdf-fallback-icon"></i>
+                            <p class="pdf-fallback-text">
+                                Tu navegador no soporta la visualización de PDFs embebidos.
+                            </p>
+                            <a href="<?php echo htmlspecialchars($this->quotationFile); ?>" target="_blank" class="pdf-fallback-link">
+                                <i class="fas fa-external-link-alt"></i>
+                                Abrir PDF en nueva ventana
+                            </a>
+                        </div>
+                    </iframe>
+                <?php else: ?>
+                    <div class="pdf-error">
+                        <div class="pdf-error-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="pdf-error-content">
+                            <h5>Archivo no encontrado</h5>
+                            <p>El archivo de cotización no se encuentra en el servidor:</p>
+                            <code><?php echo htmlspecialchars($this->quotationFile); ?></code>
+                            <p class="pdf-error-suggestion">
+                                <strong>Sugerencia:</strong> Verifique que el archivo existe o contacte al administrador.
+                            </p>
+                        </div>
                     </div>
-                </iframe>
+                <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
