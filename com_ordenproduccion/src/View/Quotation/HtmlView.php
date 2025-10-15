@@ -128,6 +128,8 @@ class HtmlView extends BaseHtmlView
     protected function processQuotationFilePath($quotationFiles)
     {
         try {
+            $filePath = '';
+            
             // Handle JSON array format: ["\/media\/com_convertforms\/uploads\/file.pdf"]
             if (strpos($quotationFiles, '[') === 0 && strpos($quotationFiles, ']') !== false) {
                 $decoded = json_decode($quotationFiles, true);
@@ -135,30 +137,55 @@ class HtmlView extends BaseHtmlView
                     $filePath = $decoded[0];
                     // Remove escaped slashes
                     $filePath = str_replace('\\/', '/', $filePath);
-                    
-                    // Handle Google Drive URLs
-                    if (strpos($filePath, 'drive.google.com') !== false) {
-                        return $this->convertGoogleDriveUrl($filePath);
-                    }
-                    
-                    // Handle OneDrive URLs
-                    if (strpos($filePath, 'onedrive.live.com') !== false || strpos($filePath, '1drv.ms') !== false) {
-                        return $this->convertOneDriveUrl($filePath);
-                    }
-                    
-                    // Make it a full URL - construct from current request
+                }
+            } else {
+                // Handle plain string format: media/com_ordenproduccion/cotizaciones/2025/05/COT-000000.pdf
+                $filePath = $quotationFiles;
+            }
+            
+            // If we have a file path, process it
+            if (!empty($filePath)) {
+                // Handle Google Drive URLs
+                if (strpos($filePath, 'drive.google.com') !== false) {
+                    return $this->convertGoogleDriveUrl($filePath);
+                }
+                
+                // Handle OneDrive URLs
+                if (strpos($filePath, 'onedrive.live.com') !== false || strpos($filePath, '1drv.ms') !== false) {
+                    return $this->convertOneDriveUrl($filePath);
+                }
+                
+                // Handle full URLs
+                if (strpos($filePath, 'http') === 0) {
+                    return $filePath;
+                }
+                
+                // Handle absolute paths starting with /
+                if (strpos($filePath, '/') === 0) {
                     $uri = Uri::getInstance();
                     $baseUrl = $uri->toString(['scheme', 'host', 'port']);
                     return $baseUrl . $filePath;
                 }
+                
+                // Handle relative paths starting with media/ (new format)
+                if (strpos($filePath, 'media/') === 0) {
+                    $uri = Uri::getInstance();
+                    $baseUrl = $uri->toString(['scheme', 'host', 'port']);
+                    return $baseUrl . '/' . $filePath;
+                }
+                
+                // Fallback: add /media/ prefix for backwards compatibility
+                $uri = Uri::getInstance();
+                $baseUrl = $uri->toString(['scheme', 'host', 'port']);
+                return $baseUrl . '/media/' . $filePath;
             }
-
-            // Handle Google Drive URLs directly
+            
+            // Handle Google Drive URLs directly if not processed above
             if (strpos($quotationFiles, 'drive.google.com') !== false) {
                 return $this->convertGoogleDriveUrl($quotationFiles);
             }
             
-            // Handle OneDrive URLs directly
+            // Handle OneDrive URLs directly if not processed above
             if (strpos($quotationFiles, 'onedrive.live.com') !== false || strpos($quotationFiles, '1drv.ms') !== false) {
                 return $this->convertOneDriveUrl($quotationFiles);
             }
@@ -168,13 +195,8 @@ class HtmlView extends BaseHtmlView
                 return $quotationFiles;
             }
 
-            // If it's a relative path, make it absolute
-            if (strpos($quotationFiles, '/') === 0) {
-                return Factory::getApplication()->get('live_site') . $quotationFiles;
-            }
-
-            // If it's a relative path without leading slash, add media path
-            return Factory::getApplication()->get('live_site') . '/media/' . $quotationFiles;
+            // Final fallback - return original value
+            return $quotationFiles;
         } catch (Exception $e) {
             error_log('Error in processQuotationFilePath: ' . $e->getMessage());
             // Return the original value as fallback
