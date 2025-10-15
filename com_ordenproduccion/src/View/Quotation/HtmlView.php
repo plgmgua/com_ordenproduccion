@@ -287,33 +287,48 @@ class HtmlView extends BaseHtmlView
             return false;
         }
 
-        // For HTTP URLs, we can't easily check if file exists
-        if (strpos($this->quotationFile, 'http') === 0) {
-            return true; // Assume it exists
-        }
+        // Get clean URL without parameters
+        $cleanUrl = $this->quotationFile;
+        
+        // Remove URL fragments (#toolbar=1&navpanes=1...)
+        $cleanUrl = preg_replace('/#[^?]*$/', '', $cleanUrl);
 
-        // For local files, convert URL to file system path
-        $app = Factory::getApplication();
-        $liveSite = $app->get('live_site');
-        
-        // Remove the base URL to get the relative path
-        $relativePath = str_replace($liveSite, '', $this->quotationFile);
-        
-        // Remove any URL parameters (like #toolbar=1&navpanes=1...)
-        $relativePath = preg_replace('/#[^?]*$/', '', $relativePath);
-        
-        // Ensure path starts with /
-        if (strpos($relativePath, '/') !== 0) {
-            $relativePath = '/' . $relativePath;
+        // For HTTP URLs, extract the local path
+        if (strpos($cleanUrl, 'http') === 0) {
+            // Parse the URL to get the path
+            $parsedUrl = parse_url($cleanUrl);
+            if (isset($parsedUrl['path'])) {
+                $relativePath = $parsedUrl['path'];
+            } else {
+                return false;
+            }
+        } else {
+            // For relative URLs, use as is
+            $relativePath = $cleanUrl;
+            
+            // Ensure path starts with /
+            if (strpos($relativePath, '/') !== 0) {
+                $relativePath = '/' . $relativePath;
+            }
         }
         
         // Convert to absolute file system path
         $localPath = JPATH_ROOT . $relativePath;
         
-        // Debug: Log the path check
-        error_log('Checking file accessibility: ' . $localPath . ' - Exists: ' . (file_exists($localPath) ? 'YES' : 'NO'));
+        // Check if file exists
+        $fileExists = file_exists($localPath);
         
-        return file_exists($localPath);
+        // Debug: Log the path check
+        error_log('=== FILE ACCESSIBILITY CHECK ===');
+        error_log('Original URL: ' . $this->quotationFile);
+        error_log('Clean URL: ' . $cleanUrl);
+        error_log('Relative path: ' . $relativePath);
+        error_log('JPATH_ROOT: ' . JPATH_ROOT);
+        error_log('Full local path: ' . $localPath);
+        error_log('File exists: ' . ($fileExists ? 'YES' : 'NO'));
+        error_log('===============================');
+        
+        return $fileExists;
     }
 
     /**
