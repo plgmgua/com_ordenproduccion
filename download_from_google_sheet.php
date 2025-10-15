@@ -22,6 +22,13 @@ ini_set('memory_limit', '512M');
 $basePath = '/var/www/grimpsa_webserver/media/com_ordenesproduccion/cotizaciones';
 $logFile = __DIR__ . '/download_from_google_sheet.log';
 
+// Database configuration
+$db_host = 'localhost';
+$db_user = 'joomla';
+$db_pass = 'Blob-Repair-Commodore6';
+$db_name = 'grimpsa_prod';
+$tableName = 'joomla_ordenproduccion_ordenes';
+
 // Colors for output
 $colors = [
     'red' => "\033[0;31m",
@@ -230,6 +237,46 @@ function parseDateFromSheet($timestamp, $requestDate) {
     ];
 }
 
+/**
+ * Update database with new local file path
+ */
+function updateDatabaseQuotationPath($mysqli, $tableName, $id, $localPath) {
+    // Convert ORD-XXXXXX to match the order format
+    $orderNumber = 'ORD-' . str_pad($id, 6, '0', STR_PAD_LEFT);
+    
+    // Convert absolute path to relative path (remove leading /media/ since we want media/...)
+    $relativePath = str_replace('/var/www/grimpsa_webserver/media/', 'media/', $localPath);
+    
+    logMessage("Updating database: ORD-$id -> $relativePath", 'data');
+    
+    // Update the quotation_files field
+    $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE orden_de_trabajo = ?");
+    if (!$stmt) {
+        logMessage("Failed to prepare database statement: " . $mysqli->error, 'error');
+        return false;
+    }
+    
+    $stmt->bind_param('ss', $relativePath, $orderNumber);
+    $result = $stmt->execute();
+    
+    if (!$result) {
+        logMessage("Failed to update database for ORD-$id: " . $stmt->error, 'error');
+        $stmt->close();
+        return false;
+    }
+    
+    $affectedRows = $stmt->affected_rows;
+    $stmt->close();
+    
+    if ($affectedRows > 0) {
+        logMessage("Successfully updated database for ORD-$id", 'success');
+        return true;
+    } else {
+        logMessage("No database record found for ORD-$id", 'warning');
+        return false;
+    }
+}
+
 // Main execution
 echo "==========================================\n";
 echo "  Download PDF Files from Google Sheet\n";
@@ -238,6 +285,17 @@ echo "==========================================\n\n";
 logMessage("Starting PDF download process from Google Sheet");
 
 try {
+    // Connect to database
+    logMessage("Connecting to database...");
+    $mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name);
+    
+    if ($mysqli->connect_error) {
+        throw new Exception("Database connection failed: " . $mysqli->connect_error);
+    }
+    
+    $mysqli->set_charset("utf8");
+    logMessage("Database connected successfully", 'success');
+    
     // Get data from Google Sheet
     logMessage("Fetching data from Google Sheet...");
     $sheetData = getGoogleSheetData();
@@ -251,6 +309,7 @@ try {
     $downloadCount = 0;
     $errorCount = 0;
     $skipCount = 0;
+    $dbUpdateCount = 0;
     
     foreach ($sheetData as $record) {
         $id = $record['id'];
@@ -277,8 +336,32 @@ try {
         $filePath = "$basePath/$year/$month/$fileName";
         
         // Check if file already exists
+        $fileAlreadyExists = false;
         if (file_exists($filePath)) {
-            logMessage("File already exists: $fileName - skipping", 'warning');
+            $fileAlreadyExists = true;
+            logMessage("File already exists: $fileName - will verify and update database", 'warning');
+            
+            // Show visual confirmation for existing file
+            $fileInfo = [
+                'size' => number_format(filesize($filePath)) . ' bytes',
+                'modified' => date('Y-m-d H:i:s', filemtime($filePath)),
+                'path' => $filePath
+            ];
+            
+            echo "📁 FILE EXISTS: $fileName\n";
+            echo "   📍 Location: $filePath\n";
+            echo "   📊 Size: {$fileInfo['size']}\n";
+            echo "   🕐 Modified: {$fileInfo['modified']}\n";
+            echo "   ℹ️ Status: Already downloaded\n\n";
+            
+            // Still update database even if file exists
+            if (updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
+                $dbUpdateCount++;
+                echo "🗄️ DATABASE: Updated quotation_files for ORD-$id\n\n";
+            } else {
+                echo "⚠️ DATABASE: Failed to update quotation_files for ORD-$id\n\n";
+            }
+            
             $skipCount++;
             continue;
         }
@@ -287,10 +370,34 @@ try {
         
         if (downloadGoogleDriveFile($fileId, $filePath)) {
             $fileSize = filesize($filePath);
-            logMessage("Successfully downloaded $fileName (" . number_format($fileSize) . " bytes)", 'success');
+            logMessage("✅ Successfully downloaded $fileName (" . number_format($fileSize) . " bytes)", 'success');
+            
+            // Visual confirmation - check if file exists and show details
+            if (file_exists($filePath)) {
+                $fileInfo = [
+                    'size' => number_format(filesize($filePath)) . ' bytes',
+                    'modified' => date('Y-m-d H:i:s', filemtime($filePath)),
+                    'path' => $filePath
+                ];
+                
+                echo "📁 FILE CONFIRMED: $fileName\n";
+                echo "   📍 Location: $filePath\n";
+                echo "   📊 Size: {$fileInfo['size']}\n";
+                echo "   🕐 Modified: {$fileInfo['modified']}\n";
+                echo "   ✅ Status: Ready for use\n\n";
+                
+                // Update database with the new local path
+                if (updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
+                    $dbUpdateCount++;
+                    echo "🗄️ DATABASE: Updated quotation_files for ORD-$id\n\n";
+                } else {
+                    echo "⚠️ DATABASE: Failed to update quotation_files for ORD-$id\n\n";
+                }
+            }
+            
             $downloadCount++;
         } else {
-            logMessage("Failed to download $fileName", 'error');
+            logMessage("❌ Failed to download $fileName", 'error');
             $errorCount++;
         }
     }
@@ -301,12 +408,16 @@ try {
     echo "==========================================\n";
     logMessage("📊 Total records processed: " . count($sheetData), 'info');
     logMessage("✅ Files downloaded: $downloadCount", 'success');
+    logMessage("🗄️ Database records updated: $dbUpdateCount", 'success');
     logMessage("⚠️ Files skipped: $skipCount", 'warning');
     logMessage("❌ Errors: $errorCount", 'error');
     
     if ($errorCount > 0) {
         logMessage("Check the log file for detailed error information: $logFile", 'warning');
     }
+    
+    // Close database connection
+    $mysqli->close();
 
 } catch (Exception $e) {
     logMessage("Fatal error: " . $e->getMessage(), 'error');
