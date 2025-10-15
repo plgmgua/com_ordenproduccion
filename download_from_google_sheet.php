@@ -315,6 +315,52 @@ try {
     
     logMessage("Retrieved " . count($sheetData) . " records from Google Sheet", 'success');
     
+    // === CONFIRMATION SECTION ===
+    echo "\n";
+    echo "┌" . str_repeat("─", 50) . "┐\n";
+    echo "│              CONFIRMATION                │\n";
+    echo "├" . str_repeat("─", 50) . "┤\n";
+    echo "│ ✅ Successfully connected to Google Sheet│\n";
+    echo "│ ✅ Retrieved " . str_pad(count($sheetData), 4, " ", STR_PAD_LEFT) . " records for processing          │\n";
+    echo "│ ✅ Ready to download PDF files           │\n";
+    echo "│ ✅ Ready to update database records      │\n";
+    echo "└" . str_repeat("─", 50) . "┘\n";
+    
+    // Show sample data
+    echo "\n📋 Sample Data Preview:\n";
+    echo str_repeat("─", 70) . "\n";
+    $sampleCount = 0;
+    foreach ($sheetData as $record) {
+        if ($sampleCount >= 3) break; // Show first 3 records
+        $fileId = extractDriveFileId($record['url']);
+        $dateInfo = parseDateFromSheet($record['timestamp'], $record['request_date']);
+        $fileName = "COT-" . $record['id'] . ".pdf";
+        $targetPath = "media/com_ordenesproduccion/cotizaciones/{$dateInfo['year']}/{$dateInfo['month']}/$fileName";
+        
+        echo "   📄 ID: " . $record['id'] . " → $fileName\n";
+        echo "      📍 Target: $targetPath\n";
+        echo "      🔗 Drive ID: " . ($fileId ? $fileId : "❌ Invalid") . "\n";
+        echo "      📅 Date: " . ($record['request_date'] ?: $record['timestamp'] ?: "Unknown") . "\n\n";
+        $sampleCount++;
+    }
+    
+    if (count($sheetData) > 3) {
+        echo "   ... and " . (count($sheetData) - 3) . " more records\n\n";
+    }
+    
+    echo "🎯 Summary:\n";
+    echo "   • Total files to process: " . count($sheetData) . "\n";
+    echo "   • Target directory: $basePath\n";
+    echo "   • File naming format: COT-XXXXXX.pdf\n";
+    echo "   • Database updates: " . (!$dbConnectError ? "Enabled" : "Disabled (connection failed)") . "\n\n";
+    
+    // Wait for user confirmation
+    echo "Press ENTER to start downloading and updating, or Ctrl+C to cancel:\n";
+    readline();
+    echo "\n🚀 Starting download process...\n";
+    echo str_repeat("=", 60) . "\n";
+    // === END CONFIRMATION SECTION ===
+    
     $downloadCount = 0;
     $errorCount = 0;
     $skipCount = 0;
