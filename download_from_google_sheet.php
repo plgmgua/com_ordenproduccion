@@ -20,6 +20,7 @@ ini_set('memory_limit', '512M');
 
 // --- CONFIGURATION ---
 $basePath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaciones';
+$oldBasePath = '/var/www/grimpsa_webserver/media/com_ordenesproduccion/cotizaciones';
 $logFile = __DIR__ . '/download_from_google_sheet.log';
 
 // Database configuration
@@ -441,6 +442,27 @@ try {
         // Create file path: COT-000001.pdf format
         $fileName = "COT-$id.pdf";
         $filePath = "$basePath/$year/$month/$fileName";
+        $oldFilePath = "$oldBasePath/$year/$month/$fileName";
+        
+        // If the file exists in the old location, move it to the new destination
+        if (!file_exists($filePath) && file_exists($oldFilePath)) {
+            logMessage("Found file in old path, migrating to new destination: $oldFilePath → $filePath", 'warning');
+            if (ensureDirectory(dirname($filePath))) {
+                if (@rename($oldFilePath, $filePath)) {
+                    @chmod($filePath, 0644);
+                    @chown($filePath, 'www-data');
+                    @chgrp($filePath, 'www-data');
+                    logMessage("Migration successful for $fileName", 'success');
+                    // Update database with new path if possible
+                    if (!$dbConnectError && $mysqli && updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
+                        $dbUpdateCount++;
+                        echo "🗄️ DATABASE: Updated quotation_files for ORD-$id (after migration)\n\n";
+                    }
+                } else {
+                    logMessage("Failed to move file from old path to new for $fileName", 'error');
+                }
+            }
+        }
         
         // Check if file already exists
         $fileAlreadyExists = false;
