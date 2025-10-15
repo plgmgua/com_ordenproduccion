@@ -19,7 +19,7 @@ set_time_limit(0);
 ini_set('memory_limit', '512M');
 
 // --- CONFIGURATION ---
-$basePath = '/var/www/grimpsa_webserver/media/com_ordenesproduccion/cotizaciones';
+$basePath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaciones';
 $logFile = __DIR__ . '/download_from_google_sheet.log';
 
 // Database configuration
@@ -372,7 +372,7 @@ try {
         $fileId = extractDriveFileId($record['url']);
         $dateInfo = parseDateFromSheet($record['timestamp'], $record['request_date']);
         $fileName = "COT-" . $record['id'] . ".pdf";
-        $targetPath = "media/com_ordenesproduccion/cotizaciones/{$dateInfo['year']}/{$dateInfo['month']}/$fileName";
+        $targetPath = "media/com_ordenproduccion/cotizaciones/{$dateInfo['year']}/{$dateInfo['month']}/$fileName";
         
         echo "   📄 ID: " . $record['id'] . " → $fileName\n";
         echo "      📍 Target: $targetPath\n";
