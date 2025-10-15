@@ -139,6 +139,37 @@ $localMediaPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaci
             return ['found' => false];
         }
 
+        function validateLocalPath($path) {
+            // Handle JSON array format
+            $decoded = json_decode($path, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded[0])) {
+                $actualPath = $decoded[0];
+            } else {
+                $actualPath = $path;
+            }
+            
+            // Convert relative path to absolute path
+            if (strpos($actualPath, '/media/') === 0) {
+                $absolutePath = '/var/www/grimpsa_webserver' . $actualPath;
+            } elseif (strpos($actualPath, 'media/') === 0) {
+                $absolutePath = '/var/www/grimpsa_webserver/' . $actualPath;
+            } else {
+                return ['found' => false, 'error' => 'Invalid path format'];
+            }
+            
+            if (file_exists($absolutePath)) {
+                return [
+                    'found' => true,
+                    'path' => $absolutePath,
+                    'relative_path' => $actualPath,
+                    'size' => filesize($absolutePath),
+                    'modified' => date('Y-m-d H:i:s', filemtime($absolutePath))
+                ];
+            }
+            
+            return ['found' => false, 'expected_path' => $absolutePath];
+        }
+
         try {
             // --- MYSQL CONNECTION ---
             echo '<h2>🔗 Database Connection</h2>';
@@ -185,10 +216,18 @@ $localMediaPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaci
                 // Categorize the quotation_files value
                 if (isCorrectFormat($quotationFiles)) {
                     $correctFormat++;
+                    
+                    // Validate local file for correct format paths
+                    $localFile = validateLocalPath($quotationFiles);
+                    
                     $categories['correct_json_format'][] = [
                         'id' => $recordId,
                         'orden' => $ordenDeTrabajo,
-                        'files' => $quotationFiles
+                        'files' => $quotationFiles,
+                        'local_file_found' => $localFile['found'],
+                        'local_path' => $localFile['found'] ? $localFile['relative_path'] : (isset($localFile['expected_path']) ? $localFile['expected_path'] : null),
+                        'local_size' => $localFile['found'] ? $localFile['size'] : null,
+                        'local_modified' => $localFile['found'] ? $localFile['modified'] : null
                     ];
                 } elseif (isGoogleDriveUrl($quotationFiles)) {
                     $googleDriveUrls++;
@@ -253,7 +292,7 @@ $localMediaPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaci
             echo '</table>';
             echo '</div>';
 
-            // Show examples of each category
+            // Show complete lists of each category
             foreach ($categories as $categoryName => $items) {
                 if (empty($items)) continue;
                 
@@ -261,32 +300,51 @@ $localMediaPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaci
                 echo '<div class="category">';
                 echo '<h3>📋 ' . strtoupper(str_replace('_', ' ', $categoryName)) . " ($count items)</h3>";
                 
-                // Show first 5 examples
-                $examples = array_slice($items, 0, 5);
+                // Show ALL items for Google Drive URLs, first 10 for others
+                if ($categoryName === 'google_drive_urls') {
+                    $examples = $items; // Show all Google Drive URLs
+                } else {
+                    $examples = array_slice($items, 0, 10); // Show first 10 for other categories
+                }
+                
                 echo '<table>';
-                echo '<tr><th>ID</th><th>Order</th><th>Files</th><th>Local File</th></tr>';
+                echo '<tr><th>ID</th><th>Order</th><th>Files</th><th>Local File Status</th><th>File Details</th></tr>';
                 
                 foreach ($examples as $item) {
                     echo '<tr>';
                     echo '<td>' . $item['id'] . '</td>';
                     echo '<td>' . htmlspecialchars($item['orden']) . '</td>';
-                    echo '<td style="font-size: 11px; max-width: 300px; word-wrap: break-word;">' . htmlspecialchars(substr($item['files'], 0, 100)) . (strlen($item['files']) > 100 ? '...' : '') . '</td>';
+                    echo '<td style="font-size: 11px; max-width: 400px; word-wrap: break-word;">' . htmlspecialchars(substr($item['files'], 0, 150)) . (strlen($item['files']) > 150 ? '...' : '') . '</td>';
                     
                     if (isset($item['local_file_found'])) {
                         if ($item['local_file_found']) {
-                            echo '<td><span class="success">✅ FOUND</span><br><small>' . htmlspecialchars($item['local_path']) . '</small><br><small>Size: ' . number_format($item['local_size']) . ' bytes</small></td>';
+                            echo '<td><span class="success">✅ FOUND</span></td>';
+                            echo '<td style="font-size: 10px;">';
+                            echo '<strong>Path:</strong> ' . htmlspecialchars($item['local_path']) . '<br>';
+                            echo '<strong>Size:</strong> ' . number_format($item['local_size']) . ' bytes<br>';
+                            echo '<strong>Modified:</strong> ' . $item['local_modified'];
+                            echo '</td>';
                         } else {
                             echo '<td><span class="error">❌ NOT FOUND</span></td>';
+                            echo '<td style="font-size: 10px;">';
+                            if (isset($item['local_path'])) {
+                                echo '<strong>Expected:</strong> ' . htmlspecialchars($item['local_path']) . '<br>';
+                            }
+                            if (isset($item['drive_id'])) {
+                                echo '<strong>Drive ID:</strong> ' . htmlspecialchars($item['drive_id']) . '<br>';
+                            }
+                            echo '</td>';
                         }
                     } else {
+                        echo '<td>-</td>';
                         echo '<td>-</td>';
                     }
                     echo '</tr>';
                 }
                 echo '</table>';
                 
-                if ($count > 5) {
-                    echo '<p><em>... and ' . ($count - 5) . ' more items</em></p>';
+                if ($categoryName !== 'google_drive_urls' && $count > 10) {
+                    echo '<p><em>... and ' . ($count - 10) . ' more items</em></p>';
                 }
                 echo '</div>';
             }
