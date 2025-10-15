@@ -263,31 +263,40 @@ function getGoogleSheetData() {
 function parseDateFromSheet($timestamp, $requestDate) {
     $dateString = '';
     
-    // Try request date first, then timestamp
-    if (!empty($requestDate)) {
-        $dateString = $requestDate;
-    } elseif (!empty($timestamp)) {
+    // Use column B (Marca temporal) first, then column C (Request Date)
+    if (!empty($timestamp)) {
         $dateString = $timestamp;
+    } elseif (!empty($requestDate)) {
+        $dateString = $requestDate;
     }
     
     if (!empty($dateString)) {
-        // Try to parse various date formats
+        // Try to parse various datetime and date formats (day-first and month-first)
         $formats = [
-            'd/m/Y',      // 24/8/2022
-            'm/d/Y',      // 8/24/2022
-            'Y-m-d',      // 2022-08-24
-            'd-m-Y',      // 24-08-2022
-            'Y/m/d',      // 2022/08/24
+            'd/m/Y H:i:s', 'd/m/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i',
+            'm/d/Y H:i:s', 'm/d/Y H:i', 'm-d-Y H:i:s', 'm-d-Y H:i',
+            'Y-m-d H:i:s', 'Y-m-d H:i', 'Y/m/d H:i:s', 'Y/m/d H:i',
+            'd/m/Y', 'd-m-Y', 'm/d/Y', 'm-d-Y', 'Y-m-d', 'Y/m/d'
         ];
         
         foreach ($formats as $format) {
             $date = DateTime::createFromFormat($format, $dateString);
-            if ($date !== false) {
+            if ($date instanceof DateTime) {
                 return [
                     'year' => $date->format('Y'),
                     'month' => $date->format('m')
                 ];
             }
+        }
+        
+        // Fallback to strtotime for loose parsing
+        $ts = strtotime($dateString);
+        if ($ts !== false) {
+            $date = (new DateTime())->setTimestamp($ts);
+            return [
+                'year' => $date->format('Y'),
+                'month' => $date->format('m')
+            ];
         }
     }
     
