@@ -30,6 +30,30 @@ $db_pass = 'Blob-Repair-Commodore6';
 $db_name = 'grimpsa_prod';
 $tableName = 'joomla_ordenproduccion_ordenes';
 
+/**
+ * Build Joomla-relative web path (media/...) from absolute path
+ */
+function toJoomlaRelativePath($absolutePath) {
+    // Normalize separators
+    $absolutePath = str_replace('\\', '/', $absolutePath);
+    // Common JPATH_ROOT for this environment
+    $prefix = '/var/www/grimpsa_webserver/';
+    if (strpos($absolutePath, $prefix) === 0) {
+        $relativeFromRoot = substr($absolutePath, strlen($prefix));
+        // Ensure it starts with media/
+        if (strpos($relativeFromRoot, 'media/') === 0) {
+            return $relativeFromRoot; // already media/... with no leading slash before media
+        }
+    }
+    // Fallback: strip everything up to /media/
+    $pos = strpos($absolutePath, '/media/');
+    if ($pos !== false) {
+        return ltrim(substr($absolutePath, $pos + 1), '/'); // remove leading slash so it is media/...
+    }
+    // As last resort, return unchanged but without leading slash
+    return ltrim($absolutePath, '/');
+}
+
 // Colors for output
 $colors = [
     'red' => "\033[0;31m",
@@ -281,10 +305,10 @@ function updateDatabaseQuotationPath($mysqli, $tableName, $id, $localPath) {
     // Convert ORD-XXXXXX to match the order format
     $orderNumber = 'ORD-' . str_pad($id, 6, '0', STR_PAD_LEFT);
     
-    // Convert absolute path to relative path (remove leading /media/ since we want media/...)
-    $relativePath = str_replace('/var/www/grimpsa_webserver/media/', 'media/', $localPath);
+    // Convert absolute path to Joomla-relative web path (media/...)
+    $relativePath = toJoomlaRelativePath($localPath);
     
-    logMessage("Updating database: ORD-$id -> $relativePath", 'data');
+    logMessage("Updating database: $orderNumber -> $relativePath", 'data');
     
     // Update the quotation_files field
     $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE orden_de_trabajo = ?");
@@ -297,7 +321,7 @@ function updateDatabaseQuotationPath($mysqli, $tableName, $id, $localPath) {
     $result = $stmt->execute();
     
     if (!$result) {
-        logMessage("Failed to update database for ORD-$id: " . $stmt->error, 'error');
+        logMessage("Failed to update database for $orderNumber: " . $stmt->error, 'error');
         $stmt->close();
         return false;
     }
@@ -306,10 +330,10 @@ function updateDatabaseQuotationPath($mysqli, $tableName, $id, $localPath) {
     $stmt->close();
     
     if ($affectedRows > 0) {
-        logMessage("Successfully updated database for ORD-$id", 'success');
+        logMessage("Successfully updated database for $orderNumber", 'success');
         return true;
     } else {
-        logMessage("No database record found for ORD-$id", 'warning');
+        logMessage("No database record found for $orderNumber", 'warning');
         return false;
     }
 }
