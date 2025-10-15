@@ -501,9 +501,9 @@ try {
         $fileAlreadyExists = false;
         if (file_exists($filePath)) {
             $fileAlreadyExists = true;
-            logMessage("File already exists: $fileName - will verify and update database", 'warning');
+            logMessage("File already exists: $fileName - skipping download and DB update", 'warning');
             
-            // Show visual confirmation for existing file
+            // Visual confirmation for existing file
             $fileInfo = [
                 'size' => number_format(filesize($filePath)) . ' bytes',
                 'modified' => date('Y-m-d H:i:s', filemtime($filePath)),
@@ -514,17 +514,7 @@ try {
             echo "   📍 Location: $filePath\n";
             echo "   📊 Size: {$fileInfo['size']}\n";
             echo "   🕐 Modified: {$fileInfo['modified']}\n";
-            echo "   ℹ️ Status: Already downloaded\n\n";
-            
-            // Still update database even if file exists (if connection available)
-            if (!$dbConnectError && $mysqli && updateDatabaseQuotationPath($mysqli, $tableName, $id, $filePath)) {
-                $dbUpdateCount++;
-                echo "🗄️ DATABASE: Updated quotation_files for ORD-$id\n\n";
-            } else if ($dbConnectError) {
-                echo "⚠️ DATABASE: Skipped (no database connection)\n\n";
-            } else {
-                echo "⚠️ DATABASE: Failed to update quotation_files for ORD-$id\n\n";
-            }
+            echo "   ℹ️ Status: Skipped (already present)\n\n";
             
             $skipCount++;
             continue;
