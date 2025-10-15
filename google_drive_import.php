@@ -97,11 +97,17 @@ try {
 
     // --- FUNCTION: CHECK IF URL IS IN CORRECT FORMAT ---
     function isCorrectFormat($url) {
-        // Check if it's a JSON array with escaped slashes
+        if (empty($url)) {
+            return false;
+        }
+        
+        // Check if it's a JSON array format
         $decoded = json_decode($url, true);
         if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
             if (isset($decoded[0]) && is_string($decoded[0])) {
-                return strpos($decoded[0], '\/media\/') === 0;
+                // After JSON decode, escaped slashes become regular slashes
+                // So we check for /media/ pattern
+                return strpos($decoded[0], '/media/') === 0;
             }
         }
         return false;
@@ -158,7 +164,7 @@ try {
     // --- PROCESS RECORDS ---
     logMessage("Fetching records with Google Drive URLs...");
     // Select records with Google Drive URLs OR incorrectly formatted local paths
-    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND (quotation_files LIKE '%drive.google.com%' OR (quotation_files LIKE 'media/%' AND quotation_files NOT LIKE '%[%'))";
+    $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' AND (quotation_files LIKE '%drive.google.com%' OR (quotation_files LIKE 'media/%' AND quotation_files NOT LIKE '%[%') OR (quotation_files LIKE '/media/%' AND quotation_files NOT LIKE '%[%'))";
     $result = $mysqli->query($query);
 
     if (!$result) {
@@ -197,9 +203,12 @@ try {
         }
 
         // Check if it's a local path that needs formatting
-        if (strpos($quotationFiles, 'media/') === 0 && !isCorrectFormat($quotationFiles)) {
+        if ((strpos($quotationFiles, 'media/') === 0 || strpos($quotationFiles, '/media/') === 0) && !isCorrectFormat($quotationFiles)) {
             logMessage("Fixing format for local path: $quotationFiles");
-            $correctFormat = formatUrlCorrectly($quotationFiles);
+            
+            // Remove leading slash if present for consistency
+            $cleanPath = ltrim($quotationFiles, '/');
+            $correctFormat = formatUrlCorrectly($cleanPath);
             
             // Update database with correctly formatted URL
             $stmt = $mysqli->prepare("UPDATE $tableName SET quotation_files = ? WHERE id = ?");
