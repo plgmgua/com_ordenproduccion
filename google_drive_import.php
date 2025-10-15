@@ -115,9 +115,16 @@ try {
     
     // --- FUNCTION: FORMAT URL CORRECTLY ---
     function formatUrlCorrectly($localPath) {
-        // Convert plain path to JSON array format with escaped slashes
-        $escapedPath = str_replace('/', '\/', $localPath);
-        return json_encode([$escapedPath]);
+        // Ensure the path starts with /media/ for consistency
+        $cleanPath = ltrim($localPath, '/');
+        if (strpos($cleanPath, 'media/') !== 0) {
+            $cleanPath = 'media/' . $cleanPath;
+        }
+        $cleanPath = '/' . $cleanPath;
+        
+        // Let json_encode handle the escaping automatically
+        // This will create the correct format: ["\/media\/path\/file.pdf"]
+        return json_encode([$cleanPath]);
     }
     
     // --- FUNCTION: EXTRACT FILE ID ---
