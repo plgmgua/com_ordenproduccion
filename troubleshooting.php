@@ -1,6 +1,6 @@
 <?php
 /**
- * Invoice Creation Troubleshooting Script
+ * Quotation Files Analysis Script
  * Place in Joomla root directory
  * Access via: https://grimpsa_webserver.grantsolutions.cc/troubleshooting.php
  */
@@ -17,11 +17,19 @@ use Joomla\CMS\Factory;
 // Start the application
 $app = Factory::getApplication('site');
 
+// Set time limit for long operations
+set_time_limit(0);
+ini_set('memory_limit', '512M');
+
+// --- CONFIGURATION ---
+$tableName = 'joomla_ordenproduccion_ordenes';
+$localMediaPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaciones/';
+
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Invoice Creation Debugging</title>
+    <title>Quotation Files Analysis</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -36,370 +44,286 @@ $app = Factory::getApplication('site');
         table td { padding: 8px; border-bottom: 1px solid #ddd; }
         table tr:hover { background: #f5f5f5; }
         pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
-        .test-button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
-        .test-button:hover { background: #45a049; }
+        .category { background: #f0f8ff; padding: 15px; border-radius: 4px; margin: 10px 0; }
+        .stats { background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Invoice Creation Troubleshooting</h1>
-        <p><strong>Component Version:</strong> 3.45.0-STABLE</p>
+        <h1>📊 Quotation Files Analysis</h1>
+        <p><strong>Component Version:</strong> 3.52.18-STABLE</p>
         <p><strong>Date:</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
 
         <?php
-        // Test 1: Check if tables exist
-        echo '<h2>📊 Test 1: Database Tables</h2>';
-        $db = Factory::getDbo();
-        
-        try {
-            // Check invoices table
-            $query = "SHOW TABLES LIKE '%ordenproduccion_invoices%'";
-            $db->setQuery($query);
-            $invoiceTable = $db->loadResult();
+        // --- ANALYSIS FUNCTIONS ---
+
+        function isCorrectFormat($url) {
+            if (empty($url)) {
+                return false;
+            }
             
-            if ($invoiceTable) {
-                echo '<p class="success">✅ Invoices table exists: ' . htmlspecialchars($invoiceTable) . '</p>';
-                
-                // Count invoices
-                $query = $db->getQuery(true)
-                    ->select('COUNT(*)')
-                    ->from($db->quoteName($invoiceTable));
-                $db->setQuery($query);
-                $count = $db->loadResult();
-                
-                echo '<p class="info">📈 Total invoices in table: ' . $count . '</p>';
-                
-                // Show recent invoices
-                if ($count > 0) {
-                    $query = $db->getQuery(true)
-                        ->select('*')
-                        ->from($db->quoteName($invoiceTable))
-                        ->order('created DESC')
-                        ->setLimit(5);
-                    $db->setQuery($query);
-                    $invoices = $db->loadObjectList();
-                    
-                    echo '<p><strong>Recent Invoices:</strong></p>';
-                    echo '<table>';
-                    echo '<tr><th>ID</th><th>Invoice #</th><th>Order #</th><th>Client</th><th>Amount</th><th>Status</th><th>Created</th></tr>';
-                    foreach ($invoices as $inv) {
-                        echo '<tr>';
-                        echo '<td>' . $inv->id . '</td>';
-                        echo '<td>' . htmlspecialchars($inv->invoice_number) . '</td>';
-                        echo '<td>' . htmlspecialchars($inv->orden_de_trabajo) . '</td>';
-                        echo '<td>' . htmlspecialchars($inv->client_name) . '</td>';
-                        echo '<td>Q ' . number_format($inv->invoice_amount, 2) . '</td>';
-                        echo '<td>' . htmlspecialchars($inv->status) . '</td>';
-                        echo '<td>' . $inv->created . '</td>';
-                        echo '</tr>';
-                    }
-                    echo '</table>';
+            // Check if it's a JSON array format
+            $decoded = json_decode($url, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                if (isset($decoded[0]) && is_string($decoded[0])) {
+                    // After JSON decode, escaped slashes become regular slashes
+                    // So we check for /media/ pattern
+                    return strpos($decoded[0], '/media/') === 0;
                 }
-                
+            }
+            return false;
+        }
+
+        function isGoogleDriveUrl($url) {
+            return strpos($url, 'drive.google.com') !== false;
+        }
+
+        function isLocalPath($url) {
+            return strpos($url, 'media/') === 0 || strpos($url, '/media/') === 0;
+        }
+
+        function extractDriveFileId($url) {
+            // Handle both plain URLs and JSON arrays
+            $urls = [];
+            
+            // Try to decode as JSON first
+            $decoded = json_decode($url, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $urls = $decoded;
             } else {
-                echo '<p class="error">❌ Invoices table NOT found</p>';
+                // Treat as plain URL
+                $urls = [$url];
             }
             
-        } catch (Exception $e) {
-            echo '<p class="error">❌ Database Error: ' . htmlspecialchars($e->getMessage()) . '</p>';
-        }
-
-        // Test 2: Check PHP Error Logs
-        echo '<h2>📝 Test 2: PHP Error Logs</h2>';
-        
-        $logFiles = [
-            '/var/log/apache2/error.log',
-            '/var/log/nginx/error.log',
-            '/var/log/php_errors.log',
-            ini_get('error_log'),
-            JPATH_ROOT . '/logs/error.php',
-            JPATH_ROOT . '/logs/joomla.log'
-        ];
-        
-        echo '<table>';
-        echo '<tr><th>Log File</th><th>Exists</th><th>Size</th><th>Recent Invoice Errors</th></tr>';
-        
-        foreach ($logFiles as $logFile) {
-            $exists = file_exists($logFile);
-            $size = $exists ? filesize($logFile) : 0;
-            $recentErrors = 0;
-            
-            if ($exists && $size > 0) {
-                $logContent = file_get_contents($logFile);
-                $recentErrors = substr_count($logContent, 'invoice') + substr_count($logContent, 'ordenproduccion');
+            foreach ($urls as $singleUrl) {
+                // Extract Google Drive file ID from various URL formats
+                if (preg_match('/\/d\/([-\w]{25,})/', $singleUrl, $matches)) {
+                    return $matches[1];
+                }
+                if (preg_match('/id=([-\w]{25,})/', $singleUrl, $matches)) {
+                    return $matches[1];
+                }
+                if (preg_match('/([-\w]{25,})/', $singleUrl, $matches)) {
+                    return $matches[1];
+                }
             }
             
-            echo '<tr>';
-            echo '<td style="font-size: 11px;">' . htmlspecialchars($logFile) . '</td>';
-            echo '<td>' . ($exists ? '<span class="success">✅</span>' : '<span class="error">❌</span>') . '</td>';
-            echo '<td>' . ($exists ? number_format($size) . ' bytes' : '-') . '</td>';
-            echo '<td>' . ($recentErrors > 0 ? '<span class="warning">⚠️ ' . $recentErrors . ' entries</span>' : '-') . '</td>';
-            echo '</tr>';
+            return null;
         }
-        echo '</table>';
 
-        // Test 3: Check Form Submission Simulation
-        echo '<h2>🔧 Test 3: Form Submission Test</h2>';
-        
-        if (isset($_POST['test_form'])) {
-            echo '<div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
-            echo '<h3>Simulating Form Submission...</h3>';
+        function findLocalFile($ordenDeTrabajo, $createdDate, $localMediaPath) {
+            // Convert ORD-000000 to COT-000000
+            $cotNumber = str_replace('ORD-', 'COT-', $ordenDeTrabajo);
             
-            // Enable error reporting for debugging
-            error_reporting(E_ALL);
-            ini_set('display_errors', 1);
+            // Determine year/month folder based on created date
+            $year = date('Y', strtotime($createdDate));
+            $month = date('m', strtotime($createdDate));
+            $yearMonthFolder = "$localMediaPath$year/$month/";
             
-            // Simulate the exact form data that would be sent
-            $testFormData = [
-                'task' => 'invoice.create',
-                'option' => 'com_ordenproduccion',
-                'order_id' => 5397,
-                'order_number' => 'ORD-005551',
-                'cliente' => 'MULTI IMPRESOS',
-                'nit' => 'CF',
-                'direccion' => 'Ciudad',
-                'items' => [
-                    1 => [
-                        'cantidad' => 2,
-                        'descripcion' => 'tarjetas',
-                        'precio_unitario' => 300,
-                        'subtotal' => 600
-                    ],
-                    2 => [
-                        'cantidad' => 3,
-                        'descripcion' => 'libros',
-                        'precio_unitario' => 30,
-                        'subtotal' => 90
-                    ]
-                ]
+            // Check for common file extensions
+            $extensions = ['pdf', 'PDF', 'doc', 'docx', 'DOC', 'DOCX'];
+            
+            foreach ($extensions as $ext) {
+                $filePath = $yearMonthFolder . $cotNumber . '.' . $ext;
+                if (file_exists($filePath)) {
+                    return [
+                        'found' => true,
+                        'path' => $filePath,
+                        'relative_path' => "media/com_ordenproduccion/cotizaciones/$year/$month/$cotNumber.$ext",
+                        'size' => filesize($filePath),
+                        'modified' => date('Y-m-d H:i:s', filemtime($filePath))
+                    ];
+                }
+            }
+            
+            return ['found' => false];
+        }
+
+        try {
+            // --- MYSQL CONNECTION ---
+            echo '<h2>🔗 Database Connection</h2>';
+            $db = Factory::getDbo();
+            echo '<p class="success">✅ Database connection successful</p>';
+
+            // --- GET ALL RECORDS WITH QUOTATION FILES ---
+            echo '<h2>📊 Database Analysis</h2>';
+            $query = "SELECT id, orden_de_trabajo, quotation_files, created FROM $tableName WHERE quotation_files IS NOT NULL AND quotation_files != '' ORDER BY id";
+            $db->setQuery($query);
+            $records = $db->loadObjectList();
+
+            $totalRecords = count($records);
+            echo "<p class='info'>Found $totalRecords records with quotation_files</p>";
+
+            // Initialize counters
+            $correctFormat = 0;
+            $googleDriveUrls = 0;
+            $localPathsWrongFormat = 0;
+            $localPathsCorrectFormat = 0;
+            $emptyOrNull = 0;
+            $other = 0;
+            
+            $filesFoundLocally = 0;
+            $filesNotFoundLocally = 0;
+            
+            $categories = [
+                'correct_json_format' => [],
+                'google_drive_urls' => [],
+                'local_paths_wrong_format' => [],
+                'local_paths_correct_format' => [],
+                'other' => []
             ];
-            
-            echo '<p><strong>Simulated Form Data:</strong></p>';
-            echo '<pre>' . htmlspecialchars(print_r($testFormData, true)) . '</pre>';
-            
-            // Try to create invoice using the controller
-            try {
-                echo '<p class="info">Attempting to create invoice via controller...</p>';
-                
-                // Set up the input data
-                $input = $app->input;
-                foreach ($testFormData as $key => $value) {
-                    $input->set($key, $value);
-                }
-                
-                // Set CSRF token
-                $token = JSession::getFormToken();
-                $_POST[$token] = '1';
-                
-                echo '<p>CSRF Token: ' . $token . '</p>';
-                
-                // Include the controller
-                $controllerPath = JPATH_ROOT . '/components/com_ordenproduccion/src/Controller/InvoiceController.php';
-                if (file_exists($controllerPath)) {
-                    echo '<p class="success">✅ Controller file found</p>';
-                    
-                    // Capture any output
-                    ob_start();
-                    include_once $controllerPath;
-                    
-                    try {
-                        $controller = new \Grimpsa\Component\Ordenproduccion\Site\Controller\InvoiceController();
-                        echo '<p class="success">✅ Controller instantiated</p>';
-                        
-                        $result = $controller->create();
-                        echo '<p class="success">✅ Controller::create() executed</p>';
-                        echo '<p>Result: ' . ($result ? 'SUCCESS' : 'FAILED') . '</p>';
-                        
-                    } catch (Exception $controllerError) {
-                        echo '<p class="error">❌ Controller Error: ' . htmlspecialchars($controllerError->getMessage()) . '</p>';
-                        echo '<pre>' . htmlspecialchars($controllerError->getTraceAsString()) . '</pre>';
-                    }
-                    
-                    $output = ob_get_clean();
-                    if (!empty($output)) {
-                        echo '<p><strong>Controller Output:</strong></p>';
-                        echo '<pre>' . htmlspecialchars($output) . '</pre>';
-                    }
-                    
-                } else {
-                    echo '<p class="error">❌ Controller file not found: ' . $controllerPath . '</p>';
-                }
-                
-            } catch (Exception $e) {
-                echo '<p class="error">❌ Exception: ' . htmlspecialchars($e->getMessage()) . '</p>';
-                echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
-            }
-            
-            echo '</div>';
-        }
 
-        // Test 4: Check InvoiceModel access
-        echo '<h2>🔧 Test 4: InvoiceModel Access Test</h2>';
-        
-        if (isset($_POST['test_model'])) {
-            echo '<div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
-            echo '<h3>Testing InvoiceModel...</h3>';
-            
-            try {
-                // Check if InvoiceModel file exists
-                $modelPath = JPATH_ROOT . '/components/com_ordenproduccion/src/Model/InvoiceModel.php';
-                if (file_exists($modelPath)) {
-                    echo '<p class="success">✅ InvoiceModel file found</p>';
-                    
-                    include_once $modelPath;
-                    
-                    try {
-                        $invoiceModel = new \Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceModel();
-                        echo '<p class="success">✅ InvoiceModel instantiated</p>';
-                        
-                        // Test save method with sample data
-                        $testData = [
-                            'invoice_number' => 'FAC-TEST-001',
-                            'orden_id' => 5397,
-                            'orden_de_trabajo' => 'ORD-005551',
-                            'client_name' => 'Test Client',
-                            'client_nit' => 'TEST-123',
-                            'invoice_amount' => 100.00,
-                            'currency' => 'Q',
-                            'line_items' => [['cantidad' => 1, 'descripcion' => 'Test', 'precio_unitario' => 100, 'subtotal' => 100]],
-                            'status' => 'draft',
-                            'state' => 1
-                        ];
-                        
-                        echo '<p><strong>Testing save with data:</strong></p>';
-                        echo '<pre>' . htmlspecialchars(print_r($testData, true)) . '</pre>';
-                        
-                        $result = $invoiceModel->save($testData);
-                        echo '<p>Save result: ' . ($result ? 'SUCCESS' : 'FAILED') . '</p>';
-                        
-                        if (!$result) {
-                            echo '<p class="error">❌ Save failed - check for database errors</p>';
-                        }
-                        
-                    } catch (Exception $modelError) {
-                        echo '<p class="error">❌ Model Error: ' . htmlspecialchars($modelError->getMessage()) . '</p>';
-                        echo '<pre>' . htmlspecialchars($modelError->getTraceAsString()) . '</pre>';
-                    }
-                    
-                } else {
-                    echo '<p class="error">❌ InvoiceModel file not found: ' . $modelPath . '</p>';
-                }
-                
-            } catch (Exception $e) {
-                echo '<p class="error">❌ Exception: ' . htmlspecialchars($e->getMessage()) . '</p>';
-                echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
-            }
-            
-            echo '</div>';
-        } else {
-            echo '<form method="POST">';
-            echo '<p><button class="test-button" type="submit" name="test_model" value="1">🔧 Test InvoiceModel</button></p>';
-            echo '</form>';
-        } else {
-            echo '<form method="POST">';
-            echo '<p><button class="test-button" type="submit" name="test_form" value="1">🔧 Test Form Submission</button></p>';
-            echo '</form>';
-            echo '<p class="warning">⚠️ This simulates the exact form submission from the web interface</p>';
-        }
+            // Process each record
+            $processedCount = 0;
+            foreach ($records as $row) {
+                $processedCount++;
+                $recordId = $row->id;
+                $ordenDeTrabajo = $row->orden_de_trabajo;
+                $quotationFiles = $row->quotation_files;
+                $createdDate = $row->created;
 
-        // Test 3: Manual test invoice creation
-        echo '<h2>🧪 Test 3: Manual Invoice Creation Test</h2>';
-        
-        if (isset($_GET['test_create'])) {
-            echo '<div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
-            echo '<h3>Creating Test Invoice...</h3>';
-            
-            try {
-                // Get a test order
-                $query = $db->getQuery(true)
-                    ->select('*')
-                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                    ->where($db->quoteName('state') . ' = 1')
-                    ->order('created DESC')
-                    ->setLimit(1);
-                $db->setQuery($query);
-                $testOrder = $db->loadObject();
-                
-                if (!$testOrder) {
-                    echo '<p class="error">❌ No orders found to test with</p>';
-                } else {
-                    echo '<p class="info">Testing with order: ' . htmlspecialchars($testOrder->order_number) . '</p>';
+                // Categorize the quotation_files value
+                if (isCorrectFormat($quotationFiles)) {
+                    $correctFormat++;
+                    $categories['correct_json_format'][] = [
+                        'id' => $recordId,
+                        'orden' => $ordenDeTrabajo,
+                        'files' => $quotationFiles
+                    ];
+                } elseif (isGoogleDriveUrl($quotationFiles)) {
+                    $googleDriveUrls++;
                     
-                    // Generate invoice number
-                    $query = $db->getQuery(true)
-                        ->select('MAX(id) + 1')
-                        ->from($db->quoteName('#__ordenproduccion_invoices'));
-                    $db->setQuery($query);
-                    $nextId = $db->loadResult() ?: 1;
-                    $invoiceNumber = 'FAC-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+                    // Check if local file exists
+                    $localFile = findLocalFile($ordenDeTrabajo, $createdDate, $localMediaPath);
                     
-                    // Prepare test invoice data
-                    $testInvoiceData = (object) [
-                        'invoice_number' => $invoiceNumber,
-                        'orden_id' => $testOrder->id,
-                        'orden_de_trabajo' => $testOrder->order_number,
-                        'client_name' => $testOrder->client_name,
-                        'client_nit' => $testOrder->nit,
-                        'sales_agent' => $testOrder->sales_agent,
-                        'request_date' => $testOrder->request_date ? date('Y-m-d', strtotime($testOrder->request_date)) : null,
-                        'delivery_date' => $testOrder->delivery_date,
-                        'invoice_date' => date('Y-m-d'),
-                        'invoice_amount' => 100.00,
-                        'currency' => 'Q',
-                        'work_description' => $testOrder->work_description,
-                        'material' => $testOrder->material,
-                        'dimensions' => $testOrder->dimensions,
-                        'print_color' => $testOrder->print_color,
-                        'line_items' => json_encode([
-                            ['cantidad' => 1, 'descripcion' => 'Test Item', 'precio_unitario' => 100.00, 'subtotal' => 100.00]
-                        ]),
-                        'quotation_file' => $testOrder->quotation_files,
-                        'extraction_status' => 'manual',
-                        'status' => 'draft',
-                        'notes' => 'TEST INVOICE - Created by troubleshooting script',
-                        'state' => 1,
-                        'created' => date('Y-m-d H:i:s'),
-                        'created_by' => 0
+                    $categories['google_drive_urls'][] = [
+                        'id' => $recordId,
+                        'orden' => $ordenDeTrabajo,
+                        'files' => $quotationFiles,
+                        'drive_id' => extractDriveFileId($quotationFiles),
+                        'local_file_found' => $localFile['found'],
+                        'local_path' => $localFile['found'] ? $localFile['relative_path'] : null,
+                        'local_size' => $localFile['found'] ? $localFile['size'] : null,
+                        'local_modified' => $localFile['found'] ? $localFile['modified'] : null
                     ];
                     
-                    echo '<p><strong>Data to insert:</strong></p>';
-                    echo '<pre>' . htmlspecialchars(print_r($testInvoiceData, true)) . '</pre>';
-                    
-                    // Try to insert
-                    $result = $db->insertObject('#__ordenproduccion_invoices', $testInvoiceData, 'id');
-                    
-                    if ($result) {
-                        echo '<p class="success">✅ TEST INVOICE CREATED SUCCESSFULLY!</p>';
-                        echo '<p><strong>Invoice Number:</strong> ' . $invoiceNumber . '</p>';
-                        echo '<p><strong>Invoice ID:</strong> ' . $testInvoiceData->id . '</p>';
-                        echo '<p><strong>Order:</strong> ' . htmlspecialchars($testOrder->order_number) . '</p>';
-                        
-                        // Update work order
-                        $query = $db->getQuery(true)
-                            ->update($db->quoteName('#__ordenproduccion_ordenes'))
-                            ->set($db->quoteName('invoice_number') . ' = ' . $db->quote($invoiceNumber))
-                            ->where($db->quoteName('id') . ' = ' . (int) $testOrder->id);
-                        $db->setQuery($query);
-                        $db->execute();
-                        
-                        echo '<p class="success">✅ Work order updated with invoice number</p>';
+                    if ($localFile['found']) {
+                        $filesFoundLocally++;
                     } else {
-                        echo '<p class="error">❌ Failed to create test invoice</p>';
-                        $errors = $db->getErrors();
-                        if (!empty($errors)) {
-                            echo '<p>Errors:</p><pre>' . htmlspecialchars(print_r($errors, true)) . '</pre>';
-                        }
+                        $filesNotFoundLocally++;
                     }
+                } elseif (isLocalPath($quotationFiles)) {
+                    if (strpos($quotationFiles, '[') !== false) {
+                        $localPathsCorrectFormat++;
+                        $categories['local_paths_correct_format'][] = [
+                            'id' => $recordId,
+                            'orden' => $ordenDeTrabajo,
+                            'files' => $quotationFiles
+                        ];
+                    } else {
+                        $localPathsWrongFormat++;
+                        $categories['local_paths_wrong_format'][] = [
+                            'id' => $recordId,
+                            'orden' => $ordenDeTrabajo,
+                            'files' => $quotationFiles
+                        ];
+                    }
+                } else {
+                    $other++;
+                    $categories['other'][] = [
+                        'id' => $recordId,
+                        'orden' => $ordenDeTrabajo,
+                        'files' => $quotationFiles
+                    ];
                 }
-            } catch (Exception $e) {
-                echo '<p class="error">❌ Exception: ' . htmlspecialchars($e->getMessage()) . '</p>';
-                echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
             }
-            
+
+            // Display comprehensive analysis
+            echo '<div class="stats">';
+            echo '<h3>📊 SUMMARY STATISTICS</h3>';
+            echo '<table>';
+            echo '<tr><td><strong>Total records:</strong></td><td>' . $totalRecords . '</td></tr>';
+            echo '<tr><td><strong>✅ Correct JSON format:</strong></td><td>' . $correctFormat . '</td></tr>';
+            echo '<tr><td><strong>🔗 Google Drive URLs:</strong></td><td>' . $googleDriveUrls . '</td></tr>';
+            echo '<tr><td><strong>📁 Local paths (wrong format):</strong></td><td>' . $localPathsWrongFormat . '</td></tr>';
+            echo '<tr><td><strong>📁 Local paths (correct format):</strong></td><td>' . $localPathsCorrectFormat . '</td></tr>';
+            echo '<tr><td><strong>❓ Other format:</strong></td><td>' . $other . '</td></tr>';
+            echo '<tr><td><strong>📄 Files found locally:</strong></td><td>' . $filesFoundLocally . '</td></tr>';
+            echo '<tr><td><strong>📄 Files NOT found locally:</strong></td><td>' . $filesNotFoundLocally . '</td></tr>';
+            echo '</table>';
             echo '</div>';
-        } else {
-            echo '<p><button class="test-button" onclick="window.location.href=\'?test_create=1\'">🚀 Create Test Invoice</button></p>';
-            echo '<p class="warning">⚠️ This will create a test invoice in the database</p>';
+
+            // Show examples of each category
+            foreach ($categories as $categoryName => $items) {
+                if (empty($items)) continue;
+                
+                $count = count($items);
+                echo '<div class="category">';
+                echo '<h3>📋 ' . strtoupper(str_replace('_', ' ', $categoryName)) . " ($count items)</h3>";
+                
+                // Show first 5 examples
+                $examples = array_slice($items, 0, 5);
+                echo '<table>';
+                echo '<tr><th>ID</th><th>Order</th><th>Files</th><th>Local File</th></tr>';
+                
+                foreach ($examples as $item) {
+                    echo '<tr>';
+                    echo '<td>' . $item['id'] . '</td>';
+                    echo '<td>' . htmlspecialchars($item['orden']) . '</td>';
+                    echo '<td style="font-size: 11px; max-width: 300px; word-wrap: break-word;">' . htmlspecialchars(substr($item['files'], 0, 100)) . (strlen($item['files']) > 100 ? '...' : '') . '</td>';
+                    
+                    if (isset($item['local_file_found'])) {
+                        if ($item['local_file_found']) {
+                            echo '<td><span class="success">✅ FOUND</span><br><small>' . htmlspecialchars($item['local_path']) . '</small><br><small>Size: ' . number_format($item['local_size']) . ' bytes</small></td>';
+                        } else {
+                            echo '<td><span class="error">❌ NOT FOUND</span></td>';
+                        }
+                    } else {
+                        echo '<td>-</td>';
+                    }
+                    echo '</tr>';
+                }
+                echo '</table>';
+                
+                if ($count > 5) {
+                    echo '<p><em>... and ' . ($count - 5) . ' more items</em></p>';
+                }
+                echo '</div>';
+            }
+
+            // Recommendations
+            echo '<h2>💡 RECOMMENDATIONS</h2>';
+            
+            if ($localPathsWrongFormat > 0) {
+                echo '<div class="warning" style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
+                echo '<h3>🔧 NEEDS FIXING: ' . $localPathsWrongFormat . ' records with local paths in wrong format</h3>';
+                echo '<p>These need to be converted to JSON array format: <code>["\/media\/path\/file.pdf"]</code></p>';
+                echo '</div>';
+            }
+
+            if ($googleDriveUrls > 0 && $filesFoundLocally > 0) {
+                echo '<div class="warning" style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0;">';
+                echo '<h3>🔄 NEEDS CONVERSION: ' . $filesFoundLocally . ' Google Drive URLs with local files found</h3>';
+                echo '<p>These can be converted from Google Drive URLs to local paths in correct format.</p>';
+                echo '</div>';
+            }
+
+            if ($filesNotFoundLocally > 0) {
+                echo '<div class="warning" style="background: #ffe6e6; padding: 15px; border-radius: 4px; margin: 10px 0;">';
+                echo '<h3>⚠️ MISSING FILES: ' . $filesNotFoundLocally . ' Google Drive URLs without local files</h3>';
+                echo '<p>These files may need to be downloaded first before conversion.</p>';
+                echo '</div>';
+            }
+
+            if ($correctFormat > 0) {
+                echo '<div class="success" style="background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 10px 0;">';
+                echo '<h3>✅ ALREADY CORRECT: ' . $correctFormat . ' records in correct format</h3>';
+                echo '<p>These don\'t need any changes.</p>';
+                echo '</div>';
+            }
+
+        } catch (Exception $e) {
+            echo '<p class="error">❌ Fatal error: ' . htmlspecialchars($e->getMessage()) . '</p>';
         }
 
         ?>
