@@ -323,4 +323,20 @@ class HtmlView extends BaseHtmlView
         // Fallback: return the status as-is
         return $status;
     }
+
+    /**
+     * Method to get a model object, loading it if required.
+     *
+     * @param   string  $name    The model name. Optional.
+     * @param   string  $prefix  The class prefix. Optional.
+     * @param   array   $config  Configuration array for model. Optional.
+     *
+     * @return  \Joomla\CMS\MVC\Model\BaseModel  The model.
+     *
+     * @since   1.0.0
+     */
+    public function getModel($name = 'Ordenes', $prefix = '', $config = ['ignore_request' => true])
+    {
+        return parent::getModel($name, $prefix, $config);
+    }
 }
