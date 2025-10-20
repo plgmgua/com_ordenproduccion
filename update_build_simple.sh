@@ -120,15 +120,8 @@ main() {
     # Trap to ensure version display on exit
     trap 'if [ $? -eq 0 ]; then display_version_info; else display_error_info; fi' EXIT
 
-    # Note: avoid parentheses in log strings for maximum shell compatibility
-    log "Step 1: Skipping ImageMagick/imagick installation - managed elsewhere"
-    
-    # Create cache directory for quotation images (if still used elsewhere)
-    log "Ensuring cache directory for quotation images exists..."
-    sudo mkdir -p "$JOOMLA_ROOT/cache/com_ordenproduccion/quotation_images" || warning "Failed to create quotation images cache directory"
-    sudo chown -R www-data:www-data "$JOOMLA_ROOT/cache/com_ordenproduccion" || warning "Failed to set ownership on quotation images cache directory"
-    sudo chmod -R 755 "$JOOMLA_ROOT/cache/com_ordenproduccion" || warning "Failed to set permissions on quotation images cache directory"
-    success "Quotation images cache directory created"
+    # Step 1: Initialize (no ImageMagick operations)
+    log "Step 1: Initialization"
     
     log "Step 2: Cleaning up old repository directory..."
     if [ -d "$REPO_DIR" ]; then
