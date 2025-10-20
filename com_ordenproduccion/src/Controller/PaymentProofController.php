@@ -1,18 +1,6 @@
 <?php
-// Wrapper to keep PSR-4 filename matching for PaymentproofController
-namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
-
-require_once __DIR__ . '/PaymentProofController.php';
-
-<?php
 /**
  * Payment Proof Controller for Com Orden Produccion
- * 
- * Handles payment proof registration and management
- * 
- * @package     Grimpsa\Component\Ordenproduccion\Site\Controller
- * @subpackage  PaymentProof
- * @since       3.1.3
  */
 
 namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
@@ -25,7 +13,6 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
-use Joomla\CMS\Filesystem\Path;
 
 class PaymentproofController extends BaseController
 {
