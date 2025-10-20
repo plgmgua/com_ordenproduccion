@@ -37,7 +37,7 @@ success() {
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1 >&2
+    echo -e "${RED}[ERROR]${NC} $1" >&2
     exit 1
 }
 
