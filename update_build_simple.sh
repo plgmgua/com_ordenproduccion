@@ -1016,6 +1016,28 @@ EOF
         warning "Paymentproof files are still missing - please verify paths and rerun"
     fi
 
+    # Diagnostic listing to confirm deployed files
+    echo ""
+    log "Diagnostic: Listing deployed Paymentproof files..."
+    if [ -d "$SITE_COMPONENT_PATH/src/View/Paymentproof" ]; then
+        echo "-- View/Paymentproof --"
+        ls -la "$SITE_COMPONENT_PATH/src/View/Paymentproof" || true
+    else
+        echo "(missing) $SITE_COMPONENT_PATH/src/View/Paymentproof"
+    fi
+    echo "-- Model (filtered) --"
+    ls -la "$SITE_COMPONENT_PATH/src/Model" 2>/dev/null | grep -i Paymentproof || echo "(no Paymentproof model found)"
+    echo "-- Controller (filtered) --"
+    ls -la "$SITE_COMPONENT_PATH/src/Controller" 2>/dev/null | grep -i Paymentproof || echo "(no Paymentproof controller found)"
+    if [ -d "$SITE_COMPONENT_PATH/tmpl/paymentproof" ]; then
+        echo "-- tmpl/paymentproof --"
+        ls -la "$SITE_COMPONENT_PATH/tmpl/paymentproof" || true
+    else
+        echo "(missing) $SITE_COMPONENT_PATH/tmpl/paymentproof"
+    fi
+    echo "-- find results (maxdepth 4) --"
+    find "$SITE_COMPONENT_PATH" -maxdepth 4 -iname "*Paymentproof*.php" -print 2>/dev/null || true
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
