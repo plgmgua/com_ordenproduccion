@@ -1,0 +1,41 @@
+/* Actions column - compact square icon buttons like the example */
+.ordenes-actions .btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-width: 2px;
+  border-radius: 4px;
+}
+
+.ordenes-actions .btn + .btn {
+  margin-left: 6px;
+}
+
+.ordenes-actions .fa-sm {
+  font-size: 0.95rem; /* smaller icon */
+}
+
+/* Color accents similar to sample screenshot */
+.ordenes-actions .btn-outline-primary {
+  color: #0d3b66;
+  border-color: #0d3b66;
+  background: #fff;
+}
+.ordenes-actions .btn-outline-primary:hover {
+  background: #0d3b66;
+  color: #fff;
+}
+
+.ordenes-actions .btn-outline-success {
+  color: #2e7d32;
+  border-color: #2e7d32;
+  background: #fff;
+}
+.ordenes-actions .btn-outline-success:hover {
+  background: #2e7d32;
+  color: #fff;
+}
+
