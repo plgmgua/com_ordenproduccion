@@ -220,7 +220,8 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                                     <i class="fas fa-file-invoice fa-sm" aria-hidden="true"></i>
                                                 </a>
                                                 <!-- Payment Proof at the end -->
-                                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $item->id); ?>"
+                                                <?php $paymentProofUrl = 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id; ?>
+                                                <a href="<?php echo $paymentProofUrl; ?>"
                                                    class="btn btn-sm btn-outline-success"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>"
                                                    aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>">

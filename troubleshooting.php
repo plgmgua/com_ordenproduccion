@@ -55,6 +55,37 @@ $localMediaPath = '/var/www/grimpsa_webserver/media/com_ordenproduccion/cotizaci
         <p><strong>Date:</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
 
         <?php
+        echo '<h2>🧭 Router/Request Debug</h2>';
+        $input = $app->input;
+        echo '<pre>' . htmlspecialchars(print_r([
+            'option' => $input->getCmd('option'),
+            'view' => $input->getCmd('view'),
+            'order_id' => $input->getInt('order_id'),
+            'task' => $input->getCmd('task'),
+            'Itemid' => $input->getInt('Itemid'),
+        ], true)) . '</pre>';
+
+        // Check component files for paymentproof
+        echo '<h2>🧩 Component View Presence</h2>';
+        $base = '/var/www/grimpsa_webserver/components/com_ordenproduccion';
+        $checks = [
+            'view_class' => $base . '/src/View/Paymentproof/HtmlView.php',
+            'view_template' => $base . '/tmpl/paymentproof/default.php',
+            'model' => $base . '/src/Model/PaymentProofModel.php',
+            'model_alt' => $base . '/src/Model/PaymentproofModel.php',
+            'controller' => $base . '/src/Controller/PaymentProofController.php',
+            'controller_alt' => $base . '/src/Controller/PaymentproofController.php',
+        ];
+        echo '<table><tr><th>File</th><th>Status</th><th>Size</th><th>Modified</th></tr>';
+        foreach ($checks as $label => $path) {
+            if (file_exists($path)) {
+                echo '<tr><td>' . htmlspecialchars($label) . '</td><td class="success">FOUND</td><td>' . filesize($path) . '</td><td>' . date('Y-m-d H:i:s', filemtime($path)) . '</td></tr>';
+            } else {
+                echo '<tr><td>' . htmlspecialchars($label) . '</td><td class="error">MISSING</td><td>-</td><td>-</td></tr>';
+            }
+        }
+
+        echo '</table>';
         // --- ANALYSIS FUNCTIONS ---
 
         function isCorrectFormat($url) {
