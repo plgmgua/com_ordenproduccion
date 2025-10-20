@@ -966,9 +966,11 @@ EOF
     sudo mkdir -p "$SITE_COMPONENT_PATH/src/Controller"
     sudo mkdir -p "$SITE_COMPONENT_PATH/tmpl/paymentproof"
 
-    # Copy Paymentproof files from repository if present
+    # Copy Paymentproof HtmlView (support both Paymentproof and PaymentProof in repo)
     if [ -f "$COMPONENT_ROOT/src/View/Paymentproof/HtmlView.php" ]; then
         sudo cp "$COMPONENT_ROOT/src/View/Paymentproof/HtmlView.php" "$SITE_COMPONENT_PATH/src/View/Paymentproof/" || warning "Failed to copy Paymentproof HtmlView"
+    elif [ -f "$COMPONENT_ROOT/src/View/PaymentProof/HtmlView.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/View/PaymentProof/HtmlView.php" "$SITE_COMPONENT_PATH/src/View/Paymentproof/HtmlView.php" || warning "Failed to copy PaymentProof HtmlView"
     else
         warning "Paymentproof HtmlView.php not found in component source"
     fi
@@ -993,6 +995,9 @@ EOF
     if [ -f "$COMPONENT_ROOT/tmpl/paymentproof/default.php" ]; then
         sudo cp "$COMPONENT_ROOT/tmpl/paymentproof/default.php" "$SITE_COMPONENT_PATH/tmpl/paymentproof/" || warning "Failed to copy paymentproof template"
     fi
+
+    # Clean any mis-copied files in view folder (defensive)
+    sudo find "$SITE_COMPONENT_PATH/src/View/Paymentproof" -maxdepth 1 -type f ! -name "HtmlView.php" -delete 2>/dev/null || true
 
     # Set permissions
     sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/View/Paymentproof" 2>/dev/null || true
