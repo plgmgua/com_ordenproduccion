@@ -17,7 +17,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Joomla\CMS\Language\Text;
 
-class PaymentProofModel extends ItemModel
+class PaymentproofModel extends ItemModel
 {
     /**
      * The prefix to use with controller messages.

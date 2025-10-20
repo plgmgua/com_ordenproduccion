@@ -13,7 +13,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-/** @var \Grimpsa\Component\Ordenproduccion\Site\View\PaymentProof\HtmlView $this */
+/** @var \Grimpsa\Component\Ordenproduccion\Site\View\Paymentproof\HtmlView $this */
 
 $order = $this->order;
 $orderId = $this->orderId;

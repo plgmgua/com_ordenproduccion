@@ -21,7 +21,7 @@ use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Joomla\CMS\Filesystem\Path;
 
-class PaymentProofController extends BaseController
+class PaymentproofController extends BaseController
 {
     /**
      * Display payment proof form
@@ -75,7 +75,7 @@ class PaymentProofController extends BaseController
             }
 
             // Get the model
-            $model = $this->getModel('PaymentProof');
+            $model = $this->getModel('Paymentproof');
             
             // Save payment proof
             $data = [
@@ -163,7 +163,7 @@ class PaymentProofController extends BaseController
             return;
         }
         
-        $model = $this->getModel('PaymentProof');
+        $model = $this->getModel('Paymentproof');
         $proofs = $model->getPaymentProofsByOrderId($orderId);
         
         echo json_encode(['proofs' => $proofs]);
