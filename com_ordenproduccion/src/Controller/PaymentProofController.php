@@ -1,4 +1,10 @@
 <?php
+// Wrapper to keep PSR-4 filename matching for PaymentproofController
+namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
+
+require_once __DIR__ . '/PaymentProofController.php';
+
+<?php
 /**
  * Payment Proof Controller for Com Orden Produccion
  * 

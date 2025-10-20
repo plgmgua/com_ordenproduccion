@@ -1,4 +1,10 @@
 <?php
+// Wrapper to keep PSR-4 filename matching for PaymentproofModel
+namespace Grimpsa\Component\Ordenproduccion\Site\Model;
+
+require_once __DIR__ . '/PaymentProofModel.php';
+
+<?php
 /**
  * Payment Proof Model for Com Orden Produccion
  * 
