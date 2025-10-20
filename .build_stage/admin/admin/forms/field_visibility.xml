@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="ventas_group" label="COM_ORDENPRODUCCION_FIELD_VISIBILITY_VENTAS_GROUP">
+        <field
+            name="ventas_fields"
+            type="checkboxes"
+            label="COM_ORDENPRODUCCION_FIELD_VISIBILITY_VENTAS_FIELDS"
+            description="COM_ORDENPRODUCCION_FIELD_VISIBILITY_VENTAS_FIELDS_DESC"
+            class="form-control"
+            multiple="true"
+        >
+            <option value="order_number">COM_ORDENPRODUCCION_FIELD_ORDER_NUMBER</option>
+            <option value="client_name">COM_ORDENPRODUCCION_FIELD_CLIENT_NAME</option>
+            <option value="nit">COM_ORDENPRODUCCION_FIELD_NIT</option>
+            <option value="invoice_value">COM_ORDENPRODUCCION_FIELD_INVOICE_VALUE</option>
+            <option value="work_description">COM_ORDENPRODUCCION_FIELD_WORK_DESCRIPTION</option>
+            <option value="print_color">COM_ORDENPRODUCCION_FIELD_PRINT_COLOR</option>
+            <option value="dimensions">COM_ORDENPRODUCCION_FIELD_DIMENSIONS</option>
+            <option value="delivery_date">COM_ORDENPRODUCCION_FIELD_DELIVERY_DATE</option>
+            <option value="material">COM_ORDENPRODUCCION_FIELD_MATERIAL</option>
+            <option value="request_date">COM_ORDENPRODUCCION_FIELD_REQUEST_DATE</option>
+            <option value="status">COM_ORDENPRODUCCION_FIELD_STATUS</option>
+            <option value="order_type">COM_ORDENPRODUCCION_FIELD_ORDER_TYPE</option>
+            <option value="sales_agent">COM_ORDENPRODUCCION_FIELD_SALES_AGENT</option>
+            <option value="cutting">COM_ORDENPRODUCCION_FIELD_CUTTING</option>
+            <option value="cutting_details">COM_ORDENPRODUCCION_FIELD_CUTTING_DETAILS</option>
+            <option value="blocking">COM_ORDENPRODUCCION_FIELD_BLOCKING</option>
+            <option value="blocking_details">COM_ORDENPRODUCCION_FIELD_BLOCKING_DETAILS</option>
+            <option value="folding">COM_ORDENPRODUCCION_FIELD_FOLDING</option>
+            <option value="folding_details">COM_ORDENPRODUCCION_FIELD_FOLDING_DETAILS</option>
+            <option value="laminating">COM_ORDENPRODUCCION_FIELD_LAMINATING</option>
+            <option value="laminating_details">COM_ORDENPRODUCCION_FIELD_LAMINATING_DETAILS</option>
+            <option value="numbering">COM_ORDENPRODUCCION_FIELD_NUMBERING</option>
+            <option value="numbering_details">COM_ORDENPRODUCCION_FIELD_NUMBERING_DETAILS</option>
+            <option value="die_cutting">COM_ORDENPRODUCCION_FIELD_DIE_CUTTING</option>
+            <option value="die_cutting_details">COM_ORDENPRODUCCION_FIELD_DIE_CUTTING_DETAILS</option>
+            <option value="varnish">COM_ORDENPRODUCCION_FIELD_VARNISH</option>
+            <option value="varnish_details">COM_ORDENPRODUCCION_FIELD_VARNISH_DETAILS</option>
+            <option value="instructions">COM_ORDENPRODUCCION_FIELD_INSTRUCTIONS</option>
+            <option value="production_notes">COM_ORDENPRODUCCION_FIELD_PRODUCTION_NOTES</option>
+            <option value="created">COM_ORDENPRODUCCION_FIELD_CREATED</option>
+            <option value="created_by">COM_ORDENPRODUCCION_FIELD_CREATED_BY</option>
+            <option value="modified">COM_ORDENPRODUCCION_FIELD_MODIFIED</option>
+            <option value="modified_by">COM_ORDENPRODUCCION_FIELD_MODIFIED_BY</option>
+        </field>
+    </fieldset>
+
+    <fieldset name="produccion_group" label="COM_ORDENPRODUCCION_FIELD_VISIBILITY_PRODUCCION_GROUP">
+        <field
+            name="produccion_fields"
+            type="checkboxes"
+            label="COM_ORDENPRODUCCION_FIELD_VISIBILITY_PRODUCCION_FIELDS"
+            description="COM_ORDENPRODUCCION_FIELD_VISIBILITY_PRODUCCION_FIELDS_DESC"
+            class="form-control"
+            multiple="true"
+        >
+            <option value="order_number">COM_ORDENPRODUCCION_FIELD_ORDER_NUMBER</option>
+            <option value="client_name">COM_ORDENPRODUCCION_FIELD_CLIENT_NAME</option>
+            <option value="nit">COM_ORDENPRODUCCION_FIELD_NIT</option>
+            <option value="invoice_value">COM_ORDENPRODUCCION_FIELD_INVOICE_VALUE</option>
+            <option value="work_description">COM_ORDENPRODUCCION_FIELD_WORK_DESCRIPTION</option>
+            <option value="print_color">COM_ORDENPRODUCCION_FIELD_PRINT_COLOR</option>
+            <option value="dimensions">COM_ORDENPRODUCCION_FIELD_DIMENSIONS</option>
+            <option value="delivery_date">COM_ORDENPRODUCCION_FIELD_DELIVERY_DATE</option>
+            <option value="material">COM_ORDENPRODUCCION_FIELD_MATERIAL</option>
+            <option value="request_date">COM_ORDENPRODUCCION_FIELD_REQUEST_DATE</option>
+            <option value="status">COM_ORDENPRODUCCION_FIELD_STATUS</option>
+            <option value="order_type">COM_ORDENPRODUCCION_FIELD_ORDER_TYPE</option>
+            <option value="sales_agent">COM_ORDENPRODUCCION_FIELD_SALES_AGENT</option>
+            <option value="cutting">COM_ORDENPRODUCCION_FIELD_CUTTING</option>
+            <option value="cutting_details">COM_ORDENPRODUCCION_FIELD_CUTTING_DETAILS</option>
+            <option value="blocking">COM_ORDENPRODUCCION_FIELD_BLOCKING</option>
+            <option value="blocking_details">COM_ORDENPRODUCCION_FIELD_BLOCKING_DETAILS</option>
+            <option value="folding">COM_ORDENPRODUCCION_FIELD_FOLDING</option>
+            <option value="folding_details">COM_ORDENPRODUCCION_FIELD_FOLDING_DETAILS</option>
+            <option value="laminating">COM_ORDENPRODUCCION_FIELD_LAMINATING</option>
+            <option value="laminating_details">COM_ORDENPRODUCCION_FIELD_LAMINATING_DETAILS</option>
+            <option value="numbering">COM_ORDENPRODUCCION_FIELD_NUMBERING</option>
+            <option value="numbering_details">COM_ORDENPRODUCCION_FIELD_NUMBERING_DETAILS</option>
+            <option value="die_cutting">COM_ORDENPRODUCCION_FIELD_DIE_CUTTING</option>
+            <option value="die_cutting_details">COM_ORDENPRODUCCION_FIELD_DIE_CUTTING_DETAILS</option>
+            <option value="varnish">COM_ORDENPRODUCCION_FIELD_VARNISH</option>
+            <option value="varnish_details">COM_ORDENPRODUCCION_FIELD_VARNISH_DETAILS</option>
+            <option value="instructions">COM_ORDENPRODUCCION_FIELD_INSTRUCTIONS</option>
+            <option value="production_notes">COM_ORDENPRODUCCION_FIELD_PRODUCTION_NOTES</option>
+            <option value="created">COM_ORDENPRODUCCION_FIELD_CREATED</option>
+            <option value="created_by">COM_ORDENPRODUCCION_FIELD_CREATED_BY</option>
+            <option value="modified">COM_ORDENPRODUCCION_FIELD_MODIFIED</option>
+            <option value="modified_by">COM_ORDENPRODUCCION_FIELD_MODIFIED_BY</option>
+        </field>
+    </fieldset>
+</form>

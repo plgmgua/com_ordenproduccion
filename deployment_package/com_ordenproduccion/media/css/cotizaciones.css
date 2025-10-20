@@ -1,0 +1,224 @@
+/**
+ * Cotizaciones (Quotations List) Styles
+ * Version: 3.52.0
+ */
+
+.cotizaciones-container {
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cotizaciones-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #007cba;
+}
+
+.cotizaciones-header h2 {
+    color: #007cba;
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.cotizaciones-header h2 i {
+    margin-right: 10px;
+}
+
+.btn-new-quotation {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #28a745;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-new-quotation:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
+}
+
+/* No Quotations State */
+.no-quotations {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.no-quotations i {
+    color: #dee2e6;
+    margin-bottom: 20px;
+}
+
+.no-quotations p {
+    font-size: 18px;
+    margin-bottom: 30px;
+}
+
+/* Quotations Table */
+.quotations-table-wrapper {
+    overflow-x: auto;
+}
+
+.quotations-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.quotations-table thead {
+    background: #007cba;
+    color: white;
+}
+
+.quotations-table th {
+    padding: 15px 12px;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #0066a0;
+}
+
+.quotations-table td {
+    padding: 12px;
+    border: 1px solid #dee2e6;
+}
+
+.quotations-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.quotations-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.quotation-number {
+    font-family: 'Courier New', monospace;
+    color: #007cba;
+}
+
+.amount {
+    font-weight: 600;
+    text-align: right;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-draft {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-sent {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Action Buttons */
+.actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    color: white;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.btn-view {
+    background: #007cba;
+}
+
+.btn-view:hover {
+    background: #0066a0;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+.btn-edit {
+    background: #ffc107;
+}
+
+.btn-edit:hover {
+    background: #e0a800;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .cotizaciones-container {
+        padding: 15px;
+        margin: 10px;
+    }
+
+    .cotizaciones-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .cotizaciones-header h2 {
+        font-size: 22px;
+    }
+
+    .quotations-table {
+        font-size: 13px;
+    }
+
+    .quotations-table th,
+    .quotations-table td {
+        padding: 8px;
+    }
+
+    .btn-new-quotation {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+

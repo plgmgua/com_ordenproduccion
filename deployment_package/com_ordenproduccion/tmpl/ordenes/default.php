@@ -177,9 +177,6 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                             <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_AGENTE_VENTAS'); ?>
                                         </th>
                                     <?php endif; ?>
-                                    <th scope="col">
-                                        <?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?>
-                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -210,22 +207,6 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                                 <?php echo htmlspecialchars($item->sales_agent); ?>
                                             </td>
                                         <?php endif; ?>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $item->id); ?>" 
-                                                   class="btn btn-sm btn-success" 
-                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>">
-                                                    <i class="fas fa-credit-card"></i>
-                                                    <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF'); ?>
-                                                </a>
-                                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&order_id=' . $item->id); ?>" 
-                                                   class="btn btn-sm btn-primary" 
-                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>">
-                                                    <i class="fas fa-file-invoice"></i>
-                                                    <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
-                                                </a>
-                                            </div>
-                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

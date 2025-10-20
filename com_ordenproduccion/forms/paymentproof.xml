@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="payment_proof" label="COM_ORDENPRODUCCION_PAYMENT_PROOF_FORM">
+        <field
+            name="order_id"
+            type="hidden"
+            default="0"
+        />
+        
+        <field
+            name="payment_type"
+            type="list"
+            label="COM_ORDENPRODUCCION_PAYMENT_TYPE"
+            description="COM_ORDENPRODUCCION_PAYMENT_TYPE_DESC"
+            required="true"
+            class="form-control"
+            default=""
+        >
+            <option value="">COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE</option>
+            <option value="efectivo">COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH</option>
+            <option value="cheque">COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK</option>
+            <option value="transferencia">COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER</option>
+            <option value="deposito">COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT</option>
+        </field>
+
+        <field
+            name="bank"
+            type="list"
+            label="COM_ORDENPRODUCCION_BANK"
+            description="COM_ORDENPRODUCCION_BANK_DESC"
+            class="form-control"
+            default=""
+        >
+            <option value="">COM_ORDENPRODUCCION_SELECT_BANK</option>
+            <option value="banco_industrial">COM_ORDENPRODUCCION_BANK_INDUSTRIAL</option>
+            <option value="banco_gyt">COM_ORDENPRODUCCION_BANK_GYT</option>
+            <option value="banco_promerica">COM_ORDENPRODUCCION_BANK_PROMERICA</option>
+            <option value="banco_agricola">COM_ORDENPRODUCCION_BANK_AGRICOLA</option>
+            <option value="banco_azteca">COM_ORDENPRODUCCION_BANK_AZTECA</option>
+            <option value="banco_citibank">COM_ORDENPRODUCCION_BANK_CITIBANK</option>
+            <option value="banco_davivienda">COM_ORDENPRODUCCION_BANK_DAVIVIENDA</option>
+            <option value="banco_ficohsa">COM_ORDENPRODUCCION_BANK_FICOHSA</option>
+            <option value="banco_gyte">COM_ORDENPRODUCCION_BANK_GYTE</option>
+            <option value="banco_inmobiliario">COM_ORDENPRODUCCION_BANK_INMOBILIARIO</option>
+            <option value="banco_internacional">COM_ORDENPRODUCCION_BANK_INTERNACIONAL</option>
+            <option value="banco_metropolitano">COM_ORDENPRODUCCION_BANK_METROPOLITANO</option>
+            <option value="banco_promerica_guatemala">COM_ORDENPRODUCCION_BANK_PROMERICA_GUATEMALA</option>
+            <option value="banco_refaccionario">COM_ORDENPRODUCCION_BANK_REFACCIONARIO</option>
+            <option value="banco_rural">COM_ORDENPRODUCCION_BANK_RURAL</option>
+            <option value="banco_salud">COM_ORDENPRODUCCION_BANK_SALUD</option>
+            <option value="banco_vivibanco">COM_ORDENPRODUCCION_BANK_VIVIBANCO</option>
+        </field>
+
+        <field
+            name="document_number"
+            type="text"
+            label="COM_ORDENPRODUCCION_DOCUMENT_NUMBER"
+            description="COM_ORDENPRODUCCION_DOCUMENT_NUMBER_DESC"
+            required="true"
+            class="form-control"
+            maxlength="255"
+            size="50"
+        />
+
+        <field
+            name="payment_proof_file"
+            type="file"
+            label="COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE"
+            description="COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE_DESC"
+            class="form-control"
+            accept=".jpg,.jpeg,.png,.pdf"
+        />
+    </fieldset>
+</form>
