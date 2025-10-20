@@ -162,7 +162,6 @@ class HtmlView extends BaseHtmlView
         
         $wa = $this->document->getWebAssetManager();
         $wa->registerAndUseStyle('com_ordenproduccion.ordenes', 'media/com_ordenproduccion/css/ordenes.css', [], ['version' => 'auto']);
-        $wa->registerAndUseScript('com_ordenproduccion.ordenes', 'media/com_ordenproduccion/js/ordenes.js', [], ['version' => 'auto']);
     }
 
     /**
