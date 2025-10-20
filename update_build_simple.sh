@@ -1021,6 +1021,24 @@ EOF
         warning "Paymentproof files are still missing - please verify paths and rerun"
     fi
 
+    # Normalize line endings to avoid parser errors
+    sudo sed -i 's/\r$//' "$SITE_COMPONENT_PATH/src/View/Paymentproof/HtmlView.php" 2>/dev/null || true
+    sudo sed -i 's/\r$//' "$SITE_COMPONENT_PATH/src/Model/PaymentproofModel.php" 2>/dev/null || true
+    sudo sed -i 's/\r$//' "$SITE_COMPONENT_PATH/src/Controller/PaymentproofController.php" 2>/dev/null || true
+
+    # PHP lint check to catch "unexpected '<'" or similar
+    echo ""; log "Linting Paymentproof PHP files..."
+    for f in \
+        "$SITE_COMPONENT_PATH/src/View/Paymentproof/HtmlView.php" \
+        "$SITE_COMPONENT_PATH/src/Model/PaymentproofModel.php" \
+        "$SITE_COMPONENT_PATH/src/Controller/PaymentproofController.php"; do
+        if [ -f "$f" ]; then
+            echo "php -l $f"; php -l "$f" || { echo "--- First 20 lines of $f ---"; head -n 20 "$f"; echo "--- EOF ---"; };
+        else
+            echo "(missing) $f"
+        fi
+    done
+
     # Diagnostic listing to confirm deployed files
     echo ""
     log "Diagnostic: Listing deployed Paymentproof files..."
