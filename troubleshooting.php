@@ -29,7 +29,7 @@ function renderRow($label, $path) {
 }
 
 // Page header
-echo '<div style="font-family:Arial,sans-serif;max-width:960px;margin:20px auto">';
+echo '<div style="font-family:Arial,sans-serif;max-width:100%;margin:20px auto;box-sizing:border-box;overflow:auto">';
 echo '<h2 style="margin:0 0 10px">com_ordenproduccion Paymentproof Diagnostics</h2>';
 echo '<div style="color:#666;margin-bottom:20px">' . date('Y-m-d H:i:s') . '</div>';
 
@@ -56,13 +56,13 @@ $files = [
 
 echo '<h3>Component Files</h3>';
 
-echo '<table style="width:100%;border-collapse:collapse">';
+echo '<table style="width:100%;border-collapse:collapse;table-layout:fixed">';
 echo '<tr>' .
-     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd">File</th>' .
-     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd">Path</th>' .
-     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd">Status</th>' .
-     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd">Size</th>' .
-     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd">Modified</th>' .
+     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd;width:140px">File</th>' .
+     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd;word-break:break-all">Path</th>' .
+     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd;width:90px">Status</th>' .
+     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd;width:80px">Size</th>' .
+     '<th style="text-align:left;padding:6px 10px;border-bottom:2px solid #ddd;width:160px">Modified</th>' .
      '</tr>';
 foreach ($files as $label => $path) {
     renderRow($label, $path);
