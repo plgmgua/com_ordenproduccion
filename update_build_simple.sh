@@ -37,7 +37,7 @@ success() {
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
+    echo -e "${RED}[ERROR]${NC} $1 >&2
     exit 1
 }
 
@@ -961,6 +961,65 @@ EOF
         log "✅ 'Crear Factura' button should now work properly"
     else
         warning "Some quotation view files may be missing - check manually"
+    fi
+
+    # Ensure Paymentproof (payment proof) MVC files are deployed
+    log "Step 18: Ensuring Paymentproof MVC files are deployed..."
+
+    # Create required directories
+    sudo mkdir -p "$SITE_COMPONENT_PATH/src/View/Paymentproof"
+    sudo mkdir -p "$SITE_COMPONENT_PATH/src/Model"
+    sudo mkdir -p "$SITE_COMPONENT_PATH/src/Controller"
+    sudo mkdir -p "$SITE_COMPONENT_PATH/tmpl/paymentproof"
+
+    # Copy Paymentproof files from repository if present
+    if [ -f "$COMPONENT_ROOT/src/View/Paymentproof/HtmlView.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/View/Paymentproof/HtmlView.php" "$SITE_COMPONENT_PATH/src/View/Paymentproof/" || warning "Failed to copy Paymentproof HtmlView"
+    else
+        warning "Paymentproof HtmlView.php not found in component source"
+    fi
+
+    if [ -f "$COMPONENT_ROOT/src/Model/PaymentproofModel.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Model/PaymentproofModel.php" "$SITE_COMPONENT_PATH/src/Model/" || warning "Failed to copy PaymentproofModel.php"
+    elif [ -f "$COMPONENT_ROOT/src/Model/PaymentProofModel.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Model/PaymentProofModel.php" "$SITE_COMPONENT_PATH/src/Model/PaymentproofModel.php" || warning "Failed to copy PaymentProofModel.php"
+    else
+        warning "Paymentproof model not found in component source"
+    fi
+
+    if [ -f "$COMPONENT_ROOT/src/Controller/PaymentproofController.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Controller/PaymentproofController.php" "$SITE_COMPONENT_PATH/src/Controller/" || warning "Failed to copy PaymentproofController.php"
+    elif [ -f "$COMPONENT_ROOT/src/Controller/PaymentProofController.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Controller/PaymentProofController.php" "$SITE_COMPONENT_PATH/src/Controller/PaymentproofController.php" || warning "Failed to copy PaymentProofController.php"
+    else
+        warning "Paymentproof controller not found in component source"
+    fi
+
+    # Copy template
+    if [ -f "$COMPONENT_ROOT/tmpl/paymentproof/default.php" ]; then
+        sudo cp "$COMPONENT_ROOT/tmpl/paymentproof/default.php" "$SITE_COMPONENT_PATH/tmpl/paymentproof/" || warning "Failed to copy paymentproof template"
+    fi
+
+    # Set permissions
+    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/View/Paymentproof" 2>/dev/null || true
+    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/Model/PaymentproofModel.php" 2>/dev/null || true
+    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/Controller/PaymentproofController.php" 2>/dev/null || true
+    sudo chmod -R 755 "$SITE_COMPONENT_PATH/src/View/Paymentproof" 2>/dev/null || true
+
+    # Force autoload regeneration
+    AUTOLOAD_FILE="$JOOMLA_ROOT/administrator/cache/autoload_psr4.php"
+    if [ -f "$AUTOLOAD_FILE" ]; then
+        log "Deleting autoload_psr4.php to force regeneration (Paymentproof)..."
+        sudo rm -f "$AUTOLOAD_FILE" || warning "Failed to delete autoload_psr4.php"
+    fi
+
+    # Verify Paymentproof files
+    if [ -f "$SITE_COMPONENT_PATH/src/View/Paymentproof/HtmlView.php" ] && \
+       [ -f "$SITE_COMPONENT_PATH/src/Model/PaymentproofModel.php" ] && \
+       [ -f "$SITE_COMPONENT_PATH/src/Controller/PaymentproofController.php" ]; then
+        success "Paymentproof MVC files deployed and verified"
+    else
+        warning "Paymentproof files are still missing - please verify paths and rerun"
     fi
 
     echo ""
