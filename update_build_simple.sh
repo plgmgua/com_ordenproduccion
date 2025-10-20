@@ -120,7 +120,8 @@ main() {
     # Trap to ensure version display on exit
     trap 'if [ $? -eq 0 ]; then display_version_info; else display_error_info; fi' EXIT
 
-    log "Step 1: Skipping ImageMagick/imagick installation (managed elsewhere)"
+    # Note: avoid parentheses in log strings for maximum shell compatibility
+    log "Step 1: Skipping ImageMagick/imagick installation - managed elsewhere"
     
     # Create cache directory for quotation images (if still used elsewhere)
     log "Ensuring cache directory for quotation images exists..."
