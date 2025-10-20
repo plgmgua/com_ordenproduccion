@@ -1061,6 +1061,37 @@ EOF
     echo "-- find results (maxdepth 4) --"
     find "$SITE_COMPONENT_PATH" -maxdepth 4 -iname "*Paymentproof*.php" -print 2>/dev/null || true
 
+    # Step 19: Enable Maximum PHP/Joomla error reporting for troubleshooting
+    log "Step 19: Enabling maximum error reporting (PHP + Joomla) for troubleshooting..."
+    # 1) Joomla config tweaks (backed up once)
+    if [ -f "$JOOMLA_ROOT/configuration.php" ]; then
+        if [ ! -f "$JOOMLA_ROOT/configuration.php.bak" ]; then
+            sudo cp "$JOOMLA_ROOT/configuration.php" "$JOOMLA_ROOT/configuration.php.bak" || warning "Failed to backup configuration.php"
+        fi
+        # Set error_reporting to maximum and enable debug in configuration.php
+        sudo sed -i -E "s/public \\$error_reporting = '[^']*';/public \\$error_reporting = 'maximum';/" "$JOOMLA_ROOT/configuration.php" || true
+        sudo sed -i -E "s/public \\$debug = [01];/public \\$debug = 1;/" "$JOOMLA_ROOT/configuration.php" || true
+        sudo sed -i -E "s/public \\$debug_lang = [01];/public \\$debug_lang = 1;/" "$JOOMLA_ROOT/configuration.php" || true
+        sudo chown www-data:www-data "$JOOMLA_ROOT/configuration.php" 2>/dev/null || true
+        sudo chmod 644 "$JOOMLA_ROOT/configuration.php" 2>/dev/null || true
+    else
+        warning "configuration.php not found in Joomla root; skipping Joomla debug toggle"
+    fi
+
+    # 2) PHP runtime (FPM/Apache) - .user.ini for web context
+    sudo bash -c "cat > '$JOOMLA_ROOT/.user.ini' << 'EOF'
+display_errors = On
+html_errors = On
+error_reporting = E_ALL
+log_errors = On
+EOF" || warning ".user.ini write failed"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/.user.ini" 2>/dev/null || true
+    sudo chmod 644 "$JOOMLA_ROOT/.user.ini" 2>/dev/null || true
+
+    # 3) Command-line PHP defaults for subsequent php calls in this session
+    export PHP_INI_SCAN_DIR="$PHP_INI_SCAN_DIR:$JOOMLA_ROOT"
+    log "Error reporting set to maximum. If issue persists, check: $JOOMLA_ROOT/administrator/logs, $JOOMLA_ROOT/logs, and web server error logs."
+
     echo ""
     success "🎉 Simplified build update completed successfully!"
     echo ""
