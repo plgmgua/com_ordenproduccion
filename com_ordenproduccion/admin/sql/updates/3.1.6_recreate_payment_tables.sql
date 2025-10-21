@@ -1,13 +1,12 @@
 -- Drop and recreate payment proof tables with clean structure
 -- Version 3.1.6
--- Safe to run multiple times - uses IF EXISTS checks
 
--- Drop existing tables (safe if they don't exist)
-DROP TABLE IF EXISTS `joomla_ordenproduccion_payment_orders`;
-DROP TABLE IF EXISTS `joomla_ordenproduccion_payment_proofs`;
+-- Drop existing tables
+DROP TABLE `joomla_ordenproduccion_payment_orders`;
+DROP TABLE `joomla_ordenproduccion_payment_proofs`;
 
--- Recreate payment_proofs table with correct structure
-CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_payment_proofs` (
+-- Create payment_proofs table with correct structure
+CREATE TABLE `joomla_ordenproduccion_payment_proofs` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
     `order_id` int(11) NOT NULL COMMENT 'Primary/first order in this payment',
     `payment_type` varchar(50) NOT NULL COMMENT 'efectivo, cheque, transferencia, deposito',
