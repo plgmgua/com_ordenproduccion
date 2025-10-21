@@ -1,12 +1,13 @@
 -- Drop and recreate payment proof tables with clean structure
 -- Version 3.1.6
+-- Safe to run multiple times - uses IF EXISTS checks
 
--- Drop existing tables
+-- Drop existing tables (safe if they don't exist)
 DROP TABLE IF EXISTS `joomla_ordenproduccion_payment_orders`;
 DROP TABLE IF EXISTS `joomla_ordenproduccion_payment_proofs`;
 
 -- Recreate payment_proofs table with correct structure
-CREATE TABLE `joomla_ordenproduccion_payment_proofs` (
+CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_payment_proofs` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
     `order_id` int(11) NOT NULL COMMENT 'Primary/first order in this payment',
     `payment_type` varchar(50) NOT NULL COMMENT 'efectivo, cheque, transferencia, deposito',
@@ -29,33 +30,54 @@ CREATE TABLE `joomla_ordenproduccion_payment_proofs` (
     KEY `idx_created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Payment proof records for work orders';
 
--- Add payment fields to ordenes table if they don't exist
--- First check if columns exist and drop them if they do
+-- Add payment fields to ordenes table (safe to run multiple times)
 SET @dbname = DATABASE();
 SET @tablename = 'joomla_ordenproduccion_ordenes';
-SET @columnname1 = 'payment_proof_id';
-SET @columnname2 = 'payment_value';
 
--- Check and drop payment_proof_id if exists
+-- Drop indexes if they exist
 SET @preparedStatement = (SELECT IF(
-    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE (table_name = @tablename)
-     AND (table_schema = @dbname)
-     AND (column_name = @columnname1)) > 0,
-    CONCAT('ALTER TABLE `', @tablename, '` DROP COLUMN `', @columnname1, '`;'),
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE table_schema = @dbname
+     AND table_name = @tablename
+     AND index_name = 'idx_payment_proof_id') > 0,
+    'ALTER TABLE `joomla_ordenproduccion_ordenes` DROP INDEX `idx_payment_proof_id`;',
     'SELECT 1;'
 ));
 PREPARE alterIfExists FROM @preparedStatement;
 EXECUTE alterIfExists;
 DEALLOCATE PREPARE alterIfExists;
 
--- Check and drop payment_value if exists
+SET @preparedStatement = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE table_schema = @dbname
+     AND table_name = @tablename
+     AND index_name = 'idx_payment_value') > 0,
+    'ALTER TABLE `joomla_ordenproduccion_ordenes` DROP INDEX `idx_payment_value`;',
+    'SELECT 1;'
+));
+PREPARE alterIfExists FROM @preparedStatement;
+EXECUTE alterIfExists;
+DEALLOCATE PREPARE alterIfExists;
+
+-- Drop columns if they exist
 SET @preparedStatement = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE (table_name = @tablename)
-     AND (table_schema = @dbname)
-     AND (column_name = @columnname2)) > 0,
-    CONCAT('ALTER TABLE `', @tablename, '` DROP COLUMN `', @columnname2, '`;'),
+     WHERE table_schema = @dbname
+     AND table_name = @tablename
+     AND column_name = 'payment_proof_id') > 0,
+    'ALTER TABLE `joomla_ordenproduccion_ordenes` DROP COLUMN `payment_proof_id`;',
+    'SELECT 1;'
+));
+PREPARE alterIfExists FROM @preparedStatement;
+EXECUTE alterIfExists;
+DEALLOCATE PREPARE alterIfExists;
+
+SET @preparedStatement = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE table_schema = @dbname
+     AND table_name = @tablename
+     AND column_name = 'payment_value') > 0,
+    'ALTER TABLE `joomla_ordenproduccion_ordenes` DROP COLUMN `payment_value`;',
     'SELECT 1;'
 ));
 PREPARE alterIfExists FROM @preparedStatement;
