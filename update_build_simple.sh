@@ -996,6 +996,34 @@ EOF
         sudo cp "$COMPONENT_ROOT/tmpl/paymentproof/default.php" "$SITE_COMPONENT_PATH/tmpl/paymentproof/" || warning "Failed to copy paymentproof template"
     fi
 
+    # Copy paymentproof form
+    if [ -f "$COMPONENT_ROOT/forms/paymentproof.xml" ]; then
+        sudo mkdir -p "$SITE_COMPONENT_PATH/forms"
+        sudo cp "$COMPONENT_ROOT/forms/paymentproof.xml" "$SITE_COMPONENT_PATH/forms/" || warning "Failed to copy paymentproof.xml form"
+        log "✅ Paymentproof form copied"
+    fi
+
+    # Ensure AccessHelper is deployed
+    if [ -f "$COMPONENT_ROOT/src/Helper/AccessHelper.php" ]; then
+        sudo mkdir -p "$SITE_COMPONENT_PATH/src/Helper"
+        sudo cp "$COMPONENT_ROOT/src/Helper/AccessHelper.php" "$SITE_COMPONENT_PATH/src/Helper/" || warning "Failed to copy AccessHelper"
+        sudo chown www-data:www-data "$SITE_COMPONENT_PATH/src/Helper/AccessHelper.php" 2>/dev/null || true
+        log "✅ AccessHelper deployed"
+    fi
+
+    # Copy paymentproof CSS and JS
+    if [ -f "$COMPONENT_ROOT/media/css/paymentproof.css" ]; then
+        sudo mkdir -p "$MEDIA_PATH/css"
+        sudo cp "$COMPONENT_ROOT/media/css/paymentproof.css" "$MEDIA_PATH/css/" || warning "Failed to copy paymentproof.css"
+        log "✅ Paymentproof CSS copied"
+    fi
+
+    if [ -f "$COMPONENT_ROOT/media/js/paymentproof.js" ]; then
+        sudo mkdir -p "$MEDIA_PATH/js"
+        sudo cp "$COMPONENT_ROOT/media/js/paymentproof.js" "$MEDIA_PATH/js/" || warning "Failed to copy paymentproof.js"
+        log "✅ Paymentproof JS copied"
+    fi
+
     # Clean any mis-copied files in view folder (defensive)
     sudo find "$SITE_COMPONENT_PATH/src/View/Paymentproof" -maxdepth 1 -type f ! -name "HtmlView.php" -delete 2>/dev/null || true
 
