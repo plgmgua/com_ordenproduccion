@@ -111,4 +111,22 @@ class HtmlView extends BaseHtmlView
         $model = $this->getModel();
         return $model->getBankOptions();
     }
+
+    /**
+     * Format currency value
+     *
+     * @param   float  $value  The currency value
+     *
+     * @return  string  Formatted currency
+     *
+     * @since   3.1.3
+     */
+    public function formatCurrency($value)
+    {
+        if (empty($value) || $value == 0) {
+            return '-';
+        }
+
+        return 'Q.' . number_format($value, 2);
+    }
 }
