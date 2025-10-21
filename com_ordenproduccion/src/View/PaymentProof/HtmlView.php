@@ -40,12 +40,16 @@ class HtmlView extends BaseHtmlView
         }
 
         // Load order data
-        $orderModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
-            ->getMVCFactory()->createModel('Orden', 'Site');
-        $this->order = $orderModel->getItem($this->orderId);
+        try {
+            $orderModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Orden', 'Site');
+            $this->order = $orderModel->getItem($this->orderId);
 
-        if (!$this->order) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ORDER_NOT_FOUND'), 'error');
+            if (!$this->order) {
+                throw new \Exception(Text::sprintf('COM_ORDENPRODUCCION_ERROR_ORDER_NOT_FOUND_ID', $this->orderId));
+            }
+        } catch (\Exception $e) {
+            $app->enqueueMessage($e->getMessage(), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
             return;
         }
