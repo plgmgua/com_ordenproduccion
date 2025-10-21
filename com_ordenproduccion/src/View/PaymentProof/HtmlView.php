@@ -51,15 +51,13 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        $this->state = $this->get('State');
-        $this->item = $this->get('Item');
+        // Get component params
         $this->params = $app->getParams('com_ordenproduccion');
         $this->user = $user;
-
-        if (count($errors = $this->get('Errors'))) {
-            $app->enqueueMessage(implode("\n", $errors), 'error');
-            return;
-        }
+        
+        // Initialize empty item for new payment proof
+        $this->item = new \stdClass();
+        $this->item->order_id = $this->orderId;
 
         $this->_prepareDocument();
         parent::display($tpl);
