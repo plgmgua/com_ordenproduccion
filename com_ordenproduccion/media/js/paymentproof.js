@@ -33,27 +33,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setupDynamicOrderRows() {
+        const table = document.getElementById('payment-orders-table');
         const tbody = document.getElementById('payment-orders-body');
-        if (!tbody) {
-            console.error('payment-orders-body not found');
+        
+        if (!table || !tbody) {
+            console.error('Table or tbody not found', {table: !!table, tbody: !!tbody});
             return;
         }
 
         console.log('Setting up dynamic order rows, unpaid orders:', unpaidOrders.length);
 
-        // Add row button click handler (delegated)
-        tbody.addEventListener('click', function(e) {
-            console.log('Click detected on tbody', e.target);
-            const addBtn = e.target.closest('.add-row-btn');
-            const removeBtn = e.target.closest('.remove-row-btn');
+        // Add row button click handler (delegated on table, not tbody)
+        table.addEventListener('click', function(e) {
+            console.log('Click detected on table', e.target, e.target.className);
+            
+            // Check if clicked element or its parent is the add/remove button
+            const addBtn = e.target.classList.contains('add-row-btn') ? e.target : e.target.closest('.add-row-btn');
+            const removeBtn = e.target.classList.contains('remove-row-btn') ? e.target : e.target.closest('.remove-row-btn');
 
             if (addBtn) {
-                console.log('Add button clicked');
+                console.log('Add button clicked!');
                 e.preventDefault();
+                e.stopPropagation();
                 addOrderRow();
             } else if (removeBtn) {
-                console.log('Remove button clicked');
+                console.log('Remove button clicked!');
                 e.preventDefault();
+                e.stopPropagation();
                 removeOrderRow(removeBtn);
             }
         });
