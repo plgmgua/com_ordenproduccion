@@ -53,9 +53,11 @@ class PaymentproofController extends BaseController
             $paymentType = $this->input->getString('payment_type', '');
             $bank = $this->input->getString('bank', '');
             $documentNumber = $this->input->getString('document_number', '');
+            $paymentAmount = $this->input->getFloat('payment_amount', 0);
+            $additionalOrders = $this->input->get('additional_orders', [], 'array');
             
             // Validate required fields
-            if (empty($orderId) || empty($paymentType) || empty($documentNumber)) {
+            if (empty($orderId) || empty($paymentType) || empty($documentNumber) || $paymentAmount <= 0) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
             }
 
@@ -70,23 +72,31 @@ class PaymentproofController extends BaseController
             // Get the model
             $model = $this->getModel('Paymentproof');
             
-            // Save payment proof
+            // Prepare all order IDs (main order + additional orders)
+            $allOrderIds = array_merge([$orderId], array_map('intval', $additionalOrders));
+            $allOrderIds = array_unique(array_filter($allOrderIds)); // Remove duplicates and zeros
+            
+            // Save payment proof with all associated orders
             $data = [
-                'order_id' => $orderId,
+                'order_id' => $orderId, // Primary order
                 'payment_type' => $paymentType,
                 'bank' => $bank,
                 'document_number' => $documentNumber,
+                'payment_amount' => $paymentAmount,
                 'file_path' => $uploadedFile,
                 'created_by' => $user->id,
                 'created' => Factory::getDate()->toSql(),
-                'state' => 1
+                'state' => 1,
+                'all_order_ids' => $allOrderIds // Pass all order IDs to model
             ];
 
             if ($model->save($data)) {
-                $this->app->enqueueMessage(
-                    Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_SUCCESS'), 
-                    'success'
-                );
+                $orderCount = count($allOrderIds);
+                $message = $orderCount > 1 
+                    ? Text::sprintf('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_MULTIPLE_SUCCESS', $orderCount)
+                    : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_SUCCESS');
+                    
+                $this->app->enqueueMessage($message, 'success');
             } else {
                 $errors = $model->getErrors();
                 $errorMessage = !empty($errors) ? implode('<br>', $errors) : Text::_('COM_ORDENPRODUCCION_ERROR_SAVING_PAYMENT_PROOF');

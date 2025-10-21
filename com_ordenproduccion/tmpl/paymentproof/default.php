@@ -133,6 +133,28 @@ $orderId = $this->orderId;
 
                                 <div class="col-md-6">
                                     <div class="form-group">
+                                        <label for="payment_amount" class="required">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?> *
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">Q.</span>
+                                            <input type="number" 
+                                                   name="payment_amount" 
+                                                   id="payment_amount" 
+                                                   class="form-control required" 
+                                                   required 
+                                                   min="0.01"
+                                                   step="0.01"
+                                                   placeholder="0.00">
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT_HELP'); ?>
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
                                         <label for="document_number" class="required">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?> *
                                         </label>
@@ -143,6 +165,26 @@ $orderId = $this->orderId;
                                                required 
                                                maxlength="255"
                                                placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER'); ?>">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="additional_orders">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_ADDITIONAL_ORDERS'); ?>
+                                        </label>
+                                        <select name="additional_orders[]" 
+                                                id="additional_orders" 
+                                                class="form-control" 
+                                                multiple 
+                                                size="5">
+                                            <?php echo $this->getAvailableOrdersOptions(); ?>
+                                        </select>
+                                        <small class="form-text text-muted">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_ADDITIONAL_ORDERS_HELP'); ?>
+                                        </small>
                                     </div>
                                 </div>
 

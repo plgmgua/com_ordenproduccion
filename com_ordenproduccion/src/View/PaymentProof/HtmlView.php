@@ -154,4 +154,59 @@ class HtmlView extends BaseHtmlView
         // For DATETIME fields, use Joomla's date helper with timezone conversion
         return HTMLHelper::_('date', $date, Text::_('DATE_FORMAT_LC3'));
     }
+
+    /**
+     * Get available orders options for multi-select
+     *
+     * @return  string  HTML options for select
+     *
+     * @since   3.1.4
+     */
+    public function getAvailableOrdersOptions()
+    {
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $user = Factory::getUser();
+        
+        // Get orders accessible by current user (excluding the current order)
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('id'),
+                $db->quoteName('order_number'),
+                $db->quoteName('client_name'),
+                $db->quoteName('invoice_value')
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('id') . ' != ' . (int) $this->orderId)
+            ->order($db->quoteName('order_number') . ' DESC')
+            ->setLimit(100); // Limit to recent 100 orders
+        
+        // Apply access control - only show orders user has access to
+        $userGroups = $user->getAuthorisedGroups();
+        $isVentas = in_array(2, $userGroups); // Ventas group
+        $isProduccion = in_array(3, $userGroups); // Produccion group
+        
+        if ($isVentas && !$isProduccion) {
+            // Sales users can only see their own orders
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($user->get('name')));
+        }
+        // Production and admin users can see all orders (no additional filter)
+        
+        $db->setQuery($query);
+        $orders = $db->loadObjectList();
+        
+        $html = '';
+        foreach ($orders as $order) {
+            $invoiceValue = !empty($order->invoice_value) ? 'Q.' . number_format($order->invoice_value, 2) : '';
+            $label = sprintf(
+                '%s - %s %s',
+                htmlspecialchars($order->order_number),
+                htmlspecialchars($order->client_name),
+                $invoiceValue ? '(' . $invoiceValue . ')' : ''
+            );
+            $html .= '<option value="' . (int) $order->id . '">' . $label . '</option>';
+        }
+        
+        return $html;
+    }
 }

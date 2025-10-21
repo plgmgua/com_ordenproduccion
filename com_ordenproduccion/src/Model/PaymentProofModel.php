@@ -132,6 +132,9 @@ class PaymentproofModel extends ItemModel
         try {
             $db = $this->getDatabase();
             
+            // Start transaction
+            $db->transactionStart();
+            
             // Insert new payment proof record
             $query = $db->getQuery(true);
             $columns = [
@@ -139,6 +142,7 @@ class PaymentproofModel extends ItemModel
                 'payment_type',
                 'bank',
                 'document_number',
+                'payment_amount',
                 'file_path',
                 'created_by',
                 'created',
@@ -150,6 +154,7 @@ class PaymentproofModel extends ItemModel
                 $db->quote($data['payment_type']),
                 $db->quote($data['bank']),
                 $db->quote($data['document_number']),
+                (float) $data['payment_amount'],
                 $db->quote($data['file_path']),
                 (int) $data['created_by'],
                 $db->quote($data['created']),
@@ -161,16 +166,49 @@ class PaymentproofModel extends ItemModel
                   ->values(implode(',', $values));
             
             $db->setQuery($query);
-            $result = $db->execute();
+            $db->execute();
             
-            if ($result) {
-                return true;
-            } else {
-                $this->setError($db->getErrorMsg());
-                return false;
+            // Get the inserted payment proof ID
+            $paymentProofId = $db->insertid();
+            
+            // Insert records into junction table for all associated orders
+            if (!empty($data['all_order_ids']) && is_array($data['all_order_ids'])) {
+                $orderCount = count($data['all_order_ids']);
+                $amountPerOrder = $data['payment_amount'] / $orderCount; // Distribute amount equally
+                
+                foreach ($data['all_order_ids'] as $orderId) {
+                    $junctionQuery = $db->getQuery(true);
+                    $junctionQuery->insert($db->quoteName('#__ordenproduccion_payment_orders'))
+                        ->columns($db->quoteName([
+                            'payment_proof_id',
+                            'order_id',
+                            'amount_applied',
+                            'created',
+                            'created_by'
+                        ]))
+                        ->values(implode(',', [
+                            (int) $paymentProofId,
+                            (int) $orderId,
+                            (float) $amountPerOrder,
+                            $db->quote($data['created']),
+                            (int) $data['created_by']
+                        ]));
+                    
+                    $db->setQuery($junctionQuery);
+                    $db->execute();
+                }
             }
             
+            // Commit transaction
+            $db->transactionCommit();
+            
+            return true;
+            
         } catch (\Exception $e) {
+            // Rollback transaction on error
+            if (isset($db)) {
+                $db->transactionRollback();
+            }
             $this->setError($e->getMessage());
             return false;
         }
