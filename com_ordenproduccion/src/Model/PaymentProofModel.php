@@ -171,30 +171,22 @@ class PaymentproofModel extends ItemModel
             // Get the inserted payment proof ID
             $paymentProofId = $db->insertid();
             
-            // Insert records into junction table for all associated orders
-            if (!empty($data['all_order_ids']) && is_array($data['all_order_ids'])) {
-                $orderCount = count($data['all_order_ids']);
-                $amountPerOrder = $data['payment_amount'] / $orderCount; // Distribute amount equally
-                
-                foreach ($data['all_order_ids'] as $orderId) {
-                    $junctionQuery = $db->getQuery(true);
-                    $junctionQuery->insert($db->quoteName('#__ordenproduccion_payment_orders'))
-                        ->columns($db->quoteName([
-                            'payment_proof_id',
-                            'order_id',
-                            'amount_applied',
-                            'created',
-                            'created_by'
-                        ]))
-                        ->values(implode(',', [
-                            (int) $paymentProofId,
-                            (int) $orderId,
-                            (float) $amountPerOrder,
-                            $db->quote($data['created']),
-                            (int) $data['created_by']
-                        ]));
+            // Update orders table with payment_proof_id and payment_value
+            if (!empty($data['payment_orders']) && is_array($data['payment_orders'])) {
+                foreach ($data['payment_orders'] as $paymentOrder) {
+                    $orderId = (int) $paymentOrder['order_id'];
+                    $value = (float) $paymentOrder['value'];
                     
-                    $db->setQuery($junctionQuery);
+                    // Update the order with payment information
+                    $updateQuery = $db->getQuery(true);
+                    $updateQuery->update($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->set($db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId)
+                        ->set($db->quoteName('payment_value') . ' = ' . $value)
+                        ->set($db->quoteName('modified') . ' = ' . $db->quote($data['created']))
+                        ->set($db->quoteName('modified_by') . ' = ' . (int) $data['created_by'])
+                        ->where($db->quoteName('id') . ' = ' . $orderId);
+                    
+                    $db->setQuery($updateQuery);
                     $db->execute();
                 }
             }

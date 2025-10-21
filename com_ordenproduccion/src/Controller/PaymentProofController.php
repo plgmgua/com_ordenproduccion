@@ -49,16 +49,38 @@ class PaymentproofController extends BaseController
 
         try {
             // Get form data
-            $orderId = $this->input->getInt('order_id', 0);
             $paymentType = $this->input->getString('payment_type', '');
             $bank = $this->input->getString('bank', '');
             $documentNumber = $this->input->getString('document_number', '');
             $paymentAmount = $this->input->getFloat('payment_amount', 0);
-            $additionalOrders = $this->input->get('additional_orders', [], 'array');
+            $paymentOrders = $this->input->get('payment_orders', [], 'array');
             
             // Validate required fields
-            if (empty($orderId) || empty($paymentType) || empty($documentNumber) || $paymentAmount <= 0) {
+            if (empty($paymentType) || empty($documentNumber) || $paymentAmount <= 0) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
+            }
+
+            // Validate payment orders array
+            if (empty($paymentOrders) || !is_array($paymentOrders)) {
+                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_NO_ORDERS_SELECTED'));
+            }
+
+            // Process and validate payment orders
+            $validatedOrders = [];
+            foreach ($paymentOrders as $orderData) {
+                $orderIdValue = isset($orderData['order_id']) ? (int) $orderData['order_id'] : 0;
+                $value = isset($orderData['value']) ? (float) $orderData['value'] : 0;
+                
+                if ($orderIdValue > 0 && $value > 0) {
+                    $validatedOrders[] = [
+                        'order_id' => $orderIdValue,
+                        'value' => $value
+                    ];
+                }
+            }
+
+            if (empty($validatedOrders)) {
+                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_NO_VALID_ORDERS'));
             }
 
             // Handle file upload
@@ -66,19 +88,16 @@ class PaymentproofController extends BaseController
             $files = $this->input->files->get('payment_proof_file', [], 'array');
             
             if (!empty($files) && isset($files['name']) && !empty($files['name'])) {
-                $uploadedFile = $this->handleFileUpload($files, $orderId);
+                // Use first order ID for file naming
+                $uploadedFile = $this->handleFileUpload($files, $validatedOrders[0]['order_id']);
             }
 
             // Get the model
             $model = $this->getModel('Paymentproof');
             
-            // Prepare all order IDs (main order + additional orders)
-            $allOrderIds = array_merge([$orderId], array_map('intval', $additionalOrders));
-            $allOrderIds = array_unique(array_filter($allOrderIds)); // Remove duplicates and zeros
-            
             // Save payment proof with all associated orders
             $data = [
-                'order_id' => $orderId, // Primary order
+                'order_id' => $validatedOrders[0]['order_id'], // Primary order (first one)
                 'payment_type' => $paymentType,
                 'bank' => $bank,
                 'document_number' => $documentNumber,
@@ -87,11 +106,11 @@ class PaymentproofController extends BaseController
                 'created_by' => $user->id,
                 'created' => Factory::getDate()->toSql(),
                 'state' => 1,
-                'all_order_ids' => $allOrderIds // Pass all order IDs to model
+                'payment_orders' => $validatedOrders // Pass array of orders with values
             ];
 
             if ($model->save($data)) {
-                $orderCount = count($allOrderIds);
+                $orderCount = count($validatedOrders);
                 $message = $orderCount > 1 
                     ? Text::sprintf('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_MULTIPLE_SUCCESS', $orderCount)
                     : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_SUCCESS');
@@ -107,8 +126,8 @@ class PaymentproofController extends BaseController
             $this->app->enqueueMessage($e->getMessage(), 'error');
         }
 
-        // Redirect back to order detail
-        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
+        // Redirect back to orders list
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes');
         $this->setRedirect($redirectUrl);
     }
 

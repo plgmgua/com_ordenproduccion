@@ -203,3 +203,101 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Dynamic Payment Orders Table Styles */
+#payment-orders-table {
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+#payment-orders-table thead th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#payment-orders-table .payment-order-row td {
+    vertical-align: middle;
+    padding: 12px;
+}
+
+#payment-orders-table .order-select {
+    font-size: 14px;
+}
+
+#payment-orders-table .payment-value-input {
+    font-weight: 500;
+}
+
+#payment-orders-table .add-row-btn,
+#payment-orders-table .remove-row-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#payment-orders-table tfoot {
+    font-weight: 600;
+}
+
+#payment-orders-table tfoot tr {
+    border-top: 2px solid #dee2e6;
+}
+
+#payment-orders-table tfoot .table-success {
+    background-color: #d4edda !important;
+    transition: background-color 0.3s ease;
+}
+
+#payment-orders-table tfoot .table-warning {
+    background-color: #fff3cd !important;
+    transition: background-color 0.3s ease;
+}
+
+#payment-orders-table tfoot #payment-total {
+    font-weight: 700;
+    font-size: 1.1em;
+    background-color: #f8f9fa;
+}
+
+#payment-orders-table .text-end {
+    text-align: right;
+}
+
+/* Hover effects for action buttons */
+#payment-orders-table .add-row-btn:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+#payment-orders-table .remove-row-btn:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    #payment-orders-table {
+        font-size: 12px;
+    }
+    
+    #payment-orders-table thead th {
+        font-size: 12px;
+        padding: 8px;
+    }
+    
+    #payment-orders-table .payment-order-row td {
+        padding: 8px;
+    }
+    
+    #payment-orders-table .add-row-btn,
+    #payment-orders-table .remove-row-btn {
+        min-width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+}
