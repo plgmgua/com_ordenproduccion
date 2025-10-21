@@ -21,6 +21,8 @@ class HtmlView extends BaseHtmlView
     protected $user;
     protected $orderId;
     protected $order;
+    protected $existingPayment;
+    protected $isReadOnly;
 
     public function display($tpl = null)
     {
@@ -54,6 +56,10 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        // Check if payment already exists for this order
+        $this->existingPayment = $this->checkExistingPayment();
+        $this->isReadOnly = !empty($this->existingPayment);
+
         // Get component params
         $this->params = $app->getParams('com_ordenproduccion');
         $this->user = $user;
@@ -64,6 +70,31 @@ class HtmlView extends BaseHtmlView
 
         $this->_prepareDocument();
         parent::display($tpl);
+    }
+
+    /**
+     * Check if payment proof already exists for this order
+     *
+     * @return  object|null  Existing payment proof or null
+     */
+    protected function checkExistingPayment()
+    {
+        if (empty($this->order->payment_proof_id)) {
+            return null;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->where($db->quoteName('id') . ' = ' . (int) $this->order->payment_proof_id);
+            
+            $db->setQuery($query);
+            return $db->loadObject();
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     protected function _prepareDocument()

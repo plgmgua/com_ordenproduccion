@@ -17,6 +17,8 @@ use Joomla\CMS\Router\Route;
 
 $order = $this->order;
 $orderId = $this->orderId;
+$existingPayment = $this->existingPayment;
+$isReadOnly = $this->isReadOnly;
 ?>
 
 <div class="com-ordenproduccion-paymentproof">
@@ -43,6 +45,23 @@ $orderId = $this->orderId;
                 </div>
             </div>
         </div>
+
+        <!-- Payment Already Registered Warning -->
+        <?php if ($isReadOnly): ?>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <h4 class="alert-heading">
+                        <i class="fas fa-check-circle"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_ALREADY_REGISTERED'); ?>
+                    </h4>
+                    <p class="mb-0">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_ALREADY_REGISTERED_DESC'); ?>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Order Information -->
         <div class="row mb-4">
@@ -101,13 +120,13 @@ $orderId = $this->orderId;
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="payment_type" class="required">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?> *
+                                        <label for="payment_type" class="<?php echo !$isReadOnly ? 'required' : ''; ?>">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?> <?php echo !$isReadOnly ? '*' : ''; ?>
                                         </label>
-                                        <select name="payment_type" id="payment_type" class="form-control required" required>
+                                        <select name="payment_type" id="payment_type" class="form-control <?php echo !$isReadOnly ? 'required' : ''; ?>" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
                                             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE'); ?></option>
                                             <?php foreach ($this->getPaymentTypeOptions() as $value => $text) : ?>
-                                                <option value="<?php echo $value; ?>">
+                                                <option value="<?php echo $value; ?>" <?php echo ($isReadOnly && $existingPayment && $existingPayment->payment_type === $value) ? 'selected' : ''; ?>>
                                                     <?php echo $text; ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -120,10 +139,10 @@ $orderId = $this->orderId;
                                         <label for="bank">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_BANK'); ?>
                                         </label>
-                                        <select name="bank" id="bank" class="form-control">
+                                        <select name="bank" id="bank" class="form-control" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                                             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_BANK'); ?></option>
                                             <?php foreach ($this->getBankOptions() as $value => $text) : ?>
-                                                <option value="<?php echo $value; ?>">
+                                                <option value="<?php echo $value; ?>" <?php echo ($isReadOnly && $existingPayment && $existingPayment->bank === $value) ? 'selected' : ''; ?>>
                                                     <?php echo $text; ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -133,19 +152,20 @@ $orderId = $this->orderId;
 
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="payment_amount" class="required">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?> *
+                                        <label for="payment_amount" class="<?php echo !$isReadOnly ? 'required' : ''; ?>">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?> <?php echo !$isReadOnly ? '*' : ''; ?>
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">Q.</span>
                                             <input type="number" 
                                                    name="payment_amount" 
                                                    id="payment_amount" 
-                                                   class="form-control required" 
-                                                   required 
+                                                   class="form-control <?php echo !$isReadOnly ? 'required' : ''; ?>" 
+                                                   <?php echo $isReadOnly ? 'readonly' : 'required'; ?>
                                                    min="0.01"
                                                    step="0.01"
-                                                   placeholder="0.00">
+                                                   placeholder="0.00"
+                                                   value="<?php echo $isReadOnly && $existingPayment ? htmlspecialchars($existingPayment->payment_amount) : ''; ?>">
                                         </div>
                                         <small class="form-text text-muted">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT_HELP'); ?>
@@ -155,16 +175,17 @@ $orderId = $this->orderId;
 
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="document_number" class="required">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?> *
+                                        <label for="document_number" class="<?php echo !$isReadOnly ? 'required' : ''; ?>">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?> <?php echo !$isReadOnly ? '*' : ''; ?>
                                         </label>
                                         <input type="text" 
                                                name="document_number" 
                                                id="document_number" 
-                                               class="form-control required" 
-                                               required 
+                                               class="form-control <?php echo !$isReadOnly ? 'required' : ''; ?>" 
+                                               <?php echo $isReadOnly ? 'readonly' : 'required'; ?>
                                                maxlength="255"
-                                               placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER'); ?>">
+                                               placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER'); ?>"
+                                               value="<?php echo $isReadOnly && $existingPayment ? htmlspecialchars($existingPayment->document_number) : ''; ?>">
                                     </div>
                                 </div>
                             </div>
@@ -206,15 +227,18 @@ $orderId = $this->orderId;
                                                                        min="0.01" 
                                                                        step="0.01" 
                                                                        placeholder="0.00"
-                                                                       required>
+                                                                       value="<?php echo $isReadOnly && $existingPayment ? htmlspecialchars($order->payment_value ?? '0.00') : ''; ?>"
+                                                                       <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
                                                             </div>
                                                         </td>
                                                         <td class="text-center">
+                                                            <?php if (!$isReadOnly): ?>
                                                             <button type="button" 
                                                                     class="btn btn-sm btn-success add-row-btn" 
                                                                     title="<?php echo Text::_('COM_ORDENPRODUCCION_ADD_ORDER'); ?>">
                                                                 <i class="fas fa-plus"></i>
                                                             </button>
+                                                            <?php endif; ?>
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -249,32 +273,46 @@ $orderId = $this->orderId;
                                         <label for="payment_proof_file">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE'); ?>
                                         </label>
+                                        <?php if ($isReadOnly && $existingPayment && !empty($existingPayment->file_path)): ?>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-file"></i>
+                                            <a href="<?php echo htmlspecialchars($existingPayment->file_path); ?>" target="_blank">
+                                                <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_UPLOADED_FILE'); ?>
+                                            </a>
+                                        </div>
+                                        <?php else: ?>
                                         <input type="file" 
                                                name="payment_proof_file" 
                                                id="payment_proof_file" 
                                                class="form-control" 
                                                accept=".jpg,.jpeg,.png,.pdf"
-                                               onchange="validateFile(this)">
+                                               onchange="validateFile(this)"
+                                               <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                                         <small class="form-text text-muted">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE_HELP'); ?>
                                         </small>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Hidden field with unpaid orders data for JavaScript -->
+                            <?php if (!$isReadOnly): ?>
                             <script type="application/json" id="unpaid-orders-data">
                                 <?php echo $this->getUnpaidOrdersJson(); ?>
                             </script>
+                            <?php endif; ?>
 
                             <div class="form-actions">
+                                <?php if (!$isReadOnly): ?>
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
                                     <?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>
                                 </button>
-                                <a href="<?php echo $this->getBackToOrderRoute(); ?>" class="btn btn-secondary">
-                                    <i class="fas fa-times"></i>
-                                    <?php echo Text::_('JCANCEL'); ?>
+                                <?php endif; ?>
+                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i>
+                                    <?php echo $isReadOnly ? Text::_('COM_ORDENPRODUCCION_BACK_TO_ORDERS') : Text::_('JCANCEL'); ?>
                                 </a>
                             </div>
                         </form>
