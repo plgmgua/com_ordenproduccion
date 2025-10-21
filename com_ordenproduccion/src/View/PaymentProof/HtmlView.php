@@ -42,8 +42,7 @@ class HtmlView extends BaseHtmlView
         // Load order data
         $orderModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
             ->getMVCFactory()->createModel('Orden', 'Site');
-        $orderModel->setState('orden.id', $this->orderId);
-        $this->order = $orderModel->getItem();
+        $this->order = $orderModel->getItem($this->orderId);
 
         if (!$this->order) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ORDER_NOT_FOUND'), 'error');
