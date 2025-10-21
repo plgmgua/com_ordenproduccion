@@ -129,4 +129,29 @@ class HtmlView extends BaseHtmlView
 
         return 'Q.' . number_format($value, 2);
     }
+
+    /**
+     * Format date for display
+     *
+     * @param   string  $date  The date string
+     *
+     * @return  string  Formatted date
+     *
+     * @since   3.1.3
+     */
+    public function formatDate($date)
+    {
+        if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+            return '-';
+        }
+
+        // For DATE fields (YYYY-MM-DD), use direct PHP date formatting to avoid timezone conversion issues
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $timestamp = strtotime($date);
+            return date('d F Y', $timestamp);
+        }
+
+        // For DATETIME fields, use Joomla's date helper with timezone conversion
+        return HTMLHelper::_('date', $date, Text::_('DATE_FORMAT_LC3'));
+    }
 }
