@@ -169,25 +169,81 @@ $orderId = $this->orderId;
                                 </div>
                             </div>
 
+                            <!-- Dynamic Orders Table -->
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group">
-                                        <label for="additional_orders">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_ADDITIONAL_ORDERS'); ?>
+                                        <label>
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_PAYMENT'); ?>
                                         </label>
-                                        <select name="additional_orders[]" 
-                                                id="additional_orders" 
-                                                class="form-control" 
-                                                multiple 
-                                                size="5">
-                                            <?php echo $this->getAvailableOrdersOptions(); ?>
-                                        </select>
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered" id="payment-orders-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 50%"><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?></th>
+                                                        <th style="width: 35%"><?php echo Text::_('COM_ORDENPRODUCCION_VALUE_TO_APPLY'); ?></th>
+                                                        <th style="width: 15%"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="payment-orders-body">
+                                                    <!-- First row: current order (read-only) -->
+                                                    <tr class="payment-order-row" data-row-index="0">
+                                                        <td>
+                                                            <input type="hidden" 
+                                                                   name="payment_orders[0][order_id]" 
+                                                                   value="<?php echo $orderId; ?>">
+                                                            <input type="text" 
+                                                                   class="form-control" 
+                                                                   value="<?php echo htmlspecialchars($order->order_number ?? $order->orden_de_trabajo ?? 'ORD-' . $orderId); ?>" 
+                                                                   readonly>
+                                                        </td>
+                                                        <td>
+                                                            <div class="input-group">
+                                                                <span class="input-group-text">Q.</span>
+                                                                <input type="number" 
+                                                                       name="payment_orders[0][value]" 
+                                                                       class="form-control payment-value-input" 
+                                                                       min="0.01" 
+                                                                       step="0.01" 
+                                                                       placeholder="0.00"
+                                                                       required>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <button type="button" 
+                                                                    class="btn btn-sm btn-success add-row-btn" 
+                                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_ADD_ORDER'); ?>">
+                                                                <i class="fas fa-plus"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-info">
+                                                        <td class="text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</strong></td>
+                                                        <td>
+                                                            <div class="input-group">
+                                                                <span class="input-group-text">Q.</span>
+                                                                <input type="text" 
+                                                                       id="payment-total" 
+                                                                       class="form-control font-weight-bold" 
+                                                                       value="0.00" 
+                                                                       readonly>
+                                                            </div>
+                                                        </td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
                                         <small class="form-text text-muted">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_ADDITIONAL_ORDERS_HELP'); ?>
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_HELP'); ?>
                                         </small>
                                     </div>
                                 </div>
+                            </div>
 
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="payment_proof_file">
@@ -205,6 +261,11 @@ $orderId = $this->orderId;
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Hidden field with unpaid orders data for JavaScript -->
+                            <script type="application/json" id="unpaid-orders-data">
+                                <?php echo $this->getUnpaidOrdersJson(); ?>
+                            </script>
 
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">

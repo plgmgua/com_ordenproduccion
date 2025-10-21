@@ -156,57 +156,63 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Get available orders options for multi-select
+     * Get unpaid orders from same client for dropdown
      *
-     * @return  string  HTML options for select
+     * @return  array  Array of order objects
      *
-     * @since   3.1.4
+     * @since   3.1.5
      */
-    public function getAvailableOrdersOptions()
+    public function getUnpaidOrdersFromClient()
     {
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-        $user = Factory::getUser();
         
-        // Get orders accessible by current user (excluding the current order)
+        // Get client name from current order
+        $clientName = $this->order->client_name ?? '';
+        
+        if (empty($clientName)) {
+            return [];
+        }
+        
+        // Get unpaid orders from same client
         $query = $db->getQuery(true)
             ->select([
                 $db->quoteName('id'),
                 $db->quoteName('order_number'),
+                $db->quoteName('orden_de_trabajo'),
                 $db->quoteName('client_name'),
                 $db->quoteName('invoice_value')
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('id') . ' != ' . (int) $this->orderId)
-            ->order($db->quoteName('order_number') . ' DESC')
-            ->setLimit(100); // Limit to recent 100 orders
-        
-        // Apply access control - only show orders user has access to
-        $userGroups = $user->getAuthorisedGroups();
-        $isVentas = in_array(2, $userGroups); // Ventas group
-        $isProduccion = in_array(3, $userGroups); // Produccion group
-        
-        if ($isVentas && !$isProduccion) {
-            // Sales users can only see their own orders
-            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($user->get('name')));
-        }
-        // Production and admin users can see all orders (no additional filter)
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName))
+            ->where($db->quoteName('payment_proof_id') . ' IS NULL') // Only unpaid orders
+            ->where($db->quoteName('id') . ' != ' . (int) $this->orderId) // Exclude current order
+            ->order($db->quoteName('order_number') . ' DESC');
         
         $db->setQuery($query);
-        $orders = $db->loadObjectList();
+        return $db->loadObjectList();
+    }
+    
+    /**
+     * Get unpaid orders as JSON for JavaScript
+     *
+     * @return  string  JSON encoded array
+     *
+     * @since   3.1.5
+     */
+    public function getUnpaidOrdersJson()
+    {
+        $orders = $this->getUnpaidOrdersFromClient();
+        $data = [];
         
-        $html = '';
         foreach ($orders as $order) {
-            $invoiceValue = !empty($order->invoice_value) ? 'Q.' . number_format($order->invoice_value, 2) : '';
-            $label = sprintf(
-                '%s - %s %s',
-                htmlspecialchars($order->order_number),
-                htmlspecialchars($order->client_name),
-                $invoiceValue ? '(' . $invoiceValue . ')' : ''
-            );
-            $html .= '<option value="' . (int) $order->id . '">' . $label . '</option>';
+            $data[] = [
+                'id' => (int) $order->id,
+                'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? '',
+                'invoice_value' => (float) ($order->invoice_value ?? 0)
+            ];
         }
         
-        return $html;
+        return json_encode($data);
     }
 }
