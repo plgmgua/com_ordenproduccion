@@ -34,17 +34,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupDynamicOrderRows() {
         const tbody = document.getElementById('payment-orders-body');
-        if (!tbody) return;
+        if (!tbody) {
+            console.error('payment-orders-body not found');
+            return;
+        }
+
+        console.log('Setting up dynamic order rows, unpaid orders:', unpaidOrders.length);
 
         // Add row button click handler (delegated)
         tbody.addEventListener('click', function(e) {
+            console.log('Click detected on tbody', e.target);
             const addBtn = e.target.closest('.add-row-btn');
             const removeBtn = e.target.closest('.remove-row-btn');
 
             if (addBtn) {
+                console.log('Add button clicked');
                 e.preventDefault();
                 addOrderRow();
             } else if (removeBtn) {
+                console.log('Remove button clicked');
                 e.preventDefault();
                 removeOrderRow(removeBtn);
             }
