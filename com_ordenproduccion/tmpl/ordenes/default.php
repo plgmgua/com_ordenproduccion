@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Ordenes\HtmlView $this */
 
@@ -19,6 +20,7 @@ use Joomla\CMS\Router\Route;
 $userGroups = $this->getUserGroups();
 $isVentas = in_array(2, $userGroups); // Adjust group ID as needed
 $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
+$isAdministracion = AccessHelper::isInAdministracionGroup();
 ?>
 
 <div class="com-ordenproduccion-ordenes">
@@ -212,14 +214,16 @@ $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
                                         <?php endif; ?>
                                         <td>
                                             <div class="btn-group ordenes-actions" role="group">
-                                                <!-- Create Invoice first -->
+                                                <!-- Create Invoice - Only for Administracion group -->
+                                                <?php if ($isAdministracion): ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&order_id=' . $item->id); ?>"
                                                    class="btn btn-sm btn-outline-primary"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>"
                                                    aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>">
                                                     <i class="fas fa-file-invoice fa-sm" aria-hidden="true"></i>
                                                 </a>
-                                                <!-- Payment Proof at the end -->
+                                                <?php endif; ?>
+                                                <!-- Payment Proof -->
                                                 <?php $paymentProofUrl = 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id; ?>
                                                 <a href="<?php echo $paymentProofUrl; ?>"
                                                    class="btn btn-sm btn-outline-success"
