@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DEFAULT_TITLE" option="COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DEFAULT_OPTION">
+        <help
+            key="JHELP_MENUS_MENU_ITEM_WEBLINK_CATEGORIES"
+        />
+        <message>
+            <![CDATA[COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DEFAULT_DESC]]>
+        </message>
+    </layout>
+
+    <!-- Add fields to the request variables for the layout. -->
+    <fields name="request">
+        <fieldset name="request" label="COM_ORDENPRODUCCION_ASISTENCIA_REQUEST_FIELDSET_LABEL">
+
+            <field
+                name="id"
+                type="hidden"
+                default="0"
+            />
+
+        </fieldset>
+    </fields>
+
+    <!-- Add fields to the parameters object for the layout. -->
+    <fields name="params">
+
+        <!-- Basic options. -->
+        <fieldset name="basic" label="JGLOBAL_FIELDSET_DISPLAY_OPTIONS">
+
+            <field
+                name="show_page_heading"
+                type="radio"
+                label="JGLOBAL_SHOW_PAGE_HEADING_LABEL"
+                class="btn-group btn-group-yesno"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="page_heading"
+                type="text"
+                label="JGLOBAL_PAGE_HEADING_LABEL"
+                size="20"
+            />
+
+            <field
+                name="show_statistics"
+                type="radio"
+                label="COM_ORDENPRODUCCION_ASISTENCIA_SHOW_STATISTICS"
+                description="COM_ORDENPRODUCCION_ASISTENCIA_SHOW_STATISTICS_DESC"
+                class="btn-group btn-group-yesno"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_filters"
+                type="radio"
+                label="COM_ORDENPRODUCCION_ASISTENCIA_SHOW_FILTERS"
+                description="COM_ORDENPRODUCCION_ASISTENCIA_SHOW_FILTERS_DESC"
+                class="btn-group btn-group-yesno"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="allow_manual_entry"
+                type="radio"
+                label="COM_ORDENPRODUCCION_ASISTENCIA_ALLOW_MANUAL_ENTRY"
+                description="COM_ORDENPRODUCCION_ASISTENCIA_ALLOW_MANUAL_ENTRY_DESC"
+                class="btn-group btn-group-yesno"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="items_per_page"
+                type="number"
+                label="COM_ORDENPRODUCCION_ASISTENCIA_ITEMS_PER_PAGE"
+                description="COM_ORDENPRODUCCION_ASISTENCIA_ITEMS_PER_PAGE_DESC"
+                default="20"
+                min="5"
+                max="100"
+            />
+
+        </fieldset>
+
+        <!-- Advanced options. -->
+        <fieldset name="advanced" label="JGLOBAL_FIELDSET_ADVANCED_OPTIONS">
+
+            <field
+                name="layout_type"
+                type="hidden"
+                default="asistencia"
+            />
+
+        </fieldset>
+
+    </fields>
+</metadata>
+

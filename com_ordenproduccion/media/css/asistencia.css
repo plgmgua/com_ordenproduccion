@@ -1,0 +1,390 @@
+/**
+ * Asistencia (Time & Attendance) Styles
+ * @package     com_ordenproduccion
+ * @version     3.2.0
+ */
+
+/* ==========================================
+   Layout & Container Styles
+   ========================================== */
+
+.com-ordenproduccion-asistencia {
+    padding: 20px 0;
+}
+
+.com-ordenproduccion-asistencia .page-header {
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.com-ordenproduccion-asistencia .page-header h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    color: #2c3e50;
+}
+
+/* ==========================================
+   Statistics Cards
+   ========================================== */
+
+.com-ordenproduccion-asistencia .card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.com-ordenproduccion-asistencia .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.com-ordenproduccion-asistencia .card-body {
+    padding: 20px;
+}
+
+.com-ordenproduccion-asistencia .card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.com-ordenproduccion-asistencia .display-4 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Statistics Card Colors */
+.com-ordenproduccion-asistencia .card.bg-primary {
+    background-color: #007bff !important;
+}
+
+.com-ordenproduccion-asistencia .card.bg-success {
+    background-color: #28a745 !important;
+}
+
+.com-ordenproduccion-asistencia .card.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.com-ordenproduccion-asistencia .card.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* ==========================================
+   Filter Section
+   ========================================== */
+
+.com-ordenproduccion-asistencia .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+.com-ordenproduccion-asistencia .card-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #495057;
+}
+
+.com-ordenproduccion-asistencia .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.com-ordenproduccion-asistencia .form-control,
+.com-ordenproduccion-asistencia .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
+.com-ordenproduccion-asistencia .form-control:focus,
+.com-ordenproduccion-asistencia .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+/* ==========================================
+   Table Styles
+   ========================================== */
+
+.com-ordenproduccion-asistencia .table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.com-ordenproduccion-asistencia table {
+    margin-bottom: 0;
+}
+
+.com-ordenproduccion-asistencia .table thead {
+    background-color: #343a40;
+    color: white;
+}
+
+.com-ordenproduccion-asistencia .table thead th {
+    border: none;
+    padding: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.com-ordenproduccion-asistencia .table tbody td {
+    padding: 12px 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.com-ordenproduccion-asistencia .table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.com-ordenproduccion-asistencia .table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.com-ordenproduccion-asistencia .table tbody tr.table-warning {
+    background-color: #fff3cd;
+}
+
+.com-ordenproduccion-asistencia .table tbody tr.table-warning:hover {
+    background-color: #ffecb3;
+}
+
+/* ==========================================
+   Badge Styles
+   ========================================== */
+
+.com-ordenproduccion-asistencia .badge {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.com-ordenproduccion-asistencia .badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.com-ordenproduccion-asistencia .badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.com-ordenproduccion-asistencia .badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+.com-ordenproduccion-asistencia .badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* ==========================================
+   Button Styles
+   ========================================== */
+
+.com-ordenproduccion-asistencia .btn {
+    padding: 8px 16px;
+    font-weight: 600;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.com-ordenproduccion-asistencia .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.com-ordenproduccion-asistencia .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.com-ordenproduccion-asistencia .btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.com-ordenproduccion-asistencia .btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.com-ordenproduccion-asistencia .btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
+.com-ordenproduccion-asistencia .btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.com-ordenproduccion-asistencia .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.com-ordenproduccion-asistencia .btn-sm {
+    padding: 5px 10px;
+    font-size: 0.875rem;
+}
+
+/* ==========================================
+   Pagination
+   ========================================== */
+
+.com-ordenproduccion-asistencia .pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.com-ordenproduccion-asistencia .pagination ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+}
+
+/* ==========================================
+   Form Entry Styles
+   ========================================== */
+
+.com-ordenproduccion-asistenciaentry-edit {
+    padding: 20px 0;
+}
+
+.com-ordenproduccion-asistenciaentry-edit .page-header {
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.com-ordenproduccion-asistenciaentry-edit .page-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: #2c3e50;
+}
+
+.com-ordenproduccion-asistenciaentry-edit .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.com-ordenproduccion-asistenciaentry-edit .form-control,
+.com-ordenproduccion-asistenciaentry-edit .form-select,
+.com-ordenproduccion-asistenciaentry-edit textarea {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+.com-ordenproduccion-asistenciaentry-edit .form-control:focus,
+.com-ordenproduccion-asistenciaentry-edit .form-select:focus,
+.com-ordenproduccion-asistenciaentry-edit textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+}
+
+.com-ordenproduccion-asistenciaentry-edit .required:after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* ==========================================
+   Responsive Styles
+   ========================================== */
+
+@media (max-width: 768px) {
+    .com-ordenproduccion-asistencia .card-body {
+        padding: 15px;
+    }
+    
+    .com-ordenproduccion-asistencia .display-4 {
+        font-size: 2rem;
+    }
+    
+    .com-ordenproduccion-asistencia .table {
+        font-size: 0.875rem;
+    }
+    
+    .com-ordenproduccion-asistencia .btn {
+        font-size: 0.875rem;
+        padding: 6px 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .com-ordenproduccion-asistencia .page-header h1 {
+        font-size: 1.75rem;
+    }
+    
+    .com-ordenproduccion-asistencia .display-4 {
+        font-size: 1.5rem;
+    }
+    
+    .com-ordenproduccion-asistencia .col-md-3 {
+        margin-bottom: 15px;
+    }
+}
+
+/* ==========================================
+   Print Styles
+   ========================================== */
+
+@media print {
+    .com-ordenproduccion-asistencia .btn,
+    .com-ordenproduccion-asistencia .card-header,
+    .com-ordenproduccion-asistencia .pagination {
+        display: none !important;
+    }
+    
+    .com-ordenproduccion-asistencia .card {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}
+
+/* ==========================================
+   Loading State
+   ========================================== */
+
+.com-ordenproduccion-asistencia .loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.com-ordenproduccion-asistencia .loading:after {
+    content: "...";
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% {
+        color: rgba(0,0,0,0);
+        text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0);
+    }
+    40% {
+        color: black;
+        text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0);
+    }
+    60% {
+        text-shadow: .25em 0 0 black, .5em 0 0 rgba(0,0,0,0);
+    }
+    80%, 100% {
+        text-shadow: .25em 0 0 black, .5em 0 0 black;
+    }
+}
+

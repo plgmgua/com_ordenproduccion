@@ -1,0 +1,330 @@
+<?php
+/**
+ * @package     Grimpsa.Component
+ * @subpackage  com_ordenproduccion
+ *
+ * @copyright   Copyright (C) 2025 Grimpsa. All rights reserved.
+ * @license     GNU General Public License version 2 or later
+ */
+
+namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
+
+use Joomla\CMS\Factory;
+use Joomla\Database\DatabaseInterface;
+use Joomla\CMS\Component\ComponentHelper;
+
+defined('_JEXEC') or die;
+
+/**
+ * Asistencia Helper Class
+ *
+ * @since  3.2.0
+ */
+class AsistenciaHelper
+{
+    /**
+     * @var DatabaseInterface
+     */
+    protected static $db;
+
+    /**
+     * @var \Joomla\Registry\Registry
+     */
+    protected static $params;
+
+    /**
+     * Initialize helper
+     *
+     * @return void
+     */
+    protected static function init()
+    {
+        if (!self::$db) {
+            self::$db = Factory::getContainer()->get(DatabaseInterface::class);
+        }
+
+        if (!self::$params) {
+            self::$params = ComponentHelper::getParams('com_ordenproduccion');
+        }
+    }
+
+    /**
+     * Calculate daily work hours for a person
+     *
+     * @param   string  $cardno  Employee card number
+     * @param   string  $date    Date in Y-m-d format
+     *
+     * @return  array  Array with calculation results
+     */
+    public static function calculateDailyHours($cardno, $date)
+    {
+        self::init();
+
+        $query = self::$db->getQuery(true)
+            ->select([
+                'MIN(' . self::$db->quoteName('authtime') . ') AS first_entry',
+                'MAX(' . self::$db->quoteName('authtime') . ') AS last_exit',
+                'COUNT(*) AS total_entries',
+                self::$db->quoteName('personname')
+            ])
+            ->from(self::$db->quoteName('#__ordenproduccion_asistencia'))
+            ->where([
+                self::$db->quoteName('cardno') . ' = :cardno',
+                self::$db->quoteName('authdate') . ' = :authdate',
+                self::$db->quoteName('state') . ' = 1'
+            ])
+            ->bind(':cardno', $cardno)
+            ->bind(':authdate', $date)
+            ->group(self::$db->quoteName('cardno'));
+
+        self::$db->setQuery($query);
+        $result = self::$db->loadObject();
+
+        if (!$result || !$result->first_entry || !$result->last_exit) {
+            return [
+                'first_entry' => null,
+                'last_exit' => null,
+                'total_hours' => 0,
+                'expected_hours' => 8.00,
+                'hours_difference' => -8.00,
+                'total_entries' => 0,
+                'is_complete' => false,
+                'is_late' => false,
+                'is_early_exit' => false,
+                'personname' => ''
+            ];
+        }
+
+        // Calculate time difference
+        $firstTime = new \DateTime($result->first_entry);
+        $lastTime = new \DateTime($result->last_exit);
+        $interval = $firstTime->diff($lastTime);
+        $totalHours = $interval->h + ($interval->i / 60);
+
+        // Get expected hours and work schedule
+        $employee = self::getEmployee($cardno);
+        $expectedHours = $employee ? (float) $employee->expected_daily_hours : 8.00;
+        $workStart = $employee ? $employee->work_schedule_start : '08:00:00';
+        $graceMinutes = (int) self::$params->get('asistencia_grace_period', 15);
+
+        // Check if late (grace period)
+        $workStartTime = new \DateTime($workStart);
+        $graceTime = clone $workStartTime;
+        $graceTime->modify("+{$graceMinutes} minutes");
+        $isLate = $firstTime > $graceTime;
+
+        // Check if early exit
+        $workEnd = $employee ? $employee->work_schedule_end : '17:00:00';
+        $workEndTime = new \DateTime($workEnd);
+        $earlyExitThreshold = clone $workEndTime;
+        $earlyExitThreshold->modify("-{$graceMinutes} minutes");
+        $isEarlyExit = $lastTime < $earlyExitThreshold;
+
+        $hoursDifference = $totalHours - $expectedHours;
+        $isComplete = $hoursDifference >= 0;
+
+        return [
+            'first_entry' => $result->first_entry,
+            'last_exit' => $result->last_exit,
+            'total_hours' => round($totalHours, 2),
+            'expected_hours' => $expectedHours,
+            'hours_difference' => round($hoursDifference, 2),
+            'total_entries' => (int) $result->total_entries,
+            'is_complete' => $isComplete,
+            'is_late' => $isLate,
+            'is_early_exit' => $isEarlyExit,
+            'personname' => $result->personname
+        ];
+    }
+
+    /**
+     * Update daily summary for a person and date
+     *
+     * @param   string  $cardno  Employee card number
+     * @param   string  $date    Date in Y-m-d format
+     *
+     * @return  bool  Success status
+     */
+    public static function updateDailySummary($cardno, $date)
+    {
+        self::init();
+
+        $calculation = self::calculateDailyHours($cardno, $date);
+
+        if (empty($calculation['personname'])) {
+            return false;
+        }
+
+        // Check if summary exists
+        $query = self::$db->getQuery(true)
+            ->select('id')
+            ->from(self::$db->quoteName('#__ordenproduccion_asistencia_summary'))
+            ->where([
+                self::$db->quoteName('cardno') . ' = :cardno',
+                self::$db->quoteName('work_date') . ' = :work_date'
+            ])
+            ->bind(':cardno', $cardno)
+            ->bind(':work_date', $date);
+
+        self::$db->setQuery($query);
+        $summaryId = self::$db->loadResult();
+
+        $user = Factory::getUser();
+        $userId = $user->guest ? 0 : $user->id;
+
+        if ($summaryId) {
+            // Update existing summary
+            $query = self::$db->getQuery(true)
+                ->update(self::$db->quoteName('#__ordenproduccion_asistencia_summary'))
+                ->set([
+                    self::$db->quoteName('first_entry') . ' = :first_entry',
+                    self::$db->quoteName('last_exit') . ' = :last_exit',
+                    self::$db->quoteName('total_hours') . ' = :total_hours',
+                    self::$db->quoteName('expected_hours') . ' = :expected_hours',
+                    self::$db->quoteName('hours_difference') . ' = :hours_difference',
+                    self::$db->quoteName('total_entries') . ' = :total_entries',
+                    self::$db->quoteName('is_complete') . ' = :is_complete',
+                    self::$db->quoteName('is_late') . ' = :is_late',
+                    self::$db->quoteName('is_early_exit') . ' = :is_early_exit',
+                    self::$db->quoteName('modified_by') . ' = :modified_by'
+                ])
+                ->where(self::$db->quoteName('id') . ' = :id')
+                ->bind(':first_entry', $calculation['first_entry'])
+                ->bind(':last_exit', $calculation['last_exit'])
+                ->bind(':total_hours', $calculation['total_hours'])
+                ->bind(':expected_hours', $calculation['expected_hours'])
+                ->bind(':hours_difference', $calculation['hours_difference'])
+                ->bind(':total_entries', $calculation['total_entries'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_complete', $calculation['is_complete'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_late', $calculation['is_late'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_early_exit', $calculation['is_early_exit'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':modified_by', $userId, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':id', $summaryId, \Joomla\Database\ParameterType::INTEGER);
+
+            self::$db->setQuery($query);
+            return self::$db->execute();
+        } else {
+            // Insert new summary
+            $columns = [
+                'cardno', 'personname', 'work_date', 'first_entry', 'last_exit',
+                'total_hours', 'expected_hours', 'hours_difference', 'total_entries',
+                'is_complete', 'is_late', 'is_early_exit', 'created_by'
+            ];
+
+            $values = [
+                ':cardno', ':personname', ':work_date', ':first_entry', ':last_exit',
+                ':total_hours', ':expected_hours', ':hours_difference', ':total_entries',
+                ':is_complete', ':is_late', ':is_early_exit', ':created_by'
+            ];
+
+            $query = self::$db->getQuery(true)
+                ->insert(self::$db->quoteName('#__ordenproduccion_asistencia_summary'))
+                ->columns(self::$db->quoteName($columns))
+                ->values(implode(',', $values))
+                ->bind(':cardno', $cardno)
+                ->bind(':personname', $calculation['personname'])
+                ->bind(':work_date', $date)
+                ->bind(':first_entry', $calculation['first_entry'])
+                ->bind(':last_exit', $calculation['last_exit'])
+                ->bind(':total_hours', $calculation['total_hours'])
+                ->bind(':expected_hours', $calculation['expected_hours'])
+                ->bind(':hours_difference', $calculation['hours_difference'])
+                ->bind(':total_entries', $calculation['total_entries'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_complete', $calculation['is_complete'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_late', $calculation['is_late'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_early_exit', $calculation['is_early_exit'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':created_by', $userId, \Joomla\Database\ParameterType::INTEGER);
+
+            self::$db->setQuery($query);
+            return self::$db->execute();
+        }
+    }
+
+    /**
+     * Get employee information
+     *
+     * @param   string  $cardno  Employee card number
+     *
+     * @return  object|null  Employee object or null
+     */
+    public static function getEmployee($cardno)
+    {
+        self::init();
+
+        $query = self::$db->getQuery(true)
+            ->select('*')
+            ->from(self::$db->quoteName('#__ordenproduccion_employees'))
+            ->where([
+                self::$db->quoteName('cardno') . ' = :cardno',
+                self::$db->quoteName('state') . ' = 1'
+            ])
+            ->bind(':cardno', $cardno);
+
+        self::$db->setQuery($query);
+        return self::$db->loadObject();
+    }
+
+    /**
+     * Get all employees
+     *
+     * @param   bool  $activeOnly  Return only active employees
+     *
+     * @return  array  Array of employee objects
+     */
+    public static function getEmployees($activeOnly = true)
+    {
+        self::init();
+
+        $query = self::$db->getQuery(true)
+            ->select('*')
+            ->from(self::$db->quoteName('#__ordenproduccion_employees'))
+            ->where(self::$db->quoteName('state') . ' = 1')
+            ->order(self::$db->quoteName('personname') . ' ASC');
+
+        if ($activeOnly) {
+            $query->where(self::$db->quoteName('active') . ' = 1');
+        }
+
+        self::$db->setQuery($query);
+        return self::$db->loadObjectList();
+    }
+
+    /**
+     * Format hours for display
+     *
+     * @param   float  $hours  Hours to format
+     *
+     * @return  string  Formatted hours (e.g., "8h 30m")
+     */
+    public static function formatHours($hours)
+    {
+        $h = floor($hours);
+        $m = round(($hours - $h) * 60);
+        return "{$h}h {$m}m";
+    }
+
+    /**
+     * Get attendance status badge class
+     *
+     * @param   bool  $isComplete  Whether hours are complete
+     *
+     * @return  string  CSS class for badge
+     */
+    public static function getStatusBadgeClass($isComplete)
+    {
+        return $isComplete ? 'badge bg-success' : 'badge bg-danger';
+    }
+
+    /**
+     * Get attendance status text
+     *
+     * @param   bool  $isComplete  Whether hours are complete
+     *
+     * @return  string  Status text
+     */
+    public static function getStatusText($isComplete)
+    {
+        return $isComplete ? 'Complete' : 'Incomplete';
+    }
+}
+

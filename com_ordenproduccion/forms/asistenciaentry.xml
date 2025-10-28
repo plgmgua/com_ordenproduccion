@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="asistencia_details" 
+              label="COM_ORDENPRODUCCION_ASISTENCIA_ENTRY_DETAILS" 
+              description="COM_ORDENPRODUCCION_ASISTENCIA_ENTRY_DETAILS_DESC">
+
+        <field
+            name="id"
+            type="hidden"
+            default="0"
+        />
+
+        <field
+            name="cardno"
+            type="text"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_CARDNO"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_CARDNO_DESC"
+            class="form-control"
+            required="true"
+            maxlength="50"
+        />
+
+        <field
+            name="personname"
+            type="text"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME_DESC"
+            class="form-control"
+            required="true"
+            maxlength="255"
+        />
+
+        <field
+            name="authdate"
+            type="calendar"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_DATE"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_DATE_DESC"
+            class="form-control"
+            required="true"
+            format="%Y-%m-%d"
+        />
+
+        <field
+            name="authtime"
+            type="text"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_TIME"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_TIME_DESC"
+            class="form-control"
+            required="true"
+            hint="HH:MM:SS"
+        />
+
+        <field
+            name="direction"
+            type="text"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_DIRECTION"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_DIRECTION_DESC"
+            class="form-control"
+            default="Puerta"
+            maxlength="50"
+        />
+
+        <field
+            name="devicename"
+            type="text"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_DEVICE_NAME"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_DEVICE_NAME_DESC"
+            class="form-control"
+            default="Manual Entry"
+            maxlength="255"
+        />
+
+        <field
+            name="deviceserialno"
+            type="text"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_DEVICE_SERIAL"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_DEVICE_SERIAL_DESC"
+            class="form-control"
+            maxlength="255"
+        />
+
+        <field
+            name="notes"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_ASISTENCIA_NOTES"
+            description="COM_ORDENPRODUCCION_ASISTENCIA_NOTES_DESC"
+            class="form-control"
+            rows="3"
+            filter="safehtml"
+        />
+
+    </fieldset>
+</form>
+

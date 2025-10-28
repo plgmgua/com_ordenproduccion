@@ -19,6 +19,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [3.2.0-STABLE] - 2025-10-28
+
+### Added
+- **Time & Attendance System (Asistencia)**
+  - Complete attendance tracking system with biometric device integration
+  - Real-time attendance monitoring and reporting
+  - Daily summary calculations with automatic work hour tracking
+  - Employee registry management with custom schedules
+  - Manual attendance entry capability for device failures
+  - Advanced filtering and search capabilities
+  - Statistical dashboard with key metrics (total employees, complete days, late arrivals, average hours)
+  - CSV export functionality for reporting
+  - Late arrival and early exit detection with grace period
+  - Multi-language support (English and Spanish)
+  - Responsive design for mobile and desktop
+
+### Database Changes
+- Added `#__ordenproduccion_asistencia` table for attendance records
+- Added `#__ordenproduccion_asistencia_summary` table for daily summaries
+- Added `#__ordenproduccion_employees` table for employee registry
+- Migration script for existing attendance data from old structure
+- New configuration settings for attendance tracking
+
+### New Components
+- AsistenciaHelper: Helper class for attendance calculations
+- AsistenciaModel: List model for attendance records
+- AsistenciaentryModel: Form model for manual entry
+- AsistenciaController: Main controller for attendance operations
+- AsistenciaentryController: Form controller for entry management
+- HtmlView classes for both list and entry views
+- Complete template system with default.php and edit.php
+- Form XML definitions for manual entry
+- Menu item type XML configuration
+- Dedicated CSS and JavaScript for the interface
+
+### Features
+- Automatic calculation of daily work hours
+- First entry and last exit tracking
+- Expected vs. actual hours comparison
+- Late arrival detection with configurable grace period
+- Early exit detection
+- Entry type tracking (biometric vs. manual)
+- Recalculate summaries function for date ranges
+- Export to CSV for external analysis
+- Real-time statistics and metrics
+
 ## [3.1.2-STABLE] - 2025-10-12
 
 ### Fixed
