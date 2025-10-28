@@ -131,7 +131,7 @@ class AsistenciaModel extends ListModel
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        // Select from summary table
+        // Select from summary table (calculations) with employee info
         $query->select([
             'a.*',
             'e.department',
@@ -139,9 +139,9 @@ class AsistenciaModel extends ListModel
             'e.email',
             'e.phone'
         ])
-            ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 'a'))
+            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 'a'))
             ->leftJoin(
-                $db->quoteName('#__ordenproduccion_employees', 'e'),
+                $db->quoteName('joomla_ordenproduccion_employees', 'e'),
                 $db->quoteName('a.cardno') . ' = ' . $db->quoteName('e.cardno')
             )
             ->where($db->quoteName('a.state') . ' = 1');
@@ -256,17 +256,18 @@ class AsistenciaModel extends ListModel
     {
         $db = $this->getDatabase();
         
-        // Get distinct employee/date combinations
+        // Get distinct employee/date combinations from original asistencia table
         $query = $db->getQuery(true)
             ->select([
                 'DISTINCT ' . $db->quoteName('cardno'),
-                $db->quoteName('authdate')
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) AS authdate'
             ])
-            ->from($db->quoteName('#__ordenproduccion_asistencia'))
+            ->from($db->quoteName('asistencia'))
             ->where([
-                $db->quoteName('authdate') . ' >= ' . $db->quote($dateFrom),
-                $db->quoteName('authdate') . ' <= ' . $db->quote($dateTo),
-                $db->quoteName('state') . ' = 1'
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) >= ' . $db->quote($dateFrom),
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) <= ' . $db->quote($dateTo),
+                $db->quoteName('cardno') . ' IS NOT NULL',
+                $db->quoteName('cardno') . ' != ' . $db->quote('')
             ]);
 
         $db->setQuery($query);

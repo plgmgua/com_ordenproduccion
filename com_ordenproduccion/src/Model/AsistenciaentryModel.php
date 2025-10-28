@@ -78,15 +78,15 @@ class AsistenciaentryModel extends FormModel
      */
     public function getItem($pk = null)
     {
-        $pk = (!empty($pk)) ? $pk : (int) $this->getState('asistenciaentry.id');
+        $pk = (!empty($pk)) ? $pk : $this->getState('asistenciaentry.id');
         
-        if ($pk > 0) {
+        if (!empty($pk)) {
             $db = $this->getDatabase();
             $query = $db->getQuery(true)
                 ->select('*')
-                ->from($db->quoteName('#__ordenproduccion_asistencia'))
-                ->where($db->quoteName('id') . ' = :id')
-                ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
+                ->from($db->quoteName('asistencia'))
+                ->where($db->quoteName('ID') . ' = :id')
+                ->bind(':id', $pk);
 
             $db->setQuery($query);
             $item = $db->loadObject();

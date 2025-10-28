@@ -60,18 +60,18 @@ class AsistenciaHelper
     {
         self::init();
 
+        // Read from original asistencia table (varchar fields need conversion)
         $query = self::$db->getQuery(true)
             ->select([
-                'MIN(' . self::$db->quoteName('authtime') . ') AS first_entry',
-                'MAX(' . self::$db->quoteName('authtime') . ') AS last_exit',
+                'MIN(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS first_entry',
+                'MAX(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS last_exit',
                 'COUNT(*) AS total_entries',
                 self::$db->quoteName('personname')
             ])
-            ->from(self::$db->quoteName('#__ordenproduccion_asistencia'))
+            ->from(self::$db->quoteName('asistencia'))
             ->where([
                 self::$db->quoteName('cardno') . ' = :cardno',
-                self::$db->quoteName('authdate') . ' = :authdate',
-                self::$db->quoteName('state') . ' = 1'
+                'DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = :authdate'
             ])
             ->bind(':cardno', $cardno)
             ->bind(':authdate', $date)
