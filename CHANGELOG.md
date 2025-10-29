@@ -19,6 +19,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [3.3.0-STABLE] - 2025-10-29
+
+### Added
+- **Employee Management System**
+  - Employee Groups with customizable work schedules
+  - Group-specific settings: start time, end time, expected hours, grace period
+  - Color-coded groups for visual identification
+  - Employee management with group assignment
+  - Department and position tracking
+  - Contact information management (email, phone)
+  - Hire date tracking
+  - Active/inactive employee status
+  - Admin interfaces for managing groups and employees
+
+### Changed
+- **Attendance System Enhancement**
+  - Attendance evaluation now uses employee group schedules instead of global settings
+  - Each employee can be assigned to a group with specific work hours
+  - Late/early exit detection based on group schedule settings
+  - Expected daily hours now pulled from group configuration
+  - Grace period now configurable per group
+
+### Database Changes
+- Added `#__ordenproduccion_employee_groups` table for employee group management
+- Updated `#__ordenproduccion_employees` table with group assignment and additional fields
+- Migration script for updating existing employee records
+
+### New Components
+- EmployeegroupsModel: List model for employee groups (admin)
+- EmployeegroupModel: Form model for employee group management (admin)
+- EmployeesModel: Enhanced list model with group information (admin)
+- EmployeeModel: Enhanced form model with group assignment (admin)
+- EmployeegroupController: Admin controller for group operations
+- EmployeegroupsController: Admin controller for batch group operations
+- EmployeeController: Enhanced admin controller for employee operations
+- EmployeesController: Enhanced admin controller for batch employee operations
+- Admin views and templates for groups and employees management
+- Multi-language support for employee management (English and Spanish)
+
+### Accessing Admin Features
+- **Employee Groups**: Administration → Components → Ordenes Produccion → Employee Groups
+  - Direct URL: `index.php?option=com_ordenproduccion&view=employeegroups`
+- **Employees**: Administration → Components → Ordenes Produccion → Employees
+  - Direct URL: `index.php?option=com_ordenproduccion&view=employees`
+
 ## [3.2.0-STABLE] - 2025-10-28
 
 ### Added

@@ -101,11 +101,30 @@ class AsistenciaHelper
         $interval = $firstTime->diff($lastTime);
         $totalHours = $interval->h + ($interval->i / 60);
 
-        // Get expected hours and work schedule
+        // Get expected hours and work schedule from employee's group
         $employee = self::getEmployee($cardno);
-        $expectedHours = $employee ? (float) $employee->expected_daily_hours : 8.00;
-        $workStart = $employee ? $employee->work_schedule_start : '08:00:00';
-        $graceMinutes = (int) self::$params->get('asistencia_grace_period', 15);
+        
+        // Use group settings if available, otherwise use defaults
+        $expectedHours = 8.00;
+        $workStart = '08:00:00';
+        $workEnd = '17:00:00';
+        $graceMinutes = 15;
+        
+        if ($employee) {
+            // Prefer group settings
+            if (!empty($employee->group_expected_hours)) {
+                $expectedHours = (float) $employee->group_expected_hours;
+            }
+            if (!empty($employee->work_start_time)) {
+                $workStart = $employee->work_start_time;
+            }
+            if (!empty($employee->work_end_time)) {
+                $workEnd = $employee->work_end_time;
+            }
+            if (isset($employee->grace_period_minutes)) {
+                $graceMinutes = (int) $employee->grace_period_minutes;
+            }
+        }
 
         // Check if late (grace period)
         $workStartTime = new \DateTime($workStart);
@@ -114,7 +133,6 @@ class AsistenciaHelper
         $isLate = $firstTime > $graceTime;
 
         // Check if early exit
-        $workEnd = $employee ? $employee->work_schedule_end : '17:00:00';
         $workEndTime = new \DateTime($workEnd);
         $earlyExitThreshold = clone $workEndTime;
         $earlyExitThreshold->modify("-{$graceMinutes} minutes");
@@ -252,11 +270,22 @@ class AsistenciaHelper
         self::init();
 
         $query = self::$db->getQuery(true)
-            ->select('*')
-            ->from(self::$db->quoteName('#__ordenproduccion_employees'))
+            ->select([
+                'e.*',
+                'g.name AS group_name',
+                'g.work_start_time',
+                'g.work_end_time',
+                'g.expected_hours AS group_expected_hours',
+                'g.grace_period_minutes'
+            ])
+            ->from(self::$db->quoteName('#__ordenproduccion_employees', 'e'))
+            ->leftJoin(
+                self::$db->quoteName('#__ordenproduccion_employee_groups', 'g'),
+                self::$db->quoteName('e.group_id') . ' = ' . self::$db->quoteName('g.id')
+            )
             ->where([
-                self::$db->quoteName('cardno') . ' = :cardno',
-                self::$db->quoteName('state') . ' = 1'
+                self::$db->quoteName('e.cardno') . ' = :cardno',
+                self::$db->quoteName('e.state') . ' = 1'
             ])
             ->bind(':cardno', $cardno);
 
