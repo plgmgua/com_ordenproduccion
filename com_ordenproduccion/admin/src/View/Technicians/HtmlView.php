@@ -70,11 +70,7 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $this->technicians = $this->get('Technicians');
-        $this->todaysTechnicians = $this->get('TodaysTechnicians');
-        $this->attendanceData = $this->get('AttendanceData');
-        $this->statistics = $this->get('Statistics');
-
+        // This is now a dashboard view - no model data needed
         $this->addToolbar();
         $this->_prepareDocument();
 
@@ -93,30 +89,12 @@ class HtmlView extends BaseHtmlView
         $user = Factory::getUser();
 
         // Set the title
-        ToolbarHelper::title(Text::_('COM_ORDENPRODUCCION_TECHNICIANS_TITLE'), 'users ordenproduccion');
-
-        $toolbar = Toolbar::getInstance('toolbar');
-
-        // Add sync attendance button
-        $toolbar->standardButton('sync')
-            ->text('COM_ORDENPRODUCCION_SYNC_ATTENDANCE')
-            ->icon('icon-sync')
-            ->task('technicians.syncAttendance');
-
-        // Add export button
-        if ($user->authorise('core.export', 'com_ordenproduccion')) {
-            $toolbar->standardButton('export')
-                ->text('COM_ORDENPRODUCCION_EXPORT_TECHNICIANS')
-                ->icon('icon-download')
-                ->task('technicians.exportTechnicians');
-        }
+        ToolbarHelper::title(Text::_('COM_ORDENPRODUCCION_TECHNICIANS_TITLE'), 'clock ordenproduccion');
 
         // Add help button
         if ($user->authorise('core.admin', 'com_ordenproduccion')) {
             ToolbarHelper::preferences('com_ordenproduccion');
         }
-
-        ToolbarHelper::help('', false, 'https://grimpsa.com/docs/com_ordenproduccion');
     }
 
     /**
@@ -132,23 +110,6 @@ class HtmlView extends BaseHtmlView
 
         // Load Bootstrap
         HTMLHelper::_('bootstrap.framework');
-
-        // Load component assets
-        $wa = $this->document->getWebAssetManager();
-        $wa->registerAndUseStyle('com_ordenproduccion.technicians', 'media/com_ordenproduccion/css/technicians.css', [], ['version' => 'auto']);
-        $wa->registerAndUseScript('com_ordenproduccion.technicians', 'media/com_ordenproduccion/js/technicians.js', [], ['version' => 'auto']);
-
-        // Add inline JavaScript for technicians functionality
-        $this->document->addScriptDeclaration("
-            document.addEventListener('DOMContentLoaded', function() {
-                // Initialize technicians
-                if (typeof OrdenproduccionTechnicians !== 'undefined') {
-                    OrdenproduccionTechnicians.init({
-                        ajaxUrl: '" . \Joomla\CMS\Uri\Uri::root() . "administrator/index.php?option=com_ordenproduccion&task=technicians.getTodaysTechnicians&format=json&" . Session::getFormToken() . "=1'
-                    });
-                }
-            });
-        ");
     }
 
     /**
