@@ -259,5 +259,99 @@ class AsistenciaController extends BaseController
         fclose($output);
         $app->close();
     }
+
+    /**
+     * Export attendance data to Excel format (CSV with Excel compatibility)
+     *
+     * @return  void
+     *
+     * @since   3.4.0
+     */
+    public function exportExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        // Check authorization
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            return;
+        }
+
+        $dateFrom = $this->input->getString('date_from', '');
+        $dateTo = $this->input->getString('date_to', '');
+
+        if (empty($dateFrom) || empty($dateTo)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ERROR_DATE_RANGE_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            return;
+        }
+
+        $model = $this->getModel('Asistencia');
+        
+        // Set date filters temporarily
+        $app->setUserState('com_ordenproduccion.asistencia.filter.date_from', $dateFrom);
+        $app->setUserState('com_ordenproduccion.asistencia.filter.date_to', $dateTo);
+        
+        // Get filtered items
+        $items = $model->getItems();
+
+        if (empty($items)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_DATA_TO_EXPORT'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            return;
+        }
+
+        // Generate filename with date range
+        $filename = 'asistencia_' . $dateFrom . '_to_' . $dateTo . '.csv';
+        
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
+        $output = fopen('php://output', 'w');
+        
+        // Add BOM for Excel UTF-8 support
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Headers
+        fputcsv($output, [
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EXPECTED_HOURS'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_HOURS_DIFFERENCE'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'),
+            Text::_('COM_ORDENPRODUCCION_EMPLOYEE_DEPARTMENT'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LATE'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EARLY_EXIT')
+        ]);
+        
+        // Data rows
+        foreach ($items as $item) {
+            fputcsv($output, [
+                $item->personname,
+                $item->work_date,
+                $item->first_entry,
+                $item->last_exit,
+                number_format($item->total_hours, 2),
+                number_format($item->expected_hours, 2),
+                number_format($item->hours_difference, 2),
+                $item->is_complete ? Text::_('COM_ORDENPRODUCCION_ASISTENCIA_COMPLETE') : Text::_('COM_ORDENPRODUCCION_ASISTENCIA_INCOMPLETE'),
+                $item->group_name ?? Text::_('COM_ORDENPRODUCCION_EMPLOYEE_NO_GROUP'),
+                $item->department ?? '',
+                $item->is_late ? Text::_('JYES') : Text::_('JNO'),
+                $item->is_early_exit ? Text::_('JYES') : Text::_('JNO')
+            ]);
+        }
+        
+        fclose($output);
+        $app->close();
+    }
 }
 

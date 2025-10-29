@@ -165,13 +165,8 @@ $filterIsLate = $this->state->get('filter.is_late');
                onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
                 <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
             </a>
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.regenerateAll'); ?>" 
-               class="btn btn-warning" 
-               onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL_CONFIRM'); ?>');">
-                <span class="icon-loop"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL'); ?>
-            </a>
-            <button type="button" class="btn btn-info" onclick="exportData()">
-                <span class="icon-download"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EXPORT'); ?>
+            <button type="button" class="btn btn-success" onclick="document.getElementById('exportExcelModal').style.display='block';">
+                <span class="icon-download"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_TO_EXCEL'); ?>
             </button>
             <?php if ($filterDateFrom && $filterDateTo): ?>
             <button type="button" class="btn btn-secondary" onclick="recalculateSummaries()">
@@ -268,5 +263,73 @@ function recalculateSummaries() {
         window.location.href = '<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.recalculate'); ?>&date_from=' + dateFrom + '&date_to=' + dateTo;
     }
 }
+
+// Get current week dates (Monday to Sunday)
+function getCurrentWeekDates() {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const monday = new Date(today.setDate(diff));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    return {
+        from: monday.toISOString().split('T')[0],
+        to: sunday.toISOString().split('T')[0]
+    };
+}
+
+// Get current month dates (First to Last day)
+function getCurrentMonthDates() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    return {
+        from: firstDay.toISOString().split('T')[0],
+        to: lastDay.toISOString().split('T')[0]
+    };
+}
+
+// Export to Excel
+function exportToExcel(range) {
+    let dates;
+    if (range === 'week') {
+        dates = getCurrentWeekDates();
+    } else if (range === 'month') {
+        dates = getCurrentMonthDates();
+    }
+    
+    window.location.href = '<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.exportExcel'); ?>&date_from=' + dates.from + '&date_to=' + dates.to;
+    document.getElementById('exportExcelModal').style.display = 'none';
+}
 </script>
+
+<!-- Export to Excel Modal -->
+<div id="exportExcelModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 400px; border-radius: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;"><?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_TO_EXCEL'); ?></h3>
+            <button onclick="document.getElementById('exportExcelModal').style.display='none'" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_EXPORT_RANGE'); ?></p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" class="btn btn-primary btn-lg" onclick="exportToExcel('week')" style="width: 100%;">
+                    <span class="icon-calendar"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_CURRENT_WEEK'); ?>
+                    <br><small><?php echo Text::_('COM_ORDENPRODUCCION_MONDAY_TO_SUNDAY'); ?></small>
+                </button>
+                <button type="button" class="btn btn-primary btn-lg" onclick="exportToExcel('month')" style="width: 100%;">
+                    <span class="icon-calendar-2"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_CURRENT_MONTH'); ?>
+                    <br><small><?php echo Text::_('COM_ORDENPRODUCCION_FIRST_TO_LAST_DAY'); ?></small>
+                </button>
+            </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="button" onclick="document.getElementById('exportExcelModal').style.display='none'" class="btn btn-secondary">
+                <?php echo Text::_('JCANCEL'); ?>
+            </button>
+        </div>
+    </div>
+</div>
 

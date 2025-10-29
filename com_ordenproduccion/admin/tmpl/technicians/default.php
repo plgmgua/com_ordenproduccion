@@ -133,6 +133,39 @@ $wa->registerAndUseStyle('com_ordenproduccion.dashboard', 'media/com_ordenproduc
         </div>
     </div>
 
+    <!-- Data Management Card -->
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="icon-loop" style="font-size: 48px; color: #ff9800;"></i>
+                    </div>
+                    <h3 class="card-title"><?php echo Text::_('COM_ORDENPRODUCCION_DATA_MANAGEMENT'); ?></h3>
+                    <p class="card-text text-muted">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_DATA_MANAGEMENT_DESC'); ?>
+                    </p>
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.regenerateAll', false); ?>" 
+                       class="btn btn-warning btn-lg"
+                       onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL_CONFIRM'); ?>');">
+                        <i class="icon-loop"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL'); ?>
+                    </a>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="row text-center">
+                        <div class="col-12">
+                            <small class="text-muted">
+                                <i class="icon-warning"></i>
+                                <?php echo Text::_('COM_ORDENPRODUCCION_REGENERATE_WARNING'); ?>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Help Section -->
     <div class="row">
         <div class="col-lg-12">
