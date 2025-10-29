@@ -47,6 +47,21 @@ class EmployeegroupsModel extends ListModel
     }
 
     /**
+     * Method to get the filter form.
+     *
+     * @param   array    $data      data
+     * @param   boolean  $loadData  load current data
+     *
+     * @return  \Joomla\CMS\Form\Form|bool  The Form object or false on error
+     *
+     * @since   3.3.0
+     */
+    public function getFilterForm($data = [], $loadData = true)
+    {
+        return $this->loadForm('com_ordenproduccion.filter_employeegroups', 'filter_employeegroups', ['control' => '', 'load_data' => $loadData]);
+    }
+
+    /**
      * Method to auto-populate the model state.
      *
      * @param   string  $ordering   An optional ordering field.

@@ -48,6 +48,21 @@ class EmployeesModel extends ListModel
     }
 
     /**
+     * Method to get the filter form.
+     *
+     * @param   array    $data      data
+     * @param   boolean  $loadData  load current data
+     *
+     * @return  \Joomla\CMS\Form\Form|bool  The Form object or false on error
+     *
+     * @since   3.3.0
+     */
+    public function getFilterForm($data = [], $loadData = true)
+    {
+        return $this->loadForm('com_ordenproduccion.filter_employees', 'filter_employees', ['control' => '', 'load_data' => $loadData]);
+    }
+
+    /**
      * Method to auto-populate the model state.
      *
      * @param   string  $ordering   An optional ordering field.
@@ -109,7 +124,7 @@ class EmployeesModel extends ListModel
             'g.work_start_time',
             'g.work_end_time'
         ])
-            ->from($db->quoteName('joomla_ordenproduccion_employees', 'a'))
+            ->from($db->quoteName('#__ordenproduccion_employees', 'a'))
             ->leftJoin(
                 $db->quoteName('#__ordenproduccion_employee_groups', 'g'),
                 $db->quoteName('a.group_id') . ' = ' . $db->quoteName('g.id')
