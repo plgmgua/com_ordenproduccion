@@ -61,38 +61,29 @@ class AsistenciaHelper
         self::init();
 
         // Read from original asistencia table (varchar fields need conversion)
+        // Note: $cardno parameter is actually used as personname identifier (since cardno is often empty)
         $query = self::$db->getQuery(true)
             ->select([
                 'MIN(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS first_entry',
                 'MAX(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS last_exit',
                 'COUNT(*) AS total_entries',
-                self::$db->quoteName('personname')
+                'MAX(' . self::$db->quoteName('personname') . ') AS personname',
+                'MAX(COALESCE(NULLIF(TRIM(' . self::$db->quoteName('cardno') . '), \'\'), ' . self::$db->quoteName('personname') . ')) AS cardno'
             ])
             ->from(self::$db->quoteName('asistencia'))
             ->where([
-                self::$db->quoteName('cardno') . ' = :cardno',
+                self::$db->quoteName('personname') . ' = :personname',
                 'DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = :authdate'
             ])
-            ->bind(':cardno', $cardno)
+            ->bind(':personname', $cardno)
             ->bind(':authdate', $date)
-            ->group(self::$db->quoteName('cardno'));
+            ->group(self::$db->quoteName('personname'));
 
         self::$db->setQuery($query);
         $result = self::$db->loadObject();
 
         if (!$result || !$result->first_entry || !$result->last_exit) {
-            return [
-                'first_entry' => null,
-                'last_exit' => null,
-                'total_hours' => 0,
-                'expected_hours' => 8.00,
-                'hours_difference' => -8.00,
-                'total_entries' => 0,
-                'is_complete' => false,
-                'is_late' => false,
-                'is_early_exit' => false,
-                'personname' => ''
-            ];
+            return null;
         }
 
         // Calculate time difference
@@ -155,18 +146,22 @@ class AsistenciaHelper
         $hoursDifference = $totalHours - $expectedHours;
         $isComplete = $hoursDifference >= 0;
 
-        return [
-            'first_entry' => $result->first_entry,
-            'last_exit' => $result->last_exit,
-            'total_hours' => round($totalHours, 2),
-            'expected_hours' => $expectedHours,
-            'hours_difference' => round($hoursDifference, 2),
-            'total_entries' => (int) $result->total_entries,
-            'is_complete' => $isComplete,
-            'is_late' => $isLate,
-            'is_early_exit' => $isEarlyExit,
-            'personname' => $result->personname
-        ];
+        // Return as object for consistency
+        $summary = new \stdClass();
+        $summary->cardno = $result->cardno;
+        $summary->personname = $result->personname;
+        $summary->work_date = $date;
+        $summary->first_entry = $result->first_entry;
+        $summary->last_exit = $result->last_exit;
+        $summary->total_hours = round($totalHours, 2);
+        $summary->expected_hours = $expectedHours;
+        $summary->hours_difference = round($hoursDifference, 2);
+        $summary->total_entries = (int) $result->total_entries;
+        $summary->is_complete = $isComplete ? 1 : 0;
+        $summary->is_late = $isLate ? 1 : 0;
+        $summary->is_early_exit = $isEarlyExit ? 1 : 0;
+
+        return $summary;
     }
 
     /**
@@ -283,6 +278,7 @@ class AsistenciaHelper
     {
         self::init();
 
+        // Note: $cardno parameter is actually personname in most cases (since cardno is often empty)
         $query = self::$db->getQuery(true)
             ->select([
                 'e.*',
@@ -299,10 +295,10 @@ class AsistenciaHelper
                 self::$db->quoteName('e.group_id') . ' = ' . self::$db->quoteName('g.id')
             )
             ->where([
-                self::$db->quoteName('e.cardno') . ' = :cardno',
+                self::$db->quoteName('e.personname') . ' = :personname',
                 self::$db->quoteName('e.state') . ' = 1'
             ])
-            ->bind(':cardno', $cardno);
+            ->bind(':personname', $cardno);
 
         self::$db->setQuery($query);
         return self::$db->loadObject();
