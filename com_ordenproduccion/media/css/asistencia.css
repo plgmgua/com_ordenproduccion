@@ -121,6 +121,11 @@
 
 .com-ordenproduccion-asistencia table {
     margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.com-ordenproduccion-asistencia .table-sm {
+    font-size: 0.875rem;
 }
 
 .com-ordenproduccion-asistencia .table thead {
@@ -130,15 +135,15 @@
 
 .com-ordenproduccion-asistencia .table thead th {
     border: none;
-    padding: 15px;
+    padding: 10px 12px;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     letter-spacing: 0.5px;
 }
 
 .com-ordenproduccion-asistencia .table tbody td {
-    padding: 12px 15px;
+    padding: 8px 12px;
     vertical-align: middle;
     border-bottom: 1px solid #dee2e6;
 }
@@ -157,6 +162,12 @@
 
 .com-ordenproduccion-asistencia .table tbody tr.table-warning:hover {
     background-color: #ffecb3;
+}
+
+/* Compact badge styling */
+.com-ordenproduccion-asistencia .badge {
+    padding: 3px 8px;
+    font-size: 0.7rem;
 }
 
 /* ==========================================

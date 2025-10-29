@@ -159,10 +159,9 @@ $filterIsLate = $this->state->get('filter.is_late');
 
         <!-- Data Table -->
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
+            <table class="table table-striped table-hover table-sm">
                 <thead class="table-dark">
                     <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_CARDNO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'); ?></th>
@@ -176,31 +175,30 @@ $filterIsLate = $this->state->get('filter.is_late');
                     <?php if (!empty($this->items)): ?>
                         <?php foreach ($this->items as $item): ?>
                         <tr class="<?php echo $item->is_late ? 'table-warning' : ''; ?>">
-                            <td><?php echo safeEscape($item->cardno); ?></td>
                             <td>
-                                <?php echo safeEscape($item->personname); ?>
+                                <strong><?php echo safeEscape($item->personname); ?></strong>
                                 <?php if ($item->is_late): ?>
-                                    <span class="badge bg-warning ms-1"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LATE'); ?></span>
+                                    <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7rem;">Tarde</span>
                                 <?php endif; ?>
                                 <?php if ($item->is_early_exit): ?>
-                                    <span class="badge bg-info ms-1"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EARLY_EXIT'); ?></span>
+                                    <span class="badge bg-info ms-1" style="font-size: 0.7rem;">Salida Temprana</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo HTMLHelper::_('date', $item->work_date, Text::_('DATE_FORMAT_LC4')); ?></td>
+                            <td><?php echo date('d-m-Y', strtotime($item->work_date)); ?></td>
                             <td><?php echo safeEscape($item->first_entry, '-'); ?></td>
                             <td><?php echo safeEscape($item->last_exit, '-'); ?></td>
                             <td>
-                                <?php echo AsistenciaHelper::formatHours($item->total_hours ?? 0); ?>
-                                <small class="text-muted">/ <?php echo number_format($item->expected_hours ?? 8, 2); ?>h</small>
+                                <strong><?php echo AsistenciaHelper::formatHours($item->total_hours ?? 0); ?></strong>
+                                <small class="text-muted"> / <?php echo number_format($item->expected_hours ?? 8, 2); ?>h</small>
                             </td>
                             <td>
-                                <span class="<?php echo AsistenciaHelper::getStatusBadgeClass($item->is_complete); ?>">
+                                <span class="<?php echo AsistenciaHelper::getStatusBadgeClass($item->is_complete); ?>" style="font-size: 0.75rem;">
                                     <?php echo AsistenciaHelper::getStatusText($item->is_complete); ?>
                                 </span>
                             </td>
                             <td>
                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistenciaentry&layout=edit&id=' . $item->id); ?>" 
-                                   class="btn btn-sm btn-primary">
+                                   class="btn btn-sm btn-outline-primary">
                                     <span class="icon-eye"></span>
                                 </a>
                             </td>
@@ -208,7 +206,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center">
+                            <td colspan="7" class="text-center">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?>
                             </td>
                         </tr>
