@@ -275,7 +275,7 @@ class AsistenciaModel extends ListModel
                  " . $db->quoteName('is_complete') . ", " . $db->quoteName('is_late') . ", 
                  " . $db->quoteName('is_early_exit') . ", " . $db->quoteName('created_by') . ")
             SELECT 
-                COALESCE(NULLIF(TRIM(cardno), ''), personname) as cardno,
+                MAX(COALESCE(NULLIF(TRIM(cardno), ''), personname)) as cardno,
                 MAX(personname) as personname,
                 authdate as work_date,
                 MIN(authtime) as first_entry,
