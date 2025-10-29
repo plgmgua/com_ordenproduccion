@@ -86,10 +86,11 @@
 
         <field
             name="ordering"
-            type="ordering"
+            type="number"
             label="JFIELD_ORDERING_LABEL"
             description="JFIELD_ORDERING_DESC"
             default="0"
+            class="inputbox"
         />
 
         <field
