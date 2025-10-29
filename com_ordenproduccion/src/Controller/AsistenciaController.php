@@ -301,6 +301,10 @@ class AsistenciaController extends BaseController
         $model->setState('filter.is_complete', '');
         $model->setState('filter.is_late', '');
         
+        // CRITICAL: Disable pagination to get ALL records (not just 20)
+        $model->setState('list.limit', 0);  // 0 = unlimited
+        $model->setState('list.start', 0);  // Start from beginning
+        
         // Get filtered items
         $items = $model->getItems();
 
