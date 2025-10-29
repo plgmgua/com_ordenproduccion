@@ -320,6 +320,9 @@ class AsistenciaModel extends ListModel
                     continue;
                 }
                 
+                // Ensure employee exists in the employees table (auto-create if new)
+                $this->ensureEmployeeExists($empDate->personname, $empDate->cardno);
+                
                 $summary = AsistenciaHelper::calculateDailyHours($empDate->cardno, $formattedDate);
                 
                 if ($summary && !empty($summary->work_date) && !empty($summary->personname)) {
@@ -441,6 +444,68 @@ class AsistenciaModel extends ListModel
 
         $db->setQuery($query);
         return $db->loadObjectList();
+    }
+
+    /**
+     * Ensure employee exists in the employees table, create if not exists
+     *
+     * @param   string  $personname  Employee name
+     * @param   string  $cardno      Card number (optional)
+     *
+     * @return  void
+     *
+     * @since   3.4.0
+     */
+    protected function ensureEmployeeExists($personname, $cardno = '')
+    {
+        if (empty($personname) || trim($personname) === '') {
+            return;
+        }
+
+        $db = $this->getDatabase();
+        
+        try {
+            // Check if employee exists (by personname, which is our primary identifier)
+            $query = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('joomla_ordenproduccion_employees'))
+                ->where($db->quoteName('personname') . ' = ' . $db->quote($personname));
+            
+            $db->setQuery($query);
+            $exists = (int) $db->loadResult();
+            
+            if ($exists === 0) {
+                // Employee doesn't exist, create them with defaults
+                $insertQuery = $db->getQuery(true)
+                    ->insert($db->quoteName('joomla_ordenproduccion_employees'))
+                    ->columns([
+                        $db->quoteName('cardno'),
+                        $db->quoteName('personname'),
+                        $db->quoteName('group_id'),
+                        $db->quoteName('active'),
+                        $db->quoteName('state'),
+                        $db->quoteName('created'),
+                        $db->quoteName('created_by')
+                    ])
+                    ->values(
+                        $db->quote($cardno ?: $personname) . ', ' .
+                        $db->quote($personname) . ', ' .
+                        '1, ' .  // Default to group_id 1
+                        '1, ' .  // Active = 1 (enabled)
+                        '1, ' .  // State = 1 (published)
+                        'NOW(), ' .
+                        '0'
+                    );
+                
+                $db->setQuery($insertQuery);
+                $db->execute();
+                
+                error_log('Auto-created new employee: ' . $personname . ' with group_id=1 and active=1');
+            }
+        } catch (\Exception $e) {
+            // Log error but don't stop the sync process
+            error_log('Error ensuring employee exists: ' . $e->getMessage());
+        }
     }
 }
 
