@@ -288,43 +288,63 @@ class AsistenciaModel extends ListModel
             
             // Calculate and insert each summary using AsistenciaHelper (which respects employee groups and weekly schedules)
             foreach ($employeeDates as $empDate) {
-                $summary = AsistenciaHelper::calculateDailyHours($empDate->cardno, $empDate->authdate);
+                // Skip if authdate is empty or invalid
+                if (empty($empDate->authdate) || trim($empDate->authdate) === '') {
+                    continue;
+                }
                 
-                if ($summary) {
-                    $insertQuery = $db->getQuery(true)
-                        ->insert($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
-                        ->columns([
-                            $db->quoteName('cardno'),
-                            $db->quoteName('personname'),
-                            $db->quoteName('work_date'),
-                            $db->quoteName('first_entry'),
-                            $db->quoteName('last_exit'),
-                            $db->quoteName('total_hours'),
-                            $db->quoteName('expected_hours'),
-                            $db->quoteName('total_entries'),
-                            $db->quoteName('is_complete'),
-                            $db->quoteName('is_late'),
-                            $db->quoteName('is_early_exit'),
-                            $db->quoteName('created_by')
-                        ])
-                        ->values(
-                            $db->quote($summary->cardno) . ', ' .
-                            $db->quote($summary->personname) . ', ' .
-                            $db->quote($summary->work_date) . ', ' .
-                            $db->quote($summary->first_entry) . ', ' .
-                            $db->quote($summary->last_exit) . ', ' .
-                            (float) $summary->total_hours . ', ' .
-                            (float) $summary->expected_hours . ', ' .
-                            (int) $summary->total_entries . ', ' .
-                            (int) $summary->is_complete . ', ' .
-                            (int) $summary->is_late . ', ' .
-                            (int) $summary->is_early_exit . ', ' .
-                            '0'
-                        );
-                    
-                    $db->setQuery($insertQuery);
-                    $db->execute();
-                    $insertedCount++;
+                // Validate and format date
+                try {
+                    $dateObj = new \DateTime($empDate->authdate);
+                    $formattedDate = $dateObj->format('Y-m-d');
+                } catch (\Exception $e) {
+                    // Skip invalid dates
+                    continue;
+                }
+                
+                $summary = AsistenciaHelper::calculateDailyHours($empDate->cardno, $formattedDate);
+                
+                if ($summary && !empty($summary->work_date) && !empty($summary->personname)) {
+                    try {
+                        $insertQuery = $db->getQuery(true)
+                            ->insert($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+                            ->columns([
+                                $db->quoteName('cardno'),
+                                $db->quoteName('personname'),
+                                $db->quoteName('work_date'),
+                                $db->quoteName('first_entry'),
+                                $db->quoteName('last_exit'),
+                                $db->quoteName('total_hours'),
+                                $db->quoteName('expected_hours'),
+                                $db->quoteName('total_entries'),
+                                $db->quoteName('is_complete'),
+                                $db->quoteName('is_late'),
+                                $db->quoteName('is_early_exit'),
+                                $db->quoteName('created_by')
+                            ])
+                            ->values(
+                                $db->quote($summary->cardno) . ', ' .
+                                $db->quote($summary->personname) . ', ' .
+                                $db->quote($summary->work_date) . ', ' .
+                                $db->quote($summary->first_entry ?? '00:00:00') . ', ' .
+                                $db->quote($summary->last_exit ?? '00:00:00') . ', ' .
+                                (float) ($summary->total_hours ?? 0) . ', ' .
+                                (float) ($summary->expected_hours ?? 8) . ', ' .
+                                (int) ($summary->total_entries ?? 0) . ', ' .
+                                (int) ($summary->is_complete ?? 0) . ', ' .
+                                (int) ($summary->is_late ?? 0) . ', ' .
+                                (int) ($summary->is_early_exit ?? 0) . ', ' .
+                                '0'
+                            );
+                        
+                        $db->setQuery($insertQuery);
+                        $db->execute();
+                        $insertedCount++;
+                    } catch (\Exception $e) {
+                        // Log error but continue processing
+                        error_log('Error inserting attendance summary: ' . $e->getMessage());
+                        continue;
+                    }
                 }
             }
             
