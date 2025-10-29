@@ -95,6 +95,14 @@
         />
 
         <field
+            name="manager_user_id"
+            type="user"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_MANAGER"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_MANAGER_DESC"
+            class="inputbox"
+        />
+
+        <field
             name="ordering"
             type="number"
             label="JFIELD_ORDERING_LABEL"
