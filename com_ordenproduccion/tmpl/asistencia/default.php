@@ -181,6 +181,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                 <thead class="table-dark">
                     <tr>
                         <th style="min-width: 120px;">Empleado</th>
+                        <th style="width: 100px;">Grupo</th>
                         <th style="width: 90px;">Fecha</th>
                         <th style="width: 70px;">Entrada</th>
                         <th style="width: 70px;">Salida</th>
@@ -201,6 +202,17 @@ $filterIsLate = $this->state->get('filter.is_late');
                                     <span class="badge bg-info" style="font-size: 0.6rem; padding: 2px 5px;">Salida T.</span>
                                 <?php endif; ?>
                             </td>
+                            <td style="font-size: 0.75rem;">
+                                <?php if (!empty($item->group_name)): ?>
+                                    <span class="badge" style="font-size: 0.7rem; padding: 3px 6px; background-color: <?php echo safeEscape($item->group_color, '#6c757d'); ?>; color: white;">
+                                        <?php echo safeEscape($item->group_name); ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem; padding: 3px 6px;">
+                                        Sin Grupo
+                                    </span>
+                                <?php endif; ?>
+                            </td>
                             <td style="font-size: 0.8rem;"><?php echo date('d/m/y', strtotime($item->work_date)); ?></td>
                             <td style="font-size: 0.8rem;"><?php echo substr(safeEscape($item->first_entry, '-'), 0, 5); ?></td>
                             <td style="font-size: 0.8rem;"><?php echo substr(safeEscape($item->last_exit, '-'), 0, 5); ?></td>
@@ -217,7 +229,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center">
+                            <td colspan="7" class="text-center">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?>
                             </td>
                         </tr>
