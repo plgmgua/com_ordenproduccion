@@ -19,6 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [3.4.0-STABLE] - 2025-10-29
+
+### Added
+- **Weekly Schedule for Employee Groups**
+  - Day-specific work schedules (Monday-Sunday)
+  - Each day can have different start times, end times, and expected hours
+  - Enable/disable individual days (e.g., weekends off)
+  - Optional notes per day
+  - "Apply to All Days" button for quick setup
+  - Perfect for scenarios like "Friday ends 1 hour earlier"
+  
+### Changed
+- **Attendance Evaluation Enhancement**
+  - System now checks day of week and uses appropriate schedule
+  - Falls back to default group schedule if day-specific schedule not set
+  - Supports non-working days (Saturday/Sunday can be disabled)
+
+### Database Changes
+- Added `weekly_schedule` JSON column to `#__ordenproduccion_employee_groups` table
+- Migration automatically converts existing groups to weekly format with same schedule for all days
+
+### New Features
+- Interactive weekly schedule editor in employee group form
+- Visual table showing all 7 days with individual controls
+- Real-time JavaScript updates to schedule data
+- Days can be enabled/disabled with checkboxes
+- Form validation ensures data integrity
+
+### User Interface
+- Reorganized employee group form into sections (Basic Info, Default Schedule, Weekly Schedule)
+- Color-coded headers for better visual organization
+- Responsive table design for schedule editor
+- Disabled state for non-working days with visual feedback
+
 ## [3.3.0-STABLE] - 2025-10-29
 
 ### Added

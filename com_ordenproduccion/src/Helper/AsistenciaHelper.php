@@ -111,16 +111,30 @@ class AsistenciaHelper
         $graceMinutes = 15;
         
         if ($employee) {
-            // Prefer group settings
-            if (!empty($employee->group_expected_hours)) {
-                $expectedHours = (float) $employee->group_expected_hours;
+            // Check if group has weekly schedule
+            $daySchedule = null;
+            if (!empty($employee->weekly_schedule)) {
+                $daySchedule = self::getDaySchedule($employee->weekly_schedule, $date);
             }
-            if (!empty($employee->work_start_time)) {
-                $workStart = $employee->work_start_time;
+            
+            if ($daySchedule && isset($daySchedule['enabled']) && $daySchedule['enabled']) {
+                // Use day-specific schedule
+                $expectedHours = (float) ($daySchedule['expected_hours'] ?? 8.00);
+                $workStart = $daySchedule['start_time'] ?? '08:00:00';
+                $workEnd = $daySchedule['end_time'] ?? '17:00:00';
+            } else {
+                // Fall back to default group settings
+                if (!empty($employee->group_expected_hours)) {
+                    $expectedHours = (float) $employee->group_expected_hours;
+                }
+                if (!empty($employee->work_start_time)) {
+                    $workStart = $employee->work_start_time;
+                }
+                if (!empty($employee->work_end_time)) {
+                    $workEnd = $employee->work_end_time;
+                }
             }
-            if (!empty($employee->work_end_time)) {
-                $workEnd = $employee->work_end_time;
-            }
+            
             if (isset($employee->grace_period_minutes)) {
                 $graceMinutes = (int) $employee->grace_period_minutes;
             }
@@ -276,7 +290,8 @@ class AsistenciaHelper
                 'g.work_start_time',
                 'g.work_end_time',
                 'g.expected_hours AS group_expected_hours',
-                'g.grace_period_minutes'
+                'g.grace_period_minutes',
+                'g.weekly_schedule'
             ])
             ->from(self::$db->quoteName('#__ordenproduccion_employees', 'e'))
             ->leftJoin(
@@ -291,6 +306,41 @@ class AsistenciaHelper
 
         self::$db->setQuery($query);
         return self::$db->loadObject();
+    }
+
+    /**
+     * Get schedule for a specific day of the week
+     *
+     * @param   string  $weeklyScheduleJson  JSON string with weekly schedule
+     * @param   string  $date               Date in Y-m-d format
+     *
+     * @return  array|null  Day schedule or null
+     */
+    public static function getDaySchedule($weeklyScheduleJson, $date)
+    {
+        if (empty($weeklyScheduleJson)) {
+            return null;
+        }
+
+        try {
+            $weeklySchedule = json_decode($weeklyScheduleJson, true);
+            if (!$weeklySchedule) {
+                return null;
+            }
+
+            // Get day of week (lowercase: monday, tuesday, etc.)
+            $dateObj = new \DateTime($date);
+            $dayName = strtolower($dateObj->format('l')); // 'monday', 'tuesday', etc.
+
+            if (isset($weeklySchedule[$dayName])) {
+                return $weeklySchedule[$dayName];
+            }
+        } catch (\Exception $e) {
+            // Log error but continue with defaults
+            error_log('Error parsing weekly schedule: ' . $e->getMessage());
+        }
+
+        return null;
     }
 
     /**

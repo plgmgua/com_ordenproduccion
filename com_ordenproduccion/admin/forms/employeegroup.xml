@@ -65,6 +65,16 @@
         />
 
         <field
+            name="weekly_schedule"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_WEEKLY_SCHEDULE"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_WEEKLY_SCHEDULE_DESC"
+            rows="1"
+            class="hidden"
+            filter="raw"
+        />
+
+        <field
             name="grace_period_minutes"
             type="number"
             label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_GRACE_PERIOD"
