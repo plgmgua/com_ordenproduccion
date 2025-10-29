@@ -1,450 +1,280 @@
 <?php
 /**
- * Employee Management System Diagnostics
- * Place in Joomla root and access via: https://your-domain.com/troubleshooting.php
+ * Data Validation Script - Compare Asistencia Raw Data vs Summary Table
+ * 
+ * Validates that summary calculations match raw biometric data
+ * Tests: Last 5 days for Cristina Perez, Julio Alvarado, and Nery Ramirez
  */
 
 define('_JEXEC', 1);
-define('JPATH_BASE', __DIR__);
+define('JPATH_BASE', dirname(__DIR__, 3));
 
 require_once JPATH_BASE . '/includes/defines.php';
 require_once JPATH_BASE . '/includes/framework.php';
 
 use Joomla\CMS\Factory;
-use Joomla\Database\DatabaseInterface;
 
 $app = Factory::getApplication('site');
-$db = Factory::getContainer()->get(DatabaseInterface::class);
 
-header('Content-Type: text/html; charset=utf-8');
+// Get database
+$db = Factory::getContainer()->get(Joomla\Database\DatabaseInterface::class);
 
-// Styling
-$style = "
-<style>
+// Employees to validate
+$employees = ['Cristina Perez', 'Julio Alvarado', 'Nery Ramirez'];
+
+// Get last 5 days
+$today = new DateTime();
+$dates = [];
+for ($i = 4; $i >= 0; $i--) {
+    $date = clone $today;
+    $date->modify("-$i days");
+    $dates[] = $date->format('Y-m-d');
+}
+
+echo "<html><head><style>
 body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-.container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
-h2 { color: #555; margin-top: 30px; border-bottom: 2px solid #28a745; padding-bottom: 8px; }
-h3 { color: #666; margin-top: 20px; }
-.success { background: #d4edda; color: #155724; padding: 12px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #28a745; }
-.warning { background: #fff3cd; color: #856404; padding: 12px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #ffc107; }
-.error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #dc3545; }
-.info { background: #d1ecf1; color: #0c5460; padding: 12px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #17a2b8; }
-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-th { background: #007bff; color: white; padding: 10px; text-align: left; }
-td { padding: 8px; border-bottom: 1px solid #ddd; }
-tr:hover { background: #f9f9f9; }
-.code { background: #f4f4f4; padding: 15px; border-radius: 4px; overflow-x: auto; margin: 10px 0; border-left: 4px solid #007bff; }
-pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }
-.sql-block { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 4px; margin: 10px 0; overflow-x: auto; }
-.badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
-.badge-success { background: #28a745; color: white; }
-.badge-danger { background: #dc3545; color: white; }
-.badge-warning { background: #ffc107; color: #333; }
-.timestamp { color: #999; font-size: 12px; }
-</style>
-";
+h1 { color: #2196F3; border-bottom: 3px solid #2196F3; padding-bottom: 10px; }
+h2 { color: #4CAF50; margin-top: 30px; background: #E8F5E9; padding: 10px; border-left: 4px solid #4CAF50; }
+h3 { color: #FF9800; margin-top: 20px; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+th { background: #2196F3; color: white; padding: 12px; text-align: left; font-weight: bold; }
+td { padding: 10px; border: 1px solid #ddd; }
+tr:nth-child(even) { background: #f9f9f9; }
+.raw-data { background: #E3F2FD !important; }
+.summary-data { background: #FFF9C4 !important; }
+.match { color: green; font-weight: bold; }
+.mismatch { color: red; font-weight: bold; }
+.info { background: #E1F5FE; padding: 15px; margin: 15px 0; border-left: 4px solid #03A9F4; }
+.warning { background: #FFF3E0; padding: 15px; margin: 15px 0; border-left: 4px solid #FF9800; }
+.error { background: #FFEBEE; padding: 15px; margin: 15px 0; border-left: 4px solid #F44336; }
+.success { background: #E8F5E9; padding: 15px; margin: 15px 0; border-left: 4px solid #4CAF50; }
+code { background: #263238; color: #AEDD94; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+.stats { display: inline-block; margin: 5px 10px; padding: 8px 15px; background: #2196F3; color: white; border-radius: 4px; }
+</style></head><body>";
 
-echo $style;
-echo '<div class="container">';
-echo '<h1>🔍 Employee Management System - Database Diagnostics</h1>';
-echo '<p class="timestamp">Generated: ' . date('Y-m-d H:i:s') . '</p>';
+echo "<h1>🔍 Data Validation Report - Asistencia Raw Data vs Summary</h1>";
 
-// ============================================
-// 1. CHECK DATABASE CONNECTION
-// ============================================
-echo '<h2>1. Database Connection</h2>';
-try {
-    // Get database name using a query instead of protected method
-    $query = "SELECT DATABASE()";
-    $db->setQuery($query);
-    $dbName = $db->loadResult();
-    echo '<div class="success">✅ Connected to database: <strong>' . htmlspecialchars($dbName) . '</strong></div>';
-} catch (Exception $e) {
-    echo '<div class="error">❌ Database connection failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
-    exit;
-}
+echo "<div class='info'>";
+echo "<strong>📅 Validation Period:</strong> Last 5 days<br>";
+echo "<strong>👥 Employees:</strong> " . implode(', ', $employees) . "<br>";
+echo "<strong>📊 Date Range:</strong> " . $dates[0] . " to " . $dates[count($dates)-1];
+echo "</div>";
 
-// ============================================
-// 2. CHECK EMPLOYEE GROUPS TABLE
-// ============================================
-echo '<h2>2. Employee Groups Table Check</h2>';
-
-// Check if table exists using a query instead of getTableList()
-$query = "SHOW TABLES LIKE " . $db->quote($db->getPrefix() . 'ordenproduccion_employee_groups');
-$db->setQuery($query);
-$groupsTableExists = (bool) $db->loadResult();
-
-if ($groupsTableExists) {
-    echo '<div class="success">✅ Table exists: <code>joomla_ordenproduccion_employee_groups</code></div>';
+foreach ($employees as $employeeName) {
+    echo "<h2>👤 Employee: $employeeName</h2>";
     
-    // Get table structure
-    $query = "DESCRIBE " . $db->quoteName('#__ordenproduccion_employee_groups');
-    $db->setQuery($query);
-    $columns = $db->loadObjectList();
-    
-    echo '<h3>Table Structure</h3>';
-    echo '<table>';
-    echo '<tr><th>Column</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th><th>Extra</th></tr>';
-    foreach ($columns as $col) {
-        echo '<tr>';
-        echo '<td><strong>' . htmlspecialchars($col->Field) . '</strong></td>';
-        echo '<td>' . htmlspecialchars($col->Type) . '</td>';
-        echo '<td>' . htmlspecialchars($col->Null) . '</td>';
-        echo '<td>' . htmlspecialchars($col->Key) . '</td>';
-        echo '<td>' . htmlspecialchars($col->Default) . '</td>';
-        echo '<td>' . htmlspecialchars($col->Extra) . '</td>';
-        echo '</tr>';
-    }
-    echo '</table>';
-    
-    // Count records
-    $query = $db->getQuery(true)
-        ->select('COUNT(*)')
-        ->from($db->quoteName('#__ordenproduccion_employee_groups'));
-    $db->setQuery($query);
-    $groupCount = $db->loadResult();
-    
-    if ($groupCount > 0) {
-        echo '<div class="success">✅ Found <strong>' . $groupCount . '</strong> employee group(s)</div>';
+    foreach ($dates as $date) {
+        $dayName = date('l', strtotime($date));
+        echo "<h3>📆 Date: $date ($dayName)</h3>";
         
-        // Show groups
-        $query = $db->getQuery(true)
+        // Get RAW data from asistencia table
+        $rawQuery = $db->getQuery(true)
             ->select('*')
-            ->from($db->quoteName('#__ordenproduccion_employee_groups'))
-            ->order($db->quoteName('ordering'));
-        $db->setQuery($query);
-        $groups = $db->loadObjectList();
+            ->from($db->quoteName('asistencia'))
+            ->where($db->quoteName('personname') . ' = ' . $db->quote($employeeName))
+            ->where($db->quoteName('authdate') . ' = ' . $db->quote($date))
+            ->order($db->quoteName('authtime') . ' ASC');
         
-        echo '<h3>Current Employee Groups</h3>';
-        echo '<table>';
-        echo '<tr><th>ID</th><th>Name</th><th>Start Time</th><th>End Time</th><th>Expected Hours</th><th>Grace Period</th><th>Color</th><th>State</th></tr>';
-        foreach ($groups as $group) {
-            $state = $group->state == 1 ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>';
-    echo '<tr>';
-            echo '<td>' . $group->id . '</td>';
-            echo '<td><strong>' . htmlspecialchars($group->name) . '</strong><br><small>' . htmlspecialchars($group->description) . '</small></td>';
-            echo '<td>' . substr($group->work_start_time, 0, 5) . '</td>';
-            echo '<td>' . substr($group->work_end_time, 0, 5) . '</td>';
-            echo '<td>' . $group->expected_hours . 'h</td>';
-            echo '<td>' . $group->grace_period_minutes . ' min</td>';
-            echo '<td><span style="background:' . $group->color . '; color:white; padding:2px 8px; border-radius:3px;">' . $group->color . '</span></td>';
-            echo '<td>' . $state . '</td>';
-    echo '</tr>';
-}
-        echo '</table>';
-    } else {
-        echo '<div class="warning">⚠️ Table exists but is <strong>EMPTY</strong>. No employee groups found.</div>';
-        echo '<div class="info">📝 <strong>Action Required:</strong> You need to insert default employee groups.</div>';
+        $db->setQuery($rawQuery);
+        $rawRecords = $db->loadObjectList();
         
-        echo '<div class="sql-block"><pre>';
-        echo "INSERT INTO `joomla_ordenproduccion_employee_groups` \n";
-        echo "    (`name`, `description`, `work_start_time`, `work_end_time`, `expected_hours`, `grace_period_minutes`, `color`, `state`, `ordering`, `created_by`)\n";
-        echo "VALUES\n";
-        echo "    ('Turno Regular', 'Horario estándar de oficina', '08:00:00', '17:00:00', 8.00, 15, '#007bff', 1, 1, 0),\n";
-        echo "    ('Turno Matutino', 'Turno de mañana', '07:00:00', '15:00:00', 8.00, 15, '#28a745', 1, 2, 0),\n";
-        echo "    ('Turno Vespertino', 'Turno de tarde', '15:00:00', '23:00:00', 8.00, 15, '#ffc107', 1, 3, 0);";
-        echo '</pre></div>';
-    }
-} else {
-    echo '<div class="error">❌ Table does NOT exist: <code>joomla_ordenproduccion_employee_groups</code></div>';
-    echo '<div class="info">📝 <strong>Action Required:</strong> You need to create the employee groups table.</div>';
-    
-    echo '<div class="sql-block"><pre>';
-    echo "CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_employee_groups` (\n";
-    echo "    `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,\n";
-    echo "    `name` varchar(255) NOT NULL,\n";
-    echo "    `description` text,\n";
-    echo "    `work_start_time` time NOT NULL DEFAULT '08:00:00',\n";
-    echo "    `work_end_time` time NOT NULL DEFAULT '17:00:00',\n";
-    echo "    `expected_hours` decimal(5,2) NOT NULL DEFAULT 8.00,\n";
-    echo "    `grace_period_minutes` int(11) NOT NULL DEFAULT 15,\n";
-    echo "    `color` varchar(7) DEFAULT '#007bff',\n";
-    echo "    `state` tinyint(3) NOT NULL DEFAULT 1,\n";
-    echo "    `ordering` int(11) NOT NULL DEFAULT 0,\n";
-    echo "    `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n";
-    echo "    `created_by` int(11) NOT NULL DEFAULT 0,\n";
-    echo "    `modified` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,\n";
-    echo "    `modified_by` int(11) DEFAULT NULL,\n";
-    echo "    PRIMARY KEY (`id`),\n";
-    echo "    KEY `idx_state` (`state`),\n";
-    echo "    KEY `idx_ordering` (`ordering`)\n";
-    echo ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;";
-    echo '</pre></div>';
-}
-
-// ============================================
-// 3. CHECK EMPLOYEES TABLE
-// ============================================
-echo '<h2>3. Employees Table Check</h2>';
-
-// Check if table exists using a query
-$query = "SHOW TABLES LIKE " . $db->quote($db->getPrefix() . 'ordenproduccion_employees');
-$db->setQuery($query);
-$employeesTableExists = (bool) $db->loadResult();
-
-if ($employeesTableExists) {
-    echo '<div class="success">✅ Table exists: <code>joomla_ordenproduccion_employees</code></div>';
-    
-    // Get table structure
-    $query = "DESCRIBE " . $db->quoteName('#__ordenproduccion_employees');
-    $db->setQuery($query);
-    $columns = $db->loadObjectList();
-    
-    // Check for required columns
-    $requiredColumns = [
-        'group_id' => 'int(11) UNSIGNED',
-        'employee_number' => 'varchar(50)',
-        'department' => 'varchar(100)',
-        'position' => 'varchar(100)',
-        'email' => 'varchar(255)',
-        'phone' => 'varchar(50)',
-        'hire_date' => 'date',
-        'notes' => 'text',
-        'state' => 'tinyint(3)',
-        'modified' => 'datetime',
-        'modified_by' => 'int(11)'
-    ];
-    
-    $existingColumns = [];
-    foreach ($columns as $col) {
-        $existingColumns[$col->Field] = $col->Type;
-    }
-    
-    echo '<h3>Required Columns Check</h3>';
-    echo '<table>';
-    echo '<tr><th>Column</th><th>Required Type</th><th>Status</th><th>Current Type</th></tr>';
-    
-    $missingColumns = [];
-    foreach ($requiredColumns as $colName => $colType) {
-        if (isset($existingColumns[$colName])) {
-            echo '<tr>';
-            echo '<td><strong>' . $colName . '</strong></td>';
-            echo '<td>' . $colType . '</td>';
-            echo '<td><span class="badge badge-success">EXISTS</span></td>';
-            echo '<td>' . htmlspecialchars($existingColumns[$colName]) . '</td>';
-            echo '</tr>';
-        } else {
-            $missingColumns[] = $colName;
-            echo '<tr style="background:#fff3cd;">';
-            echo '<td><strong>' . $colName . '</strong></td>';
-            echo '<td>' . $colType . '</td>';
-            echo '<td><span class="badge badge-danger">MISSING</span></td>';
-            echo '<td>-</td>';
-            echo '</tr>';
-        }
-    }
-echo '</table>';
-
-    if (count($missingColumns) > 0) {
-        echo '<div class="warning">⚠️ Missing <strong>' . count($missingColumns) . '</strong> column(s): ' . implode(', ', $missingColumns) . '</div>';
-        echo '<div class="info">📝 <strong>Action Required:</strong> Add missing columns to employees table.</div>';
+        // Get SUMMARY data from summary table
+        $summaryQuery = $db->getQuery(true)
+            ->select('a.*, e.group_id, g.name as group_name, g.work_start_time, g.work_end_time, g.expected_hours, g.weekly_schedule')
+            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 'a'))
+            ->leftJoin(
+                $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
+                $db->quoteName('a.personname') . ' = ' . $db->quoteName('e.personname')
+            )
+            ->leftJoin(
+                $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
+                $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
+            )
+            ->where($db->quoteName('a.personname') . ' = ' . $db->quote($employeeName))
+            ->where($db->quoteName('a.work_date') . ' = ' . $db->quote($date));
         
-        echo '<div class="sql-block"><pre>';
-        foreach ($missingColumns as $col) {
-            switch($col) {
-                case 'group_id':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `group_id` int(11) UNSIGNED DEFAULT NULL AFTER `personname`;\n";
-                    break;
-                case 'employee_number':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `employee_number` varchar(50) DEFAULT NULL AFTER `group_id`;\n";
-                    break;
-                case 'department':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `department` varchar(100) DEFAULT NULL AFTER `employee_number`;\n";
-                    break;
-                case 'position':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `position` varchar(100) DEFAULT NULL AFTER `department`;\n";
-                    break;
-                case 'email':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `email` varchar(255) DEFAULT NULL AFTER `position`;\n";
-                    break;
-                case 'phone':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `phone` varchar(50) DEFAULT NULL AFTER `email`;\n";
-                    break;
-                case 'hire_date':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `hire_date` date DEFAULT NULL AFTER `phone`;\n";
-                    break;
-                case 'notes':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `notes` text AFTER `hire_date`;\n";
-                    break;
-                case 'state':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `state` tinyint(3) NOT NULL DEFAULT 1 AFTER `active`;\n";
-                    break;
-                case 'modified':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `modified` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER `created`;\n";
-                    break;
-                case 'modified_by':
-                    echo "ALTER TABLE `joomla_ordenproduccion_employees` ADD COLUMN `modified_by` int(11) DEFAULT NULL AFTER `modified`;\n";
-                    break;
+        $db->setQuery($summaryQuery);
+        $summary = $db->loadObject();
+        
+        // Display RAW DATA
+        echo "<div class='raw-data'>";
+        echo "<h4>📋 RAW DATA from 'asistencia' table (" . count($rawRecords) . " records)</h4>";
+        
+        if (!empty($rawRecords)) {
+            echo "<table>";
+            echo "<tr><th>Time</th><th>Direction</th><th>Device</th></tr>";
+            foreach ($rawRecords as $record) {
+                echo "<tr>";
+                echo "<td><strong>" . substr($record->authtime, 0, 8) . "</strong></td>";
+                echo "<td>" . ($record->direction ?? 'N/A') . "</td>";
+                echo "<td>" . ($record->devicename ?? 'N/A') . "</td>";
+                echo "</tr>";
             }
+            echo "</table>";
+            
+            // Calculate manually from raw data
+            $times = array_map(function($r) { return $r->authtime; }, $rawRecords);
+            $firstEntry = min($times);
+            $lastExit = max($times);
+            
+            $first = new DateTime($firstEntry);
+            $last = new DateTime($lastExit);
+            $diff = $first->diff($last);
+            $calculatedHours = $diff->h + ($diff->i / 60) + ($diff->s / 3600);
+            
+            echo "<div class='info' style='margin-top: 10px;'>";
+            echo "<strong>🧮 Manual Calculation from Raw Data:</strong><br>";
+            echo "First Entry: <code>$firstEntry</code><br>";
+            echo "Last Exit: <code>$lastExit</code><br>";
+            echo "Calculated Hours: <code>" . number_format($calculatedHours, 2) . "</code> hours<br>";
+            echo "Total Records: <code>" . count($rawRecords) . "</code>";
+            echo "</div>";
+        } else {
+            echo "<div class='warning'>⚠️ No raw records found for this date</div>";
+            $firstEntry = null;
+            $lastExit = null;
+            $calculatedHours = 0;
         }
-        echo '</pre></div>';
-    } else {
-        echo '<div class="success">✅ All required columns exist!</div>';
-    }
-    
-    // Count employees
-    $query = $db->getQuery(true)
-        ->select('COUNT(*)')
-        ->from($db->quoteName('#__ordenproduccion_employees'));
-    $db->setQuery($query);
-    $employeeCount = $db->loadResult();
-    
-    echo '<h3>Employee Statistics</h3>';
-    echo '<div class="info">📊 Total Employees: <strong>' . $employeeCount . '</strong></div>';
-    
-    if ($employeeCount > 0 && !in_array('group_id', $missingColumns)) {
-        // Count employees with/without groups
-        $query = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($db->quoteName('#__ordenproduccion_employees'))
-            ->where($db->quoteName('group_id') . ' IS NOT NULL');
-        $db->setQuery($query);
-        $withGroup = $db->loadResult();
+        echo "</div>";
         
-        $withoutGroup = $employeeCount - $withGroup;
+        // Display SUMMARY DATA
+        echo "<div class='summary-data' style='margin-top: 20px;'>";
+        echo "<h4>📊 SUMMARY DATA from 'joomla_ordenproduccion_asistencia_summary' table</h4>";
         
-        echo '<div class="info">👥 Employees with group assignment: <strong>' . $withGroup . '</strong></div>';
-        
-        if ($withoutGroup > 0) {
-            echo '<div class="warning">⚠️ Employees without group assignment: <strong>' . $withoutGroup . '</strong></div>';
+        if ($summary) {
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Value</th></tr>";
+            echo "<tr><td>Work Date</td><td><strong>" . $summary->work_date . "</strong></td></tr>";
+            echo "<tr><td>First Entry</td><td><strong>" . $summary->first_entry . "</strong></td></tr>";
+            echo "<tr><td>Last Exit</td><td><strong>" . $summary->last_exit . "</strong></td></tr>";
+            echo "<tr><td>Total Hours</td><td><strong>" . number_format($summary->total_hours, 2) . "</strong> hours</td></tr>";
+            echo "<tr><td>Expected Hours</td><td><strong>" . number_format($summary->expected_hours, 2) . "</strong> hours</td></tr>";
+            echo "<tr><td>Total Entries</td><td><strong>" . $summary->total_entries . "</strong> records</td></tr>";
+            echo "<tr><td>Is Complete</td><td><strong>" . ($summary->is_complete ? '✅ Yes' : '❌ No') . "</strong></td></tr>";
+            echo "<tr><td>Is Late</td><td><strong>" . ($summary->is_late ? '⏰ Yes' : '✅ No') . "</strong></td></tr>";
+            echo "<tr><td>Is Early Exit</td><td><strong>" . ($summary->is_early_exit ? '🏃 Yes' : '✅ No') . "</strong></td></tr>";
+            echo "<tr><td>Employee Group</td><td><strong>" . ($summary->group_name ?? 'No Group') . "</strong> (ID: " . ($summary->group_id ?? 'N/A') . ")</td></tr>";
             
-            // Show sample employees without groups
-            $query = $db->getQuery(true)
-                ->select(['id', 'personname', 'cardno', 'active'])
-                ->from($db->quoteName('#__ordenproduccion_employees'))
-                ->where($db->quoteName('group_id') . ' IS NULL')
-                ->setLimit(10);
-            $db->setQuery($query);
-            $unassignedEmployees = $db->loadObjectList();
-            
-            if (count($unassignedEmployees) > 0) {
-                echo '<h4>Sample Employees Without Group (first 10)</h4>';
-                echo '<table>';
-                echo '<tr><th>ID</th><th>Name</th><th>Card No</th><th>Active</th></tr>';
-                foreach ($unassignedEmployees as $emp) {
-                    $activeStatus = $emp->active == 1 ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-danger">No</span>';
-                    echo '<tr>';
-                    echo '<td>' . $emp->id . '</td>';
-                    echo '<td><strong>' . htmlspecialchars($emp->personname) . '</strong></td>';
-                    echo '<td>' . htmlspecialchars($emp->cardno) . '</td>';
-                    echo '<td>' . $activeStatus . '</td>';
-                    echo '</tr>';
-                }
-                echo '</table>';
+            // Show group schedule
+            if ($summary->weekly_schedule) {
+                $weeklySchedule = json_decode($summary->weekly_schedule, true);
+                $dayOfWeek = strtolower(date('l', strtotime($date)));
+                $daySchedule = $weeklySchedule[$dayOfWeek] ?? null;
                 
-                if ($groupsTableExists && $groupCount > 0) {
-                    echo '<div class="info">📝 <strong>Action Required:</strong> Assign employees to groups.</div>';
-                    echo '<div class="sql-block"><pre>';
-                    echo "-- Assign all active employees to 'Turno Regular' (group_id = 1)\n";
-                    echo "UPDATE `joomla_ordenproduccion_employees` \n";
-                    echo "SET `group_id` = 1 \n";
-                    echo "WHERE `active` = 1 \n";
-                    echo "  AND `group_id` IS NULL;";
-                    echo '</pre></div>';
+                if ($daySchedule && isset($daySchedule['enabled']) && $daySchedule['enabled']) {
+                    echo "<tr><td>Day Schedule ($dayName)</td><td>";
+                    echo "Start: <code>" . $daySchedule['start_time'] . "</code>, ";
+                    echo "End: <code>" . $daySchedule['end_time'] . "</code>, ";
+                    echo "Expected: <code>" . $daySchedule['expected_hours'] . "h</code>";
+                    echo "</td></tr>";
+                } else {
+                    echo "<tr><td>Day Schedule ($dayName)</td><td>⚠️ Not enabled or no schedule</td></tr>";
                 }
             }
+            echo "</table>";
         } else {
-            echo '<div class="success">✅ All employees have group assignments!</div>';
+            echo "<div class='error'>❌ No summary record found for this date</div>";
         }
+        echo "</div>";
         
-        // Show employees with groups
-        if ($withGroup > 0 && $groupsTableExists) {
-            $query = $db->getQuery(true)
-                ->select([
-                    'e.id',
-                    'e.personname',
-                    'e.cardno',
-                    'e.department',
-                    'e.position',
-                    'g.name AS group_name',
-                    'g.work_start_time',
-                    'g.work_end_time',
-                    'g.expected_hours'
-                ])
-                ->from($db->quoteName('#__ordenproduccion_employees', 'e'))
-                ->leftJoin(
-                    $db->quoteName('#__ordenproduccion_employee_groups', 'g'),
-                    $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
-                )
-                ->where($db->quoteName('e.group_id') . ' IS NOT NULL')
-                ->order($db->quoteName('g.ordering') . ', ' . $db->quoteName('e.personname'))
-                ->setLimit(10);
-            $db->setQuery($query);
-            $assignedEmployees = $db->loadObjectList();
+        // VALIDATION - Compare Raw vs Summary
+        echo "<div style='margin-top: 20px;'>";
+        echo "<h4>✅ Validation Results</h4>";
+        
+        if (!empty($rawRecords) && $summary) {
+            $issues = [];
             
-            echo '<h4>Sample Employees With Groups (first 10)</h4>';
-            echo '<table>';
-            echo '<tr><th>ID</th><th>Name</th><th>Group</th><th>Schedule</th><th>Department</th><th>Position</th></tr>';
-            foreach ($assignedEmployees as $emp) {
-                echo '<tr>';
-                echo '<td>' . $emp->id . '</td>';
-                echo '<td><strong>' . htmlspecialchars($emp->personname) . '</strong></td>';
-                echo '<td>' . htmlspecialchars($emp->group_name) . '</td>';
-                echo '<td>' . substr($emp->work_start_time, 0, 5) . ' - ' . substr($emp->work_end_time, 0, 5) . ' (' . $emp->expected_hours . 'h)</td>';
-                echo '<td>' . htmlspecialchars($emp->department ?? '-') . '</td>';
-                echo '<td>' . htmlspecialchars($emp->position ?? '-') . '</td>';
-                echo '</tr>';
+            // Check first entry
+            if (substr($firstEntry, 0, 8) !== $summary->first_entry) {
+                $issues[] = "First Entry mismatch: Raw=<code>$firstEntry</code> vs Summary=<code>{$summary->first_entry}</code>";
             }
-            echo '</table>';
+            
+            // Check last exit
+            if (substr($lastExit, 0, 8) !== $summary->last_exit) {
+                $issues[] = "Last Exit mismatch: Raw=<code>$lastExit</code> vs Summary=<code>{$summary->last_exit}</code>";
+            }
+            
+            // Check total hours (allow 0.01 hour tolerance for rounding)
+            $hoursDiff = abs($calculatedHours - $summary->total_hours);
+            if ($hoursDiff > 0.02) {
+                $issues[] = "Total Hours mismatch: Calculated=<code>" . number_format($calculatedHours, 2) . "</code> vs Summary=<code>" . number_format($summary->total_hours, 2) . "</code> (diff: " . number_format($hoursDiff, 4) . ")";
+            }
+            
+            // Check total entries
+            if (count($rawRecords) != $summary->total_entries) {
+                $issues[] = "Total Entries mismatch: Raw=<code>" . count($rawRecords) . "</code> vs Summary=<code>{$summary->total_entries}</code>";
+            }
+            
+            if (empty($issues)) {
+                echo "<div class='success'>";
+                echo "<strong>✅ ALL CHECKS PASSED</strong><br>";
+                echo "✓ First Entry matches<br>";
+                echo "✓ Last Exit matches<br>";
+                echo "✓ Total Hours matches (within tolerance)<br>";
+                echo "✓ Total Entries matches<br>";
+                echo "<br><strong>🎉 Data is accurate!</strong>";
+                echo "</div>";
+            } else {
+                echo "<div class='error'>";
+                echo "<strong>❌ ISSUES FOUND:</strong><br>";
+                foreach ($issues as $issue) {
+                    echo "• $issue<br>";
+                }
+                echo "</div>";
+            }
+        } elseif (empty($rawRecords) && !$summary) {
+            echo "<div class='warning'>⚠️ No data in either table for this date (employee might not have worked)</div>";
+        } elseif (empty($rawRecords)) {
+            echo "<div class='error'>❌ CRITICAL: Summary exists but no raw data found!</div>";
+        } else {
+            echo "<div class='error'>❌ CRITICAL: Raw data exists but no summary record!</div>";
         }
+        echo "</div>";
+        
+        echo "<hr style='margin: 30px 0; border: 0; border-top: 2px dashed #ccc;'>";
     }
-    
-} else {
-    echo '<div class="error">❌ Table does NOT exist: <code>joomla_ordenproduccion_employees</code></div>';
-    echo '<div class="info">This is unexpected! The employees table should exist from the attendance system.</div>';
 }
 
-// ============================================
-// 4. SUMMARY & RECOMMENDATIONS
-// ============================================
-echo '<h2>4. Summary & Recommendations</h2>';
+// Summary Statistics
+echo "<h2>📈 Overall Statistics</h2>";
 
-$issues = [];
-$actions = [];
+$totalRawQuery = $db->getQuery(true)
+    ->select('COUNT(*) as total')
+    ->from($db->quoteName('asistencia'))
+    ->where($db->quoteName('personname') . ' IN (' . implode(',', array_map([$db, 'quote'], $employees)) . ')')
+    ->where($db->quoteName('authdate') . ' >= ' . $db->quote($dates[0]))
+    ->where($db->quoteName('authdate') . ' <= ' . $db->quote($dates[count($dates)-1]));
 
-if (!$groupsTableExists) {
-    $issues[] = 'Employee groups table is missing';
-    $actions[] = 'Create the joomla_ordenproduccion_employee_groups table';
-} elseif ($groupCount == 0) {
-    $issues[] = 'Employee groups table is empty';
-    $actions[] = 'Insert default employee groups';
-}
+$db->setQuery($totalRawQuery);
+$totalRaw = $db->loadResult();
 
-if ($employeesTableExists && count($missingColumns) > 0) {
-    $issues[] = count($missingColumns) . ' column(s) missing from employees table';
-    $actions[] = 'Add missing columns to employees table: ' . implode(', ', $missingColumns);
-}
+$totalSummaryQuery = $db->getQuery(true)
+    ->select('COUNT(*) as total')
+    ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+    ->where($db->quoteName('personname') . ' IN (' . implode(',', array_map([$db, 'quote'], $employees)) . ')')
+    ->where($db->quoteName('work_date') . ' >= ' . $db->quote($dates[0]))
+    ->where($db->quoteName('work_date') . ' <= ' . $db->quote($dates[count($dates)-1]));
 
-if ($employeesTableExists && !in_array('group_id', $missingColumns) && isset($withoutGroup) && $withoutGroup > 0 && $groupCount > 0) {
-    $issues[] = $withoutGroup . ' employee(s) without group assignment';
-    $actions[] = 'Assign employees to appropriate groups';
-}
+$db->setQuery($totalSummaryQuery);
+$totalSummary = $db->loadResult();
 
-if (count($issues) > 0) {
-    echo '<div class="warning"><h3>⚠️ Issues Found</h3><ul>';
-    foreach ($issues as $issue) {
-        echo '<li>' . $issue . '</li>';
-    }
-    echo '</ul></div>';
-    
-    echo '<div class="info"><h3>📋 Required Actions</h3><ol>';
-    foreach ($actions as $action) {
-        echo '<li>' . $action . '</li>';
-    }
-    echo '</ol></div>';
-} else {
-    echo '<div class="success"><h3>✅ All Checks Passed!</h3>';
-    echo '<p>The employee management system database is properly configured.</p>';
-    echo '<p>You can now access:</p>';
-    echo '<ul>';
-    echo '<li><strong>Employee Groups:</strong> Administration → Components → Ordenes Produccion → Employee Groups</li>';
-    echo '<li><strong>Employees:</strong> Administration → Components → Ordenes Produccion → Employees</li>';
-    echo '</ul>';
-    echo '</div>';
-}
+echo "<div class='info'>";
+echo "<span class='stats'>📋 Total Raw Records: <strong>$totalRaw</strong></span>";
+echo "<span class='stats'>📊 Total Summary Records: <strong>$totalSummary</strong></span>";
+echo "<span class='stats'>👥 Employees Checked: <strong>" . count($employees) . "</strong></span>";
+echo "<span class='stats'>📅 Days Checked: <strong>" . count($dates) . "</strong></span>";
+echo "</div>";
 
-echo '<hr style="margin: 30px 0;">';
-echo '<p style="text-align: center; color: #999; font-size: 12px;">Employee Management System Diagnostics v3.3.0 | Generated: ' . date('Y-m-d H:i:s') . '</p>';
-echo '</div>';
-?>
+echo "<div class='success' style='margin-top: 20px;'>";
+echo "<h3>✅ Validation Complete</h3>";
+echo "<p>Review the results above to ensure:</p>";
+echo "<ul>";
+echo "<li>✓ All expected dates have data</li>";
+echo "<li>✓ Raw data matches summary calculations</li>";
+echo "<li>✓ First entry and last exit times are correct</li>";
+echo "<li>✓ Total hours are calculated accurately</li>";
+echo "<li>✓ Employee groups and schedules are properly applied</li>";
+echo "</ul>";
+echo "</div>";
+
+echo "</body></html>";
