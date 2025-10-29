@@ -222,27 +222,42 @@ class AsistenciaModel extends ListModel
     public function getDailySummaryStats($dateFrom = null, $dateTo = null)
     {
         $db = $this->getDatabase();
+        
+        // Calculate current week (Monday to Friday only)
+        $today = new \DateTime();
+        $dayOfWeek = $today->format('N'); // 1 (Monday) to 7 (Sunday)
+        
+        // Calculate Monday of current week
+        $monday = clone $today;
+        $monday->modify('-' . ($dayOfWeek - 1) . ' days');
+        $weekStart = $monday->format('Y-m-d');
+        
+        // Calculate Friday of current week
+        $friday = clone $monday;
+        $friday->modify('+4 days'); // Monday + 4 days = Friday
+        $weekEnd = $friday->format('Y-m-d');
+        
         $query = $db->getQuery(true);
 
         $query->select([
-            'COUNT(DISTINCT ' . $db->quoteName('cardno') . ') AS total_employees',
+            'COUNT(DISTINCT a.' . $db->quoteName('cardno') . ') AS total_employees',
             'COUNT(*) AS total_days',
-            'SUM(' . $db->quoteName('is_complete') . ') AS complete_days',
-            'SUM(' . $db->quoteName('is_late') . ') AS late_days',
-            'SUM(' . $db->quoteName('is_early_exit') . ') AS early_exit_days',
-            'AVG(' . $db->quoteName('total_hours') . ') AS avg_hours',
-            'SUM(' . $db->quoteName('total_hours') . ') AS total_hours_worked'
+            'SUM(' . $db->quoteName('a.is_complete') . ') AS complete_days',
+            'SUM(' . $db->quoteName('a.is_late') . ') AS late_days',
+            'SUM(' . $db->quoteName('a.is_early_exit') . ') AS early_exit_days',
+            'AVG(' . $db->quoteName('a.total_hours') . ') AS avg_hours',
+            'SUM(' . $db->quoteName('a.total_hours') . ') AS total_hours_worked'
         ])
-            ->from($db->quoteName('#__ordenproduccion_asistencia_summary'))
-            ->where($db->quoteName('state') . ' = 1');
-
-        if ($dateFrom) {
-            $query->where($db->quoteName('work_date') . ' >= ' . $db->quote($dateFrom));
-        }
-
-        if ($dateTo) {
-            $query->where($db->quoteName('work_date') . ' <= ' . $db->quote($dateTo));
-        }
+            ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 'a'))
+            ->leftJoin(
+                $db->quoteName('#__ordenproduccion_employees', 'e') . ' ON ' . 
+                $db->quoteName('a.personname') . ' = ' . $db->quoteName('e.personname')
+            )
+            ->where($db->quoteName('a.state') . ' = 1')
+            ->where($db->quoteName('e.group_id') . ' = 1')  // Only group ID 1
+            ->where($db->quoteName('a.work_date') . ' >= ' . $db->quote($weekStart))  // Current week start (Monday)
+            ->where($db->quoteName('a.work_date') . ' <= ' . $db->quote($weekEnd))  // Current week end (Friday)
+            ->where('DAYOFWEEK(' . $db->quoteName('a.work_date') . ') BETWEEN 2 AND 6');  // Monday (2) to Friday (6)
 
         $db->setQuery($query);
         return $db->loadObject();
