@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="details" label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_DETAILS">
+        <field
+            name="id"
+            type="number"
+            label="JGLOBAL_FIELD_ID_LABEL"
+            default="0"
+            class="readonly"
+            readonly="true"
+        />
+
+        <field
+            name="name"
+            type="text"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_NAME"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_NAME_DESC"
+            class="inputbox"
+            size="40"
+            required="true"
+        />
+
+        <field
+            name="description"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_DESCRIPTION"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_DESCRIPTION_DESC"
+            rows="3"
+            cols="40"
+        />
+
+        <field
+            name="work_start_time"
+            type="text"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_START_TIME"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_START_TIME_DESC"
+            class="inputbox"
+            default="08:00:00"
+            hint="HH:MM:SS"
+            required="true"
+        />
+
+        <field
+            name="work_end_time"
+            type="text"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_END_TIME"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_END_TIME_DESC"
+            class="inputbox"
+            default="17:00:00"
+            hint="HH:MM:SS"
+            required="true"
+        />
+
+        <field
+            name="expected_hours"
+            type="number"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_EXPECTED_HOURS"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_EXPECTED_HOURS_DESC"
+            class="inputbox"
+            default="8.00"
+            step="0.25"
+            min="0"
+            max="24"
+            required="true"
+        />
+
+        <field
+            name="grace_period_minutes"
+            type="number"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_GRACE_PERIOD"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_GRACE_PERIOD_DESC"
+            class="inputbox"
+            default="15"
+            min="0"
+            max="60"
+            required="true"
+        />
+
+        <field
+            name="color"
+            type="color"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_COLOR"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_COLOR_DESC"
+            default="#3490dc"
+        />
+
+        <field
+            name="ordering"
+            type="ordering"
+            label="JFIELD_ORDERING_LABEL"
+            description="JFIELD_ORDERING_DESC"
+            default="0"
+        />
+
+        <field
+            name="state"
+            type="list"
+            label="JSTATUS"
+            description="JFIELD_PUBLISHED_DESC"
+            class="inputbox"
+            default="1"
+            required="true"
+        >
+            <option value="1">JPUBLISHED</option>
+            <option value="0">JUNPUBLISHED</option>
+        </field>
+
+        <field
+            name="created"
+            type="calendar"
+            label="JGLOBAL_FIELD_CREATED_LABEL"
+            class="readonly"
+            readonly="true"
+            format="%Y-%m-%d %H:%M:%S"
+        />
+
+        <field
+            name="created_by"
+            type="user"
+            label="JGLOBAL_FIELD_CREATED_BY_LABEL"
+            class="readonly"
+            readonly="true"
+        />
+
+        <field
+            name="modified"
+            type="calendar"
+            label="JGLOBAL_FIELD_MODIFIED_LABEL"
+            class="readonly"
+            readonly="true"
+            format="%Y-%m-%d %H:%M:%S"
+        />
+
+        <field
+            name="modified_by"
+            type="user"
+            label="JGLOBAL_FIELD_MODIFIED_BY_LABEL"
+            class="readonly"
+            readonly="true"
+        />
+    </fieldset>
+</form>
+
