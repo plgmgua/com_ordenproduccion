@@ -121,3 +121,60 @@ $listDirn = $this->escape($this->state->get('list.direction'));
     </div>
 </form>
 
+<!-- Change Group Modal -->
+<div id="changeGroupModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 400px; border-radius: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;"><?php echo Text::_('COM_ORDENPRODUCCION_CHANGE_GROUP_TITLE'); ?></h3>
+            <button onclick="document.getElementById('changeGroupModal').style.display='none'" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <form id="changeGroupForm" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=employees.changeGroup'); ?>" method="post">
+            <div class="form-group mb-3">
+                <label for="group_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_GROUP'); ?>:</label>
+                <select name="group_id" id="group_id" class="form-select" required>
+                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_GROUP_OPTION'); ?></option>
+                    <?php foreach ($this->groups as $group) : ?>
+                        <option value="<?php echo (int) $group->id; ?>">
+                            <?php echo $this->escape($group->name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="document.getElementById('changeGroupModal').style.display='none'" class="btn btn-secondary">
+                    <?php echo Text::_('JCANCEL'); ?>
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CHANGE_GROUP'); ?>
+                </button>
+            </div>
+            <input type="hidden" name="boxchecked" value="0">
+            <?php echo HTMLHelper::_('form.token'); ?>
+        </form>
+    </div>
+</div>
+
+<script>
+// Copy selected checkboxes to modal form when submitting
+document.getElementById('changeGroupForm').addEventListener('submit', function(e) {
+    // Get all checked checkboxes from the main form
+    var mainForm = document.getElementById('adminForm');
+    var checkboxes = mainForm.querySelectorAll('input[name="cid[]"]:checked');
+    
+    if (checkboxes.length === 0) {
+        e.preventDefault();
+        alert('<?php echo Text::_('COM_ORDENPRODUCCION_NO_ITEMS_SELECTED'); ?>');
+        return false;
+    }
+    
+    // Add the checked IDs to the modal form
+    checkboxes.forEach(function(checkbox) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'cid[]';
+        input.value = checkbox.value;
+        this.appendChild(input);
+    }.bind(this));
+});
+</script>
+

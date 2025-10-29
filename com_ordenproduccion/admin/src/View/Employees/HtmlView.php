@@ -97,6 +97,15 @@ class HtmlView extends BaseHtmlView
                 ->listCheck(true);
 
             ToolbarHelper::divider();
+            
+            // Change Group button
+            $changeGroupButton = $toolbar->standardButton('users')
+                ->text('COM_ORDENPRODUCCION_CHANGE_GROUP')
+                ->onclick('document.getElementById(\'changeGroupModal\').style.display=\'block\';')
+                ->icon('fa fa-users')
+                ->listCheck(true);
+
+            ToolbarHelper::divider();
             ToolbarHelper::publish('employees.publish', 'JTOOLBAR_PUBLISH', true);
             ToolbarHelper::unpublish('employees.unpublish', 'JTOOLBAR_UNPUBLISH', true);
         }
