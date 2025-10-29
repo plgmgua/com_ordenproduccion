@@ -115,9 +115,14 @@ class EmployeegroupsModel extends ListModel
         $query->select([
             'a.*',
             '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_employees') . 
-            ' WHERE ' . $db->quoteName('group_id') . ' = a.id) AS employee_count'
+            ' WHERE ' . $db->quoteName('group_id') . ' = a.id) AS employee_count',
+            'u.name AS manager_name'
         ])
-            ->from($db->quoteName('#__ordenproduccion_employee_groups', 'a'));
+            ->from($db->quoteName('#__ordenproduccion_employee_groups', 'a'))
+            ->leftJoin(
+                $db->quoteName('#__users', 'u') . ' ON ' .
+                $db->quoteName('a.manager_user_id') . ' = ' . $db->quoteName('u.id')
+            );
 
         // Filter by search
         $search = $this->getState('filter.search');

@@ -54,6 +54,9 @@ $listDirn = $this->escape($this->state->get('list.direction'));
                                 <th scope="col" class="w-10 text-center">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_EMPLOYEEGROUP_EMPLOYEES'); ?>
                                 </th>
+                                <th scope="col" class="w-15">
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_EMPLOYEEGROUP_MANAGER'); ?>
+                                </th>
                                 <th scope="col" class="w-5 text-center">
                                     <?php echo HTMLHelper::_('searchtools.sort', 'JGRID_HEADING_ORDERING', 'a.ordering', $listDirn, $listOrder); ?>
                                 </th>
@@ -91,6 +94,13 @@ $listDirn = $this->escape($this->state->get('list.direction'));
                                 </td>
                                 <td class="text-center">
                                     <span class="badge bg-info"><?php echo (int) $item->employee_count; ?></span>
+                                </td>
+                                <td>
+                                    <?php if (!empty($item->manager_name)) : ?>
+                                        <span class="icon-user"></span> <?php echo $this->escape($item->manager_name); ?>
+                                    <?php else : ?>
+                                        <span class="text-muted"><em><?php echo Text::_('COM_ORDENPRODUCCION_NO_MANAGER_ASSIGNED'); ?></em></span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <?php echo $item->ordering; ?>
