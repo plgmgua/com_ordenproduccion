@@ -266,49 +266,72 @@ class AsistenciaModel extends ListModel
             $db->setQuery($deleteQuery);
             $db->execute();
             
-            // Re-insert summaries from asistencia table
-            $insertQuery = "INSERT INTO " . $db->quoteName('joomla_ordenproduccion_asistencia_summary') . " 
-                (" . $db->quoteName('cardno') . ", " . $db->quoteName('personname') . ", 
-                 " . $db->quoteName('work_date') . ", " . $db->quoteName('first_entry') . ", 
-                 " . $db->quoteName('last_exit') . ", " . $db->quoteName('total_hours') . ", 
-                 " . $db->quoteName('expected_hours') . ", " . $db->quoteName('total_entries') . ", 
-                 " . $db->quoteName('is_complete') . ", " . $db->quoteName('is_late') . ", 
-                 " . $db->quoteName('is_early_exit') . ", " . $db->quoteName('created_by') . ")
-            SELECT 
-                MAX(COALESCE(NULLIF(TRIM(cardno), ''), personname)) as cardno,
-                MAX(personname) as personname,
-                authdate as work_date,
-                MIN(authtime) as first_entry,
-                MAX(authtime) as last_exit,
-                ROUND(
-                    TIME_TO_SEC(TIMEDIFF(MAX(authtime), MIN(authtime))) / 3600,
-                    2
-                ) as total_hours,
-                8.00 as expected_hours,
-                COUNT(*) as total_entries,
-                CASE 
-                    WHEN TIME_TO_SEC(TIMEDIFF(MAX(authtime), MIN(authtime))) >= 28800 THEN 1 
-                    ELSE 0 
-                END as is_complete,
-                CASE 
-                    WHEN MIN(authtime) > '08:15:00' THEN 1 
-                    ELSE 0 
-                END as is_late,
-                CASE 
-                    WHEN MAX(authtime) < '16:45:00' THEN 1 
-                    ELSE 0 
-                END as is_early_exit,
-                0 as created_by
-            FROM " . $db->quoteName('asistencia') . "
-            WHERE authdate >= " . $db->quote($dateFrom) . "
-              AND authdate <= " . $db->quote($dateTo) . "
-              AND personname IS NOT NULL 
-              AND TRIM(personname) != ''
-            GROUP BY personname, authdate
-            ORDER BY authdate DESC, personname";
+            // Get distinct employee/date combinations
+            $query = $db->getQuery(true)
+                ->select([
+                    'MAX(COALESCE(NULLIF(TRIM(' . $db->quoteName('cardno') . '), ' . $db->quote('') . '), ' . $db->quoteName('personname') . ')) AS cardno',
+                    'MAX(' . $db->quoteName('personname') . ') AS personname',
+                    $db->quoteName('authdate')
+                ])
+                ->from($db->quoteName('asistencia'))
+                ->where($db->quoteName('authdate') . ' >= ' . $db->quote($dateFrom))
+                ->where($db->quoteName('authdate') . ' <= ' . $db->quote($dateTo))
+                ->where($db->quoteName('personname') . ' IS NOT NULL')
+                ->where('TRIM(' . $db->quoteName('personname') . ') != ' . $db->quote(''))
+                ->group([$db->quoteName('personname'), $db->quoteName('authdate')])
+                ->order($db->quoteName('authdate') . ' DESC, ' . $db->quoteName('personname'));
             
-            $db->setQuery($insertQuery);
-            $db->execute();
+            $db->setQuery($query);
+            $employeeDates = $db->loadObjectList();
+            
+            $insertedCount = 0;
+            
+            // Calculate and insert each summary using AsistenciaHelper (which respects employee groups and weekly schedules)
+            foreach ($employeeDates as $empDate) {
+                $summary = AsistenciaHelper::calculateDailyHours($empDate->cardno, $empDate->authdate);
+                
+                if ($summary) {
+                    $insertQuery = $db->getQuery(true)
+                        ->insert($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+                        ->columns([
+                            $db->quoteName('cardno'),
+                            $db->quoteName('personname'),
+                            $db->quoteName('work_date'),
+                            $db->quoteName('first_entry'),
+                            $db->quoteName('last_exit'),
+                            $db->quoteName('total_hours'),
+                            $db->quoteName('expected_hours'),
+                            $db->quoteName('total_entries'),
+                            $db->quoteName('is_complete'),
+                            $db->quoteName('is_late'),
+                            $db->quoteName('is_early_exit'),
+                            $db->quoteName('created_by')
+                        ])
+                        ->values(
+                            $db->quote($summary->cardno) . ', ' .
+                            $db->quote($summary->personname) . ', ' .
+                            $db->quote($summary->work_date) . ', ' .
+                            $db->quote($summary->first_entry) . ', ' .
+                            $db->quote($summary->last_exit) . ', ' .
+                            (float) $summary->total_hours . ', ' .
+                            (float) $summary->expected_hours . ', ' .
+                            (int) $summary->total_entries . ', ' .
+                            (int) $summary->is_complete . ', ' .
+                            (int) $summary->is_late . ', ' .
+                            (int) $summary->is_early_exit . ', ' .
+                            '0'
+                        );
+                    
+                    $db->setQuery($insertQuery);
+                    $db->execute();
+                    $insertedCount++;
+                }
+            }
+            
+            Factory::getApplication()->enqueueMessage(
+                sprintf('Successfully recalculated %d attendance records using current employee group configurations', $insertedCount),
+                'success'
+            );
             
             return true;
         } catch (\Exception $e) {
