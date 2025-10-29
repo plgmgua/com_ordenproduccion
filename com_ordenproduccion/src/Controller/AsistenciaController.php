@@ -52,6 +52,40 @@ class AsistenciaController extends BaseController
     }
 
     /**
+     * Sync recent data from biometric system (last 7 days)
+     *
+     * @return  void
+     *
+     * @since   3.2.0
+     */
+    public function sync()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        // Check authorization
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            return;
+        }
+
+        $model = $this->getModel('Asistencia');
+        
+        // Sync last 7 days
+        $dateTo = date('Y-m-d');
+        $dateFrom = date('Y-m-d', strtotime('-7 days'));
+        
+        if ($model->syncRecentData($dateFrom, $dateTo)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_SUCCESS'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_ERROR'), 'error');
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+    }
+
+    /**
      * Recalculate summaries for a date range
      *
      * @return  void

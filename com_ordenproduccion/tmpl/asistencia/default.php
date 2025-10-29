@@ -147,6 +147,11 @@ $filterIsLate = $this->state->get('filter.is_late');
                class="btn btn-success">
                 <span class="icon-plus"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NEW_ENTRY'); ?>
             </a>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.sync'); ?>" 
+               class="btn btn-primary" 
+               onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
+                <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
+            </a>
             <button type="button" class="btn btn-info" onclick="exportData()">
                 <span class="icon-download"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EXPORT'); ?>
             </button>

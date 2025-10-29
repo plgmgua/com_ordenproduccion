@@ -243,6 +243,81 @@ class AsistenciaModel extends ListModel
     }
 
     /**
+     * Sync recent data from biometric system to summary table
+     *
+     * @param   string  $dateFrom  Start date
+     * @param   string  $dateTo    End date
+     *
+     * @return  bool  Success status
+     *
+     * @since   3.2.0
+     */
+    public function syncRecentData($dateFrom, $dateTo)
+    {
+        $db = $this->getDatabase();
+        
+        try {
+            // Delete existing summaries for the date range
+            $deleteQuery = $db->getQuery(true)
+                ->delete($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+                ->where($db->quoteName('work_date') . ' >= ' . $db->quote($dateFrom))
+                ->where($db->quoteName('work_date') . ' <= ' . $db->quote($dateTo));
+            
+            $db->setQuery($deleteQuery);
+            $db->execute();
+            
+            // Re-insert summaries from asistencia table
+            $insertQuery = "INSERT INTO " . $db->quoteName('joomla_ordenproduccion_asistencia_summary') . " 
+                (" . $db->quoteName('cardno') . ", " . $db->quoteName('personname') . ", 
+                 " . $db->quoteName('work_date') . ", " . $db->quoteName('first_entry') . ", 
+                 " . $db->quoteName('last_exit') . ", " . $db->quoteName('total_hours') . ", 
+                 " . $db->quoteName('expected_hours') . ", " . $db->quoteName('total_entries') . ", 
+                 " . $db->quoteName('is_complete') . ", " . $db->quoteName('is_late') . ", 
+                 " . $db->quoteName('is_early_exit') . ", " . $db->quoteName('created_by') . ")
+            SELECT 
+                COALESCE(NULLIF(TRIM(cardno), ''), personname) as cardno,
+                MAX(personname) as personname,
+                authdate as work_date,
+                MIN(authtime) as first_entry,
+                MAX(authtime) as last_exit,
+                ROUND(
+                    TIME_TO_SEC(TIMEDIFF(MAX(authtime), MIN(authtime))) / 3600,
+                    2
+                ) as total_hours,
+                8.00 as expected_hours,
+                COUNT(*) as total_entries,
+                CASE 
+                    WHEN TIME_TO_SEC(TIMEDIFF(MAX(authtime), MIN(authtime))) >= 28800 THEN 1 
+                    ELSE 0 
+                END as is_complete,
+                CASE 
+                    WHEN MIN(authtime) > '08:15:00' THEN 1 
+                    ELSE 0 
+                END as is_late,
+                CASE 
+                    WHEN MAX(authtime) < '16:45:00' THEN 1 
+                    ELSE 0 
+                END as is_early_exit,
+                0 as created_by
+            FROM " . $db->quoteName('asistencia') . "
+            WHERE authdate >= " . $db->quote($dateFrom) . "
+              AND authdate <= " . $db->quote($dateTo) . "
+              AND personname IS NOT NULL 
+              AND TRIM(personname) != ''
+            GROUP BY personname, authdate
+            ORDER BY authdate DESC, personname";
+            
+            $db->setQuery($insertQuery);
+            $db->execute();
+            
+            return true;
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+            return false;
+        }
+    }
+
+    /**
      * Recalculate all summaries for a date range
      *
      * @param   string  $dateFrom  Start date
