@@ -290,9 +290,16 @@ class AsistenciaController extends BaseController
 
         $model = $this->getModel('Asistencia');
         
-        // Set date filters temporarily
-        $app->setUserState('com_ordenproduccion.asistencia.filter.date_from', $dateFrom);
-        $app->setUserState('com_ordenproduccion.asistencia.filter.date_to', $dateTo);
+        // Force the model to use our date range by setting state directly
+        $model->setState('filter.date_from', $dateFrom);
+        $model->setState('filter.date_to', $dateTo);
+        
+        // Clear other filters to get all records in the date range
+        $model->setState('filter.search', '');
+        $model->setState('filter.cardno', '');
+        $model->setState('filter.group_id', '');
+        $model->setState('filter.is_complete', '');
+        $model->setState('filter.is_late', '');
         
         // Get filtered items
         $items = $model->getItems();
