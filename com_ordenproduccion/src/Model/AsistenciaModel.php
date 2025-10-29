@@ -210,14 +210,21 @@ class AsistenciaModel extends ListModel
     }
 
     /**
-     * Method to get daily summary statistics
+     * Get daily summary statistics for CURRENT WEEK (Mon-Fri) and GROUP ID 1 ONLY
+     * 
+     * NOTE: This method IGNORES $dateFrom and $dateTo parameters.
+     * It always calculates statistics for:
+     * - Current week only (Monday to Friday)
+     * - Group ID 1 employees only
+     * - Excludes weekends (Saturday & Sunday)
      *
-     * @param   string  $dateFrom  Start date
-     * @param   string  $dateTo    End date
+     * @param   string  $dateFrom  Start date (IGNORED - uses current week Monday)
+     * @param   string  $dateTo    End date (IGNORED - uses current week Friday)
      *
-     * @return  object  Statistics object
+     * @return  object  Statistics object with current week Mon-Fri data for group 1
      *
      * @since   3.2.0
+     * @updated 3.4.0  Changed to always show current week Mon-Fri for group ID 1
      */
     public function getDailySummaryStats($dateFrom = null, $dateTo = null)
     {
