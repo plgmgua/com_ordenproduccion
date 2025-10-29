@@ -179,7 +179,6 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <th style="width: 70px;">Salida</th>
                         <th style="width: 80px;">Horas</th>
                         <th style="width: 80px;">Estado</th>
-                        <th style="width: 50px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -207,17 +206,11 @@ $filterIsLate = $this->state->get('filter.is_late');
                                     <?php echo $item->is_complete ? 'Completo' : 'Incompleto'; ?>
                                 </span>
                             </td>
-                            <td class="text-center">
-                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistenciaentry&layout=edit&id=' . $item->id); ?>" 
-                                   class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem;">
-                                    <span class="icon-eye"></span>
-                                </a>
-                            </td>
                         </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center">
+                            <td colspan="6" class="text-center">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?>
                             </td>
                         </tr>
