@@ -279,11 +279,10 @@ function getCurrentWeekDates() {
     };
 }
 
-// Get current month dates (First to Last day)
-function getCurrentMonthDates() {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+// Get month dates (First to Last day)
+function getMonthDates(year, month) {
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
     
     return {
         from: firstDay.toISOString().split('T')[0],
@@ -291,13 +290,22 @@ function getCurrentMonthDates() {
     };
 }
 
+// Show/hide month selector
+function showExportOption(option) {
+    document.getElementById('weekOption').style.display = option === 'week' ? 'block' : 'none';
+    document.getElementById('monthOption').style.display = option === 'month' ? 'block' : 'none';
+}
+
 // Export to Excel
-function exportToExcel(range) {
+function exportToExcel(type) {
     let dates;
-    if (range === 'week') {
+    
+    if (type === 'week') {
         dates = getCurrentWeekDates();
-    } else if (range === 'month') {
-        dates = getCurrentMonthDates();
+    } else if (type === 'month') {
+        const year = parseInt(document.getElementById('exportYear').value);
+        const month = parseInt(document.getElementById('exportMonth').value);
+        dates = getMonthDates(year, month);
     }
     
     window.location.href = '<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.exportExcel'); ?>&date_from=' + dates.from + '&date_to=' + dates.to;
@@ -307,27 +315,92 @@ function exportToExcel(range) {
 
 <!-- Export to Excel Modal -->
 <div id="exportExcelModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
-    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 400px; border-radius: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin: 0;"><?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_TO_EXCEL'); ?></h3>
-            <button onclick="document.getElementById('exportExcelModal').style.display='none'" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+    <div style="background-color: #fefefe; margin: 10% auto; padding: 25px; border: 1px solid #888; width: 500px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">
+            <h3 style="margin: 0; color: #4CAF50;">
+                <span class="icon-download"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_TO_EXCEL'); ?>
+            </h3>
+            <button onclick="document.getElementById('exportExcelModal').style.display='none'" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #666;">&times;</button>
         </div>
+        
         <div style="margin-bottom: 20px;">
-            <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_EXPORT_RANGE'); ?></p>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button type="button" class="btn btn-primary btn-lg" onclick="exportToExcel('week')" style="width: 100%;">
-                    <span class="icon-calendar"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_CURRENT_WEEK'); ?>
-                    <br><small><?php echo Text::_('COM_ORDENPRODUCCION_MONDAY_TO_SUNDAY'); ?></small>
-                </button>
-                <button type="button" class="btn btn-primary btn-lg" onclick="exportToExcel('month')" style="width: 100%;">
-                    <span class="icon-calendar-2"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_CURRENT_MONTH'); ?>
-                    <br><small><?php echo Text::_('COM_ORDENPRODUCCION_FIRST_TO_LAST_DAY'); ?></small>
-                </button>
+            <p class="text-muted" style="margin-bottom: 15px;"><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_EXPORT_RANGE'); ?></p>
+            
+            <!-- Export Type Selection -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px;">
+                    <input type="radio" name="exportType" value="week" checked onclick="showExportOption('week')" style="margin-right: 8px;">
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_CURRENT_WEEK'); ?></strong>
+                    <small class="text-muted"> (<?php echo Text::_('COM_ORDENPRODUCCION_MONDAY_TO_SUNDAY'); ?>)</small>
+                </label>
+                <label style="display: block;">
+                    <input type="radio" name="exportType" value="month" onclick="showExportOption('month')" style="margin-right: 8px;">
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_SELECT_MONTH'); ?></strong>
+                    <small class="text-muted"> (<?php echo Text::_('COM_ORDENPRODUCCION_ANY_MONTH'); ?>)</small>
+                </label>
+            </div>
+            
+            <!-- Week Option (shown by default) -->
+            <div id="weekOption" style="display: block; padding: 15px; background-color: #f5f5f5; border-radius: 5px; margin-bottom: 15px;">
+                <p style="margin: 0;">
+                    <span class="icon-calendar"></span> 
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_CURRENT_WEEK_WILL_EXPORT'); ?></strong>
+                </p>
+            </div>
+            
+            <!-- Month Option (hidden by default) -->
+            <div id="monthOption" style="display: none; padding: 15px; background-color: #f5f5f5; border-radius: 5px; margin-bottom: 15px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_SELECT_YEAR'); ?>:
+                    </label>
+                    <select id="exportYear" class="form-select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <?php 
+                        $currentYear = date('Y');
+                        $previousYear = $currentYear - 1;
+                        ?>
+                        <option value="<?php echo $currentYear; ?>" selected><?php echo $currentYear; ?> (<?php echo Text::_('COM_ORDENPRODUCCION_CURRENT_YEAR'); ?>)</option>
+                        <option value="<?php echo $previousYear; ?>"><?php echo $previousYear; ?> (<?php echo Text::_('COM_ORDENPRODUCCION_PREVIOUS_YEAR'); ?>)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_SELECT_MONTH'); ?>:
+                    </label>
+                    <select id="exportMonth" class="form-select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <?php
+                        $currentMonth = date('n');
+                        $months = [
+                            1 => Text::_('JANUARY'),
+                            2 => Text::_('FEBRUARY'),
+                            3 => Text::_('MARCH'),
+                            4 => Text::_('APRIL'),
+                            5 => Text::_('MAY'),
+                            6 => Text::_('JUNE'),
+                            7 => Text::_('JULY'),
+                            8 => Text::_('AUGUST'),
+                            9 => Text::_('SEPTEMBER'),
+                            10 => Text::_('OCTOBER'),
+                            11 => Text::_('NOVEMBER'),
+                            12 => Text::_('DECEMBER')
+                        ];
+                        foreach ($months as $num => $name) {
+                            $selected = ($num == $currentMonth) ? 'selected' : '';
+                            echo '<option value="' . $num . '" ' . $selected . '>' . $name . '</option>';
+                        }
+                        ?>
+                    </select>
+                </div>
             </div>
         </div>
-        <div style="display: flex; justify-content: flex-end;">
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
             <button type="button" onclick="document.getElementById('exportExcelModal').style.display='none'" class="btn btn-secondary">
-                <?php echo Text::_('JCANCEL'); ?>
+                <span class="icon-cancel"></span> <?php echo Text::_('JCANCEL'); ?>
+            </button>
+            <button type="button" onclick="exportToExcel(document.querySelector('input[name=exportType]:checked').value)" class="btn btn-success btn-lg">
+                <span class="icon-download"></span> <?php echo Text::_('COM_ORDENPRODUCCION_EXPORT_NOW'); ?>
             </button>
         </div>
     </div>
