@@ -158,11 +158,16 @@ $filterIsLate = $this->state->get('filter.is_late');
                onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
                 <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
             </a>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.regenerateAll'); ?>" 
+               class="btn btn-warning" 
+               onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL_CONFIRM'); ?>');">
+                <span class="icon-loop"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL'); ?>
+            </a>
             <button type="button" class="btn btn-info" onclick="exportData()">
                 <span class="icon-download"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EXPORT'); ?>
             </button>
             <?php if ($filterDateFrom && $filterDateTo): ?>
-            <button type="button" class="btn btn-warning" onclick="recalculateSummaries()">
+            <button type="button" class="btn btn-secondary" onclick="recalculateSummaries()">
                 <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_RECALCULATE'); ?>
             </button>
             <?php endif; ?>

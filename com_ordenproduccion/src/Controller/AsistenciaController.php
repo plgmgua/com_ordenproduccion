@@ -86,6 +86,65 @@ class AsistenciaController extends BaseController
     }
 
     /**
+     * Regenerate ALL attendance summaries from biometric system
+     *
+     * @return  void
+     *
+     * @since   3.4.0
+     */
+    public function regenerateAll()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        // Check authorization
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            return;
+        }
+
+        $model = $this->getModel('Asistencia');
+        
+        // Get date range from asistencia table
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select([
+                'MIN(' . $db->quoteName('authdate') . ') AS min_date',
+                'MAX(' . $db->quoteName('authdate') . ') AS max_date'
+            ])
+            ->from($db->quoteName('asistencia'))
+            ->where($db->quoteName('authdate') . ' IS NOT NULL');
+        
+        $db->setQuery($query);
+        $dateRange = $db->loadObject();
+        
+        if (!$dateRange || !$dateRange->min_date || !$dateRange->max_date) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_DATA_FOUND'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            return;
+        }
+        
+        $dateFrom = $dateRange->min_date;
+        $dateTo = $dateRange->max_date;
+        
+        // Show progress message
+        $app->enqueueMessage(
+            Text::sprintf('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATING_ALL', $dateFrom, $dateTo),
+            'info'
+        );
+        
+        // Regenerate all summaries
+        if ($model->syncRecentData($dateFrom, $dateTo)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL_SUCCESS'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_REGENERATE_ALL_ERROR'), 'error');
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+    }
+
+    /**
      * Recalculate summaries for a date range
      *
      * @return  void
