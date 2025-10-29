@@ -261,7 +261,7 @@ class AsistenciaController extends BaseController
     }
 
     /**
-     * Export attendance data to Excel format (CSV with Excel compatibility)
+     * Export attendance data to Excel format (True XLSX using PhpSpreadsheet)
      *
      * @return  void
      *
@@ -303,55 +303,108 @@ class AsistenciaController extends BaseController
             return;
         }
 
-        // Generate filename with date range
-        $filename = 'asistencia_' . $dateFrom . '_to_' . $dateTo . '.csv';
+        // Load PhpSpreadsheet
+        require_once JPATH_ROOT . '/vendor/autoload.php';
         
-        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-        
-        $output = fopen('php://output', 'w');
-        
-        // Add BOM for Excel UTF-8 support
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        // Headers
-        fputcsv($output, [
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EXPECTED_HOURS'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_HOURS_DIFFERENCE'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'),
-            Text::_('COM_ORDENPRODUCCION_EMPLOYEE_DEPARTMENT'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LATE'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EARLY_EXIT')
-        ]);
-        
-        // Data rows
-        foreach ($items as $item) {
-            fputcsv($output, [
-                $item->personname,
-                $item->work_date,
-                $item->first_entry,
-                $item->last_exit,
-                number_format($item->total_hours, 2),
-                number_format($item->expected_hours, 2),
-                number_format($item->hours_difference, 2),
-                $item->is_complete ? Text::_('COM_ORDENPRODUCCION_ASISTENCIA_COMPLETE') : Text::_('COM_ORDENPRODUCCION_ASISTENCIA_INCOMPLETE'),
-                $item->group_name ?? Text::_('COM_ORDENPRODUCCION_EMPLOYEE_NO_GROUP'),
-                $item->department ?? '',
-                $item->is_late ? Text::_('JYES') : Text::_('JNO'),
-                $item->is_early_exit ? Text::_('JYES') : Text::_('JNO')
-            ]);
+        try {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Asistencia');
+
+            // Set headers
+            $headers = [
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EXPECTED_HOURS'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_HOURS_DIFFERENCE'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'),
+                Text::_('COM_ORDENPRODUCCION_EMPLOYEE_DEPARTMENT'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LATE'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EARLY_EXIT')
+            ];
+            
+            $sheet->fromArray($headers, null, 'A1');
+            
+            // Style headers
+            $headerStyle = $sheet->getStyle('A1:L1');
+            $headerStyle->getFont()->setBold(true);
+            $headerStyle->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
+            $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+            $headerStyle->getFill()->getStartColor()->setARGB('FF4CAF50');
+            
+            // Add data rows
+            $rowIndex = 2;
+            foreach ($items as $item) {
+                $sheet->fromArray([
+                    $item->personname,
+                    $item->work_date,
+                    $item->first_entry,
+                    $item->last_exit,
+                    number_format($item->total_hours, 2),
+                    number_format($item->expected_hours, 2),
+                    number_format($item->hours_difference, 2),
+                    $item->is_complete ? Text::_('COM_ORDENPRODUCCION_ASISTENCIA_COMPLETE') : Text::_('COM_ORDENPRODUCCION_ASISTENCIA_INCOMPLETE'),
+                    $item->group_name ?? Text::_('COM_ORDENPRODUCCION_EMPLOYEE_NO_GROUP'),
+                    $item->department ?? '',
+                    $item->is_late ? Text::_('JYES') : Text::_('JNO'),
+                    $item->is_early_exit ? Text::_('JYES') : Text::_('JNO')
+                ], null, 'A' . $rowIndex);
+                
+                // Color code status
+                if ($item->is_complete) {
+                    $sheet->getStyle('H' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                    $sheet->getStyle('H' . $rowIndex)->getFill()->getStartColor()->setARGB('FFC8E6C9');
+                } else {
+                    $sheet->getStyle('H' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                    $sheet->getStyle('H' . $rowIndex)->getFill()->getStartColor()->setARGB('FFFFCDD2');
+                }
+                
+                // Highlight late entries
+                if ($item->is_late) {
+                    $sheet->getStyle('K' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                    $sheet->getStyle('K' . $rowIndex)->getFill()->getStartColor()->setARGB('FFFFF9C4');
+                }
+                
+                $rowIndex++;
+            }
+            
+            // Auto-size columns
+            foreach (range('A', 'L') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            
+            // Add borders
+            $styleArray = [
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ];
+            $sheet->getStyle('A1:L' . ($rowIndex - 1))->applyFromArray($styleArray);
+            
+            // Generate filename with date range
+            $filename = 'asistencia_' . $dateFrom . '_to_' . $dateTo . '.xlsx';
+            
+            // Send to browser
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+            
+            $app->close();
+            
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::sprintf('Error creating Excel file: %s', $e->getMessage()), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
         }
-        
-        fclose($output);
-        $app->close();
     }
 }
 
