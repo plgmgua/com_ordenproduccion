@@ -55,7 +55,10 @@ echo '<p class="timestamp">Generated: ' . date('Y-m-d H:i:s') . '</p>';
 // ============================================
 echo '<h2>1. Database Connection</h2>';
 try {
-    $dbName = $db->getDatabase();
+    // Get database name using a query instead of protected method
+    $query = "SELECT DATABASE()";
+    $db->setQuery($query);
+    $dbName = $db->loadResult();
     echo '<div class="success">✅ Connected to database: <strong>' . htmlspecialchars($dbName) . '</strong></div>';
 } catch (Exception $e) {
     echo '<div class="error">❌ Database connection failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
@@ -67,9 +70,10 @@ try {
 // ============================================
 echo '<h2>2. Employee Groups Table Check</h2>';
 
-// Check if table exists
-$tables = $db->getTableList();
-$groupsTableExists = in_array($db->getPrefix() . 'ordenproduccion_employee_groups', $tables);
+// Check if table exists using a query instead of getTableList()
+$query = "SHOW TABLES LIKE " . $db->quote($db->getPrefix() . 'ordenproduccion_employee_groups');
+$db->setQuery($query);
+$groupsTableExists = (bool) $db->loadResult();
 
 if ($groupsTableExists) {
     echo '<div class="success">✅ Table exists: <code>joomla_ordenproduccion_employee_groups</code></div>';
@@ -117,7 +121,7 @@ if ($groupsTableExists) {
         echo '<tr><th>ID</th><th>Name</th><th>Start Time</th><th>End Time</th><th>Expected Hours</th><th>Grace Period</th><th>Color</th><th>State</th></tr>';
         foreach ($groups as $group) {
             $state = $group->state == 1 ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>';
-            echo '<tr>';
+    echo '<tr>';
             echo '<td>' . $group->id . '</td>';
             echo '<td><strong>' . htmlspecialchars($group->name) . '</strong><br><small>' . htmlspecialchars($group->description) . '</small></td>';
             echo '<td>' . substr($group->work_start_time, 0, 5) . '</td>';
@@ -126,8 +130,8 @@ if ($groupsTableExists) {
             echo '<td>' . $group->grace_period_minutes . ' min</td>';
             echo '<td><span style="background:' . $group->color . '; color:white; padding:2px 8px; border-radius:3px;">' . $group->color . '</span></td>';
             echo '<td>' . $state . '</td>';
-            echo '</tr>';
-        }
+    echo '</tr>';
+}
         echo '</table>';
     } else {
         echo '<div class="warning">⚠️ Table exists but is <strong>EMPTY</strong>. No employee groups found.</div>';
@@ -174,7 +178,10 @@ if ($groupsTableExists) {
 // ============================================
 echo '<h2>3. Employees Table Check</h2>';
 
-$employeesTableExists = in_array($db->getPrefix() . 'ordenproduccion_employees', $tables);
+// Check if table exists using a query
+$query = "SHOW TABLES LIKE " . $db->quote($db->getPrefix() . 'ordenproduccion_employees');
+$db->setQuery($query);
+$employeesTableExists = (bool) $db->loadResult();
 
 if ($employeesTableExists) {
     echo '<div class="success">✅ Table exists: <code>joomla_ordenproduccion_employees</code></div>';
@@ -227,8 +234,8 @@ if ($employeesTableExists) {
             echo '</tr>';
         }
     }
-    echo '</table>';
-    
+echo '</table>';
+
     if (count($missingColumns) > 0) {
         echo '<div class="warning">⚠️ Missing <strong>' . count($missingColumns) . '</strong> column(s): ' . implode(', ', $missingColumns) . '</div>';
         echo '<div class="info">📝 <strong>Action Required:</strong> Add missing columns to employees table.</div>';
