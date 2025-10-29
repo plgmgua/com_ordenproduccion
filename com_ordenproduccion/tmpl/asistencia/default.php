@@ -159,16 +159,16 @@ $filterIsLate = $this->state->get('filter.is_late');
 
         <!-- Data Table -->
         <div class="table-responsive">
-            <table class="table table-striped table-hover table-sm">
+            <table class="table table-striped table-hover table-sm compact-table">
                 <thead class="table-dark">
                     <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ACTIONS'); ?></th>
+                        <th style="min-width: 120px;">Empleado</th>
+                        <th style="width: 90px;">Fecha</th>
+                        <th style="width: 70px;">Entrada</th>
+                        <th style="width: 70px;">Salida</th>
+                        <th style="width: 80px;">Horas</th>
+                        <th style="width: 80px;">Estado</th>
+                        <th style="width: 50px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -176,29 +176,29 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php foreach ($this->items as $item): ?>
                         <tr class="<?php echo $item->is_late ? 'table-warning' : ''; ?>">
                             <td>
-                                <strong><?php echo safeEscape($item->personname); ?></strong>
+                                <strong style="font-size: 0.85rem;"><?php echo safeEscape($item->personname); ?></strong>
                                 <?php if ($item->is_late): ?>
-                                    <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7rem;">Tarde</span>
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.6rem; padding: 2px 5px;">Tarde</span>
                                 <?php endif; ?>
                                 <?php if ($item->is_early_exit): ?>
-                                    <span class="badge bg-info ms-1" style="font-size: 0.7rem;">Salida Temprana</span>
+                                    <span class="badge bg-info" style="font-size: 0.6rem; padding: 2px 5px;">Salida T.</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo date('d-m-Y', strtotime($item->work_date)); ?></td>
-                            <td><?php echo safeEscape($item->first_entry, '-'); ?></td>
-                            <td><?php echo safeEscape($item->last_exit, '-'); ?></td>
-                            <td>
+                            <td style="font-size: 0.8rem;"><?php echo date('d/m/y', strtotime($item->work_date)); ?></td>
+                            <td style="font-size: 0.8rem;"><?php echo substr(safeEscape($item->first_entry, '-'), 0, 5); ?></td>
+                            <td style="font-size: 0.8rem;"><?php echo substr(safeEscape($item->last_exit, '-'), 0, 5); ?></td>
+                            <td style="font-size: 0.8rem;">
                                 <strong><?php echo AsistenciaHelper::formatHours($item->total_hours ?? 0); ?></strong>
-                                <small class="text-muted"> / <?php echo number_format($item->expected_hours ?? 8, 2); ?>h</small>
+                                <span class="text-muted" style="font-size: 0.7rem;"> /<?php echo number_format($item->expected_hours ?? 8, 0); ?>h</span>
                             </td>
                             <td>
-                                <span class="<?php echo AsistenciaHelper::getStatusBadgeClass($item->is_complete); ?>" style="font-size: 0.75rem;">
-                                    <?php echo AsistenciaHelper::getStatusText($item->is_complete); ?>
+                                <span class="<?php echo AsistenciaHelper::getStatusBadgeClass($item->is_complete); ?>" style="font-size: 0.65rem; padding: 3px 6px;">
+                                    <?php echo $item->is_complete ? 'Completo' : 'Incompleto'; ?>
                                 </span>
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistenciaentry&layout=edit&id=' . $item->id); ?>" 
-                                   class="btn btn-sm btn-outline-primary">
+                                   class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem;">
                                     <span class="icon-eye"></span>
                                 </a>
                             </td>
