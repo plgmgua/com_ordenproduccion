@@ -103,10 +103,8 @@ class HtmlView extends BaseHtmlView
             $this->employees = $model->getEmployeeList();
             $this->groups = $model->getEmployeeGroups();
             
-            // Get statistics for the filtered date range
-            $dateFrom = $this->state->get('filter.date_from');
-            $dateTo = $this->state->get('filter.date_to');
-            $this->stats = $model->getDailySummaryStats($dateFrom, $dateTo);
+            // Statistics cards removed per user request
+            $this->stats = null;
             
         } catch (\Exception $e) {
             $app->enqueueMessage($e->getMessage(), 'error');

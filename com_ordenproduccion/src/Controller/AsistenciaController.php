@@ -288,30 +288,44 @@ class AsistenciaController extends BaseController
             return;
         }
 
-        $model = $this->getModel('Asistencia');
+        // Query database directly to bypass all model limitations
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
         
-        // Force the model to use our date range by setting state directly
-        $model->setState('filter.date_from', $dateFrom);
-        $model->setState('filter.date_to', $dateTo);
+        $query = $db->getQuery(true);
+        $query->select([
+            'a.*',
+            'e.department',
+            'e.position',
+            'e.group_id',
+            'g.name AS group_name',
+            'g.color AS group_color'
+        ])
+            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 'a'))
+            ->leftJoin(
+                $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
+                $db->quoteName('a.personname') . ' = ' . $db->quoteName('e.personname')
+            )
+            ->leftJoin(
+                $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
+                $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
+            )
+            ->where($db->quoteName('a.state') . ' = 1')
+            ->where($db->quoteName('a.work_date') . ' >= ' . $db->quote($dateFrom))
+            ->where($db->quoteName('a.work_date') . ' <= ' . $db->quote($dateTo))
+            ->order($db->quoteName('a.work_date') . ' DESC, ' . $db->quoteName('a.personname') . ' ASC');
         
-        // Clear other filters to get all records in the date range
-        $model->setState('filter.search', '');
-        $model->setState('filter.cardno', '');
-        $model->setState('filter.group_id', '');
-        $model->setState('filter.is_complete', '');
-        $model->setState('filter.is_late', '');
-        
-        // CRITICAL: Disable pagination to get ALL records (not just 20)
-        $model->setState('list.limit', 0);  // 0 = unlimited
-        $model->setState('list.start', 0);  // Start from beginning
-        
-        // Get filtered items
-        $items = $model->getItems();
+        $db->setQuery($query);
+        $items = $db->loadObjectList();
 
         if (empty($items)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_DATA_TO_EXPORT'), 'warning');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
             return;
+        }
+        
+        // Calculate hours_difference for each item
+        foreach ($items as $item) {
+            $item->hours_difference = ($item->total_hours ?? 0) - ($item->expected_hours ?? 8);
         }
 
         // Load PhpSpreadsheet
