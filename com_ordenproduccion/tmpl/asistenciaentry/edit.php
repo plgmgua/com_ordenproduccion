@@ -47,7 +47,7 @@ $isNew = empty($this->item->id);
             <div class="card-body">
                 <div class="row g-3">
                     <!-- Employee Selection -->
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <label for="jform_cardno" class="form-label">
                             <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE'); ?> *
                         </label>
@@ -57,21 +57,13 @@ $isNew = empty($this->item->id);
                                 <option value="<?php echo safeEscape($employee->cardno); ?>" 
                                         data-name="<?php echo safeEscape($employee->personname); ?>"
                                         <?php echo (isset($this->item->cardno) && $this->item->cardno == $employee->cardno) ? 'selected' : ''; ?>>
-                                    <?php echo safeEscape($employee->personname); ?> (<?php echo safeEscape($employee->cardno); ?>)
+                                    <?php echo safeEscape($employee->personname); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                    </div>
-
-                    <!-- Person Name (auto-filled or manual) -->
-                    <div class="col-md-6">
-                        <label for="jform_personname" class="form-label">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'); ?> *
-                        </label>
-                        <input type="text" name="jform[personname]" id="jform_personname" 
-                               class="form-control required" 
-                               value="<?php echo safeEscape($this->item->personname ?? ''); ?>" 
-                               required>
+                        <!-- Hidden field for person name (auto-filled from dropdown) -->
+                        <input type="hidden" name="jform[personname]" id="jform_personname" 
+                               value="<?php echo safeEscape($this->item->personname ?? ''); ?>">
                     </div>
 
                     <!-- Date -->
@@ -96,39 +88,6 @@ $isNew = empty($this->item->id);
                                required>
                     </div>
 
-                    <!-- Direction -->
-                    <div class="col-md-6">
-                        <label for="jform_direction" class="form-label">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DIRECTION'); ?>
-                        </label>
-                        <input type="text" name="jform[direction]" id="jform_direction" 
-                               class="form-control" 
-                               value="<?php echo safeEscape($this->item->direction ?? 'Puerta'); ?>" 
-                               placeholder="Puerta">
-                    </div>
-
-                    <!-- Device Name -->
-                    <div class="col-md-6">
-                        <label for="jform_devicename" class="form-label">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DEVICE_NAME'); ?>
-                        </label>
-                        <input type="text" name="jform[devicename]" id="jform_devicename" 
-                               class="form-control" 
-                               value="<?php echo safeEscape($this->item->devicename ?? 'Manual Entry'); ?>" 
-                               placeholder="Manual Entry">
-                    </div>
-
-                    <!-- Device Serial No -->
-                    <div class="col-md-6">
-                        <label for="jform_deviceserialno" class="form-label">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DEVICE_SERIAL'); ?>
-                        </label>
-                        <input type="text" name="jform[deviceserialno]" id="jform_deviceserialno" 
-                               class="form-control" 
-                               value="<?php echo safeEscape($this->item->deviceserialno ?? ''); ?>" 
-                               placeholder="">
-                    </div>
-
                     <!-- Notes -->
                     <div class="col-12">
                         <label for="jform_notes" class="form-label">
@@ -139,6 +98,11 @@ $isNew = empty($this->item->id);
                                   rows="3"
                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NOTES_PLACEHOLDER'); ?>"><?php echo safeEscape($this->item->notes ?? ''); ?></textarea>
                     </div>
+
+                    <!-- Hidden fields for automatic values -->
+                    <input type="hidden" name="jform[direction]" value="Puerta">
+                    <input type="hidden" name="jform[devicename]" value="Manual Entry">
+                    <input type="hidden" name="jform[deviceserialno]" value="">
                 </div>
             </div>
         </div>

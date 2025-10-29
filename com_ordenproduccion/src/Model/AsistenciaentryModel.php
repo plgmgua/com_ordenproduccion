@@ -118,6 +118,12 @@ class AsistenciaentryModel extends FormModel
             return false;
         }
 
+        // Set default values for optional fields
+        $data['direction'] = $data['direction'] ?? 'Puerta';
+        $data['devicename'] = $data['devicename'] ?? 'Manual Entry';
+        $data['deviceserialno'] = $data['deviceserialno'] ?? '';
+        $data['notes'] = $data['notes'] ?? '';
+        
         // Combine date and time into datetime
         $data['authdatetime'] = $data['authdate'] . ' ' . $data['authtime'];
         $data['entry_type'] = 'manual';
@@ -127,9 +133,9 @@ class AsistenciaentryModel extends FormModel
 
         try {
             if ($id > 0) {
-                // Update existing record
+                // Update existing record  
                 $query = $db->getQuery(true)
-                    ->update($db->quoteName('#__ordenproduccion_asistencia'))
+                    ->update($db->quoteName('asistencia'))
                     ->set([
                         $db->quoteName('cardno') . ' = :cardno',
                         $db->quoteName('personname') . ' = :personname',
@@ -138,12 +144,9 @@ class AsistenciaentryModel extends FormModel
                         $db->quoteName('authdatetime') . ' = :authdatetime',
                         $db->quoteName('direction') . ' = :direction',
                         $db->quoteName('devicename') . ' = :devicename',
-                        $db->quoteName('deviceserialno') . ' = :deviceserialno',
-                        $db->quoteName('entry_type') . ' = :entry_type',
-                        $db->quoteName('notes') . ' = :notes',
-                        $db->quoteName('modified_by') . ' = :modified_by'
+                        $db->quoteName('deviceserialno') . ' = :deviceserialno'
                     ])
-                    ->where($db->quoteName('id') . ' = :id')
+                    ->where($db->quoteName('ID') . ' = :id')
                     ->bind(':cardno', $data['cardno'])
                     ->bind(':personname', $data['personname'])
                     ->bind(':authdate', $data['authdate'])
@@ -152,9 +155,6 @@ class AsistenciaentryModel extends FormModel
                     ->bind(':direction', $data['direction'])
                     ->bind(':devicename', $data['devicename'])
                     ->bind(':deviceserialno', $data['deviceserialno'])
-                    ->bind(':entry_type', $data['entry_type'])
-                    ->bind(':notes', $data['notes'])
-                    ->bind(':modified_by', $userId, \Joomla\Database\ParameterType::INTEGER)
                     ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
 
                 $db->setQuery($query);
@@ -163,16 +163,16 @@ class AsistenciaentryModel extends FormModel
                 // Insert new record
                 $columns = [
                     'cardno', 'personname', 'authdate', 'authtime', 'authdatetime',
-                    'direction', 'devicename', 'deviceserialno', 'entry_type', 'notes', 'created_by'
+                    'direction', 'devicename', 'deviceserialno'
                 ];
 
                 $values = [
                     ':cardno', ':personname', ':authdate', ':authtime', ':authdatetime',
-                    ':direction', ':devicename', ':deviceserialno', ':entry_type', ':notes', ':created_by'
+                    ':direction', ':devicename', ':deviceserialno'
                 ];
 
                 $query = $db->getQuery(true)
-                    ->insert($db->quoteName('#__ordenproduccion_asistencia'))
+                    ->insert($db->quoteName('asistencia'))
                     ->columns($db->quoteName($columns))
                     ->values(implode(',', $values))
                     ->bind(':cardno', $data['cardno'])
@@ -182,10 +182,7 @@ class AsistenciaentryModel extends FormModel
                     ->bind(':authdatetime', $data['authdatetime'])
                     ->bind(':direction', $data['direction'])
                     ->bind(':devicename', $data['devicename'])
-                    ->bind(':deviceserialno', $data['deviceserialno'])
-                    ->bind(':entry_type', $data['entry_type'])
-                    ->bind(':notes', $data['notes'])
-                    ->bind(':created_by', $userId, \Joomla\Database\ParameterType::INTEGER);
+                    ->bind(':deviceserialno', $data['deviceserialno']);
 
                 $db->setQuery($query);
                 $db->execute();
@@ -216,9 +213,9 @@ class AsistenciaentryModel extends FormModel
 
         // First get the entry details for recalculation
         $query = $db->getQuery(true)
-            ->select(['cardno', 'authdate'])
-            ->from($db->quoteName('#__ordenproduccion_asistencia'))
-            ->where($db->quoteName('id') . ' = :id')
+            ->select(['cardno', 'personname', 'authdate'])
+            ->from($db->quoteName('asistencia'))
+            ->where($db->quoteName('ID') . ' = :id')
             ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
 
         $db->setQuery($query);
@@ -229,11 +226,10 @@ class AsistenciaentryModel extends FormModel
             return false;
         }
 
-        // Soft delete by setting state to 0
+        // Hard delete the record
         $query = $db->getQuery(true)
-            ->update($db->quoteName('#__ordenproduccion_asistencia'))
-            ->set($db->quoteName('state') . ' = 0')
-            ->where($db->quoteName('id') . ' = :id')
+            ->delete($db->quoteName('asistencia'))
+            ->where($db->quoteName('ID') . ' = :id')
             ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
 
         $db->setQuery($query);
@@ -241,8 +237,8 @@ class AsistenciaentryModel extends FormModel
         try {
             $db->execute();
             
-            // Recalculate daily summary
-            AsistenciaHelper::updateDailySummary($entry->cardno, $entry->authdate);
+            // Recalculate daily summary using personname
+            AsistenciaHelper::updateDailySummary($entry->personname, $entry->authdate);
             
             return true;
         } catch (\Exception $e) {
