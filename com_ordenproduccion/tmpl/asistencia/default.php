@@ -124,18 +124,24 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <label for="filter_is_complete" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'); ?></label>
                         <select name="filter_is_complete" id="filter_is_complete" class="form-select">
                             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_STATUS'); ?></option>
-                            <option value="1" <?php echo ($filterIsComplete === 1) ? 'selected' : ''; ?>>
+                            <option value="1" <?php echo ($filterIsComplete === '1') ? 'selected' : ''; ?>>
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_COMPLETE'); ?>
                             </option>
-                            <option value="0" <?php echo ($filterIsComplete === 0 && $filterIsComplete !== '') ? 'selected' : ''; ?>>
+                            <option value="0" <?php echo ($filterIsComplete === '0') ? 'selected' : ''; ?>>
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_INCOMPLETE'); ?>
                             </option>
                         </select>
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <?php echo Text::_('JSEARCH_FILTER_SUBMIT'); ?>
+                        <button type="submit" class="btn btn-primary w-100" style="font-size: 0.8rem; padding: 0.375rem 0.5rem;">
+                            <span class="icon-search"></span>
                         </button>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia'); ?>" 
+                           class="btn btn-secondary w-100" style="font-size: 0.8rem; padding: 0.375rem 0.5rem;">
+                            <span class="icon-delete"></span>
+                        </a>
                     </div>
                 </div>
             </div>

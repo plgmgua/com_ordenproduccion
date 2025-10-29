@@ -81,10 +81,10 @@ class AsistenciaModel extends ListModel
         $this->setState('filter.cardno', $cardno);
 
         // Status filters
-        $isComplete = $app->getUserStateFromRequest($this->context . '.filter.is_complete', 'filter_is_complete', '', 'int');
+        $isComplete = $app->getUserStateFromRequest($this->context . '.filter.is_complete', 'filter_is_complete', '', 'string');
         $this->setState('filter.is_complete', $isComplete);
 
-        $isLate = $app->getUserStateFromRequest($this->context . '.filter.is_late', 'filter_is_late', '', 'int');
+        $isLate = $app->getUserStateFromRequest($this->context . '.filter.is_late', 'filter_is_late', '', 'string');
         $this->setState('filter.is_late', $isLate);
 
         // List state information
