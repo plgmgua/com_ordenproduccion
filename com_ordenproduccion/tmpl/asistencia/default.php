@@ -34,6 +34,7 @@ $filterSearch = $this->state->get('filter.search');
 $filterDateFrom = $this->state->get('filter.date_from');
 $filterDateTo = $this->state->get('filter.date_to');
 $filterCardno = $this->state->get('filter.cardno');
+$filterGroupId = $this->state->get('filter.group_id');
 $filterIsComplete = $this->state->get('filter.is_complete');
 $filterIsLate = $this->state->get('filter.is_late');
 ?>
@@ -89,7 +90,7 @@ $filterIsLate = $this->state->get('filter.is_late');
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="filter_search" class="form-label"><?php echo Text::_('JSEARCH_FILTER'); ?></label>
                         <input type="text" name="filter_search" id="filter_search" 
                                class="form-control" 
@@ -121,6 +122,18 @@ $filterIsLate = $this->state->get('filter.is_late');
                         </select>
                     </div>
                     <div class="col-md-2">
+                        <label for="filter_group_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'); ?></label>
+                        <select name="filter_group_id" id="filter_group_id" class="form-select">
+                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?></option>
+                            <?php foreach ($this->groups as $group): ?>
+                                <option value="<?php echo (int) $group->id; ?>" 
+                                        <?php echo ($filterGroupId == $group->id) ? 'selected' : ''; ?>>
+                                    <?php echo safeEscape($group->name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
                         <label for="filter_is_complete" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'); ?></label>
                         <select name="filter_is_complete" id="filter_is_complete" class="form-select">
                             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_STATUS'); ?></option>
@@ -136,12 +149,6 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <button type="submit" class="btn btn-primary w-100" style="font-size: 0.8rem; padding: 0.375rem 0.5rem;">
                             <span class="icon-search"></span>
                         </button>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia'); ?>" 
-                           class="btn btn-secondary w-100" style="font-size: 0.8rem; padding: 0.375rem 0.5rem;">
-                            <span class="icon-delete"></span>
-                        </a>
                     </div>
                 </div>
             </div>

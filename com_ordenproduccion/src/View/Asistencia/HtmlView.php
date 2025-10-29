@@ -65,6 +65,14 @@ class HtmlView extends BaseHtmlView
     protected $employees;
 
     /**
+     * Employee groups list for filters
+     *
+     * @var    array
+     * @since  3.4.0
+     */
+    protected $groups;
+
+    /**
      * Daily summary statistics
      *
      * @var    object
@@ -93,6 +101,7 @@ class HtmlView extends BaseHtmlView
             
             $model = $this->getModel();
             $this->employees = $model->getEmployeeList();
+            $this->groups = $model->getEmployeeGroups();
             
             // Get statistics for the filtered date range
             $dateFrom = $this->state->get('filter.date_from');
@@ -104,6 +113,7 @@ class HtmlView extends BaseHtmlView
             $this->items = [];
             $this->pagination = null;
             $this->employees = [];
+            $this->groups = [];
             $this->stats = new \stdClass();
         }
 

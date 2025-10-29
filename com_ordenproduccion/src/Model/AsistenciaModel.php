@@ -80,6 +80,10 @@ class AsistenciaModel extends ListModel
         $cardno = $app->getUserStateFromRequest($this->context . '.filter.cardno', 'filter_cardno', '', 'string');
         $this->setState('filter.cardno', $cardno);
 
+        // Group filter
+        $groupId = $app->getUserStateFromRequest($this->context . '.filter.group_id', 'filter_group_id', '', 'int');
+        $this->setState('filter.group_id', $groupId);
+
         // Status filters
         $isComplete = $app->getUserStateFromRequest($this->context . '.filter.is_complete', 'filter_is_complete', '', 'string');
         $this->setState('filter.is_complete', $isComplete);
@@ -113,6 +117,7 @@ class AsistenciaModel extends ListModel
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
         $id .= ':' . $this->getState('filter.cardno');
+        $id .= ':' . $this->getState('filter.group_id');
         $id .= ':' . $this->getState('filter.is_complete');
         $id .= ':' . $this->getState('filter.is_late');
 
@@ -137,12 +142,19 @@ class AsistenciaModel extends ListModel
             'e.department',
             'e.position',
             'e.email',
-            'e.phone'
+            'e.phone',
+            'e.group_id',
+            'g.name AS group_name',
+            'g.color AS group_color'
         ])
             ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 'a'))
             ->leftJoin(
                 $db->quoteName('joomla_ordenproduccion_employees', 'e'),
-                $db->quoteName('a.cardno') . ' = ' . $db->quoteName('e.cardno')
+                $db->quoteName('a.personname') . ' = ' . $db->quoteName('e.personname')
+            )
+            ->leftJoin(
+                $db->quoteName('joomla_ordenproduccion_employee_groups', 'g'),
+                $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
             )
             ->where($db->quoteName('a.state') . ' = 1');
 
@@ -169,6 +181,12 @@ class AsistenciaModel extends ListModel
         $cardno = $this->getState('filter.cardno');
         if (!empty($cardno)) {
             $query->where($db->quoteName('a.cardno') . ' = ' . $db->quote($cardno));
+        }
+
+        // Filter by employee group
+        $groupId = $this->getState('filter.group_id');
+        if (!empty($groupId)) {
+            $query->where($db->quoteName('e.group_id') . ' = ' . (int) $groupId);
         }
 
         // Filter by complete status
@@ -399,6 +417,30 @@ class AsistenciaModel extends ListModel
         }
 
         return $success;
+    }
+
+    /**
+     * Get list of employee groups for filter dropdown
+     *
+     * @return  array  Array of employee group objects
+     *
+     * @since   3.4.0
+     */
+    public function getEmployeeGroups()
+    {
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('id'),
+                $db->quoteName('name'),
+                $db->quoteName('color')
+            ])
+            ->from($db->quoteName('joomla_ordenproduccion_employee_groups'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('name') . ' ASC');
+
+        $db->setQuery($query);
+        return $db->loadObjectList();
     }
 }
 
