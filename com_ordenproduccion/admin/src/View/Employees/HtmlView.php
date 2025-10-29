@@ -81,6 +81,22 @@ class HtmlView extends BaseHtmlView
         }
 
         if ($canDo->get('core.edit.state')) {
+            // Custom Activate/Deactivate buttons
+            $toolbar = Toolbar::getInstance();
+            
+            $activateButton = $toolbar->standardButton('check-circle')
+                ->text('COM_ORDENPRODUCCION_ACTIVATE')
+                ->task('employees.activate')
+                ->icon('fa fa-check-circle')
+                ->listCheck(true);
+            
+            $deactivateButton = $toolbar->standardButton('times-circle')
+                ->text('COM_ORDENPRODUCCION_DEACTIVATE')
+                ->task('employees.deactivate')
+                ->icon('fa fa-times-circle')
+                ->listCheck(true);
+
+            ToolbarHelper::divider();
             ToolbarHelper::publish('employees.publish', 'JTOOLBAR_PUBLISH', true);
             ToolbarHelper::unpublish('employees.unpublish', 'JTOOLBAR_UNPUBLISH', true);
         }

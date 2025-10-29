@@ -9,7 +9,11 @@
 
 namespace Grimpsa\Component\Ordenproduccion\Administrator\Controller;
 
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\AdminController;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 defined('_JEXEC') or die;
 
@@ -34,6 +38,86 @@ class EmployeesController extends AdminController
     public function getModel($name = 'Employee', $prefix = 'Administrator', $config = ['ignore_request' => true])
     {
         return parent::getModel($name, $prefix, $config);
+    }
+
+    /**
+     * Method to activate employees
+     *
+     * @return  void
+     *
+     * @since   3.4.0
+     */
+    public function activate()
+    {
+        Session::checkToken() or jexit(Text::_('JINVALID_TOKEN'));
+
+        $ids = $this->input->get('cid', [], 'array');
+        $ids = array_map('intval', $ids);
+
+        if (empty($ids)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_NO_ITEMS_SELECTED'), 'warning');
+        } else {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_employees'))
+                ->set($db->quoteName('active') . ' = 1')
+                ->whereIn($db->quoteName('id'), $ids);
+
+            $db->setQuery($query);
+            
+            try {
+                $db->execute();
+                $count = $db->getAffectedRows();
+                $this->app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_N_EMPLOYEES_ACTIVATED', $count),
+                    'success'
+                );
+            } catch (\Exception $e) {
+                $this->app->enqueueMessage($e->getMessage(), 'error');
+            }
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=employees', false));
+    }
+
+    /**
+     * Method to deactivate employees
+     *
+     * @return  void
+     *
+     * @since   3.4.0
+     */
+    public function deactivate()
+    {
+        Session::checkToken() or jexit(Text::_('JINVALID_TOKEN'));
+
+        $ids = $this->input->get('cid', [], 'array');
+        $ids = array_map('intval', $ids);
+
+        if (empty($ids)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_NO_ITEMS_SELECTED'), 'warning');
+        } else {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_employees'))
+                ->set($db->quoteName('active') . ' = 0')
+                ->whereIn($db->quoteName('id'), $ids);
+
+            $db->setQuery($query);
+            
+            try {
+                $db->execute();
+                $count = $db->getAffectedRows();
+                $this->app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_N_EMPLOYEES_DEACTIVATED', $count),
+                    'success'
+                );
+            } catch (\Exception $e) {
+                $this->app->enqueueMessage($e->getMessage(), 'error');
+            }
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=employees', false));
     }
 }
 

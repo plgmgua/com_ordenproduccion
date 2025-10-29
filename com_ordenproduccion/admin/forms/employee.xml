@@ -31,15 +31,6 @@
         />
 
         <field
-            name="employee_number"
-            type="text"
-            label="COM_ORDENPRODUCCION_EMPLOYEE_NUMBER"
-            description="COM_ORDENPRODUCCION_EMPLOYEE_NUMBER_DESC"
-            class="inputbox"
-            size="20"
-        />
-
-        <field
             name="group_id"
             type="sql"
             label="COM_ORDENPRODUCCION_EMPLOYEE_GROUP"
@@ -68,44 +59,6 @@
             description="COM_ORDENPRODUCCION_EMPLOYEE_POSITION_DESC"
             class="inputbox"
             size="30"
-        />
-
-        <field
-            name="email"
-            type="email"
-            label="COM_ORDENPRODUCCION_EMPLOYEE_EMAIL"
-            description="COM_ORDENPRODUCCION_EMPLOYEE_EMAIL_DESC"
-            class="inputbox"
-            size="30"
-            validate="email"
-        />
-
-        <field
-            name="phone"
-            type="tel"
-            label="COM_ORDENPRODUCCION_EMPLOYEE_PHONE"
-            description="COM_ORDENPRODUCCION_EMPLOYEE_PHONE_DESC"
-            class="inputbox"
-            size="20"
-        />
-
-        <field
-            name="hire_date"
-            type="calendar"
-            label="COM_ORDENPRODUCCION_EMPLOYEE_HIRE_DATE"
-            description="COM_ORDENPRODUCCION_EMPLOYEE_HIRE_DATE_DESC"
-            format="%Y-%m-%d"
-            filter="unset"
-        />
-
-        <field
-            name="notes"
-            type="textarea"
-            label="COM_ORDENPRODUCCION_EMPLOYEE_NOTES"
-            description="COM_ORDENPRODUCCION_EMPLOYEE_NOTES_DESC"
-            rows="3"
-            cols="40"
-            filter="raw"
         />
 
         <field
