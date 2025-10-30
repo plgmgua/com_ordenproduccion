@@ -28,12 +28,14 @@ class HtmlView extends BaseHtmlView
     protected $params;
     protected $items = [];
     protected $state;
+    protected $groups = [];
 
     public function display($tpl = null)
     {
         $this->params = ComponentHelper::getParams('com_ordenproduccion');
         $this->state = $this->get('State');
         $this->items = $this->get('Items');
+        $this->groups = $this->get('Groups');
 
         // Set a helpful title
         if ($this->document) {

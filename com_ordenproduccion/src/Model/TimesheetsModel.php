@@ -102,6 +102,27 @@ class TimesheetsModel extends ListModel
 
         return $query;
     }
+
+    /**
+     * Get groups visible to current manager (or all for admins)
+     */
+    public function getGroups(): array
+    {
+        $db = $this->getDatabase();
+        $user = Factory::getUser();
+        $q = $db->getQuery(true)
+            ->select(['id','name','color'])
+            ->from($db->quoteName('joomla_ordenproduccion_employee_groups'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('name') . ' ASC');
+
+        if (!$user->authorise('core.admin')) {
+            $q->where($db->quoteName('manager_user_id') . ' = ' . (int) $user->id);
+        }
+
+        $db->setQuery($q);
+        return (array) $db->loadObjectList();
+    }
 }
 
 

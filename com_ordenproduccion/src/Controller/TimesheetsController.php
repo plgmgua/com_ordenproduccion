@@ -133,6 +133,68 @@ class TimesheetsController extends BaseController
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&week_start=' . $dateFrom));
         return true;
     }
+
+    /**
+     * Bulk approve selected employee weeks (checkboxes), scoped to manager.
+     */
+    public function bulkApprove()
+    {
+        if (!Session::checkToken()) {
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets'));
+            return false;
+        }
+
+        $app = Factory::getApplication();
+        $db = Factory::getContainer()->get('DatabaseDriver');
+        $user = Factory::getUser();
+
+        $selected = (array) $this->input->post->get('selected', [], 'array');
+        $weekStart = $this->input->post->getString('week_start');
+
+        if (empty($selected) || !$weekStart) {
+            $app->enqueueMessage(Text::_('JERROR_AN_ERROR_HAS_OCCURRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets'));
+            return false;
+        }
+
+        $monday = new \DateTime($weekStart);
+        $sunday = (clone $monday)->modify('+6 days');
+        $dateFrom = $monday->format('Y-m-d');
+        $dateTo = $sunday->format('Y-m-d');
+
+        // Approve all selected cardnos in a single update using IN ()
+        $quoted = array_map(fn($c) => $db->quote($c), $selected);
+        $inList = implode(',', $quoted);
+
+        try {
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
+                ->innerJoin(
+                    $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
+                    $db->quoteName('s.personname') . ' = ' . $db->quoteName('e.personname')
+                )
+                ->innerJoin(
+                    $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
+                    $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
+                )
+                ->set($db->quoteName('s.approval_status') . ' = ' . $db->quote('approved'))
+                ->set($db->quoteName('s.approved_by') . ' = ' . (int) $user->id)
+                ->set($db->quoteName('s.approved_date') . ' = NOW()')
+                ->set($db->quoteName('s.approved_hours') . ' = COALESCE(' . $db->quoteName('s.approved_hours') . ', ' . $db->quoteName('s.total_hours') . ')')
+                ->where($db->quoteName('e.cardno') . ' IN (' . $inList . ')')
+                ->where($db->quoteName('s.work_date') . ' BETWEEN ' . $db->quote($dateFrom) . ' AND ' . $db->quote($dateTo))
+                ->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+
+            $db->setQuery($query);
+            $db->execute();
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVE_SELECTED'));
+        } catch (\Exception $e) {
+            $app->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&week_start=' . $dateFrom));
+        return true;
+    }
 }
 
 
