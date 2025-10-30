@@ -7,6 +7,8 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\HTML\HTMLHelper;
 
 ?>
 <div class="com-ordenproduccion-timesheets">
@@ -16,7 +18,7 @@ use Joomla\CMS\Language\Text;
         <?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_DESC'); ?>
     </div>
 
-    <form action="<?php echo JRoute::_('index.php'); ?>" method="get" class="card mb-3">
+    <form action="<?php echo Route::_('index.php'); ?>" method="get" class="card mb-3">
         <input type="hidden" name="option" value="com_ordenproduccion">
         <input type="hidden" name="view" value="timesheets">
         <div class="card-header">
@@ -29,7 +31,7 @@ use Joomla\CMS\Language\Text;
                     <input type="date" name="week_start" value="<?php echo htmlspecialchars($this->state->get('filter.week_start') ?: date('Y-m-d', strtotime('monday this week')), ENT_QUOTES, 'UTF-8'); ?>" class="form-control" />
                 </div>
                 <div class="col-sm-3">
-                    <label class="form-label"><?php echo Text(_('COM_ORDENPRODUCCION_TIMESHEETS_GROUP')); ?></label>
+                    <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_GROUP'); ?></label>
                     <select name="filter_group_id" class="form-select">
                         <option value="0">—</option>
                         <?php foreach ($this->groups as $g): ?>
@@ -55,9 +57,9 @@ use Joomla\CMS\Language\Text;
             </div>
         </div>
         <div class="card-body">
-            <form action="<?php echo JRoute::_('index.php?option=com_ordenproduccion&task=timesheets.bulkApprove'); ?>" method="post" id="bulkApproveForm">
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=timesheets.bulkApprove'); ?>" method="post" id="bulkApproveForm">
             <input type="hidden" name="week_start" value="<?php echo htmlspecialchars($this->state->get('filter.week_start') ?: date('Y-m-d', strtotime('monday this week')), ENT_QUOTES, 'UTF-8'); ?>">
-            <?php echo JHtml::_('form.token'); ?>
+            <?php echo HTMLHelper::_('form.token'); ?>
             <div class="mb-2 d-flex justify-content-end">
                 <button type="submit" class="btn btn-success" id="btnBulkApprove" disabled>
                     <?php echo Text::_('COM_ORDENPRODUCCION_APPROVE_SELECTED'); ?>
