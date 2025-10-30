@@ -61,7 +61,7 @@ use Joomla\CMS\Language\Text;
                             <th style="width:120px;">Horas (semana)</th>
                             <th style="width:120px;">Aprobadas</th>
                             <th style="width:120px;">Estatus</th>
-                            <th style="width:40px;"><input type="checkbox" disabled></th>
+                            <th style="width:160px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -85,7 +85,20 @@ use Joomla\CMS\Language\Text;
                                     <span class="badge bg-warning text-dark">Pendiente</span>
                                 <?php endif; ?>
                             </td>
-                            <td><input type="checkbox" disabled></td>
+                            <td>
+                                <?php
+                                $weekStartParam = htmlspecialchars($row->week_start, ENT_QUOTES, 'UTF-8');
+                                $cardParam = htmlspecialchars($row->cardno, ENT_QUOTES, 'UTF-8');
+                                $approveUrl = JRoute::_('index.php?option=com_ordenproduccion&task=timesheets.approve&cardno=' . $cardParam . '&week_start=' . $weekStartParam . '&' . JSession::getFormToken() . '=1');
+                                $rejectUrl = JRoute::_('index.php?option=com_ordenproduccion&task=timesheets.reject&cardno=' . $cardParam . '&week_start=' . $weekStartParam . '&' . JSession::getFormToken() . '=1');
+                                ?>
+                                <a href="<?php echo $approveUrl; ?>" class="btn btn-success btn-sm" <?php echo ($row->week_approval_status === 'approved') ? 'disabled' : ''; ?>>
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_APPROVE_SELECTED'); ?>
+                                </a>
+                                <a href="<?php echo $rejectUrl; ?>" class="btn btn-danger btn-sm" <?php echo ($row->week_approval_status !== 'approved') ? 'disabled' : ''; ?>>
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_REJECT_SELECTED'); ?>
+                                </a>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
