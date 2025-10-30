@@ -49,12 +49,8 @@ use Joomla\CMS\HTML\HTMLHelper;
     </form>
 
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <strong><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_WEEKLY_SUMMARY'); ?></strong>
-            <div>
-                <button class="btn btn-success btn-sm" disabled><?php echo Text::_('COM_ORDENPRODUCCION_APPROVE_SELECTED'); ?></button>
-                <button class="btn btn-danger btn-sm" disabled><?php echo Text::_('COM_ORDENPRODUCCION_REJECT_SELECTED'); ?></button>
-            </div>
         </div>
         <div class="card-body">
             <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=timesheets.bulkApprove'); ?>" method="post" id="bulkApproveForm">
