@@ -4,33 +4,8 @@
 -- Date: 2025-10-28
 -- --------------------------------------------------------
 
--- Enhanced attendance table structure with biometric integration
-CREATE TABLE IF NOT EXISTS `#__ordenproduccion_asistencia` (
-    `id` int(11) NOT NULL AUTO_INCREMENT,
-    `cardno` varchar(50) NOT NULL,
-    `personname` varchar(255) NOT NULL,
-    `authdate` date NOT NULL,
-    `authtime` time NOT NULL,
-    `authdatetime` datetime NOT NULL,
-    `direction` varchar(50) DEFAULT 'Puerta',
-    `devicename` varchar(255) DEFAULT NULL,
-    `deviceserialno` varchar(255) DEFAULT NULL,
-    `entry_type` enum('biometric','manual') DEFAULT 'biometric',
-    `notes` text,
-    `state` tinyint(3) NOT NULL DEFAULT 1,
-    `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `created_by` int(11) NOT NULL DEFAULT 0,
-    `modified` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    `modified_by` int(11) DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_cardno` (`cardno`),
-    KEY `idx_personname` (`personname`),
-    KEY `idx_authdate` (`authdate`),
-    KEY `idx_authdatetime` (`authdatetime`),
-    KEY `idx_entry_type` (`entry_type`),
-    KEY `idx_state` (`state`),
-    KEY `idx_composite` (`cardno`, `authdate`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- NOTE: We no longer create `#__ordenproduccion_asistencia`. The system reads/writes
+-- directly to the original `asistencia` table managed outside this component.
 
 -- Daily attendance summary table for quick reporting
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_asistencia_summary` (
@@ -88,27 +63,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_employees` (
     KEY `idx_state` (`state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Migrate existing attendance data if it exists
-INSERT INTO `#__ordenproduccion_asistencia` 
-    (`cardno`, `personname`, `authdate`, `authtime`, `authdatetime`, `direction`, 
-     `devicename`, `deviceserialno`, `entry_type`, `created_by`)
-SELECT 
-    COALESCE(card_no, 'UNKNOWN'),
-    person_name,
-    auth_date,
-    COALESCE(auth_time, '00:00:00'),
-    COALESCE(auth_datetime, CONCAT(auth_date, ' ', COALESCE(auth_time, '00:00:00'))),
-    COALESCE(direction, 'Puerta'),
-    device_name,
-    device_serial_no,
-    'biometric',
-    0
-FROM `#__ordenproduccion_attendance`
-WHERE NOT EXISTS (
-    SELECT 1 FROM `#__ordenproduccion_asistencia` 
-    WHERE cardno = COALESCE(card_no, 'UNKNOWN') 
-    AND authdatetime = COALESCE(auth_datetime, CONCAT(auth_date, ' ', COALESCE(auth_time, '00:00:00')))
-);
+-- NOTE: Legacy migration into `#__ordenproduccion_asistencia` removed. We keep summaries only.
 
 -- Insert default employees based on existing attendance data
 INSERT INTO `#__ordenproduccion_employees` 
