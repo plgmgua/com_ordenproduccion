@@ -187,6 +187,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <th style="width: 70px;">Salida</th>
                         <th style="width: 80px;">Horas</th>
                         <th style="width: 80px;">Estado</th>
+                        <th style="width: 100px;">Aprobación</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -225,11 +226,18 @@ $filterIsLate = $this->state->get('filter.is_late');
                                     <?php echo $item->is_complete ? 'Completo' : 'Incompleto'; ?>
                                 </span>
                             </td>
+                            <td>
+                                <?php if (($item->approval_status ?? 'pending') === 'approved'): ?>
+                                    <span class="badge bg-success" style="font-size: 0.65rem; padding: 3px 6px;">Aprobado</span>
+                                <?php else: ?>
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 3px 6px;">Pendiente</span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center">
+                            <td colspan="8" class="text-center">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?>
                             </td>
                         </tr>

@@ -26,10 +26,14 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 class HtmlView extends BaseHtmlView
 {
     protected $params;
+    protected $items = [];
+    protected $state;
 
     public function display($tpl = null)
     {
         $this->params = ComponentHelper::getParams('com_ordenproduccion');
+        $this->state = $this->get('State');
+        $this->items = $this->get('Items');
 
         // Set a helpful title
         if ($this->document) {

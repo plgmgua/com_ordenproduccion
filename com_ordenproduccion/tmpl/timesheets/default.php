@@ -50,7 +50,50 @@ use Joomla\CMS\Language\Text;
             </div>
         </div>
         <div class="card-body">
+            <?php if (!empty($this->items)) : ?>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_EMPLOYEE'); ?></th>
+                            <th style="width:120px;">Grupo</th>
+                            <th style="width:140px;">Semana</th>
+                            <th style="width:120px;">Horas (semana)</th>
+                            <th style="width:120px;">Aprobadas</th>
+                            <th style="width:120px;">Estatus</th>
+                            <th style="width:40px;"><input type="checkbox" disabled></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($this->items as $row) : ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($row->employee_name, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td>
+                                <span class="badge" style="background-color: <?php echo htmlspecialchars($row->group_color ?: '#6c757d', ENT_QUOTES, 'UTF-8'); ?>; color: #fff;">
+                                    <?php echo htmlspecialchars($row->group_name ?: '-', ENT_QUOTES, 'UTF-8'); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php echo htmlspecialchars(date('d/m/y', strtotime($row->week_start)) . ' - ' . date('d/m/y', strtotime($row->week_end)), ENT_QUOTES, 'UTF-8'); ?>
+                            </td>
+                            <td><strong><?php echo number_format((float)($row->week_total_hours ?? 0), 2); ?></strong></td>
+                            <td><?php echo number_format((float)($row->week_approved_hours ?? 0), 2); ?></td>
+                            <td>
+                                <?php if ($row->week_approval_status === 'approved') : ?>
+                                    <span class="badge bg-success">Aprobado</span>
+                                <?php else : ?>
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><input type="checkbox" disabled></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else : ?>
             <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_PLACEHOLDER'); ?></p>
+            <?php endif; ?>
         </div>
     </div>
 </div>
