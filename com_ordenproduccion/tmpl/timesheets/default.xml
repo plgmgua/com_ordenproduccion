@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_TITLE" option="COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_OPTION">
+        <message><![CDATA[COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_DESC]]></message>
+    </layout>
+
+    <fields name="request">
+        <fieldset name="request" label="JGLOBAL_FIELDSET_REQUEST">
+            <field name="id" type="hidden" default="0" />
+        </fieldset>
+    </fields>
+
+    <fields name="params">
+        <fieldset name="basic" label="JGLOBAL_FIELDSET_DISPLAY_OPTIONS">
+            <field name="show_page_heading" type="radio" label="JGLOBAL_SHOW_PAGE_HEADING_LABEL" class="btn-group btn-group-yesno" default="1">
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+            <field name="page_heading" type="text" label="JGLOBAL_PAGE_HEADING_LABEL" size="20" />
+        </fieldset>
+
+        <fieldset name="advanced" label="JGLOBAL_FIELDSET_ADVANCED_OPTIONS">
+            <field name="layout_type" type="hidden" default="timesheets" />
+        </fieldset>
+    </fields>
+</metadata>
+
+
