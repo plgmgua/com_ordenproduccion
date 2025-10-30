@@ -30,6 +30,7 @@ HTMLHelper::_('behavior.keepalive');
                     <?php echo $this->form->renderField('description'); ?>
                     <?php echo $this->form->renderField('color'); ?>
                     <?php echo $this->form->renderField('grace_period_minutes'); ?>
+                    <?php echo $this->form->renderField('manager_user_id'); ?>
                 </div>
             </div>
 
