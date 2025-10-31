@@ -67,21 +67,22 @@ class AsistenciaHelper
         // Build UNION subquery for both tables
         // Note: Original asistencia table may not have state column, so we don't filter it
         // Manual entries table has state column for soft-delete support
+        // Use COLLATE to ensure consistent collations across UNION (fixes "Illegal mix of collations" error)
         $unionQuery = '(' .
             'SELECT ' .
-                self::$db->quoteName('cardno') . ', ' .
-                self::$db->quoteName('personname') . ', ' .
-                self::$db->quoteName('authdate') . ', ' .
-                self::$db->quoteName('authtime') . ', ' .
-                self::$db->quoteName('direction') .
+                'CAST(' . self::$db->quoteName('cardno') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno, ' .
+                'CAST(' . self::$db->quoteName('personname') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS personname, ' .
+                'CAST(' . self::$db->quoteName('authdate') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate, ' .
+                'CAST(' . self::$db->quoteName('authtime') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime, ' .
+                'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS direction' .
             ' FROM ' . self::$db->quoteName('asistencia') .
             ' UNION ALL ' .
             'SELECT ' .
-                self::$db->quoteName('cardno') . ', ' .
-                self::$db->quoteName('personname') . ', ' .
-                self::$db->quoteName('authdate') . ', ' .
-                self::$db->quoteName('authtime') . ', ' .
-                self::$db->quoteName('direction') .
+                'CAST(' . self::$db->quoteName('cardno') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno, ' .
+                'CAST(' . self::$db->quoteName('personname') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS personname, ' .
+                'CAST(' . self::$db->quoteName('authdate') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate, ' .
+                'CAST(' . self::$db->quoteName('authtime') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime, ' .
+                'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS direction' .
             ' FROM ' . self::$db->quoteName('#__ordenproduccion_asistencia_manual') .
             ' WHERE ' . self::$db->quoteName('state') . ' = 1' .
         ') AS ' . self::$db->quoteName('combined_entries');
