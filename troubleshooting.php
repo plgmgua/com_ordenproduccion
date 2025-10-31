@@ -380,6 +380,32 @@ if (!empty($manualEntries)) {
     }
 }
 
+// Query 6: Manual trigger updateDailySummary
+if (!empty($manualEntries)) {
+    echo "<h4>6. Manually Trigger updateDailySummary</h4>";
+    $testEmp = $manualEntries[0];
+    echo "<p>Test employee: <strong>{$testEmp->personname}</strong> on <strong>{$testDate}</strong></p>";
+    
+    if (isset($_GET['trigger_update'])) {
+        try {
+            require_once JPATH_BASE . '/components/com_ordenproduccion/src/Helper/AsistenciaHelper.php';
+            $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper::updateDailySummary($testEmp->personname, $testDate);
+            
+            if ($result) {
+                echo "<p class='ok'>✅ updateDailySummary returned TRUE - summary should now exist</p>";
+                echo "<p><a href='?date={$testDate}'>Refresh to see updated summary</a></p>";
+            } else {
+                echo "<p class='error'>❌ updateDailySummary returned FALSE - check error logs</p>";
+            }
+        } catch (Exception $e) {
+            echo "<p class='error'>❌ Error calling updateDailySummary: " . htmlspecialchars($e->getMessage()) . "</p>";
+            echo "<pre style='background: #f0f0f0; padding: 10px; overflow: auto;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+        }
+    } else {
+        echo "<p><a href='?date={$testDate}&trigger_update=1' class='btn' style='background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;'>Trigger updateDailySummary</a></p>";
+    }
+}
+
 // Query 5: Employees table check
 echo "<h4>5. Employee Records Check</h4>";
 if (!empty($manualEntries)) {

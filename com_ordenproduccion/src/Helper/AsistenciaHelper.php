@@ -218,6 +218,8 @@ class AsistenciaHelper
     public static function updateDailySummary($cardno, $date)
     {
         self::init();
+        
+        error_log('updateDailySummary called: personname=' . $cardno . ', date=' . $date);
 
         $calculation = self::calculateDailyHours($cardno, $date);
 
@@ -228,21 +230,16 @@ class AsistenciaHelper
             return false;
         }
 
-        // Use calculated cardno if available, otherwise use personname for lookup
-        // This handles cases where cardno might be empty in manual entries
-        $lookupIdentifier = !empty($calculation->cardno) ? $calculation->cardno : $calculation->personname;
-        
-        // Check if summary exists - try both cardno and personname
+        // Use personname as primary lookup since it's most reliable (cardno can vary)
+        // Check if summary exists - use personname AND work_date (most reliable combination)
         $query = self::$db->getQuery(true)
             ->select('id')
             ->from(self::$db->quoteName('#__ordenproduccion_asistencia_summary'))
             ->where([
-                '(' . self::$db->quoteName('cardno') . ' = :identifier OR ' .
-                '(' . self::$db->quoteName('cardno') . ' = ' . self::$db->quote('') . 
-                ' AND ' . self::$db->quoteName('personname') . ' = :identifier))',
+                self::$db->quoteName('personname') . ' = :personname',
                 self::$db->quoteName('work_date') . ' = :work_date'
             ])
-            ->bind(':identifier', $lookupIdentifier)
+            ->bind(':personname', $calculation->personname)
             ->bind(':work_date', $date);
 
         self::$db->setQuery($query);
@@ -281,7 +278,11 @@ class AsistenciaHelper
                 ->bind(':id', $summaryId, \Joomla\Database\ParameterType::INTEGER);
 
             self::$db->setQuery($query);
-            return self::$db->execute();
+            $result = self::$db->execute();
+            if (!$result) {
+                error_log('updateDailySummary: UPDATE failed for personname=' . $calculation->personname . ', date=' . $date . ', error: ' . self::$db->getErrorMsg());
+            }
+            return $result;
         } else {
             // Insert new summary
             $columns = [
@@ -318,7 +319,13 @@ class AsistenciaHelper
                 ->bind(':created_by', $userId, \Joomla\Database\ParameterType::INTEGER);
 
             self::$db->setQuery($query);
-            return self::$db->execute();
+            $result = self::$db->execute();
+            if (!$result) {
+                error_log('updateDailySummary: INSERT failed for personname=' . $calculation->personname . ', date=' . $date . ', error: ' . self::$db->getErrorMsg());
+            } else {
+                error_log('updateDailySummary: INSERT successful for personname=' . $calculation->personname . ', date=' . $date);
+            }
+            return $result;
         }
     }
 
