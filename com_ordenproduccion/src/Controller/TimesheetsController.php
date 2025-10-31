@@ -236,7 +236,8 @@ class TimesheetsController extends BaseController
         $savedEmployees = []; // Track unique employees for summary recalculation
 
         foreach ($entries as $entry) {
-            if (empty($entry['personname']) || empty($entry['authdate']) || empty($entry['authtime'])) {
+            // Validate required fields (including mandatory notes)
+            if (empty($entry['personname']) || empty($entry['authdate']) || empty($entry['authtime']) || empty(trim($entry['notes'] ?? ''))) {
                 $errors++;
                 continue;
             }
@@ -254,6 +255,7 @@ class TimesheetsController extends BaseController
                     ->set($db->quoteName('authtime') . ' = ' . $db->quote($entry['authtime']))
                     ->set($db->quoteName('authdatetime') . ' = ' . $db->quote($datetime))
                     ->set($db->quoteName('direction') . ' = ' . $db->quote($entry['direction'] ?? 'Puerta'))
+                    ->set($db->quoteName('notes') . ' = ' . $db->quote(trim($entry['notes'] ?? '')))
                     ->set($db->quoteName('devicename') . ' = ' . $db->quote('Manual Entry'))
                     ->set($db->quoteName('deviceserialno') . ' = ' . $db->quote(''))
                     ->set($db->quoteName('state') . ' = 1')

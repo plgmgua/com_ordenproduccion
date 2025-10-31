@@ -81,6 +81,7 @@ use Joomla\CMS\HTML\HTMLHelper;
                                 <th style="width:90px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DATE'); ?></th>
                                 <th style="width:90px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TIME'); ?></th>
                                 <th style="width:100px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DIRECTION'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NOTES'); ?> <span class="text-danger">*</span></th>
                                 <th style="width:40px;"></th>
                             </tr>
                         </thead>
@@ -188,6 +189,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 // Manual Entry Form JavaScript
 const employees = <?php echo json_encode(array_map(function($e) { return ['cardno' => $e->cardno, 'personname' => $e->personname]; }, $this->employees)); ?>;
 const workDate = '<?php echo htmlspecialchars($this->state->get('filter.work_date') ?: date('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>';
+const notesPlaceholder = '<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NOTES_PLACEHOLDER'); ?>';
 let rowCounter = 0;
 
 function addManualEntryRow() {
@@ -210,6 +212,7 @@ function addManualEntryRow() {
         '<td><input type="date" name="entries[' + rowCounter + '][authdate]" class="form-control form-control-sm required" value="' + workDate + '" required></td>' +
         '<td><input type="time" name="entries[' + rowCounter + '][authtime]" class="form-control form-control-sm required" value="08:00" required></td>' +
         '<td><select name="entries[' + rowCounter + '][direction]" class="form-select form-select-sm"><option value="Puerta">Puerta</option><option value="Entrada">Entrada</option><option value="Salida">Salida</option></select></td>' +
+        '<td><input type="text" name="entries[' + rowCounter + '][notes]" class="form-control form-control-sm required" placeholder="' + escapeHtml(notesPlaceholder) + '" required></td>' +
         '<td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest(\'tr\').remove();"><span class="icon-delete"></span></button></td>';
     
     tbody.appendChild(row);
