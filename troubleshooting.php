@@ -294,9 +294,9 @@ try {
 // Query 3: Test UNION query
 echo "<h4>3. UNION Query Test (Combined asistencia + manual)</h4>";
 try {
+    // Simplified UNION using only personname and date (matching AsistenciaHelper)
     $unionTestQuery = "
         SELECT 
-            CAST(cardno AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno,
             CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname,
             CAST(authdate AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate,
             CAST(authtime AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime,
@@ -306,7 +306,6 @@ try {
         WHERE DATE(CAST(authdate AS DATE)) = " . $db->quote($testDate) . "
         UNION ALL
         SELECT 
-            CAST(cardno AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno,
             CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname,
             CAST(authdate AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate,
             CAST(authtime AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime,

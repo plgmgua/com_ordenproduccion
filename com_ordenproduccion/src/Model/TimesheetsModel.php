@@ -118,6 +118,82 @@ class TimesheetsModel extends ListModel
     }
 
     /**
+     * Override getItems to ensure summaries exist for all employees with entries
+     */
+    public function getItems()
+    {
+        $workDate = $this->getState('filter.work_date');
+        if (empty($workDate)) {
+            $workDate = date('Y-m-d');
+        }
+
+        // First, ensure summaries exist for all employees with entries on this date
+        $this->ensureSummariesForDate($workDate);
+
+        // Then return the standard query results
+        return parent::getItems();
+    }
+
+    /**
+     * Ensure summary records exist for all employees with entries on a given date
+     *
+     * @param   string  $date  Date in Y-m-d format
+     *
+     * @return  void
+     */
+    protected function ensureSummariesForDate($date)
+    {
+        $db = $this->getDatabase();
+        $quotedDate = $db->quote($date);
+
+        // Get all unique employees who have entries (biometric or manual) for this date
+        $employeesQuery = "
+            SELECT DISTINCT
+                CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname
+            FROM (
+                SELECT CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname
+                FROM asistencia
+                WHERE DATE(CAST(authdate AS DATE)) = {$quotedDate}
+                UNION ALL
+                SELECT CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname
+                FROM " . $db->quoteName('#__ordenproduccion_asistencia_manual') . "
+                WHERE state = 1
+                AND DATE(CAST(authdate AS DATE)) = {$quotedDate}
+            ) AS all_entries
+            ORDER BY personname";
+
+        $db->setQuery($employeesQuery);
+        $employees = $db->loadColumn();
+
+        if (empty($employees)) {
+            return;
+        }
+
+        // For each employee, check if summary exists, if not create it
+        foreach ($employees as $personname) {
+            // Check if summary already exists
+            $checkQuery = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('#__ordenproduccion_asistencia_summary'))
+                ->where($db->quoteName('personname') . ' = ' . $db->quote($personname))
+                ->where($db->quoteName('work_date') . ' = ' . $db->quote($date));
+
+            $db->setQuery($checkQuery);
+            $exists = (int) $db->loadResult();
+
+            if ($exists === 0) {
+                // Summary doesn't exist, create it
+                try {
+                    AsistenciaHelper::updateDailySummary($personname, $date);
+                } catch (\Exception $e) {
+                    // Log but don't fail
+                    error_log('Error ensuring summary for ' . $personname . ' on ' . $date . ': ' . $e->getMessage());
+                }
+            }
+        }
+    }
+
+    /**
      * Get groups visible to current manager (or all for admins)
      */
     public function getGroups(): array

@@ -71,24 +71,25 @@ class AsistenciaHelper
         // Quote date directly since we can't bind parameters in subquery strings
         $quotedDate = self::$db->quote($date);
         
+        // Simplified UNION using only personname and date (no cardno dependency)
         $unionQuery = '(' .
             'SELECT ' .
-                'CAST(' . self::$db->quoteName('cardno') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno, ' .
                 'CAST(' . self::$db->quoteName('personname') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS personname, ' .
                 'CAST(' . self::$db->quoteName('authdate') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate, ' .
                 'CAST(' . self::$db->quoteName('authtime') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime, ' .
                 'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS direction' .
             ' FROM ' . self::$db->quoteName('asistencia') .
-            ' WHERE DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate .
+            ' WHERE ' . self::$db->quoteName('personname') . ' = :personname' .
+            ' AND DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate .
             ' UNION ALL ' .
             'SELECT ' .
-                'CAST(' . self::$db->quoteName('cardno') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno, ' .
                 'CAST(' . self::$db->quoteName('personname') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS personname, ' .
                 'CAST(' . self::$db->quoteName('authdate') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate, ' .
                 'CAST(' . self::$db->quoteName('authtime') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime, ' .
                 'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS direction' .
             ' FROM ' . self::$db->quoteName('#__ordenproduccion_asistencia_manual') .
-            ' WHERE ' . self::$db->quoteName('state') . ' = 1' .
+            ' WHERE ' . self::$db->quoteName('personname') . ' = :personname' .
+            ' AND ' . self::$db->quoteName('state') . ' = 1' .
             ' AND DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate .
         ') AS ' . self::$db->quoteName('combined_entries');
         
@@ -97,11 +98,9 @@ class AsistenciaHelper
                 'MIN(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS first_entry',
                 'MAX(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS last_exit',
                 'COUNT(*) AS total_entries',
-                'MAX(' . self::$db->quoteName('personname') . ') AS personname',
-                'MAX(COALESCE(NULLIF(TRIM(' . self::$db->quoteName('cardno') . '), \'\'), ' . self::$db->quoteName('personname') . ')) AS cardno'
+                'MAX(' . self::$db->quoteName('personname') . ') AS personname'
             ])
             ->from($unionQuery)
-            ->where(self::$db->quoteName('personname') . ' = :personname')
             ->bind(':personname', $cardno)
             ->group(self::$db->quoteName('personname'));
 
@@ -128,7 +127,11 @@ class AsistenciaHelper
         }
 
         // Get expected hours and work schedule from employee's group
-        $employee = self::getEmployee($cardno);
+        // Get employee by personname (cardno parameter is actually personname)
+        $employee = self::getEmployee($result->personname);
+        
+        // Get cardno from employee record or use personname as fallback
+        $cardnoValue = $employee && !empty($employee->cardno) ? $employee->cardno : $result->personname;
         
         // Use group settings if available, otherwise use defaults
         $expectedHours = 8.00;
@@ -191,7 +194,7 @@ class AsistenciaHelper
 
         // Return as object for consistency
         $summary = new \stdClass();
-        $summary->cardno = $result->cardno;
+        $summary->cardno = $cardnoValue;
         $summary->personname = $result->personname;
         $summary->work_date = $date;
         $summary->first_entry = $firstEntry;
