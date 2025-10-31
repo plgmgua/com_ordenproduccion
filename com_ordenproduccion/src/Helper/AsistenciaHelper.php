@@ -68,6 +68,9 @@ class AsistenciaHelper
         // Note: Original asistencia table may not have state column, so we don't filter it
         // Manual entries table has state column for soft-delete support
         // Use COLLATE to ensure consistent collations across UNION (fixes "Illegal mix of collations" error)
+        // Quote date directly since we can't bind parameters in subquery strings
+        $quotedDate = self::$db->quote($date);
+        
         $unionQuery = '(' .
             'SELECT ' .
                 'CAST(' . self::$db->quoteName('cardno') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno, ' .
@@ -76,6 +79,7 @@ class AsistenciaHelper
                 'CAST(' . self::$db->quoteName('authtime') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime, ' .
                 'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS direction' .
             ' FROM ' . self::$db->quoteName('asistencia') .
+            ' WHERE DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate .
             ' UNION ALL ' .
             'SELECT ' .
                 'CAST(' . self::$db->quoteName('cardno') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno, ' .
@@ -85,6 +89,7 @@ class AsistenciaHelper
                 'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) COLLATE utf8mb4_unicode_ci AS direction' .
             ' FROM ' . self::$db->quoteName('#__ordenproduccion_asistencia_manual') .
             ' WHERE ' . self::$db->quoteName('state') . ' = 1' .
+            ' AND DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate .
         ') AS ' . self::$db->quoteName('combined_entries');
         
         $query = self::$db->getQuery(true)
@@ -96,26 +101,31 @@ class AsistenciaHelper
                 'MAX(COALESCE(NULLIF(TRIM(' . self::$db->quoteName('cardno') . '), \'\'), ' . self::$db->quoteName('personname') . ')) AS cardno'
             ])
             ->from($unionQuery)
-            ->where([
-                self::$db->quoteName('personname') . ' = :personname',
-                'DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = :authdate'
-            ])
+            ->where(self::$db->quoteName('personname') . ' = :personname')
             ->bind(':personname', $cardno)
-            ->bind(':authdate', $date)
             ->group(self::$db->quoteName('personname'));
 
         self::$db->setQuery($query);
         $result = self::$db->loadObject();
 
-        if (!$result || !$result->first_entry || !$result->last_exit) {
+        if (!$result || (!$result->first_entry && !$result->last_exit)) {
             return null;
         }
 
-        // Calculate time difference
-        $firstTime = new \DateTime($result->first_entry);
-        $lastTime = new \DateTime($result->last_exit);
-        $interval = $firstTime->diff($lastTime);
-        $totalHours = $interval->h + ($interval->i / 60);
+        // Handle case where there's only entry or only exit (use same time for both)
+        $firstEntry = $result->first_entry ?: $result->last_exit;
+        $lastExit = $result->last_exit ?: $result->first_entry;
+        
+        if (!$firstEntry || !$lastExit) {
+            // Single entry/exit - can't calculate hours, but still create summary
+            $totalHours = 0;
+        } else {
+            // Calculate time difference
+            $firstTime = new \DateTime($firstEntry);
+            $lastTime = new \DateTime($lastExit);
+            $interval = $firstTime->diff($lastTime);
+            $totalHours = $interval->h + ($interval->i / 60);
+        }
 
         // Get expected hours and work schedule from employee's group
         $employee = self::getEmployee($cardno);
@@ -156,17 +166,25 @@ class AsistenciaHelper
             }
         }
 
-        // Check if late (grace period)
-        $workStartTime = new \DateTime($workStart);
-        $graceTime = clone $workStartTime;
-        $graceTime->modify("+{$graceMinutes} minutes");
-        $isLate = $firstTime > $graceTime;
+        // Check if late (grace period) - only if we have first entry
+        $isLate = false;
+        $isEarlyExit = false;
+        
+        if ($firstEntry && $lastExit) {
+            $firstTime = new \DateTime($firstEntry);
+            $lastTime = new \DateTime($lastExit);
+            
+            $workStartTime = new \DateTime($workStart);
+            $graceTime = clone $workStartTime;
+            $graceTime->modify("+{$graceMinutes} minutes");
+            $isLate = $firstTime > $graceTime;
 
-        // Check if early exit
-        $workEndTime = new \DateTime($workEnd);
-        $earlyExitThreshold = clone $workEndTime;
-        $earlyExitThreshold->modify("-{$graceMinutes} minutes");
-        $isEarlyExit = $lastTime < $earlyExitThreshold;
+            // Check if early exit
+            $workEndTime = new \DateTime($workEnd);
+            $earlyExitThreshold = clone $workEndTime;
+            $earlyExitThreshold->modify("-{$graceMinutes} minutes");
+            $isEarlyExit = $lastTime < $earlyExitThreshold;
+        }
 
         $hoursDifference = $totalHours - $expectedHours;
         $isComplete = $hoursDifference >= 0;
@@ -176,8 +194,8 @@ class AsistenciaHelper
         $summary->cardno = $result->cardno;
         $summary->personname = $result->personname;
         $summary->work_date = $date;
-        $summary->first_entry = $result->first_entry;
-        $summary->last_exit = $result->last_exit;
+        $summary->first_entry = $firstEntry;
+        $summary->last_exit = $lastExit;
         $summary->total_hours = round($totalHours, 2);
         $summary->expected_hours = $expectedHours;
         $summary->hours_difference = round($hoursDifference, 2);
@@ -205,6 +223,8 @@ class AsistenciaHelper
 
         // calculateDailyHours returns an object, not an array
         if (empty($calculation) || empty($calculation->personname)) {
+            // Log for debugging
+            error_log('updateDailySummary: calculateDailyHours returned null/empty for personname=' . $cardno . ', date=' . $date);
             return false;
         }
 

@@ -292,16 +292,30 @@ class TimesheetsController extends BaseController
 
         // Trigger summary recalculation for each unique employee that was saved
         if ($saved > 0 && !empty($savedEmployees)) {
-            try {
-                foreach ($savedEmployees as $emp) {
-                    // updateDailySummary uses personname as the identifier (despite parameter name)
-                    // Use personname if cardno is empty, otherwise use cardno
-                    $identifier = !empty($emp['cardno']) ? $emp['cardno'] : $emp['personname'];
-                    AsistenciaHelper::updateDailySummary($identifier, $workDate);
+            $summaryUpdated = 0;
+            $summaryErrors = 0;
+            foreach ($savedEmployees as $emp) {
+                try {
+                    // updateDailySummary parameter $cardno is actually used as personname identifier
+                    // Always pass personname since cardno might be empty
+                    $result = AsistenciaHelper::updateDailySummary($emp['personname'], $workDate);
+                    if ($result) {
+                        $summaryUpdated++;
+                    } else {
+                        $summaryErrors++;
+                        error_log('updateDailySummary returned false for: ' . $emp['personname'] . ' on ' . $workDate);
+                    }
+                } catch (\Exception $e) {
+                    $summaryErrors++;
+                    $app->enqueueMessage('Summary update failed for ' . $emp['personname'] . ': ' . $e->getMessage(), 'warning');
+                    error_log('Error updating summary for ' . $emp['personname'] . ': ' . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                // Log error but don't fail the whole operation
-                $app->enqueueMessage('Entries saved but summary update failed: ' . $e->getMessage(), 'warning');
+            }
+            if ($summaryUpdated > 0) {
+                $app->enqueueMessage('Updated ' . $summaryUpdated . ' summary record(s)', 'info');
+            }
+            if ($summaryErrors > 0) {
+                $app->enqueueMessage('Failed to update ' . $summaryErrors . ' summary record(s). Check logs.', 'warning');
             }
         }
 
