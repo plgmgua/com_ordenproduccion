@@ -127,8 +127,47 @@ class TimesheetsModel extends ListModel
         // First, ensure summaries exist for all employees with entries on this date
         $this->ensureSummariesForDate($workDate);
 
-        // Then return the standard query results
-        return parent::getItems();
+        // Get the standard query results
+        $items = parent::getItems();
+        
+        // Fetch manual entries for each summary and attach them
+        foreach ($items as &$item) {
+            $item->manual_entries = $this->getManualEntriesForSummary($item->employee_name, $workDate);
+        }
+        
+        return $items;
+    }
+    
+    /**
+     * Get manual entries for a specific employee and date
+     *
+     * @param   string  $personname  Employee personname
+     * @param   string  $date        Date in Y-m-d format
+     *
+     * @return  array  Array of manual entry objects
+     */
+    protected function getManualEntriesForSummary($personname, $date)
+    {
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                'id',
+                'authdate',
+                'authtime',
+                'direction',
+                'notes',
+                'devicename',
+                'created',
+                'created_by'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
+            ->where($db->quoteName('personname') . ' = ' . $db->quote($personname))
+            ->where('DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) = ' . $db->quote($date))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('authtime') . ' ASC');
+        
+        $db->setQuery($query);
+        return $db->loadObjectList();
     }
 
     /**

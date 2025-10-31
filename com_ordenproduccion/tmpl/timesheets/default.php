@@ -134,7 +134,7 @@ use Joomla\CMS\HTML\HTMLHelper;
                     </thead>
                     <tbody>
                         <?php foreach ($this->items as $row) : ?>
-                        <tr>
+                        <tr class="summary-row">
                             <td>
                                 <input type="checkbox" class="row-check" name="selected[]" value="<?php echo (int)$row->id; ?>"
                                        <?php echo (($row->approval_status ?? 'pending') === 'approved') ? 'checked' : ''; ?>>
@@ -158,6 +158,26 @@ use Joomla\CMS\HTML\HTMLHelper;
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <?php if (!empty($row->manual_entries)) : ?>
+                            <?php foreach ($row->manual_entries as $manual) : ?>
+                            <tr class="manual-entry-row" style="background-color: #f8f9fa; font-size: 0.9em;">
+                                <td></td>
+                                <td colspan="2" style="padding-left: 40px;">
+                                    <i class="fas fa-hand-paper text-info"></i>
+                                    <span class="text-muted">Manual:</span>
+                                    <strong><?php echo $manual->authtime ? substr($manual->authtime, 0, 5) : '-'; ?></strong>
+                                    <span class="badge bg-info"><?php echo htmlspecialchars($manual->direction ?: 'N/A', ENT_QUOTES, 'UTF-8'); ?></span>
+                                </td>
+                                <td colspan="5">
+                                    <?php if (!empty($manual->notes)) : ?>
+                                        <em><?php echo htmlspecialchars($manual->notes, ENT_QUOTES, 'UTF-8'); ?></em>
+                                    <?php else : ?>
+                                        <span class="text-muted">(Sin notas)</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                         <?php endforeach; ?>
                     </tbody>
                 </table>

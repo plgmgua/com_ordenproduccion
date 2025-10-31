@@ -210,6 +210,53 @@ class AsistenciaModel extends ListModel
     }
 
     /**
+     * Override getItems to attach manual entries to each summary
+     */
+    public function getItems()
+    {
+        $items = parent::getItems();
+        
+        // Fetch manual entries for each summary and attach them
+        foreach ($items as &$item) {
+            $item->manual_entries = $this->getManualEntriesForSummary($item->personname, $item->work_date);
+        }
+        
+        return $items;
+    }
+    
+    /**
+     * Get manual entries for a specific employee and date
+     *
+     * @param   string  $personname  Employee personname
+     * @param   string  $date        Date in Y-m-d format
+     *
+     * @return  array  Array of manual entry objects
+     */
+    protected function getManualEntriesForSummary($personname, $date)
+    {
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                'id',
+                'authdate',
+                'authtime',
+                'direction',
+                'notes',
+                'devicename',
+                'created',
+                'created_by'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
+            ->where($db->quoteName('personname') . ' = ' . $db->quote($personname))
+            ->where('DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) = ' . $db->quote($date))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('authtime') . ' ASC');
+        
+        $db->setQuery($query);
+        return $db->loadObjectList();
+    }
+
+    /**
      * Get daily summary statistics for CURRENT WEEK (Mon-Fri) and GROUP ID 1 ONLY
      * 
      * NOTE: This method IGNORES $dateFrom and $dateTo parameters.

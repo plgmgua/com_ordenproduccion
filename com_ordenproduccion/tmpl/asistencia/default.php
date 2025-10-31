@@ -193,7 +193,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                 <tbody>
                     <?php if (!empty($this->items)): ?>
                         <?php foreach ($this->items as $item): ?>
-                        <tr class="<?php echo $item->is_late ? 'table-warning' : ''; ?>">
+                        <tr class="summary-row <?php echo $item->is_late ? 'table-warning' : ''; ?>">
                             <td>
                                 <strong style="font-size: 0.85rem;"><?php echo safeEscape($item->personname); ?></strong>
                                 <?php if ($item->is_late): ?>
@@ -234,6 +234,25 @@ $filterIsLate = $this->state->get('filter.is_late');
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <?php if (!empty($item->manual_entries)) : ?>
+                            <?php foreach ($item->manual_entries as $manual) : ?>
+                            <tr class="manual-entry-row" style="background-color: #f8f9fa; font-size: 0.85em;">
+                                <td colspan="3" style="padding-left: 40px;">
+                                    <i class="fas fa-hand-paper text-info"></i>
+                                    <span class="text-muted">Manual:</span>
+                                    <strong><?php echo $manual->authtime ? substr($manual->authtime, 0, 5) : '-'; ?></strong>
+                                    <span class="badge bg-info" style="font-size: 0.7rem; padding: 2px 5px;"><?php echo safeEscape($manual->direction ?: 'N/A'); ?></span>
+                                </td>
+                                <td colspan="5">
+                                    <?php if (!empty($manual->notes)) : ?>
+                                        <em style="font-size: 0.8rem;"><?php echo safeEscape($manual->notes); ?></em>
+                                    <?php else : ?>
+                                        <span class="text-muted" style="font-size: 0.8rem;">(Sin notas)</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
