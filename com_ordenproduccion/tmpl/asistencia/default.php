@@ -13,7 +13,10 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+
+$user = Factory::getUser();
 
 // Safe helper functions
 function safeEscape($value, $default = '') {
@@ -246,11 +249,21 @@ $filterIsLate = $this->state->get('filter.is_late');
                                         <span class="text-muted" style="margin-left: 8px;"><i class="fas fa-user"></i> <?php echo safeEscape($manual->creator_name); ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td colspan="5">
+                                <td colspan="4">
                                     <?php if (!empty($manual->notes)) : ?>
                                         <em style="font-size: 0.8rem;"><?php echo safeEscape($manual->notes); ?></em>
                                     <?php else : ?>
                                         <span class="text-muted" style="font-size: 0.8rem;">(Sin notas)</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td style="text-align: right;">
+                                    <?php if (!$user->guest) : ?>
+                                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistenciaentry.delete&id=' . (int)$manual->id . '&' . Session::getFormToken() . '=1'); ?>" 
+                                           class="btn btn-sm btn-danger" 
+                                           onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DELETE_CONFIRM'); ?>');"
+                                           title="<?php echo Text::_('JDELETE'); ?>">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
