@@ -235,17 +235,28 @@ class AsistenciaModel extends ListModel
     protected function getManualEntriesForSummary($personname, $date)
     {
         $db = $this->getDatabase();
+        
+        // Check if notes column exists to handle schema gracefully
+        $columns = $db->getTableColumns('#__ordenproduccion_asistencia_manual');
+        $hasNotes = isset($columns['notes']);
+        
+        $selectFields = [
+            'id',
+            'authdate',
+            'authtime',
+            'direction',
+            'devicename',
+            'created',
+            'created_by'
+        ];
+        
+        // Only select notes if column exists
+        if ($hasNotes) {
+            $selectFields[] = 'notes';
+        }
+        
         $query = $db->getQuery(true)
-            ->select([
-                'id',
-                'authdate',
-                'authtime',
-                'direction',
-                'notes',
-                'devicename',
-                'created',
-                'created_by'
-            ])
+            ->select($selectFields)
             ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
             ->where($db->quoteName('personname') . ' = ' . $db->quote($personname))
             ->where('DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) = ' . $db->quote($date))
@@ -253,7 +264,16 @@ class AsistenciaModel extends ListModel
             ->order($db->quoteName('authtime') . ' ASC');
         
         $db->setQuery($query);
-        return $db->loadObjectList();
+        $results = $db->loadObjectList();
+        
+        // Set notes to empty string if column doesn't exist
+        if (!$hasNotes) {
+            foreach ($results as &$result) {
+                $result->notes = '';
+            }
+        }
+        
+        return $results;
     }
 
     /**
