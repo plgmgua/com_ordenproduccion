@@ -155,27 +155,32 @@ class TimesheetsModel extends ListModel
         $hasNotes = isset($columns['notes']);
         
         $selectFields = [
-            'id',
-            'authdate',
-            'authtime',
-            'direction',
-            'devicename',
-            'created',
-            'created_by'
+            'm.id',
+            'm.authdate',
+            'm.authtime',
+            'm.direction',
+            'm.devicename',
+            'm.created',
+            'm.created_by',
+            'COALESCE(' . $db->quoteName('u.name') . ', ' . $db->quote('Sistema') . ') AS creator_name'
         ];
         
         // Only select notes if column exists
         if ($hasNotes) {
-            $selectFields[] = 'notes';
+            $selectFields[] = 'm.notes';
         }
         
         $query = $db->getQuery(true)
             ->select($selectFields)
-            ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
-            ->where($db->quoteName('personname') . ' = ' . $db->quote($personname))
-            ->where('DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) = ' . $db->quote($date))
-            ->where($db->quoteName('state') . ' = 1')
-            ->order($db->quoteName('authtime') . ' ASC');
+            ->from($db->quoteName('#__ordenproduccion_asistencia_manual', 'm'))
+            ->leftJoin(
+                $db->quoteName('#__users', 'u') . ' ON ' .
+                $db->quoteName('m.created_by') . ' = ' . $db->quoteName('u.id')
+            )
+            ->where($db->quoteName('m.personname') . ' = ' . $db->quote($personname))
+            ->where('DATE(CAST(' . $db->quoteName('m.authdate') . ' AS DATE)) = ' . $db->quote($date))
+            ->where($db->quoteName('m.state') . ' = 1')
+            ->order($db->quoteName('m.authtime') . ' ASC');
         
         $db->setQuery($query);
         $results = $db->loadObjectList();

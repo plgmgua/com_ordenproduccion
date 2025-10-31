@@ -242,6 +242,9 @@ $filterIsLate = $this->state->get('filter.is_late');
                                     <span class="text-muted">Manual:</span>
                                     <strong><?php echo $manual->authtime ? substr($manual->authtime, 0, 5) : '-'; ?></strong>
                                     <span class="badge bg-info" style="font-size: 0.7rem; padding: 2px 5px;"><?php echo safeEscape($manual->direction ?: 'N/A'); ?></span>
+                                    <?php if (!empty($manual->creator_name)) : ?>
+                                        <span class="text-muted" style="margin-left: 8px;"><i class="fas fa-user"></i> <?php echo safeEscape($manual->creator_name); ?></span>
+                                    <?php endif; ?>
                                 </td>
                                 <td colspan="5">
                                     <?php if (!empty($manual->notes)) : ?>

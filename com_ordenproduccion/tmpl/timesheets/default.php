@@ -167,6 +167,9 @@ use Joomla\CMS\HTML\HTMLHelper;
                                     <span class="text-muted">Manual:</span>
                                     <strong><?php echo $manual->authtime ? substr($manual->authtime, 0, 5) : '-'; ?></strong>
                                     <span class="badge bg-info"><?php echo htmlspecialchars($manual->direction ?: 'N/A', ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <?php if (!empty($manual->creator_name)) : ?>
+                                        <span class="text-muted ms-2"><i class="fas fa-user"></i> <?php echo htmlspecialchars($manual->creator_name, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <?php endif; ?>
                                 </td>
                                 <td colspan="5">
                                     <?php if (!empty($manual->notes)) : ?>

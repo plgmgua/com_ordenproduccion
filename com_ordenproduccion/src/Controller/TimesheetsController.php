@@ -242,10 +242,20 @@ class TimesheetsController extends BaseController
         $saved = 0;
         $errors = 0;
         $savedEmployees = []; // Track unique employees for summary recalculation
+        
+        // Check if notes column exists in the table
+        $columns = $db->getTableColumns('#__ordenproduccion_asistencia_manual');
+        $hasNotes = isset($columns['notes']);
 
         foreach ($entries as $entry) {
-            // Validate required fields (including mandatory notes)
-            if (empty($entry['personname']) || empty($entry['authdate']) || empty($entry['authtime']) || empty(trim($entry['notes'] ?? ''))) {
+            // Validate required fields (notes only if column exists)
+            if (empty($entry['personname']) || empty($entry['authdate']) || empty($entry['authtime'])) {
+                $errors++;
+                continue;
+            }
+            
+            // Validate notes only if column exists
+            if ($hasNotes && empty(trim($entry['notes'] ?? ''))) {
                 $errors++;
                 continue;
             }
@@ -263,12 +273,16 @@ class TimesheetsController extends BaseController
                     ->set($db->quoteName('authtime') . ' = ' . $db->quote($entry['authtime']))
                     ->set($db->quoteName('authdatetime') . ' = ' . $db->quote($datetime))
                     ->set($db->quoteName('direction') . ' = ' . $db->quote($entry['direction'] ?? 'Puerta'))
-                    ->set($db->quoteName('notes') . ' = ' . $db->quote(trim($entry['notes'] ?? '')))
                     ->set($db->quoteName('devicename') . ' = ' . $db->quote('Manual Entry'))
                     ->set($db->quoteName('deviceserialno') . ' = ' . $db->quote(''))
                     ->set($db->quoteName('state') . ' = 1')
                     ->set($db->quoteName('created') . ' = NOW()')
                     ->set($db->quoteName('created_by') . ' = ' . (int) $user->id);
+                
+                // Only set notes if column exists
+                if ($hasNotes) {
+                    $query->set($db->quoteName('notes') . ' = ' . $db->quote(trim($entry['notes'] ?? '')));
+                }
 
                 $db->setQuery($query);
                 $db->execute();

@@ -130,6 +130,10 @@ class AsistenciaentryModel extends FormModel
 
         // Check if this is an update or insert
         $id = isset($data['id']) && $data['id'] > 0 ? (int) $data['id'] : 0;
+        
+        // Check if notes column exists in the table
+        $columns = $db->getTableColumns('#__ordenproduccion_asistencia_manual');
+        $hasNotes = isset($columns['notes']);
 
         try {
             if ($id > 0) {
@@ -137,20 +141,27 @@ class AsistenciaentryModel extends FormModel
                 $user = Factory::getUser();
                 $userId = $user->guest ? 0 : $user->id;
                 
+                $setFields = [
+                    $db->quoteName('cardno') . ' = :cardno',
+                    $db->quoteName('personname') . ' = :personname',
+                    $db->quoteName('authdate') . ' = :authdate',
+                    $db->quoteName('authtime') . ' = :authtime',
+                    $db->quoteName('authdatetime') . ' = :authdatetime',
+                    $db->quoteName('direction') . ' = :direction',
+                    $db->quoteName('devicename') . ' = :devicename',
+                    $db->quoteName('deviceserialno') . ' = :deviceserialno',
+                    $db->quoteName('modified') . ' = NOW()',
+                    $db->quoteName('modified_by') . ' = :modified_by'
+                ];
+                
+                // Only add notes if column exists
+                if ($hasNotes) {
+                    $setFields[] = $db->quoteName('notes') . ' = :notes';
+                }
+                
                 $query = $db->getQuery(true)
                     ->update($db->quoteName('#__ordenproduccion_asistencia_manual'))
-                    ->set([
-                        $db->quoteName('cardno') . ' = :cardno',
-                        $db->quoteName('personname') . ' = :personname',
-                        $db->quoteName('authdate') . ' = :authdate',
-                        $db->quoteName('authtime') . ' = :authtime',
-                        $db->quoteName('authdatetime') . ' = :authdatetime',
-                        $db->quoteName('direction') . ' = :direction',
-                        $db->quoteName('devicename') . ' = :devicename',
-                        $db->quoteName('deviceserialno') . ' = :deviceserialno',
-                        $db->quoteName('modified') . ' = NOW()',
-                        $db->quoteName('modified_by') . ' = :modified_by'
-                    ])
+                    ->set($setFields)
                     ->where($db->quoteName('id') . ' = :id')
                     ->bind(':cardno', $data['cardno'])
                     ->bind(':personname', $data['personname'])
@@ -162,6 +173,11 @@ class AsistenciaentryModel extends FormModel
                     ->bind(':deviceserialno', $data['deviceserialno'])
                     ->bind(':modified_by', $userId, \Joomla\Database\ParameterType::INTEGER)
                     ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
+                
+                // Only bind notes if column exists
+                if ($hasNotes) {
+                    $query->bind(':notes', $data['notes']);
+                }
 
                 $db->setQuery($query);
                 $db->execute();
@@ -176,6 +192,12 @@ class AsistenciaentryModel extends FormModel
                     ':cardno', ':personname', ':authdate', ':authtime', ':authdatetime',
                     ':direction', ':devicename', ':deviceserialno'
                 ];
+                
+                // Only add notes if column exists
+                if ($hasNotes) {
+                    $columns[] = 'notes';
+                    $values[] = ':notes';
+                }
 
                 // Insert into manual asistencia table to preserve original asistencia table integrity
                 $user = Factory::getUser();
@@ -201,6 +223,11 @@ class AsistenciaentryModel extends FormModel
                     ->bind(':deviceserialno', $data['deviceserialno'])
                     ->bind(':state', 1, \Joomla\Database\ParameterType::INTEGER)
                     ->bind(':created_by', $userId, \Joomla\Database\ParameterType::INTEGER);
+                
+                // Only bind notes if column exists
+                if ($hasNotes) {
+                    $query->bind(':notes', $data['notes']);
+                }
 
                 $db->setQuery($query);
                 $db->execute();
