@@ -198,4 +198,223 @@ echo "⚠️ Incomplete = Less than expected hours | ";
 echo "- = No data";
 echo "</div>";
 
+// ============================================
+// MANUAL ENTRIES DIAGNOSTIC SECTION
+// ============================================
+echo "<hr style='margin: 30px 0; border: 2px solid #333;'>";
+echo "<h3>🔍 MANUAL ENTRIES DIAGNOSTIC</h3>";
+
+// Get date parameter or use today
+$testDate = $_GET['date'] ?? date('Y-m-d');
+
+echo "<div class='summary'>";
+echo "<strong>Testing Date:</strong> <strong>{$testDate}</strong> | ";
+echo "<form method='GET' style='display: inline;'>";
+echo "<input type='date' name='date' value='{$testDate}' style='margin: 0 5px;'>";
+echo "<button type='submit'>Change Date</button>";
+echo "</form>";
+echo "</div>";
+
+// Query 1: Check manual entries
+echo "<h4>1. Manual Entries in Manual Table</h4>";
+try {
+    $manualQuery = $db->getQuery(true)
+        ->select('*')
+        ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
+        ->where('DATE(' . $db->quoteName('authdate') . ') = ' . $db->quote($testDate))
+        ->order($db->quoteName('created') . ' DESC')
+        ->setLimit(20);
+    
+    $db->setQuery($manualQuery);
+    $manualEntries = $db->loadObjectList();
+    
+    if (empty($manualEntries)) {
+        echo "<p class='warning'>⚠️ No manual entries found for {$testDate}</p>";
+    } else {
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Person</th><th>Card No</th><th>Date</th><th>Time</th><th>Direction</th><th>Created</th><th>Created By</th></tr>";
+        foreach ($manualEntries as $entry) {
+            echo "<tr>";
+            echo "<td>{$entry->id}</td>";
+            echo "<td>{$entry->personname}</td>";
+            echo "<td>" . ($entry->cardno ?: '-') . "</td>";
+            echo "<td>{$entry->authdate}</td>";
+            echo "<td>{$entry->authtime}</td>";
+            echo "<td>{$entry->direction}</td>";
+            echo "<td>{$entry->created}</td>";
+            echo "<td>{$entry->created_by}</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        echo "<p>✅ Found <strong>" . count($manualEntries) . "</strong> manual entries</p>";
+    }
+} catch (Exception $e) {
+    echo "<p class='error'>❌ Error querying manual entries: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// Query 2: Check summaries for that date
+echo "<h4>2. Summary Records for {$testDate}</h4>";
+try {
+    $summaryQuery = $db->getQuery(true)
+        ->select('s.*, e.group_id, g.name AS group_name')
+        ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 's'))
+        ->leftJoin($db->quoteName('#__ordenproduccion_employees', 'e') . ' ON s.personname = e.personname')
+        ->leftJoin($db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON e.group_id = g.id')
+        ->where($db->quoteName('s.work_date') . ' = ' . $db->quote($testDate))
+        ->order($db->quoteName('s.personname') . ' ASC');
+    
+    $db->setQuery($summaryQuery);
+    $summaries = $db->loadObjectList();
+    
+    if (empty($summaries)) {
+        echo "<p class='error'>❌ No summary records found for {$testDate}</p>";
+    } else {
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Person</th><th>Card No</th><th>Date</th><th>Entry</th><th>Exit</th><th>Hours</th><th>Group</th><th>Approval</th></tr>";
+        foreach ($summaries as $summary) {
+            echo "<tr>";
+            echo "<td>{$summary->id}</td>";
+            echo "<td>{$summary->personname}</td>";
+            echo "<td>" . ($summary->cardno ?: '-') . "</td>";
+            echo "<td>{$summary->work_date}</td>";
+            echo "<td>" . ($summary->first_entry ?: '-') . "</td>";
+            echo "<td>" . ($summary->last_exit ?: '-') . "</td>";
+            echo "<td><strong>" . number_format($summary->total_hours, 2) . "h</strong></td>";
+            echo "<td>" . ($summary->group_name ?: '<span style="color:red">NO GROUP</span>') . "</td>";
+            echo "<td>" . ($summary->approval_status ?? 'pending') . "</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        echo "<p>✅ Found <strong>" . count($summaries) . "</strong> summary records</p>";
+    }
+} catch (Exception $e) {
+    echo "<p class='error'>❌ Error querying summaries: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// Query 3: Test UNION query
+echo "<h4>3. UNION Query Test (Combined asistencia + manual)</h4>";
+try {
+    $unionTestQuery = "
+        SELECT 
+            CAST(cardno AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno,
+            CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname,
+            CAST(authdate AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate,
+            CAST(authtime AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime,
+            CAST(direction AS CHAR) COLLATE utf8mb4_unicode_ci AS direction,
+            'biometric' AS source
+        FROM asistencia
+        WHERE DATE(CAST(authdate AS DATE)) = " . $db->quote($testDate) . "
+        UNION ALL
+        SELECT 
+            CAST(cardno AS CHAR) COLLATE utf8mb4_unicode_ci AS cardno,
+            CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname,
+            CAST(authdate AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate,
+            CAST(authtime AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime,
+            CAST(direction AS CHAR) COLLATE utf8mb4_unicode_ci AS direction,
+            'manual' AS source
+        FROM " . $db->quoteName('#__ordenproduccion_asistencia_manual') . "
+        WHERE state = 1
+        AND DATE(CAST(authdate AS DATE)) = " . $db->quote($testDate) . "
+        ORDER BY personname, authtime
+        LIMIT 50";
+    
+    $db->setQuery($unionTestQuery);
+    $combined = $db->loadObjectList();
+    
+    if (empty($combined)) {
+        echo "<p class='warning'>⚠️ UNION query returned no results for {$testDate}</p>";
+    } else {
+        echo "<table>";
+        echo "<tr><th>Person</th><th>Date</th><th>Time</th><th>Direction</th><th>Source</th></tr>";
+        foreach ($combined as $row) {
+            $sourceColor = $row->source === 'manual' ? 'style="background: #d4edda;"' : '';
+            echo "<tr {$sourceColor}>";
+            echo "<td>{$row->personname}</td>";
+            echo "<td>{$row->authdate}</td>";
+            echo "<td>{$row->authtime}</td>";
+            echo "<td>{$row->direction}</td>";
+            echo "<td><strong>" . strtoupper($row->source) . "</strong></td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        
+        $biometricCount = count(array_filter($combined, fn($r) => $r->source === 'biometric'));
+        $manualCount = count(array_filter($combined, fn($r) => $r->source === 'manual'));
+        
+        echo "<p>✅ UNION found: <strong>{$biometricCount}</strong> biometric + <strong>{$manualCount}</strong> manual = <strong>" . count($combined) . "</strong> total entries</p>";
+    }
+} catch (Exception $e) {
+    echo "<p class='error'>❌ Error in UNION query: " . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<pre style='background: #f0f0f0; padding: 10px; overflow: auto;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+}
+
+// Query 4: Test calculateDailyHours for a specific employee
+if (!empty($manualEntries)) {
+    echo "<h4>4. Test calculateDailyHours for Manual Entry Employee</h4>";
+    $testEmployee = $manualEntries[0]->personname;
+    echo "<p>Testing: <strong>{$testEmployee}</strong> on <strong>{$testDate}</strong></p>";
+    
+    try {
+        require_once JPATH_BASE . '/components/com_ordenproduccion/src/Helper/AsistenciaHelper.php';
+        $calculation = \Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper::calculateDailyHours($testEmployee, $testDate);
+        
+        if ($calculation) {
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Value</th></tr>";
+            echo "<tr><td>Personname</td><td>{$calculation->personname}</td></tr>";
+            echo "<tr><td>Cardno</td><td>" . ($calculation->cardno ?: '-') . "</td></tr>";
+            echo "<tr><td>Work Date</td><td>{$calculation->work_date}</td></tr>";
+            echo "<tr><td>First Entry</td><td>" . ($calculation->first_entry ?: '-') . "</td></tr>";
+            echo "<tr><td>Last Exit</td><td>" . ($calculation->last_exit ?: '-') . "</td></tr>";
+            echo "<tr><td>Total Hours</td><td><strong>" . number_format($calculation->total_hours, 2) . "h</strong></td></tr>";
+            echo "<tr><td>Total Entries</td><td>{$calculation->total_entries}</td></tr>";
+            echo "<tr><td>Is Complete</td><td>" . ($calculation->is_complete ? 'Yes' : 'No') . "</td></tr>";
+            echo "<tr><td>Is Late</td><td>" . ($calculation->is_late ? 'Yes' : 'No') . "</td></tr>";
+            echo "</table>";
+            echo "<p class='ok'>✅ calculateDailyHours returned valid data</p>";
+        } else {
+            echo "<p class='error'>❌ calculateDailyHours returned NULL/empty</p>";
+        }
+    } catch (Exception $e) {
+        echo "<p class='error'>❌ Error calling calculateDailyHours: " . htmlspecialchars($e->getMessage()) . "</p>";
+    }
+}
+
+// Query 5: Employees table check
+echo "<h4>5. Employee Records Check</h4>";
+if (!empty($manualEntries)) {
+    $uniqueEmployees = array_unique(array_column($manualEntries, 'personname'));
+    echo "<p>Checking if manual entry employees exist in employees table...</p>";
+    echo "<table>";
+    echo "<tr><th>Personname</th><th>Exists in Employees?</th><th>Group ID</th><th>Group Name</th></tr>";
+    
+    foreach ($uniqueEmployees as $empName) {
+        $empQuery = $db->getQuery(true)
+            ->select('e.*, g.name AS group_name, g.manager_user_id')
+            ->from($db->quoteName('#__ordenproduccion_employees', 'e'))
+            ->leftJoin($db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON e.group_id = g.id')
+            ->where($db->quoteName('e.personname') . ' = ' . $db->quote($empName));
+        
+        $db->setQuery($empQuery);
+        $employee = $db->loadObject();
+        
+        if ($employee) {
+            echo "<tr class='ok'>";
+            echo "<td>{$empName}</td>";
+            echo "<td>✅ Yes</td>";
+            echo "<td>" . ($employee->group_id ?: '<span style="color:red">NULL</span>') . "</td>";
+            echo "<td>" . ($employee->group_name ?: '<span style="color:red">NO GROUP</span>') . "</td>";
+            echo "</tr>";
+        } else {
+            echo "<tr class='error'>";
+            echo "<td>{$empName}</td>";
+            echo "<td>❌ No</td>";
+            echo "<td>-</td>";
+            echo "<td>-</td>";
+            echo "</tr>";
+        }
+    }
+    echo "</table>";
+}
+
 echo "</body></html>";
