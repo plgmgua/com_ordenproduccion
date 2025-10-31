@@ -12,6 +12,7 @@ This package contains the complete Production Orders Management System for Jooml
 
 ### Package Files:
 - `com_ordenproduccion-1.0.1.zip` - Main installation package
+- `plg_content_markdownrenderer.zip` - Markdown Renderer plugin
 - `README.md` - This installation guide
 
 ### Component Structure:
@@ -52,7 +53,23 @@ com_ordenproduccion/
    - Navigate to **Components > Production Orders**
    - Verify the dashboard loads correctly
 
-### Method 2: Manual Installation
+### Method 2: Install Markdown Renderer Plugin (Optional)
+
+1. **Install Plugin**
+   - Navigate to **Extensions > Manage > Install**
+   - Upload `plg_content_markdownrenderer.zip`
+   - Click **Upload & Install**
+
+2. **Enable Plugin**
+   - Go to **Extensions > Plugins**
+   - Search for "Markdown Renderer"
+   - Click plugin and enable it
+
+3. **Use in Articles**
+   - In any article, add: `{markdown:ASISTENCIA.md}`
+   - The markdown file will be rendered as HTML
+
+### Method 3: Manual Installation
 
 1. **Extract Package**
    ```bash
