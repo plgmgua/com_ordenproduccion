@@ -264,6 +264,17 @@ class TimesheetsController extends BaseController
                 $db->execute();
                 $saved++;
                 
+                // Ensure employee exists in employees table (required for display in timesheets)
+                try {
+                    $asistenciaModel = $this->getModel('Asistencia');
+                    if ($asistenciaModel && method_exists($asistenciaModel, 'ensureEmployeeExists')) {
+                        $asistenciaModel->ensureEmployeeExists($entry['personname'], $entry['cardno'] ?? '');
+                    }
+                } catch (\Exception $e) {
+                    // Log but don't fail
+                    error_log('Error ensuring employee exists: ' . $e->getMessage());
+                }
+                
                 // Track unique employee for summary recalculation
                 // Use personname as key (since cardno might be empty)
                 $employeeKey = trim($entry['personname']);

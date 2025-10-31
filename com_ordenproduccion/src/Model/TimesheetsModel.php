@@ -74,19 +74,20 @@ class TimesheetsModel extends ListModel
                 'g.color AS group_color'
             ])
             ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
-            ->innerJoin(
+            ->leftJoin(
                 $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
                 $db->quoteName('s.personname') . ' = ' . $db->quoteName('e.personname')
             )
-            ->innerJoin(
+            ->leftJoin(
                 $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
                 $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
             )
             ->where($db->quoteName('s.state') . ' = 1')
             ->where($db->quoteName('s.work_date') . ' = ' . $db->quote($workDate))
-            ->order('e.personname ASC');
+            ->order('COALESCE(' . $db->quoteName('e.personname') . ', ' . $db->quoteName('s.personname') . ') ASC');
 
         // Scope to groups managed by the current user
+        // Records without employee/group records are only visible to admins for security
         if (!$user->authorise('core.admin')) {
             $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
         }
@@ -94,7 +95,7 @@ class TimesheetsModel extends ListModel
         // Optional group filter
         $groupId = (int) $this->getState('filter.group_id');
         if ($groupId > 0) {
-            $query->where($db->quoteName('g.id') . ' = ' . $groupId);
+            $query->where('(' . $db->quoteName('g.id') . ' = ' . $groupId . ' OR ' . $db->quoteName('g.id') . ' IS NULL)');
         }
 
         // Optional search by name/card
