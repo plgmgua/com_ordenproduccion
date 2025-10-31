@@ -1,888 +1,393 @@
-# Sistema de Asistencia y Control de Tiempo - Com Orden Producción
+# Manual de Asistencia - Sistema de Control de Tiempo
 
-## 📋 Índice
+## 👋 Bienvenido
 
-1. [Visión General](#visión-general)
-2. [Arquitectura del Sistema](#arquitectura-del-sistema)
-3. [Vista de Asistencia](#vista-de-asistencia)
-4. [Vista de Timesheets (Aprobación de Tiempo)](#vista-de-timesheets-aprobación-de-tiempo)
-5. [Registros Manuales](#registros-manuales)
-6. [Sincronización de Datos](#sincronización-de-datos)
-7. [Control de Acceso](#control-de-acceso)
-8. [Flujo de Trabajo](#flujo-de-trabajo)
+Este manual te ayudará a usar el sistema de **Asistencia y Control de Tiempo** de manera sencilla y eficiente.
 
 ---
 
-## 🎯 Visión General
+## 🎯 ¿Qué hace este sistema?
 
-El sistema de **Asistencia** y **Timesheets** permite gestionar el registro de asistencia de empleados mediante dos fuentes de datos:
+El sistema registra automáticamente las **horas trabajadas** por cada empleado mediante:
 
-- **Dispositivos Biométricos**: Registros automáticos de entrada/salida
-- **Entradas Manuales**: Registros creados por administradores o supervisores
+- **Registro Biométrico**: Cuando marcas entrada o salida en el dispositivo
+- **Registro Manual**: Cuando tu supervisor crea un registro por ti
 
-El sistema calcula automáticamente las horas trabajadas, identifica llegadas tardías, salidas tempranas y genera resúmenes diarios para aprobación por parte de los gerentes de grupo.
-
----
-
-## 🏗️ Arquitectura del Sistema
-
-### Estructura de Base de Datos
-
-```
-┌──────────────────────────────────────────┐
-│     TABLA: asistencia                    │
-│     (Tabla Biométrica Original)          │
-│                                          │
-│  • authdate (Fecha de registro)          │
-│  • authtime (Hora de registro)           │
-│  • personname (Nombre del empleado)      │
-│  • direction (Entrada/Salida)            │
-│                                          │
-│  ← Escritura desde dispositivos         │
-└──────────────────────────────────────────┘
-           ↕
-┌──────────────────────────────────────────┐
-│  TABLA: #__ordenproduccion_              │
-│         asistencia_manual                │
-│                                          │
-│  • authdate (Fecha de registro)          │
-│  • authtime (Hora de registro)           │
-│  • personname (Nombre del empleado)      │
-│  • direction (Entrada/Salida)            │
-│  • notes (Notas opcionales)              │
-│  • created_by (Usuario que lo creó)      │
-│  • state (Estado activo/inactivo)        │
-│                                          │
-│  ← Escritura manual por usuarios        │
-└──────────────────────────────────────────┘
-           ↕
-┌──────────────────────────────────────────┐
-│  TABLA: #__ordenproduccion_              │
-│         asistencia_summary               │
-│     (Resúmenes Diarios Calculados)       │
-│                                          │
-│  • personname (Nombre del empleado)      │
-│  • work_date (Fecha de trabajo)          │
-│  • first_entry (Primera entrada)         │
-│  • last_exit (Última salida)             │
-│  • total_hours (Horas totales)           │
-│  • is_late (Llegó tarde)                 │
-│  • is_early_exit (Salió temprano)        │
-│  • approval_status (Pendiente/Aprobado)  │
-│  • approved_hours (Horas aprobadas)      │
-│  • approved_by (Usuario aprobador)       │
-│  • approved_date (Fecha de aprobación)   │
-└──────────────────────────────────────────┘
-```
-
-### Flujo de Datos
-
-```
-┌──────────────────────┐
-│ Dispositivo Biométrico │
-│  (Registro Automático) │
-└───────────┬────────────┘
-            ↓
-   ┌────────────────────────┐
-   │  asistencia            │
-   │  (Tabla Original)      │
-   └───────────┬────────────┘
-               ↓
-   ┌──────────────────────────────────────────┐
-   │  calculateDailyHours()                   │
-   │  (AsistenciaHelper::calculateDailyHours) │
-   │                                          │
-   │  ✓ UNION de ambas tablas                │
-   │  ✓ Cálculo de primeras/últimas entradas │
-   │  ✓ Detección de tardanzas/ausencias     │
-   │  ✓ Detección de salidas tempranas       │
-   └───────────┬────────────┬────────────────┘
-               ↓            ↓
-   ┌──────────────────┐   ┌──────────────────────────┐
-   │ Asistencia View  │   │  Timesheets View         │
-   │ (Consulta)       │   │  (Aprobación)            │
-   └──────────────────┘   └──────────────────────────┘
-```
+Luego, tu supervisor **aprueba** tus horas trabajadas y el sistema genera reportes automáticamente.
 
 ---
 
-## 📊 Vista de Asistencia
+## 📊 Pantalla de Asistencia
 
-### Descripción
+### ¿Qué veo aquí?
 
-La vista de **Asistencia** muestra un historial completo de registros de asistencia con capacidades de consulta, filtrado y estadísticas.
+La pantalla de **Asistencia** es tu ventana para consultar el historial de asistencia de todos los empleados.
 
-### Características Principales
+### Cómo usar los filtros
 
-#### 1. **Tarjetas de Estadísticas**
-
-```
-┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐
-│  Total Empleados│ Días Completos  │  Días con Tarde │ Horas Promedio  │
-│                 │                 │                 │                 │
-│       [XX]      │       [XX]      │       [XX]      │     [X.XX]      │
-└─────────────────┴─────────────────┴─────────────────┴─────────────────┘
-```
-
-#### 2. **Filtros Disponibles**
-
-- **Búsqueda**: Por nombre de empleado
-- **Rango de Fechas**: Desde / Hasta
-- **Empleado**: Filtro específico por tarjeta/nombre
-- **Grupo**: Filtrar por grupo de empleados
-- **Estado**: Completos / Incompletos
-- **Tarde**: Solo registros con llegada tardía
-
-#### 3. **Tabla de Resultados**
+En la parte superior verás varios campos que te permiten buscar información específica:
 
 ```
-┌─────────┬──────────────┬────────────┬──────────┬──────────┬────────────┬─────────┬──────────────┐
-│ Empleado│  Fecha       │ Primera    │ Última   │ Horas    │ Estado     │ Tarde   │  Acciones    │
-│         │              │ Entrada    │ Salida   │ Totales  │            │         │              │
-├─────────┼──────────────┼────────────┼──────────┼──────────┼────────────┼─────────┼──────────────┤
-│ Juan    │ 2025-01-27   │ 08:15      │ 17:30    │ 9.25     │ ✓ Completo │ ❌ No   │ [Eliminar]   │
-│         │              │            │          │          │            │         │              │
-│         │ 🔵 Manual:   │ 09:00      │ Entrada  │ Sistema  │ (Nota)     │         │              │
-│         │              │            │          │          │            │         │              │
-├─────────┼──────────────┼────────────┼──────────┼──────────┼────────────┼─────────┼──────────────┤
-│ María   │ 2025-01-27   │ 07:55      │ 16:00    │ 8.08     │ ✓ Completo │ ❌ No   │ [Eliminar]   │
-│         │              │            │          │          │            │         │              │
-│         │ 🔵 Manual:   │ 10:15      │ Entrada  │ Admin    │ Entrada    │         │              │
-│         │              │            │          │          │ adicional  │         │              │
-└─────────┴──────────────┴────────────┴──────────┴──────────┴────────────┴─────────┴──────────────┘
+Búsqueda:  [____________]         Buscar por nombre de empleado
+
+Desde:     [2025-01-01]  Hasta:   [2025-01-31]   Filtrar por fechas
+
+Grupo:     [Todos ▼]                             Ver por grupo específico
+
+Estado:    [Todos ▼]                             Completos / Incompletos
+
+Tarde:     [Todos ▼]                             Ver solo llegadas tardías
 ```
 
-**Notas sobre los Registros Manuales:**
+**Ejemplo práctico:**
+- Si quieres ver todos los registros de "Juan Pérez" en enero, completa:
+  - **Búsqueda**: "Juan"
+  - **Desde**: "2025-01-01"
+  - **Hasta**: "2025-01-31"
+- Haz clic en **"Buscar"**
 
-- Los registros manuales aparecen como **filas incrustadas** (fondo gris claro)
-- Muestran el ícono 🔵 (mano) para identificación
-- Incluyen el nombre del usuario que los creó
-- Muestran notas si existen, o "(Sin notas)" si no hay
-- **Botón de eliminar** disponible para cada registro manual (solo usuarios autenticados)
+### Entendiendo la tabla
 
-#### 4. **Botón de Sincronización**
-
-```
-[🔄 Sincronizar registros nuevos]
-```
-
-**Funcionalidad:**
-- Sincroniza los **últimos 7 días** de datos biométricos
-- **Solo crea resúmenes faltantes** (no modifica existentes)
-- **Preserva** aprobaciones y horas aprobadas
-- **Preserva** registros manuales existentes
-- Autoactualiza estadísticas
-
-### Acceso al Código
-
-- **Modelo**: `com_ordenproduccion/src/Model/AsistenciaModel.php`
-- **Vista**: `com_ordenproduccion/tmpl/asistencia/default.php`
-- **Controlador**: `com_ordenproduccion/src/Controller/AsistenciaController.php`
-
----
-
-## ✅ Vista de Timesheets (Aprobación de Tiempo)
-
-### Descripción
-
-La vista de **Timesheets** permite a los gerentes de grupo **aprobar** o **rechazar** el tiempo trabajado por sus empleados para una fecha específica.
-
-### Características Principales
-
-#### 1. **Filtros Simplificados**
+La tabla muestra los registros de asistencia:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Fecha: [2025-01-27]                                │
-│  Grupo: [-- Todos --]  ▼                            │
-│              [Buscar]                               │
-└─────────────────────────────────────────────────────┘
+┌──────────┬──────────────┬──────────┬──────────┬──────────┬────────────┐
+│ Empleado │   Fecha      │ Primera  │  Última  │  Horas   │  Estado    │
+│          │              │ Entrada  │  Salida  │ Totales  │            │
+├──────────┼──────────────┼──────────┼──────────┼──────────┼────────────┤
+│ Juan     │ 2025-01-27   │  08:15   │  17:30   │  9.25    │ ✓ Completo │
+│ Pérez    │              │          │          │          │            │
+│          │ (Manual)     │  09:00   │ Entrada  │ Sistema  │ Nota...    │
+│          │              │          │          │          │            │
+├──────────┼──────────────┼──────────┼──────────┼──────────┼────────────┤
+│ María    │ 2025-01-27   │  07:55   │  16:00   │  8.08    │ ✓ Completo │
+│ García   │              │          │          │          │            │
+└──────────┴──────────────┴──────────┴──────────┴──────────┴────────────┘
 ```
 
-- **Fecha**: Selecciona el día a aprobar (por defecto: hoy)
-- **Grupo**: Opcional, filtra por grupo específico
-- **Búsqueda**: Busca por nombre de empleado
+**¿Qué significa cada columna?**
 
-#### 2. **Tabla de Aprobación**
+- **Empleado**: Nombre de la persona
+- **Fecha**: Día del registro
+- **Primera Entrada**: Hora a la que llegó
+- **Última Salida**: Hora a la que se fue
+- **Horas Totales**: Horas trabajadas ese día
+- **Estado**: Si completó su jornada completa
 
-```
-┌─────────┬──────────────┬──────────┬─────────────┬────────────┬──────────────┬─────────────┐
-│ Empleado│ Primera      │ Última   │ Horas       │ Horas      │ Estado       │ Acciones    │
-│         │ Entrada      │ Salida   │ Calculadas  │ Aprobadas  │ Aprobación   │             │
-├─────────┼──────────────┼──────────┼─────────────┼────────────┼──────────────┼─────────────┤
-│ Juan    │ 08:15        │ 17:30    │ 9.25        │ [9.25]     │ ⏳ Pendiente │ [Aprobar]   │
-│         │              │          │             │            │              │ [Rechazar]  │
-│         │              │          │             │            │              │             │
-│         │ 🔵 Manual:   │ 09:00    │ Entrada     │ Sistema    │              │             │
-│         │              │          │             │            │              │             │
-├─────────┼──────────────┼──────────┼─────────────┼────────────┼──────────────┼─────────────┤
-│ María   │ 07:55        │ 16:00    │ 8.08        │ [8.00]     │ ✓ Aprobado   │ [Reaprobar] │
-│         │              │          │             │            │              │             │
-│         │ 🔵 Manual:   │ 10:15    │ Entrada     │ Admin      │              │             │
-│         │              │          │             │            │              │             │
-└─────────┴──────────────┴──────────┴─────────────┴────────────┴──────────────┴─────────────┘
-```
+### Entradas Manuales
 
-**Características:**
-
-- Muestra **horas calculadas** (automáticas desde biométrico + manual)
-- Permite editar **horas aprobadas** manualmente
-- Estado de aprobación visible (color-coded)
-- Los registros manuales aparecen incrustados igual que en Asistencia
-- **Bulk Actions**: Selección múltiple para aprobar/rechazar varios a la vez
-
-#### 3. **Formulario de Entrada Manual**
+A veces verás filas grises debajo del registro principal:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Entrada Manual                                           [+ Agregar]   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  Empleado   │  Fecha       │  Hora   │  Dirección  │  Notas *         │
-│  ──────────│──────────────│─────────│─────────────│───────────────────│
-│  Juan       │  2025-01-27  │  09:00  │  Entrada    │  Entrada adicional│
-│                                                                         │
-│                                                          [Guardar]      │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-**Características:**
-
-- Permite crear **múltiples entradas** a la vez
-- Notas obligatorias para documentación
-- Autoactualiza el resumen después de guardar
-- Creado por usuario autenticado (se registra)
-
-#### 4. **Botón de Sincronización**
-
-```
-[🔄 Sincronizar registros nuevos]
-```
-
-Idéntica funcionalidad que en Asistencia.
-
-### Control de Acceso
-
-- **Gerentes de Grupo**: Solo ven sus grupos asignados
-- **Super Admins**: Ven todos los grupos
-- **Aprobación**: Solo gerentes pueden aprobar (o super admins)
-
-### Acceso al Código
-
-- **Modelo**: `com_ordenproduccion/src/Model/TimesheetsModel.php`
-- **Vista**: `com_ordenproduccion/tmpl/timesheets/default.php`
-- **Controlador**: `com_ordenproduccion/src/Controller/TimesheetsController.php`
-
----
-
-## ✏️ Registros Manuales
-
-### ¿Qué son?
-
-Los **Registros Manuales** son entradas creadas por administradores o supervisores para cubrir situaciones especiales:
-
-- Olvido de marcar entrada/salida
-- Salidas por emergencias
-- Horas extras no capturadas por el dispositivo
-- Correcciones de datos biométricos erróneos
-
-### Estructura de un Registro Manual
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Registro Manual                                             │
-├──────────────────────────────────────────────────────────────┤
-│  • personname: "Juan Pérez"                                  │
-│  • authdate: "2025-01-27"                                    │
-│  • authtime: "09:00:00"                                      │
-│  • direction: "Entrada" o "Salida"                          │
-│  • notes: "Olvidó marcar entrada" (obligatorio)             │
-│  • created_by: ID del usuario que lo creó                   │
-│  • devicename: "Manual Entry"                               │
-│  • state: 1 (activo) o 0 (eliminado soft-delete)           │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### Integración con Cálculos
-
-Los registros manuales se **combinan automáticamente** con los registros biométricos usando una consulta `UNION ALL`:
-
-```php
-// Pseudocódigo del cálculo
-SELECT 
-    MIN(authtime) AS first_entry,
-    MAX(authtime) AS last_exit,
-    COUNT(*) AS total_entries
-FROM (
-    -- Biométricos
-    SELECT personname, authdate, authtime, direction
-    FROM asistencia
-    WHERE personname = 'Juan' AND authdate = '2025-01-27'
-    
-    UNION ALL
-    
-    -- Manuales
-    SELECT personname, authdate, authtime, direction
-    FROM #__ordenproduccion_asistencia_manual
-    WHERE personname = 'Juan' 
-      AND authdate = '2025-01-27'
-      AND state = 1
-) AS combined_entries
-GROUP BY personname
-```
-
-### Visualización
-
-Los registros manuales aparecen como **subfilas incrustadas** en ambas vistas:
-
-```
-Row principal (Resumen biométrico + manual):
 ┌────────────────────────────────────────────────────────┐
 │ Juan Pérez │ 08:15 │ 17:30 │ 9.25 │ ...              │
-│                ↑                                       │
-│           Incluye todas las entradas                   │
 └────────────────────────────────────────────────────────┘
             ↓
-Subfilas de registros manuales:
 ┌────────────────────────────────────────────────────────┐
 │ 🔵 Manual: 09:00 | Entrada | Sistema | (Nota...)     │
-│       ↑              ↑          ↑         ↑           │
-│   Icono de   Hora/Dirección   Creador   Notas         │
-│   mano                                                   │
+│     ↑             ↑          ↑         ↑              │
+│  Indica registro   Hora   Quien lo   Motivo           │
+│  manual creado            lo creó                      │
 └────────────────────────────────────────────────────────┘
 ```
 
-### Operaciones Soportadas
+**¿Qué significa esto?**
 
-#### Crear
-- Desde Timesheets: Botón "+ Agregar" → Formulario múltiple
-- Validación de notas obligatorias
-- Autoactualización de resumen
+- Un supervisor creó un registro **adicional** (p. ej., olvido de marcar)
+- La línea gris muestra quién lo creó y la razón
+- Las horas **ya están incluidas** en el total superior
 
-#### Eliminar
-- Desde Asistencia: Botón 🗑️ en cada registro manual
-- Confirmación CSRF obligatoria
-- Soft-delete (state = 0)
-- Autoactualización de resumen
+### Botón de Eliminación
 
-#### Visualizar
-- En ambas vistas como subfilas
-- Con ícono, hora, dirección, creador y notas
-- Fondo gris para diferenciación visual
+Si eres supervisor y ves un registro manual incorrecto, puedes eliminarlo:
 
-### Código de Referencia
+```
+                    [🗑️]
+```
 
-- **Tabla**: `#__ordenproduccion_asistencia_manual`
-- **Helper**: `AsistenciaHelper::calculateDailyHours()`
-- **Modelo**: `AsistenciaModel::getManualEntriesForSummary()`
-- **Controlador**: `TimesheetsController::bulkManualEntry()`
+- **Solo supervisores** pueden ver este botón
+- Confirma antes de eliminar
+- Al eliminar, el resumen se recalcula automáticamente
+
+### Sincronizar Datos
+
+El botón **"Sincronizar registros nuevos"** aparece en la parte superior:
+
+```
+[🔄 Sincronizar registros nuevos]
+```
+
+**¿Cuándo usarlo?**
+
+Cuando necesitas que el sistema **cree resúmenes** para registros nuevos que aún no se han procesado.
+
+**¿Qué hace?**
+
+- Busca registros biométricos de los últimos 7 días
+- Crea resúmenes **solo para los que faltan**
+- **No modifica** registros que ya existen
+- **Preserva** aprobaciones y datos existentes
 
 ---
 
-## 🔄 Sincronización de Datos
+## ✅ Pantalla de Aprobación de Tiempo (Timesheets)
 
-### ¿Qué hace?
+### ¿Para quién es esta pantalla?
 
-La **sincronización** crea o actualiza los **resúmenes diarios** en `asistencia_summary` a partir de los datos biométricos y manuales.
+Esta pantalla es para **supervisores y gerentes** que necesitan aprobar las horas trabajadas por sus empleados.
 
-### Proceso Detallado
+### ¿Qué hace esta pantalla?
 
-```
-1. Selección de Empleados
-   ↓
-   Obtiene lista de empleados con registros en:
-   - asistencia (biométricos)
-   - asistencia_manual (manuales)
-   ↓
-   Últimos 7 días por defecto
+Permite:
+1. **Ver** las horas calculadas para cada empleado
+2. **Ajustar** las horas si es necesario
+3. **Aprobar** o **rechazar** el tiempo trabajado
 
-2. Para cada Empleado + Fecha:
-   ↓
-   calculateDailyHours(empleado, fecha)
-   ↓
-   UNION de ambas tablas → Cálculos:
-   • first_entry (primera entrada)
-   • last_exit (última salida)
-   • total_hours (horas trabajadas)
-   • is_late (llegó tarde)
-   • is_early_exit (salió temprano)
-   ↓
-   Verificación de existencia
-   ↓
-   ┌─────────────────┬─────────────────────┐
-   │ ¿Ya existe?     │ ¿Qué hacer?         │
-   ├─────────────────┼─────────────────────┤
-   │ NO              │ INSERT resumen nuevo│
-   │ SÍ              │ CONTINUE (skip)     │
-   └─────────────────┴─────────────────────┘
+### Filtros
 
-3. Resultado:
-   • Creados: N resúmenes nuevos
-   • Preservados: Datos aprobados
-   • Preservados: Registros manuales
-   • Actualizado: Estadísticas
-```
-
-### Comportamiento Importante
-
-#### ✅ Lo que SÍ hace:
-
-- Crea resúmenes faltantes para registros nuevos
-- Preserva aprobaciones existentes
-- Preserva horas aprobadas
-- Respeta registros manuales
-- Actualiza estadísticas en tiempo real
-
-#### ❌ Lo que NO hace:
-
-- NO modifica resúmenes existentes
-- NO sobrescribe aprobaciones
-- NO elimina registros manuales
-- NO recalcula datos ya procesados
-
-### Ejemplo de Uso
+Más simples que en Asistencia:
 
 ```
-Situación:
-- Empleado Juan tiene registros biométricos pero NO tiene resumen para hoy
-- Resumen existe para AYER (ya aprobado)
-- Resumen existe para ANTES DE AYER (ya aprobado)
+Fecha:  [2025-01-27]         Selecciona el día a aprobar
 
-Ejecución de Sincronización:
+Grupo:  [Todos ▼]           Filtrar por grupo específico
 
-┌─────────────────────────────────────────────────┐
-│ Sincronizando últimos 7 días...                │
-├─────────────────────────────────────────────────┤
-│ 2025-01-27 (HOY):     NUEVO   → ✓ INSERT       │
-│ 2025-01-26 (AYER):    EXISTE  → ✗ SKIP         │
-│ 2025-01-25:           EXISTE  → ✗ SKIP         │
-│ 2025-01-24:           NUEVO   → ✓ INSERT       │
-│ 2025-01-23:           EXISTE  → ✗ SKIP         │
-│ 2025-01-22:           NUEVO   → ✓ INSERT       │
-│ 2025-01-21:           EXISTE  → ✗ SKIP         │
-├─────────────────────────────────────────────────┤
-│ Total creados: 3                                 │
-│ Existentes preservados: 4                       │
-└─────────────────────────────────────────────────┘
+        [Buscar]
 ```
 
-### Código de Referencia
+- **Por defecto** muestra el día de hoy
+- Puedes cambiar la fecha para aprobar días anteriores
 
-- **Método**: `AsistenciaModel::syncRecentData()`
-- **Helper**: `AsistenciaHelper::calculateDailyHours()`
-- **Trigger**: Botón "Sincronizar registros nuevos"
+### La tabla de aprobación
+
+```
+┌──────────┬──────────┬────────────┬────────────┬──────────────┬───────────┐
+│ Empleado │ Primera  │  Última    │  Horas     │  Horas       │  Acciones │
+│          │ Entrada  │  Salida    │ Calculadas │  Aprobadas   │           │
+├──────────┼──────────┼────────────┼────────────┼──────────────┼───────────┤
+│ Juan     │  08:15   │  17:30     │  9.25      │  [9.25]      │ [Aprobar] │
+│          │          │            │            │              │ [Rechazar]│
+│          │          │            │            │              │           │
+│          │ 🔵 Manual│  09:00     │ Entrada    │ Sistema      │           │
+│          │          │            │            │              │           │
+├──────────┼──────────┼────────────┼────────────┼──────────────┼───────────┤
+│ María    │  07:55   │  16:00     │  8.08      │  [8.00]      │ [Aprobar] │
+│          │          │            │            │              │           │
+└──────────┴──────────┴────────────┴────────────┴──────────────┴───────────┘
+```
+
+**Importante:**
+
+- **Horas Calculadas**: Automáticas del sistema (no se pueden editar aquí)
+- **Horas Aprobadas**: Puedes editarlas si necesitas ajustar
+- **Entradas Manuales**: Aparecen debajo con fondo gris
+
+### Cómo aprobar tiempo
+
+#### Aprobar individualmente
+
+1. Revisa las horas calculadas para el empleado
+2. (Opcional) Edita las horas aprobadas si es necesario
+3. Haz clic en **"Aprobar"**
+4. El estado cambiará a ✓ **Aprobado**
+
+#### Aprobar múltiples (Bulk)
+
+1. **Marca la casilla** al lado de cada empleado a aprobar
+2. En la parte superior, verás: **"Acciones en lote"**
+3. Selecciona "Aprobar seleccionados"
+4. Haz clic en **"Ejecutar"**
+5. Todos los marcados quedarán aprobados
+
+#### Rechazar
+
+Si un registro está incorrecto:
+
+1. Haz clic en **"Rechazar"**
+2. El estado cambiará a ❌ **Rechazado**
+3. Opcionalmente, agrega un comentario
+
+### Crear Registro Manual
+
+Si un empleado **olvidó marcar** o hubo algún problema:
+
+1. Haz clic en **"Nueva Entrada Manual"** (parte superior)
+2. Se abrirá un formulario:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Entrada Manual                             [+ Agregar] │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Empleado  │  Fecha      │  Hora  │  Dirección │ Notas*│
+│  ──────────│─────────────│────────│────────────│───────│
+│  [Juan   ▼]│ 2025-01-27  │  [09:00]│ [Entrada ▼]│ Olvidó│
+│  Pérez     │             │        │            │ marcar│
+│                                                         │
+│                                           [Guardar]     │
+└─────────────────────────────────────────────────────────┘
+```
+
+3. **Completa**:
+   - Empleado: Selecciona de la lista
+   - Fecha: El día del registro
+   - Hora: Hora exacta
+   - Dirección: Entrada o Salida
+   - Notas: **Obligatorio** - explica el motivo
+4. Haz clic en **"Guardar"**
+5. El resumen se actualiza automáticamente
+
+**Agregar múltiples entradas:**
+
+- Haz clic en **"+ Agregar"** para más filas
+- Guarda todas de una vez
+
+### Sincronizar Datos
+
+Igual que en Asistencia:
+
+```
+[🔄 Sincronizar registros nuevos]
+```
+
+Crea resúmenes faltantes sin modificar lo ya aprobado.
 
 ---
 
-## 🔐 Control de Acceso
+## 🔐 ¿Quién puede hacer qué?
 
-### Niveles de Usuario
+### Usuario Normal (Empleado)
 
-```
-┌──────────────────────────────────────────────────────────┐
-│           Joomla Super Admin (core.admin)                │
-│  • Ve TODOS los grupos                                   │
-│  • Puede aprobar CUALQUIER timesheet                     │
-│  • Sin restricciones                                     │
-└──────────────────────────────────────────────────────────┘
-                    ↓
-┌──────────────────────────────────────────────────────────┐
-│    Gerente de Grupo (manager_user_id)                    │
-│  • Ve SOLO sus grupos asignados                          │
-│  • Puede aprobar SOLO su grupo                           │
-│  • No ve otros grupos                                    │
-└──────────────────────────────────────────────────────────┘
-                    ↓
-┌──────────────────────────────────────────────────────────┐
-│                Usuario Regular                           │
-│  • Solo lectura en Asistencia                            │
-│  • Sin acceso a Timesheets                               │
-└──────────────────────────────────────────────────────────┘
-```
+- ✅ Ver tu propio historial de asistencia
+- ❌ No puedes aprobar tiempo
+- ❌ No puedes crear registros manuales
+- ❌ No puedes ver otros empleados
 
-### Implementación en Código
+### Supervisor / Gerente de Grupo
 
-#### TimesheetsModel (Filtro de Grupos)
+- ✅ Ver el historial de **tus grupos** asignados
+- ✅ Aprobar o rechazar tiempo de **tus empleados**
+- ✅ Crear registros manuales
+- ✅ Eliminar registros manuales incorrectos
+- ✅ Sincronizar datos
 
-```php
-// Línea 92-94 de TimesheetsModel.php
-if (!$user->authorise('core.admin')) {
-    $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
-}
-```
+### Administrador
 
-**Resultado:**
-- Super Admin: Sin filtro → ve todos
-- Gerente: Con filtro → solo sus grupos
-
-#### TimesheetsController (Aprobación)
-
-```php
-// Línea ~X de TimesheetsController.php
-public function approve() {
-    $user = Factory::getUser();
-    
-    // Solo managers pueden aprobar (o admins)
-    if (!$user->authorise('core.admin')) {
-        $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
-    }
-    
-    // ... lógica de aprobación
-}
-```
-
-### Tabla de Permisos
-
-```
-┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
-│ Acción                  │ Super Admin  │ Gerente      │ Usuario      │
-├─────────────────────────┼──────────────┼──────────────┼──────────────┤
-│ Ver Asistencia          │ ✓ Todos      │ ✓ Sus grupos │ ✓ Sus propios│
-│ Ver Timesheets          │ ✓ Todos      │ ✓ Sus grupos │ ✗ Sin acceso │
-│ Aprobar Timesheets      │ ✓ Todos      │ ✓ Sus grupos │ ✗ Sin acceso │
-│ Crear Registro Manual   │ ✓ Todos      │ ✓ Sus grupos │ ✗ Sin acceso │
-│ Eliminar Registro Manual│ ✓ Todos      │ ✓ Sus grupos │ ✗ Sin acceso │
-│ Sincronizar Datos       │ ✓            │ ✓            │ ✗ Sin acceso │
-└─────────────────────────┴──────────────┴──────────────┴──────────────┘
-```
+- ✅ Ver **todos** los grupos y empleados
+- ✅ Aprobar o rechazar **cualquier** timesheet
+- ✅ Acceso completo a todas las funciones
 
 ---
 
-## 🔄 Flujo de Trabajo
+## ❓ Preguntas Frecuentes
 
-### Flujo Típico Diario
+### ¿Por qué veo "(Manual)" en mi registro?
 
-```
-DÍA 1: Registro Automático
-┌────────────────────────────────────────────────────┐
-│ 08:00 - Empleados marcan entrada en biométrico    │
-│ 17:00 - Empleados marcan salida en biométrico     │
-│                                                   │
-│ Datos almacenados en: asistencia                  │
-└────────────────────────────────────────────────────┘
-                    ↓
-DÍA 2: Revisión y Aprobación
-┌────────────────────────────────────────────────────┐
-│ Gerente entra a Timesheets                         │
-│                                                   │
-│ 1. Selecciona fecha: DÍA 1                        │
-│ 2. Ve resúmenes de su grupo                       │
-│ 3. Revisa horas calculadas                        │
-│ 4. Ajusta horas si es necesario                   │
-│ 5. Aproba o rechaza cada registro                 │
-│                                                   │
-│ Estado: ⏳ Pendiente → ✓ Aprobado                 │
-└────────────────────────────────────────────────────┘
-                    ↓
-CASOS ESPECIALES: Registros Manuales
-┌────────────────────────────────────────────────────┐
-│ Empleado olvidó marcar → Gerente crea manual      │
-│                                                   │
-│ 1. Click en "Nueva Entrada Manual"                │
-│ 2. Completa formulario (obligatorio: notas)      │
-│ 3. Guarda                                          │
-│ 4. Resumen se actualiza automáticamente           │
-│ 5. Puede aprobar normalmente                      │
-└────────────────────────────────────────────────────┘
-```
+Porque un supervisor creó una entrada manual adicional. Las horas ya están incluidas en tu total.
 
-### Flujo de Consulta Histórica
+### ¿Puedo editar mis horas calculadas?
 
-```
-┌────────────────────────────────────────────────────┐
-│ Usuario entra a Asistencia                        │
-│                                                   │
-│ 1. Configura filtros (fechas, grupos, etc.)      │
-│ 2. Ve historial completo                          │
-│ 3. Revisa estadísticas                            │
-│ 4. Detecta anomalías o tardanzas                  │
-│                                                   │
-│ Funcionalidad: Solo lectura                       │
-└────────────────────────────────────────────────────┘
-                    ↓
-┌────────────────────────────────────────────────────┐
-│ Si encuentra registro manual incorrecto:          │
-│                                                   │
-│ 1. Click en botón 🗑️ Eliminar                    │
-│ 2. Confirma eliminación                           │
-│ 3. Resumen se recalcula automáticamente           │
-│                                                   │
-│ Funcionalidad: Eliminación de manuales            │
-└────────────────────────────────────────────────────┘
-```
+No. Las horas calculadas son automáticas. Tu supervisor puede aprobar horas diferentes si es necesario.
 
-### Flujo de Sincronización
+### ¿Qué significa "Estado: Completo"?
 
-```
-┌────────────────────────────────────────────────────┐
-│ Dispositivo biométrico envía nuevos registros     │
-│ (automático a través de sistema externo)          │
-└────────────────────────────────────────────────────┘
-                    ↓
-┌────────────────────────────────────────────────────┐
-│ Usuario ejecuta "Sincronizar registros nuevos"    │
-│                                                   │
-│ 1. Sistema busca últimas 7 días                   │
-│ 2. Identifica registros SIN resumen               │
-│ 3. Calcula horas para cada uno                    │
-│ 4. Crea solo resúmenes faltantes                  │
-│ 5. Preserva aprobaciones existentes               │
-│                                                   │
-│ Resultado: Datos sincronizados sin pérdida        │
-└────────────────────────────────────────────────────┘
-```
+Que llegaste temprano y cumpliste tu jornada completa sin salir antes.
 
----
+### ¿Qué significa "Tarde" o "Salida Temprana"?
 
-## 📝 Conceptos Técnicos Clave
+- **Tarde**: Llegaste después de la hora establecida
+- **Salida Temprana**: Te fuiste antes de tu hora de salida
 
-### Cálculo de Horas
+### ¿Dónde veo mis horas aprobadas?
 
-```php
-// Pseudocódigo
-function calculateDailyHours($employee, $date) {
-    // 1. UNION de ambas tablas
-    entries = UNION (
-        SELECT * FROM asistencia WHERE personname = $employee AND authdate = $date,
-        SELECT * FROM asistencia_manual WHERE personname = $employee AND authdate = $date AND state = 1
-    )
-    
-    // 2. Primera y última entrada
-    first_entry = MIN(authtime WHERE direction = 'Entrada')
-    last_exit = MAX(authtime WHERE direction = 'Salida')
-    
-    // 3. Cálculo de horas
-    total_hours = timeDifference(first_entry, last_exit)
-    
-    // 4. Detección de tardanzas/ausencias
-    work_start = obtenerDesdeGrupo($employee)
-    grace_minutes = obtenerDesdeGrupo($employee)
-    
-    if (first_entry > work_start + grace_minutes) {
-        is_late = 1
-    }
-    
-    // 5. Detección de salidas tempranas
-    work_end = obtenerDesdeGrupo($employee)
-    
-    if (last_exit < work_end) {
-        is_early_exit = 1
-    }
-    
-    // 6. Retorna resumen
-    return {
-        first_entry,
-        last_exit,
-        total_hours,
-        is_late,
-        is_early_exit,
-        total_entries
-    }
-}
-```
+En la pantalla de Timesheets, columna "Horas Aprobadas".
 
-### UNION ALL para Combinar Fuentes
+### ¿Puedo eliminar un registro manual que creé?
 
-```sql
--- Ejemplo de la consulta UNION
-SELECT personname, authdate, authtime, direction
-FROM asistencia
-WHERE personname = 'Juan' AND DATE(authdate) = '2025-01-27'
-
-UNION ALL
-
-SELECT personname, authdate, authtime, direction
-FROM #__ordenproduccion_asistencia_manual
-WHERE personname = 'Juan' 
-  AND DATE(authdate) = '2025-01-27'
-  AND state = 1
-
--- Resultado: Todas las entradas combinadas
--- Ordenadas después para calcular first_entry y last_exit
-```
-
-### Preservación de Aprobaciones
-
-```php
-// Pseudocódigo de sincronización
-function syncRecentData() {
-    foreach ($employeeDates as $empDate) {
-        // Calcular resumen
-        $summary = calculateDailyHours($empDate->cardno, $empDate->date);
-        
-        // Verificar existencia
-        $existing = checkIfSummaryExists($empDate->personname, $empDate->date);
-        
-        if ($existing) {
-            // EXISTE: Preservar datos aprobados
-            continue; // Skip - no modificar
-        } else {
-            // NO EXISTE: Crear nuevo
-            insertNewSummary($summary);
-        }
-    }
-}
-```
-
----
-
-## 🛠️ Archivos de Código Importantes
-
-### Modelos
-
-1. **AsistenciaModel** (`src/Model/AsistenciaModel.php`)
-   - Gestiona consultas de asistencia
-   - Sincronización de datos
-   - Estadísticas
-   - Registros manuales embebidos
-
-2. **TimesheetsModel** (`src/Model/TimesheetsModel.php`)
-   - Consultas con filtro de grupos
-   - Registros manuales embebidos
-   - Control de acceso por gerente
-
-### Controladores
-
-1. **AsistenciaController** (`src/Controller/AsistenciaController.php`)
-   - Sincronización de datos
-   - Filtros y paginación
-
-2. **TimesheetsController** (`src/Controller/TimesheetsController.php`)
-   - Aprobación individual/bulk
-   - Creación bulk de registros manuales
-   - Control de acceso
-
-3. **AsistenciaentryController** (`src/Controller/AsistenciaentryController.php`)
-   - Eliminación de registros manuales
-   - Recálculo automático
-
-### Helper
-
-1. **AsistenciaHelper** (`src/Helper/AsistenciaHelper.php`)
-   - `calculateDailyHours()`: Lógica principal de cálculo
-   - `updateDailySummary()`: Actualización de resúmenes
-   - Detección de tardanzas/ausencias
-   - UNION de tablas
-
-### Vistas
-
-1. **asistencia/default.php** (`tmpl/asistencia/default.php`)
-   - Tabla principal con subfilas manuales
-   - Estadísticas
-   - Filtros avanzados
-   - Botón eliminar manuales
-
-2. **timesheets/default.php** (`tmpl/timesheets/default.php`)
-   - Tabla de aprobación con subfilas manuales
-   - Formulario de entradas manuales
-   - Botones de aprobación/rechazo
-   - Bulk actions
-
-### Idioma
-
-- `language/es-ES/com_ordenproduccion.ini`
-- `language/en-GB/com_ordenproduccion.ini`
-
-Strings clave:
-- `COM_ORDENPRODUCCION_ASISTENCIA_*`
-- `COM_ORDENPRODUCCION_TIMESHEETS_*`
-- `COM_ORDENPRODUCCION_ASISTENCIA_SYNC`
-
----
-
-## 🎨 Elementos Visuales
-
-### Iconografía
-
-```
-🔵 = Registro Manual
-✓ = Aprobado
-⏳ = Pendiente
-❌ = Rechazado
-🔄 = Sincronización
-🗑️ = Eliminar
-➕ = Agregar
-👤 = Usuario/Creador
-```
-
-### Colores de Estado
-
-```
-Verde (#28a745)   = Completos / Aprobados
-Amarillo (#ffc107) = Pendientes / Tardes
-Rojo (#dc3545)    = Rechazados / Eliminar
-Azul (#007bff)    = Información / Manuales
-Gris (#6c757d)    = Deshabilitado / Inactivo
-```
-
-### Estilos de Filas
-
-```
-Fila Principal:
-┌────────────────────────────────────────┐
-│ Fondo blanco                           │
-│ Bordes sutiles                         │
-│ Padding normal                         │
-└────────────────────────────────────────┘
-
-Subfila Manual:
-┌────────────────────────────────────────┐
-│ Fondo gris claro (#f8f9fa)            │
-│ Font size reducido                     │
-│ Indentación (padding-left: 40px)      │
-│ Ícono de mano al inicio                │
-└────────────────────────────────────────┘
-```
-
----
-
-## 🔍 Preguntas Frecuentes
-
-### ¿Qué pasa si un empleado no tiene resumen para hoy?
-
-Usa **"Sincronizar registros nuevos"** para crear el resumen automáticamente.
-
-### ¿Puedo modificar un resumen ya aprobado?
-
-Sí, en Timesheets puedes editar las horas aprobadas y reprobar.
-
-### ¿Cómo agrego registros manuales?
-
-En Timesheets, usa el botón **"+ Nueva Entrada Manual"**.
-
-### ¿Se pueden eliminar registros biométricos?
-
-No directamente. Puedes crear registros manuales para corregir el cálculo.
+Sí, si eres supervisor, verás el botón 🗑️ junto a cada entrada manual.
 
 ### ¿Qué pasa si elimino un registro manual?
 
-El resumen se recalcula automáticamente sin ese registro.
+El sistema recalcula el resumen sin ese registro y ajusta las horas automáticamente.
 
-### ¿Los registros manuales afectan el cálculo?
+### ¿Cuándo debo usar "Sincronizar registros nuevos"?
 
-Sí, se combinan con los biométricos automáticamente.
+Cuando necesitas crear resúmenes para registros recientes que aún no se han procesado.
 
-### ¿Puedo ver el historial de registros manuales?
+### ¿Puedo ver mi historial de hace meses?
 
-Sí, aparecen incrustados en la vista de Asistencia y Timesheets.
+Sí, ajusta los filtros de fecha para el rango que necesites.
 
-### ¿Qué significa "registros nuevos" en sincronización?
+### ¿Qué hago si mi supervisor no está aprobando mi tiempo?
 
-Resúmenes que no existen en `asistencia_summary`.
+Comunícate con tu supervisor o con recursos humanos.
+
+### ¿Puedo ver quién creó un registro manual?
+
+Sí. En las entradas manuales aparece el nombre del usuario que las creó.
+
+### ¿Las notas son obligatorias en registros manuales?
+
+Sí. Se requieren para explicar el motivo.
+
+### ¿Puedo aprobar múltiples empleados a la vez?
+
+Sí. Usa las casillas de selección y la opción "Acciones en lote".
+
+### ¿Qué significa el ícono 🔵?
+
+Indica un registro manual creado manualmente.
+
+### ¿Las horas del registro manual se suman a mi total?
+
+Sí. Se combinan automáticamente con las horas biométricas.
 
 ---
 
-## 📞 Soporte Técnico
+## 🎯 Guía Rápida de Uso
 
-Para más información o soporte, consulta:
+### Para Empleados
 
-- **README.md**: Información general del componente
-- **ASISTENCIA_SETUP_GUIDE.md**: Guía de configuración
-- **CHANGELOG.md**: Historial de versiones
+```
+1. Marca tu entrada y salida en el dispositivo biométrico
+2. Consulta tu asistencia en la pantalla de Asistencia
+3. Verifica que tus horas sean correctas
+4. Contacta a tu supervisor si hay algún problema
+```
+
+### Para Supervisores
+
+```
+1. Navega a Timesheets
+2. Selecciona el día que quieres revisar
+3. Revisa las horas calculadas de cada empleado
+4. Ajusta horas si es necesario
+5. Aprueba o rechaza cada registro
+   O
+   Selecciona múltiples y aprueba en lote
+```
+
+### Para Administradores
+
+```
+1. Tienes acceso a TODAS las funciones
+2. Puedes aprobar para cualquier grupo
+3. Puedes crear registros manuales para cualquier empleado
+4. Puedes ver estadísticas completas del sistema
+```
+
+---
+
+## 🆘 Contacto
+
+Si tienes dudas o problemas:
+
+1. Consulta esta guía primero
+2. Contacta a tu supervisor
+3. Contacta a recursos humanos
+4. Contacta al administrador del sistema
 
 ---
 
 **Última actualización:** Enero 2025  
-**Versión del sistema:** 3.7.0+  
-**Compatibilidad:** Joomla 5.0+
-
+**Versión:** 3.7.0+
