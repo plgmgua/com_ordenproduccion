@@ -60,8 +60,32 @@ class AsistenciaHelper
     {
         self::init();
 
-        // Read from original asistencia table (varchar fields need conversion)
+        // Read from combined asistencia tables (original + manual entries)
+        // Uses UNION ALL to combine both sources while preserving original table integrity
         // Note: $cardno parameter is actually used as personname identifier (since cardno is often empty)
+        
+        // Build UNION subquery for both tables
+        // Note: Original asistencia table may not have state column, so we don't filter it
+        // Manual entries table has state column for soft-delete support
+        $unionQuery = '(' .
+            'SELECT ' .
+                self::$db->quoteName('cardno') . ', ' .
+                self::$db->quoteName('personname') . ', ' .
+                self::$db->quoteName('authdate') . ', ' .
+                self::$db->quoteName('authtime') . ', ' .
+                self::$db->quoteName('direction') .
+            ' FROM ' . self::$db->quoteName('asistencia') .
+            ' UNION ALL ' .
+            'SELECT ' .
+                self::$db->quoteName('cardno') . ', ' .
+                self::$db->quoteName('personname') . ', ' .
+                self::$db->quoteName('authdate') . ', ' .
+                self::$db->quoteName('authtime') . ', ' .
+                self::$db->quoteName('direction') .
+            ' FROM ' . self::$db->quoteName('#__ordenproduccion_asistencia_manual') .
+            ' WHERE ' . self::$db->quoteName('state') . ' = 1' .
+        ') AS ' . self::$db->quoteName('combined_entries');
+        
         $query = self::$db->getQuery(true)
             ->select([
                 'MIN(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS first_entry',
@@ -70,7 +94,7 @@ class AsistenciaHelper
                 'MAX(' . self::$db->quoteName('personname') . ') AS personname',
                 'MAX(COALESCE(NULLIF(TRIM(' . self::$db->quoteName('cardno') . '), \'\'), ' . self::$db->quoteName('personname') . ')) AS cardno'
             ])
-            ->from(self::$db->quoteName('asistencia'))
+            ->from($unionQuery)
             ->where([
                 self::$db->quoteName('personname') . ' = :personname',
                 'DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = :authdate'

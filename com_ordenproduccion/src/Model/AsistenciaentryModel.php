@@ -84,8 +84,8 @@ class AsistenciaentryModel extends FormModel
             $db = $this->getDatabase();
             $query = $db->getQuery(true)
                 ->select('*')
-                ->from($db->quoteName('asistencia'))
-                ->where($db->quoteName('ID') . ' = :id')
+                ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
+                ->where($db->quoteName('id') . ' = :id')
                 ->bind(':id', $pk);
 
             $db->setQuery($query);
@@ -133,9 +133,12 @@ class AsistenciaentryModel extends FormModel
 
         try {
             if ($id > 0) {
-                // Update existing record  
+                // Update existing record in manual table
+                $user = Factory::getUser();
+                $userId = $user->guest ? 0 : $user->id;
+                
                 $query = $db->getQuery(true)
-                    ->update($db->quoteName('asistencia'))
+                    ->update($db->quoteName('#__ordenproduccion_asistencia_manual'))
                     ->set([
                         $db->quoteName('cardno') . ' = :cardno',
                         $db->quoteName('personname') . ' = :personname',
@@ -144,9 +147,11 @@ class AsistenciaentryModel extends FormModel
                         $db->quoteName('authdatetime') . ' = :authdatetime',
                         $db->quoteName('direction') . ' = :direction',
                         $db->quoteName('devicename') . ' = :devicename',
-                        $db->quoteName('deviceserialno') . ' = :deviceserialno'
+                        $db->quoteName('deviceserialno') . ' = :deviceserialno',
+                        $db->quoteName('modified') . ' = NOW()',
+                        $db->quoteName('modified_by') . ' = :modified_by'
                     ])
-                    ->where($db->quoteName('ID') . ' = :id')
+                    ->where($db->quoteName('id') . ' = :id')
                     ->bind(':cardno', $data['cardno'])
                     ->bind(':personname', $data['personname'])
                     ->bind(':authdate', $data['authdate'])
@@ -155,6 +160,7 @@ class AsistenciaentryModel extends FormModel
                     ->bind(':direction', $data['direction'])
                     ->bind(':devicename', $data['devicename'])
                     ->bind(':deviceserialno', $data['deviceserialno'])
+                    ->bind(':modified_by', $userId, \Joomla\Database\ParameterType::INTEGER)
                     ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
 
                 $db->setQuery($query);
@@ -171,8 +177,18 @@ class AsistenciaentryModel extends FormModel
                     ':direction', ':devicename', ':deviceserialno'
                 ];
 
+                // Insert into manual asistencia table to preserve original asistencia table integrity
+                $user = Factory::getUser();
+                $userId = $user->guest ? 0 : $user->id;
+                
+                // Add additional fields for manual table
+                $columns[] = 'state';
+                $columns[] = 'created_by';
+                $values[] = ':state';
+                $values[] = ':created_by';
+                
                 $query = $db->getQuery(true)
-                    ->insert($db->quoteName('asistencia'))
+                    ->insert($db->quoteName('#__ordenproduccion_asistencia_manual'))
                     ->columns($db->quoteName($columns))
                     ->values(implode(',', $values))
                     ->bind(':cardno', $data['cardno'])
@@ -182,7 +198,9 @@ class AsistenciaentryModel extends FormModel
                     ->bind(':authdatetime', $data['authdatetime'])
                     ->bind(':direction', $data['direction'])
                     ->bind(':devicename', $data['devicename'])
-                    ->bind(':deviceserialno', $data['deviceserialno']);
+                    ->bind(':deviceserialno', $data['deviceserialno'])
+                    ->bind(':state', 1, \Joomla\Database\ParameterType::INTEGER)
+                    ->bind(':created_by', $userId, \Joomla\Database\ParameterType::INTEGER);
 
                 $db->setQuery($query);
                 $db->execute();
@@ -211,11 +229,11 @@ class AsistenciaentryModel extends FormModel
     {
         $db = $this->getDatabase();
 
-        // First get the entry details for recalculation
+        // First get the entry details for recalculation from manual table
         $query = $db->getQuery(true)
             ->select(['cardno', 'personname', 'authdate'])
-            ->from($db->quoteName('asistencia'))
-            ->where($db->quoteName('ID') . ' = :id')
+            ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
+            ->where($db->quoteName('id') . ' = :id')
             ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
 
         $db->setQuery($query);
@@ -226,10 +244,10 @@ class AsistenciaentryModel extends FormModel
             return false;
         }
 
-        // Hard delete the record
+        // Hard delete the record from manual table
         $query = $db->getQuery(true)
-            ->delete($db->quoteName('asistencia'))
-            ->where($db->quoteName('ID') . ' = :id')
+            ->delete($db->quoteName('#__ordenproduccion_asistencia_manual'))
+            ->where($db->quoteName('id') . ' = :id')
             ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
 
         $db->setQuery($query);

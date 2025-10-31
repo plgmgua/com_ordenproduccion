@@ -243,13 +243,14 @@ class TimesheetsController extends BaseController
                 // Combine date and time into datetime
                 $datetime = $entry['authdate'] . ' ' . $entry['authtime'] . ':00';
                 
-                // Insert into asistencia table
+                // Insert into manual asistencia table (preserves original asistencia table integrity)
                 $query = $db->getQuery(true)
-                    ->insert($db->quoteName('#__asistencia'))
+                    ->insert($db->quoteName('#__ordenproduccion_asistencia_manual'))
                     ->set($db->quoteName('cardno') . ' = ' . $db->quote($entry['cardno'] ?? ''))
                     ->set($db->quoteName('personname') . ' = ' . $db->quote($entry['personname']))
                     ->set($db->quoteName('authdate') . ' = ' . $db->quote($entry['authdate']))
                     ->set($db->quoteName('authtime') . ' = ' . $db->quote($entry['authtime']))
+                    ->set($db->quoteName('authdatetime') . ' = ' . $db->quote($datetime))
                     ->set($db->quoteName('direction') . ' = ' . $db->quote($entry['direction'] ?? 'Puerta'))
                     ->set($db->quoteName('devicename') . ' = ' . $db->quote('Manual Entry'))
                     ->set($db->quoteName('deviceserialno') . ' = ' . $db->quote(''))
