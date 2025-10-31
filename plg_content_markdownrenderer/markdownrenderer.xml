@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="content" method="upgrade">
+    <name>PLG_CONTENT_MARKDOWNRENDERER</name>
+    <version>1.0.0-STABLE</version>
+    <creationDate>2025-01-31</creationDate>
+    <author>Grimpsa</author>
+    <authorEmail>admin@grimpsa.com</authorEmail>
+    <authorUrl>https://grimpsa.com</authorUrl>
+    <copyright>Copyright (C) 2025 Grimpsa. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <description>PLG_CONTENT_MARKDOWNRENDERER_XML_DESCRIPTION</description>
+
+    <namespace path="src">Grimpsa\Plugin\Content\Markdownrenderer</namespace>
+
+    <files>
+        <folder>src</folder>
+        <folder>language</folder>
+    </files>
+
+    <config>
+        <fields name="params">
+            <fieldset name="basic">
+                <field
+                    name="enable_cache"
+                    type="radio"
+                    label="PLG_CONTENT_MARKDOWNRENDERER_ENABLE_CACHE_LABEL"
+                    description="PLG_CONTENT_MARKDOWNRENDERER_ENABLE_CACHE_DESC"
+                    default="1"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                
+                <field
+                    name="cache_ttl"
+                    type="number"
+                    label="PLG_CONTENT_MARKDOWNRENDERER_CACHE_TTL_LABEL"
+                    description="PLG_CONTENT_MARKDOWNRENDERER_CACHE_TTL_DESC"
+                    default="3600"
+                    min="60"
+                    max="86400"
+                />
+
+                <field
+                    name="add_styles"
+                    type="radio"
+                    label="PLG_CONTENT_MARKDOWNRENDERER_ADD_STYLES_LABEL"
+                    description="PLG_CONTENT_MARKDOWNRENDERER_ADD_STYLES_DESC"
+                    default="1"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+
+                <field
+                    name="path_prefix"
+                    type="text"
+                    label="PLG_CONTENT_MARKDOWNRENDERER_PATH_PREFIX_LABEL"
+                    description="PLG_CONTENT_MARKDOWNRENDERER_PATH_PREFIX_DESC"
+                    default="components/com_ordenproduccion/"
+                    size="60"
+                    filter="string"
+                />
+            </fieldset>
+        </fields>
+    </config>
+</extension>
+
