@@ -160,8 +160,7 @@ $filterIsLate = $this->state->get('filter.is_late');
         <!-- Action Buttons -->
         <div class="mb-3">
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.sync'); ?>" 
-               class="btn btn-primary" 
-               onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
+               class="btn btn-primary">
                 <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
             </a>
             <button type="button" class="btn btn-success" onclick="document.getElementById('exportExcelModal').style.display='block';">
