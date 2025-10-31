@@ -297,16 +297,8 @@ class AsistenciaModel extends ListModel
         $db = $this->getDatabase();
         
         try {
-            // Delete existing summaries for the date range
-            $deleteQuery = $db->getQuery(true)
-                ->delete($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
-                ->where($db->quoteName('work_date') . ' >= ' . $db->quote($dateFrom))
-                ->where($db->quoteName('work_date') . ' <= ' . $db->quote($dateTo));
-            
-            $db->setQuery($deleteQuery);
-            $db->execute();
-            
-            // Get distinct employee/date combinations
+            // CRITICAL: Instead of deleting summaries, we need to UPDATE them to preserve approval data
+            // Get distinct employee/date combinations from biometric asistencia table
             $query = $db->getQuery(true)
                 ->select([
                     'MAX(COALESCE(NULLIF(TRIM(' . $db->quoteName('cardno') . '), ' . $db->quote('') . '), ' . $db->quoteName('personname') . ')) AS cardno',
@@ -324,9 +316,10 @@ class AsistenciaModel extends ListModel
             $db->setQuery($query);
             $employeeDates = $db->loadObjectList();
             
+            $updatedCount = 0;
             $insertedCount = 0;
             
-            // Calculate and insert each summary using AsistenciaHelper (which respects employee groups and weekly schedules)
+            // Calculate and update/insert each summary using AsistenciaHelper
             foreach ($employeeDates as $empDate) {
                 // Skip if authdate is empty or invalid
                 if (empty($empDate->authdate) || trim($empDate->authdate) === '') {
@@ -349,50 +342,90 @@ class AsistenciaModel extends ListModel
                 
                 if ($summary && !empty($summary->work_date) && !empty($summary->personname)) {
                     try {
-                        $insertQuery = $db->getQuery(true)
-                            ->insert($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
-                            ->columns([
-                                $db->quoteName('cardno'),
-                                $db->quoteName('personname'),
-                                $db->quoteName('work_date'),
-                                $db->quoteName('first_entry'),
-                                $db->quoteName('last_exit'),
-                                $db->quoteName('total_hours'),
-                                $db->quoteName('expected_hours'),
-                                $db->quoteName('total_entries'),
-                                $db->quoteName('is_complete'),
-                                $db->quoteName('is_late'),
-                                $db->quoteName('is_early_exit'),
-                                $db->quoteName('created_by')
+                        // Check if summary already exists (with approval data)
+                        $checkQuery = $db->getQuery(true)
+                            ->select([
+                                'id',
+                                'approval_status',
+                                'approved_hours',
+                                'approved_by',
+                                'approved_date'
                             ])
-                            ->values(
-                                $db->quote($summary->cardno) . ', ' .
-                                $db->quote($summary->personname) . ', ' .
-                                $db->quote($summary->work_date) . ', ' .
-                                $db->quote($summary->first_entry ?? '00:00:00') . ', ' .
-                                $db->quote($summary->last_exit ?? '00:00:00') . ', ' .
-                                (float) ($summary->total_hours ?? 0) . ', ' .
-                                (float) ($summary->expected_hours ?? 8) . ', ' .
-                                (int) ($summary->total_entries ?? 0) . ', ' .
-                                (int) ($summary->is_complete ?? 0) . ', ' .
-                                (int) ($summary->is_late ?? 0) . ', ' .
-                                (int) ($summary->is_early_exit ?? 0) . ', ' .
-                                '0'
-                            );
+                            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+                            ->where($db->quoteName('personname') . ' = ' . $db->quote($summary->personname))
+                            ->where($db->quoteName('work_date') . ' = ' . $db->quote($formattedDate));
                         
-                        $db->setQuery($insertQuery);
-                        $db->execute();
-                        $insertedCount++;
+                        $db->setQuery($checkQuery);
+                        $existingSummary = $db->loadObject();
+                        
+                        if ($existingSummary) {
+                            // UPDATE existing summary but PRESERVE approval data
+                            $updateQuery = $db->getQuery(true)
+                                ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+                                ->set([
+                                    $db->quoteName('cardno') . ' = ' . $db->quote($summary->cardno),
+                                    $db->quoteName('first_entry') . ' = ' . $db->quote($summary->first_entry ?? '00:00:00'),
+                                    $db->quoteName('last_exit') . ' = ' . $db->quote($summary->last_exit ?? '00:00:00'),
+                                    $db->quoteName('total_hours') . ' = ' . (float) ($summary->total_hours ?? 0),
+                                    $db->quoteName('expected_hours') . ' = ' . (float) ($summary->expected_hours ?? 8),
+                                    $db->quoteName('total_entries') . ' = ' . (int) ($summary->total_entries ?? 0),
+                                    $db->quoteName('is_complete') . ' = ' . (int) ($summary->is_complete ?? 0),
+                                    $db->quoteName('is_late') . ' = ' . (int) ($summary->is_late ?? 0),
+                                    $db->quoteName('is_early_exit') . ' = ' . (int) ($summary->is_early_exit ?? 0)
+                                ])
+                                ->where($db->quoteName('id') . ' = ' . (int) $existingSummary->id);
+                            
+                            $db->setQuery($updateQuery);
+                            $db->execute();
+                            $updatedCount++;
+                        } else {
+                            // INSERT new summary
+                            $insertQuery = $db->getQuery(true)
+                                ->insert($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+                                ->columns([
+                                    $db->quoteName('cardno'),
+                                    $db->quoteName('personname'),
+                                    $db->quoteName('work_date'),
+                                    $db->quoteName('first_entry'),
+                                    $db->quoteName('last_exit'),
+                                    $db->quoteName('total_hours'),
+                                    $db->quoteName('expected_hours'),
+                                    $db->quoteName('total_entries'),
+                                    $db->quoteName('is_complete'),
+                                    $db->quoteName('is_late'),
+                                    $db->quoteName('is_early_exit'),
+                                    $db->quoteName('created_by')
+                                ])
+                                ->values(
+                                    $db->quote($summary->cardno) . ', ' .
+                                    $db->quote($summary->personname) . ', ' .
+                                    $db->quote($summary->work_date) . ', ' .
+                                    $db->quote($summary->first_entry ?? '00:00:00') . ', ' .
+                                    $db->quote($summary->last_exit ?? '00:00:00') . ', ' .
+                                    (float) ($summary->total_hours ?? 0) . ', ' .
+                                    (float) ($summary->expected_hours ?? 8) . ', ' .
+                                    (int) ($summary->total_entries ?? 0) . ', ' .
+                                    (int) ($summary->is_complete ?? 0) . ', ' .
+                                    (int) ($summary->is_late ?? 0) . ', ' .
+                                    (int) ($summary->is_early_exit ?? 0) . ', ' .
+                                    '0'
+                                );
+                            
+                            $db->setQuery($insertQuery);
+                            $db->execute();
+                            $insertedCount++;
+                        }
                     } catch (\Exception $e) {
                         // Log error but continue processing
-                        error_log('Error inserting attendance summary: ' . $e->getMessage());
+                        error_log('Error syncing attendance summary: ' . $e->getMessage());
                         continue;
                     }
                 }
             }
             
             Factory::getApplication()->enqueueMessage(
-                sprintf('Successfully recalculated %d attendance records using current employee group configurations', $insertedCount),
+                sprintf('Successfully synced %d attendance records (updated: %d, inserted: %d) using current employee group configurations', 
+                    ($updatedCount + $insertedCount), $updatedCount, $insertedCount),
                 'success'
             );
             
