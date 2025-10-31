@@ -388,10 +388,9 @@ class AsistenciaModel extends ListModel
             $db->setQuery($query);
             $employeeDates = $db->loadObjectList();
             
-            $updatedCount = 0;
             $insertedCount = 0;
             
-            // Calculate and update/insert each summary using AsistenciaHelper
+            // Calculate and insert only missing summaries using AsistenciaHelper
             foreach ($employeeDates as $empDate) {
                 // Skip if authdate is empty or invalid
                 if (empty($empDate->authdate) || trim($empDate->authdate) === '') {
@@ -431,25 +430,8 @@ class AsistenciaModel extends ListModel
                         $existingSummary = $db->loadObject();
                         
                         if ($existingSummary) {
-                            // UPDATE existing summary but PRESERVE approval data
-                            $updateQuery = $db->getQuery(true)
-                                ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
-                                ->set([
-                                    $db->quoteName('cardno') . ' = ' . $db->quote($summary->cardno),
-                                    $db->quoteName('first_entry') . ' = ' . $db->quote($summary->first_entry ?? '00:00:00'),
-                                    $db->quoteName('last_exit') . ' = ' . $db->quote($summary->last_exit ?? '00:00:00'),
-                                    $db->quoteName('total_hours') . ' = ' . (float) ($summary->total_hours ?? 0),
-                                    $db->quoteName('expected_hours') . ' = ' . (float) ($summary->expected_hours ?? 8),
-                                    $db->quoteName('total_entries') . ' = ' . (int) ($summary->total_entries ?? 0),
-                                    $db->quoteName('is_complete') . ' = ' . (int) ($summary->is_complete ?? 0),
-                                    $db->quoteName('is_late') . ' = ' . (int) ($summary->is_late ?? 0),
-                                    $db->quoteName('is_early_exit') . ' = ' . (int) ($summary->is_early_exit ?? 0)
-                                ])
-                                ->where($db->quoteName('id') . ' = ' . (int) $existingSummary->id);
-                            
-                            $db->setQuery($updateQuery);
-                            $db->execute();
-                            $updatedCount++;
+                            // Skip existing summaries - only create missing ones
+                            continue;
                         } else {
                             // INSERT new summary
                             $insertQuery = $db->getQuery(true)
@@ -496,8 +478,8 @@ class AsistenciaModel extends ListModel
             }
             
             Factory::getApplication()->enqueueMessage(
-                sprintf('Successfully synced %d attendance records (updated: %d, inserted: %d) using current employee group configurations', 
-                    ($updatedCount + $insertedCount), $updatedCount, $insertedCount),
+                sprintf('Successfully created %d new attendance summary record(s). Existing records were not modified.', 
+                    $insertedCount),
                 'success'
             );
             
