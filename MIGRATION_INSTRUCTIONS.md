@@ -13,7 +13,7 @@ If you're seeing "(Sin notas)" for all manual entries, the `notes` column hasn't
 
 ```sql
 ALTER TABLE `joomla_ordenproduccion_asistencia_manual`
-    ADD COLUMN `notes` TEXT NOT NULL DEFAULT '' AFTER `direction`;
+    ADD COLUMN `notes` TEXT NOT NULL AFTER `direction`;
 ```
 
 5. Click "Go" to execute
@@ -54,5 +54,5 @@ The migration file is located at:
 
 - Adds a `notes` TEXT column to store justification/reason for manual entries
 - Makes the notes field mandatory for new manual entries
-- Allows existing entries to have empty notes (default: empty string)
+- MySQL/MariaDB doesn't allow default values for TEXT columns
 
