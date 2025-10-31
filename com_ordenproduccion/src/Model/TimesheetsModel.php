@@ -73,13 +73,13 @@ class TimesheetsModel extends ListModel
                 'g.name AS group_name',
                 'g.color AS group_color'
             ])
-            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
+            ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 's'))
             ->leftJoin(
-                $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
-                $db->quoteName('s.personname') . ' = ' . $db->quoteName('e.personname')
+                $db->quoteName('#__ordenproduccion_employees', 'e') . ' ON ' .
+                'TRIM(' . $db->quoteName('s.personname') . ') = TRIM(' . $db->quoteName('e.personname') . ')'
             )
             ->leftJoin(
-                $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
+                $db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON ' .
                 $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
             )
             ->where($db->quoteName('s.state') . ' = 1')
@@ -87,9 +87,13 @@ class TimesheetsModel extends ListModel
             ->order('COALESCE(' . $db->quoteName('e.personname') . ', ' . $db->quoteName('s.personname') . ') ASC');
 
         // Scope to groups managed by the current user
-        // Records without employee/group records are only visible to admins for security
+        // For managers: show records where group manager matches, OR where employee doesn't have a group yet
+        // (The ensureEmployeeExists creates employees, so they should have groups, but we handle NULL case)
         if (!$user->authorise('core.admin')) {
-            $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+            $query->where('(' . 
+                $db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id . 
+                ' OR ' . $db->quoteName('g.id') . ' IS NULL' .
+            ')');
         }
 
         // Optional group filter
@@ -98,11 +102,16 @@ class TimesheetsModel extends ListModel
             $query->where('(' . $db->quoteName('g.id') . ' = ' . $groupId . ' OR ' . $db->quoteName('g.id') . ' IS NULL)');
         }
 
-        // Optional search by name/card
+        // Optional search by name/card (use summary table fields since employee might not exist)
         $search = trim((string) $this->getState('filter.search'));
         if ($search !== '') {
             $like = $db->quote('%' . $db->escape($search, true) . '%');
-            $query->where('(' . $db->quoteName('e.personname') . ' LIKE ' . $like . ' OR ' . $db->quoteName('e.cardno') . ' LIKE ' . $like . ')');
+            $query->where('(' . 
+                $db->quoteName('s.personname') . ' LIKE ' . $like . ' OR ' . 
+                $db->quoteName('s.cardno') . ' LIKE ' . $like . ' OR ' .
+                'COALESCE(' . $db->quoteName('e.personname') . ', ' . $db->quote('') . ') LIKE ' . $like . ' OR ' .
+                'COALESCE(' . $db->quoteName('e.cardno') . ', ' . $db->quote('') . ') LIKE ' . $like .
+            ')');
         }
 
         return $query;
@@ -117,7 +126,7 @@ class TimesheetsModel extends ListModel
         $user = Factory::getUser();
         $q = $db->getQuery(true)
             ->select(['id','name','color'])
-            ->from($db->quoteName('joomla_ordenproduccion_employee_groups'))
+            ->from($db->quoteName('#__ordenproduccion_employee_groups'))
             ->where($db->quoteName('state') . ' = 1')
             ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('name') . ' ASC');
 
