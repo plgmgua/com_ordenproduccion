@@ -583,7 +583,7 @@ class AsistenciaModel extends ListModel
      *
      * @since   3.4.0
      */
-    protected function ensureEmployeeExists($personname, $cardno = '')
+    public function ensureEmployeeExists($personname, $cardno = '')
     {
         if (empty($personname) || trim($personname) === '') {
             return;
