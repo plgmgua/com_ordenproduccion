@@ -254,28 +254,79 @@ Crea resúmenes faltantes sin modificar lo ya aprobado.
 
 ---
 
-## 🔐 ¿Quién puede hacer qué?
+## 👥 Grupos de Empleados y Gerentes
 
-### Usuario Normal (Empleado)
+### ¿Cómo funciona el sistema de grupos?
 
-- ✅ Ver tu propio historial de asistencia
-- ❌ No puedes aprobar tiempo
-- ❌ No puedes crear registros manuales
-- ❌ No puedes ver otros empleados
+El sistema organiza a los empleados en **grupos** donde cada grupo tiene:
 
-### Supervisor / Gerente de Grupo
+- **Nombre**: Ej: "Producción", "Administrativo", "Logística"
+- **Horario**: Hora de entrada y salida esperada
+- **Horas esperadas**: Cuántas horas debe trabajar cada día (ej: 8 horas)
+- **Gerente asignado**: Usuario responsable de aprobar el tiempo
 
-- ✅ Ver el historial de **tus grupos** asignados
-- ✅ Aprobar o rechazar tiempo de **tus empleados**
-- ✅ Crear registros manuales
+### El Rol del Gerente de Grupo
+
+Cada grupo tiene un **gerente asignado** que es responsable de:
+
+1. **Aprobar diariamente** las horas trabajadas de su grupo
+2. **Crear registros manuales** cuando sea necesario
+3. **Revisar** la asistencia de sus empleados
+4. **Corregir errores** en los registros
+
+### ¿Quién puede hacer qué?
+
+#### Gerente de Grupo
+
+- ✅ Ver el historial de **sus grupos** asignados
+- ✅ Aprobar o rechazar tiempo de **sus empleados únicamente**
+- ✅ Crear registros manuales para sus empleados
 - ✅ Eliminar registros manuales incorrectos
 - ✅ Sincronizar datos
+- ❌ **NO puede ver** grupos de otros gerentes
+- ❌ **NO puede aprobar** tiempo de otros grupos
 
-### Administrador
+#### Administrador
 
 - ✅ Ver **todos** los grupos y empleados
 - ✅ Aprobar o rechazar **cualquier** timesheet
 - ✅ Acceso completo a todas las funciones
+- ✅ Configurar grupos y asignar gerentes
+
+#### Empleado Regular
+
+- ❌ **NO tiene acceso** a las pantallas de Asistencia o Timesheets
+- ⚠️ Solo marca entrada/salida en el dispositivo biométrico
+- ℹ️ Debe contactar a su gerente para consultas sobre su asistencia
+
+### Ejemplo Práctico
+
+```
+Empresa XYZ tiene 3 grupos:
+
+Grupo "Producción"
+├── Gerente: María García
+├── Empleados: Juan, Pedro, Ana, Carlos
+└── Horario: 07:00 - 16:00
+
+Grupo "Administrativo"
+├── Gerente: Luis Martínez
+├── Empleados: Sofía, Roberto, Laura
+└── Horario: 08:00 - 17:00
+
+Grupo "Logística"
+├── Gerente: Carmen López
+├── Empleados: Miguel, Isabel, Diego
+└── Horario: 06:00 - 14:00
+```
+
+**Flujo diario:**
+
+1. **Empleados** marcan entrada/salida en el dispositivo biométrico
+2. El sistema calcula automáticamente las horas trabajadas
+3. **Cada gerente** entra a su pantalla de Timesheets
+4. **Cada gerente** revisa y aprueba **solo su grupo**
+5. María ve solo Producción, Luis ve solo Administrativo, etc.
 
 ---
 
@@ -346,34 +397,28 @@ Sí. Se combinan automáticamente con las horas biométricas.
 
 ## 🎯 Guía Rápida de Uso
 
-### Para Empleados
-
-```
-1. Marca tu entrada y salida en el dispositivo biométrico
-2. Consulta tu asistencia en la pantalla de Asistencia
-3. Verifica que tus horas sean correctas
-4. Contacta a tu supervisor si hay algún problema
-```
-
-### Para Supervisores
+### Para Gerentes de Grupo
 
 ```
 1. Navega a Timesheets
 2. Selecciona el día que quieres revisar
-3. Revisa las horas calculadas de cada empleado
+3. Revisa las horas calculadas de cada empleado de tu grupo
 4. Ajusta horas si es necesario
 5. Aprueba o rechaza cada registro
    O
    Selecciona múltiples y aprueba en lote
+
+Importante: Solo verás y aprobarás el tiempo de TU grupo asignado
 ```
 
 ### Para Administradores
 
 ```
 1. Tienes acceso a TODAS las funciones
-2. Puedes aprobar para cualquier grupo
+2. Puedes ver y aprobar para cualquier grupo
 3. Puedes crear registros manuales para cualquier empleado
-4. Puedes ver estadísticas completas del sistema
+4. Puedes configurar grupos y asignar gerentes
+5. Puedes ver estadísticas completas del sistema
 ```
 
 ---
