@@ -12,9 +12,9 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
 
 /**
- * Weekly Timesheets Approval - List Model
+ * Daily Timesheets Approval - List Model
  *
- * Returns one row per employee per ISO week, scoped to groups managed by the current user.
+ * Returns daily summary records for a selected date, scoped to groups managed by the current user.
  */
 class TimesheetsModel extends ListModel
 {
@@ -22,8 +22,12 @@ class TimesheetsModel extends ListModel
     {
         $app = Factory::getApplication();
 
-        $weekStart = $app->input->getString('week_start', '');
-        $this->setState('filter.week_start', $weekStart);
+        // Default to current date if not provided
+        $workDate = $app->input->getString('work_date', '');
+        if (empty($workDate)) {
+            $workDate = date('Y-m-d');
+        }
+        $this->setState('filter.work_date', $workDate);
 
         $groupId = $app->input->getInt('filter_group_id', 0);
         $this->setState('filter.group_id', $groupId);
@@ -39,33 +43,34 @@ class TimesheetsModel extends ListModel
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        // Compute week boundaries (ISO week Monday-Sunday) from week_start or default to current week
-        $weekStart = $this->getState('filter.week_start');
-        if (!$weekStart) {
-            $monday = new \DateTime();
-            $monday->modify('monday this week');
-            $weekStart = $monday->format('Y-m-d');
+        // Get work_date from state (defaults to today if not set)
+        $workDate = $this->getState('filter.work_date');
+        if (empty($workDate)) {
+            $workDate = date('Y-m-d');
         }
-        $monday = new \DateTime($weekStart);
-        $sunday = clone $monday; $sunday->modify('+6 days');
-        $dateFrom = $monday->format('Y-m-d');
-        $dateTo = $sunday->format('Y-m-d');
 
         $user = Factory::getUser();
 
-        // Aggregate weekly summaries by employee within manager's groups
+        // Select daily summary records for the selected date
         $query->select([
-                'e.personname AS employee_name',
-                'e.cardno',
+                's.id',
+                's.personname AS employee_name',
+                's.cardno',
+                's.work_date',
+                's.first_entry',
+                's.last_exit',
+                's.total_hours',
+                's.approved_hours',
+                's.expected_hours',
+                's.is_complete',
+                's.is_late',
+                's.is_early_exit',
+                's.approval_status',
+                's.approved_by',
+                's.approved_date',
                 'g.id AS group_id',
                 'g.name AS group_name',
-                'g.color AS group_color',
-                'SUM(s.total_hours) AS week_total_hours',
-                'SUM(COALESCE(s.approved_hours, 0)) AS week_approved_hours',
-                // pending if any row pending in the week, else approved
-                "CASE WHEN SUM(CASE WHEN s.approval_status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'pending' ELSE 'approved' END AS week_approval_status",
-                'MIN(s.work_date) AS week_start',
-                'MAX(s.work_date) AS week_end'
+                'g.color AS group_color'
             ])
             ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
             ->innerJoin(
@@ -77,9 +82,7 @@ class TimesheetsModel extends ListModel
                 $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
             )
             ->where($db->quoteName('s.state') . ' = 1')
-            ->where($db->quoteName('s.work_date') . ' >= ' . $db->quote($dateFrom))
-            ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo))
-            ->group(['e.personname','e.cardno','g.id','g.name','g.color'])
+            ->where($db->quoteName('s.work_date') . ' = ' . $db->quote($workDate))
             ->order('e.personname ASC');
 
         // Scope to groups managed by the current user

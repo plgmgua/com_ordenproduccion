@@ -135,7 +135,7 @@ class TimesheetsController extends BaseController
     }
 
     /**
-     * Bulk approve selected employee weeks (checkboxes), scoped to manager.
+     * Bulk approve selected employee daily records (checkboxes), scoped to manager.
      */
     public function bulkApprove()
     {
@@ -149,22 +149,23 @@ class TimesheetsController extends BaseController
         $user = Factory::getUser();
 
         $selected = (array) $this->input->post->get('selected', [], 'array');
-        $weekStart = $this->input->post->getString('week_start');
+        $workDate = $this->input->post->getString('work_date');
 
-        if (empty($selected) || !$weekStart) {
+        if (empty($selected) || !$workDate) {
             $app->enqueueMessage(Text::_('JERROR_AN_ERROR_HAS_OCCURRED'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets'));
             return false;
         }
 
-        $monday = new \DateTime($weekStart);
-        $sunday = (clone $monday)->modify('+6 days');
-        $dateFrom = $monday->format('Y-m-d');
-        $dateTo = $sunday->format('Y-m-d');
-
-        // Approve all selected cardnos in a single update using IN ()
-        $quoted = array_map(fn($c) => $db->quote($c), $selected);
-        $inList = implode(',', $quoted);
+        // Approve selected summary IDs (validate they belong to manager's groups)
+        $selectedIds = array_map('intval', $selected);
+        $selectedIds = array_filter($selectedIds);
+        
+        if (empty($selectedIds)) {
+            $app->enqueueMessage(Text::_('JERROR_AN_ERROR_HAS_OCCURRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&work_date=' . $workDate));
+            return false;
+        }
 
         try {
             $query = $db->getQuery(true)
@@ -181,9 +182,13 @@ class TimesheetsController extends BaseController
                 ->set($db->quoteName('s.approved_by') . ' = ' . (int) $user->id)
                 ->set($db->quoteName('s.approved_date') . ' = NOW()')
                 ->set($db->quoteName('s.approved_hours') . ' = COALESCE(' . $db->quoteName('s.approved_hours') . ', ' . $db->quoteName('s.total_hours') . ')')
-                ->where($db->quoteName('e.cardno') . ' IN (' . $inList . ')')
-                ->where($db->quoteName('s.work_date') . ' BETWEEN ' . $db->quote($dateFrom) . ' AND ' . $db->quote($dateTo))
-                ->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+                ->where($db->quoteName('s.id') . ' IN (' . implode(',', $selectedIds) . ')')
+                ->where($db->quoteName('s.work_date') . ' = ' . $db->quote($workDate));
+            
+            // Scope to manager's groups (unless admin)
+            if (!$user->authorise('core.admin')) {
+                $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+            }
 
             $db->setQuery($query);
             $db->execute();
@@ -192,7 +197,7 @@ class TimesheetsController extends BaseController
             $app->enqueueMessage($e->getMessage(), 'error');
         }
 
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&week_start=' . $dateFrom));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&work_date=' . $workDate));
         return true;
     }
 }

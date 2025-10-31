@@ -27,8 +27,8 @@ use Joomla\CMS\HTML\HTMLHelper;
         <div class="card-body">
             <div class="row g-2">
                 <div class="col-sm-3">
-                    <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_WEEK_START'); ?></label>
-                    <input type="date" name="week_start" value="<?php echo htmlspecialchars($this->state->get('filter.week_start') ?: date('Y-m-d', strtotime('monday this week')), ENT_QUOTES, 'UTF-8'); ?>" class="form-control" />
+                    <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_DATE'); ?></label>
+                    <input type="date" name="work_date" value="<?php echo htmlspecialchars($this->state->get('filter.work_date') ?: date('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>" class="form-control" />
                 </div>
                 <div class="col-sm-3">
                     <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_GROUP'); ?></label>
@@ -48,13 +48,22 @@ use Joomla\CMS\HTML\HTMLHelper;
         </div>
     </form>
 
+    <!-- Action Buttons -->
+    <div class="mb-3">
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.sync'); ?>" 
+           class="btn btn-primary" 
+           onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
+            <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
+        </a>
+    </div>
+
     <div class="card">
         <div class="card-header">
-            <strong><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_WEEKLY_SUMMARY'); ?></strong>
+            <strong><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_DAILY_SUMMARY'); ?></strong>
         </div>
         <div class="card-body">
             <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=timesheets.bulkApprove'); ?>" method="post" id="bulkApproveForm">
-            <input type="hidden" name="week_start" value="<?php echo htmlspecialchars($this->state->get('filter.week_start') ?: date('Y-m-d', strtotime('monday this week')), ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="work_date" value="<?php echo htmlspecialchars($this->state->get('filter.work_date') ?: date('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
             <div class="mb-2 d-flex justify-content-end">
                 <button type="submit" class="btn btn-success" id="btnBulkApprove" disabled>
@@ -69,18 +78,20 @@ use Joomla\CMS\HTML\HTMLHelper;
                             <th style="width:28px;"><input type="checkbox" id="chkAll"></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_EMPLOYEE'); ?></th>
                             <th style="width:120px;">Grupo</th>
-                            <th style="width:140px;">Semana</th>
-                            <th style="width:120px;">Horas (semana)</th>
-                            <th style="width:120px;">Aprobadas</th>
-                            <th style="width:120px;">Estatus</th>
+                            <th style="width:90px;">Fecha</th>
+                            <th style="width:80px;">Entrada</th>
+                            <th style="width:80px;">Salida</th>
+                            <th style="width:100px;">Horas</th>
+                            <th style="width:100px;">Aprobadas</th>
+                            <th style="width:100px;">Estatus</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($this->items as $row) : ?>
                         <tr>
                             <td>
-                                <input type="checkbox" class="row-check" name="selected[]" value="<?php echo htmlspecialchars($row->cardno, ENT_QUOTES, 'UTF-8'); ?>"
-                                       <?php echo ($row->week_approval_status === 'approved') ? 'checked' : ''; ?>>
+                                <input type="checkbox" class="row-check" name="selected[]" value="<?php echo (int)$row->id; ?>"
+                                       <?php echo (($row->approval_status ?? 'pending') === 'approved') ? 'checked' : ''; ?>>
                             </td>
                             <td><?php echo htmlspecialchars($row->employee_name, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
@@ -88,13 +99,13 @@ use Joomla\CMS\HTML\HTMLHelper;
                                     <?php echo htmlspecialchars($row->group_name ?: '-', ENT_QUOTES, 'UTF-8'); ?>
                                 </span>
                             </td>
+                            <td><?php echo htmlspecialchars(date('d/m/y', strtotime($row->work_date)), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo $row->first_entry ? substr($row->first_entry, 0, 5) : '-'; ?></td>
+                            <td><?php echo $row->last_exit ? substr($row->last_exit, 0, 5) : '-'; ?></td>
+                            <td><strong><?php echo number_format((float)($row->total_hours ?? 0), 2); ?>h</strong></td>
+                            <td><?php echo number_format((float)($row->approved_hours ?? 0), 2); ?>h</td>
                             <td>
-                                <?php echo htmlspecialchars(date('d/m/y', strtotime($row->week_start)) . ' - ' . date('d/m/y', strtotime($row->week_end)), ENT_QUOTES, 'UTF-8'); ?>
-                            </td>
-                            <td><strong><?php echo number_format((float)($row->week_total_hours ?? 0), 2); ?></strong></td>
-                            <td><?php echo number_format((float)($row->week_approved_hours ?? 0), 2); ?></td>
-                            <td>
-                                <?php if ($row->week_approval_status === 'approved') : ?>
+                                <?php if (($row->approval_status ?? 'pending') === 'approved') : ?>
                                     <span class="badge bg-success">Aprobado</span>
                                 <?php else : ?>
                                     <span class="badge bg-warning text-dark">Pendiente</span>
