@@ -35,7 +35,10 @@ class HtmlView extends BaseHtmlView
         $this->params = ComponentHelper::getParams('com_ordenproduccion');
         $this->state = $this->get('State');
         $this->items = $this->get('Items');
-        $this->groups = $this->get('Groups');
+        
+        // Get groups from model (fallback to empty array if not available)
+        $model = $this->getModel();
+        $this->groups = $model ? $model->getGroups() : [];
 
         // Set a helpful title
         if ($this->document) {
