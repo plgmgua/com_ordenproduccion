@@ -45,7 +45,7 @@ class TimesheetsController extends BaseController
         $dateTo = $sunday->format('Y-m-d');
 
         try {
-            // Only allow approval if current user manages the employee's group
+            // Only allow approval if current user manages the employee's group (or is admin)
             $query = $db->getQuery(true)
                 ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
                 ->innerJoin(
@@ -62,8 +62,12 @@ class TimesheetsController extends BaseController
                 ->set($db->quoteName('s.approved_hours') . ' = COALESCE(' . $db->quoteName('s.approved_hours') . ', ' . $db->quoteName('s.total_hours') . ')')
                 ->where($db->quoteName('e.cardno') . ' = ' . $db->quote($cardno))
                 ->where($db->quoteName('s.work_date') . ' >= ' . $db->quote($dateFrom))
-                ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo))
-                ->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+                ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo));
+            
+            // Scope to manager's groups (unless admin)
+            if (!$user->authorise('core.admin')) {
+                $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+            }
 
             $db->setQuery($query);
             $db->execute();
@@ -120,8 +124,12 @@ class TimesheetsController extends BaseController
                 ->set($db->quoteName('s.approved_date') . ' = NULL')
                 ->where($db->quoteName('e.cardno') . ' = ' . $db->quote($cardno))
                 ->where($db->quoteName('s.work_date') . ' >= ' . $db->quote($dateFrom))
-                ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo))
-                ->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+                ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo));
+            
+            // Scope to manager's groups (unless admin)
+            if (!$user->authorise('core.admin')) {
+                $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+            }
 
             $db->setQuery($query);
             $db->execute();

@@ -87,19 +87,16 @@ class TimesheetsModel extends ListModel
             ->order('COALESCE(' . $db->quoteName('e.personname') . ', ' . $db->quoteName('s.personname') . ') ASC');
 
         // Scope to groups managed by the current user
-        // For managers: show records where group manager matches, OR where employee doesn't have a group yet
-        // (The ensureEmployeeExists creates employees, so they should have groups, but we handle NULL case)
+        // For managers: show records where group manager matches
+        // Admins can see all records
         if (!$user->authorise('core.admin')) {
-            $query->where('(' . 
-                $db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id . 
-                ' OR ' . $db->quoteName('g.id') . ' IS NULL' .
-            ')');
+            $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
         }
 
-        // Optional group filter
+        // Optional group filter (only applied if the user is an admin or the manager can see this group)
         $groupId = (int) $this->getState('filter.group_id');
         if ($groupId > 0) {
-            $query->where('(' . $db->quoteName('g.id') . ' = ' . $groupId . ' OR ' . $db->quoteName('g.id') . ' IS NULL)');
+            $query->where($db->quoteName('g.id') . ' = ' . $groupId);
         }
 
         // Optional search by name/card (use summary table fields since employee might not exist)
