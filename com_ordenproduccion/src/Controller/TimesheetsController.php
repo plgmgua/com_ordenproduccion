@@ -200,6 +200,101 @@ class TimesheetsController extends BaseController
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&work_date=' . $workDate));
         return true;
     }
+
+    /**
+     * Bulk save multiple manual asistencia entries
+     */
+    public function bulkManualEntry()
+    {
+        if (!Session::checkToken()) {
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets'));
+            return false;
+        }
+
+        $app = Factory::getApplication();
+        $db = Factory::getContainer()->get('DatabaseDriver');
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        $entries = (array) $this->input->post->get('entries', [], 'array');
+        $workDate = $this->input->post->getString('work_date', date('Y-m-d'));
+
+        if (empty($entries)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_NO_ENTRIES_TO_SAVE'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&work_date=' . $workDate));
+            return false;
+        }
+
+        $saved = 0;
+        $errors = 0;
+
+        foreach ($entries as $entry) {
+            if (empty($entry['personname']) || empty($entry['authdate']) || empty($entry['authtime'])) {
+                $errors++;
+                continue;
+            }
+
+            try {
+                // Combine date and time into datetime
+                $datetime = $entry['authdate'] . ' ' . $entry['authtime'] . ':00';
+                
+                // Insert into asistencia table
+                $query = $db->getQuery(true)
+                    ->insert($db->quoteName('#__asistencia'))
+                    ->set($db->quoteName('cardno') . ' = ' . $db->quote($entry['cardno'] ?? ''))
+                    ->set($db->quoteName('personname') . ' = ' . $db->quote($entry['personname']))
+                    ->set($db->quoteName('authdate') . ' = ' . $db->quote($entry['authdate']))
+                    ->set($db->quoteName('authtime') . ' = ' . $db->quote($entry['authtime']))
+                    ->set($db->quoteName('direction') . ' = ' . $db->quote($entry['direction'] ?? 'Puerta'))
+                    ->set($db->quoteName('devicename') . ' = ' . $db->quote('Manual Entry'))
+                    ->set($db->quoteName('deviceserialno') . ' = ' . $db->quote(''))
+                    ->set($db->quoteName('state') . ' = 1')
+                    ->set($db->quoteName('created') . ' = NOW()')
+                    ->set($db->quoteName('created_by') . ' = ' . (int) $user->id);
+
+                $db->setQuery($query);
+                $db->execute();
+                $saved++;
+            } catch (\Exception $e) {
+                $errors++;
+                $app->enqueueMessage($e->getMessage(), 'error');
+            }
+        }
+
+        // Trigger summary recalculation for the date
+        if ($saved > 0) {
+            try {
+                $helperClass = \Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper::class;
+                if (method_exists($helperClass, 'recalculateSummaryForDate')) {
+                    call_user_func([$helperClass, 'recalculateSummaryForDate'], $workDate);
+                } else {
+                    // Fallback: trigger sync for that date
+                    $model = $this->getModel('Asistencia');
+                    if ($model && method_exists($model, 'syncRecentData')) {
+                        $model->syncRecentData($workDate, $workDate);
+                    }
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail the whole operation
+                $app->enqueueMessage('Entries saved but summary update failed: ' . $e->getMessage(), 'warning');
+            }
+        }
+
+        if ($saved > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_ENTRIES_SAVED', $saved), 'success');
+        }
+        if ($errors > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_ENTRIES_ERRORS', $errors), 'error');
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&work_date=' . $workDate));
+        return true;
+    }
 }
 
 

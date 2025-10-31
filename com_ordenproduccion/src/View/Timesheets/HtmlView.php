@@ -29,6 +29,7 @@ class HtmlView extends BaseHtmlView
     protected $items = [];
     protected $state;
     protected $groups = [];
+    protected $employees = [];
 
     public function display($tpl = null)
     {
@@ -36,9 +37,10 @@ class HtmlView extends BaseHtmlView
         $this->state = $this->get('State');
         $this->items = $this->get('Items');
         
-        // Get groups from model (fallback to empty array if not available)
+        // Get groups and employees from model (fallback to empty array if not available)
         $model = $this->getModel();
         $this->groups = $model ? $model->getGroups() : [];
+        $this->employees = $model ? $model->getEmployeeList() : [];
 
         // Set a helpful title
         if ($this->document) {

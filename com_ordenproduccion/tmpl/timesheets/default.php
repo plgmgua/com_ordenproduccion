@@ -50,11 +50,56 @@ use Joomla\CMS\HTML\HTMLHelper;
 
     <!-- Action Buttons -->
     <div class="mb-3">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('manualEntrySection').style.display = document.getElementById('manualEntrySection').style.display === 'none' ? 'block' : 'none';">
+            <span class="icon-plus"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NEW_ENTRY'); ?>
+        </button>
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.sync'); ?>" 
-           class="btn btn-primary" 
+           class="btn btn-secondary" 
            onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
             <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
         </a>
+    </div>
+
+    <!-- Manual Entry Form -->
+    <div id="manualEntrySection" class="card mb-3" style="display: none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><?php echo Text::_('COM_ORDENPRODUCCION_TIMESHEETS_MANUAL_ENTRY'); ?></strong>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="addManualEntryRow()">
+                <span class="icon-plus"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ADD_ROW'); ?>
+            </button>
+        </div>
+        <div class="card-body">
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=timesheets.bulkManualEntry'); ?>" method="post" id="manualEntryForm">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="work_date" value="<?php echo htmlspecialchars($this->state->get('filter.work_date') ?: date('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>">
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm" id="manualEntryTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:120px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'); ?></th>
+                                <th style="width:90px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DATE'); ?></th>
+                                <th style="width:90px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TIME'); ?></th>
+                                <th style="width:100px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DIRECTION'); ?></th>
+                                <th style="width:40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="manualEntryRows">
+                            <!-- Rows will be added by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-2 d-flex justify-content-end">
+                    <button type="button" class="btn btn-secondary me-2" onclick="document.getElementById('manualEntrySection').style.display='none'; clearManualEntryRows();">
+                        <?php echo Text::_('JCANCEL'); ?>
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <span class="icon-save"></span> <?php echo Text::_('COM_ORDENPRODUCCION_SAVE_ENTRIES'); ?>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="card">
@@ -139,6 +184,78 @@ use Joomla\CMS\HTML\HTMLHelper;
   checks.forEach(c=> c.addEventListener('change', updateBtn));
   updateBtn();
 })();
+
+// Manual Entry Form JavaScript
+const employees = <?php echo json_encode(array_map(function($e) { return ['cardno' => $e->cardno, 'personname' => $e->personname]; }, $this->employees)); ?>;
+const workDate = '<?php echo htmlspecialchars($this->state->get('filter.work_date') ?: date('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>';
+let rowCounter = 0;
+
+function addManualEntryRow() {
+    const tbody = document.getElementById('manualEntryRows');
+    const row = document.createElement('tr');
+    row.id = 'manual_row_' + rowCounter;
+    
+    // Build employee select options
+    let empOptions = '<option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SELECT_EMPLOYEE'); ?></option>';
+    employees.forEach(function(emp) {
+        empOptions += '<option value="' + escapeHtml(emp.personname) + '" data-cardno="' + escapeHtml(emp.cardno) + '">' + escapeHtml(emp.personname) + '</option>';
+    });
+    
+    // Build row HTML
+    row.innerHTML = 
+        '<td>' +
+            '<select name="entries[' + rowCounter + '][personname]" class="form-select form-select-sm required" required>' + empOptions + '</select>' +
+            '<input type="hidden" name="entries[' + rowCounter + '][cardno]" id="cardno_' + rowCounter + '">' +
+        '</td>' +
+        '<td><input type="date" name="entries[' + rowCounter + '][authdate]" class="form-control form-control-sm required" value="' + workDate + '" required></td>' +
+        '<td><input type="time" name="entries[' + rowCounter + '][authtime]" class="form-control form-control-sm required" value="08:00" required></td>' +
+        '<td><select name="entries[' + rowCounter + '][direction]" class="form-select form-select-sm"><option value="Puerta">Puerta</option><option value="Entrada">Entrada</option><option value="Salida">Salida</option></select></td>' +
+        '<td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest(\'tr\').remove();"><span class="icon-delete"></span></button></td>';
+    
+    tbody.appendChild(row);
+    
+    // Attach event listener for cardno auto-fill
+    const select = row.querySelector('select[name*="[personname]"]');
+    const cardnoInput = row.querySelector('input[name*="[cardno]"]');
+    if (select && cardnoInput) {
+        select.addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            if (selected && selected.hasAttribute('data-cardno')) {
+                cardnoInput.value = selected.getAttribute('data-cardno');
+            } else {
+                cardnoInput.value = '';
+            }
+        });
+    }
+    
+    rowCounter++;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function clearManualEntryRows() {
+    document.getElementById('manualEntryRows').innerHTML = '';
+    rowCounter = 0;
+}
+
+// Add first row when form is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const manualBtn = document.querySelector('button[onclick*="manualEntrySection"]');
+    if (manualBtn) {
+        manualBtn.addEventListener('click', function() {
+            setTimeout(function() {
+                const tbody = document.getElementById('manualEntryRows');
+                if (tbody && tbody.children.length === 0) {
+                    addManualEntryRow();
+                }
+            }, 100);
+        });
+    }
+});
 </script>
 
 

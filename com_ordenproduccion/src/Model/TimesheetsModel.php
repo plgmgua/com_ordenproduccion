@@ -10,6 +10,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
 /**
  * Daily Timesheets Approval - List Model
@@ -125,6 +126,14 @@ class TimesheetsModel extends ListModel
 
         $db->setQuery($q);
         return (array) $db->loadObjectList();
+    }
+
+    /**
+     * Get employee list for dropdown
+     */
+    public function getEmployeeList(): array
+    {
+        return AsistenciaHelper::getEmployees(true);
     }
 }
 
