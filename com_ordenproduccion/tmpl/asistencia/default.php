@@ -159,10 +159,6 @@ $filterIsLate = $this->state->get('filter.is_late');
 
         <!-- Action Buttons -->
         <div class="mb-3">
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistenciaentry&layout=edit'); ?>" 
-               class="btn btn-success">
-                <span class="icon-plus"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NEW_ENTRY'); ?>
-            </a>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.sync'); ?>" 
                class="btn btn-primary" 
                onclick="return confirm('<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_CONFIRM'); ?>');">
