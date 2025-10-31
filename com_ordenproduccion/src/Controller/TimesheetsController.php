@@ -13,6 +13,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
 class TimesheetsController extends BaseController
 {
@@ -232,6 +233,7 @@ class TimesheetsController extends BaseController
 
         $saved = 0;
         $errors = 0;
+        $savedEmployees = []; // Track unique employees for summary recalculation
 
         foreach ($entries as $entry) {
             if (empty($entry['personname']) || empty($entry['authdate']) || empty($entry['authtime'])) {
@@ -261,24 +263,30 @@ class TimesheetsController extends BaseController
                 $db->setQuery($query);
                 $db->execute();
                 $saved++;
+                
+                // Track unique employee for summary recalculation
+                // Use personname as key (since cardno might be empty)
+                $employeeKey = trim($entry['personname']);
+                if (!empty($employeeKey) && !isset($savedEmployees[$employeeKey])) {
+                    $savedEmployees[$employeeKey] = [
+                        'personname' => $entry['personname'],
+                        'cardno' => $entry['cardno'] ?? ''
+                    ];
+                }
             } catch (\Exception $e) {
                 $errors++;
                 $app->enqueueMessage($e->getMessage(), 'error');
             }
         }
 
-        // Trigger summary recalculation for the date
-        if ($saved > 0) {
+        // Trigger summary recalculation for each unique employee that was saved
+        if ($saved > 0 && !empty($savedEmployees)) {
             try {
-                $helperClass = \Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper::class;
-                if (method_exists($helperClass, 'recalculateSummaryForDate')) {
-                    call_user_func([$helperClass, 'recalculateSummaryForDate'], $workDate);
-                } else {
-                    // Fallback: trigger sync for that date
-                    $model = $this->getModel('Asistencia');
-                    if ($model && method_exists($model, 'syncRecentData')) {
-                        $model->syncRecentData($workDate, $workDate);
-                    }
+                foreach ($savedEmployees as $emp) {
+                    // updateDailySummary uses personname as the identifier (despite parameter name)
+                    // Use personname if cardno is empty, otherwise use cardno
+                    $identifier = !empty($emp['cardno']) ? $emp['cardno'] : $emp['personname'];
+                    AsistenciaHelper::updateDailySummary($identifier, $workDate);
                 }
             } catch (\Exception $e) {
                 // Log error but don't fail the whole operation

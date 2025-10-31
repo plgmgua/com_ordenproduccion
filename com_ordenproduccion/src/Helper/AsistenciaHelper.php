@@ -203,19 +203,26 @@ class AsistenciaHelper
 
         $calculation = self::calculateDailyHours($cardno, $date);
 
-        if (empty($calculation['personname'])) {
+        // calculateDailyHours returns an object, not an array
+        if (empty($calculation) || empty($calculation->personname)) {
             return false;
         }
 
-        // Check if summary exists
+        // Use calculated cardno if available, otherwise use personname for lookup
+        // This handles cases where cardno might be empty in manual entries
+        $lookupIdentifier = !empty($calculation->cardno) ? $calculation->cardno : $calculation->personname;
+        
+        // Check if summary exists - try both cardno and personname
         $query = self::$db->getQuery(true)
             ->select('id')
             ->from(self::$db->quoteName('#__ordenproduccion_asistencia_summary'))
             ->where([
-                self::$db->quoteName('cardno') . ' = :cardno',
+                '(' . self::$db->quoteName('cardno') . ' = :identifier OR ' .
+                '(' . self::$db->quoteName('cardno') . ' = ' . self::$db->quote('') . 
+                ' AND ' . self::$db->quoteName('personname') . ' = :identifier))',
                 self::$db->quoteName('work_date') . ' = :work_date'
             ])
-            ->bind(':cardno', $cardno)
+            ->bind(':identifier', $lookupIdentifier)
             ->bind(':work_date', $date);
 
         self::$db->setQuery($query);
@@ -241,15 +248,15 @@ class AsistenciaHelper
                     self::$db->quoteName('modified_by') . ' = :modified_by'
                 ])
                 ->where(self::$db->quoteName('id') . ' = :id')
-                ->bind(':first_entry', $calculation['first_entry'])
-                ->bind(':last_exit', $calculation['last_exit'])
-                ->bind(':total_hours', $calculation['total_hours'])
-                ->bind(':expected_hours', $calculation['expected_hours'])
-                ->bind(':hours_difference', $calculation['hours_difference'])
-                ->bind(':total_entries', $calculation['total_entries'], \Joomla\Database\ParameterType::INTEGER)
-                ->bind(':is_complete', $calculation['is_complete'], \Joomla\Database\ParameterType::INTEGER)
-                ->bind(':is_late', $calculation['is_late'], \Joomla\Database\ParameterType::INTEGER)
-                ->bind(':is_early_exit', $calculation['is_early_exit'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':first_entry', $calculation->first_entry)
+                ->bind(':last_exit', $calculation->last_exit)
+                ->bind(':total_hours', $calculation->total_hours)
+                ->bind(':expected_hours', $calculation->expected_hours)
+                ->bind(':hours_difference', $calculation->hours_difference)
+                ->bind(':total_entries', $calculation->total_entries, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_complete', $calculation->is_complete, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_late', $calculation->is_late, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_early_exit', $calculation->is_early_exit, \Joomla\Database\ParameterType::INTEGER)
                 ->bind(':modified_by', $userId, \Joomla\Database\ParameterType::INTEGER)
                 ->bind(':id', $summaryId, \Joomla\Database\ParameterType::INTEGER);
 
@@ -269,22 +276,25 @@ class AsistenciaHelper
                 ':is_complete', ':is_late', ':is_early_exit', ':created_by'
             ];
 
+            // Use calculated cardno for insert, fallback to personname if empty
+            $insertCardno = !empty($calculation->cardno) ? $calculation->cardno : $calculation->personname;
+            
             $query = self::$db->getQuery(true)
                 ->insert(self::$db->quoteName('#__ordenproduccion_asistencia_summary'))
                 ->columns(self::$db->quoteName($columns))
                 ->values(implode(',', $values))
-                ->bind(':cardno', $cardno)
-                ->bind(':personname', $calculation['personname'])
+                ->bind(':cardno', $insertCardno)
+                ->bind(':personname', $calculation->personname)
                 ->bind(':work_date', $date)
-                ->bind(':first_entry', $calculation['first_entry'])
-                ->bind(':last_exit', $calculation['last_exit'])
-                ->bind(':total_hours', $calculation['total_hours'])
-                ->bind(':expected_hours', $calculation['expected_hours'])
-                ->bind(':hours_difference', $calculation['hours_difference'])
-                ->bind(':total_entries', $calculation['total_entries'], \Joomla\Database\ParameterType::INTEGER)
-                ->bind(':is_complete', $calculation['is_complete'], \Joomla\Database\ParameterType::INTEGER)
-                ->bind(':is_late', $calculation['is_late'], \Joomla\Database\ParameterType::INTEGER)
-                ->bind(':is_early_exit', $calculation['is_early_exit'], \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':first_entry', $calculation->first_entry)
+                ->bind(':last_exit', $calculation->last_exit)
+                ->bind(':total_hours', $calculation->total_hours)
+                ->bind(':expected_hours', $calculation->expected_hours)
+                ->bind(':hours_difference', $calculation->hours_difference)
+                ->bind(':total_entries', $calculation->total_entries, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_complete', $calculation->is_complete, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_late', $calculation->is_late, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':is_early_exit', $calculation->is_early_exit, \Joomla\Database\ParameterType::INTEGER)
                 ->bind(':created_by', $userId, \Joomla\Database\ParameterType::INTEGER);
 
             self::$db->setQuery($query);
