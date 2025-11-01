@@ -212,6 +212,12 @@ main() {
         log "✅ tmpl directory copied successfully"
     fi
     
+    # Copy help directory if it exists
+    if [ -d "$COMPONENT_ROOT/help" ]; then
+        sudo cp -r "$COMPONENT_ROOT/help" "$SITE_COMPONENT_PATH/" || error "Failed to copy help directory"
+        log "✅ help directory copied successfully"
+    fi
+    
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
     sudo cp -r "$COMPONENT_ROOT/media/"* "$MEDIA_PATH/" || error "Failed to copy media files"
     
