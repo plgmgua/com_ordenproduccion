@@ -37,7 +37,7 @@ class PlgContentMarkdownrenderer extends CMSPlugin
     /**
      * Parser instance
      *
-     * @var    Parser
+     * @var    object
      * @since  1.0.0
      */
     protected $parser;
@@ -54,7 +54,22 @@ class PlgContentMarkdownrenderer extends CMSPlugin
     {
         parent::__construct($subject, $config);
         
-        $this->parser = new Grimpsa\Plugin\Content\Markdownrenderer\Markdown\Parser();
+        // Initialize parser lazily
+        $this->parser = null;
+    }
+
+    /**
+     * Initialize parser instance
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function initParser()
+    {
+        if ($this->parser === null) {
+            $this->parser = new Grimpsa\Plugin\Content\Markdownrenderer\Markdown\Parser();
+        }
     }
 
     /**
@@ -160,6 +175,9 @@ class PlgContentMarkdownrenderer extends CMSPlugin
 
         // Read and parse markdown
         $markdown = file_get_contents($filePath);
+        
+        // Initialize parser if needed
+        $this->initParser();
         $html = $this->parser->parse($markdown);
 
         // Add wrapper and styles if enabled
