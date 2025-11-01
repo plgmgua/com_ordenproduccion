@@ -9,20 +9,6 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Factory;
-use Joomla\CMS\Plugin\CMSPlugin;
-
-// Require the parser class from media folder
-$parserPath = JPATH_ROOT . '/media/plg_content_markdownrenderer/src/Markdown/Parser.php';
-if (file_exists($parserPath)) {
-    require_once $parserPath;
-} else {
-    // Fallback for development
-    require_once __DIR__ . '/media/src/Markdown/Parser.php';
-}
-
-use Grimpsa\Plugin\Content\Markdownrenderer\Markdown\Parser;
-
 /**
  * Markdown Renderer content plugin
  *
@@ -30,54 +16,10 @@ use Grimpsa\Plugin\Content\Markdownrenderer\Markdown\Parser;
  *
  * @since  1.5.0
  */
-class PlgContentMarkdownrenderer extends CMSPlugin
+class PlgContentMarkdownrenderer extends JPlugin
 {
     /**
-     * Application object
-     *
-     * @var    object
-     * @since  1.5.0
-     */
-    protected $app;
-
-    /**
-     * Parser instance
-     *
-     * @var    Parser
-     * @since  1.5.0
-     */
-    protected $parser;
-
-    /**
-     * Constructor
-     *
-     * @param   object  &$subject  The object to observe
-     * @param   array   $config    An optional associative array of configuration settings
-     *
-     * @since   1.5.0
-     */
-    public function __construct(&$subject, $config)
-    {
-        parent::__construct($subject, $config);
-        $this->parser = null;
-    }
-
-    /**
-     * Initialize parser instance
-     *
-     * @return  void
-     *
-     * @since   1.5.0
-     */
-    protected function initParser()
-    {
-        if ($this->parser === null) {
-            $this->parser = new Parser();
-        }
-    }
-
-    /**
-     * Plugin that renders markdown files
+     * Render markdown files
      *
      * @param   string   $context  The context of the content being passed to the plugin
      * @param   object   &$article The article object
@@ -90,11 +32,6 @@ class PlgContentMarkdownrenderer extends CMSPlugin
      */
     public function onContentPrepare($context, &$article, &$params, $page = 0)
     {
-        // Don't run in admin or API
-        if ($this->app->isClient('administrator') || $this->app->isClient('api')) {
-            return;
-        }
-
         // Don't run if content is empty
         if (empty($article->text)) {
             return;
@@ -118,10 +55,10 @@ class PlgContentMarkdownrenderer extends CMSPlugin
             try {
                 $html = $this->renderMarkdownFile($filename);
                 $article->text = str_replace($fullMatch, $html, $article->text);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Log error but don't break the page
-                Factory::getApplication()->enqueueMessage(
-                    sprintf('Markdown rendering error: %s', $e->getMessage()),
+                JFactory::getApplication()->enqueueMessage(
+                    'Markdown rendering error: ' . $e->getMessage(),
                     'warning'
                 );
             }
@@ -135,7 +72,7 @@ class PlgContentMarkdownrenderer extends CMSPlugin
      *
      * @return  string  Rendered HTML
      *
-     * @throws  \Exception
+     * @throws  Exception
      * @since   1.5.0
      */
     protected function renderMarkdownFile($filename)
@@ -151,7 +88,7 @@ class PlgContentMarkdownrenderer extends CMSPlugin
 
         // Security: Check if file exists
         if (!file_exists($filePath)) {
-            throw new \Exception(sprintf('Markdown file not found: %s', $filename));
+            throw new Exception('Markdown file not found: ' . $filename);
         }
 
         // Security: Ensure file is within allowed directory (prevent directory traversal)
@@ -159,7 +96,7 @@ class PlgContentMarkdownrenderer extends CMSPlugin
         $allowedPath = realpath(JPATH_ROOT . '/' . $pathPrefix);
         
         if (!$allowedPath || strpos($realPath, $allowedPath) !== 0) {
-            throw new \Exception('Invalid file path');
+            throw new Exception('Invalid file path');
         }
 
         // Check cache
@@ -167,7 +104,7 @@ class PlgContentMarkdownrenderer extends CMSPlugin
         
         if ($enableCache) {
             $cacheKey = 'markdown_' . md5($realPath . filemtime($realPath));
-            $cache = Factory::getCache('plg_content_markdownrenderer', '');
+            $cache = JFactory::getCache('plg_content_markdownrenderer', '');
             $cache->setCaching(true);
             $cache->setLifeTime((int) $this->params->get('cache_ttl', 3600));
             
@@ -180,10 +117,7 @@ class PlgContentMarkdownrenderer extends CMSPlugin
 
         // Read and parse markdown
         $markdown = file_get_contents($filePath);
-        
-        // Initialize parser if needed
-        $this->initParser();
-        $html = $this->parser->parse($markdown);
+        $html = $this->parseMarkdown($markdown);
 
         // Add wrapper and styles if enabled
         if ($this->params->get('add_styles', 1)) {
@@ -199,13 +133,239 @@ class PlgContentMarkdownrenderer extends CMSPlugin
     }
 
     /**
-     * Wrap HTML content with markdown styles
+     * Parse markdown text to HTML
      *
-     * @param   string  $html  Raw HTML content
+     * @param   string  $markdown  Markdown text
      *
-     * @return  string  HTML with styles
+     * @return  string  HTML output
      *
      * @since   1.5.0
+     */
+    protected function parseMarkdown($markdown)
+    {
+        if (empty($markdown)) {
+            return '';
+        }
+
+        // Convert to HTML
+        $html = $this->convertHeaders($markdown);
+        $html = $this->convertCodeBlocks($html);
+        $html = $this->convertInlineCode($html);
+        $html = $this->convertBold($html);
+        $html = $this->convertItalic($html);
+        $html = $this->convertStrikethrough($html);
+        $html = $this->convertLinks($html);
+        $html = $this->convertImages($html);
+        $html = $this->convertLists($html);
+        $html = $this->convertBlockquotes($html);
+        $html = $this->convertHorizontalRules($html);
+        $html = $this->convertLineBreaks($html);
+        $html = $this->convertParagraphs($html);
+        $html = $this->convertEmojis($html);
+
+        return $html;
+    }
+
+    /**
+     * Convert headers (# ## ### #### ##### ######)
+     */
+    protected function convertHeaders($text)
+    {
+        for ($i = 6; $i >= 1; $i--) {
+            $pattern = '/^' . str_repeat('#', $i) . '\s+(.+)$/m';
+            $text = preg_replace($pattern, '<h' . $i . '>$1</h' . $i . '>', $text);
+        }
+        return $text;
+    }
+
+    /**
+     * Convert code blocks (```code```)
+     */
+    protected function convertCodeBlocks($text)
+    {
+        $pattern = '/```(\w+)?\n(.*?)```/s';
+        return preg_replace_callback($pattern, function($matches) {
+            $language = isset($matches[1]) ? $matches[1] : '';
+            $code = htmlspecialchars($matches[2], ENT_QUOTES, 'UTF-8');
+            return '<pre><code' . ($language ? ' class="language-' . $language . '"' : '') . '>' . $code . '</code></pre>';
+        }, $text);
+    }
+
+    /**
+     * Convert inline code (`code`)
+     */
+    protected function convertInlineCode($text)
+    {
+        $pattern = '/`([^`]+)`/';
+        return preg_replace_callback($pattern, function($matches) {
+            return '<code>' . htmlspecialchars($matches[1], ENT_QUOTES, 'UTF-8') . '</code>';
+        }, $text);
+    }
+
+    /**
+     * Convert bold text (**text**)
+     */
+    protected function convertBold($text)
+    {
+        $text = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $text);
+        $text = preg_replace('/__(.+?)__/', '<strong>$1</strong>', $text);
+        return $text;
+    }
+
+    /**
+     * Convert italic text (*text*)
+     */
+    protected function convertItalic($text)
+    {
+        $text = preg_replace('/\*([^\*]+)\*/', '<em>$1</em>', $text);
+        $text = preg_replace('/_([^_]+)_/', '<em>$1</em>', $text);
+        return $text;
+    }
+
+    /**
+     * Convert strikethrough text (~~text~~)
+     */
+    protected function convertStrikethrough($text)
+    {
+        return preg_replace('/~~(.+?)~~/', '<del>$1</del>', $text);
+    }
+
+    /**
+     * Convert links [text](url)
+     */
+    protected function convertLinks($text)
+    {
+        $pattern = '/\[([^\]]+)\]\(([^)]+)\)/';
+        return preg_replace_callback($pattern, function($matches) {
+            $text = htmlspecialchars($matches[1], ENT_QUOTES, 'UTF-8');
+            $url = htmlspecialchars($matches[2], ENT_QUOTES, 'UTF-8');
+            return '<a href="' . $url . '">' . $text . '</a>';
+        }, $text);
+    }
+
+    /**
+     * Convert images ![alt](url)
+     */
+    protected function convertImages($text)
+    {
+        $pattern = '/!\[([^\]]*)\]\(([^)]+)\)/';
+        return preg_replace_callback($pattern, function($matches) {
+            $alt = htmlspecialchars($matches[1], ENT_QUOTES, 'UTF-8');
+            $src = htmlspecialchars($matches[2], ENT_QUOTES, 'UTF-8');
+            return '<img src="' . $src . '" alt="' . $alt . '" />';
+        }, $text);
+    }
+
+    /**
+     * Convert lists (- item or * item or 1. item)
+     */
+    protected function convertLists($text)
+    {
+        // Ordered lists
+        $pattern = '/^(\d+\.\s+.+(?:\n(?!\d+\.\s+|$).+)*)/m';
+        $text = preg_replace_callback($pattern, function($matches) {
+            $lines = preg_split('/\n(?=\d+\.\s+)/', $matches[0]);
+            $items = '';
+            foreach ($lines as $line) {
+                $line = preg_replace('/^\d+\.\s+/', '', trim($line));
+                $items .= '<li>' . $line . '</li>';
+            }
+            return '<ol>' . $items . '</ol>';
+        }, $text);
+
+        // Unordered lists
+        $pattern = '/^([-*]\s+.+(?:\n(?![-*]\s+|$).+)*)/m';
+        $text = preg_replace_callback($pattern, function($matches) {
+            $lines = preg_split('/\n(?=[-*]\s+)/', $matches[0]);
+            $items = '';
+            foreach ($lines as $line) {
+                $line = preg_replace('/^[-*]\s+/', '', trim($line));
+                $items .= '<li>' . $line . '</li>';
+            }
+            return '<ul>' . $items . '</ul>';
+        }, $text);
+
+        return $text;
+    }
+
+    /**
+     * Convert blockquotes (> text)
+     */
+    protected function convertBlockquotes($text)
+    {
+        $pattern = '/^>\s+(.+)$/m';
+        return preg_replace_callback($pattern, function($matches) {
+            return '<blockquote>' . $matches[1] . '</blockquote>';
+        }, $text);
+    }
+
+    /**
+     * Convert horizontal rules (--- or *** or ___)
+     */
+    protected function convertHorizontalRules($text)
+    {
+        $pattern = '/^---$/m';
+        $text = preg_replace($pattern, '<hr>', $text);
+        $pattern = '/^\*\*\*$/m';
+        $text = preg_replace($pattern, '<hr>', $text);
+        $pattern = '/^___$/m';
+        $text = preg_replace($pattern, '<hr>', $text);
+        return $text;
+    }
+
+    /**
+     * Convert emojis
+     */
+    protected function convertEmojis($text)
+    {
+        $emojis = [
+            ':)' => '😊', ':(' => '😢', ':D' => '😃',
+            ':-)' => '😊', ':-(' => '😢', ':-D' => '😃',
+            '<3' => '❤️', '</3' => '💔',
+        ];
+        foreach ($emojis as $shortcut => $emoji) {
+            $text = str_replace($shortcut, $emoji, $text);
+        }
+        return $text;
+    }
+
+    /**
+     * Convert line breaks
+     */
+    protected function convertLineBreaks($text)
+    {
+        $text = preg_replace('/\n\n+/', "\n\n", $text);
+        $text = preg_replace('/(?<=\S)\n(?=\S)/', '<br>', $text);
+        return $text;
+    }
+
+    /**
+     * Convert paragraphs (wrap in <p> tags)
+     */
+    protected function convertParagraphs($text)
+    {
+        $lines = preg_split('/\n\n/', $text);
+        $paragraphs = [];
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) {
+                continue;
+            }
+            if (preg_match('/^<[huo][^>]*>/', $line) || 
+                preg_match('/^<pre>/', $line) || 
+                preg_match('/^<blockquote>/', $line)) {
+                $paragraphs[] = $line;
+            } else {
+                $paragraphs[] = '<p>' . $line . '</p>';
+            }
+        }
+        
+        return implode("\n", $paragraphs);
+    }
+
+    /**
+     * Wrap HTML content with markdown styles
      */
     protected function wrapWithStyles($html)
     {

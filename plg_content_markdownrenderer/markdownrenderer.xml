@@ -10,23 +10,10 @@
     <license>GNU General Public License version 2 or later</license>
     <description>PLG_CONTENT_MARKDOWNRENDERER_XML_DESCRIPTION</description>
 
-    <namespace path="src">Grimpsa\Plugin\Content\Markdownrenderer</namespace>
-
     <files>
         <filename plugin="markdownrenderer">markdownrenderer.php</filename>
         <folder>language</folder>
     </files>
-    
-    <languages folder="language">
-        <language tag="en-GB">en-GB/plg_content_markdownrenderer.ini</language>
-        <language tag="en-GB">en-GB/plg_content_markdownrenderer.sys.ini</language>
-        <language tag="es-ES">es-ES/plg_content_markdownrenderer.ini</language>
-        <language tag="es-ES">es-ES/plg_content_markdownrenderer.sys.ini</language>
-    </languages>
-    
-    <media destination="plg_content_markdownrenderer" folder="media">
-        <folder>src</folder>
-    </media>
     
     <scriptfile>install.php</scriptfile>
 
