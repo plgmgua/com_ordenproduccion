@@ -59,7 +59,7 @@
                     type="text"
                     label="PLG_CONTENT_MARKDOWNRENDERER_PATH_PREFIX_LABEL"
                     description="PLG_CONTENT_MARKDOWNRENDERER_PATH_PREFIX_DESC"
-                    default="components/com_ordenproduccion/"
+                    default="components/com_ordenproduccion/help/"
                     size="60"
                     filter="string"
                 />
