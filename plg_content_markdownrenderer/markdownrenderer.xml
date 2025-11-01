@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="plugin" group="content" method="upgrade">
     <name>PLG_CONTENT_MARKDOWNRENDERER</name>
-    <version>1.0.0-STABLE</version>
+    <version>1.5.0-STABLE</version>
     <creationDate>2025-01-31</creationDate>
     <author>Grimpsa</author>
     <authorEmail>admin@grimpsa.com</authorEmail>
@@ -14,9 +14,19 @@
 
     <files>
         <filename plugin="markdownrenderer">markdownrenderer.php</filename>
-        <folder>src</folder>
         <folder>language</folder>
     </files>
+    
+    <languages folder="language">
+        <language tag="en-GB">en-GB/plg_content_markdownrenderer.ini</language>
+        <language tag="en-GB">en-GB/plg_content_markdownrenderer.sys.ini</language>
+        <language tag="es-ES">es-ES/plg_content_markdownrenderer.ini</language>
+        <language tag="es-ES">es-ES/plg_content_markdownrenderer.sys.ini</language>
+    </languages>
+    
+    <media destination="plg_content_markdownrenderer" folder="media">
+        <folder>src</folder>
+    </media>
     
     <scriptfile>install.php</scriptfile>
 
