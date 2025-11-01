@@ -13,9 +13,12 @@
     <namespace path="src">Grimpsa\Plugin\Content\Markdownrenderer</namespace>
 
     <files>
+        <filename plugin="markdownrenderer">markdownrenderer.php</filename>
         <folder>src</folder>
         <folder>language</folder>
     </files>
+    
+    <scriptfile>install.php</scriptfile>
 
     <config>
         <fields name="params">
