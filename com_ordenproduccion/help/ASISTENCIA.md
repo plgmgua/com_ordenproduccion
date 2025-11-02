@@ -2,18 +2,18 @@
 
 ## 👋 Bienvenido
 
-Este manual te ayudará a usar el sistema de **Asistencia y Control de Tiempo** de manera sencilla y eficiente.
+Este manual está dirigido a **supervisores de grupo** y **administradores** del sistema. Te guiará en el uso del sistema de **Asistencia y Control de Tiempo** para gestionar eficientemente la asistencia de los empleados.
 
 ---
 
 ## 🎯 ¿Qué hace este sistema?
 
-El sistema registra automáticamente las **horas trabajadas** por cada empleado mediante:
+El sistema registra automáticamente las **horas trabajadas** de cada empleado mediante:
 
-- **Registro Biométrico**: Cuando marcas entrada o salida en el dispositivo
-- **Registro Manual**: Cuando tu supervisor crea un registro por ti
+- **Registro Biométrico**: Cuando los empleados marcan entrada/salida en el dispositivo
+- **Registro Manual**: Cuando usted (supervisor/admin) crea registros adicionales
 
-Luego, tu supervisor **aprueba** tus horas trabajadas y el sistema genera reportes automáticamente.
+Usted es responsable de **revisar, aprobar o ajustar** las horas registradas para su grupo de empleados.
 
 ---
 
@@ -21,11 +21,11 @@ Luego, tu supervisor **aprueba** tus horas trabajadas y el sistema genera report
 
 ### ¿Qué veo aquí?
 
-La pantalla de **Asistencia** es tu ventana para consultar el historial de asistencia de todos los empleados.
+La pantalla de **Asistencia** muestra un historial completo de registros de asistencia de los empleados. Le permite consultar, filtrar y analizar la información.
 
 ### Cómo usar los filtros
 
-En la parte superior verás varios campos que te permiten buscar información específica:
+En la parte superior verá varios campos que permiten buscar información específica:
 
 ```
 Búsqueda:  [____________]         Buscar por nombre de empleado
@@ -40,11 +40,11 @@ Tarde:     [Todos ▼]                             Ver solo llegadas tardías
 ```
 
 **Ejemplo práctico:**
-- Si quieres ver todos los registros de "Juan Pérez" en enero, completa:
+- Si quiere ver todos los registros de "Juan Pérez" en enero, complete:
   - **Búsqueda**: "Juan"
   - **Desde**: "2025-01-01"
   - **Hasta**: "2025-01-31"
-- Haz clic en **"Buscar"**
+- Haga clic en **"Buscar"**
 
 ### Entendiendo la tabla
 
@@ -67,16 +67,16 @@ La tabla muestra los registros de asistencia:
 
 **¿Qué significa cada columna?**
 
-- **Empleado**: Nombre de la persona
+- **Empleado**: Nombre del empleado
 - **Fecha**: Día del registro
-- **Primera Entrada**: Hora a la que llegó
-- **Última Salida**: Hora a la que se fue
+- **Primera Entrada**: Hora de llegada
+- **Última Salida**: Hora de salida
 - **Horas Totales**: Horas trabajadas ese día
 - **Estado**: Si completó su jornada completa
 
 ### Entradas Manuales
 
-A veces verás filas grises debajo del registro principal:
+Verá filas grises debajo del registro principal cuando haya entradas manuales:
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -93,21 +93,22 @@ A veces verás filas grises debajo del registro principal:
 
 **¿Qué significa esto?**
 
-- Un supervisor creó un registro **adicional** (p. ej., olvido de marcar)
-- La línea gris muestra quién lo creó y la razón
+- Se creó un registro manual adicional (olvido de marcar, emergencia, etc.)
+- La línea gris muestra quién lo creó y la razón documentada
 - Las horas **ya están incluidas** en el total superior
+- Como supervisor, puede eliminar registros manuales incorrectos
 
 ### Botón de Eliminación
 
-Si eres supervisor y ves un registro manual incorrecto, puedes eliminarlo:
+Como supervisor, puede eliminar registros manuales incorrectos:
 
 ```
                     [🗑️]
 ```
 
-- **Solo supervisores** pueden ver este botón
-- Confirma antes de eliminar
-- Al eliminar, el resumen se recalcula automáticamente
+- **Solo usuarios con permisos** pueden ver este botón
+- Se solicita confirmación antes de eliminar
+- Al eliminarlo, el resumen se recalcula automáticamente
 
 ### Sincronizar Datos
 
@@ -119,7 +120,7 @@ El botón **"Sincronizar registros nuevos"** aparece en la parte superior:
 
 **¿Cuándo usarlo?**
 
-Cuando necesitas que el sistema **cree resúmenes** para registros nuevos que aún no se han procesado.
+Cuando necesite que el sistema **cree resúmenes** para registros nuevos que aún no se han procesado.
 
 **¿Qué hace?**
 
@@ -134,12 +135,12 @@ Cuando necesitas que el sistema **cree resúmenes** para registros nuevos que a�
 
 ### ¿Para quién es esta pantalla?
 
-Esta pantalla es para **supervisores y gerentes** que necesitan aprobar las horas trabajadas por sus empleados.
+Esta pantalla es específicamente para **supervisores de grupo** y **administradores** que necesitan aprobar las horas trabajadas por los empleados.
 
 ### ¿Qué hace esta pantalla?
 
 Permite:
-1. **Ver** las horas calculadas para cada empleado
+1. **Ver** las horas calculadas para cada empleado de su grupo
 2. **Ajustar** las horas si es necesario
 3. **Aprobar** o **rechazar** el tiempo trabajado
 
@@ -156,7 +157,7 @@ Grupo:  [Todos ▼]           Filtrar por grupo específico
 ```
 
 - **Por defecto** muestra el día de hoy
-- Puedes cambiar la fecha para aprobar días anteriores
+- Puede cambiar la fecha para aprobar días anteriores
 
 ### La tabla de aprobación
 
@@ -179,39 +180,39 @@ Grupo:  [Todos ▼]           Filtrar por grupo específico
 **Importante:**
 
 - **Horas Calculadas**: Automáticas del sistema (no se pueden editar aquí)
-- **Horas Aprobadas**: Puedes editarlas si necesitas ajustar
+- **Horas Aprobadas**: Puede editarlas si necesita ajustar
 - **Entradas Manuales**: Aparecen debajo con fondo gris
 
 ### Cómo aprobar tiempo
 
 #### Aprobar individualmente
 
-1. Revisa las horas calculadas para el empleado
-2. (Opcional) Edita las horas aprobadas si es necesario
-3. Haz clic en **"Aprobar"**
+1. Revise las horas calculadas para el empleado
+2. (Opcional) Edite las horas aprobadas si es necesario
+3. Haga clic en **"Aprobar"**
 4. El estado cambiará a ✓ **Aprobado**
 
 #### Aprobar múltiples (Bulk)
 
-1. **Marca la casilla** al lado de cada empleado a aprobar
-2. En la parte superior, verás: **"Acciones en lote"**
-3. Selecciona "Aprobar seleccionados"
-4. Haz clic en **"Ejecutar"**
+1. **Marque la casilla** al lado de cada empleado a aprobar
+2. En la parte superior, verá: **"Acciones en lote"**
+3. Seleccione "Aprobar seleccionados"
+4. Haga clic en **"Ejecutar"**
 5. Todos los marcados quedarán aprobados
 
 #### Rechazar
 
 Si un registro está incorrecto:
 
-1. Haz clic en **"Rechazar"**
+1. Haga clic en **"Rechazar"**
 2. El estado cambiará a ❌ **Rechazado**
-3. Opcionalmente, agrega un comentario
+3. Opcionalmente, agregue un comentario
 
 ### Crear Registro Manual
 
 Si un empleado **olvidó marcar** o hubo algún problema:
 
-1. Haz clic en **"Nueva Entrada Manual"** (parte superior)
+1. Haga clic en **"Nueva Entrada Manual"** (parte superior)
 2. Se abrirá un formulario:
 
 ```
@@ -228,19 +229,19 @@ Si un empleado **olvidó marcar** o hubo algún problema:
 └─────────────────────────────────────────────────────────┘
 ```
 
-3. **Completa**:
-   - Empleado: Selecciona de la lista
+3. **Complete**:
+   - Empleado: Seleccione de la lista
    - Fecha: El día del registro
    - Hora: Hora exacta
    - Dirección: Entrada o Salida
-   - Notas: **Obligatorio** - explica el motivo
-4. Haz clic en **"Guardar"**
+   - Notas: **Obligatorio** - explique el motivo
+4. Haga clic en **"Guardar"**
 5. El resumen se actualiza automáticamente
 
 **Agregar múltiples entradas:**
 
-- Haz clic en **"+ Agregar"** para más filas
-- Guarda todas de una vez
+- Haga clic en **"+ Agregar"** para más filas
+- Guarde todas de una vez
 
 ### Sincronizar Datos
 
@@ -267,12 +268,13 @@ El sistema organiza a los empleados en **grupos** donde cada grupo tiene:
 
 ### El Rol del Gerente de Grupo
 
-Cada grupo tiene un **gerente asignado** que es responsable de:
+Cada grupo tiene un **gerente asignado** (usted) que es responsable de:
 
 1. **Aprobar diariamente** las horas trabajadas de su grupo
 2. **Crear registros manuales** cuando sea necesario
 3. **Revisar** la asistencia de sus empleados
 4. **Corregir errores** en los registros
+5. **Validar** que las horas sean correctas antes de aprobarlas
 
 ### ¿Quién puede hacer qué?
 
@@ -292,12 +294,6 @@ Cada grupo tiene un **gerente asignado** que es responsable de:
 - ✅ Aprobar o rechazar **cualquier** timesheet
 - ✅ Acceso completo a todas las funciones
 - ✅ Configurar grupos y asignar gerentes
-
-#### Empleado Regular
-
-- ❌ **NO tiene acceso** a las pantallas de Asistencia o Timesheets
-- ⚠️ Solo marca entrada/salida en el dispositivo biométrico
-- ℹ️ Debe contactar a su gerente para consultas sobre su asistencia
 
 ### Ejemplo Práctico
 
@@ -332,30 +328,30 @@ Grupo "Logística"
 
 ## ❓ Preguntas Frecuentes
 
-### ¿Por qué veo "(Manual)" en mi registro?
+### ¿Por qué veo registros manuales en mi grupo?
 
-Porque un supervisor creó una entrada manual adicional. Las horas ya están incluidas en tu total.
+Porque usted o un empleado de su grupo tenía un registro manual adicional. Las horas ya están incluidas en el total del empleado.
 
-### ¿Puedo editar mis horas calculadas?
+### ¿Puedo editar las horas calculadas?
 
-No. Las horas calculadas son automáticas. Tu supervisor puede aprobar horas diferentes si es necesario.
+No. Las horas calculadas son automáticas. Puede aprobar horas diferentes si es necesario, editando las horas aprobadas antes de aprobar.
 
 ### ¿Qué significa "Estado: Completo"?
 
-Que llegaste temprano y cumpliste tu jornada completa sin salir antes.
+Que el empleado llegó a tiempo y cumplió su jornada completa sin salir antes.
 
 ### ¿Qué significa "Tarde" o "Salida Temprana"?
 
-- **Tarde**: Llegaste después de la hora establecida
-- **Salida Temprana**: Te fuiste antes de tu hora de salida
+- **Tarde**: El empleado llegó después de la hora establecida
+- **Salida Temprana**: El empleado se fue antes de su hora de salida
 
-### ¿Dónde veo mis horas aprobadas?
+### ¿Dónde veo las horas aprobadas?
 
 En la pantalla de Timesheets, columna "Horas Aprobadas".
 
 ### ¿Puedo eliminar un registro manual que creé?
 
-Sí, si eres supervisor, verás el botón 🗑️ junto a cada entrada manual.
+Sí, puede ver el botón 🗑️ junto a cada entrada manual.
 
 ### ¿Qué pasa si elimino un registro manual?
 
@@ -363,15 +359,15 @@ El sistema recalcula el resumen sin ese registro y ajusta las horas automáticam
 
 ### ¿Cuándo debo usar "Sincronizar registros nuevos"?
 
-Cuando necesitas crear resúmenes para registros recientes que aún no se han procesado.
+Cuando necesite crear resúmenes para registros recientes que aún no se han procesado.
 
-### ¿Puedo ver mi historial de hace meses?
+### ¿Puedo ver el historial de hace meses?
 
-Sí, ajusta los filtros de fecha para el rango que necesites.
+Sí, ajuste los filtros de fecha para el rango que necesite.
 
-### ¿Qué hago si mi supervisor no está aprobando mi tiempo?
+### ¿Qué hago si un empleado tiene problemas con su registro?
 
-Comunícate con tu supervisor o con recursos humanos.
+Cree un registro manual con el tiempo correcto y documente el motivo en las notas.
 
 ### ¿Puedo ver quién creó un registro manual?
 
@@ -379,17 +375,17 @@ Sí. En las entradas manuales aparece el nombre del usuario que las creó.
 
 ### ¿Las notas son obligatorias en registros manuales?
 
-Sí. Se requieren para explicar el motivo.
+Sí. Es importante documentar el motivo de cada registro manual para auditoría.
 
 ### ¿Puedo aprobar múltiples empleados a la vez?
 
-Sí. Usa las casillas de selección y la opción "Acciones en lote".
+Sí. Use las casillas de selección y la opción "Acciones en lote".
 
 ### ¿Qué significa el ícono 🔵?
 
-Indica un registro manual creado manualmente.
+Indica un registro manual creado manualmente (no desde el dispositivo biométrico).
 
-### ¿Las horas del registro manual se suman a mi total?
+### ¿Las horas del registro manual se suman al total del empleado?
 
 Sí. Se combinan automáticamente con las horas biométricas.
 
@@ -428,9 +424,8 @@ Importante: Solo verás y aprobarás el tiempo de TU grupo asignado
 Si tienes dudas o problemas:
 
 1. Consulta esta guía primero
-2. Contacta a tu supervisor
-3. Contacta a recursos humanos
-4. Contacta al administrador del sistema
+2. Contacta a recursos humanos
+3. Contacta al administrador del sistema
 
 ---
 
