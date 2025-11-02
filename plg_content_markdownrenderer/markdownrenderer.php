@@ -159,9 +159,8 @@ class PlgContentMarkdownrenderer extends JPlugin
         $html = $this->convertLists($html);
         $html = $this->convertBlockquotes($html);
         $html = $this->convertHorizontalRules($html);
-        $html = $this->convertLineBreaks($html);
-        $html = $this->convertParagraphs($html);
         $html = $this->convertEmojis($html);
+        $html = $this->convertParagraphs($html);
 
         return $html;
     }
@@ -330,16 +329,6 @@ class PlgContentMarkdownrenderer extends JPlugin
     }
 
     /**
-     * Convert line breaks
-     */
-    protected function convertLineBreaks($text)
-    {
-        $text = preg_replace('/\n\n+/', "\n\n", $text);
-        $text = preg_replace('/(?<=\S)\n(?=\S)/', '<br>', $text);
-        return $text;
-    }
-
-    /**
      * Convert paragraphs (wrap in <p> tags)
      */
     protected function convertParagraphs($text)
@@ -373,16 +362,16 @@ class PlgContentMarkdownrenderer extends JPlugin
         <style>
             .markdown-content {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                line-height: 1.6;
+                line-height: 1.3;
                 color: #333;
                 max-width: 100%;
             }
             .markdown-content h1, .markdown-content h2, .markdown-content h3,
             .markdown-content h4, .markdown-content h5, .markdown-content h6 {
-                margin-top: 1.5em;
+                margin-top: 1em;
                 margin-bottom: 0.5em;
                 font-weight: bold;
-                line-height: 1.25;
+                line-height: 1.2;
             }
             .markdown-content h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: .3em; }
             .markdown-content h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: .3em; }
@@ -390,12 +379,13 @@ class PlgContentMarkdownrenderer extends JPlugin
             .markdown-content h4 { font-size: 1em; }
             .markdown-content h5 { font-size: 0.875em; }
             .markdown-content h6 { font-size: 0.85em; color: #6a737d; }
-            .markdown-content p { margin: 0 0 1em; }
+            .markdown-content p { margin: 0 0 0.5em; line-height: 1.3; }
             .markdown-content ul, .markdown-content ol {
-                margin: 0 0 1em;
+                margin: 0 0 0.5em;
                 padding-left: 2em;
+                line-height: 1.3;
             }
-            .markdown-content li { margin: 0.25em 0; }
+            .markdown-content li { margin: 0.15em 0; line-height: 1.3; }
             .markdown-content blockquote {
                 margin: 0;
                 padding: 0 1em;
