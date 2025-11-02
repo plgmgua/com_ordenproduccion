@@ -27,24 +27,23 @@ La pantalla de **Asistencia** muestra un historial completo de registros de asis
 
 En la parte superior verá varios campos que permiten buscar información específica:
 
-```
-Búsqueda:  [____________]         Buscar por nombre de empleado
+![Filtros de Asistencia](../images/asistencia_filtros.png)
 
-Desde:     [2025-01-01]  Hasta:   [2025-01-31]   Filtrar por fechas
+**Campos disponibles:**
 
-Grupo:     [Todos ▼]                             Ver por grupo específico
-
-Estado:    [Todos ▼]                             Completos / Incompletos
-
-Tarde:     [Todos ▼]                             Ver solo llegadas tardías
-```
+- **Buscar**: Buscar por nombre de empleado
+- **Desde Fecha**: Fecha inicial del rango
+- **Hasta Fecha**: Fecha final del rango  
+- **Empleado**: Filtrar por empleado específico
+- **Grupo**: Filtrar por grupo de empleados
+- **Estado**: Filtrar por estado (Todos/Completos/Incompletos)
 
 **Ejemplo práctico:**
 - Si quiere ver todos los registros de "Juan Pérez" en enero, complete:
-  - **Búsqueda**: "Juan"
-  - **Desde**: "2025-01-01"
-  - **Hasta**: "2025-01-31"
-- Haga clic en **"Buscar"**
+  - **Buscar**: "Juan"
+  - **Desde Fecha**: "01/01/2025"
+  - **Hasta Fecha**: "31/01/2025"
+- Haga clic en el botón de búsqueda para aplicar los filtros
 
 ### Entendiendo la tabla
 
