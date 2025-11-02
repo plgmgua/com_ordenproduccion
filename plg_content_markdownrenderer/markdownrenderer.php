@@ -217,7 +217,8 @@ class PlgContentMarkdownrenderer extends JPlugin
     protected function convertItalic($text)
     {
         $text = preg_replace('/\*([^\*]+)\*/', '<em>$1</em>', $text);
-        $text = preg_replace('/_([^_]+)_/', '<em>$1</em>', $text);
+        // Only convert _word_ to italic if it doesn't contain angle brackets (to avoid breaking HTML tags)
+        $text = preg_replace('/_([^_<>\n]+)_/', '<em>$1</em>', $text);
         return $text;
     }
 

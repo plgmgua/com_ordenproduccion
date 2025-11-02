@@ -5,6 +5,12 @@ All notable changes to the Markdown Renderer plugin will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2025-11-01
+
+### Fixed
+- Underscores in rendered HTML tags are now properly preserved
+- Italic conversion now excludes HTML tags containing angle brackets
+
 ## [1.6.2] - 2025-11-01
 
 ### Fixed

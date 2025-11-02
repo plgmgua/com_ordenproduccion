@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="plugin" group="content" method="upgrade">
     <name>PLG_CONTENT_MARKDOWNRENDERER</name>
-    <version>1.6.2-STABLE</version>
+    <version>1.6.3-STABLE</version>
     <creationDate>2025-01-31</creationDate>
     <author>Grimpsa</author>
     <authorEmail>admin@grimpsa.com</authorEmail>
