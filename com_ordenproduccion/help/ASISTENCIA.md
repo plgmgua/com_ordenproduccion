@@ -27,7 +27,7 @@ La pantalla de **Asistencia** muestra un historial completo de registros de asis
 
 En la parte superior verá varios campos que permiten buscar información específica:
 
-![Filtros de Asistencia](../images/asistencia_filtros.png)
+![Filtros de Asistencia](https://grimpsa_webserver.grantsolutions.cc/images/help/asistencia/usar_filtros.png)
 
 **Campos disponibles:**
 
