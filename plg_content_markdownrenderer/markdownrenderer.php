@@ -343,7 +343,8 @@ class PlgContentMarkdownrenderer extends JPlugin
             }
             if (preg_match('/^<[huo][^>]*>/', $line) || 
                 preg_match('/^<pre>/', $line) || 
-                preg_match('/^<blockquote>/', $line)) {
+                preg_match('/^<blockquote>/', $line) ||
+                preg_match('/^<img/', $line)) {
                 $paragraphs[] = $line;
             } else {
                 $paragraphs[] = '<p>' . $line . '</p>';
