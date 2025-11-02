@@ -154,8 +154,8 @@ class PlgContentMarkdownrenderer extends JPlugin
         $html = $this->convertBold($html);
         $html = $this->convertItalic($html);
         $html = $this->convertStrikethrough($html);
+        $html = $this->convertImages($html);  // Must process images before links!
         $html = $this->convertLinks($html);
-        $html = $this->convertImages($html);
         $html = $this->convertLists($html);
         $html = $this->convertBlockquotes($html);
         $html = $this->convertHorizontalRules($html);
