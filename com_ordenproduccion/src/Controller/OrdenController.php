@@ -692,11 +692,25 @@ class OrdenController extends BaseController
         }
         
         // Generate two identical shipping slips on one page
-        // Reduce spacing to fit both on one page (279.4mm total height)
+        // Page height: 279.4mm
         // Each slip needs: header (~50mm) + content (~60mm) + footer (~25mm) = ~135mm
-        // With two slips: 270mm, leaving ~9mm for margins
-        // Use 105mm spacing to ensure both fit with their footers
-        $slipSpacing = 105; // Reduced spacing to ensure both slips with footers fit on one page
+        // To give equal vertical space: (279.4 - 135 - 135) / 3 = ~3.13mm spacing sections
+        // Better approach: Calculate optimal spacing for equal distribution
+        // Top margin: ~5mm, bottom margin: ~5mm, leaving 269.4mm for content
+        // For equal spacing: each slip gets ~134.7mm, spacing between: ~0mm
+        // For better visual spacing, use ~125-130mm spacing to center them better
+        // This gives: slip1 (0-135mm), gap (135-265mm = 130mm), slip2 (265-400mm, but page ends at 279.4)
+        // Actually, let's use: slip1 starts at 5mm, slip2 starts at midpoint = 142.2mm
+        $pageHeight = 279.4;
+        $topMargin = 5;
+        $eachSlipHeight = 135; // Estimated height per slip
+        // Calculate spacing to center both slips equally
+        // Total available space: 279.4 - topMargin - eachSlipHeight*2 = 279.4 - 5 - 270 = 4.4mm
+        // For equal distribution: divide remaining space into 3 parts (before, between, after)
+        $totalSlipsHeight = $eachSlipHeight * 2;
+        $remainingSpace = $pageHeight - $topMargin - $totalSlipsHeight;
+        $spacingBetween = $remainingSpace / 3; // Equal spacing sections
+        $slipSpacing = $eachSlipHeight + $spacingBetween; // Distance from start of slip1 to start of slip2
         
         for ($slip = 0; $slip < 2; $slip++) {
             // Calculate Y position for each slip
