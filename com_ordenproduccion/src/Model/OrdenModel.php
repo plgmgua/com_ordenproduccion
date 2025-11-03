@@ -403,7 +403,7 @@ class OrdenModel extends ItemModel
                 )
                 ->where($db->quoteName('h.order_id') . ' = ' . (int) $orderId)
                 ->where($db->quoteName('h.state') . ' = 1')
-                ->order($db->quoteName('h.created') . ' DESC');
+                ->order($db->quoteName('h.created') . ' ASC');
 
             $db->setQuery($query);
             $entries = $db->loadObjectList();
