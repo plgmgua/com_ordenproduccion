@@ -96,7 +96,7 @@ class AjaxController extends BaseController
                 if ($result) {
                     // Save historial entry for status change
                     $statusDescription = 'Estado cambiado de "' . ($oldStatus ?: 'N/A') . '" a "' . $newStatus . '"';
-                    HistorialHelper::saveEntry(
+                    $historialSaved = HistorialHelper::saveEntry(
                         $orderId,
                         'status_change',
                         'Cambio de Estado',
@@ -105,7 +105,13 @@ class AjaxController extends BaseController
                         ['old_status' => $oldStatus, 'new_status' => $newStatus]
                     );
                     
-                    echo json_encode(['success' => true, 'message' => 'Estado actualizado correctamente']);
+                    $message = 'Estado actualizado correctamente';
+                    if (!$historialSaved) {
+                        // Log warning but don't fail the status update
+                        \Joomla\CMS\Log\Log::add('Failed to save historial entry for status change on order ' . $orderId . ' (from "' . ($oldStatus ?: 'N/A') . '" to "' . $newStatus . '")', \Joomla\CMS\Log\Log::WARNING, 'com_ordenproduccion');
+                    }
+                    
+                    echo json_encode(['success' => true, 'message' => $message]);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Error al actualizar el estado']);
                 }

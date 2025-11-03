@@ -15,6 +15,7 @@
 namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Log\Log;
 
 defined('_JEXEC') or die;
 
@@ -50,10 +51,12 @@ class HistorialHelper
             $columns = $db->getTableColumns('#__ordenproduccion_historial');
             if (empty($columns)) {
                 // Table doesn't exist, skip saving
+                Log::add('Historial table #__ordenproduccion_historial does not exist. Skipping log entry for order ID ' . $orderId, Log::WARNING, 'com_ordenproduccion');
                 return false;
             }
         } catch (\Exception $e) {
-            // Table doesn't exist, skip saving
+            // Table doesn't exist or error accessing it, skip saving
+            Log::add('Error checking historial table existence: ' . $e->getMessage() . '. Skipping log entry for order ID ' . $orderId, Log::ERROR, 'com_ordenproduccion');
             return false;
         }
 
@@ -88,7 +91,7 @@ class HistorialHelper
             return true;
         } catch (\Exception $e) {
             // Log error but don't break execution
-            Factory::getApplication()->enqueueMessage('Error saving historial entry: ' . $e->getMessage(), 'warning');
+            Log::add('Error saving historial entry for order ID ' . $orderId . ': ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
             return false;
         }
     }

@@ -164,39 +164,44 @@ class OrdenController extends BaseController
                 return;
             }
 
-            // Save historial entries for shipping slip generation
-            if ($tipoEnvio === 'completo') {
-                // For "completo", save print event with fixed description
-                HistorialHelper::saveEntry(
-                    $orderId,
-                    'shipping_print',
-                    'Impresion de Envio',
-                    'Envio completo impreso',
-                    $user->id,
-                    ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
-                );
-            } else {
-                // For "parcial", save shipping description if provided
-                if (!empty($descripcionEnvio)) {
+            // Only save historial entries on POST requests (initial generation)
+            // Skip saving on GET requests (when just opening/viewing the PDF)
+            $requestMethod = $app->input->server->get('REQUEST_METHOD', 'GET');
+            if ($requestMethod === 'POST') {
+                // Save historial entries for shipping slip generation
+                if ($tipoEnvio === 'completo') {
+                    // For "completo", save print event with fixed description
                     HistorialHelper::saveEntry(
                         $orderId,
-                        'shipping_description',
-                        'Descripcion de Envio',
-                        $descripcionEnvio,
+                        'shipping_print',
+                        'Impresion de Envio',
+                        'Envio completo impreso',
+                        $user->id,
+                        ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
+                    );
+                } else {
+                    // For "parcial", save shipping description if provided
+                    if (!empty($descripcionEnvio)) {
+                        HistorialHelper::saveEntry(
+                            $orderId,
+                            'shipping_description',
+                            'Descripcion de Envio',
+                            $descripcionEnvio,
+                            $user->id,
+                            ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
+                        );
+                    }
+                    
+                    // Also save print event for parcial
+                    HistorialHelper::saveEntry(
+                        $orderId,
+                        'shipping_print',
+                        'Impresion de Envio',
+                        'Envio parcial impreso',
                         $user->id,
                         ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
                     );
                 }
-                
-                // Also save print event for parcial
-                HistorialHelper::saveEntry(
-                    $orderId,
-                    'shipping_print',
-                    'Impresion de Envio',
-                    'Envio parcial impreso',
-                    $user->id,
-                    ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
-                );
             }
 
                     // Generate shipping slip PDF using FPDF
