@@ -693,10 +693,13 @@ class OrdenController extends BaseController
         
         // Generate two identical shipping slips on one page
         // Reduce spacing to fit both on one page (279.4mm total height)
+        // Calculate optimal spacing: (279.4 - footer space) / 2 = ~125mm per slip max
+        // Use 110mm spacing to leave room for footer
+        $slipSpacing = 110; // Reduced spacing to ensure both fit on one page
+        
         for ($slip = 0; $slip < 2; $slip++) {
-            // Calculate Y position for each slip (8.5x11 page = 279.4mm height)
-            // Reduced spacing from 130mm to 115mm to fit both slips on one page
-            $startY = $slip * 115; // 115mm spacing between slips
+            // Calculate Y position for each slip
+            $startY = $slip * $slipSpacing;
             
             // Header with logo and title - clean layout
             // Logo (top left) - only show for "Propio" mensajería
@@ -790,36 +793,45 @@ class OrdenController extends BaseController
             }
             
             // Row 9: Large empty cell for additional work details (only if no shipping description)
-            // Reduce this height to save space
+            // Further reduce this height to save space
             if (empty($descripcionEnvio)) {
-                $pdf->Cell(190, $cellHeight * 2, '', 1, 0, 'L'); // Reduced from 3 to 2 rows
+                $pdf->Cell(190, $cellHeight * 1.5, '', 1, 0, 'L'); // Reduced to 1.5 rows
                 $pdf->Ln();
             }
             
-            // Light gray separator - reduced spacing
+            // Light gray separator - minimal spacing
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
-            $pdf->Ln(2); // Reduced from 3 to 2mm
+            // Don't add extra line break here - footer will be positioned after loop
         }
         
         // Footer with single signature box and labels - only once at the bottom of the page
         // (after both slips are generated)
-        // Position at fixed location to ensure it's on the first page
+        // Use GetY() to position footer right after the last slip's content
+        // But ensure it doesn't go beyond page boundary (279.4mm)
+        $currentY = $pdf->GetY();
+        $maxY = 250; // Maximum Y position to ensure footer fits on page
+        
+        // If content extends beyond maxY, adjust footer position
         $footerX = 10; // Starting X position (matches content start)
         $footerWidth = 190; // Width matching content cells above
-        $signatureBoxHeight = 18; // Reduced height from 20 to 18mm
-        $footerY = 250; // Fixed Y position near bottom of page (279.4mm total, leave room for labels)
+        $signatureBoxHeight = 16; // Further reduced height
+        $labelHeight = 5; // Height for labels
+        
+        // Calculate footer Y position
+        $footerY = min($currentY + 3, $maxY); // Add small spacing after last slip, but cap at maxY
         
         // Draw single signature box spanning full width
         $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
         
         // Labels below box (centered in three equal sections)
-        $pdf->SetY($footerY + $signatureBoxHeight + 2); // Small spacing between box and labels
-        $pdf->SetFont('Arial', 'B', 9); // Slightly smaller font to save space
+        $labelY = $footerY + $signatureBoxHeight + 1; // Small spacing between box and labels
+        $pdf->SetY($labelY);
+        $pdf->SetFont('Arial', 'B', 8); // Smaller font to save space
         $labelWidth = $footerWidth / 3; // Divide width equally among three labels
-        $pdf->Cell($labelWidth, 4, 'FECHA', 0, 0, 'C');
-        $pdf->Cell($labelWidth, 4, 'NOMBRE Y FIRMA', 0, 0, 'C');
-        $pdf->Cell($labelWidth, 4, 'Sello', 0, 0, 'C');
+        $pdf->Cell($labelWidth, $labelHeight, 'FECHA', 0, 0, 'C');
+        $pdf->Cell($labelWidth, $labelHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
+        $pdf->Cell($labelWidth, $labelHeight, 'Sello', 0, 0, 'C');
         $pdf->Ln();
         
         // Output PDF
