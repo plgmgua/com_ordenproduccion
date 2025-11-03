@@ -802,24 +802,46 @@ class OrdenController extends BaseController
             // Light gray separator - minimal spacing
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
-            // Don't add extra line break here - footer will be positioned after loop
+            
+            // Track the end position of this slip
+            // Calculate where this slip's content ends
+            // StartY + header (50mm) + content height
+            $slipEndY = $startY + 50; // Start of content
+            
+            // Add up all row heights:
+            // Row 1: Cliente (5mm)
+            // Row 2: Agente (5mm, conditional)
+            // Row 3: Contacto/Telefono (5mm)
+            // Row 4: Direccion (varies with MultiCell, estimate 5-10mm)
+            // Row 5: Instrucciones (varies, estimate 5-10mm)
+            // Row 6: Tipo de Entrega (5mm)
+            // Row 7: Trabajo (varies, estimate 5-10mm)
+            // Row 8: Descripcion de Envio (conditional, estimate 5-10mm)
+            // Row 9: Empty cell (1.5 * 5 = 7.5mm if no descripcion)
+            // Separator (2mm)
+            
+            // Estimate: ~55-70mm of content height
+            $estimatedContentHeight = 60; // Conservative estimate
+            $slipEndY += $estimatedContentHeight;
+            
+            // Store the maximum end position (from second slip)
+            if ($slip === 1) {
+                $lastSlipEndY = $slipEndY;
+            }
         }
         
         // Footer with single signature box and labels - only once at the bottom of the page
         // (after both slips are generated)
-        // Use GetY() to position footer right after the last slip's content
-        // But ensure it doesn't go beyond page boundary (279.4mm)
-        $currentY = $pdf->GetY();
-        $maxY = 250; // Maximum Y position to ensure footer fits on page
-        
-        // If content extends beyond maxY, adjust footer position
+        // Position footer right after the last slip
         $footerX = 10; // Starting X position (matches content start)
         $footerWidth = 190; // Width matching content cells above
-        $signatureBoxHeight = 16; // Further reduced height
-        $labelHeight = 5; // Height for labels
+        $signatureBoxHeight = 16; // Reduced height
+        $labelHeight = 4; // Height for labels
         
-        // Calculate footer Y position
-        $footerY = min($currentY + 3, $maxY); // Add small spacing after last slip, but cap at maxY
+        // Calculate footer Y position based on last slip's end position
+        // Ensure it doesn't exceed page boundary (279.4mm - 25mm for footer = 254mm max)
+        $maxFooterY = 254;
+        $footerY = min($lastSlipEndY + 3, $maxFooterY); // Add small spacing after last slip
         
         // Draw single signature box spanning full width
         $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
