@@ -168,7 +168,7 @@ function displayYesNoBadge($value) {
                                                 </small>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info text-dark">
+                                                <span class="badge" style="background-color: #e7f3ff; color: #0066cc; border: 1px solid #b3d9ff;">
                                                     <?php echo htmlspecialchars($entry->event_title ?? $entry->event_type); ?>
                                                 </span>
                                             </td>
