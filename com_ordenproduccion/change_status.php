@@ -110,6 +110,17 @@ try {
         }
     }
     
+    // Get old status before updating
+    $stmt = $pdo->prepare("
+        SELECT status 
+        FROM {$dbPrefix}ordenproduccion_ordenes 
+        WHERE id = :order_id
+        LIMIT 1
+    ");
+    $stmt->execute(['order_id' => $orderId]);
+    $oldOrder = $stmt->fetch();
+    $oldStatus = $oldOrder ? $oldOrder->status : 'N/A';
+    
     // Update order status
     $stmt = $pdo->prepare("
         UPDATE {$dbPrefix}ordenproduccion_ordenes 
@@ -127,6 +138,45 @@ try {
     ]);
     
     if ($result && $stmt->rowCount() > 0) {
+        // Save historial entry for status change
+        try {
+            // Check if historial table exists
+            $checkStmt = $pdo->prepare("
+                SELECT COUNT(*) as count 
+                FROM information_schema.tables 
+                WHERE table_schema = :db_name 
+                AND table_name = :table_name
+            ");
+            $checkStmt->execute([
+                'db_name' => $dbName,
+                'table_name' => $dbPrefix . 'ordenproduccion_historial'
+            ]);
+            $tableExists = $checkStmt->fetch();
+            
+            if ($tableExists && $tableExists->count > 0) {
+                // Table exists, insert historial entry
+                $statusDescription = 'Estado cambiado de "' . ($oldStatus ?: 'N/A') . '" a "' . $newStatus . '"';
+                $metadata = json_encode(['old_status' => $oldStatus, 'new_status' => $newStatus]);
+                
+                $historialStmt = $pdo->prepare("
+                    INSERT INTO {$dbPrefix}ordenproduccion_historial 
+                    (order_id, event_type, event_title, event_description, metadata, created_by, created, state) 
+                    VALUES 
+                    (:order_id, 'status_change', 'Cambio de Estado', :description, :metadata, :user_id, NOW(), 1)
+                ");
+                
+                $historialStmt->execute([
+                    'order_id' => $orderId,
+                    'description' => $statusDescription,
+                    'metadata' => $metadata,
+                    'user_id' => $userId
+                ]);
+            }
+        } catch (PDOException $e) {
+            // Log error but don't fail the status update
+            error_log('Failed to save historial entry for status change on order ' . $orderId . ': ' . $e->getMessage());
+        }
+        
         echo json_encode([
             'success' => true,
             'message' => 'Estado actualizado correctamente',

@@ -797,29 +797,28 @@ class OrdenController extends BaseController
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
             $pdf->Ln(3);
-            
-            // Footer with single signature box and labels - only for the first slip
-            if ($slip === 0) {
-                $signatureBoxHeight = 20; // Height of signature box
-                $footerY = $pdf->GetY();
-                $footerX = 10; // Starting X position (matches content start)
-                $footerWidth = 190; // Width matching content cells above
-                
-                // Draw single signature box spanning full width
-                $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
-                
-                // Move Y position below box for labels
-                $pdf->SetY($footerY + $signatureBoxHeight);
-                
-                // Labels below box (centered in three equal sections)
-                $pdf->SetFont('Arial', 'B', 10);
-                $labelWidth = $footerWidth / 3; // Divide width equally among three labels
-                $pdf->Cell($labelWidth, $cellHeight, 'FECHA', 0, 0, 'C');
-                $pdf->Cell($labelWidth, $cellHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
-                $pdf->Cell($labelWidth, $cellHeight, 'Sello', 0, 0, 'C');
-                $pdf->Ln();
-            }
         }
+        
+        // Footer with single signature box and labels - only once at the bottom of the page
+        // (after both slips are generated)
+        $signatureBoxHeight = 20; // Height of signature box
+        $footerY = $pdf->GetY();
+        $footerX = 10; // Starting X position (matches content start)
+        $footerWidth = 190; // Width matching content cells above
+        
+        // Draw single signature box spanning full width
+        $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
+        
+        // Move Y position below box for labels
+        $pdf->SetY($footerY + $signatureBoxHeight);
+        
+        // Labels below box (centered in three equal sections)
+        $pdf->SetFont('Arial', 'B', 10);
+        $labelWidth = $footerWidth / 3; // Divide width equally among three labels
+        $pdf->Cell($labelWidth, 5, 'FECHA', 0, 0, 'C');
+        $pdf->Cell($labelWidth, 5, 'NOMBRE Y FIRMA', 0, 0, 'C');
+        $pdf->Cell($labelWidth, 5, 'Sello', 0, 0, 'C');
+        $pdf->Ln();
         
         // Output PDF
         $pdf->Output('I', 'envio_' . $envioNumber . '.pdf');
