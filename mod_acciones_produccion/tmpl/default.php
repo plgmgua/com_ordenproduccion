@@ -833,9 +833,103 @@ document.addEventListener('DOMContentLoaded', function() {
     if (shippingSubmitBtn) {
         shippingSubmitBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            window.openShippingDescriptionModal();
+            
+            // Get tipo_envio value from form
+            const shippingForm = document.getElementById('shipping-form');
+            if (!shippingForm) return;
+            
+            const formData = new FormData(shippingForm);
+            const tipoEnvio = formData.get('tipo_envio');
+            
+            // Only show modal if tipo_envio is "parcial"
+            if (tipoEnvio === 'parcial') {
+                window.openShippingDescriptionModal();
+            } else {
+                // For "completo", submit directly without description
+                window.submitShippingWithoutDescription();
+            }
         });
     }
+    
+    // Submit shipping form without description (for "completo" tipo_envio)
+    window.submitShippingWithoutDescription = function() {
+        const shippingForm = document.getElementById('shipping-form');
+        const shippingMessageDiv = document.getElementById('shipping-message');
+        
+        if (!shippingForm) {
+            alert('Error: No se pudo encontrar el formulario');
+            return;
+        }
+        
+        const formData = new FormData(shippingForm);
+        const orderId = formData.get('order_id');
+        const tipoEnvio = formData.get('tipo_envio');
+        const tipoMensajeria = formData.get('tipo_mensajeria');
+        
+        if (!tipoEnvio) {
+            alert('Por favor selecciona un tipo de envio');
+            return;
+        }
+        
+        if (!tipoMensajeria) {
+            alert('Por favor selecciona un tipo de mensajería');
+            return;
+        }
+        
+        const submitBtn = document.getElementById('shipping-submit-btn');
+        if (submitBtn) {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+            submitBtn.disabled = true;
+        }
+        
+        // Build URL without shipping description
+        const params = new URLSearchParams();
+        params.append('order_id', orderId);
+        params.append('tipo_envio', tipoEnvio);
+        params.append('tipo_mensajeria', tipoMensajeria);
+        // Add CSRF token
+        const tokenInput = shippingForm.querySelector('input[type="hidden"]');
+        if (tokenInput && tokenInput.name && tokenInput.name.includes('token')) {
+            params.append(tokenInput.name, tokenInput.value);
+        }
+        
+        const urlEncodedData = params.toString();
+        
+        fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, {
+            method: 'POST',
+            body: urlEncodedData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, '_blank');
+                if (shippingMessageDiv) {
+                    shippingMessageDiv.innerHTML = 'Envio generado correctamente';
+                    shippingMessageDiv.className = 'shipping-message success';
+                    shippingMessageDiv.style.display = 'block';
+                    setTimeout(() => {
+                        shippingMessageDiv.style.display = 'none';
+                    }, 5000);
+                }
+            } else {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+        })
+        .catch(error => {
+            console.error('Shipping Error:', error);
+            alert('Error al generar envio: ' + error.message);
+        })
+        .finally(() => {
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-shipping-fast"></i> Generar Envio';
+                submitBtn.disabled = false;
+            }
+        });
+    };
     
     // Duplicate request button now handled by modal in orden/duplicate_modal.php
     
