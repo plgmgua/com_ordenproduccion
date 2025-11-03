@@ -93,7 +93,26 @@ class AsistenciaHelper
             ' AND DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate .
         ') AS ' . self::$db->quoteName('combined_entries');
         
-        $query = self::$db->getQuery(true)
+        // First, get all entries sorted by time to calculate actual worked hours
+        // We need to process entry/exit pairs, not just min/max
+        $entriesQuery = self::$db->getQuery(true)
+            ->select([
+                'CAST(' . self::$db->quoteName('authtime') . ' AS TIME) AS authtime',
+                'CAST(' . self::$db->quoteName('direction') . ' AS CHAR) AS direction'
+            ])
+            ->from($unionQuery)
+            ->bind(':personname', $cardno)
+            ->order('CAST(' . self::$db->quoteName('authtime') . ' AS TIME) ASC');
+
+        self::$db->setQuery($entriesQuery);
+        $allEntries = self::$db->loadObjectList();
+
+        if (empty($allEntries)) {
+            return null;
+        }
+
+        // Get summary stats
+        $summaryQuery = self::$db->getQuery(true)
             ->select([
                 'MIN(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS first_entry',
                 'MAX(CAST(' . self::$db->quoteName('authtime') . ' AS TIME)) AS last_exit',
@@ -104,26 +123,87 @@ class AsistenciaHelper
             ->bind(':personname', $cardno)
             ->group(self::$db->quoteName('personname'));
 
-        self::$db->setQuery($query);
+        self::$db->setQuery($summaryQuery);
         $result = self::$db->loadObject();
 
         if (!$result || (!$result->first_entry && !$result->last_exit)) {
             return null;
         }
 
-        // Handle case where there's only entry or only exit (use same time for both)
         $firstEntry = $result->first_entry ?: $result->last_exit;
         $lastExit = $result->last_exit ?: $result->first_entry;
         
-        if (!$firstEntry || !$lastExit) {
-            // Single entry/exit - can't calculate hours, but still create summary
+        // Calculate total worked hours by processing entry/exit pairs
+        // If we have direction data, use it; otherwise assume alternating pattern
+        $totalHours = 0;
+        $entryTime = null;
+        $exitTime = null;
+        
+        if (count($allEntries) === 1) {
+            // Single entry - can't calculate hours
             $totalHours = 0;
         } else {
-            // Calculate time difference
-            $firstTime = new \DateTime($firstEntry);
-            $lastTime = new \DateTime($lastExit);
-            $interval = $firstTime->diff($lastTime);
-            $totalHours = $interval->h + ($interval->i / 60);
+            // Process entries to calculate actual worked time
+            // Strategy: If direction is available, use it; otherwise assume first is entry, last is exit
+            $hasDirection = false;
+            foreach ($allEntries as $entry) {
+                if (!empty($entry->direction) && strtoupper(trim($entry->direction)) !== '') {
+                    $hasDirection = true;
+                    break;
+                }
+            }
+            
+            if ($hasDirection) {
+                // Use direction to pair entries/exits
+                $entryTime = null;
+                foreach ($allEntries as $entry) {
+                    $direction = strtoupper(trim($entry->direction ?? ''));
+                    $entryObj = new \DateTime($entry->authtime);
+                    
+                    if (in_array($direction, ['IN', 'ENTRADA', 'E', '1'])) {
+                        // New entry - if we had a previous entry without exit, calculate from that
+                        if ($entryTime !== null && $exitTime === null) {
+                            // Had entry, now another entry - treat previous as single entry period
+                            // Don't add hours for incomplete pair
+                        }
+                        $entryTime = $entryObj;
+                        $exitTime = null;
+                    } elseif (in_array($direction, ['OUT', 'SALIDA', 'S', '0'])) {
+                        // Exit - calculate hours if we have an entry
+                        if ($entryTime !== null) {
+                            $exitTime = $entryObj;
+                            $interval = $entryTime->diff($exitTime);
+                            $hours = $interval->h + ($interval->i / 60) + ($interval->s / 3600);
+                            $totalHours += $hours;
+                            $entryTime = null;
+                            $exitTime = null;
+                        }
+                    } else {
+                        // Unknown direction - treat as entry if we don't have one, exit if we do
+                        if ($entryTime === null) {
+                            $entryTime = $entryObj;
+                        } else {
+                            $exitTime = $entryObj;
+                            $interval = $entryTime->diff($exitTime);
+                            $hours = $interval->h + ($interval->i / 60) + ($interval->s / 3600);
+                            $totalHours += $hours;
+                            $entryTime = null;
+                            $exitTime = null;
+                        }
+                    }
+                }
+                
+                // If we end with an entry but no exit, don't count it (incomplete period)
+            } else {
+                // No direction data - use simple min/max calculation (assumes continuous work)
+                // This is the fallback for systems without direction tracking
+                if ($firstEntry && $lastExit) {
+                    $firstTime = new \DateTime($firstEntry);
+                    $lastTime = new \DateTime($lastExit);
+                    $interval = $firstTime->diff($lastTime);
+                    $totalHours = $interval->h + ($interval->i / 60) + ($interval->s / 3600);
+                }
+            }
         }
 
         // Get expected hours and work schedule from employee's group
