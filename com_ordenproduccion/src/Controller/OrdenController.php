@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Controller\BaseController;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 
 /**
  * Orden controller for com_ordenproduccion
@@ -163,9 +164,39 @@ class OrdenController extends BaseController
                 return;
             }
 
-            // Save shipping description to historial table if provided
-            if (!empty($descripcionEnvio)) {
-                $this->saveShippingDescriptionToHistory($orderId, $descripcionEnvio, $user->id);
+            // Save historial entries for shipping slip generation
+            if ($tipoEnvio === 'completo') {
+                // For "completo", save print event with fixed description
+                HistorialHelper::saveEntry(
+                    $orderId,
+                    'shipping_print',
+                    'Impresion de Envio',
+                    'Envio completo impreso',
+                    $user->id,
+                    ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
+                );
+            } else {
+                // For "parcial", save shipping description if provided
+                if (!empty($descripcionEnvio)) {
+                    HistorialHelper::saveEntry(
+                        $orderId,
+                        'shipping_description',
+                        'Descripcion de Envio',
+                        $descripcionEnvio,
+                        $user->id,
+                        ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
+                    );
+                }
+                
+                // Also save print event for parcial
+                HistorialHelper::saveEntry(
+                    $orderId,
+                    'shipping_print',
+                    'Impresion de Envio',
+                    'Envio parcial impreso',
+                    $user->id,
+                    ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
+                );
             }
 
                     // Generate shipping slip PDF using FPDF
@@ -590,45 +621,6 @@ class OrdenController extends BaseController
         exit;
     }
 
-    /**
-     * Method to save shipping description to historial table.
-     *
-     * @param   int     $orderId          Work order ID
-     * @param   string  $descripcionEnvio Shipping description text
-     * @param   int     $userId           User ID who created the event
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     */
-    private function saveShippingDescriptionToHistory($orderId, $descripcionEnvio, $userId)
-    {
-        $db = Factory::getDbo();
-        
-        // Check if historial table exists
-        try {
-            $columns = $db->getTableColumns('#__ordenproduccion_historial');
-            if (empty($columns)) {
-                // Table doesn't exist, skip saving
-                return;
-            }
-        } catch (Exception $e) {
-            // Table doesn't exist, skip saving
-            return;
-        }
-        
-        $query = $db->getQuery(true)
-            ->insert($db->quoteName('#__ordenproduccion_historial'))
-            ->set($db->quoteName('order_id') . ' = ' . (int)$orderId)
-            ->set($db->quoteName('event_type') . ' = ' . $db->quote('shipping_description'))
-            ->set($db->quoteName('event_title') . ' = ' . $db->quote('Descripcion de Envio'))
-            ->set($db->quoteName('event_description') . ' = ' . $db->quote($descripcionEnvio))
-            ->set($db->quoteName('created_by') . ' = ' . (int)$userId)
-            ->set($db->quoteName('state') . ' = 1');
-        
-        $db->setQuery($query);
-        $db->execute();
-    }
 
             /**
              * Method to generate shipping slip PDF using FPDF.

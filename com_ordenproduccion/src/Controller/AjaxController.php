@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 
 /**
  * Ajax controller for com_ordenproduccion
@@ -71,6 +72,17 @@ class AjaxController extends BaseController
         if ($orderId > 0 && !empty($newStatus)) {
             try {
                 $db = Factory::getDbo();
+                
+                // Get current status before updating
+                $query = $db->getQuery(true)
+                    ->select($db->quoteName('status'))
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('id') . ' = ' . (int)$orderId);
+                
+                $db->setQuery($query);
+                $oldStatus = $db->loadResult();
+                
+                // Update status
                 $query = $db->getQuery(true)
                     ->update($db->quoteName('#__ordenproduccion_ordenes'))
                     ->set($db->quoteName('status') . ' = ' . $db->quote($newStatus))
@@ -82,6 +94,17 @@ class AjaxController extends BaseController
                 $result = $db->execute();
                 
                 if ($result) {
+                    // Save historial entry for status change
+                    $statusDescription = 'Estado cambiado de "' . ($oldStatus ?: 'N/A') . '" a "' . $newStatus . '"';
+                    HistorialHelper::saveEntry(
+                        $orderId,
+                        'status_change',
+                        'Cambio de Estado',
+                        $statusDescription,
+                        $user->id,
+                        ['old_status' => $oldStatus, 'new_status' => $newStatus]
+                    );
+                    
                     echo json_encode(['success' => true, 'message' => 'Estado actualizado correctamente']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Error al actualizar el estado']);
