@@ -693,10 +693,10 @@ class OrdenController extends BaseController
         
         // Generate two identical shipping slips on one page
         // Page height: 279.4mm
-        // Reduce margins and spacing to fit both slips on single page
+        // Balance between readability (larger cells) and fitting on single page
         $pageHeight = 279.4;
-        $topMargin = 2; // Reduced from 5mm
-        $eachSlipHeight = 130; // Slightly reduced estimated height per slip
+        $topMargin = 2; // Minimal top margin
+        $eachSlipHeight = 133; // Slightly increased from 130 to account for larger cells
         // Calculate spacing to center both slips with minimal margins
         // Total needed: 130 * 2 = 260mm
         // Remaining: 279.4 - 260 = 19.4mm
@@ -736,15 +736,15 @@ class OrdenController extends BaseController
             $pdf->Cell(40, 40, '', 0, 0, 'C'); // No border
             
             // Client and delivery information table - using exact dimensions from working code
-            $cellHeight = 4; // Reduced from 5 to 4 to save space
+            $cellHeight = 5; // Increased from 4 to 5 for better readability
             
-            // Start table below header area - moved up
-            $pdf->SetY($startY + 28); // Reduced from 50 to 28
+            // Start table below header area - slightly adjusted
+            $pdf->SetY($startY + 30); // Adjusted from 28 to 30 to account for slightly larger cells
             
             // Row 1: Cliente
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Cliente', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10 for better readability
             $pdf->Cell(153, $cellHeight, $clientName, 1, 0, 'L');
             $pdf->Ln();
             
@@ -752,7 +752,7 @@ class OrdenController extends BaseController
             if ($tipoMensajeria !== 'terceros') {
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell(37, $cellHeight, 'Agente de Ventas', 1, 0, 'L');
-                $pdf->SetFont('Arial', '', 9);
+                $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
                 $pdf->Cell(153, $cellHeight, $salesAgent, 1, 0, 'L');
                 $pdf->Ln();
             }
@@ -760,46 +760,46 @@ class OrdenController extends BaseController
             // Row 3: Contacto and Telefono (split row) - matching original layout
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Contacto', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             $pdf->Cell(81, $cellHeight, $shippingContact, 1, 0, 'L');
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(32, $cellHeight, 'Telefono', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             $pdf->Cell(40, $cellHeight, $shippingPhone, 1, 0, 'L');
             $pdf->Ln();
             
             // Row 4: Direccion de entrega - using MultiCell for text wrapping
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Direccion de entrega', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             // Use MultiCell to allow text wrapping like TRABAJO row
             $pdf->MultiCell(153, $cellHeight, $shippingAddress, 1, 'L');
             
             // Row 5: Instrucciones de entrega (full width)
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(190, $cellHeight, 'Instrucciones de entrega', 1, 1, 'C');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             $pdf->MultiCell(190, $cellHeight, $shippingInstructions, 1, 'L');
-            $pdf->Ln();
+            $pdf->Ln(0.5); // Reduced spacing slightly
             
             // Row 6: Tipo de Entrega
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Tipo de Entrega', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             $pdf->Cell(153, $cellHeight, $tipoEnvio, 1, 0, 'L');
             $pdf->Ln();
             
             // Row 7: Trabajo - using MultiCell for text wrapping
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Trabajo', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             // Use MultiCell to allow text wrapping like work order PDF
             $pdf->MultiCell(153, $cellHeight, $workDescription, 1, 'L');
             
             // Row 8: Descripcion de Envio - fixed row, show or hide text
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(37, $cellHeight, 'Descripcion de Envio', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             if (!empty($descripcionEnvio)) {
                 $descripcionEnvioFixed = $fixSpanishChars($descripcionEnvio);
                 // Use MultiCell to allow text wrapping
@@ -812,14 +812,14 @@ class OrdenController extends BaseController
             
             // Light gray separator - minimal spacing
             $pdf->SetFillColor(211, 211, 211);
-            $pdf->Cell(190, 1, '', 0, 0, '', true); // Reduced from 2 to 1
-            $pdf->Ln(0.5); // Reduced from 1 to 0.5
+            $pdf->Cell(190, 1.5, '', 0, 0, '', true); // Slightly increased from 1 to 1.5
+            $pdf->Ln(0.5); // Minimal spacing
             
             // Footer with signature box and labels - for EACH slip
             $footerX = 10; // Starting X position (matches content start)
             $footerWidth = 190; // Width matching content cells above
-            $signatureBoxHeight = 14; // Further reduced from 16 to 14
-            $labelHeight = 3; // Reduced from 4 to 3
+            $signatureBoxHeight = 15; // Slightly increased from 14 to 15
+            $labelHeight = 3.5; // Slightly increased from 3 to 3.5
             
             // Get current Y position after content
             $footerY = $pdf->GetY();
@@ -828,8 +828,8 @@ class OrdenController extends BaseController
             $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
             
             // Labels below box (centered in three equal sections)
-            $pdf->SetY($footerY + $signatureBoxHeight + 0.5); // Reduced spacing from 1 to 0.5
-            $pdf->SetFont('Arial', 'B', 7); // Reduced from 8 to 7
+            $pdf->SetY($footerY + $signatureBoxHeight + 0.5); // Minimal spacing
+            $pdf->SetFont('Arial', 'B', 8); // Increased from 7 to 8 for better readability
             $labelWidth = $footerWidth / 3; // Divide width equally among three labels
             $pdf->Cell($labelWidth, $labelHeight, 'FECHA', 0, 0, 'C');
             $pdf->Cell($labelWidth, $labelHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
