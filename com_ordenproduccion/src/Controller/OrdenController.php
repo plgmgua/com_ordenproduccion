@@ -799,9 +799,24 @@ class OrdenController extends BaseController
             // Light gray separator
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
-            $pdf->Ln();
+            $pdf->Ln(3);
             
-            // Row 11: Footer with signature fields (no borders, centered)
+            // Footer with signature boxes and labels
+            $signatureBoxHeight = 20; // Height of signature boxes
+            $footerY = $pdf->GetY();
+            
+            // Draw signature boxes above labels
+            // Box 1: FECHA (Date)
+            $pdf->Rect(10, $footerY, 45, $signatureBoxHeight);
+            // Box 2: NOMBRE Y FIRMA (Name and Signature)
+            $pdf->Rect(60, $footerY, 95, $signatureBoxHeight);
+            // Box 3: Sello (Stamp)
+            $pdf->Rect(160, $footerY, 50, $signatureBoxHeight);
+            
+            // Move Y position below boxes for labels
+            $pdf->SetY($footerY + $signatureBoxHeight);
+            
+            // Labels below boxes (centered)
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(45, $cellHeight, 'FECHA', 0, 0, 'C');
             $pdf->Cell(95, $cellHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
