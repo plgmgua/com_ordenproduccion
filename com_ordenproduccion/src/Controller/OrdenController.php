@@ -713,8 +713,14 @@ class OrdenController extends BaseController
         $slipSpacing = $eachSlipHeight + $spacingBetween; // Distance from start of slip1 to start of slip2
         
         for ($slip = 0; $slip < 2; $slip++) {
-            // Calculate Y position for each slip
-            $startY = $slip * $slipSpacing;
+            // Calculate Y position for each slip with equal spacing
+            // First slip starts after top margin + first spacing section
+            // Second slip starts after first slip + spacing between
+            if ($slip === 0) {
+                $startY = $topMargin + $spacingBetween;
+            } else {
+                $startY = $topMargin + $spacingBetween + $eachSlipHeight + $spacingBetween;
+            }
             
             // Header with logo and title - clean layout
             // Logo (top left) - only show for "Propio" mensajería
