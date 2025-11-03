@@ -692,9 +692,11 @@ class OrdenController extends BaseController
         }
         
         // Generate two identical shipping slips on one page
+        // Reduce spacing to fit both on one page (279.4mm total height)
         for ($slip = 0; $slip < 2; $slip++) {
-            // Calculate Y position for each slip (8.5x11 page = 279mm height)
-            $startY = $slip * 130; // 130mm spacing between slips
+            // Calculate Y position for each slip (8.5x11 page = 279.4mm height)
+            // Reduced spacing from 130mm to 115mm to fit both slips on one page
+            $startY = $slip * 115; // 115mm spacing between slips
             
             // Header with logo and title - clean layout
             // Logo (top left) - only show for "Propio" mensajería
@@ -788,36 +790,36 @@ class OrdenController extends BaseController
             }
             
             // Row 9: Large empty cell for additional work details (only if no shipping description)
+            // Reduce this height to save space
             if (empty($descripcionEnvio)) {
-                $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
+                $pdf->Cell(190, $cellHeight * 2, '', 1, 0, 'L'); // Reduced from 3 to 2 rows
                 $pdf->Ln();
             }
             
-            // Light gray separator
+            // Light gray separator - reduced spacing
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
-            $pdf->Ln(3);
+            $pdf->Ln(2); // Reduced from 3 to 2mm
         }
         
         // Footer with single signature box and labels - only once at the bottom of the page
         // (after both slips are generated)
-        $signatureBoxHeight = 20; // Height of signature box
-        $footerY = $pdf->GetY();
+        // Position at fixed location to ensure it's on the first page
         $footerX = 10; // Starting X position (matches content start)
         $footerWidth = 190; // Width matching content cells above
+        $signatureBoxHeight = 18; // Reduced height from 20 to 18mm
+        $footerY = 250; // Fixed Y position near bottom of page (279.4mm total, leave room for labels)
         
         // Draw single signature box spanning full width
         $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
         
-        // Move Y position below box for labels
-        $pdf->SetY($footerY + $signatureBoxHeight);
-        
         // Labels below box (centered in three equal sections)
-        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->SetY($footerY + $signatureBoxHeight + 2); // Small spacing between box and labels
+        $pdf->SetFont('Arial', 'B', 9); // Slightly smaller font to save space
         $labelWidth = $footerWidth / 3; // Divide width equally among three labels
-        $pdf->Cell($labelWidth, 5, 'FECHA', 0, 0, 'C');
-        $pdf->Cell($labelWidth, 5, 'NOMBRE Y FIRMA', 0, 0, 'C');
-        $pdf->Cell($labelWidth, 5, 'Sello', 0, 0, 'C');
+        $pdf->Cell($labelWidth, 4, 'FECHA', 0, 0, 'C');
+        $pdf->Cell($labelWidth, 4, 'NOMBRE Y FIRMA', 0, 0, 'C');
+        $pdf->Cell($labelWidth, 4, 'Sello', 0, 0, 'C');
         $pdf->Ln();
         
         // Output PDF
