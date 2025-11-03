@@ -58,6 +58,14 @@ class HtmlView extends BaseHtmlView
     protected $user;
 
     /**
+     * Historial entries for the work order
+     *
+     * @var    array
+     * @since  3.8.0
+     */
+    protected $historialEntries;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse; automatically searches through the template paths.
@@ -97,6 +105,10 @@ class HtmlView extends BaseHtmlView
             $this->item = $this->get('Item');
             $this->params = $app->getParams('com_ordenproduccion');
             $this->user = $user;
+            
+            // Get historial entries for this work order
+            $model = $this->getModel();
+            $this->historialEntries = $model->getHistorialEntries($this->item->id ?? null);
 
             // Check for errors.
             if (count($errors = $this->get('Errors'))) {

@@ -126,6 +126,73 @@ function displayYesNoBadge($value) {
             </div>
         </div>
 
+        <!-- Historial (Log History) -->
+        <?php if (!empty($this->historialEntries)): ?>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" style="background: #f8f9fa; cursor: pointer;" 
+                         data-bs-toggle="collapse" 
+                         data-bs-target="#historialCollapse" 
+                         aria-expanded="true" 
+                         aria-controls="historialCollapse"
+                         onclick="this.querySelector('.historial-toggle-icon').classList.toggle('fa-chevron-down'); this.querySelector('.historial-toggle-icon').classList.toggle('fa-chevron-up');">
+                        <h5 class="card-title mb-0" style="margin: 0;">
+                            <i class="fas fa-history"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_HISTORIAL_TITLE'); ?>
+                            <span class="badge bg-secondary ms-2"><?php echo count($this->historialEntries); ?></span>
+                            <i class="fas fa-chevron-up historial-toggle-icon float-end" style="margin-top: 3px;"></i>
+                        </h5>
+                    </div>
+                    <div id="historialCollapse" class="collapse show">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead style="background: #e9ecef;">
+                                        <tr>
+                                            <th style="width: 15%;"><i class="fas fa-calendar"></i> <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_HISTORIAL_DATE'); ?></th>
+                                            <th style="width: 20%;"><i class="fas fa-tag"></i> <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_HISTORIAL_TITLE'); ?></th>
+                                            <th style="width: 45%;"><i class="fas fa-align-left"></i> <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_HISTORIAL_DESCRIPTION'); ?></th>
+                                            <th style="width: 20%;"><i class="fas fa-user"></i> <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_HISTORIAL_USER'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($this->historialEntries as $entry): ?>
+                                        <tr>
+                                            <td>
+                                                <small class="text-muted">
+                                                    <?php 
+                                                    $createdDate = new \DateTime($entry->created);
+                                                    echo $createdDate->format('d/m/Y H:i');
+                                                    ?>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info text-dark">
+                                                    <?php echo htmlspecialchars($entry->event_title ?? $entry->event_type); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <?php echo nl2br(htmlspecialchars($entry->event_description ?? '')); ?>
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    <i class="fas fa-user-circle text-primary"></i>
+                                                    <?php echo htmlspecialchars($entry->created_by_name ?? $entry->created_by_username ?? 'Usuario ' . $entry->created_by); ?>
+                                                </small>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="row">
             <!-- Client Information -->
             <div class="col-md-6 mb-4">

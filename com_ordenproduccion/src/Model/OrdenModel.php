@@ -350,4 +350,70 @@ class OrdenModel extends ItemModel
         ];
     }
 
+    /**
+     * Get historial (log) entries for a work order
+     *
+     * @param   integer  $orderId  The work order ID
+     *
+     * @return  array  Array of historial entries
+     *
+     * @since   3.8.0
+     */
+    public function getHistorialEntries($orderId = null)
+    {
+        if (empty($orderId)) {
+            $orderId = (int) $this->getState($this->getName() . '.id');
+            if (empty($orderId)) {
+                $app = Factory::getApplication();
+                $orderId = (int) $app->input->get('id', 0);
+            }
+        }
+
+        if (empty($orderId)) {
+            return [];
+        }
+
+        try {
+            $db = $this->getDatabase();
+            
+            // Check if historial table exists
+            $columns = $db->getTableColumns('#__ordenproduccion_historial');
+            if (empty($columns)) {
+                // Table doesn't exist yet
+                return [];
+            }
+            
+            $query = $db->getQuery(true)
+                ->select([
+                    'h.id',
+                    'h.order_id',
+                    'h.event_type',
+                    'h.event_title',
+                    'h.event_description',
+                    'h.metadata',
+                    'h.created',
+                    'h.created_by',
+                    'u.name AS created_by_name',
+                    'u.username AS created_by_username'
+                ])
+                ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+                ->leftJoin(
+                    $db->quoteName('#__users', 'u') . ' ON ' .
+                    $db->quoteName('u.id') . ' = ' . $db->quoteName('h.created_by')
+                )
+                ->where($db->quoteName('h.order_id') . ' = ' . (int) $orderId)
+                ->where($db->quoteName('h.state') . ' = 1')
+                ->order($db->quoteName('h.created') . ' DESC');
+
+            $db->setQuery($query);
+            $entries = $db->loadObjectList();
+
+            return $entries ?: [];
+
+        } catch (\Exception $e) {
+            // Table doesn't exist or other error - return empty array
+            return [];
+        }
+    }
+
 }
