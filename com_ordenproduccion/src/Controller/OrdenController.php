@@ -693,28 +693,21 @@ class OrdenController extends BaseController
         
         // Generate two identical shipping slips on one page
         // Page height: 279.4mm
-        // Each slip needs: header (~50mm) + content (~60mm) + footer (~25mm) = ~135mm
-        // To give equal vertical space: (279.4 - 135 - 135) / 3 = ~3.13mm spacing sections
-        // Better approach: Calculate optimal spacing for equal distribution
-        // Top margin: ~5mm, bottom margin: ~5mm, leaving 269.4mm for content
-        // For equal spacing: each slip gets ~134.7mm, spacing between: ~0mm
-        // For better visual spacing, use ~125-130mm spacing to center them better
-        // This gives: slip1 (0-135mm), gap (135-265mm = 130mm), slip2 (265-400mm, but page ends at 279.4)
-        // Actually, let's use: slip1 starts at 5mm, slip2 starts at midpoint = 142.2mm
+        // Reduce margins and spacing to fit both slips on single page
         $pageHeight = 279.4;
-        $topMargin = 5;
-        $eachSlipHeight = 135; // Estimated height per slip
-        // Calculate spacing to center both slips equally
-        // Total available space: 279.4 - topMargin - eachSlipHeight*2 = 279.4 - 5 - 270 = 4.4mm
-        // For equal distribution: divide remaining space into 3 parts (before, between, after)
+        $topMargin = 2; // Reduced from 5mm
+        $eachSlipHeight = 130; // Slightly reduced estimated height per slip
+        // Calculate spacing to center both slips with minimal margins
+        // Total needed: 130 * 2 = 260mm
+        // Remaining: 279.4 - 260 = 19.4mm
+        // Divide into 3 equal parts: top margin + spacing + bottom margin
         $totalSlipsHeight = $eachSlipHeight * 2;
-        $remainingSpace = $pageHeight - $topMargin - $totalSlipsHeight;
-        $spacingBetween = $remainingSpace / 3; // Equal spacing sections
-        $slipSpacing = $eachSlipHeight + $spacingBetween; // Distance from start of slip1 to start of slip2
+        $remainingSpace = $pageHeight - $totalSlipsHeight;
+        $spacingBetween = $remainingSpace / 3; // Equal spacing sections (top, between, bottom)
         
         for ($slip = 0; $slip < 2; $slip++) {
             // Calculate Y position for each slip with equal spacing
-            // First slip starts after top margin + first spacing section
+            // First slip starts after minimal top margin + first spacing section
             // Second slip starts after first slip + spacing between
             if ($slip === 0) {
                 $startY = $topMargin + $spacingBetween;
@@ -722,31 +715,31 @@ class OrdenController extends BaseController
                 $startY = $topMargin + $spacingBetween + $eachSlipHeight + $spacingBetween;
             }
             
-            // Header with logo and title - clean layout
+            // Header with logo and title - clean layout, reduced spacing
             // Logo (top left) - only show for "Propio" mensajería
             if ($tipoMensajeria === 'propio') {
                 $logoPath = 'https://grimpsa_webserver.grantsolutions.cc/images/grimpsa_logo.gif';
-                $pdf->Image($logoPath, 10, $startY + 20, 55, 0); // 55mm width, auto height
+                $pdf->Image($logoPath, 10, $startY + 5, 55, 0); // Reduced Y offset from 20 to 5
             }
             
             // Envio number only (center) - no "Envio #" label
-            $pdf->SetFont('Arial', 'B', 26);
-            $pdf->SetXY(0, $startY + 30);
-            $pdf->Cell(0, 10, $envioNumber, 0, 1, 'C');
+            $pdf->SetFont('Arial', 'B', 24); // Reduced from 26 to 24
+            $pdf->SetXY(0, $startY + 15); // Reduced from 30 to 15
+            $pdf->Cell(0, 8, $envioNumber, 0, 1, 'C'); // Reduced height from 10 to 8
             
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->SetXY(0, $startY + 40);
-            $pdf->Cell(0, 6, 'GUATEMALA, ' . $currentDate, 0, 1, 'C');
+            $pdf->SetFont('Arial', 'B', 9); // Reduced from 10 to 9
+            $pdf->SetXY(0, $startY + 23); // Reduced from 40 to 23
+            $pdf->Cell(0, 5, 'GUATEMALA, ' . $currentDate, 0, 1, 'C'); // Reduced height from 6 to 5
             
             // QR Code (top right) - no square border, no label
-            $pdf->SetXY(159, $startY + 20);
+            $pdf->SetXY(159, $startY + 5); // Reduced from 20 to 5
             $pdf->Cell(40, 40, '', 0, 0, 'C'); // No border
             
             // Client and delivery information table - using exact dimensions from working code
-            $cellHeight = 5;
+            $cellHeight = 4; // Reduced from 5 to 4 to save space
             
-            // Start table below header area
-            $pdf->SetY($startY + 50);
+            // Start table below header area - moved up
+            $pdf->SetY($startY + 28); // Reduced from 50 to 28
             
             // Row 1: Cliente
             $pdf->SetFont('Arial', 'B', 10);
@@ -819,14 +812,14 @@ class OrdenController extends BaseController
             
             // Light gray separator - minimal spacing
             $pdf->SetFillColor(211, 211, 211);
-            $pdf->Cell(190, 2, '', 0, 0, '', true);
-            $pdf->Ln(1); // Minimal spacing
+            $pdf->Cell(190, 1, '', 0, 0, '', true); // Reduced from 2 to 1
+            $pdf->Ln(0.5); // Reduced from 1 to 0.5
             
             // Footer with signature box and labels - for EACH slip
             $footerX = 10; // Starting X position (matches content start)
             $footerWidth = 190; // Width matching content cells above
-            $signatureBoxHeight = 16; // Reduced height
-            $labelHeight = 4; // Height for labels
+            $signatureBoxHeight = 14; // Further reduced from 16 to 14
+            $labelHeight = 3; // Reduced from 4 to 3
             
             // Get current Y position after content
             $footerY = $pdf->GetY();
@@ -835,13 +828,13 @@ class OrdenController extends BaseController
             $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
             
             // Labels below box (centered in three equal sections)
-            $pdf->SetY($footerY + $signatureBoxHeight + 1); // Small spacing between box and labels
-            $pdf->SetFont('Arial', 'B', 8); // Smaller font to save space
+            $pdf->SetY($footerY + $signatureBoxHeight + 0.5); // Reduced spacing from 1 to 0.5
+            $pdf->SetFont('Arial', 'B', 7); // Reduced from 8 to 7
             $labelWidth = $footerWidth / 3; // Divide width equally among three labels
             $pdf->Cell($labelWidth, $labelHeight, 'FECHA', 0, 0, 'C');
             $pdf->Cell($labelWidth, $labelHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
             $pdf->Cell($labelWidth, $labelHeight, 'Sello', 0, 0, 'C');
-            $pdf->Ln(2); // Small spacing after labels before next slip
+            $pdf->Ln(0.5); // Reduced from 2 to 0.5
         }
         
         // Output PDF
