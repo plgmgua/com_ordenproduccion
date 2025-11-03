@@ -801,26 +801,24 @@ class OrdenController extends BaseController
             $pdf->Cell(190, 2, '', 0, 0, '', true);
             $pdf->Ln(3);
             
-            // Footer with signature boxes and labels
-            $signatureBoxHeight = 20; // Height of signature boxes
+            // Footer with single signature box and labels
+            $signatureBoxHeight = 20; // Height of signature box
             $footerY = $pdf->GetY();
+            $footerX = 10; // Starting X position (matches content start)
+            $footerWidth = 190; // Width matching content cells above
             
-            // Draw signature boxes above labels
-            // Box 1: FECHA (Date)
-            $pdf->Rect(10, $footerY, 45, $signatureBoxHeight);
-            // Box 2: NOMBRE Y FIRMA (Name and Signature)
-            $pdf->Rect(60, $footerY, 95, $signatureBoxHeight);
-            // Box 3: Sello (Stamp)
-            $pdf->Rect(160, $footerY, 50, $signatureBoxHeight);
+            // Draw single signature box spanning full width
+            $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
             
-            // Move Y position below boxes for labels
+            // Move Y position below box for labels
             $pdf->SetY($footerY + $signatureBoxHeight);
             
-            // Labels below boxes (centered)
+            // Labels below box (centered in three equal sections)
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(45, $cellHeight, 'FECHA', 0, 0, 'C');
-            $pdf->Cell(95, $cellHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
-            $pdf->Cell(50, $cellHeight, 'Sello', 0, 0, 'C');
+            $labelWidth = $footerWidth / 3; // Divide width equally among three labels
+            $pdf->Cell($labelWidth, $cellHeight, 'FECHA', 0, 0, 'C');
+            $pdf->Cell($labelWidth, $cellHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
+            $pdf->Cell($labelWidth, $cellHeight, 'Sello', 0, 0, 'C');
             $pdf->Ln();
         }
         
