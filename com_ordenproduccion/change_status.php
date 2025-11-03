@@ -71,41 +71,96 @@ try {
     $userName = 'System';
     
     // Try to get user from Joomla session cookie
-    if (isset($_COOKIE) && !empty($_COOKIE)) {
+    // Joomla session cookie format varies, try common patterns
+    $sessionId = null;
+    
+    // Pattern 1: Direct session cookie (most common)
+    if (isset($_COOKIE['joomla_session_id'])) {
+        $sessionId = $_COOKIE['joomla_session_id'];
+    }
+    // Pattern 2: Cookie with 'session' in name
+    elseif (isset($_COOKIE) && !empty($_COOKIE)) {
         foreach ($_COOKIE as $cookieName => $cookieValue) {
-            if (strpos($cookieName, 'joomla_user_state') !== false || strpos($cookieName, 'session') !== false) {
-                // Try to extract session ID
-                $sessionId = $cookieValue;
-                
-                // Query Joomla session table
-                $stmt = $pdo->prepare("
-                    SELECT userid 
-                    FROM {$dbPrefix}session 
-                    WHERE session_id = :session_id 
-                    AND client_id = 0
-                    LIMIT 1
-                ");
-                $stmt->execute(['session_id' => $sessionId]);
-                $session = $stmt->fetch();
-                
-                if ($session && $session->userid > 0) {
-                    $userId = (int)$session->userid;
-                    
-                    // Get user name
-                    $stmt = $pdo->prepare("
-                        SELECT name 
-                        FROM {$dbPrefix}users 
-                        WHERE id = :user_id 
-                        LIMIT 1
-                    ");
-                    $stmt->execute(['user_id' => $userId]);
-                    $user = $stmt->fetch();
-                    
-                    if ($user) {
-                        $userName = $user->name;
-                    }
+            // Look for session-related cookies
+            if (preg_match('/session/i', $cookieName)) {
+                // Session ID might be in the cookie name or value
+                $potentialSessionId = $cookieValue;
+                // Sometimes session ID is base64 encoded or has prefixes
+                if (strlen($potentialSessionId) >= 32) {
+                    $sessionId = $potentialSessionId;
                     break;
                 }
+            }
+        }
+    }
+    
+    // If we found a session ID, query for the user
+    if ($sessionId) {
+        // Query Joomla session table - try multiple session ID formats
+        $stmt = $pdo->prepare("
+            SELECT userid 
+            FROM {$dbPrefix}session 
+            WHERE (session_id = :session_id OR session_id LIKE :session_id_like)
+            AND client_id = 0
+            AND userid > 0
+            ORDER BY time DESC
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'session_id' => $sessionId,
+            'session_id_like' => '%' . substr($sessionId, -32) . '%'
+        ]);
+        $session = $stmt->fetch();
+        
+        if ($session && isset($session->userid) && $session->userid > 0) {
+            $userId = (int)$session->userid;
+            
+            // Get user name
+            $stmt = $pdo->prepare("
+                SELECT name, username 
+                FROM {$dbPrefix}users 
+                WHERE id = :user_id 
+                LIMIT 1
+            ");
+            $stmt->execute(['user_id' => $userId]);
+            $user = $stmt->fetch();
+            
+            if ($user) {
+                $userName = $user->name ?: $user->username ?: 'Usuario ' . $userId;
+            }
+        }
+    }
+    
+    // Fallback: Try to get user from most recent active session with userid > 0
+    // This is a last resort if cookie parsing fails
+    if ($userId === 0) {
+        $stmt = $pdo->prepare("
+            SELECT userid 
+            FROM {$dbPrefix}session 
+            WHERE client_id = 0
+            AND userid > 0
+            AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 1 HOUR)
+            ORDER BY time DESC
+            LIMIT 1
+        ");
+        $stmt->execute();
+        $recentSession = $stmt->fetch();
+        
+        if ($recentSession && isset($recentSession->userid) && $recentSession->userid > 0) {
+            $userId = (int)$recentSession->userid;
+            
+            // Get user name
+            $stmt = $pdo->prepare("
+                SELECT name, username 
+                FROM {$dbPrefix}users 
+                WHERE id = :user_id 
+                LIMIT 1
+            ");
+            $stmt->execute(['user_id' => $userId]);
+            $user = $stmt->fetch();
+            
+            if ($user) {
+                $userName = $user->name ?: $user->username ?: 'Usuario ' . $userId;
             }
         }
     }
