@@ -250,6 +250,107 @@ $currentUrl = Uri::current();
         'instrucciones_entrega' => $workOrderData->instrucciones_entrega ?? ''
     ]); ?>;
     
+    // Define shipping modal functions in global scope for onclick handlers
+    window.closeShippingDescriptionModal = function() {
+        const overlay = document.getElementById('shipping-description-modal-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    };
+    
+    window.submitShippingWithDescription = function() {
+        const shippingForm = document.getElementById('shipping-form');
+        const descripcionTextarea = document.getElementById('descripcion_envio');
+        
+        if (!shippingForm || !descripcionTextarea) {
+            alert('Error: No se pudo encontrar el formulario');
+            return;
+        }
+        
+        const formData = new FormData(shippingForm);
+        const descripcionEnvio = descripcionTextarea.value.trim();
+        
+        if (!descripcionEnvio) {
+            alert('Por favor ingrese una descripción de envío');
+            return;
+        }
+        
+        const orderId = formData.get('order_id');
+        const tipoEnvio = formData.get('tipo_envio');
+        const tipoMensajeria = formData.get('tipo_mensajeria');
+        
+        if (!tipoEnvio) {
+            alert('Por favor selecciona un tipo de envio');
+            window.closeShippingDescriptionModal();
+            return;
+        }
+        
+        if (!tipoMensajeria) {
+            alert('Por favor selecciona un tipo de mensajería');
+            window.closeShippingDescriptionModal();
+            return;
+        }
+        
+        const submitBtn = document.getElementById('shipping-submit-btn');
+        if (submitBtn) {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+            submitBtn.disabled = true;
+        }
+        
+        // Close modal
+        window.closeShippingDescriptionModal();
+        
+        // Build URL with shipping description
+        const params = new URLSearchParams();
+        params.append('order_id', orderId);
+        params.append('tipo_envio', tipoEnvio);
+        params.append('tipo_mensajeria', tipoMensajeria);
+        params.append('descripcion_envio', descripcionEnvio);
+        // Add CSRF token - get the token name from the form hidden input
+        const tokenInput = shippingForm.querySelector('input[type="hidden"]');
+        if (tokenInput && tokenInput.name && tokenInput.name.includes('token')) {
+            params.append(tokenInput.name, tokenInput.value);
+        }
+        
+        const urlEncodedData = params.toString();
+        
+        fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, {
+            method: 'POST',
+            body: urlEncodedData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
+                const shippingMessageDiv = document.getElementById('shipping-message');
+                if (shippingMessageDiv) {
+                    shippingMessageDiv.innerHTML = 'Envio generado correctamente';
+                    shippingMessageDiv.className = 'shipping-message success';
+                    shippingMessageDiv.style.display = 'block';
+                    setTimeout(() => {
+                        shippingMessageDiv.style.display = 'none';
+                    }, 5000);
+                }
+            } else {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+        })
+        .catch(error => {
+            console.error('Shipping Error:', error);
+            alert('Error al generar envio: ' + error.message);
+        })
+        .finally(() => {
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-shipping-fast"></i> Generar Envio';
+                submitBtn.disabled = false;
+            }
+        });
+    };
+    
     // Open duplicate form modal and pre-fill fields
     function openDuplicateForm() {
         const orderData = window.currentOrderData || {};
@@ -706,10 +807,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const shippingMessageDiv = document.getElementById('shipping-message');
     const shippingSubmitBtn = document.getElementById('shipping-submit-btn');
     
-    // Open shipping description modal
-    function openShippingDescriptionModal() {
+    // Open shipping description modal - attach to window for global access
+    window.openShippingDescriptionModal = function() {
         const orderData = window.currentOrderData || {};
         const descripcionTextarea = document.getElementById('descripcion_envio');
+        
+        if (!descripcionTextarea) {
+            console.error('Textarea not found');
+            return;
+        }
         
         // Pre-fill with work_description from order data
         if (orderData.work_description) {
@@ -717,94 +823,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show modal
-        document.getElementById('shipping-description-modal-overlay').style.display = 'block';
-    }
-    
-    // Close shipping description modal
-    function closeShippingDescriptionModal() {
-        document.getElementById('shipping-description-modal-overlay').style.display = 'none';
-    }
-    
-    // Submit shipping form with description
-    function submitShippingWithDescription() {
-        const formData = new FormData(shippingForm);
-        const descripcionTextarea = document.getElementById('descripcion_envio');
-        const descripcionEnvio = descripcionTextarea.value.trim();
-        
-        if (!descripcionEnvio) {
-            alert('Por favor ingrese una descripción de envío');
-            return;
+        const overlay = document.getElementById('shipping-description-modal-overlay');
+        if (overlay) {
+            overlay.style.display = 'block';
         }
-        
-        const orderId = formData.get('order_id');
-        const tipoEnvio = formData.get('tipo_envio');
-        const tipoMensajeria = formData.get('tipo_mensajeria');
-        
-        if (!tipoEnvio) {
-            showShippingMessage('Por favor selecciona un tipo de envio', 'error');
-            closeShippingDescriptionModal();
-            return;
-        }
-        
-        if (!tipoMensajeria) {
-            showShippingMessage('Por favor selecciona un tipo de mensajería', 'error');
-            closeShippingDescriptionModal();
-            return;
-        }
-        
-        const submitBtn = document.getElementById('shipping-submit-btn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
-        submitBtn.disabled = true;
-        
-        // Close modal
-        closeShippingDescriptionModal();
-        
-        // Build URL with shipping description
-        const params = new URLSearchParams();
-        params.append('order_id', orderId);
-        params.append('tipo_envio', tipoEnvio);
-        params.append('tipo_mensajeria', tipoMensajeria);
-        params.append('descripcion_envio', descripcionEnvio);
-        // Add CSRF token - get the token name from the form hidden input
-        const tokenInput = shippingForm.querySelector('input[type="hidden"][name^="<?php echo $app->getFormToken(); ?>"]');
-        if (tokenInput) {
-            params.append(tokenInput.name, tokenInput.value);
-        }
-        
-        const urlEncodedData = params.toString();
-        
-        fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, {
-            method: 'POST',
-            body: urlEncodedData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
-                showShippingMessage('Envio generado correctamente', 'success');
-            } else {
-                throw new Error('HTTP error! status: ' + response.status);
-            }
-        })
-        .catch(error => {
-            console.error('Shipping Error:', error);
-            showShippingMessage('Error al generar envio: ' + error.message, 'error');
-        })
-        .finally(() => {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-        });
-    }
+    };
     
     // Attach click handler to shipping submit button
     if (shippingSubmitBtn) {
         shippingSubmitBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            openShippingDescriptionModal();
+            window.openShippingDescriptionModal();
         });
     }
     
