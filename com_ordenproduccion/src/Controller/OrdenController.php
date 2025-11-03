@@ -693,9 +693,10 @@ class OrdenController extends BaseController
         
         // Generate two identical shipping slips on one page
         // Reduce spacing to fit both on one page (279.4mm total height)
-        // Calculate optimal spacing: (279.4 - footer space) / 2 = ~125mm per slip max
-        // Use 110mm spacing to leave room for footer
-        $slipSpacing = 110; // Reduced spacing to ensure both fit on one page
+        // Each slip needs: header (~50mm) + content (~60mm) + footer (~25mm) = ~135mm
+        // With two slips: 270mm, leaving ~9mm for margins
+        // Use 105mm spacing to ensure both fit with their footers
+        $slipSpacing = 105; // Reduced spacing to ensure both slips with footers fit on one page
         
         for ($slip = 0; $slip < 2; $slip++) {
             // Calculate Y position for each slip
@@ -782,79 +783,46 @@ class OrdenController extends BaseController
             // Use MultiCell to allow text wrapping like work order PDF
             $pdf->MultiCell(153, $cellHeight, $workDescription, 1, 'L');
             
-            // Row 8: Descripcion de Envio - only show if provided
+            // Row 8: Descripcion de Envio - fixed row, show or hide text
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Descripcion de Envio', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
             if (!empty($descripcionEnvio)) {
                 $descripcionEnvioFixed = $fixSpanishChars($descripcionEnvio);
-                $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(37, $cellHeight, 'Descripcion de Envio', 1, 0, 'L');
-                $pdf->SetFont('Arial', '', 9);
                 // Use MultiCell to allow text wrapping
                 $pdf->MultiCell(153, $cellHeight, $descripcionEnvioFixed, 1, 'L');
-            }
-            
-            // Row 9: Large empty cell for additional work details (only if no shipping description)
-            // Further reduce this height to save space
-            if (empty($descripcionEnvio)) {
-                $pdf->Cell(190, $cellHeight * 1.5, '', 1, 0, 'L'); // Reduced to 1.5 rows
+            } else {
+                // Empty cell if no description
+                $pdf->Cell(153, $cellHeight, '', 1, 0, 'L');
                 $pdf->Ln();
             }
             
             // Light gray separator - minimal spacing
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
+            $pdf->Ln(1); // Minimal spacing
             
-            // Track the end position of this slip
-            // Calculate where this slip's content ends
-            // StartY + header (50mm) + content height
-            $slipEndY = $startY + 50; // Start of content
+            // Footer with signature box and labels - for EACH slip
+            $footerX = 10; // Starting X position (matches content start)
+            $footerWidth = 190; // Width matching content cells above
+            $signatureBoxHeight = 16; // Reduced height
+            $labelHeight = 4; // Height for labels
             
-            // Add up all row heights:
-            // Row 1: Cliente (5mm)
-            // Row 2: Agente (5mm, conditional)
-            // Row 3: Contacto/Telefono (5mm)
-            // Row 4: Direccion (varies with MultiCell, estimate 5-10mm)
-            // Row 5: Instrucciones (varies, estimate 5-10mm)
-            // Row 6: Tipo de Entrega (5mm)
-            // Row 7: Trabajo (varies, estimate 5-10mm)
-            // Row 8: Descripcion de Envio (conditional, estimate 5-10mm)
-            // Row 9: Empty cell (1.5 * 5 = 7.5mm if no descripcion)
-            // Separator (2mm)
+            // Get current Y position after content
+            $footerY = $pdf->GetY();
             
-            // Estimate: ~55-70mm of content height
-            $estimatedContentHeight = 60; // Conservative estimate
-            $slipEndY += $estimatedContentHeight;
+            // Draw signature box spanning full width
+            $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
             
-            // Store the maximum end position (from second slip)
-            if ($slip === 1) {
-                $lastSlipEndY = $slipEndY;
-            }
+            // Labels below box (centered in three equal sections)
+            $pdf->SetY($footerY + $signatureBoxHeight + 1); // Small spacing between box and labels
+            $pdf->SetFont('Arial', 'B', 8); // Smaller font to save space
+            $labelWidth = $footerWidth / 3; // Divide width equally among three labels
+            $pdf->Cell($labelWidth, $labelHeight, 'FECHA', 0, 0, 'C');
+            $pdf->Cell($labelWidth, $labelHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
+            $pdf->Cell($labelWidth, $labelHeight, 'Sello', 0, 0, 'C');
+            $pdf->Ln(2); // Small spacing after labels before next slip
         }
-        
-        // Footer with single signature box and labels - only once at the bottom of the page
-        // (after both slips are generated)
-        // Position footer right after the last slip
-        $footerX = 10; // Starting X position (matches content start)
-        $footerWidth = 190; // Width matching content cells above
-        $signatureBoxHeight = 16; // Reduced height
-        $labelHeight = 4; // Height for labels
-        
-        // Calculate footer Y position based on last slip's end position
-        // Ensure it doesn't exceed page boundary (279.4mm - 25mm for footer = 254mm max)
-        $maxFooterY = 254;
-        $footerY = min($lastSlipEndY + 3, $maxFooterY); // Add small spacing after last slip
-        
-        // Draw single signature box spanning full width
-        $pdf->Rect($footerX, $footerY, $footerWidth, $signatureBoxHeight);
-        
-        // Labels below box (centered in three equal sections)
-        $labelY = $footerY + $signatureBoxHeight + 1; // Small spacing between box and labels
-        $pdf->SetY($labelY);
-        $pdf->SetFont('Arial', 'B', 8); // Smaller font to save space
-        $labelWidth = $footerWidth / 3; // Divide width equally among three labels
-        $pdf->Cell($labelWidth, $labelHeight, 'FECHA', 0, 0, 'C');
-        $pdf->Cell($labelWidth, $labelHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');
-        $pdf->Cell($labelWidth, $labelHeight, 'Sello', 0, 0, 'C');
-        $pdf->Ln();
         
         // Output PDF
         $pdf->Output('I', 'envio_' . $envioNumber . '.pdf');
