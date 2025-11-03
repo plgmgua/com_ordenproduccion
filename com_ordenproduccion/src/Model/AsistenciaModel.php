@@ -409,7 +409,9 @@ class AsistenciaModel extends ListModel
                 // Ensure employee exists in the employees table (auto-create if new)
                 $this->ensureEmployeeExists($empDate->personname, $empDate->cardno);
                 
-                $summary = AsistenciaHelper::calculateDailyHours($empDate->cardno, $formattedDate);
+                // Use personname instead of cardno (cardno might be empty, personname is more reliable)
+                $identifier = !empty($empDate->cardno) ? $empDate->cardno : $empDate->personname;
+                $summary = AsistenciaHelper::calculateDailyHours($identifier, $formattedDate);
                 
                 if ($summary && !empty($summary->work_date) && !empty($summary->personname)) {
                     try {
@@ -430,8 +432,14 @@ class AsistenciaModel extends ListModel
                         $existingSummary = $db->loadObject();
                         
                         if ($existingSummary) {
-                            // Skip existing summaries - only create missing ones
-                            continue;
+                            // Update existing summary ONLY if it's not approved
+                            // This preserves approval data while allowing recalculation for unapproved records
+                            if (empty($existingSummary->approval_status) || $existingSummary->approval_status === 'pending') {
+                                // Use updateDailySummary which will update the record
+                                AsistenciaHelper::updateDailySummary($empDate->personname, $formattedDate);
+                                $insertedCount++; // Count as updated
+                            }
+                            // If approved, skip it to preserve approval data
                         } else {
                             // INSERT new summary
                             $insertQuery = $db->getQuery(true)
@@ -478,7 +486,7 @@ class AsistenciaModel extends ListModel
             }
             
             Factory::getApplication()->enqueueMessage(
-                sprintf('Successfully created %d new attendance summary record(s). Existing records were not modified.', 
+                sprintf('Successfully processed %d attendance summary record(s). New records created and pending records updated.', 
                     $insertedCount),
                 'success'
             );
