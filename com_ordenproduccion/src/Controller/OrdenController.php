@@ -145,6 +145,7 @@ class OrdenController extends BaseController
                 $orderId = $this->input->getInt('id', 0);
                 $tipoEnvio = $this->input->getString('tipo_envio', 'completo');
                 $tipoMensajeria = $this->input->getString('tipo_mensajeria', 'propio');
+                $descripcionEnvio = $this->input->getString('descripcion_envio', '');
         
         if (!$orderId) {
             $app->enqueueMessage('ID de orden no válido.', 'error');
@@ -162,8 +163,13 @@ class OrdenController extends BaseController
                 return;
             }
 
+            // Save shipping description to historial table if provided
+            if (!empty($descripcionEnvio)) {
+                $this->saveShippingDescriptionToHistory($orderId, $descripcionEnvio, $user->id);
+            }
+
                     // Generate shipping slip PDF using FPDF
-                    $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoMensajeria);
+                    $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoMensajeria, $descripcionEnvio);
             
         } catch (Exception $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
@@ -584,6 +590,46 @@ class OrdenController extends BaseController
         exit;
     }
 
+    /**
+     * Method to save shipping description to historial table.
+     *
+     * @param   int     $orderId          Work order ID
+     * @param   string  $descripcionEnvio Shipping description text
+     * @param   int     $userId           User ID who created the event
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    private function saveShippingDescriptionToHistory($orderId, $descripcionEnvio, $userId)
+    {
+        $db = Factory::getDbo();
+        
+        // Check if historial table exists
+        try {
+            $columns = $db->getTableColumns('#__ordenproduccion_historial');
+            if (empty($columns)) {
+                // Table doesn't exist, skip saving
+                return;
+            }
+        } catch (Exception $e) {
+            // Table doesn't exist, skip saving
+            return;
+        }
+        
+        $query = $db->getQuery(true)
+            ->insert($db->quoteName('#__ordenproduccion_historial'))
+            ->set($db->quoteName('order_id') . ' = ' . (int)$orderId)
+            ->set($db->quoteName('event_type') . ' = ' . $db->quote('shipping_description'))
+            ->set($db->quoteName('event_title') . ' = ' . $db->quote('Descripcion de Envio'))
+            ->set($db->quoteName('event_description') . ' = ' . $db->quote($descripcionEnvio))
+            ->set($db->quoteName('created_by') . ' = ' . (int)$userId)
+            ->set($db->quoteName('state') . ' = 1');
+        
+        $db->setQuery($query);
+        $db->execute();
+    }
+
             /**
              * Method to generate shipping slip PDF using FPDF.
              *
@@ -591,12 +637,13 @@ class OrdenController extends BaseController
              * @param   object  $workOrderData  Work order data
              * @param   string  $tipoEnvio      Tipo de envio (completo/parcial)
              * @param   string  $tipoMensajeria Tipo de mensajería (propio/terceros)
+             * @param   string  $descripcionEnvio Shipping description text
              *
              * @return  void
              *
              * @since   1.0.0
              */
-            private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo', $tipoMensajeria = 'propio')
+            private function generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio = 'completo', $tipoMensajeria = 'propio', $descripcionEnvio = '')
     {
         // Include FPDF library (same path as working PDF generation)
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
@@ -733,16 +780,28 @@ class OrdenController extends BaseController
             // Use MultiCell to allow text wrapping like work order PDF
             $pdf->MultiCell(153, $cellHeight, $workDescription, 1, 'L');
             
-            // Row 8: Large empty cell for additional work details
-            $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
-            $pdf->Ln();
+            // Row 8: Descripcion de Envio - only show if provided
+            if (!empty($descripcionEnvio)) {
+                $descripcionEnvioFixed = $fixSpanishChars($descripcionEnvio);
+                $pdf->SetFont('Arial', 'B', 10);
+                $pdf->Cell(37, $cellHeight, 'Descripcion de Envio', 1, 0, 'L');
+                $pdf->SetFont('Arial', '', 9);
+                // Use MultiCell to allow text wrapping
+                $pdf->MultiCell(153, $cellHeight, $descripcionEnvioFixed, 1, 'L');
+            }
             
-            // Row 9: Light gray separator
+            // Row 9: Large empty cell for additional work details (only if no shipping description)
+            if (empty($descripcionEnvio)) {
+                $pdf->Cell(190, $cellHeight * 3, '', 1, 0, 'L');
+                $pdf->Ln();
+            }
+            
+            // Light gray separator
             $pdf->SetFillColor(211, 211, 211);
             $pdf->Cell(190, 2, '', 0, 0, '', true);
             $pdf->Ln();
             
-            // Row 10: Footer with signature fields (no borders, centered)
+            // Row 11: Footer with signature fields (no borders, centered)
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(45, $cellHeight, 'FECHA', 0, 0, 'C');
             $pdf->Cell(95, $cellHeight, 'NOMBRE Y FIRMA', 0, 0, 'C');

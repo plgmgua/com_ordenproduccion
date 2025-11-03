@@ -114,13 +114,44 @@ $currentUrl = Uri::current();
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn btn-info btn-block">
+                    <button type="button" class="btn btn-info btn-block" id="shipping-submit-btn">
                         <i class="fas fa-shipping-fast"></i>
                         Generar Envio
                     </button>
                 </form>
                 
                 <div id="shipping-message" class="shipping-message" style="display: none;"></div>
+            </div>
+            
+            <!-- Shipping Description Modal -->
+            <div id="shipping-description-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;">
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0; color: #333;">
+                            <i class="fas fa-shipping-fast"></i> Descripción de Envío
+                        </h3>
+                        <button onclick="closeShippingDescriptionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+                    </div>
+                    
+                    <form id="shipping-description-form">
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">
+                                Descripción de Envío <span style="color: red;">*</span>
+                            </label>
+                            <textarea id="descripcion_envio" name="descripcion_envio" required rows="5" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
+                            <small style="display: block; margin-top: 5px; color: #6c757d; font-size: 12px;">Esta descripción aparecerá en el PDF de envío debajo de la línea "Trabajo"</small>
+                        </div>
+                    </form>
+                    
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                        <button type="button" onclick="closeShippingDescriptionModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            Cancelar
+                        </button>
+                        <button type="button" onclick="submitShippingWithDescription()" style="padding: 10px 20px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-shipping-fast"></i> Generar Envío
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
         <?php endif; ?>
@@ -207,6 +238,18 @@ $currentUrl = Uri::current();
     </div>
     
     <script>
+    // Store work order data for JavaScript access
+    window.currentOrderData = <?php echo json_encode([
+        'id' => $workOrderData->id ?? null,
+        'work_description' => $workOrderData->work_description ?? $workOrderData->description ?? '',
+        'client_name' => $workOrderData->client_name ?? '',
+        'nit' => $workOrderData->nit ?? '',
+        'shipping_address' => $workOrderData->shipping_address ?? '',
+        'shipping_contact' => $workOrderData->shipping_contact ?? '',
+        'shipping_phone' => $workOrderData->shipping_phone ?? '',
+        'instrucciones_entrega' => $workOrderData->instrucciones_entrega ?? ''
+    ]); ?>;
+    
     // Open duplicate form modal and pre-fill fields
     function openDuplicateForm() {
         const orderData = window.currentOrderData || {};
@@ -658,60 +701,110 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Shipping form
+    // Shipping form - intercept button click to show modal
     const shippingForm = document.getElementById('shipping-form');
     const shippingMessageDiv = document.getElementById('shipping-message');
+    const shippingSubmitBtn = document.getElementById('shipping-submit-btn');
     
-    if (shippingForm) {
-        shippingForm.addEventListener('submit', function(e) {
+    // Open shipping description modal
+    function openShippingDescriptionModal() {
+        const orderData = window.currentOrderData || {};
+        const descripcionTextarea = document.getElementById('descripcion_envio');
+        
+        // Pre-fill with work_description from order data
+        if (orderData.work_description) {
+            descripcionTextarea.value = orderData.work_description;
+        }
+        
+        // Show modal
+        document.getElementById('shipping-description-modal-overlay').style.display = 'block';
+    }
+    
+    // Close shipping description modal
+    function closeShippingDescriptionModal() {
+        document.getElementById('shipping-description-modal-overlay').style.display = 'none';
+    }
+    
+    // Submit shipping form with description
+    function submitShippingWithDescription() {
+        const formData = new FormData(shippingForm);
+        const descripcionTextarea = document.getElementById('descripcion_envio');
+        const descripcionEnvio = descripcionTextarea.value.trim();
+        
+        if (!descripcionEnvio) {
+            alert('Por favor ingrese una descripción de envío');
+            return;
+        }
+        
+        const orderId = formData.get('order_id');
+        const tipoEnvio = formData.get('tipo_envio');
+        const tipoMensajeria = formData.get('tipo_mensajeria');
+        
+        if (!tipoEnvio) {
+            showShippingMessage('Por favor selecciona un tipo de envio', 'error');
+            closeShippingDescriptionModal();
+            return;
+        }
+        
+        if (!tipoMensajeria) {
+            showShippingMessage('Por favor selecciona un tipo de mensajería', 'error');
+            closeShippingDescriptionModal();
+            return;
+        }
+        
+        const submitBtn = document.getElementById('shipping-submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        submitBtn.disabled = true;
+        
+        // Close modal
+        closeShippingDescriptionModal();
+        
+        // Build URL with shipping description
+        const params = new URLSearchParams();
+        params.append('order_id', orderId);
+        params.append('tipo_envio', tipoEnvio);
+        params.append('tipo_mensajeria', tipoMensajeria);
+        params.append('descripcion_envio', descripcionEnvio);
+        // Add CSRF token - get the token name from the form hidden input
+        const tokenInput = shippingForm.querySelector('input[type="hidden"][name^="<?php echo $app->getFormToken(); ?>"]');
+        if (tokenInput) {
+            params.append(tokenInput.name, tokenInput.value);
+        }
+        
+        const urlEncodedData = params.toString();
+        
+        fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, {
+            method: 'POST',
+            body: urlEncodedData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
+                showShippingMessage('Envio generado correctamente', 'success');
+            } else {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+        })
+        .catch(error => {
+            console.error('Shipping Error:', error);
+            showShippingMessage('Error al generar envio: ' + error.message, 'error');
+        })
+        .finally(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    }
+    
+    // Attach click handler to shipping submit button
+    if (shippingSubmitBtn) {
+        shippingSubmitBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            
-            const formData = new FormData(shippingForm);
-            const orderId = formData.get('order_id');
-            const tipoEnvio = formData.get('tipo_envio');
-            const tipoMensajeria = formData.get('tipo_mensajeria');
-            
-            if (!tipoEnvio) {
-                showShippingMessage('Por favor selecciona un tipo de envio', 'error');
-                return;
-            }
-            
-            if (!tipoMensajeria) {
-                showShippingMessage('Por favor selecciona un tipo de mensajería', 'error');
-                return;
-            }
-            
-            const submitBtn = shippingForm.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
-            submitBtn.disabled = true;
-            
-            const urlEncodedData = new URLSearchParams(formData).toString();
-            
-            fetch('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, {
-                method: 'POST',
-                body: urlEncodedData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, '_blank');
-                    showShippingMessage('Envio generado correctamente', 'success');
-                } else {
-                    throw new Error('HTTP error! status: ' + response.status);
-                }
-            })
-            .catch(error => {
-                console.error('Shipping Error:', error);
-                showShippingMessage('Error al generar envio: ' + error.message, 'error');
-            })
-            .finally(() => {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            });
+            openShippingDescriptionModal();
         });
     }
     
