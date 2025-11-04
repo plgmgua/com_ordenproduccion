@@ -65,6 +65,11 @@ class AsistenciaController extends BaseController
 
         // Check authorization
         if ($user->guest) {
+            if ($app->input->get('format') === 'json' || $app->input->server->get('HTTP_X_REQUESTED_WITH') === 'XMLHttpRequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+                exit;
+            }
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
             return;
@@ -76,13 +81,41 @@ class AsistenciaController extends BaseController
         $dateTo = date('Y-m-d');
         $dateFrom = date('Y-m-d', strtotime('-7 days'));
         
-        if ($model->syncRecentData($dateFrom, $dateTo)) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_SUCCESS'), 'success');
+        $isAjax = $app->input->get('format') === 'json' || $app->input->server->get('HTTP_X_REQUESTED_WITH') === 'XMLHttpRequest';
+        
+        if ($isAjax) {
+            // Return JSON response for AJAX requests
+            header('Content-Type: application/json');
+            
+            try {
+                if ($model->syncRecentData($dateFrom, $dateTo)) {
+                    echo json_encode([
+                        'success' => true,
+                        'message' => Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_SUCCESS')
+                    ]);
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_ERROR')
+                    ]);
+                }
+            } catch (\Exception $e) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+            exit;
         } else {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_ERROR'), 'error');
-        }
+            // Regular request - redirect as before
+            if ($model->syncRecentData($dateFrom, $dateTo)) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_SUCCESS'), 'success');
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC_ERROR'), 'error');
+            }
 
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia', false));
+        }
     }
 
     /**

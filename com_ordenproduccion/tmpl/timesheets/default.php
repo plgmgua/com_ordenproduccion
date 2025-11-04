@@ -53,10 +53,9 @@ use Joomla\CMS\HTML\HTMLHelper;
         <button type="button" class="btn btn-primary" onclick="document.getElementById('manualEntrySection').style.display = document.getElementById('manualEntrySection').style.display === 'none' ? 'block' : 'none';">
             <span class="icon-plus"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NEW_ENTRY'); ?>
         </button>
-        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=asistencia.sync'); ?>" 
-           class="btn btn-secondary">
+        <button type="button" class="btn btn-secondary" id="syncAttendanceBtn" onclick="syncAttendanceRecords()">
             <span class="icon-refresh"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SYNC'); ?>
-        </a>
+        </button>
     </div>
 
     <!-- Manual Entry Form -->
@@ -281,6 +280,74 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Sync attendance records via AJAX
+function syncAttendanceRecords() {
+    const btn = document.getElementById('syncAttendanceBtn');
+    if (!btn) return;
+    
+    // Disable button and show loading state
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="icon-refresh icon-spin"></span> Sincronizando...';
+    
+    // Get CSRF token
+    const tokenInput = document.querySelector('input[name="<?php echo \Joomla\CMS\Session\Session::getFormToken(); ?>"]');
+    const tokenValue = tokenInput ? tokenInput.value : '';
+    
+    // Make AJAX request
+    fetch('<?php echo Route::_("index.php?option=com_ordenproduccion&task=asistencia.sync&format=json"); ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: '<?php echo \Joomla\CMS\Session\Session::getFormToken(); ?>=1'
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Show message
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'alert alert-' + (data.success ? 'success' : 'danger');
+        messageDiv.style.marginTop = '10px';
+        messageDiv.innerHTML = '<button type="button" class="close" data-dismiss="alert">&times;</button>' + data.message;
+        
+        // Insert message before the sync button
+        btn.parentNode.insertBefore(messageDiv, btn.nextSibling);
+        
+        // Auto-remove message after 5 seconds
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 5000);
+        
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        // If successful, reload the page to show updated data
+        if (data.success) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    })
+    .catch(error => {
+        console.error('Sync error:', error);
+        
+        // Show error message
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.style.marginTop = '10px';
+        messageDiv.innerHTML = '<button type="button" class="close" data-dismiss="alert">&times;</button>Error al sincronizar: ' + error.message;
+        btn.parentNode.insertBefore(messageDiv, btn.nextSibling);
+        
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
 </script>
 
 
