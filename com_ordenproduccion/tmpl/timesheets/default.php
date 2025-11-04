@@ -292,7 +292,8 @@ function syncAttendanceRecords() {
     btn.innerHTML = '<span class="icon-refresh icon-spin"></span> Sincronizando...';
     
     // Get CSRF token
-    const tokenInput = document.querySelector('input[name="<?php echo \Joomla\CMS\Session\Session::getFormToken(); ?>"]');
+    const tokenName = '<?php echo \Joomla\CMS\Session\Session::getFormToken(); ?>';
+    const tokenInput = document.querySelector('input[name="' + tokenName + '"]');
     const tokenValue = tokenInput ? tokenInput.value : '';
     
     // Make AJAX request
@@ -302,7 +303,7 @@ function syncAttendanceRecords() {
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: '<?php echo \Joomla\CMS\Session\Session::getFormToken(); ?>=1'
+        body: tokenName + '=' + encodeURIComponent(tokenValue)
     })
     .then(response => response.json())
     .then(data => {
