@@ -205,7 +205,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                                         <span class="badge bg-info" style="font-size: 0.6rem; padding: 2px 5px;">Salida T.</span>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="text-muted" style="font-size: 0.65rem;">&amp;mdash;</span>
+                                    <span class="text-muted" style="font-size: 0.65rem;">&mdash;</span>
                                 <?php endif; ?>
                             </td>
                             <td style="font-size: 0.75rem;">
