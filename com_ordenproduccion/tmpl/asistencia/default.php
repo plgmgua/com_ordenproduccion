@@ -179,6 +179,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                 <thead class="table-dark">
                     <tr>
                         <th style="min-width: 120px;">Empleado</th>
+                        <th style="width: 110px;">&lt;?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALERTS'); ?&gt;</th>
                         <th style="width: 100px;">Grupo</th>
                         <th style="width: 90px;">Fecha</th>
                         <th style="width: 70px;">Entrada</th>
@@ -194,11 +195,17 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <tr class="summary-row <?php echo $item->is_late ? 'table-warning' : ''; ?>">
                             <td>
                                 <strong style="font-size: 0.85rem;"><?php echo safeEscape($item->personname); ?></strong>
-                                <?php if ($item->is_late): ?>
-                                    <span class="badge bg-warning text-dark" style="font-size: 0.6rem; padding: 2px 5px;">Tarde</span>
-                                <?php endif; ?>
-                                <?php if ($item->is_early_exit): ?>
-                                    <span class="badge bg-info" style="font-size: 0.6rem; padding: 2px 5px;">Salida T.</span>
+                            </td>
+                            <td style="font-size: 0.7rem;">
+                                <?php if ($item->is_late || $item->is_early_exit): ?>
+                                    <?php if ($item->is_late): ?>
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.6rem; padding: 2px 5px;">Tarde</span>
+                                    <?php endif; ?>
+                                    <?php if ($item->is_early_exit): ?>
+                                        <span class="badge bg-info" style="font-size: 0.6rem; padding: 2px 5px;">Salida T.</span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted" style="font-size: 0.65rem;">&amp;mdash;</span>
                                 <?php endif; ?>
                             </td>
                             <td style="font-size: 0.75rem;">
@@ -235,7 +242,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php if (!empty($item->manual_entries)) : ?>
                             <?php foreach ($item->manual_entries as $manual) : ?>
                             <tr class="manual-entry-row" style="background-color: #f8f9fa; font-size: 0.85em;">
-                                <td colspan="3" style="padding-left: 40px;">
+                                <td colspan="4" style="padding-left: 40px;">
                                     <i class="fas fa-hand-paper text-info"></i>
                                     <span class="text-muted">Manual:</span>
                                     <strong><?php echo $manual->authtime ? substr($manual->authtime, 0, 5) : '-'; ?></strong>
@@ -267,7 +274,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center">
+                            <td colspan="9" class="text-center">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?>
                             </td>
                         </tr>
