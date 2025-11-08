@@ -281,8 +281,10 @@ class AsistenciaHelper
             $isEarlyExit = $lastTime < $earlyExitThreshold;
         }
 
-        // Subtract lunch break hours from calculated total (but never below zero)
-        if ($lunchBreakHours > 0) {
+        // Subtract lunch break hours from calculated total (but never below zero).
+        // For short shifts (<5h) skip lunch deduction entirely.
+        $totalHoursBeforeLunch = $totalHours;
+        if ($lunchBreakHours > 0 && $totalHoursBeforeLunch >= 5) {
             $totalHours = max($totalHours - $lunchBreakHours, 0);
         }
 
