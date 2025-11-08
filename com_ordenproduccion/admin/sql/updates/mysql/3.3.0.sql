@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_employee_groups` (
     `work_start_time` time NOT NULL DEFAULT '08:00:00',
     `work_end_time` time NOT NULL DEFAULT '17:00:00',
     `expected_hours` decimal(5,2) NOT NULL DEFAULT 8.00,
+    `lunch_break_hours` decimal(5,2) NOT NULL DEFAULT 1.00,
     `grace_period_minutes` int(11) NOT NULL DEFAULT 15,
     `color` varchar(7) DEFAULT '#3490dc',
     `ordering` int(11) NOT NULL DEFAULT 0,
@@ -26,12 +27,12 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_employee_groups` (
 
 -- Insert default employee group
 INSERT INTO `#__ordenproduccion_employee_groups` 
-    (`name`, `description`, `work_start_time`, `work_end_time`, `expected_hours`, `grace_period_minutes`, `color`, `ordering`, `state`, `created_by`)
+    (`name`, `description`, `work_start_time`, `work_end_time`, `expected_hours`, `lunch_break_hours`, `grace_period_minutes`, `color`, `ordering`, `state`, `created_by`)
 VALUES
-    ('Horario Estándar', 'Horario de oficina estándar (8:00 AM - 5:00 PM)', '08:00:00', '17:00:00', 8.00, 15, '#3490dc', 1, 1, 0),
-    ('Turno Matutino', 'Turno de la mañana (6:00 AM - 2:00 PM)', '06:00:00', '14:00:00', 8.00, 15, '#38c172', 2, 1, 0),
-    ('Turno Vespertino', 'Turno de la tarde (2:00 PM - 10:00 PM)', '14:00:00', '22:00:00', 8.00, 15, '#f6993f', 3, 1, 0),
-    ('Turno Nocturno', 'Turno de la noche (10:00 PM - 6:00 AM)', '22:00:00', '06:00:00', 8.00, 15, '#6574cd', 4, 1, 0);
+    ('Horario Estándar', 'Horario de oficina estándar (8:00 AM - 5:00 PM)', '08:00:00', '17:00:00', 8.00, 1.00, 15, '#3490dc', 1, 1, 0),
+    ('Turno Matutino', 'Turno de la mañana (6:00 AM - 2:00 PM)', '06:00:00', '14:00:00', 8.00, 1.00, 15, '#38c172', 2, 1, 0),
+    ('Turno Vespertino', 'Turno de la tarde (2:00 PM - 10:00 PM)', '14:00:00', '22:00:00', 8.00, 1.00, 15, '#f6993f', 3, 1, 0),
+    ('Turno Nocturno', 'Turno de la noche (10:00 PM - 6:00 AM)', '22:00:00', '06:00:00', 8.00, 1.00, 15, '#6574cd', 4, 1, 0);
 
 -- Update existing employees table to add group relationship
 ALTER TABLE `joomla_ordenproduccion_employees`

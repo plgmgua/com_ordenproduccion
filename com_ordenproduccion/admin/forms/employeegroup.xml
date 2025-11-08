@@ -65,6 +65,19 @@
         />
 
         <field
+            name="lunch_break_hours"
+            type="number"
+            label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_LUNCH_HOURS"
+            description="COM_ORDENPRODUCCION_EMPLOYEEGROUP_LUNCH_HOURS_DESC"
+            class="inputbox"
+            default="1.00"
+            step="0.25"
+            min="0"
+            max="8"
+            required="true"
+        />
+
+        <field
             name="weekly_schedule"
             type="textarea"
             label="COM_ORDENPRODUCCION_EMPLOYEEGROUP_WEEKLY_SCHEDULE"

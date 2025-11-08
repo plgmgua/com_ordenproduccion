@@ -43,6 +43,7 @@ HTMLHelper::_('behavior.keepalive');
                     <?php echo $this->form->renderField('work_start_time'); ?>
                     <?php echo $this->form->renderField('work_end_time'); ?>
                     <?php echo $this->form->renderField('expected_hours'); ?>
+                    <?php echo $this->form->renderField('lunch_break_hours'); ?>
                 </div>
             </div>
 
@@ -65,9 +66,10 @@ HTMLHelper::_('behavior.keepalive');
                             <tr>
                                 <th style="width: 15%;"><?php echo Text::_('COM_ORDENPRODUCCION_DAY'); ?></th>
                                 <th style="width: 10%;" class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_ENABLED'); ?></th>
-                                <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_START_TIME'); ?></th>
-                                <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_END_TIME'); ?></th>
-                                <th style="width: 15%;"><?php echo Text::_('COM_ORDENPRODUCCION_EXPECTED_HOURS'); ?></th>
+                                <th style="width: 18%;"><?php echo Text::_('COM_ORDENPRODUCCION_START_TIME'); ?></th>
+                                <th style="width: 18%;"><?php echo Text::_('COM_ORDENPRODUCCION_END_TIME'); ?></th>
+                                <th style="width: 14%;"><?php echo Text::_('COM_ORDENPRODUCCION_EXPECTED_HOURS'); ?></th>
+                                <th style="width: 15%;"><?php echo Text::_('COM_ORDENPRODUCCION_LUNCH_BREAK_HOURS'); ?></th>
                                 <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_NOTES'); ?></th>
                             </tr>
                         </thead>
@@ -124,6 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const defaultStartTime = document.getElementById('jform_work_start_time').value || '08:00:00';
     const defaultEndTime = document.getElementById('jform_work_end_time').value || '17:00:00';
     const defaultHours = document.getElementById('jform_expected_hours').value || '8.00';
+    const defaultLunch = document.getElementById('jform_lunch_break_hours').value || '1.00';
 
     // Load existing schedule or create default
     let schedule = {};
@@ -145,8 +148,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 start_time: defaultStartTime,
                 end_time: defaultEndTime,
                 expected_hours: parseFloat(defaultHours),
+                lunch_break_hours: parseFloat(defaultLunch),
                 notes: ''
             };
+        } else {
+            if (typeof schedule[day.key].lunch_break_hours === 'undefined' || schedule[day.key].lunch_break_hours === null) {
+                schedule[day.key].lunch_break_hours = parseFloat(defaultLunch);
+            }
         }
     });
 
@@ -159,6 +167,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         days.forEach(day => {
             const data = schedule[day.key];
+            const lunchValue = (typeof data.lunch_break_hours !== 'undefined' && data.lunch_break_hours !== null && !isNaN(parseFloat(data.lunch_break_hours)))
+                ? parseFloat(data.lunch_break_hours)
+                : parseFloat(defaultLunch);
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><strong>${day.label}</strong></td>
@@ -193,6 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
                            ${!data.enabled ? 'disabled' : ''}>
                 </td>
                 <td>
+                    <input type="number"
+                           class="form-control form-control-sm day-lunch"
+                           data-day="${day.key}"
+                           value="${lunchValue.toFixed(2)}"
+                           step="0.25"
+                           min="0"
+                           max="8"
+                           ${!data.enabled ? 'disabled' : ''}>
+                </td>
+                <td>
                     <input type="text" 
                            class="form-control form-control-sm day-notes" 
                            data-day="${day.key}" 
@@ -220,18 +241,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        document.querySelectorAll('.day-start, .day-end, .day-hours, .day-notes').forEach(input => {
+        document.querySelectorAll('.day-start, .day-end, .day-hours, .day-lunch, .day-notes').forEach(input => {
             input.addEventListener('change', function() {
                 const day = this.dataset.day;
                 const field = this.classList.contains('day-start') ? 'start_time' :
                              this.classList.contains('day-end') ? 'end_time' :
                              this.classList.contains('day-hours') ? 'expected_hours' :
+                             this.classList.contains('day-lunch') ? 'lunch_break_hours' :
                              'notes';
                 
                 let value = this.value;
                 if (field === 'start_time' || field === 'end_time') {
                     value = value + ':00';
-                } else if (field === 'expected_hours') {
+                } else if (field === 'expected_hours' || field === 'lunch_break_hours') {
                     value = parseFloat(value);
                 }
                 
@@ -254,6 +276,7 @@ function applyToAllDays() {
     const startTime = document.getElementById('jform_work_start_time').value;
     const endTime = document.getElementById('jform_work_end_time').value;
     const expectedHours = document.getElementById('jform_expected_hours').value;
+    const lunchHours = document.getElementById('jform_lunch_break_hours').value;
 
     if (!startTime || !endTime || !expectedHours) {
         alert('<?php echo Text::_('COM_ORDENPRODUCCION_EMPLOYEEGROUP_FILL_DEFAULT_FIRST'); ?>');
@@ -278,6 +301,13 @@ function applyToAllDays() {
     document.querySelectorAll('.day-hours').forEach(input => {
         if (!input.disabled) {
             input.value = expectedHours;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+
+    document.querySelectorAll('.day-lunch').forEach(input => {
+        if (!input.disabled) {
+            input.value = lunchHours;
             input.dispatchEvent(new Event('change'));
         }
     });

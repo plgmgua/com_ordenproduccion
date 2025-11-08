@@ -219,6 +219,8 @@ class AsistenciaHelper
         $workEnd = '17:00:00';
         $graceMinutes = 15;
         
+        $lunchBreakHours = 1.0;
+
         if ($employee) {
             // Check if group has weekly schedule
             $daySchedule = null;
@@ -231,6 +233,9 @@ class AsistenciaHelper
                 $expectedHours = (float) ($daySchedule['expected_hours'] ?? 8.00);
                 $workStart = $daySchedule['start_time'] ?? '08:00:00';
                 $workEnd = $daySchedule['end_time'] ?? '17:00:00';
+                if (isset($daySchedule['lunch_break_hours'])) {
+                    $lunchBreakHours = (float) $daySchedule['lunch_break_hours'];
+                }
             } else {
                 // Fall back to default group settings
                 if (!empty($employee->group_expected_hours)) {
@@ -242,11 +247,18 @@ class AsistenciaHelper
                 if (!empty($employee->work_end_time)) {
                     $workEnd = $employee->work_end_time;
                 }
+                if (isset($employee->group_lunch_break_hours)) {
+                    $lunchBreakHours = (float) $employee->group_lunch_break_hours;
+                }
             }
             
             if (isset($employee->grace_period_minutes)) {
                 $graceMinutes = (int) $employee->grace_period_minutes;
             }
+        }
+
+        if ($lunchBreakHours < 0) {
+            $lunchBreakHours = 0;
         }
 
         // Check if late (grace period) - only if we have first entry
@@ -267,6 +279,11 @@ class AsistenciaHelper
             $earlyExitThreshold = clone $workEndTime;
             $earlyExitThreshold->modify("-{$graceMinutes} minutes");
             $isEarlyExit = $lastTime < $earlyExitThreshold;
+        }
+
+        // Subtract lunch break hours from calculated total (but never below zero)
+        if ($lunchBreakHours > 0) {
+            $totalHours = max($totalHours - $lunchBreakHours, 0);
         }
 
         $hoursDifference = $totalHours - $expectedHours;
@@ -431,6 +448,7 @@ class AsistenciaHelper
                 'g.work_start_time',
                 'g.work_end_time',
                 'g.expected_hours AS group_expected_hours',
+                'g.lunch_break_hours AS group_lunch_break_hours',
                 'g.grace_period_minutes',
                 'g.weekly_schedule'
             ])
