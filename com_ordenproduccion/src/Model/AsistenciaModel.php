@@ -512,26 +512,84 @@ class AsistenciaModel extends ListModel
     {
         $db = $this->getDatabase();
         
-        // Get distinct employee/date combinations from original asistencia table
+        $combinations = [];
+
+        $addCombination = function ($personname, $workDate) use (&$combinations) {
+            $personname = trim((string) $personname);
+            $workDate = trim((string) $workDate);
+
+            if ($personname === '' || $workDate === '') {
+                return;
+            }
+
+            $key = mb_strtolower($personname) . '|' . $workDate;
+            $combinations[$key] = [
+                'personname' => $personname,
+                'work_date' => $workDate,
+            ];
+        };
+
+        // Combinations from biometric asistencia table
         $query = $db->getQuery(true)
             ->select([
-                'DISTINCT ' . $db->quoteName('cardno'),
-                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) AS authdate'
+                'DISTINCT TRIM(' . $db->quoteName('personname') . ') AS personname',
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) AS work_date'
             ])
             ->from($db->quoteName('asistencia'))
             ->where([
                 'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) >= ' . $db->quote($dateFrom),
                 'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) <= ' . $db->quote($dateTo),
-                $db->quoteName('cardno') . ' IS NOT NULL',
-                $db->quoteName('cardno') . ' != ' . $db->quote('')
+                'TRIM(' . $db->quoteName('personname') . ') != ' . $db->quote('')
             ]);
 
         $db->setQuery($query);
-        $combinations = $db->loadObjectList();
+        foreach ($db->loadObjectList() as $record) {
+            $addCombination($record->personname, $record->work_date);
+        }
+
+        // Combinations from manual attendance entries
+        $query = $db->getQuery(true)
+            ->select([
+                'DISTINCT TRIM(' . $db->quoteName('personname') . ') AS personname',
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) AS work_date'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
+            ->where([
+                $db->quoteName('state') . ' = 1',
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) >= ' . $db->quote($dateFrom),
+                'DATE(CAST(' . $db->quoteName('authdate') . ' AS DATE)) <= ' . $db->quote($dateTo),
+                'TRIM(' . $db->quoteName('personname') . ') != ' . $db->quote('')
+            ]);
+
+        $db->setQuery($query);
+        foreach ($db->loadObjectList() as $record) {
+            $addCombination($record->personname, $record->work_date);
+        }
+
+        // Existing summaries in the range should also be recalculated
+        $query = $db->getQuery(true)
+            ->select([
+                'DISTINCT TRIM(' . $db->quoteName('personname') . ') AS personname',
+                $db->quoteName('work_date')
+            ])
+            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+            ->where([
+                $db->quoteName('work_date') . ' >= ' . $db->quote($dateFrom),
+                $db->quoteName('work_date') . ' <= ' . $db->quote($dateTo),
+                'TRIM(' . $db->quoteName('personname') . ') != ' . $db->quote('')
+            ]);
+
+        $db->setQuery($query);
+        foreach ($db->loadObjectList() as $record) {
+            $addCombination($record->personname, $record->work_date);
+        }
 
         $success = true;
         foreach ($combinations as $combo) {
-            if (!AsistenciaHelper::updateDailySummary($combo->cardno, $combo->authdate)) {
+            // Ensure employee exists so schedules can be resolved correctly
+            $this->ensureEmployeeExists($combo['personname'], $combo['personname']);
+
+            if (!AsistenciaHelper::updateDailySummary($combo['personname'], $combo['work_date'])) {
                 $success = false;
             }
         }
