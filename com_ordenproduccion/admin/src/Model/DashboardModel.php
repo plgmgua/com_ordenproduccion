@@ -208,8 +208,13 @@ class DashboardModel extends BaseDatabaseModel
         }
         
         try {
-            $startDate = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
-            $endDate = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-31';
+            $start = Factory::getDate($year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01 00:00:00');
+            $end = clone $start;
+            $end->modify('last day of this month');
+            $end->setTime(23, 59, 59);
+
+            $startDate = $start->format('Y-m-d H:i:s');
+            $endDate = $end->format('Y-m-d H:i:s');
             
             $query = $db->getQuery(true)
                 ->select([
