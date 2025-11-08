@@ -179,7 +179,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                 <thead class="table-dark">
                     <tr>
                         <th style="min-width: 120px;">Empleado</th>
-                        <th style="width: 110px;">&lt;?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALERTS'); ?&gt;</th>
+                        <th style="width: 110px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALERTS'); ?></th>
                         <th style="width: 100px;">Grupo</th>
                         <th style="width: 90px;">Fecha</th>
                         <th style="width: 70px;">Entrada</th>
