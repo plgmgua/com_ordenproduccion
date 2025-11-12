@@ -9,7 +9,6 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -18,7 +17,6 @@ use Joomla\CMS\Router\Route;
 
 $item = $this->item;
 $canSeeInvoice = $this->canSeeInvoiceValue();
-$document = Factory::getApplication()->getDocument();
 
 // Helper function to display SI/NO badge
 function displayYesNoBadge($value) {
@@ -32,37 +30,34 @@ function displayYesNoBadge($value) {
 
 <div class="com-ordenproduccion-orden">
     <div class="container-fluid">
-        <div class="row">
-            <!-- Main Content Area -->
-            <div class="col-lg-9 col-md-8">
-                <!-- Page Header -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h1 class="page-title">
-                                    <?php 
-                                    // Get order number value
-                                    $orderNumber = $item->orden_de_trabajo ?? $item->order_number ?? 'N/A';
-                                    error_log("DEBUG: Order number fields - orden_de_trabajo: " . var_export($item->orden_de_trabajo ?? 'NOT_SET', true));
-                                    error_log("DEBUG: Order number fields - order_number: " . var_export($item->order_number ?? 'NOT_SET', true));
-                                    error_log("DEBUG: Order number fields - final value: " . var_export($orderNumber, true));
-                                    
-                                    // Display title with order number inline
-                                    echo Text::_('COM_ORDENPRODUCCION_ORDEN_TITLE') . ' ' . $orderNumber;
-                                    ?>
-                                </h1>
-                            </div>
-                            <div>
-                                <a href="<?php echo $this->getBackToListRoute(); ?>" 
-                                   class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left"></i>
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_BACK_TO_LIST'); ?>
-                                </a>
-                            </div>
-                        </div>
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="page-title">
+                            <?php 
+                            // Get order number value
+                            $orderNumber = $item->orden_de_trabajo ?? $item->order_number ?? 'N/A';
+                            error_log("DEBUG: Order number fields - orden_de_trabajo: " . var_export($item->orden_de_trabajo ?? 'NOT_SET', true));
+                            error_log("DEBUG: Order number fields - order_number: " . var_export($item->order_number ?? 'NOT_SET', true));
+                            error_log("DEBUG: Order number fields - final value: " . var_export($orderNumber, true));
+                            
+                            // Display title with order number inline
+                            echo Text::_('COM_ORDENPRODUCCION_ORDEN_TITLE') . ' ' . $orderNumber;
+                            ?>
+                        </h1>
+                    </div>
+                    <div>
+                        <a href="<?php echo $this->getBackToListRoute(); ?>" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BACK_TO_LIST'); ?>
+                        </a>
                     </div>
                 </div>
+            </div>
+        </div>
 
         <!-- Order Status and Type -->
         <div class="row mb-4">
@@ -471,23 +466,8 @@ function displayYesNoBadge($value) {
                 </div>
             </div>
         </div>
-            </div>
-            <!-- End Main Content Area -->
-            
-            <!-- Sidebar for Module Position -->
-            <div class="col-lg-3 col-md-4">
-                <?php 
-                // Load the sidebar-right module position
-                echo $document->loadRenderer('modules')->render('sidebar-right', ['style' => 'default']);
-                ?>
-            </div>
-            <!-- End Sidebar -->
-        </div>
-        <!-- End Row -->
     </div>
-    <!-- End Container -->
 </div>
-<!-- End Component -->
 
 <!-- Pass order data to JavaScript for duplicate request -->
 <script>

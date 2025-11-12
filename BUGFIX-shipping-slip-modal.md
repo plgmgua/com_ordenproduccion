@@ -8,64 +8,64 @@ ordenproduccion/?view=orden&id=5597:665 Uncaught ReferenceError: submitShippingW
     at HTMLButtonElement.onclick (ordenproduccion/?view=orden&id=5597:665:220)
 ```
 
-## Root Cause
-The `submitShippingWithDescription` JavaScript function is defined in the **mod_acciones_produccion** module template (`mod_acciones_produccion/tmpl/default.php`). However, the **orden view template** (`com_ordenproduccion/tmpl/orden/default.php`) was not rendering the `sidebar-right` module position where this module is assigned to appear.
+## Root Cause - UPDATED
+**The actual issue is DUPLICATE MODULE INSTANCES** causing JavaScript conflicts.
+
+There are multiple instances of the `mod_acciones_produccion` module in the Joomla database, both assigned to the `sidebar-right` position. When both instances load:
+1. The module renders twice (visible in the UI as two "Acciones Produccion" panels)
+2. Inline JavaScript is loaded twice, causing conflicts
+3. DOM elements are duplicated (multiple forms with same IDs)
+4. The onclick handlers get confused about which script/function to use
+5. Result: "submitShippingWithDescription is not defined" error
 
 **Problem Flow:**
-1. The mod_acciones_produccion module is registered to appear on pages with `view=orden` in the `sidebar-right` position
-2. The module contains all the shipping form UI and JavaScript functions including `submitShippingWithDescription`
-3. The orden view template was not loading the `sidebar-right` module position
-4. Result: The module never rendered, so the JavaScript functions were never loaded
-5. When the modal button tried to call `submitShippingWithDescription()`, it was undefined
+1. The mod_acciones_produccion module contains all JavaScript functions including `submitShippingWithDescription`
+2. The Joomla template automatically renders the `sidebar-right` module position (this is standard)
+3. Multiple module instances were created in the database (likely from running registration scripts multiple times)
+4. Both instances try to load on the same page
+5. JavaScript conflicts occur due to duplicate inline scripts
 
 ## Solution
-Modified the orden view template to use a two-column layout:
-- **Main content area (col-lg-9 col-md-8)**: Contains all the order information
-- **Sidebar area (col-lg-3 col-md-4)**: Renders the `sidebar-right` module position
+**Remove the duplicate module instance** from Joomla admin:
+1. Go to **System → Manage → Site Modules**
+2. Search for `mod_acciones_produccion`
+3. Delete duplicate instances (keep only ONE)
+4. Clear Joomla cache
 
-This ensures the mod_acciones_produccion module loads on orden pages and all its JavaScript functions become available.
+See **FIX-duplicate-module-instance.md** for detailed step-by-step instructions.
 
-## Files Modified
-1. **com_ordenproduccion/tmpl/orden/default.php**
-   - Added Factory import to get document object
-   - Wrapped main content in a row with left column (col-lg-9)
-   - Added sidebar column (col-lg-3) that renders sidebar-right position
-   
-2. **deployment_package/com_ordenproduccion/tmpl/orden/default.php**
-   - Applied identical changes for consistency with deployment package
+## Files Created
+1. **FIX-duplicate-module-instance.md** - Step-by-step guide to remove duplicate module instances
 
 ## Technical Details
 
-### Before:
+### Why Duplicate Modules Cause This Error
+
+When a Joomla module with inline JavaScript loads twice:
+
 ```php
-<div class="com-ordenproduccion-orden">
-    <div class="container-fluid">
-        <!-- All content here -->
-    </div>
+<!-- First Module Instance -->
+<div class="mod-acciones-produccion">
+    <form id="shipping-form">...</form>
+    <script>
+        window.submitShippingWithDescription = function() { ... }
+    </script>
+</div>
+
+<!-- Second Module Instance (DUPLICATE) -->
+<div class="mod-acciones-produccion">
+    <form id="shipping-form">...</form> <!-- DUPLICATE ID! -->
+    <script>
+        window.submitShippingWithDescription = function() { ... } <!-- May not execute properly -->
+    </script>
 </div>
 ```
 
-### After:
-```php
-<div class="com-ordenproduccion-orden">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Main Content Area -->
-            <div class="col-lg-9 col-md-8">
-                <!-- All order content here -->
-            </div>
-            
-            <!-- Sidebar for Module Position -->
-            <div class="col-lg-3 col-md-4">
-                <?php 
-                // Load the sidebar-right module position
-                echo $document->loadRenderer('modules')->render('sidebar-right', ['style' => 'default']);
-                ?>
-            </div>
-        </div>
-    </div>
-</div>
-```
+Problems:
+1. **Duplicate DOM IDs**: Multiple elements with `id="shipping-form"` violates HTML standards
+2. **Script Conflicts**: Inline scripts may not execute in expected order
+3. **Function Overwriting**: Second definition might overwrite or fail to define
+4. **getElementById Returns Wrong Element**: May grab the first or second instance randomly
 
 ## Testing Verification
 After this fix, when viewing an orden page:
