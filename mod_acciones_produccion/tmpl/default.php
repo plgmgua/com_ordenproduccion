@@ -238,6 +238,8 @@ $currentUrl = Uri::current();
     </div>
     
     <script>
+    console.log('Module script loading...');
+    
     // Store work order data for JavaScript access
     window.currentOrderData = <?php echo json_encode([
         'id' => $workOrderData->id ?? null,
@@ -250,6 +252,8 @@ $currentUrl = Uri::current();
         'instrucciones_entrega' => $workOrderData->instrucciones_entrega ?? ''
     ]); ?>;
     
+    console.log('currentOrderData set:', window.currentOrderData);
+    
     // Define shipping modal functions in global scope for onclick handlers
     window.closeShippingDescriptionModal = function() {
         const overlay = document.getElementById('shipping-description-modal-overlay');
@@ -257,6 +261,8 @@ $currentUrl = Uri::current();
             overlay.style.display = 'none';
         }
     };
+    
+    console.log('closeShippingDescriptionModal defined');
     
     window.submitShippingWithDescription = function() {
         const shippingForm = document.getElementById('shipping-form');
@@ -479,7 +485,9 @@ $currentUrl = Uri::current();
         
         return params.toString();
     }
-    </script><?php endif; ?>
+    </script>
+    
+    <?php endif; // Close orderId && workOrderData condition ?>
 
     <?php else: ?>
         <div class="alert alert-info">
@@ -488,6 +496,23 @@ $currentUrl = Uri::current();
         </div>
     <?php endif; ?>
 </div>
+
+<!-- Ensure functions are available globally even if there are script errors -->
+<script>
+// Failsafe: Define functions in global scope if not already defined
+if (typeof window.submitShippingWithDescription === 'undefined') {
+    console.warn('submitShippingWithDescription was not defined in module script, defining failsafe');
+    window.submitShippingWithDescription = function() {
+        alert('Error: La función de envío no se cargó correctamente. Por favor, recargue la página.');
+    };
+}
+if (typeof window.closeShippingDescriptionModal === 'undefined') {
+    window.closeShippingDescriptionModal = function() {
+        const overlay = document.getElementById('shipping-description-modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+    };
+}
+</script>
 
 <style>
 .mod-acciones-produccion {
