@@ -23,6 +23,15 @@ $currentUrl = Uri::current();
         <i class="fas fa-tasks"></i> ACCIONES
     </h4>
     
+    <?php 
+    // DEBUG: Check if condition is met
+    error_log("MOD_ACCIONES_PRODUCCION DEBUG - orderId: " . var_export($orderId, true));
+    error_log("MOD_ACCIONES_PRODUCCION DEBUG - workOrderData exists: " . var_export(!empty($workOrderData), true));
+    if (!empty($workOrderData)) {
+        error_log("MOD_ACCIONES_PRODUCCION DEBUG - workOrderData->id: " . var_export($workOrderData->id ?? 'NO ID', true));
+    }
+    ?>
+    
     <?php if ($orderId && $workOrderData): ?>
         
         <!-- PRODUCCION SECTION -->
@@ -490,6 +499,11 @@ $currentUrl = Uri::current();
     <?php endif; // Close orderId && workOrderData condition ?>
 
     <?php else: ?>
+        <!-- DEBUG: Condition failed -->
+        <div class="alert alert-warning" style="margin: 10px 0;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>DEBUG:</strong> Condición no cumplida - orderId: <?php echo var_export($orderId, true); ?>, workOrderData: <?php echo var_export(!empty($workOrderData), true); ?>
+        </div>
         <div class="alert alert-info">
             <i class="fas fa-info-circle"></i>
             No se encontró información de la orden de trabajo.
