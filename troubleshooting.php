@@ -442,4 +442,261 @@ if (!empty($manualEntries)) {
     echo "</table>";
 }
 
+// ============================================
+// MODULE TROUBLESHOOTING SECTION
+// ============================================
+echo "<hr style='margin: 30px 0; border: 2px solid #333;'>";
+echo "<h3>🔧 MODULE TROUBLESHOOTING - mod_acciones_produccion</h3>";
+
+// Get order ID from URL
+$moduleTestOrderId = $_GET['module_test_id'] ?? 0;
+
+echo "<div class='summary'>";
+echo "<strong>Module Diagnostics:</strong> Check shipping slip JavaScript functionality | ";
+echo "<form method='GET' style='display: inline;'>";
+if (isset($_GET['date'])) {
+    echo "<input type='hidden' name='date' value='{$_GET['date']}'>";
+}
+echo "Test Order ID: <input type='number' name='module_test_id' value='{$moduleTestOrderId}' style='margin: 0 5px; width: 100px;'>";
+echo "<button type='submit'>Test Module</button>";
+echo "</form>";
+echo "</div>";
+
+// ============================================
+// Check 1: Module File Checks
+// ============================================
+echo "<h4>1. Module File Checks</h4>";
+
+$moduleFiles = [
+    JPATH_BASE . '/modules/mod_acciones_produccion/mod_acciones_produccion.php' => 'Main Module File',
+    JPATH_BASE . '/modules/mod_acciones_produccion/tmpl/default.php' => 'Template File',
+    JPATH_BASE . '/modules/mod_acciones_produccion/mod_acciones_produccion.xml' => 'Manifest File'
+];
+
+$allModuleFilesExist = true;
+echo "<table>";
+echo "<tr><th>File</th><th>Status</th><th>Size</th><th>Modified</th></tr>";
+foreach ($moduleFiles as $path => $label) {
+    $exists = file_exists($path);
+    $allModuleFilesExist = $allModuleFilesExist && $exists;
+    $rowClass = $exists ? 'ok' : 'error';
+    
+    echo "<tr class='{$rowClass}'>";
+    echo "<td><strong>{$label}</strong><br><small>" . basename($path) . "</small></td>";
+    echo "<td>" . ($exists ? '✅ EXISTS' : '❌ NOT FOUND') . "</td>";
+    echo "<td>" . ($exists ? filesize($path) . ' bytes' : '-') . "</td>";
+    echo "<td>" . ($exists ? date('Y-m-d H:i:s', filemtime($path)) : '-') . "</td>";
+    echo "</tr>";
+}
+echo "</table>";
+
+if (!$allModuleFilesExist) {
+    echo "<p class='error'><strong>⚠️ MODULE FILES MISSING!</strong> Deploy using: <code>sudo ./update_build_simple.sh</code></p>";
+} else {
+    echo "<p class='ok'>✅ All module files present</p>";
+}
+
+// ============================================
+// Check 2: submitShippingWithDescription Function Code
+// ============================================
+echo "<h4>2. submitShippingWithDescription Function Code</h4>";
+
+$templateFile = JPATH_BASE . '/modules/mod_acciones_produccion/tmpl/default.php';
+if (file_exists($templateFile)) {
+    $contents = file_get_contents($templateFile);
+    
+    // Check for the function definition
+    if (strpos($contents, 'window.submitShippingWithDescription') !== false) {
+        echo "<p class='ok'>✅ Function definition FOUND in template file</p>";
+        
+        // Check for the fix (const shippingForm declaration)
+        if (strpos($contents, 'const shippingForm = document.getElementById') !== false) {
+            echo "<p class='ok'>✅ FIXED VERSION: <code>const shippingForm</code> declaration present</p>";
+            
+            // Extract and show the code snippet
+            preg_match('/window\.submitShippingWithDescription\s*=\s*function\(\)\s*\{([^\}]{0,400})/s', $contents, $matches);
+            if (!empty($matches[0])) {
+                echo "<p><strong>Code Snippet (first 400 chars):</strong></p>";
+                echo "<pre style='max-height: 200px; overflow-y: auto;'>" . htmlspecialchars(substr($matches[0], 0, 500)) . "...</pre>";
+            }
+        } else {
+            echo "<p class='error'>❌ BROKEN VERSION: Missing <code>const shippingForm</code> declaration</p>";
+            echo "<p class='error'>This is the bug! The variable is used but never declared.</p>";
+            echo "<p class='warning'>Deploy fix: <code>cd /var/www/grimpsa_webserver && sudo ./update_build_simple.sh</code></p>";
+        }
+        
+        // Check for debug logging
+        if (strpos($contents, "console.log('Module script loading...')") !== false) {
+            echo "<p class='ok'>✅ Debug logging present (helps diagnose issues)</p>";
+        } else {
+            echo "<p class='warning'>⚠️ Debug logging not found (older version)</p>";
+        }
+    } else {
+        echo "<p class='error'>❌ Function definition NOT FOUND in template file</p>";
+    }
+} else {
+    echo "<p class='error'>❌ Template file not found at: {$templateFile}</p>";
+}
+
+// ============================================
+// Check 3: Module Database Registration
+// ============================================
+echo "<h4>3. Module Database Registration</h4>";
+
+try {
+    $moduleQuery = $db->getQuery(true)
+        ->select('*')
+        ->from($db->quoteName('#__modules'))
+        ->where($db->quoteName('module') . ' = ' . $db->quote('mod_acciones_produccion'));
+    
+    $db->setQuery($moduleQuery);
+    $modules = $db->loadObjectList();
+    
+    if (empty($modules)) {
+        echo "<p class='error'>❌ Module NOT registered in database</p>";
+        echo "<p class='error'>Register it: <code>php " . JPATH_BASE . "/modules/mod_acciones_produccion/register_module_joomla5.php</code></p>";
+    } else {
+        echo "<p class='ok'>✅ Module registered in database</p>";
+        echo "<p>Found: <strong>" . count($modules) . "</strong> instance(s)</p>";
+        
+        if (count($modules) > 1) {
+            echo "<p class='warning'>⚠️ MULTIPLE INSTANCES FOUND! This causes duplication and JavaScript conflicts.</p>";
+            echo "<p class='warning'>Delete duplicate instances in: System → Manage → Site Modules</p>";
+        }
+        
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Title</th><th>Position</th><th>Published</th><th>Access</th><th>Ordering</th></tr>";
+        foreach ($modules as $mod) {
+            $publishedClass = $mod->published ? 'ok' : 'error';
+            echo "<tr class='{$publishedClass}'>";
+            echo "<td>{$mod->id}</td>";
+            echo "<td>{$mod->title}</td>";
+            echo "<td><strong>{$mod->position}</strong></td>";
+            echo "<td>" . ($mod->published ? '✅ Published' : '❌ Unpublished') . "</td>";
+            echo "<td>{$mod->access}</td>";
+            echo "<td>{$mod->ordering}</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    }
+} catch (Exception $e) {
+    echo "<p class='error'>❌ Error querying modules: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// ============================================
+// Check 4: Test with Specific Order
+// ============================================
+echo "<h4>4. Test Module Logic with Specific Order</h4>";
+
+if ($moduleTestOrderId > 0) {
+    echo "<p>Testing with Order ID: <strong>{$moduleTestOrderId}</strong></p>";
+    
+    try {
+        $orderQuery = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('id') . ' = ' . (int)$moduleTestOrderId)
+            ->where($db->quoteName('state') . ' = 1');
+        
+        $db->setQuery($orderQuery);
+        $workOrderData = $db->loadObject();
+        
+        if ($workOrderData) {
+            echo "<p class='ok'>✅ Work order data FOUND</p>";
+            echo "<table>";
+            echo "<tr><th>Field</th><th>Value</th></tr>";
+            echo "<tr><td>Order Number</td><td><strong>" . htmlspecialchars($workOrderData->orden_de_trabajo ?? 'N/A') . "</strong></td></tr>";
+            echo "<tr><td>Client</td><td>" . htmlspecialchars($workOrderData->client_name ?? 'N/A') . "</td></tr>";
+            echo "<tr><td>Status</td><td>" . htmlspecialchars($workOrderData->status ?? 'N/A') . "</td></tr>";
+            echo "<tr><td>Order Type</td><td>" . htmlspecialchars($workOrderData->order_type ?? 'N/A') . "</td></tr>";
+            echo "<tr><td>Created</td><td>" . htmlspecialchars($workOrderData->created ?? 'N/A') . "</td></tr>";
+            echo "</table>";
+            
+            echo "<p class='ok'>✅ PHP Condition <code>if (\$orderId && \$workOrderData)</code> would be <strong>TRUE</strong></p>";
+            echo "<p class='ok'>✅ Script block SHOULD be output to HTML</p>";
+            
+            echo "<p><strong>Test in Browser:</strong></p>";
+            echo "<ol>";
+            echo "<li>Open: <a href='/index.php/component/ordenproduccion/?view=orden&id={$moduleTestOrderId}' target='_blank'>Order {$moduleTestOrderId}</a></li>";
+            echo "<li>Press F12 → Console tab</li>";
+            echo "<li>Look for: <code>Module script loading...</code></li>";
+            echo "<li>Check: <code>typeof window.submitShippingWithDescription</code> should be 'function'</li>";
+            echo "</ol>";
+        } else {
+            echo "<p class='error'>❌ Work order data NOT FOUND</p>";
+            echo "<p class='error'>PHP Condition <code>if (\$orderId && \$workOrderData)</code> would be <strong>FALSE</strong></p>";
+            echo "<p class='error'>Script block will NOT be output!</p>";
+            echo "<p>Possible reasons:</p>";
+            echo "<ul>";
+            echo "<li>Order ID {$moduleTestOrderId} doesn't exist</li>";
+            echo "<li>Order state is not 1 (not published)</li>";
+            echo "<li>Order was deleted</li>";
+            echo "</ul>";
+        }
+    } catch (Exception $e) {
+        echo "<p class='error'>❌ Error querying work order: " . htmlspecialchars($e->getMessage()) . "</p>";
+    }
+} else {
+    echo "<p class='warning'>⚠️ No Order ID provided for testing</p>";
+    echo "<p>Enter an order ID above and click 'Test Module' to verify module logic</p>";
+}
+
+// ============================================
+// Check 5: Quick Action Links
+// ============================================
+echo "<h4>5. Quick Actions & Recommendations</h4>";
+
+echo "<div class='summary' style='background: #e7f3ff;'>";
+echo "<p><strong>🚀 Deploy Latest Version:</strong></p>";
+echo "<pre>ssh pgrant@192.168.1.208
+cd /var/www/grimpsa_webserver
+sudo ./update_build_simple.sh</pre>";
+
+echo "<p><strong>🧹 Clear All Caches:</strong></p>";
+echo "<pre>sudo rm -rf /var/www/grimpsa_webserver/administrator/cache/*
+sudo rm -rf /var/www/grimpsa_webserver/cache/*
+sudo systemctl restart php-fpm</pre>";
+
+echo "<p><strong>🔍 Check PHP Error Logs:</strong></p>";
+echo "<pre>tail -50 /var/log/php8.1-fpm/error.log | grep 'MOD_ACCIONES'</pre>";
+
+echo "<p><strong>✅ Test Orders:</strong></p>";
+echo "<p>";
+echo "<a href='?module_test_id=5610" . (isset($_GET['date']) ? "&date={$_GET['date']}" : "") . "' style='display: inline-block; padding: 8px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 2px;'>Test Order 5610</a>";
+echo "<a href='?module_test_id=5613" . (isset($_GET['date']) ? "&date={$_GET['date']}" : "") . "' style='display: inline-block; padding: 8px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 2px;'>Test Order 5613</a>";
+echo "<a href='/index.php/component/ordenproduccion/?view=ordenes' target='_blank' style='display: inline-block; padding: 8px 12px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 2px;'>View All Orders</a>";
+echo "</p>";
+echo "</div>";
+
+// ============================================
+// Summary
+// ============================================
+echo "<div class='summary' style='background: #f0f0f0; margin-top: 20px;'>";
+echo "<h4>📊 Module Troubleshooting Summary</h4>";
+echo "<table style='width: auto;'>";
+echo "<tr><th>Check</th><th>Status</th></tr>";
+echo "<tr><td>Module Files</td><td>" . ($allModuleFilesExist ? '✅ Present' : '❌ Missing') . "</td></tr>";
+echo "<tr><td>Function Code</td><td>" . ((isset($contents) && strpos($contents, 'window.submitShippingWithDescription') !== false) ? '✅ Found' : '❌ Not Found') . "</td></tr>";
+echo "<tr><td>Fix Applied</td><td>" . ((isset($contents) && strpos($contents, 'const shippingForm = document.getElementById') !== false) ? '✅ Yes' : '❌ No') . "</td></tr>";
+echo "<tr><td>Database Registration</td><td>" . ((isset($modules) && !empty($modules)) ? '✅ Registered' : '❌ Not Registered') . "</td></tr>";
+echo "<tr><td>Multiple Instances</td><td>" . ((isset($modules) && count($modules) > 1) ? '⚠️ Yes (BAD)' : '✅ No') . "</td></tr>";
+if ($moduleTestOrderId > 0) {
+    echo "<tr><td>Test Order Data</td><td>" . (isset($workOrderData) && $workOrderData ? '✅ Found' : '❌ Not Found') . "</td></tr>";
+}
+echo "</table>";
+
+echo "<p><strong>Next Steps:</strong></p>";
+echo "<ol>";
+if (!$allModuleFilesExist || !(isset($contents) && strpos($contents, 'const shippingForm = document.getElementById') !== false)) {
+    echo "<li><strong>DEPLOY:</strong> Run <code>sudo ./update_build_simple.sh</code> on server</li>";
+}
+if (isset($modules) && count($modules) > 1) {
+    echo "<li><strong>FIX DUPLICATES:</strong> Delete extra module instances in Joomla Admin</li>";
+}
+echo "<li><strong>CLEAR CACHE:</strong> Delete Joomla cache and restart PHP-FPM</li>";
+echo "<li><strong>TEST:</strong> Open orden page in incognito window with DevTools console</li>";
+echo "<li><strong>VERIFY:</strong> Look for 'Module script loading...' in console</li>";
+echo "</ol>";
+echo "</div>";
+
 echo "</body></html>";
