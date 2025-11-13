@@ -66,6 +66,32 @@ class HistorialHelper
             $userId = $user->id;
         }
 
+        // DUPLICATE PREVENTION: Check if identical entry was created in last 10 seconds
+        // This prevents duplicate entries when window.open() makes a second request after POST
+        try {
+            $checkQuery = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('#__ordenproduccion_historial'))
+                ->where($db->quoteName('order_id') . ' = ' . (int)$orderId)
+                ->where($db->quoteName('event_type') . ' = ' . $db->quote($eventType))
+                ->where($db->quoteName('event_title') . ' = ' . $db->quote($eventTitle))
+                ->where($db->quoteName('event_description') . ' = ' . $db->quote($eventDescription))
+                ->where($db->quoteName('created_by') . ' = ' . (int)$userId)
+                ->where($db->quoteName('created') . ' > DATE_SUB(NOW(), INTERVAL 10 SECOND)');
+            
+            $db->setQuery($checkQuery);
+            $duplicateCount = $db->loadResult();
+            
+            if ($duplicateCount > 0) {
+                // Duplicate entry found within last 10 seconds - skip saving
+                error_log('SHIPPING HISTORY DEBUG - Duplicate entry detected, skipping save for order ' . $orderId . ', event: ' . $eventTitle);
+                return true; // Return true since the entry already exists
+            }
+        } catch (\Exception $e) {
+            // If duplicate check fails, log but continue with save (fail-safe)
+            Log::add('Error checking for duplicate historial entry: ' . $e->getMessage(), Log::WARNING, 'com_ordenproduccion');
+        }
+
         // Build metadata JSON if provided
         $metadataJson = '';
         if (!empty($metadata)) {
