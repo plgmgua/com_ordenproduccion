@@ -340,16 +340,21 @@ $currentUrl = Uri::current();
         })
         .then(response => {
             if (response.ok) {
+                // Open PDF in new tab
                 window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
+                
+                // Show success message briefly, then reload page to show new Historia entries
                 const shippingMessageDiv = document.getElementById('shipping-message');
                 if (shippingMessageDiv) {
-                    shippingMessageDiv.innerHTML = 'Envio generado correctamente';
+                    shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
                     shippingMessageDiv.className = 'shipping-message success';
                     shippingMessageDiv.style.display = 'block';
-                    setTimeout(() => {
-                        shippingMessageDiv.style.display = 'none';
-                    }, 5000);
                 }
+                
+                // Reload page after 1.5 seconds to show new Historia de Eventos entries
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             } else {
                 throw new Error('HTTP error! status: ' + response.status);
             }
@@ -602,16 +607,21 @@ window.submitShippingWithDescription = function() {
     })
     .then(response => {
         if (response.ok) {
+            // Open PDF in new tab
             window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
+            
+            // Show success message briefly, then reload page to show new Historia entries
             const shippingMessageDiv = document.getElementById('shipping-message');
             if (shippingMessageDiv) {
-                shippingMessageDiv.innerHTML = 'Envio generado correctamente';
+                shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
                 shippingMessageDiv.className = 'shipping-message success';
                 shippingMessageDiv.style.display = 'block';
-                setTimeout(() => {
-                    shippingMessageDiv.style.display = 'none';
-                }, 5000);
             }
+            
+            // Reload page after 1.5 seconds to show new Historia de Eventos entries
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
             throw new Error('HTTP error! status: ' + response.status);
         }
@@ -1049,15 +1059,20 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (response.ok) {
+                // Open PDF in new tab
                 window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, '_blank');
+                
+                // Show success message briefly, then reload page to show new Historia entries
                 if (shippingMessageDiv) {
-                    shippingMessageDiv.innerHTML = 'Envio generado correctamente';
+                    shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
                     shippingMessageDiv.className = 'shipping-message success';
                     shippingMessageDiv.style.display = 'block';
-                    setTimeout(() => {
-                        shippingMessageDiv.style.display = 'none';
-                    }, 5000);
                 }
+                
+                // Reload page after 1.5 seconds to show new Historia de Eventos entries
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             } else {
                 throw new Error('HTTP error! status: ' + response.status);
             }
