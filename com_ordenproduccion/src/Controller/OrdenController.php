@@ -164,25 +164,27 @@ class OrdenController extends BaseController
                 return;
             }
 
-            // Only save historial entries on POST requests (initial generation)
-            // Skip saving on GET requests (when just opening/viewing the PDF)
-            $requestMethod = $app->input->server->get('REQUEST_METHOD', 'GET');
-            if ($requestMethod === 'POST') {
-                // Save historial entries for shipping slip generation
+            // Always save historial entries regardless of request method
+            // This ensures history is logged even when opening PDF directly
+            try {
+                // Log the shipping event
+                error_log('SHIPPING HISTORY DEBUG - Order ID: ' . $orderId . ', Tipo: ' . $tipoEnvio . ', Mensajeria: ' . $tipoMensajeria . ', Descripcion: ' . $descripcionEnvio);
+                
                 if ($tipoEnvio === 'completo') {
                     // For "completo", save print event with fixed description
-                    HistorialHelper::saveEntry(
+                    $result = HistorialHelper::saveEntry(
                         $orderId,
                         'shipping_print',
                         'Impresion de Envio',
-                        'Envio completo impreso',
+                        'Envio completo impreso via ' . $tipoMensajeria,
                         $user->id,
                         ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
                     );
+                    error_log('SHIPPING HISTORY DEBUG - Completo save result: ' . var_export($result, true));
                 } else {
                     // For "parcial", save shipping description if provided
                     if (!empty($descripcionEnvio)) {
-                        HistorialHelper::saveEntry(
+                        $result1 = HistorialHelper::saveEntry(
                             $orderId,
                             'shipping_description',
                             'Descripcion de Envio',
@@ -190,18 +192,24 @@ class OrdenController extends BaseController
                             $user->id,
                             ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
                         );
+                        error_log('SHIPPING HISTORY DEBUG - Descripcion save result: ' . var_export($result1, true));
                     }
                     
                     // Also save print event for parcial
-                    HistorialHelper::saveEntry(
+                    $result2 = HistorialHelper::saveEntry(
                         $orderId,
                         'shipping_print',
                         'Impresion de Envio',
-                        'Envio parcial impreso',
+                        'Envio parcial impreso via ' . $tipoMensajeria,
                         $user->id,
-                        ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
+                        ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria, 'descripcion' => $descripcionEnvio]
                     );
+                    error_log('SHIPPING HISTORY DEBUG - Parcial save result: ' . var_export($result2, true));
                 }
+            } catch (Exception $e) {
+                // Log error but don't break PDF generation
+                error_log('SHIPPING HISTORY ERROR: ' . $e->getMessage());
+                $app->enqueueMessage('Advertencia: El envio se genero pero no se registro en el historial.', 'warning');
             }
 
                     // Generate shipping slip PDF using FPDF
