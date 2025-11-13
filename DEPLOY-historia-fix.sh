@@ -33,15 +33,15 @@ else
 fi
 echo ""
 
-# Step 3: Verify HistorialHelper exists
-echo "Step 3: Verifying HistorialHelper..."
-if [ -f "$JOOMLA_ROOT/components/$COMPONENT_NAME/src/Helper/HistorialHelper.php" ]; then
-    echo "✅ HistorialHelper found"
-else
-    echo "⚠️  HistorialHelper not found, copying..."
+# Step 3: Copy HistorialHelper (includes duplicate prevention fix)
+echo "Step 3: Copying HistorialHelper with duplicate prevention..."
+if [ -f "$REPO_DIR/$COMPONENT_NAME/src/Helper/HistorialHelper.php" ]; then
     sudo mkdir -p "$JOOMLA_ROOT/components/$COMPONENT_NAME/src/Helper"
     sudo cp "$REPO_DIR/$COMPONENT_NAME/src/Helper/HistorialHelper.php" "$JOOMLA_ROOT/components/$COMPONENT_NAME/src/Helper/"
-    echo "✅ HistorialHelper copied"
+    echo "✅ HistorialHelper copied (with duplicate detection)"
+else
+    echo "❌ ERROR: HistorialHelper not found in repository"
+    exit 1
 fi
 echo ""
 
@@ -88,9 +88,16 @@ echo "4. For parcial with description, should see 2 records:"
 echo "   - 'Descripcion de Envio' (your text)"
 echo "   - 'Impresion de Envio' (parcial impreso)"
 echo ""
+echo "✅ DUPLICATE PREVENTION:"
+echo "   - If you refresh the page, NO duplicate entries will be created"
+echo "   - Identical entries within 10 seconds are automatically prevented"
+echo ""
 echo "🔍 DEBUG LOGS:"
 echo "Check PHP error log for debug messages:"
 echo "   tail -50 /var/log/php8.2-fpm/error.log | grep 'SHIPPING HISTORY'"
+echo ""
+echo "If you see 'Duplicate entry detected, skipping save' - that's GOOD!"
+echo "It means the duplicate prevention is working."
 echo ""
 echo "🧪 TEST WITH:"
 echo "   Order ID: 5610 or 5613"
