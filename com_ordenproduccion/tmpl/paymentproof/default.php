@@ -144,7 +144,7 @@ $isReadOnly = $this->isReadOnly;
                                             $bankOptions = $this->getBankOptions();
                                             // Get default bank code (if no existing payment)
                                             $defaultBankCode = null;
-                                            if (!$isReadOnly || !$existingPayment) {
+                                            if ((!$isReadOnly || !$existingPayment) && method_exists($this, 'getDefaultBankCode')) {
                                                 $defaultBankCode = $this->getDefaultBankCode();
                                             }
                                             
