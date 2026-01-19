@@ -130,9 +130,15 @@ download_repository() {
 verify_downloaded_files() {
     local repo_path="$1"
     log "Verifying downloaded files..."
+    log "Repository path: $repo_path"
+    
+    # Debug: Show what's actually in the repo
+    log "Repository contents:"
+    ls -la "$repo_path" | head -10
     
     # The component folder is directly in the repo root: com_ordenproduccion/
     local component_source="$repo_path/$COMPONENT_NAME"
+    log "Looking for component at: $component_source"
     
     # Check if essential directories exist in the downloaded repository
     local missing_files=()
@@ -204,28 +210,40 @@ deploy_component() {
     # Copy site component files
     log "Copying site component files..."
     if [ -d "$component_source/site" ]; then
-        # Standard structure with site/ directory
+        # Standard structure with site/ directory - copy everything
         if [ "$USE_SUDO" = true ]; then
             sudo cp -r "$component_source/site/"* "$COMPONENT_PATH/"
         else
             cp -r "$component_source/site/"* "$COMPONENT_PATH/"
         fi
     else
-        # Alternative structure: src/, tmpl/, forms/, language/ directly in component root
+        # Alternative structure: copy all directories and files from component root (except admin, media, and manifest)
         if [ "$USE_SUDO" = true ]; then
-            [ -d "$component_source/src" ] && sudo cp -r "$component_source/src" "$COMPONENT_PATH/" || true
-            [ -d "$component_source/tmpl" ] && sudo cp -r "$component_source/tmpl" "$COMPONENT_PATH/" || true
-            [ -d "$component_source/forms" ] && sudo cp -r "$component_source/forms" "$COMPONENT_PATH/" || true
-            [ -d "$component_source/language" ] && sudo cp -r "$component_source/language" "$COMPONENT_PATH/" || true
-            [ -f "$component_source/ordenproduccion.php" ] && sudo cp "$component_source/ordenproduccion.php" "$COMPONENT_PATH/" || true
-            [ -f "$component_source/index.php" ] && sudo cp "$component_source/index.php" "$COMPONENT_PATH/" || true
+            # Copy all directories
+            for dir in "$component_source"/*; do
+                if [ -d "$dir" ] && [ "$(basename "$dir")" != "admin" ] && [ "$(basename "$dir")" != "media" ]; then
+                    sudo cp -r "$dir" "$COMPONENT_PATH/"
+                fi
+            done
+            # Copy all PHP and other root files (except manifest which goes to admin)
+            for file in "$component_source"/*.php "$component_source"/*.txt "$component_source"/*.md 2>/dev/null; do
+                if [ -f "$file" ] && [ "$(basename "$file")" != "$COMPONENT_NAME.xml" ]; then
+                    sudo cp "$file" "$COMPONENT_PATH/"
+                fi
+            done
         else
-            [ -d "$component_source/src" ] && cp -r "$component_source/src" "$COMPONENT_PATH/" || true
-            [ -d "$component_source/tmpl" ] && cp -r "$component_source/tmpl" "$COMPONENT_PATH/" || true
-            [ -d "$component_source/forms" ] && cp -r "$component_source/forms" "$COMPONENT_PATH/" || true
-            [ -d "$component_source/language" ] && cp -r "$component_source/language" "$COMPONENT_PATH/" || true
-            [ -f "$component_source/ordenproduccion.php" ] && cp "$component_source/ordenproduccion.php" "$COMPONENT_PATH/" || true
-            [ -f "$component_source/index.php" ] && cp "$component_source/index.php" "$COMPONENT_PATH/" || true
+            # Copy all directories
+            for dir in "$component_source"/*; do
+                if [ -d "$dir" ] && [ "$(basename "$dir")" != "admin" ] && [ "$(basename "$dir")" != "media" ]; then
+                    cp -r "$dir" "$COMPONENT_PATH/"
+                fi
+            done
+            # Copy all PHP and other root files (except manifest which goes to admin)
+            for file in "$component_source"/*.php "$component_source"/*.txt "$component_source"/*.md 2>/dev/null; do
+                if [ -f "$file" ] && [ "$(basename "$file")" != "$COMPONENT_NAME.xml" ]; then
+                    cp "$file" "$COMPONENT_PATH/"
+                fi
+            done
         fi
     fi
     
