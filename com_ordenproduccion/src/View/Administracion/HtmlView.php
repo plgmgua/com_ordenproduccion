@@ -87,6 +87,14 @@ class HtmlView extends BaseHtmlView
     protected $workOrdersPagination;
 
     /**
+     * Banks list
+     *
+     * @var    array
+     * @since  3.5.1
+     */
+    protected $banks;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -117,6 +125,7 @@ class HtmlView extends BaseHtmlView
         $this->workOrders = [];
         $this->workOrdersPagination = null;
         $this->state = new \Joomla\Registry\Registry();
+        $this->banks = [];
 
         // Load invoices data if invoices tab is active
         if ($activeTab === 'invoices') {
@@ -198,6 +207,19 @@ class HtmlView extends BaseHtmlView
                 $app->enqueueMessage('Error loading work orders: ' . $e->getMessage(), 'error');
                 $this->workOrders = [];
                 $this->workOrdersPagination = null;
+            }
+        }
+
+        // Load banks data if herramientas tab is active
+        if ($activeTab === 'herramientas') {
+            try {
+                $bankModel = $this->getModel('Bank', 'Site');
+                if ($bankModel) {
+                    $this->banks = $bankModel->getBanks();
+                }
+            } catch (\Exception $e) {
+                $app->enqueueMessage('Error loading banks: ' . $e->getMessage(), 'warning');
+                $this->banks = [];
             }
         }
 

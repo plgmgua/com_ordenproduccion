@@ -261,6 +261,23 @@ class PaymentproofModel extends ItemModel
      */
     public function getBankOptions()
     {
+        // Try to get banks from database first (new method in 3.5.1)
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
+            
+            if ($bankModel && method_exists($bankModel, 'getBankOptions')) {
+                $options = $bankModel->getBankOptions();
+                if (!empty($options)) {
+                    return $options;
+                }
+            }
+        } catch (\Exception $e) {
+            // Fall back to hardcoded list if database table doesn't exist yet
+        }
+        
+        // Fallback to hardcoded list (for backward compatibility)
         return [
             'banco_industrial' => Text::_('COM_ORDENPRODUCCION_BANK_INDUSTRIAL'),
             'banco_gyt' => Text::_('COM_ORDENPRODUCCION_BANK_GYT'),

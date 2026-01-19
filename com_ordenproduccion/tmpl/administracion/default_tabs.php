@@ -83,6 +83,12 @@ $activeTab = $input->get('tab', 'workorders', 'string');
         <i class="fas fa-chart-line"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_STATISTICS'); ?>
     </a>
+    
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas'); ?>" 
+       class="admin-tab <?php echo $activeTab === 'herramientas' ? 'active' : ''; ?>">
+        <i class="fas fa-tools"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_HERRAMIENTAS'); ?>
+    </a>
 </div>
 
 <div class="tab-content">
@@ -106,6 +112,8 @@ $activeTab = $input->get('tab', 'workorders', 'string');
         <?php echo $this->loadTemplate('invoices'); ?>
     <?php elseif ($activeTab === 'statistics'): ?>
         <?php echo $this->loadTemplate('statistics'); ?>
+    <?php elseif ($activeTab === 'herramientas'): ?>
+        <?php echo $this->loadTemplate('herramientas'); ?>
     <?php else: ?>
         <!-- DEBUG: No matching tab found for: <?php echo $activeTab; ?> -->
     <?php endif; ?>
