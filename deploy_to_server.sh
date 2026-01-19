@@ -173,6 +173,23 @@ download_repository() {
     
     success "Repository downloaded successfully to: $REPO_ROOT"
     
+    # Store version info in global variables (these will persist since we're not in a subshell when called correctly)
+    # Note: If this function is called in command substitution, these won't persist, so we also store them in a temp file
+    export DEPLOY_COMMIT_HASH
+    export DEPLOY_COMMIT_FULL_HASH
+    export DEPLOY_COMMIT_MESSAGE
+    export DEPLOY_COMMIT_DATE
+    export DEPLOY_COMMIT_AUTHOR
+    
+    # Store in temp file as backup to ensure variables persist
+    TEMP_VERSION_FILE="/tmp/${COMPONENT_NAME}_deploy_version_$$"
+    echo "DEPLOY_COMMIT_HASH=$DEPLOY_COMMIT_HASH" > "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_FULL_HASH=$DEPLOY_COMMIT_FULL_HASH" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_MESSAGE=$DEPLOY_COMMIT_MESSAGE" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_DATE=$DEPLOY_COMMIT_DATE" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_AUTHOR=$DEPLOY_COMMIT_AUTHOR" >> "$TEMP_VERSION_FILE"
+    export TEMP_VERSION_FILE
+    
     # Display version information prominently
     echo "" >&2
     log "═══════════════════════════════════════════════════════════" >&2
@@ -488,6 +505,11 @@ cleanup() {
         rm -rf "$TEMP_DIR"
         success "Temporary files cleaned up"
     fi
+    
+    # Clean up version temp file
+    if [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
+        rm -f "$TEMP_VERSION_FILE"
+    fi
 }
 
 # Function to display deployment summary
@@ -504,6 +526,13 @@ show_summary() {
     echo ""
     
     # Display version information in summary
+    # Try to load from temp file if variables are not set (command substitution subshell issue)
+    if [ -z "$DEPLOY_COMMIT_HASH" ] || [ "$DEPLOY_COMMIT_HASH" = "unknown" ]; then
+        if [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
+            source "$TEMP_VERSION_FILE"
+        fi
+    fi
+    
     # Use direct variable access and fallback if not set
     local commit_hash="${DEPLOY_COMMIT_HASH:-unknown}"
     local commit_full="${DEPLOY_COMMIT_FULL_HASH:-unknown}"
@@ -550,6 +579,11 @@ main() {
     # Download and verify
     # Since log functions now output to stderr, we can capture stdout (the path) cleanly
     REPO_PATH=$(download_repository)
+    
+    # Load version information from temp file if it exists (because command substitution runs in subshell)
+    if [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
+        source "$TEMP_VERSION_FILE"
+    fi
     
     if [ -z "$REPO_PATH" ] || [ ! -d "$REPO_PATH" ]; then
         error "Failed to get valid repository path: $REPO_PATH"
