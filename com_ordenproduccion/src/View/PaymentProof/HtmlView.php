@@ -140,7 +140,15 @@ class HtmlView extends BaseHtmlView
     public function getBankOptions()
     {
         $model = $this->getModel();
-        return $model->getBankOptions();
+        $options = $model->getBankOptions();
+        
+        // Debug logging to verify what we're getting
+        error_log("PaymentProofView::getBankOptions() - Returning " . count($options) . " banks");
+        if (!empty($options)) {
+            error_log("PaymentProofView::getBankOptions() - Bank codes: " . implode(', ', array_keys($options)));
+        }
+        
+        return $options;
     }
 
     /**

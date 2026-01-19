@@ -245,7 +245,25 @@ class BankModel extends BaseDatabaseModel
      */
     public function getBankOptions()
     {
-        $banks = $this->getBanks();
+        // Force fresh query - no caching
+        $db = $this->getDatabase();
+        
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_banks'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+        
+        $db->setQuery($query);
+        $banks = $db->loadObjectList() ?: [];
+        
+        // Debug: Log what we're getting
+        error_log("BankModel::getBankOptions() - Found " . count($banks) . " banks from database");
+        if (!empty($banks)) {
+            $codes = array_map(function($b) { return $b->code; }, $banks);
+            error_log("BankModel::getBankOptions() - Bank codes: " . implode(', ', $codes));
+        }
+        
         $options = [];
         
         $lang = Factory::getLanguage();
@@ -255,6 +273,7 @@ class BankModel extends BaseDatabaseModel
         foreach ($banks as $bank) {
             // Skip banks without a valid code
             if (empty($bank->code)) {
+                error_log("BankModel::getBankOptions() - Skipping bank ID {$bank->id} - empty code");
                 continue;
             }
             
@@ -268,6 +287,12 @@ class BankModel extends BaseDatabaseModel
                 $name = $bank->name;
             }
             
+            // Skip if we still don't have a name
+            if (empty($name)) {
+                error_log("BankModel::getBankOptions() - Skipping bank ID {$bank->id} ({$bank->code}) - no name");
+                continue;
+            }
+            
             // Use bank code as key - if duplicate codes exist, later one will overwrite
             // but we should log this as it's a data integrity issue
             if (isset($options[$bank->code])) {
@@ -277,6 +302,8 @@ class BankModel extends BaseDatabaseModel
             
             $options[$bank->code] = $name;
         }
+        
+        error_log("BankModel::getBankOptions() - Returning " . count($options) . " options");
         
         return $options;
     }
