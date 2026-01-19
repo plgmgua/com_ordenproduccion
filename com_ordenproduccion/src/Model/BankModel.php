@@ -37,10 +37,17 @@ class BankModel extends BaseDatabaseModel
             ->select('*')
             ->from($db->quoteName('#__ordenproduccion_banks'))
             ->where($db->quoteName('state') . ' = 1')
-            ->order($db->quoteName('ordering') . ' ASC');
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
         
         $db->setQuery($query);
-        return $db->loadObjectList() ?: [];
+        $banks = $db->loadObjectList() ?: [];
+        
+        // Debug: Log if we're missing banks (helps diagnose issues)
+        if (count($banks) < 18) {
+            error_log("BankModel::getBanks() - Found " . count($banks) . " banks, expected at least 18");
+        }
+        
+        return $banks;
     }
 
     /**
