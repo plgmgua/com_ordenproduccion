@@ -524,7 +524,7 @@ $tokenName = Session::getFormToken();
 (function() {
     'use strict';
     
-    const baseUrl = '<?php echo Route::_('index.php?option=com_ordenproduccion', false); ?>';
+    const baseUrl = '<?php echo Route::_('index.php?option=com_ordenproduccion&controller=bank', false); ?>';
     
     // Initialize drag and drop for bank list
     let sortable = null;
@@ -597,26 +597,40 @@ $tokenName = Session::getFormToken();
         e.preventDefault();
         
         const formData = new FormData(this);
-        formData.append('task', 'bank.save');
-        formData.append('format', 'json');
         // Token is already in the form via hidden input
         
-        fetch(baseUrl + '&task=bank.save&format=json', {
+        // Use the correct URL format with controller and task
+        const saveUrl = baseUrl + '&controller=bank&task=save&format=json';
+        
+        fetch(saveUrl, {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            // Check if response is actually JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                // If not JSON, read as text to see what we got
+                return response.text().then(text => {
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response. Check console for details.');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            if (data && data.success) {
                 showAlert('success', data.message);
                 closeBankModal();
                 setTimeout(() => location.reload(), 1000);
             } else {
-                showAlert('error', data.message);
+                const errorMsg = data && data.message ? data.message : 'Error desconocido al guardar el banco';
+                showAlert('error', errorMsg);
             }
         })
         .catch(error => {
-            showAlert('error', 'Error: ' + error.message);
+            console.error('Bank save error:', error);
+            showAlert('error', 'Error: ' + (error.message || 'Error al guardar el banco'));
         });
     });
     
@@ -627,80 +641,107 @@ $tokenName = Session::getFormToken();
         }
         
         const formData = new FormData();
-        formData.append('task', 'bank.delete');
         formData.append('format', 'json');
         formData.append('id', id);
         formData.append('<?php echo $tokenName; ?>', '1');
         
-        fetch(baseUrl + '&task=bank.delete&format=json', {
+        fetch(baseUrl + '&controller=bank&task=delete&format=json', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            if (data && data.success) {
                 showAlert('success', data.message);
                 setTimeout(() => location.reload(), 1000);
             } else {
-                showAlert('error', data.message);
+                showAlert('error', data && data.message ? data.message : 'Error al eliminar el banco');
             }
         })
         .catch(error => {
-            showAlert('error', 'Error: ' + error.message);
+            console.error('Bank delete error:', error);
+            showAlert('error', 'Error: ' + (error.message || 'Error al eliminar el banco'));
         });
     };
     
     // Set default bank
     window.setDefaultBank = function(id) {
         const formData = new FormData();
-        formData.append('task', 'bank.setDefault');
         formData.append('format', 'json');
         formData.append('id', id);
         formData.append('<?php echo $tokenName; ?>', '1');
         
-        fetch(baseUrl + '&task=bank.setDefault&format=json', {
+        fetch(baseUrl + '&controller=bank&task=setDefault&format=json', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            if (data && data.success) {
                 showAlert('success', data.message);
                 setTimeout(() => location.reload(), 1000);
             } else {
-                showAlert('error', data.message);
+                showAlert('error', data && data.message ? data.message : 'Error al establecer banco predeterminado');
             }
         })
         .catch(error => {
-            showAlert('error', 'Error: ' + error.message);
+            console.error('Set default bank error:', error);
+            showAlert('error', 'Error: ' + (error.message || 'Error al establecer banco predeterminado'));
         });
     };
     
     // Reorder banks
     window.reorderBanks = function(order) {
         const formData = new FormData();
-        formData.append('task', 'bank.reorder');
         formData.append('format', 'json');
         order.forEach((id) => {
             formData.append('order[]', id);
         });
         formData.append('<?php echo $tokenName; ?>', '1');
         
-        fetch(baseUrl + '&task=bank.reorder&format=json', {
+        fetch(baseUrl + '&controller=bank&task=reorder&format=json', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            if (data && data.success) {
                 showAlert('success', data.message);
             } else {
-                showAlert('error', data.message);
+                showAlert('error', data && data.message ? data.message : 'Error al reordenar bancos');
                 location.reload();
             }
         })
         .catch(error => {
-            showAlert('error', 'Error: ' + error.message);
+            console.error('Reorder banks error:', error);
+            showAlert('error', 'Error: ' + (error.message || 'Error al reordenar bancos'));
             location.reload();
         });
     };

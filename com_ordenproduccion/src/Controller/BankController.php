@@ -49,15 +49,27 @@ class BankController extends BaseController
         $app = Factory::getApplication();
         $input = $app->input;
         
+        // Get form data - check both POST data and form data
+        $postData = $input->post->getArray();
+        $jform = $input->post->get('jform', [], 'array');
+        
         $data = [
-            'id' => $input->getInt('id', 0),
-            'code' => $input->getString('code', ''),
-            'name' => $input->getString('name', ''),
-            'name_en' => $input->getString('name_en', ''),
-            'name_es' => $input->getString('name_es', ''),
-            'state' => $input->getInt('state', 1),
-            'is_default' => $input->getInt('is_default', 0)
+            'id' => $input->post->getInt('id', $input->getInt('id', 0)),
+            'code' => $input->post->getString('code', $input->getString('code', '')),
+            'name' => $input->post->getString('name', $input->getString('name', '')),
+            'name_en' => $input->post->getString('name_en', $input->getString('name_en', '')),
+            'name_es' => $input->post->getString('name_es', $input->getString('name_es', '')),
+            'state' => $input->post->getInt('state', $input->getInt('state', 1)),
+            'is_default' => $input->post->getInt('is_default', $input->getInt('is_default', 0))
         ];
+        
+        // Also check FormData fields directly (FormData sends as form fields, not nested)
+        if (empty($data['code']) && isset($postData['code'])) {
+            $data['code'] = $postData['code'];
+        }
+        if (empty($data['name']) && isset($postData['name'])) {
+            $data['name'] = $postData['name'];
+        }
 
         // Validate required fields
         if (empty($data['code']) || empty($data['name'])) {
