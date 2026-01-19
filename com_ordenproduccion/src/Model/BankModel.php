@@ -278,20 +278,32 @@ class BankModel extends BaseDatabaseModel
             }
             
             // Use language-specific name if available
-            $name = $isSpanish && !empty($bank->name_es) 
-                ? $bank->name_es 
-                : (!empty($bank->name_en) ? $bank->name_en : $bank->name);
-            
-            // Ensure we have a valid name
-            if (empty($name)) {
+            // Priority: name_es (if Spanish) or name_en (if English) > name (fallback)
+            if ($isSpanish && !empty($bank->name_es)) {
+                $name = $bank->name_es;
+            } elseif (!empty($bank->name_en)) {
+                $name = $bank->name_en;
+            } else {
                 $name = $bank->name;
             }
             
-            // Skip if we still don't have a name
-            if (empty($name)) {
-                error_log("BankModel::getBankOptions() - Skipping bank ID {$bank->id} ({$bank->code}) - no name");
-                continue;
+            // Ensure we have a valid name - use code as absolute last resort
+            if (empty($name) || trim($name) === '') {
+                if (!empty($bank->name)) {
+                    $name = $bank->name;
+                } elseif (!empty($bank->name_en)) {
+                    $name = $bank->name_en;
+                } elseif (!empty($bank->name_es)) {
+                    $name = $bank->name_es;
+                } else {
+                    // Last resort: use code with warning
+                    $name = $bank->code;
+                    error_log("BankModel::getBankOptions() - Bank ID {$bank->id} ({$bank->code}) has no name, using code");
+                }
             }
+            
+            // Trim whitespace
+            $name = trim($name);
             
             // Use bank code as key - if duplicate codes exist, later one will overwrite
             // but we should log this as it's a data integrity issue

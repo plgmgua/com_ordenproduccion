@@ -141,9 +141,23 @@ $isReadOnly = $this->isReadOnly;
                                         </label>
                                         <select name="bank" id="bank" class="form-control" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                                             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_BANK'); ?></option>
-                                            <?php foreach ($this->getBankOptions() as $value => $text) : ?>
-                                                <option value="<?php echo $value; ?>" <?php echo ($isReadOnly && $existingPayment && $existingPayment->bank === $value) ? 'selected' : ''; ?>>
-                                                    <?php echo $text; ?>
+                                            <?php 
+                                            $bankOptions = $this->getBankOptions();
+                                            // Debug: Log what we're getting in the template
+                                            if (empty($bankOptions)) {
+                                                error_log("PaymentProofTemplate: getBankOptions() returned empty array");
+                                            } else {
+                                                error_log("PaymentProofTemplate: getBankOptions() returned " . count($bankOptions) . " banks");
+                                                foreach ($bankOptions as $code => $name) {
+                                                    error_log("PaymentProofTemplate: Bank code='$code', name='$name'");
+                                                }
+                                            }
+                                            foreach ($bankOptions as $value => $text) : 
+                                                // Ensure we have valid text - use value as fallback
+                                                $displayText = !empty($text) ? htmlspecialchars($text, ENT_QUOTES, 'UTF-8') : htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                                            ?>
+                                                <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo ($isReadOnly && $existingPayment && $existingPayment->bank === $value) ? 'selected' : ''; ?>>
+                                                    <?php echo $displayText; ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
