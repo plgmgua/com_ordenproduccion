@@ -1,7 +1,8 @@
 -- Create banks management table
 -- Version 3.5.1
+-- Table prefix: joomla_
 
-CREATE TABLE IF NOT EXISTS `#__ordenproduccion_banks` (
+CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_banks` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
     `code` varchar(100) NOT NULL COMMENT 'Unique bank code (e.g., banco_industrial)',
     `name` varchar(255) NOT NULL COMMENT 'Bank display name',
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_banks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bank management for payment slips';
 
 -- Insert initial banks from hardcoded list
-INSERT INTO `#__ordenproduccion_banks` (`code`, `name`, `name_en`, `name_es`, `ordering`, `is_default`, `state`, `created_by`) VALUES
+INSERT INTO `joomla_ordenproduccion_banks` (`code`, `name`, `name_en`, `name_es`, `ordering`, `is_default`, `state`, `created_by`) VALUES
 ('banco_industrial', 'Banco Industrial', 'Banco Industrial', 'Banco Industrial', 1, 0, 1, 0),
 ('banco_gyt', 'Banco G&T Continental', 'Banco G&T Continental', 'Banco G&T Continental', 2, 0, 1, 0),
 ('banco_promerica', 'Banco Promerica', 'Banco Promerica', 'Banco Promerica', 3, 0, 1, 0),
