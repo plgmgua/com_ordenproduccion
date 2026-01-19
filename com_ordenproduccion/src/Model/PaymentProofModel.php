@@ -269,15 +269,20 @@ class PaymentproofModel extends ItemModel
             
             if ($bankModel && method_exists($bankModel, 'getBankOptions')) {
                 $options = $bankModel->getBankOptions();
-                if (!empty($options)) {
-                    return $options;
-                }
+                // Return database banks even if empty (to allow adding new banks)
+                // Only fallback to hardcoded list if there's an exception
+                return $options;
             }
         } catch (\Exception $e) {
-            // Fall back to hardcoded list if database table doesn't exist yet
+            // Only fall back to hardcoded list if database table doesn't exist yet
+            // Log the error for debugging
+            Factory::getApplication()->enqueueMessage(
+                'Error loading banks from database: ' . $e->getMessage(), 
+                'notice'
+            );
         }
         
-        // Fallback to hardcoded list (for backward compatibility)
+        // Fallback to hardcoded list (for backward compatibility - only if database fails)
         return [
             'banco_industrial' => Text::_('COM_ORDENPRODUCCION_BANK_INDUSTRIAL'),
             'banco_gyt' => Text::_('COM_ORDENPRODUCCION_BANK_GYT'),
