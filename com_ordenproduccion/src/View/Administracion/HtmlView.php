@@ -92,7 +92,7 @@ class HtmlView extends BaseHtmlView
      * @var    array
      * @since  3.5.1
      */
-    protected $banks;
+    protected $banks = [];
 
     /**
      * Display the view
