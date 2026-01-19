@@ -263,28 +263,51 @@ class BankController extends BaseController
      */
     protected function sendJsonResponse($success, $message, $data = [])
     {
-        $app = Factory::getApplication();
-        
-        // Clear any existing output
-        while (ob_get_level()) {
-            ob_end_clean();
+        try {
+            $app = Factory::getApplication();
+            
+            // Clear any existing output buffers safely
+            // Check if output buffering is active before trying to clean
+            while (@ob_get_level() > 0) {
+                @ob_end_clean();
+            }
+            
+            // Prevent Joomla from trying to render the error page
+            $app->allowCache(false);
+            
+            // Set proper headers for JSON response
+            $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+            $app->setHeader('Cache-Control', 'no-cache, must-revalidate', true);
+            $app->setHeader('Expires', 'Mon, 26 Jul 1997 05:00:00 GMT', true);
+            
+            // Send headers (suppress any warnings)
+            try {
+                $app->sendHeaders();
+            } catch (\Exception $e) {
+                // Headers might already be sent, that's okay
+                header('Content-Type: application/json; charset=utf-8', true);
+            }
+            
+            $response = [
+                'success' => $success,
+                'message' => $message,
+                'data' => $data
+            ];
+            
+            echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $app->close();
+        } catch (\Exception $e) {
+            // Fallback: output JSON directly if Joomla methods fail
+            while (@ob_get_level() > 0) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8', true);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error processing request: ' . $e->getMessage(),
+                'data' => []
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
         }
-        
-        // Set proper headers for JSON response
-        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
-        $app->setHeader('Cache-Control', 'no-cache, must-revalidate', true);
-        $app->setHeader('Expires', 'Mon, 26 Jul 1997 05:00:00 GMT', true);
-        
-        // Send headers
-        $app->sendHeaders();
-        
-        $response = [
-            'success' => $success,
-            'message' => $message,
-            'data' => $data
-        ];
-        
-        echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $app->close();
     }
 }
