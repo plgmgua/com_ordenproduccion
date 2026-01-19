@@ -246,9 +246,26 @@ class HtmlView extends BaseHtmlView
             $this->banks = [];
         }
 
-        // Ensure banks property is always set before parent::display() to prevent undefined array key errors
-        // This is important because Joomla's AbstractView may access properties via array notation
+        // Final safeguard: Ensure banks is always an array before parent::display()
+        // This prevents "Undefined array key 'bank'" errors in Joomla's AbstractView
+        // Joomla's AbstractView may access properties via array notation, so we need to ensure
+        // the property exists and is properly initialized
         if (!isset($this->banks) || !is_array($this->banks)) {
+            $this->banks = [];
+        }
+        
+        // Also check via reflection to ensure property is initialized (PHP 7.4+)
+        try {
+            $reflection = new \ReflectionClass($this);
+            $property = $reflection->getProperty('banks');
+            if (!$property->isInitialized($this)) {
+                $this->banks = [];
+            }
+        } catch (\ReflectionException $e) {
+            // If reflection fails, just ensure it's an array
+            $this->banks = [];
+        } catch (\Error $e) {
+            // PHP 7.3 compatibility - ReflectionProperty::isInitialized() doesn't exist
             $this->banks = [];
         }
         
