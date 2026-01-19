@@ -36,31 +36,55 @@ $tokenName = Session::getFormToken();
 .banks-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 30px;
     padding-bottom: 15px;
     border-bottom: 2px solid #dee2e6;
+    gap: 20px;
+}
+
+.header-title-section {
+    flex: 1;
 }
 
 .banks-header h2 {
-    margin: 0;
+    margin: 0 0 8px 0;
     color: #333;
+    font-size: 24px;
+}
+
+.header-description {
+    margin: 0;
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .btn-add-bank {
     background: #667eea;
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: 5px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    transition: background 0.3s;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .btn-add-bank:hover {
     background: #5568d3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-add-bank i {
+    font-size: 16px;
 }
 
 .banks-list {
@@ -342,21 +366,51 @@ $tokenName = Session::getFormToken();
     border-color: #17a2b8;
     color: #0c5460;
 }
+
+.sorting-hint {
+    background: #e7f3ff;
+    border-left: 4px solid #17a2b8;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    color: #0c5460;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sorting-hint i {
+    color: #17a2b8;
+    font-size: 18px;
+}
 </style>
 
 <div class="banks-management-container">
     <div class="banks-header">
-        <h2>
-            <i class="fas fa-university"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_BANKS_MANAGEMENT_TITLE'); ?>
-        </h2>
-        <button class="btn-add-bank" onclick="openBankModal()">
+        <div class="header-title-section">
+            <h2>
+                <i class="fas fa-university"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_BANKS_MANAGEMENT_TITLE'); ?>
+            </h2>
+            <p class="header-description">
+                <?php echo Text::_('COM_ORDENPRODUCCION_BANKS_MANAGEMENT_DESC'); ?>
+            </p>
+        </div>
+        <button class="btn-add-bank" onclick="openBankModal()" title="<?php echo Text::_('COM_ORDENPRODUCCION_BANK_ADD_NEW_DESC'); ?>">
             <i class="fas fa-plus"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_BANK_ADD_NEW'); ?>
         </button>
     </div>
 
     <div id="alert-container"></div>
+
+    <?php if (!empty($banks)): ?>
+        <div class="sorting-hint">
+            <i class="fas fa-info-circle"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_BANKS_SORT_HINT'); ?>
+        </div>
+    <?php endif; ?>
 
     <div class="banks-list" id="banks-list">
         <?php if (empty($banks)): ?>
@@ -458,18 +512,45 @@ $tokenName = Session::getFormToken();
     
     const baseUrl = '<?php echo Route::_('index.php?option=com_ordenproduccion', false); ?>';
     
-    // Initialize drag and drop
-    const banksList = document.getElementById('banks-list');
-    if (banksList) {
-        const sortable = Sortable.create(banksList, {
-            handle: '.bank-handle',
-            animation: 150,
-            onEnd: function(evt) {
-                const order = Array.from(banksList.querySelectorAll('.bank-item')).map(item => item.dataset.id);
-                reorderBanks(order);
+    // Initialize drag and drop for bank list
+    let sortable = null;
+    function initSortable() {
+        const banksList = document.getElementById('banks-list');
+        if (banksList && !sortable) {
+            // Only initialize if there are bank items (not empty state)
+            const bankItems = banksList.querySelectorAll('.bank-item');
+            if (bankItems.length > 0) {
+                sortable = Sortable.create(banksList, {
+                    handle: '.bank-handle',
+                    animation: 150,
+                    ghostClass: 'dragging',
+                    chosenClass: 'chosen',
+                    dragClass: 'dragging',
+                    filter: '.empty-state', // Don't allow dragging empty state
+                    onEnd: function(evt) {
+                        const order = Array.from(banksList.querySelectorAll('.bank-item')).map(item => parseInt(item.dataset.id));
+                        if (order.length > 0 && order.every(id => !isNaN(id))) {
+                            reorderBanks(order);
+                        }
+                    }
+                });
             }
-        });
+        }
     }
+    
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSortable);
+    } else {
+        // DOM already loaded
+        setTimeout(initSortable, 100);
+    }
+    
+    // Re-initialize after bank list updates (called after reload)
+    window.initBankSortable = function() {
+        sortable = null;
+        setTimeout(initSortable, 100);
+    };
     
     // Open modal for new bank
     window.openBankModal = function() {
@@ -580,7 +661,7 @@ $tokenName = Session::getFormToken();
     };
     
     // Reorder banks
-    function reorderBanks(order) {
+    window.reorderBanks = function(order) {
         const formData = new FormData();
         formData.append('task', 'bank.reorder');
         formData.append('format', 'json');

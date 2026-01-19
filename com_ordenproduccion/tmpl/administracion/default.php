@@ -15,6 +15,12 @@ use Joomla\CMS\Language\Text;
 $app = Factory::getApplication();
 $input = $app->input;
 $activeTab = $input->get('tab', 'statistics', 'string');
+
+// Ensure language is loaded
+$lang = $app->getLanguage();
+$lang->load('com_ordenproduccion', JPATH_SITE);
+$lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+$lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 ?>
 
 <div class="admin-dashboard-container">

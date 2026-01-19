@@ -108,14 +108,13 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
         $input = $app->input;
 
-        // Load component language files
+        // Load component language files - standard Joomla way
         $lang = $app->getLanguage();
-        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site/language');
-        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/admin/language');
-
-        // Load component language files early
-        $lang = $app->getLanguage();
+        // Load site language (usually in components/com_ordenproduccion/language)
+        $lang->load('com_ordenproduccion', JPATH_SITE);
+        // Also try loading from component directory directly
         $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        // Load admin language
         $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
         // Get filter parameters

@@ -16,6 +16,12 @@ use Joomla\CMS\Router\Route;
 $app = Factory::getApplication();
 $input = $app->input;
 $activeTab = $input->get('tab', 'workorders', 'string');
+
+// Ensure language is loaded for tabs
+$lang = $app->getLanguage();
+$lang->load('com_ordenproduccion', JPATH_SITE);
+$lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+$lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 ?>
 
 <style>
