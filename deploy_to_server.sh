@@ -226,10 +226,12 @@ deploy_component() {
                 fi
             done
             # Copy all PHP and other root files (except manifest which goes to admin)
-            for file in "$component_source"/*.php "$component_source"/*.txt "$component_source"/*.md 2>/dev/null; do
-                if [ -f "$file" ] && [ "$(basename "$file")" != "$COMPONENT_NAME.xml" ]; then
-                    sudo cp "$file" "$COMPONENT_PATH/"
-                fi
+            for pattern in "*.php" "*.txt" "*.md"; do
+                for file in "$component_source"/$pattern; do
+                    if [ -f "$file" ] && [ "$(basename "$file")" != "$COMPONENT_NAME.xml" ]; then
+                        sudo cp "$file" "$COMPONENT_PATH/"
+                    fi
+                done
             done
         else
             # Copy all directories
@@ -239,10 +241,12 @@ deploy_component() {
                 fi
             done
             # Copy all PHP and other root files (except manifest which goes to admin)
-            for file in "$component_source"/*.php "$component_source"/*.txt "$component_source"/*.md 2>/dev/null; do
-                if [ -f "$file" ] && [ "$(basename "$file")" != "$COMPONENT_NAME.xml" ]; then
-                    cp "$file" "$COMPONENT_PATH/"
-                fi
+            for pattern in "*.php" "*.txt" "*.md"; do
+                for file in "$component_source"/$pattern; do
+                    if [ -f "$file" ] && [ "$(basename "$file")" != "$COMPONENT_NAME.xml" ]; then
+                        cp "$file" "$COMPONENT_PATH/"
+                    fi
+                done
             done
         fi
     fi
