@@ -176,44 +176,48 @@ $isReadOnly = $this->isReadOnly;
                                             // Determine which bank should be selected
                                             // Priority: 1. Existing payment's bank (if readonly), 2. Default bank (if new form), 3. None
                                             $selectedBankCode = null;
-                                            if ($isReadOnly && isset($existingPayment) && !empty($existingPayment->bank)) {
+                                            
+                                            // Debug: Log all relevant values first
+                                            error_log("=== PaymentProofTemplate DEBUG START ===");
+                                            error_log("PaymentProofTemplate: isReadOnly = " . ($isReadOnly ? 'yes' : 'no'));
+                                            error_log("PaymentProofTemplate: existingPayment exists = " . (isset($existingPayment) && !empty($existingPayment) ? 'yes' : 'no'));
+                                            if (isset($existingPayment) && !empty($existingPayment) && isset($existingPayment->bank)) {
+                                                error_log("PaymentProofTemplate: existingPayment->bank = " . $existingPayment->bank);
+                                            }
+                                            error_log("PaymentProofTemplate: defaultBankCode = " . ($defaultBankCode ?: 'null/empty'));
+                                            error_log("PaymentProofTemplate: bankOptions count = " . count($bankOptions));
+                                            
+                                            // Selection logic
+                                            if ($isReadOnly && isset($existingPayment) && !empty($existingPayment) && !empty($existingPayment->bank)) {
+                                                // Case 1: Read-only mode with existing payment - use existing payment's bank
                                                 $selectedBankCode = $existingPayment->bank;
+                                                error_log("PaymentProofTemplate: Using existing payment bank = " . $selectedBankCode);
                                             } elseif (!$isReadOnly && !empty($defaultBankCode)) {
-                                                // For new forms, pre-select default bank
+                                                // Case 2: New form mode with default bank - pre-select default bank
                                                 $selectedBankCode = $defaultBankCode;
+                                                error_log("PaymentProofTemplate: Using default bank = " . $selectedBankCode);
+                                            } else {
+                                                // Case 3: No selection needed
+                                                $selectedBankCode = null;
+                                                error_log("PaymentProofTemplate: No bank selected (isReadOnly=" . ($isReadOnly ? 'yes' : 'no') . ", defaultBankCode=" . ($defaultBankCode ?: 'empty') . ")");
                                             }
                                             
-                                            // Debug: Log what we're getting in the template
-                                            error_log("PaymentProofTemplate: isReadOnly = " . ($isReadOnly ? 'yes' : 'no'));
-                                            error_log("PaymentProofTemplate: existingPayment = " . (isset($existingPayment) && !empty($existingPayment) ? 'yes' : 'no'));
-                                            if (empty($bankOptions)) {
-                                                error_log("PaymentProofTemplate: getBankOptions() returned empty array");
-                                            } else {
-                                                error_log("PaymentProofTemplate: getBankOptions() returned " . count($bankOptions) . " banks");
-                                                error_log("PaymentProofTemplate: Default bank code = " . ($defaultBankCode ?: 'none'));
-                                                error_log("PaymentProofTemplate: Selected bank code = " . ($selectedBankCode ?: 'none'));
-                                                if ($selectedBankCode) {
-                                                    error_log("PaymentProofTemplate: Selected bank exists in options = " . (isset($bankOptions[$selectedBankCode]) ? 'yes' : 'no'));
+                                            error_log("PaymentProofTemplate: Final selectedBankCode = " . ($selectedBankCode ?: 'null'));
+                                            if ($selectedBankCode) {
+                                                $existsInOptions = isset($bankOptions[$selectedBankCode]);
+                                                error_log("PaymentProofTemplate: Selected bank exists in options = " . ($existsInOptions ? 'yes' : 'no'));
+                                                if (!$existsInOptions) {
+                                                    error_log("PaymentProofTemplate: WARNING - Selected bank code '{$selectedBankCode}' not found in options!");
+                                                    $availableCodes = array_keys($bankOptions);
+                                                    error_log("PaymentProofTemplate: Available codes: " . implode(', ', $availableCodes));
                                                 }
                                             }
+                                            error_log("=== PaymentProofTemplate DEBUG END ===");
                                             
-                                            // Show "Select Bank" option only if:
-                                            // 1. No default bank is set AND no existing payment bank, OR
-                                            // 2. It's readonly mode and no existing payment bank
-                                            $showSelectOption = true;
-                                            if ($selectedBankCode && isset($bankOptions[$selectedBankCode])) {
-                                                // If we have a valid selected bank, don't show "Select Bank" option
-                                                $showSelectOption = false;
-                                            } elseif ($isReadOnly && !$selectedBankCode) {
-                                                // In readonly mode, show "Select Bank" if no existing payment bank
-                                                $showSelectOption = true;
-                                            } elseif (!$isReadOnly && !$defaultBankCode) {
-                                                // In new form mode, show "Select Bank" if no default bank is set
-                                                $showSelectOption = true;
-                                            } else {
-                                                $showSelectOption = false;
-                                            }
+                                            // Show "Select Bank" option only if no valid selection
+                                            $showSelectOption = empty($selectedBankCode) || !isset($bankOptions[$selectedBankCode]);
                                             
+                                            // Render options
                                             if ($showSelectOption) {
                                                 echo '<option value="">' . Text::_('COM_ORDENPRODUCCION_SELECT_BANK') . '</option>';
                                             }
@@ -221,10 +225,10 @@ $isReadOnly = $this->isReadOnly;
                                             foreach ($bankOptions as $value => $text) : 
                                                 // Ensure we have valid text - use value as fallback
                                                 $displayText = !empty($text) ? htmlspecialchars($text, ENT_QUOTES, 'UTF-8') : htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-                                                // Check if this option should be selected
-                                                $isSelected = ($selectedBankCode && $value === $selectedBankCode);
+                                                // Check if this option should be selected (strict comparison)
+                                                $isSelected = (!empty($selectedBankCode) && $value === $selectedBankCode);
                                             ?>
-                                                <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isSelected ? 'selected="selected"' : ''; ?>>
+                                                <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $isSelected ? ' selected="selected"' : ''; ?>>
                                                     <?php echo $displayText; ?>
                                                 </option>
                                             <?php endforeach; ?>
