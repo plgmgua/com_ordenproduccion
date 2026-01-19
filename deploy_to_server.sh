@@ -182,13 +182,21 @@ download_repository() {
     export DEPLOY_COMMIT_AUTHOR
     
     # Store in temp file as backup to ensure variables persist
+    # Use a consistent filename pattern so we can find it later
     TEMP_VERSION_FILE="/tmp/${COMPONENT_NAME}_deploy_version_$$"
-    echo "DEPLOY_COMMIT_HASH=$DEPLOY_COMMIT_HASH" > "$TEMP_VERSION_FILE"
-    echo "DEPLOY_COMMIT_FULL_HASH=$DEPLOY_COMMIT_FULL_HASH" >> "$TEMP_VERSION_FILE"
-    echo "DEPLOY_COMMIT_MESSAGE=$DEPLOY_COMMIT_MESSAGE" >> "$TEMP_VERSION_FILE"
-    echo "DEPLOY_COMMIT_DATE=$DEPLOY_COMMIT_DATE" >> "$TEMP_VERSION_FILE"
-    echo "DEPLOY_COMMIT_AUTHOR=$DEPLOY_COMMIT_AUTHOR" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_HASH=\"$DEPLOY_COMMIT_HASH\"" > "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_FULL_HASH=\"$DEPLOY_COMMIT_FULL_HASH\"" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_MESSAGE=\"$DEPLOY_COMMIT_MESSAGE\"" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_DATE=\"$DEPLOY_COMMIT_DATE\"" >> "$TEMP_VERSION_FILE"
+    echo "DEPLOY_COMMIT_AUTHOR=\"$DEPLOY_COMMIT_AUTHOR\"" >> "$TEMP_VERSION_FILE"
     export TEMP_VERSION_FILE
+    
+    # Also store in a known location that can be found later
+    echo "DEPLOY_COMMIT_HASH=\"$DEPLOY_COMMIT_HASH\"" > "/tmp/${COMPONENT_NAME}_deploy_version_latest"
+    echo "DEPLOY_COMMIT_FULL_HASH=\"$DEPLOY_COMMIT_FULL_HASH\"" >> "/tmp/${COMPONENT_NAME}_deploy_version_latest"
+    echo "DEPLOY_COMMIT_MESSAGE=\"$DEPLOY_COMMIT_MESSAGE\"" >> "/tmp/${COMPONENT_NAME}_deploy_version_latest"
+    echo "DEPLOY_COMMIT_DATE=\"$DEPLOY_COMMIT_DATE\"" >> "/tmp/${COMPONENT_NAME}_deploy_version_latest"
+    echo "DEPLOY_COMMIT_AUTHOR=\"$DEPLOY_COMMIT_AUTHOR\"" >> "/tmp/${COMPONENT_NAME}_deploy_version_latest"
     
     # Display version information prominently
     echo "" >&2
@@ -525,9 +533,14 @@ show_summary() {
     echo "Used sudo: $USE_SUDO"
     echo ""
     
-    # Display version information in summary
+    # Display version information in summary - ALWAYS show it
     # Try to load from temp file if variables are not set (command substitution subshell issue)
-    if [ -z "$DEPLOY_COMMIT_HASH" ] || [ "$DEPLOY_COMMIT_HASH" = "unknown" ]; then
+    if [ -z "$DEPLOY_COMMIT_HASH" ] || [ "$DEPLOY_COMMIT_HASH" = "unknown" ] || [ "$DEPLOY_COMMIT_HASH" = "" ]; then
+        # Try to find the temp version file
+        if [ -z "$TEMP_VERSION_FILE" ]; then
+            # Look for the most recent temp version file
+            TEMP_VERSION_FILE=$(ls -t /tmp/${COMPONENT_NAME}_deploy_version_* 2>/dev/null | head -1)
+        fi
         if [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
             source "$TEMP_VERSION_FILE"
         fi
@@ -540,22 +553,18 @@ show_summary() {
     local commit_date="${DEPLOY_COMMIT_DATE:-unknown}"
     local commit_author="${DEPLOY_COMMIT_AUTHOR:-unknown}"
     
-    if [ -n "$commit_hash" ] && [ "$commit_hash" != "unknown" ]; then
-        echo ""
-        log "═══════════════════════════════════════════════════════════"
-        log "              DEPLOYED VERSION INFORMATION"
-        log "═══════════════════════════════════════════════════════════"
-        echo "Commit Hash (short): $commit_hash"
-        echo "Commit Hash (full):  $commit_full"
-        echo "Commit Message:      $commit_msg"
-        echo "Commit Date:         $commit_date"
-        echo "Commit Author:       $commit_author"
-        log "═══════════════════════════════════════════════════════════"
-        echo ""
-    else
-        # Show placeholder if version info is not available
-        warning "Version information not available (commit hash not found)"
-    fi
+    # ALWAYS display version section in summary
+    echo ""
+    log "═══════════════════════════════════════════════════════════"
+    log "              DEPLOYED VERSION INFORMATION"
+    log "═══════════════════════════════════════════════════════════"
+    echo "Commit Hash (short): $commit_hash"
+    echo "Commit Hash (full):  $commit_full"
+    echo "Commit Message:      $commit_msg"
+    echo "Commit Date:         $commit_date"
+    echo "Commit Author:       $commit_author"
+    log "═══════════════════════════════════════════════════════════"
+    echo ""
     
     success "✅ Component deployed successfully!"
     log "Next steps:"
@@ -580,9 +589,18 @@ main() {
     # Since log functions now output to stderr, we can capture stdout (the path) cleanly
     REPO_PATH=$(download_repository)
     
-    # Load version information from temp file if it exists (because command substitution runs in subshell)
-    if [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
+    # Load version information from temp file (because command substitution runs in subshell)
+    # Try multiple locations to ensure we find the version file
+    if [ -f "/tmp/${COMPONENT_NAME}_deploy_version_latest" ]; then
+        source "/tmp/${COMPONENT_NAME}_deploy_version_latest"
+    elif [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
         source "$TEMP_VERSION_FILE"
+    else
+        # Try to find the most recent version file
+        TEMP_VERSION_FILE=$(ls -t /tmp/${COMPONENT_NAME}_deploy_version_* 2>/dev/null | head -1)
+        if [ -n "$TEMP_VERSION_FILE" ] && [ -f "$TEMP_VERSION_FILE" ]; then
+            source "$TEMP_VERSION_FILE"
+        fi
     fi
     
     if [ -z "$REPO_PATH" ] || [ ! -d "$REPO_PATH" ]; then
