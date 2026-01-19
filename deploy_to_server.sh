@@ -132,13 +132,31 @@ verify_downloaded_files() {
     log "Verifying downloaded files..."
     log "Repository path: $repo_path"
     
-    # Debug: Show what's actually in the repo
+    # Debug: Show what's actually in the repo (without color codes in ls output)
     log "Repository contents:"
-    ls -la "$repo_path" | head -10
+    /bin/ls -la "$repo_path" 2>/dev/null | head -10 || log "Could not list repository contents"
     
     # The component folder is directly in the repo root: com_ordenproduccion/
+    # But check both possible locations
     local component_source="$repo_path/$COMPONENT_NAME"
-    log "Looking for component at: $component_source"
+    
+    # Check if component_source exists, if not, maybe repo_path itself is the component
+    if [ ! -d "$component_source" ] || [ ! -d "$component_source/admin" ]; then
+        log "Component not found at: $component_source"
+        log "Checking if repo_path itself contains component structure..."
+        # Maybe the repo_path IS the component folder (if cloned differently)
+        if [ -d "$repo_path/admin" ]; then
+            log "Found component structure directly in repo_path"
+            component_source="$repo_path"
+        else
+            error "Cannot find component directory. Checked: $component_source and $repo_path"
+            error "Repository structure:"
+            /bin/ls -la "$repo_path" 2>/dev/null || true
+            exit 1
+        fi
+    fi
+    
+    log "Using component source: $component_source"
     
     # Check if essential directories exist in the downloaded repository
     local missing_files=()
@@ -192,9 +210,20 @@ verify_downloaded_files() {
 # Function to deploy component files
 deploy_component() {
     local repo_path="$1"
-    local component_source="$repo_path/$COMPONENT_NAME"
     
-    log "Deploying component files..."
+    # Determine component source - check both possible locations
+    local component_source="$repo_path/$COMPONENT_NAME"
+    if [ ! -d "$component_source" ] || [ ! -d "$component_source/admin" ]; then
+        # Maybe repo_path itself is the component folder
+        if [ -d "$repo_path/admin" ]; then
+            component_source="$repo_path"
+            log "Using repo_path as component source"
+        fi
+    else
+        log "Using $component_source as component source"
+    fi
+    
+    log "Deploying component files from: $component_source"
     
     # Create component directories
     if [ "$USE_SUDO" = true ]; then
