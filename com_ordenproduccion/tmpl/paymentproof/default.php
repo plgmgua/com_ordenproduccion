@@ -161,20 +161,58 @@ $isReadOnly = $this->isReadOnly;
                                         </label>
                                         <select name="bank" id="bank" class="form-control" <?php echo $isReadOnly ? 'disabled' : ''; ?> <?php echo !$isReadOnly ? 'required' : ''; ?>>
                                             <?php 
-                                            // Get bank options from view
+                                            // Get bank options - try multiple methods to ensure we get the data
                                             $bankOptions = [];
-                                            if (method_exists($this, 'getBankOptions')) {
-                                                $bankOptions = $this->getBankOptions();
-                                            } else {
-                                                // Fallback: try to get from model
+                                            
+                                            // Method 1: Try view method (preferred)
+                                            try {
+                                                if (method_exists($this, 'getBankOptions')) {
+                                                    $bankOptions = $this->getBankOptions();
+                                                    error_log("PaymentProofTemplate: Got " . count($bankOptions) . " banks from View::getBankOptions()");
+                                                }
+                                            } catch (\Exception $e) {
+                                                error_log("PaymentProofTemplate: Error calling View::getBankOptions() - " . $e->getMessage());
+                                            }
+                                            
+                                            // Method 2: Fallback to PaymentProofModel if view method failed or returned empty
+                                            if (empty($bankOptions)) {
                                                 try {
-                                                    $model = $this->getModel();
+                                                    $model = $this->getModel('PaymentProof');
                                                     if ($model && method_exists($model, 'getBankOptions')) {
                                                         $bankOptions = $model->getBankOptions();
+                                                        error_log("PaymentProofTemplate: Got " . count($bankOptions) . " banks from PaymentProofModel::getBankOptions()");
                                                     }
                                                 } catch (\Exception $e) {
-                                                    error_log("PaymentProofTemplate: Could not get bank options - " . $e->getMessage());
+                                                    error_log("PaymentProofTemplate: Error calling PaymentProofModel::getBankOptions() - " . $e->getMessage());
                                                 }
+                                            }
+                                            
+                                            // Method 3: Last resort - directly use BankModel (most reliable)
+                                            if (empty($bankOptions)) {
+                                                try {
+                                                    $app = Factory::getApplication();
+                                                    $component = $app->bootComponent('com_ordenproduccion');
+                                                    $mvcFactory = $component->getMVCFactory();
+                                                    $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
+                                                    
+                                                    if ($bankModel && method_exists($bankModel, 'getBankOptions')) {
+                                                        $bankOptions = $bankModel->getBankOptions();
+                                                        error_log("PaymentProofTemplate: Got " . count($bankOptions) . " banks directly from BankModel::getBankOptions()");
+                                                    } else {
+                                                        error_log("PaymentProofTemplate: BankModel could not be created or getBankOptions() method missing");
+                                                    }
+                                                } catch (\Exception $e) {
+                                                    error_log("PaymentProofTemplate: Error directly accessing BankModel - " . $e->getMessage());
+                                                    error_log("PaymentProofTemplate: Stack trace: " . $e->getTraceAsString());
+                                                }
+                                            }
+                                            
+                                            // Final check - if still empty, log detailed error
+                                            if (empty($bankOptions)) {
+                                                error_log("PaymentProofTemplate: CRITICAL - All methods failed to get bank options! Dropdown will be empty.");
+                                            } else {
+                                                error_log("PaymentProofTemplate: Successfully loaded " . count($bankOptions) . " bank options");
+                                                error_log("PaymentProofTemplate: Bank codes: " . implode(', ', array_keys($bankOptions)));
                                             }
                                             
                                             // Get default bank code - try view first, then model
