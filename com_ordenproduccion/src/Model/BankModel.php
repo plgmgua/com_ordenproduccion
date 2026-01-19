@@ -246,10 +246,27 @@ class BankModel extends BaseDatabaseModel
         $isSpanish = (strpos($langTag, 'es') === 0);
         
         foreach ($banks as $bank) {
+            // Skip banks without a valid code
+            if (empty($bank->code)) {
+                continue;
+            }
+            
             // Use language-specific name if available
             $name = $isSpanish && !empty($bank->name_es) 
                 ? $bank->name_es 
                 : (!empty($bank->name_en) ? $bank->name_en : $bank->name);
+            
+            // Ensure we have a valid name
+            if (empty($name)) {
+                $name = $bank->name;
+            }
+            
+            // Use bank code as key - if duplicate codes exist, later one will overwrite
+            // but we should log this as it's a data integrity issue
+            if (isset($options[$bank->code])) {
+                // Duplicate code detected - log for debugging
+                error_log("Warning: Duplicate bank code found: {$bank->code} for bank ID {$bank->id}");
+            }
             
             $options[$bank->code] = $name;
         }
