@@ -261,7 +261,7 @@ class PaymentproofModel extends ItemModel
      */
     public function getBankOptions()
     {
-        // Try to get banks from database first (new method in 3.5.1)
+        // ALWAYS try to get banks from database first (new method in 3.5.1)
         try {
             $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
             $mvcFactory = $component->getMVCFactory();
@@ -269,21 +269,31 @@ class PaymentproofModel extends ItemModel
             
             if ($bankModel && method_exists($bankModel, 'getBankOptions')) {
                 $options = $bankModel->getBankOptions();
-                // Return database banks even if empty (to allow adding new banks)
-                // Only fallback to hardcoded list if there's an exception
+                // ALWAYS return database banks - even if empty array
+                // This ensures deleted banks are not shown
                 return $options;
             }
+            
+            // If model doesn't exist, log and return empty array instead of hardcoded fallback
+            error_log("PaymentProofModel::getBankOptions() - BankModel could not be created");
+            return [];
+            
         } catch (\Exception $e) {
-            // Only fall back to hardcoded list if database table doesn't exist yet
-            // Log the error for debugging
-            Factory::getApplication()->enqueueMessage(
-                'Error loading banks from database: ' . $e->getMessage(), 
-                'notice'
-            );
-        }
-        
-        // Fallback to hardcoded list (for backward compatibility - only if database fails)
-        return [
+            // Log the exception for debugging
+            error_log("PaymentProofModel::getBankOptions() - Exception: " . $e->getMessage());
+            
+            // Only fall back to hardcoded list if it's a database table missing error
+            // For all other errors, return empty array to avoid showing stale hardcoded banks
+            if (strpos($e->getMessage(), 'doesn\'t exist') !== false || 
+                strpos($e->getMessage(), 'Table') !== false) {
+                // Database table doesn't exist yet - use fallback during initial setup
+                Factory::getApplication()->enqueueMessage(
+                    'Error loading banks from database: ' . $e->getMessage(), 
+                    'notice'
+                );
+                
+                // Fallback to hardcoded list ONLY if table doesn't exist
+                return [
             'banco_industrial' => Text::_('COM_ORDENPRODUCCION_BANK_INDUSTRIAL'),
             'banco_gyt' => Text::_('COM_ORDENPRODUCCION_BANK_GYT'),
             'banco_promerica' => Text::_('COM_ORDENPRODUCCION_BANK_PROMERICA'),
@@ -301,6 +311,11 @@ class PaymentproofModel extends ItemModel
             'banco_rural' => Text::_('COM_ORDENPRODUCCION_BANK_RURAL'),
             'banco_salud' => Text::_('COM_ORDENPRODUCCION_BANK_SALUD'),
             'banco_vivibanco' => Text::_('COM_ORDENPRODUCCION_BANK_VIVIBANCO')
-        ];
+                ];
+            }
+            
+            // For all other exceptions, return empty array to force using database only
+            return [];
+        }
     }
 }

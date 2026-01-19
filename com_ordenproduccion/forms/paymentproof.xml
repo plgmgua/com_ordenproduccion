@@ -32,23 +32,11 @@
             default=""
         >
             <option value="">COM_ORDENPRODUCCION_SELECT_BANK</option>
-            <option value="banco_industrial">COM_ORDENPRODUCCION_BANK_INDUSTRIAL</option>
-            <option value="banco_gyt">COM_ORDENPRODUCCION_BANK_GYT</option>
-            <option value="banco_promerica">COM_ORDENPRODUCCION_BANK_PROMERICA</option>
-            <option value="banco_agricola">COM_ORDENPRODUCCION_BANK_AGRICOLA</option>
-            <option value="banco_azteca">COM_ORDENPRODUCCION_BANK_AZTECA</option>
-            <option value="banco_citibank">COM_ORDENPRODUCCION_BANK_CITIBANK</option>
-            <option value="banco_davivienda">COM_ORDENPRODUCCION_BANK_DAVIVIENDA</option>
-            <option value="banco_ficohsa">COM_ORDENPRODUCCION_BANK_FICOHSA</option>
-            <option value="banco_gyte">COM_ORDENPRODUCCION_BANK_GYTE</option>
-            <option value="banco_inmobiliario">COM_ORDENPRODUCCION_BANK_INMOBILIARIO</option>
-            <option value="banco_internacional">COM_ORDENPRODUCCION_BANK_INTERNACIONAL</option>
-            <option value="banco_metropolitano">COM_ORDENPRODUCCION_BANK_METROPOLITANO</option>
-            <option value="banco_promerica_guatemala">COM_ORDENPRODUCCION_BANK_PROMERICA_GUATEMALA</option>
-            <option value="banco_refaccionario">COM_ORDENPRODUCCION_BANK_REFACCIONARIO</option>
-            <option value="banco_rural">COM_ORDENPRODUCCION_BANK_RURAL</option>
-            <option value="banco_salud">COM_ORDENPRODUCCION_BANK_SALUD</option>
-            <option value="banco_vivibanco">COM_ORDENPRODUCCION_BANK_VIVIBANCO</option>
+            <!-- 
+                Bank options are now loaded dynamically from the database via PaymentProofModel::getBankOptions()
+                Hardcoded options have been removed to ensure database is the single source of truth.
+                Banks are managed via Component > Orden Produccion > Administracion > Herramientas > Bancos
+            -->
         </field>
 
         <field
