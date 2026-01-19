@@ -157,20 +157,29 @@ $isReadOnly = $this->isReadOnly;
                                                 }
                                             }
                                             
-                                            // Get default bank code
+                                            // Get default bank code - try view first, then model
                                             $defaultBankCode = null;
-                                            if (method_exists($this, 'getDefaultBankCode')) {
-                                                $defaultBankCode = $this->getDefaultBankCode();
-                                            } else {
-                                                // Fallback: try to get from model
-                                                try {
-                                                    $model = $this->getModel('PaymentProof');
-                                                    if ($model && method_exists($model, 'getDefaultBankCode')) {
-                                                        $defaultBankCode = $model->getDefaultBankCode();
-                                                    }
-                                                } catch (\Exception $e) {
-                                                    // Ignore - will use null
+                                            try {
+                                                // First try view method
+                                                if (method_exists($this, 'getDefaultBankCode')) {
+                                                    $defaultBankCode = $this->getDefaultBankCode();
+                                                    error_log("PaymentProofTemplate: Got default bank from View::getDefaultBankCode() = " . ($defaultBankCode ?: 'null'));
                                                 }
+                                                
+                                                // Fallback: try model if view method didn't return anything
+                                                if (empty($defaultBankCode)) {
+                                                    try {
+                                                        $model = $this->getModel('PaymentProof');
+                                                        if ($model && method_exists($model, 'getDefaultBankCode')) {
+                                                            $defaultBankCode = $model->getDefaultBankCode();
+                                                            error_log("PaymentProofTemplate: Got default bank from Model::getDefaultBankCode() = " . ($defaultBankCode ?: 'null'));
+                                                        }
+                                                    } catch (\Exception $e) {
+                                                        error_log("PaymentProofTemplate: Error getting default bank from model - " . $e->getMessage());
+                                                    }
+                                                }
+                                            } catch (\Exception $e) {
+                                                error_log("PaymentProofTemplate: Error getting default bank code - " . $e->getMessage());
                                             }
                                             
                                             // Determine which bank should be selected

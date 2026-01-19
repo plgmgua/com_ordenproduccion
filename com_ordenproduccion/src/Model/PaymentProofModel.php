@@ -328,4 +328,30 @@ class PaymentproofModel extends ItemModel
             return [];
         }
     }
+
+    /**
+     * Get default bank code
+     *
+     * @return  string|null  Default bank code or null if no default set
+     *
+     * @since   3.5.3
+     */
+    public function getDefaultBankCode()
+    {
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
+            
+            if ($bankModel && method_exists($bankModel, 'getDefaultBankCode')) {
+                $defaultCode = $bankModel->getDefaultBankCode();
+                error_log("PaymentProofModel::getDefaultBankCode() - Default bank code: " . ($defaultCode ?: 'none'));
+                return $defaultCode;
+            }
+        } catch (\Exception $e) {
+            error_log("PaymentProofModel::getDefaultBankCode() - Exception: " . $e->getMessage());
+        }
+        
+        return null;
+    }
 }
