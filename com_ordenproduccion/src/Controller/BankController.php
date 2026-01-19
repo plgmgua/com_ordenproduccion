@@ -49,27 +49,17 @@ class BankController extends BaseController
         $app = Factory::getApplication();
         $input = $app->input;
         
-        // Get form data - check both POST data and form data
-        $postData = $input->post->getArray();
-        $jform = $input->post->get('jform', [], 'array');
-        
+        // Get form data - FormData sends fields directly as POST data
         $data = [
-            'id' => $input->post->getInt('id', $input->getInt('id', 0)),
-            'code' => $input->post->getString('code', $input->getString('code', '')),
-            'name' => $input->post->getString('name', $input->getString('name', '')),
-            'name_en' => $input->post->getString('name_en', $input->getString('name_en', '')),
-            'name_es' => $input->post->getString('name_es', $input->getString('name_es', '')),
-            'state' => $input->post->getInt('state', $input->getInt('state', 1)),
-            'is_default' => $input->post->getInt('is_default', $input->getInt('is_default', 0))
+            'id' => $input->post->getInt('id', 0),
+            'code' => $input->post->getString('code', ''),
+            'name' => $input->post->getString('name', ''),
+            'name_en' => $input->post->getString('name_en', ''),
+            'name_es' => $input->post->getString('name_es', ''),
+            'state' => $input->post->getInt('state', 1),
+            // Checkbox: if checked, value is '1', if unchecked, field is not sent (defaults to 0)
+            'is_default' => $input->post->get('is_default', 0) == '1' || $input->post->getInt('is_default', 0) == 1 ? 1 : 0
         ];
-        
-        // Also check FormData fields directly (FormData sends as form fields, not nested)
-        if (empty($data['code']) && isset($postData['code'])) {
-            $data['code'] = $postData['code'];
-        }
-        if (empty($data['name']) && isset($postData['name'])) {
-            $data['name'] = $postData['name'];
-        }
 
         // Validate required fields
         if (empty($data['code']) || empty($data['name'])) {
