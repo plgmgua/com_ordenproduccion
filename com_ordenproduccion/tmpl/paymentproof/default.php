@@ -162,125 +162,71 @@ $isReadOnly = $this->isReadOnly;
                                         </label>
                                         <select name="bank" id="bank" class="form-control" <?php echo $isReadOnly ? 'disabled' : ''; ?> <?php echo !$isReadOnly ? 'required' : ''; ?>>
                                             <?php 
-                                            // Get bank options - try multiple methods to ensure we get the data
+                                            // DIRECT DATABASE QUERY - NO FALLBACKS (using working solution from test dropdown)
                                             $bankOptions = [];
-                                            
-                                            // Method 1: Try view method (preferred)
-                                            try {
-                                                if (method_exists($this, 'getBankOptions')) {
-                                                    $bankOptions = $this->getBankOptions();
-                                                    error_log("PaymentProofTemplate: Got " . count($bankOptions) . " banks from View::getBankOptions()");
-                                                }
-                                            } catch (\Exception $e) {
-                                                error_log("PaymentProofTemplate: Error calling View::getBankOptions() - " . $e->getMessage());
-                                            }
-                                            
-                                            // Method 2: Fallback to PaymentProofModel if view method failed or returned empty
-                                            if (empty($bankOptions)) {
-                                                try {
-                                                    $model = $this->getModel('PaymentProof');
-                                                    if ($model && method_exists($model, 'getBankOptions')) {
-                                                        $bankOptions = $model->getBankOptions();
-                                                        error_log("PaymentProofTemplate: Got " . count($bankOptions) . " banks from PaymentProofModel::getBankOptions()");
-                                                    }
-                                                } catch (\Exception $e) {
-                                                    error_log("PaymentProofTemplate: Error calling PaymentProofModel::getBankOptions() - " . $e->getMessage());
-                                                }
-                                            }
-                                            
-                                            // Method 3: Last resort - directly use BankModel (most reliable)
-                                            if (empty($bankOptions)) {
-                                                try {
-                                                    $app = Factory::getApplication();
-                                                    $component = $app->bootComponent('com_ordenproduccion');
-                                                    $mvcFactory = $component->getMVCFactory();
-                                                    $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
-                                                    
-                                                    if ($bankModel && method_exists($bankModel, 'getBankOptions')) {
-                                                        $bankOptions = $bankModel->getBankOptions();
-                                                        error_log("PaymentProofTemplate: Got " . count($bankOptions) . " banks directly from BankModel::getBankOptions()");
-                                                    } else {
-                                                        error_log("PaymentProofTemplate: BankModel could not be created or getBankOptions() method missing");
-                                                    }
-                                                } catch (\Exception $e) {
-                                                    error_log("PaymentProofTemplate: Error directly accessing BankModel - " . $e->getMessage());
-                                                    error_log("PaymentProofTemplate: Stack trace: " . $e->getTraceAsString());
-                                                }
-                                            }
-                                            
-                                            // Final check - if still empty, log detailed error
-                                            if (empty($bankOptions)) {
-                                                error_log("PaymentProofTemplate: CRITICAL - All methods failed to get bank options! Dropdown will be empty.");
-                                            } else {
-                                                error_log("PaymentProofTemplate: Successfully loaded " . count($bankOptions) . " bank options");
-                                                error_log("PaymentProofTemplate: Bank codes: " . implode(', ', array_keys($bankOptions)));
-                                            }
-                                            
-                                            // Get default bank code - try view first, then model
                                             $defaultBankCode = null;
+                                            
                                             try {
-                                                // First try view method
-                                                if (method_exists($this, 'getDefaultBankCode')) {
-                                                    $defaultBankCode = $this->getDefaultBankCode();
-                                                    error_log("PaymentProofTemplate: Got default bank from View::getDefaultBankCode() = " . ($defaultBankCode ?: 'null'));
+                                                $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+                                                
+                                                // Get all banks directly from database
+                                                $query = $db->getQuery(true)
+                                                    ->select('id, code, name, name_es, name_en, ordering, is_default, state')
+                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
+                                                    ->where($db->quoteName('state') . ' = 1')
+                                                    ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+                                                
+                                                $db->setQuery($query);
+                                                $banks = $db->loadObjectList() ?: [];
+                                                
+                                                // Get default bank code directly
+                                                $defaultQuery = $db->getQuery(true)
+                                                    ->select($db->quoteName('code'))
+                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
+                                                    ->where($db->quoteName('is_default') . ' = 1')
+                                                    ->where($db->quoteName('state') . ' = 1');
+                                                $db->setQuery($defaultQuery);
+                                                $defaultBankCode = $db->loadResult();
+                                                
+                                                // Process banks into options array
+                                                $lang = Factory::getLanguage();
+                                                $langTag = $lang->getTag();
+                                                $isSpanish = (strpos($langTag, 'es') === 0);
+                                                
+                                                foreach ($banks as $bank) {
+                                                    if (empty($bank->code)) {
+                                                        continue;
+                                                    }
+                                                    
+                                                    // Select name based on language
+                                                    if ($isSpanish && !empty($bank->name_es)) {
+                                                        $displayName = trim($bank->name_es);
+                                                    } elseif (!empty($bank->name_en)) {
+                                                        $displayName = trim($bank->name_en);
+                                                    } elseif (!empty($bank->name)) {
+                                                        $displayName = trim($bank->name);
+                                                    } else {
+                                                        $displayName = $bank->code; // Last resort
+                                                    }
+                                                    
+                                                    $bankOptions[$bank->code] = $displayName;
                                                 }
                                                 
-                                                // Fallback: try model if view method didn't return anything
-                                                if (empty($defaultBankCode)) {
-                                                    try {
-                                                        $model = $this->getModel('PaymentProof');
-                                                        if ($model && method_exists($model, 'getDefaultBankCode')) {
-                                                            $defaultBankCode = $model->getDefaultBankCode();
-                                                            error_log("PaymentProofTemplate: Got default bank from Model::getDefaultBankCode() = " . ($defaultBankCode ?: 'null'));
-                                                        }
-                                                    } catch (\Exception $e) {
-                                                        error_log("PaymentProofTemplate: Error getting default bank from model - " . $e->getMessage());
-                                                    }
-                                                }
                                             } catch (\Exception $e) {
-                                                error_log("PaymentProofTemplate: Error getting default bank code - " . $e->getMessage());
+                                                error_log("PaymentProofTemplate: Error loading banks from database - " . $e->getMessage());
                                             }
                                             
                                             // Determine which bank should be selected
                                             // Priority: 1. Existing payment's bank (if readonly), 2. Default bank (if new form), 3. None
                                             $selectedBankCode = null;
                                             
-                                            // Debug: Log all relevant values first
-                                            error_log("=== PaymentProofTemplate DEBUG START ===");
-                                            error_log("PaymentProofTemplate: isReadOnly = " . ($isReadOnly ? 'yes' : 'no'));
-                                            error_log("PaymentProofTemplate: existingPayment exists = " . (isset($existingPayment) && !empty($existingPayment) ? 'yes' : 'no'));
-                                            if (isset($existingPayment) && !empty($existingPayment) && isset($existingPayment->bank)) {
-                                                error_log("PaymentProofTemplate: existingPayment->bank = " . $existingPayment->bank);
-                                            }
-                                            error_log("PaymentProofTemplate: defaultBankCode = " . ($defaultBankCode ?: 'null/empty'));
-                                            error_log("PaymentProofTemplate: bankOptions count = " . count($bankOptions));
-                                            
-                                            // Selection logic
                                             if ($isReadOnly && isset($existingPayment) && !empty($existingPayment) && !empty($existingPayment->bank)) {
                                                 // Case 1: Read-only mode with existing payment - use existing payment's bank
                                                 $selectedBankCode = $existingPayment->bank;
-                                                error_log("PaymentProofTemplate: Using existing payment bank = " . $selectedBankCode);
                                             } elseif (!$isReadOnly && !empty($defaultBankCode)) {
                                                 // Case 2: New form mode with default bank - pre-select default bank
                                                 $selectedBankCode = $defaultBankCode;
-                                                error_log("PaymentProofTemplate: Using default bank = " . $selectedBankCode);
-                                            } else {
-                                                // Case 3: No selection needed
-                                                $selectedBankCode = null;
-                                                error_log("PaymentProofTemplate: No bank selected (isReadOnly=" . ($isReadOnly ? 'yes' : 'no') . ", defaultBankCode=" . ($defaultBankCode ?: 'empty') . ")");
                                             }
-                                            
-                                            error_log("PaymentProofTemplate: Final selectedBankCode = " . ($selectedBankCode ?: 'null'));
-                                            if ($selectedBankCode) {
-                                                $existsInOptions = isset($bankOptions[$selectedBankCode]);
-                                                error_log("PaymentProofTemplate: Selected bank exists in options = " . ($existsInOptions ? 'yes' : 'no'));
-                                                if (!$existsInOptions) {
-                                                    error_log("PaymentProofTemplate: WARNING - Selected bank code '{$selectedBankCode}' not found in options!");
-                                                    $availableCodes = array_keys($bankOptions);
-                                                    error_log("PaymentProofTemplate: Available codes: " . implode(', ', $availableCodes));
-                                                }
-                                            }
-                                            error_log("=== PaymentProofTemplate DEBUG END ===");
                                             
                                             // Show "Select Bank" option only if no valid selection
                                             $showSelectOption = empty($selectedBankCode) || !isset($bankOptions[$selectedBankCode]);
@@ -300,117 +246,11 @@ $isReadOnly = $this->isReadOnly;
                                                     <?php echo $displayText; ?>
                                                 </option>
                                             <?php endforeach; ?>
-                                        </select>
-                                        
-                                        <!-- TEST DROPDOWN - DIRECT DATABASE QUERY -->
-                                        <div class="mt-3" style="padding: 15px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 4px;">
-                                            <label for="bank_direct_db" style="color: #856404; font-weight: bold; margin-bottom: 8px;">
-                                                🔍 TEST: Banco (Direct DB Query - No Fallbacks)
-                                            </label>
-                                            <select name="bank_direct_db" id="bank_direct_db" class="form-control" style="border: 2px solid #dc3545; background: white;">
-                                            <?php 
-                                            // DIRECT DATABASE QUERY - NO FALLBACKS
-                                            $directDbOptions = [];
-                                            $directDbDefaultCode = null;
                                             
-                                            try {
-                                                $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-                                                
-                                                // Get all banks directly from database
-                                                $query = $db->getQuery(true)
-                                                    ->select('id, code, name, name_es, name_en, ordering, is_default, state')
-                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
-                                                    ->where($db->quoteName('state') . ' = 1')
-                                                    ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
-                                                
-                                                $db->setQuery($query);
-                                                $directBanks = $db->loadObjectList() ?: [];
-                                                
-                                                error_log("PaymentProofTemplate DIRECT DB: Found " . count($directBanks) . " banks from direct query");
-                                                
-                                                // Get default bank code directly
-                                                $defaultQuery = $db->getQuery(true)
-                                                    ->select($db->quoteName('code'))
-                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
-                                                    ->where($db->quoteName('is_default') . ' = 1')
-                                                    ->where($db->quoteName('state') . ' = 1');
-                                                $db->setQuery($defaultQuery);
-                                                $directDbDefaultCode = $db->loadResult();
-                                                
-                                                error_log("PaymentProofTemplate DIRECT DB: Default bank code = " . ($directDbDefaultCode ?: 'none'));
-                                                
-                                                // Process banks into options array
-                                                $lang = Factory::getLanguage();
-                                                $langTag = $lang->getTag();
-                                                $isSpanish = (strpos($langTag, 'es') === 0);
-                                                
-                                                foreach ($directBanks as $bank) {
-                                                    if (empty($bank->code)) {
-                                                        error_log("PaymentProofTemplate DIRECT DB: Skipping bank ID {$bank->id} - empty code");
-                                                        continue;
-                                                    }
-                                                    
-                                                    // Select name based on language
-                                                    if ($isSpanish && !empty($bank->name_es)) {
-                                                        $displayName = trim($bank->name_es);
-                                                    } elseif (!empty($bank->name_en)) {
-                                                        $displayName = trim($bank->name_en);
-                                                    } elseif (!empty($bank->name)) {
-                                                        $displayName = trim($bank->name);
-                                                    } else {
-                                                        $displayName = $bank->code; // Last resort
-                                                    }
-                                                    
-                                                    $directDbOptions[$bank->code] = $displayName;
-                                                }
-                                                
-                                                error_log("PaymentProofTemplate DIRECT DB: Processed " . count($directDbOptions) . " options");
-                                                error_log("PaymentProofTemplate DIRECT DB: Bank codes: " . implode(', ', array_keys($directDbOptions)));
-                                                
-                                            } catch (\Exception $e) {
-                                                error_log("PaymentProofTemplate DIRECT DB: ERROR - " . $e->getMessage());
-                                                error_log("PaymentProofTemplate DIRECT DB: Stack trace: " . $e->getTraceAsString());
-                                            }
-                                            
-                                            // Determine selected bank for direct DB dropdown
-                                            $directDbSelected = null;
-                                            if (!$isReadOnly && !empty($directDbDefaultCode)) {
-                                                $directDbSelected = $directDbDefaultCode;
-                                            }
-                                            
-                                            // Render "Select Bank" option only if no default
-                                            if (empty($directDbSelected)) {
-                                                echo '<option value="">' . Text::_('COM_ORDENPRODUCCION_SELECT_BANK') . '</option>';
-                                            }
-                                            
-                                            // Render bank options
-                                            foreach ($directDbOptions as $code => $name) {
-                                                $isSelected = ($directDbSelected && $code === $directDbSelected);
-                                                $codeEscaped = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
-                                                $nameEscaped = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-                                                ?>
-                                                <option value="<?php echo $codeEscaped; ?>"<?php echo $isSelected ? ' selected="selected"' : ''; ?>>
-                                                    <?php echo $nameEscaped; ?>
-                                                    <?php if ($isSelected) echo ' (Default)'; ?>
-                                                </option>
-                                                <?php
-                                            }
-                                            
-                                            if (empty($directDbOptions)) {
-                                                echo '<option value="">NO BANKS FOUND IN DATABASE</option>';
-                                            }
-                                            ?>
-                                        </select>
-                                        <small class="form-text" style="color: #856404; font-size: 0.9em; margin-top: 5px; display: block;">
-                                            <strong>Test Info:</strong> Count: <strong><?php echo count($directDbOptions); ?></strong> banks
-                                            <?php if ($directDbDefaultCode): ?>
-                                                | Default: <strong><?php echo htmlspecialchars($directDbDefaultCode); ?></strong>
-                                                | Selected: <strong><?php echo $directDbSelected ? htmlspecialchars($directDbSelected) : 'None'; ?></strong>
-                                            <?php else: ?>
-                                                | Default: <strong>None</strong>
+                                            <?php if (empty($bankOptions)): ?>
+                                                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_NO_BANKS_AVAILABLE'); ?></option>
                                             <?php endif; ?>
-                                        </small>
-                                        </div>
+                                        </select>
                                     </div>
                                 </div>
 
