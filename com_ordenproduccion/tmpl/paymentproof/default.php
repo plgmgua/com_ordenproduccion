@@ -301,16 +301,13 @@ $isReadOnly = $this->isReadOnly;
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="bank_direct_db" style="color: #dc3545; font-weight: bold;">
-                                            Banco (Direct DB Query - Test Only)
-                                            <small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (No fallbacks)</small>
-                                        </label>
-                                        <select name="bank_direct_db" id="bank_direct_db" class="form-control" style="border: 2px solid #dc3545;">
+                                        
+                                        <!-- TEST DROPDOWN - DIRECT DATABASE QUERY -->
+                                        <div class="mt-3" style="padding: 15px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 4px;">
+                                            <label for="bank_direct_db" style="color: #856404; font-weight: bold; margin-bottom: 8px;">
+                                                🔍 TEST: Banco (Direct DB Query - No Fallbacks)
+                                            </label>
+                                            <select name="bank_direct_db" id="bank_direct_db" class="form-control" style="border: 2px solid #dc3545; background: white;">
                                             <?php 
                                             // DIRECT DATABASE QUERY - NO FALLBACKS
                                             $directDbOptions = [];
@@ -404,12 +401,16 @@ $isReadOnly = $this->isReadOnly;
                                             }
                                             ?>
                                         </select>
-                                        <small class="form-text text-muted" style="color: #dc3545;">
-                                            This is a test dropdown using direct database query. Count: <?php echo count($directDbOptions); ?> banks
+                                        <small class="form-text" style="color: #856404; font-size: 0.9em; margin-top: 5px; display: block;">
+                                            <strong>Test Info:</strong> Count: <strong><?php echo count($directDbOptions); ?></strong> banks
                                             <?php if ($directDbDefaultCode): ?>
-                                                | Default: <?php echo htmlspecialchars($directDbDefaultCode); ?>
+                                                | Default: <strong><?php echo htmlspecialchars($directDbDefaultCode); ?></strong>
+                                                | Selected: <strong><?php echo $directDbSelected ? htmlspecialchars($directDbSelected) : 'None'; ?></strong>
+                                            <?php else: ?>
+                                                | Default: <strong>None</strong>
                                             <?php endif; ?>
                                         </small>
+                                        </div>
                                     </div>
                                 </div>
 
