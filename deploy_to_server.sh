@@ -22,6 +22,13 @@ ADMIN_COMPONENT_PATH="$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME"
 MEDIA_PATH="$JOOMLA_ROOT/media/$COMPONENT_NAME"
 BACKUP_DIR="/var/backups/joomla_components"
 
+# Global version variables (initialized in download_repository)
+DEPLOY_COMMIT_HASH=""
+DEPLOY_COMMIT_FULL_HASH=""
+DEPLOY_COMMIT_MESSAGE=""
+DEPLOY_COMMIT_DATE=""
+DEPLOY_COMMIT_AUTHOR=""
+
 # Logging functions (all output to stderr so stdout can be used for data)
 log() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
@@ -137,12 +144,19 @@ download_repository() {
     DEPLOY_COMMIT_DATE=$(git log -1 --pretty=format:"%ci" 2>/dev/null || echo "unknown")
     DEPLOY_COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an" 2>/dev/null || echo "unknown")
     
-    # Store version info in variables for later use
+    # Store version info in global variables for later use
     export DEPLOY_COMMIT_HASH
     export DEPLOY_COMMIT_FULL_HASH
     export DEPLOY_COMMIT_MESSAGE
     export DEPLOY_COMMIT_DATE
     export DEPLOY_COMMIT_AUTHOR
+    
+    # Also ensure they're accessible as script-level variables (not just exported)
+    DEPLOY_COMMIT_HASH="$DEPLOY_COMMIT_HASH"
+    DEPLOY_COMMIT_FULL_HASH="$DEPLOY_COMMIT_FULL_HASH"
+    DEPLOY_COMMIT_MESSAGE="$DEPLOY_COMMIT_MESSAGE"
+    DEPLOY_COMMIT_DATE="$DEPLOY_COMMIT_DATE"
+    DEPLOY_COMMIT_AUTHOR="$DEPLOY_COMMIT_AUTHOR"
     
     # Display version information prominently
     echo "" >&2
@@ -490,17 +504,28 @@ show_summary() {
     echo ""
     
     # Display version information in summary
-    if [ -n "$DEPLOY_COMMIT_HASH" ] && [ "$DEPLOY_COMMIT_HASH" != "unknown" ]; then
+    # Use direct variable access and fallback if not set
+    local commit_hash="${DEPLOY_COMMIT_HASH:-unknown}"
+    local commit_full="${DEPLOY_COMMIT_FULL_HASH:-unknown}"
+    local commit_msg="${DEPLOY_COMMIT_MESSAGE:-unknown}"
+    local commit_date="${DEPLOY_COMMIT_DATE:-unknown}"
+    local commit_author="${DEPLOY_COMMIT_AUTHOR:-unknown}"
+    
+    if [ -n "$commit_hash" ] && [ "$commit_hash" != "unknown" ]; then
+        echo ""
         log "═══════════════════════════════════════════════════════════"
-        log "              DEPLOYED VERSION"
+        log "              DEPLOYED VERSION INFORMATION"
         log "═══════════════════════════════════════════════════════════"
-        log "Commit Hash:     $DEPLOY_COMMIT_HASH"
-        log "Full Hash:       $DEPLOY_COMMIT_FULL_HASH"
-        log "Commit Message:  $DEPLOY_COMMIT_MESSAGE"
-        log "Commit Date:     $DEPLOY_COMMIT_DATE"
-        log "Commit Author:   $DEPLOY_COMMIT_AUTHOR"
+        echo "Commit Hash (short): $commit_hash"
+        echo "Commit Hash (full):  $commit_full"
+        echo "Commit Message:      $commit_msg"
+        echo "Commit Date:         $commit_date"
+        echo "Commit Author:       $commit_author"
         log "═══════════════════════════════════════════════════════════"
         echo ""
+    else
+        # Show placeholder if version info is not available
+        warning "Version information not available (commit hash not found)"
     fi
     
     success "✅ Component deployed successfully!"
