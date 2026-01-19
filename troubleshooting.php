@@ -267,8 +267,8 @@ if ($tableExists) {
                 ->select('code, name, name_es, name_en')
                 ->from($db->quoteName($tableName))
                 ->where($db->quoteName('is_default') . ' = 1')
-                ->where($db->quoteName('state') . ' = 1')
-                ->limit(1);
+                ->where($db->quoteName('state') . ' = 1');
+            $query->setLimit(1, 0);
             $db->setQuery($query);
             $defaultBank = $db->loadObject();
             if ($defaultBank) {
