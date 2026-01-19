@@ -108,6 +108,16 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
         $input = $app->input;
 
+        // Load component language files
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site/language');
+        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/admin/language');
+
+        // Load component language files early
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
+
         // Get filter parameters
         $this->currentMonth = $input->getInt('month', 0); // 0 = All Year, 1-12 = specific month
         $this->currentYear = $input->getInt('year', date('Y'));
@@ -213,14 +223,23 @@ class HtmlView extends BaseHtmlView
         // Load banks data if herramientas tab is active
         if ($activeTab === 'herramientas') {
             try {
-                $bankModel = $this->getModel('Bank', 'Site');
-                if ($bankModel) {
+                // Get Bank model using MVC factory
+                $component = $app->bootComponent('com_ordenproduccion');
+                $mvcFactory = $component->getMVCFactory();
+                $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
+                
+                if ($bankModel && method_exists($bankModel, 'getBanks')) {
                     $this->banks = $bankModel->getBanks();
+                } else {
+                    $this->banks = [];
                 }
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading banks: ' . $e->getMessage(), 'warning');
                 $this->banks = [];
             }
+        } else {
+            // Initialize banks as empty array if not herramientas tab
+            $this->banks = [];
         }
 
         // Prepare document

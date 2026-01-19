@@ -15,7 +15,14 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Session\Session;
 
-$banks = $this->banks ?? [];
+// Load component language files
+$app = Factory::getApplication();
+$lang = $app->getLanguage();
+$lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+$lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
+
+// Get banks data - ensure it's an array
+$banks = isset($this->banks) && is_array($this->banks) ? $this->banks : [];
 $token = HTMLHelper::_('form.token');
 $tokenName = Session::getFormToken();
 ?>
@@ -154,6 +161,9 @@ $tokenName = Session::getFormToken();
 .btn-edit-bank {
     background: #17a2b8;
     color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .btn-edit-bank:hover {
