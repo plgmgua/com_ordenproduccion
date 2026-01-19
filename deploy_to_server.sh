@@ -486,23 +486,70 @@ clear_cache() {
     CACHE_DIR="$JOOMLA_ROOT/cache"
     ADMIN_CACHE_DIR="$JOOMLA_ROOT/administrator/cache"
     
+    # Clear site cache directory (all files, not just .php)
     if [ -d "$CACHE_DIR" ]; then
+        log "Clearing site cache directory..."
         if [ "$USE_SUDO" = true ]; then
-            sudo find "$CACHE_DIR" -type f -name "*.php" -delete 2>/dev/null || true
+            sudo rm -rf "$CACHE_DIR"/* 2>/dev/null || true
+            sudo rm -rf "$CACHE_DIR"/.[!.]* 2>/dev/null || true  # Remove hidden files except . and ..
         else
-            find "$CACHE_DIR" -type f -name "*.php" -delete 2>/dev/null || true
+            rm -rf "$CACHE_DIR"/* 2>/dev/null || true
+            rm -rf "$CACHE_DIR"/.[!.]* 2>/dev/null || true
         fi
     fi
     
+    # Clear admin cache directory (all files, not just .php)
     if [ -d "$ADMIN_CACHE_DIR" ]; then
+        log "Clearing admin cache directory..."
         if [ "$USE_SUDO" = true ]; then
-            sudo find "$ADMIN_CACHE_DIR" -type f -name "*.php" -delete 2>/dev/null || true
+            sudo rm -rf "$ADMIN_CACHE_DIR"/* 2>/dev/null || true
+            sudo rm -rf "$ADMIN_CACHE_DIR"/.[!.]* 2>/dev/null || true
         else
-            find "$ADMIN_CACHE_DIR" -type f -name "*.php" -delete 2>/dev/null || true
+            rm -rf "$ADMIN_CACHE_DIR"/* 2>/dev/null || true
+            rm -rf "$ADMIN_CACHE_DIR"/.[!.]* 2>/dev/null || true
         fi
     fi
     
-    success "Joomla cache cleared"
+    # Clear component-specific caches
+    COMPONENT_CACHE_DIR="$CACHE_DIR/com_${COMPONENT_NAME#com_}"
+    if [ -d "$COMPONENT_CACHE_DIR" ]; then
+        log "Clearing component-specific cache..."
+        if [ "$USE_SUDO" = true ]; then
+            sudo rm -rf "$COMPONENT_CACHE_DIR" 2>/dev/null || true
+        else
+            rm -rf "$COMPONENT_CACHE_DIR" 2>/dev/null || true
+        fi
+    fi
+    
+    # Clear template cache
+    TEMPLATE_CACHE_DIR="$CACHE_DIR/com_templates"
+    if [ -d "$TEMPLATE_CACHE_DIR" ]; then
+        log "Clearing template cache..."
+        if [ "$USE_SUDO" = true ]; then
+            sudo rm -rf "$TEMPLATE_CACHE_DIR"/* 2>/dev/null || true
+        else
+            rm -rf "$TEMPLATE_CACHE_DIR"/* 2>/dev/null || true
+        fi
+    fi
+    
+    # Recreate cache directories with proper permissions if they don't exist
+    if [ "$USE_SUDO" = true ]; then
+        sudo mkdir -p "$CACHE_DIR" 2>/dev/null || true
+        sudo mkdir -p "$ADMIN_CACHE_DIR" 2>/dev/null || true
+        sudo chown -R www-data:www-data "$CACHE_DIR" 2>/dev/null || true
+        sudo chown -R www-data:www-data "$ADMIN_CACHE_DIR" 2>/dev/null || true
+        sudo chmod -R 755 "$CACHE_DIR" 2>/dev/null || true
+        sudo chmod -R 755 "$ADMIN_CACHE_DIR" 2>/dev/null || true
+    else
+        mkdir -p "$CACHE_DIR" 2>/dev/null || true
+        mkdir -p "$ADMIN_CACHE_DIR" 2>/dev/null || true
+        chown -R www-data:www-data "$CACHE_DIR" 2>/dev/null || true
+        chown -R www-data:www-data "$ADMIN_CACHE_DIR" 2>/dev/null || true
+        chmod -R 755 "$CACHE_DIR" 2>/dev/null || true
+        chmod -R 755 "$ADMIN_CACHE_DIR" 2>/dev/null || true
+    fi
+    
+    success "Joomla cache cleared (site, admin, component, and templates)"
 }
 
 # Function to cleanup temporary files
@@ -568,7 +615,7 @@ show_summary() {
     
     success "✅ Component deployed successfully!"
     log "Next steps:"
-    log "  1. Clear Joomla cache via admin panel (System > Clear Cache)"
+    log "  1. Cache has been automatically cleared"
     log "  2. Verify component is working"
     log "  3. Run database migrations if needed (e.g., 3.5.1_create_banks_table.sql)"
     echo ""
