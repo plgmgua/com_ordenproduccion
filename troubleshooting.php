@@ -153,22 +153,24 @@ $tableName = '#__ordenproduccion_banks';
 $tableExists = false;
 
 try {
+    // Try to query the table directly - this will fail if table doesn't exist
     $query = $db->getQuery(true)
         ->select('COUNT(*)')
-        ->from('information_schema.TABLES')
-        ->where('TABLE_SCHEMA = ' . $db->quote($db->getDatabase()))
-        ->where('TABLE_NAME = ' . $db->quote(str_replace('#__', $db->getPrefix(), $tableName)));
+        ->from($db->quoteName($tableName))
+        ->limit(1);
     
     $db->setQuery($query);
     $count = $db->loadResult();
-    $tableExists = ($count > 0);
     
-    if ($tableExists) {
-        echo "<p class='ok'>✅ Table <code>{$tableName}</code> exists in database</p>";
-        $passedTests++;
-        $testResults['table_exists'] = true;
-        
-        // Get table structure
+    // If we got here without exception, table exists
+    $tableExists = true;
+    echo "<p class='ok'>✅ Table <code>{$tableName}</code> exists in database</p>";
+    echo "<p class='info'>Table contains <strong>{$count}</strong> total record(s)</p>";
+    $passedTests++;
+    $testResults['table_exists'] = true;
+    
+    // Get table structure by fetching a sample record
+    try {
         $query = $db->getQuery(true)
             ->select('*')
             ->from($db->quoteName($tableName))
@@ -177,15 +179,30 @@ try {
         $sample = $db->loadObject();
         
         if ($sample) {
-            echo "<p class='info'>Table structure validated with sample record</p>";
+            echo "<p class='info'>✅ Table structure validated - sample record retrieved successfully</p>";
+            
+            // Show column names
+            $columns = array_keys((array) $sample);
+            echo "<p class='info'>Table columns: <code>" . implode('</code>, <code>', $columns) . "</code></p>";
+        } else {
+            echo "<p class='warning'>⚠️ Table exists but is empty</p>";
         }
-    } else {
+    } catch (\Exception $e2) {
+        echo "<p class='warning'>⚠️ Could not retrieve sample record: " . htmlspecialchars($e2->getMessage()) . "</p>";
+    }
+    
+} catch (\Exception $e) {
+    // Table doesn't exist or other error
+    $errorMsg = $e->getMessage();
+    if (stripos($errorMsg, "doesn't exist") !== false || 
+        stripos($errorMsg, "unknown table") !== false ||
+        stripos($errorMsg, "table") !== false && stripos($errorMsg, "exist") !== false) {
         echo "<p class='error'>❌ Table <code>{$tableName}</code> does NOT exist in database</p>";
         echo "<p class='warning'>Action required: Run SQL migration script to create table</p>";
-        $testResults['table_exists'] = false;
+        echo "<p class='info'>Expected table name: <code>" . str_replace('#__', $db->getPrefix(), $tableName) . "</code></p>";
+    } else {
+        echo "<p class='error'>❌ Error checking table: " . htmlspecialchars($errorMsg) . "</p>";
     }
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error checking table: " . htmlspecialchars($e->getMessage()) . "</p>";
     $testResults['table_exists'] = false;
 }
 
