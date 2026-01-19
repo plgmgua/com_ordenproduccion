@@ -679,6 +679,161 @@ echo "</table>";
 echo "</div>";
 
 // ============================================
+// TEST 9: Live Dropdown Rendering
+// ============================================
+echo "<div class='test-section'>";
+echo "<h2>Test 9: Live Dropdown Rendering (HTML Output)</h2>";
+
+$totalTests++;
+
+try {
+    // Get bank options using BankModel (most reliable method)
+    $testBankOptions = [];
+    $testDefaultBankCode = null;
+    
+    if (isset($bankModel) && $bankModelLoaded) {
+        try {
+            $testBankOptions = $bankModel->getBankOptions();
+            $testDefaultBankCode = $bankModel->getDefaultBankCode();
+        } catch (\Exception $e) {
+            echo "<p class='error'>❌ Error getting bank options: " . htmlspecialchars($e->getMessage()) . "</p>";
+        }
+    } else {
+        echo "<p class='warning'>⚠️ BankModel not available - cannot render dropdown</p>";
+        $testResults['dropdown_rendering'] = false;
+    }
+    
+    if (!empty($testBankOptions)) {
+        echo "<p class='ok'>✅ Successfully retrieved " . count($testBankOptions) . " bank options for dropdown rendering</p>";
+        
+        if (!empty($testDefaultBankCode)) {
+            echo "<p class='ok'>✅ Default bank code: <code>{$testDefaultBankCode}</code></p>";
+        } else {
+            echo "<p class='info'>ℹ️ No default bank code set</p>";
+        }
+        
+        // Determine selected bank (simulate new form - use default if available)
+        $selectedBankCode = $testDefaultBankCode;
+        $isReadOnly = false; // Simulate new form scenario
+        $existingPayment = null;
+        
+        // Show "Select Bank" option logic
+        $showSelectOption = true;
+        if ($selectedBankCode && isset($testBankOptions[$selectedBankCode])) {
+            // If we have a valid selected bank, don't show "Select Bank" option
+            $showSelectOption = false;
+        } elseif ($isReadOnly && !$selectedBankCode) {
+            $showSelectOption = true;
+        } elseif (!$isReadOnly && !$testDefaultBankCode) {
+            $showSelectOption = true;
+        } else {
+            $showSelectOption = false;
+        }
+        
+        echo "<h3>Rendered Dropdown HTML:</h3>";
+        echo "<p class='info'>This is exactly how the dropdown will appear in the payment proof form</p>";
+        
+        // Render the dropdown
+        echo "<div style='max-width: 500px; margin: 20px 0; padding: 20px; background: #f9f9f9; border: 2px solid #0073aa; border-radius: 4px;'>";
+        echo "<label for='test_bank_dropdown' style='display: block; margin-bottom: 8px; font-weight: bold;'>";
+        echo "Bank: <span style='color: red;'>*</span>";
+        echo "</label>";
+        echo "<select name='bank' id='test_bank_dropdown' class='form-control' style='width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px;'>";
+        
+        // Add "Select Bank" option if needed
+        if ($showSelectOption) {
+            $isSelectSelected = !$selectedBankCode;
+            echo "<option value=''" . ($isSelectSelected ? ' selected="selected"' : '') . ">";
+            echo "Seleccionar Banco";
+            echo "</option>";
+        }
+        
+        // Render bank options
+        foreach ($testBankOptions as $code => $name) {
+            $isSelected = ($selectedBankCode && $code === $selectedBankCode);
+            $displayText = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+            $codeEscaped = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+            
+            echo "<option value='{$codeEscaped}'" . ($isSelected ? ' selected="selected"' : '') . ">";
+            echo $displayText;
+            if ($isSelected) {
+                echo " (SELECTED - Default Bank)";
+            }
+            echo "</option>";
+        }
+        
+        echo "</select>";
+        echo "</div>";
+        
+        // Show dropdown state summary
+        echo "<h3>Dropdown State Summary:</h3>";
+        echo "<table>";
+        echo "<tr><th>Property</th><th>Value</th></tr>";
+        echo "<tr class='info'><td>Total Options</td><td><strong>" . count($testBankOptions) . "</strong></td></tr>";
+        echo "<tr class='info'><td>Show 'Select Bank' Option</td><td>" . ($showSelectOption ? '✅ Yes' : '❌ No (default pre-selected)') . "</td></tr>";
+        echo "<tr class='info'><td>Default Bank Code</td><td><code>" . ($testDefaultBankCode ?: 'None') . "</code></td></tr>";
+        echo "<tr class='" . ($selectedBankCode ? 'ok' : 'warning') . "'><td>Selected Bank Code</td><td><code>" . ($selectedBankCode ?: 'None') . "</code></td></tr>";
+        
+        if ($selectedBankCode) {
+            $selectedBankName = $testBankOptions[$selectedBankCode] ?? 'Not found in options';
+            echo "<tr class='" . (isset($testBankOptions[$selectedBankCode]) ? 'ok' : 'error') . "'><td>Selected Bank Name</td><td>" . htmlspecialchars($selectedBankName) . "</td></tr>";
+        }
+        
+        echo "</table>";
+        
+        // Show rendered HTML code
+        echo "<h3>Generated HTML Code:</h3>";
+        echo "<p class='info'>Copy this HTML to see exactly what is being generated</p>";
+        echo "<pre style='max-height: 300px; overflow-y: auto; background: #f4f4f4; padding: 15px; border: 1px solid #ddd;'>";
+        echo htmlspecialchars('<select name="bank" id="bank" class="form-control" required>' . "\n");
+        if ($showSelectOption) {
+            $isSelectSelected = !$selectedBankCode;
+            echo htmlspecialchars('  <option value=""' . ($isSelectSelected ? ' selected="selected"' : '') . '>Seleccionar Banco</option>' . "\n");
+        }
+        foreach ($testBankOptions as $code => $name) {
+            $isSelected = ($selectedBankCode && $code === $selectedBankCode);
+            $displayText = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+            $codeEscaped = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+            echo htmlspecialchars('  <option value="' . $codeEscaped . '"' . ($isSelected ? ' selected="selected"' : '') . '>' . $displayText . '</option>' . "\n");
+        }
+        echo htmlspecialchars('</select>');
+        echo "</pre>";
+        
+        // Test JavaScript interaction
+        echo "<h3>Interactive Test:</h3>";
+        echo "<p class='info'>Try changing the dropdown above and see the JavaScript output below:</p>";
+        echo "<div id='dropdown_test_output' style='background: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 50px; margin-top: 10px;'>";
+        echo "<em>Change the dropdown to see the selected value here...</em>";
+        echo "</div>";
+        echo "<script>";
+        echo "document.getElementById('test_bank_dropdown').addEventListener('change', function(e) {";
+        echo "  var output = document.getElementById('dropdown_test_output');";
+        echo "  var selectedOption = this.options[this.selectedIndex];";
+        echo "  var value = this.value;";
+        echo "  var text = selectedOption.text;";
+        echo "  output.innerHTML = '<strong>Selected Value:</strong> <code>' + (value || '(empty)') + '</code><br>';";
+        echo "  output.innerHTML += '<strong>Selected Text:</strong> ' + text + '<br>';";
+        echo "  output.innerHTML += '<strong>Is Default Bank:</strong> ' + (value === '" . ($testDefaultBankCode ?: '') . "' ? 'Yes ✅' : 'No');";
+        echo "});";
+        echo "</script>";
+        
+        $passedTests++;
+        $testResults['dropdown_rendering'] = true;
+        
+    } else {
+        echo "<p class='error'>❌ Cannot render dropdown - no bank options available</p>";
+        $testResults['dropdown_rendering'] = false;
+    }
+    
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error rendering dropdown: " . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    $testResults['dropdown_rendering'] = false;
+}
+
+echo "</div>";
+
+// ============================================
 // FINAL SUMMARY
 // ============================================
 echo "<div class='test-section'>";
@@ -717,6 +872,7 @@ $additionalTests = [
     'default_bank_code' => 'Default bank code available',
     'view_integration' => 'View integration working',
     'template_file' => 'Template file exists',
+    'dropdown_rendering' => 'Dropdown HTML rendering',
 ];
 
 foreach ($additionalTests as $test => $label) {
