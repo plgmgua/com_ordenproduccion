@@ -129,7 +129,48 @@ download_repository() {
         exit 1
     fi
     
+    # Get version information from git
+    cd "$REPO_ROOT" || error "Failed to change to repository directory: $REPO_ROOT"
+    DEPLOY_COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    DEPLOY_COMMIT_FULL_HASH=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    DEPLOY_COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s" 2>/dev/null || echo "unknown")
+    DEPLOY_COMMIT_DATE=$(git log -1 --pretty=format:"%ci" 2>/dev/null || echo "unknown")
+    DEPLOY_COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an" 2>/dev/null || echo "unknown")
+    
+    # Store version info in variables for later use
+    export DEPLOY_COMMIT_HASH
+    export DEPLOY_COMMIT_FULL_HASH
+    export DEPLOY_COMMIT_MESSAGE
+    export DEPLOY_COMMIT_DATE
+    export DEPLOY_COMMIT_AUTHOR
+    
+    # Display version information prominently
+    echo "" >&2
+    log "═══════════════════════════════════════════════════════════" >&2
+    log "              VERSION INFORMATION" >&2
+    log "═══════════════════════════════════════════════════════════" >&2
+    log "Commit Hash (short): $DEPLOY_COMMIT_HASH" >&2
+    log "Commit Hash (full):  $DEPLOY_COMMIT_FULL_HASH" >&2
+    log "Commit Message:      $DEPLOY_COMMIT_MESSAGE" >&2
+    log "Commit Date:         $DEPLOY_COMMIT_DATE" >&2
+    log "Commit Author:       $DEPLOY_COMMIT_AUTHOR" >&2
+    log "═══════════════════════════════════════════════════════════" >&2
+    echo "" >&2
+    
     success "Repository downloaded successfully to: $REPO_ROOT"
+    
+    # Display version information prominently
+    echo "" >&2
+    log "═══════════════════════════════════════════════════════════" >&2
+    log "              VERSION INFORMATION" >&2
+    log "═══════════════════════════════════════════════════════════" >&2
+    log "Commit Hash (short): $DEPLOY_COMMIT_HASH" >&2
+    log "Commit Hash (full):  $DEPLOY_COMMIT_FULL_HASH" >&2
+    log "Commit Message:      $DEPLOY_COMMIT_MESSAGE" >&2
+    log "Commit Date:         $DEPLOY_COMMIT_DATE" >&2
+    log "Commit Author:       $DEPLOY_COMMIT_AUTHOR" >&2
+    log "═══════════════════════════════════════════════════════════" >&2
+    echo "" >&2
     
     # Store the path in a variable that can be accessed
     # Return only the path to stdout (redirect logs to stderr)
@@ -447,6 +488,20 @@ show_summary() {
     echo "Backup Location: $BACKUP_DIR"
     echo "Used sudo: $USE_SUDO"
     echo ""
+    
+    # Display version information in summary
+    if [ -n "$DEPLOY_COMMIT_HASH" ] && [ "$DEPLOY_COMMIT_HASH" != "unknown" ]; then
+        log "═══════════════════════════════════════════════════════════"
+        log "              DEPLOYED VERSION"
+        log "═══════════════════════════════════════════════════════════"
+        log "Commit Hash:     $DEPLOY_COMMIT_HASH"
+        log "Full Hash:       $DEPLOY_COMMIT_FULL_HASH"
+        log "Commit Message:  $DEPLOY_COMMIT_MESSAGE"
+        log "Commit Date:     $DEPLOY_COMMIT_DATE"
+        log "Commit Author:   $DEPLOY_COMMIT_AUTHOR"
+        log "═══════════════════════════════════════════════════════════"
+        echo ""
+    fi
     
     success "✅ Component deployed successfully!"
     log "Next steps:"

@@ -128,13 +128,18 @@ class HtmlView extends BaseHtmlView
         $statsModel = $this->getModel('Administracion');
         $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear);
 
-        // Initialize data arrays
+        // Initialize data arrays - ensure all properties are set before parent::display()
         $this->invoices = [];
         $this->invoicesPagination = null;
         $this->workOrders = [];
         $this->workOrdersPagination = null;
         $this->state = new \Joomla\Registry\Registry();
         $this->banks = [];
+        
+        // Ensure banks is always an array to prevent undefined array key errors
+        if (!isset($this->banks) || !is_array($this->banks)) {
+            $this->banks = [];
+        }
 
         // Load invoices data if invoices tab is active
         if ($activeTab === 'invoices') {
@@ -241,6 +246,12 @@ class HtmlView extends BaseHtmlView
             $this->banks = [];
         }
 
+        // Ensure banks property is always set before parent::display() to prevent undefined array key errors
+        // This is important because Joomla's AbstractView may access properties via array notation
+        if (!isset($this->banks) || !is_array($this->banks)) {
+            $this->banks = [];
+        }
+        
         // Prepare document
         $this->_prepareDocument();
 
