@@ -96,45 +96,56 @@ class BankController extends BaseController
      */
     public function delete()
     {
-        // Check CSRF token
-        if (!Session::checkToken('post')) {
-            $this->sendJsonResponse(false, Text::_('JINVALID_TOKEN'));
-            return;
+        try {
+            // Check CSRF token
+            if (!Session::checkToken('post')) {
+                $this->sendJsonResponse(false, Text::_('JINVALID_TOKEN'));
+                return;
+            }
+
+            // Check user permissions
+            $user = Factory::getUser();
+            if ($user->guest) {
+                $this->sendJsonResponse(false, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'));
+                return;
+            }
+
+            $app = Factory::getApplication();
+            $id = $app->input->getInt('id', 0);
+
+            if (!$id) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_INVALID_ID'));
+                return;
+            }
+
+            // Get model
+            try {
+                $model = $this->getModel('Bank', 'Site');
+            } catch (\Exception $e) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND') . ': ' . $e->getMessage());
+                return;
+            }
+            
+            if (!$model) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND'));
+                return;
+            }
+
+            // Delete bank
+            $result = $model->deleteBank($id);
+            
+            if (!$result) {
+                $error = $model->getError();
+                $this->sendJsonResponse(false, $error ?: Text::_('COM_ORDENPRODUCCION_BANK_ERROR_DELETE_FAILED'));
+                return;
+            }
+
+            $this->sendJsonResponse(true, Text::_('COM_ORDENPRODUCCION_BANK_DELETED_SUCCESS'));
+        } catch (\Exception $e) {
+            $this->sendJsonResponse(false, 'Error: ' . $e->getMessage());
+        } catch (\Error $e) {
+            $this->sendJsonResponse(false, 'Fatal error: ' . $e->getMessage());
         }
-
-        // Check user permissions
-        $user = Factory::getUser();
-        if ($user->guest) {
-            $this->sendJsonResponse(false, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'));
-            return;
-        }
-
-        $app = Factory::getApplication();
-        $id = $app->input->getInt('id', 0);
-
-        if (!$id) {
-            $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_INVALID_ID'));
-            return;
-        }
-
-        // Get model
-        $model = $this->getModel('Bank', 'Site');
-        
-        if (!$model) {
-            $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND'));
-            return;
-        }
-
-        // Delete bank
-        $result = $model->deleteBank($id);
-        
-        if (!$result) {
-            $error = $model->getError();
-            $this->sendJsonResponse(false, $error ?: Text::_('COM_ORDENPRODUCCION_BANK_ERROR_DELETE_FAILED'));
-            return;
-        }
-
-        $this->sendJsonResponse(true, Text::_('COM_ORDENPRODUCCION_BANK_DELETED_SUCCESS'));
     }
 
     /**
@@ -146,58 +157,69 @@ class BankController extends BaseController
      */
     public function reorder()
     {
-        // Check CSRF token
-        if (!Session::checkToken('post')) {
-            $this->sendJsonResponse(false, Text::_('JINVALID_TOKEN'));
-            return;
-        }
-
-        // Check user permissions
-        $user = Factory::getUser();
-        if ($user->guest) {
-            $this->sendJsonResponse(false, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'));
-            return;
-        }
-
-        $app = Factory::getApplication();
-        $order = $app->input->get('order', [], 'array');
-        
-        // Handle both array formats: order[] and order[0], order[1], etc.
-        if (empty($order)) {
-            $order = [];
-            $i = 0;
-            while ($app->input->exists('order[' . $i . ']')) {
-                $order[] = $app->input->getInt('order[' . $i . ']', 0);
-                $i++;
+        try {
+            // Check CSRF token
+            if (!Session::checkToken('post')) {
+                $this->sendJsonResponse(false, Text::_('JINVALID_TOKEN'));
+                return;
             }
-        }
 
-        if (empty($order) || !is_array($order)) {
-            $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_INVALID_ORDER'));
-            return;
-        }
-        
-        // Filter out any zero or invalid IDs
-        $order = array_filter(array_map('intval', $order));
+            // Check user permissions
+            $user = Factory::getUser();
+            if ($user->guest) {
+                $this->sendJsonResponse(false, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'));
+                return;
+            }
 
-        // Get model
-        $model = $this->getModel('Bank', 'Site');
-        
-        if (!$model) {
-            $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND'));
-            return;
-        }
+            $app = Factory::getApplication();
+            $order = $app->input->get('order', [], 'array');
+            
+            // Handle both array formats: order[] and order[0], order[1], etc.
+            if (empty($order)) {
+                $order = [];
+                $i = 0;
+                while ($app->input->exists('order[' . $i . ']')) {
+                    $order[] = $app->input->getInt('order[' . $i . ']', 0);
+                    $i++;
+                }
+            }
 
-        // Update ordering
-        $result = $model->updateOrdering($order);
-        
-        if (!$result) {
-            $error = $model->getError();
-            $this->sendJsonResponse(false, $error ?: Text::_('COM_ORDENPRODUCCION_BANK_ERROR_REORDER_FAILED'));
-            return;
-        }
+            if (empty($order) || !is_array($order)) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_INVALID_ORDER'));
+                return;
+            }
+            
+            // Filter out any zero or invalid IDs
+            $order = array_filter(array_map('intval', $order));
 
-        $this->sendJsonResponse(true, Text::_('COM_ORDENPRODUCCION_BANK_REORDERED_SUCCESS'));
+            // Get model
+            try {
+                $model = $this->getModel('Bank', 'Site');
+            } catch (\Exception $e) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND') . ': ' . $e->getMessage());
+                return;
+            }
+            
+            if (!$model) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND'));
+                return;
+            }
+
+            // Update ordering
+            $result = $model->updateOrdering($order);
+            
+            if (!$result) {
+                $error = $model->getError();
+                $this->sendJsonResponse(false, $error ?: Text::_('COM_ORDENPRODUCCION_BANK_ERROR_REORDER_FAILED'));
+                return;
+            }
+
+            $this->sendJsonResponse(true, Text::_('COM_ORDENPRODUCCION_BANK_REORDERED_SUCCESS'));
+        } catch (\Exception $e) {
+            $this->sendJsonResponse(false, 'Error: ' . $e->getMessage());
+        } catch (\Error $e) {
+            $this->sendJsonResponse(false, 'Fatal error: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -209,45 +231,56 @@ class BankController extends BaseController
      */
     public function setDefault()
     {
-        // Check CSRF token
-        if (!Session::checkToken('post')) {
-            $this->sendJsonResponse(false, Text::_('JINVALID_TOKEN'));
-            return;
+        try {
+            // Check CSRF token
+            if (!Session::checkToken('post')) {
+                $this->sendJsonResponse(false, Text::_('JINVALID_TOKEN'));
+                return;
+            }
+
+            // Check user permissions
+            $user = Factory::getUser();
+            if ($user->guest) {
+                $this->sendJsonResponse(false, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'));
+                return;
+            }
+
+            $app = Factory::getApplication();
+            $id = $app->input->getInt('id', 0);
+
+            if (!$id) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_INVALID_ID'));
+                return;
+            }
+
+            // Get model
+            try {
+                $model = $this->getModel('Bank', 'Site');
+            } catch (\Exception $e) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND') . ': ' . $e->getMessage());
+                return;
+            }
+            
+            if (!$model) {
+                $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND'));
+                return;
+            }
+
+            // Set default
+            $result = $model->setDefault($id);
+            
+            if (!$result) {
+                $error = $model->getError();
+                $this->sendJsonResponse(false, $error ?: Text::_('COM_ORDENPRODUCCION_BANK_ERROR_SET_DEFAULT_FAILED'));
+                return;
+            }
+
+            $this->sendJsonResponse(true, Text::_('COM_ORDENPRODUCCION_BANK_DEFAULT_SET_SUCCESS'));
+        } catch (\Exception $e) {
+            $this->sendJsonResponse(false, 'Error: ' . $e->getMessage());
+        } catch (\Error $e) {
+            $this->sendJsonResponse(false, 'Fatal error: ' . $e->getMessage());
         }
-
-        // Check user permissions
-        $user = Factory::getUser();
-        if ($user->guest) {
-            $this->sendJsonResponse(false, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'));
-            return;
-        }
-
-        $app = Factory::getApplication();
-        $id = $app->input->getInt('id', 0);
-
-        if (!$id) {
-            $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_INVALID_ID'));
-            return;
-        }
-
-        // Get model
-        $model = $this->getModel('Bank', 'Site');
-        
-        if (!$model) {
-            $this->sendJsonResponse(false, Text::_('COM_ORDENPRODUCCION_BANK_ERROR_MODEL_NOT_FOUND'));
-            return;
-        }
-
-        // Set default
-        $result = $model->setDefault($id);
-        
-        if (!$result) {
-            $error = $model->getError();
-            $this->sendJsonResponse(false, $error ?: Text::_('COM_ORDENPRODUCCION_BANK_ERROR_SET_DEFAULT_FAILED'));
-            return;
-        }
-
-        $this->sendJsonResponse(true, Text::_('COM_ORDENPRODUCCION_BANK_DEFAULT_SET_SUCCESS'));
     }
 
     /**
