@@ -156,8 +156,7 @@ try {
     // Try to query the table directly - this will fail if table doesn't exist
     $query = $db->getQuery(true)
         ->select('COUNT(*)')
-        ->from($db->quoteName($tableName))
-        ->limit(1);
+        ->from($db->quoteName($tableName));
     
     $db->setQuery($query);
     $count = $db->loadResult();
@@ -173,8 +172,8 @@ try {
     try {
         $query = $db->getQuery(true)
             ->select('*')
-            ->from($db->quoteName($tableName))
-            ->limit(1);
+            ->from($db->quoteName($tableName));
+        $query->setLimit(1, 0);
         $db->setQuery($query);
         $sample = $db->loadObject();
         
@@ -288,9 +287,8 @@ if ($tableExists) {
                 ->select('id, code, name, name_es, name_en, ordering, is_default, state')
                 ->from($db->quoteName($tableName))
                 ->where($db->quoteName('state') . ' = 1')
-                ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC')
-                ->limit(10);
-            
+                ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+            $query->setLimit(10, 0);
             $db->setQuery($query);
             $banks = $db->loadObjectList();
             
