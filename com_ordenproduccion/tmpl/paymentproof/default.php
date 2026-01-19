@@ -138,6 +138,26 @@ $isReadOnly = $this->isReadOnly;
                                     <div class="form-group">
                                         <label for="bank">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_BANK'); ?>
+                                            <?php 
+                                            // Add version number for deployment verification
+                                            $manifestPath = JPATH_ROOT . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml';
+                                            $templateVersion = 'v3.5.3'; // Template version - update when template changes
+                                            if (file_exists($manifestPath)) {
+                                                try {
+                                                    $manifest = simplexml_load_file($manifestPath);
+                                                    if ($manifest && isset($manifest->version)) {
+                                                        $componentVersion = (string) $manifest->version;
+                                                        echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ' | Component ' . htmlspecialchars($componentVersion) . ')</small>';
+                                                    } else {
+                                                        echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ')</small>';
+                                                    }
+                                                } catch (Exception $e) {
+                                                    echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ')</small>';
+                                                }
+                                            } else {
+                                                echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ')</small>';
+                                            }
+                                            ?>
                                         </label>
                                         <select name="bank" id="bank" class="form-control" <?php echo $isReadOnly ? 'disabled' : ''; ?> <?php echo !$isReadOnly ? 'required' : ''; ?>>
                                             <?php 
