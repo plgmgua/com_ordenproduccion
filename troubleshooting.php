@@ -1,702 +1,744 @@
 <?php
 /**
- * Compact Data Validation Script - Last 2 Weeks
- * Compares raw biometric data vs summary table
+ * Comprehensive Troubleshooting & Validation Script for com_ordenproduccion
+ * Validates component functionality, especially bank dropdown population
  */
 
 define('_JEXEC', 1);
-define('JPATH_BASE', dirname(__DIR__, 3));
 
-require_once JPATH_BASE . '/includes/defines.php';
-require_once JPATH_BASE . '/includes/framework.php';
+// Detect JPATH_ROOT automatically
+if (!defined('JPATH_ROOT')) {
+    // Try multiple common locations
+    $possibleRoots = [
+        __DIR__,                      // Same directory
+        dirname(__DIR__),             // Parent directory
+        dirname(dirname(__DIR__)),    // Grandparent directory
+        '/var/www/grimpsa_webserver', // Common production path
+    ];
+    
+    foreach ($possibleRoots as $path) {
+        if (file_exists($path . '/includes/defines.php')) {
+            define('JPATH_ROOT', $path);
+            break;
+        }
+    }
+    
+    if (!defined('JPATH_ROOT')) {
+        die("ERROR: Cannot find Joomla root directory. Please set JPATH_ROOT manually.");
+    }
+}
+
+require_once JPATH_ROOT . '/includes/defines.php';
+require_once JPATH_ROOT . '/includes/framework.php';
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 
 $app = Factory::getApplication('site');
-$db = Factory::getContainer()->get(Joomla\Database\DatabaseInterface::class);
+$db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
-// Employees to validate
-$employees = ['Cristina Perez', 'Julio Alvarado', 'Nery Ramirez'];
-
-// Get last 2 weeks (14 days)
-$today = new DateTime();
-$dates = [];
-for ($i = 13; $i >= 0; $i--) {
-    $date = clone $today;
-    $date->modify("-$i days");
-    $dates[] = $date->format('Y-m-d');
+// CSS styling
+echo "<!DOCTYPE html>
+<html><head>
+<meta charset='UTF-8'>
+<title>Bank Dropdown Validation - com_ordenproduccion</title>
+<style>
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    margin: 20px; 
+    background: #f5f5f5; 
+    font-size: 13px; 
+    line-height: 1.6;
 }
-
-echo "<html><head><style>
-body { font-family: 'Courier New', monospace; margin: 20px; background: white; font-size: 11px; }
-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-th { background: #333; color: white; padding: 6px 4px; text-align: left; font-size: 10px; border: 1px solid #000; }
-td { padding: 4px; border: 1px solid #ccc; font-size: 10px; }
-.ok { background: #d4edda; }
-.error { background: #f8d7da; font-weight: bold; }
-.warning { background: #fff3cd; }
+.container { 
+    max-width: 1200px; 
+    margin: 0 auto; 
+    background: white; 
+    padding: 20px; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+h1 { color: #333; border-bottom: 3px solid #0073aa; padding-bottom: 10px; }
+h2 { color: #0073aa; margin-top: 30px; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
+h3 { color: #555; margin-top: 20px; }
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin: 15px 0; 
+    background: white;
+    border: 1px solid #ddd;
+}
+th { 
+    background: #0073aa; 
+    color: white; 
+    padding: 10px; 
+    text-align: left; 
+    font-size: 12px; 
+    border: 1px solid #005177;
+}
+td { 
+    padding: 8px 10px; 
+    border: 1px solid #ddd; 
+    font-size: 12px; 
+    vertical-align: top;
+}
+.ok { background: #d4edda; color: #155724; }
+.error { background: #f8d7da; color: #721c24; font-weight: bold; }
+.warning { background: #fff3cd; color: #856404; }
+.info { background: #d1ecf1; color: #0c5460; }
 .nodata { background: #e2e3e5; color: #666; }
-h3 { margin: 15px 0 5px 0; font-size: 13px; }
-.summary { background: #f0f0f0; padding: 10px; margin: 10px 0; }
-</style></head><body>";
+code { 
+    background: #f4f4f4; 
+    padding: 2px 6px; 
+    border-radius: 3px; 
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+pre { 
+    background: #f4f4f4; 
+    padding: 10px; 
+    border-radius: 4px; 
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    font-size: 11px;
+}
+.summary { 
+    background: #f0f0f0; 
+    padding: 15px; 
+    margin: 15px 0; 
+    border-radius: 4px;
+    border-left: 4px solid #0073aa;
+}
+.test-section {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fafafa;
+}
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: 10px;
+}
+.badge-ok { background: #28a745; color: white; }
+.badge-error { background: #dc3545; color: white; }
+.badge-warning { background: #ffc107; color: #000; }
+</style>
+</head><body>
+<div class='container'>";
 
-echo "<h3>📊 COMPACT VALIDATION REPORT - Last 2 Weeks</h3>";
+echo "<h1>🔍 Bank Dropdown Validation & Troubleshooting</h1>";
 echo "<div class='summary'>";
-echo "Period: <strong>{$dates[0]}</strong> to <strong>{$dates[count($dates)-1]}</strong> | ";
-echo "Employees: <strong>" . implode(', ', $employees) . "</strong>";
+echo "<strong>Timestamp:</strong> " . date('Y-m-d H:i:s') . "<br>";
+echo "<strong>Joomla Root:</strong> " . JPATH_ROOT . "<br>";
+echo "<strong>Component:</strong> com_ordenproduccion<br>";
 echo "</div>";
 
-// Collect validation data
-foreach ($employees as $employeeName) {
-    echo "<h3>👤 {$employeeName}</h3>";
-    echo "<table>";
-    echo "<tr>";
-    echo "<th>Date</th>";
-    echo "<th>Day</th>";
-    echo "<th>Raw Punches</th>";
-    echo "<th>First In</th>";
-    echo "<th>Last Out</th>";
-    echo "<th>Calc Hrs</th>";
-    echo "<th>Sum Hrs</th>";
-    echo "<th>Exp Hrs</th>";
-    echo "<th>Status</th>";
-    echo "<th>Validation</th>";
-    echo "</tr>";
-    
-    foreach ($dates as $date) {
-        $dayName = date('D', strtotime($date));
-        
-        // Get RAW data
-        $rawQuery = $db->getQuery(true)
-            ->select('authtime')
-            ->from($db->quoteName('asistencia'))
-            ->where($db->quoteName('personname') . ' = ' . $db->quote($employeeName))
-            ->where($db->quoteName('authdate') . ' = ' . $db->quote($date))
-            ->order($db->quoteName('authtime') . ' ASC');
-        
-        $db->setQuery($rawQuery);
-        $rawTimes = $db->loadColumn();
-        
-        // Get SUMMARY data
-        $summaryQuery = $db->getQuery(true)
-            ->select('a.*, e.group_id')
-            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary', 'a'))
-            ->leftJoin(
-                $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
-                $db->quoteName('a.personname') . ' = ' . $db->quoteName('e.personname')
-            )
-            ->where($db->quoteName('a.personname') . ' = ' . $db->quote($employeeName))
-            ->where($db->quoteName('a.work_date') . ' = ' . $db->quote($date));
-        
-        $db->setQuery($summaryQuery);
-        $summary = $db->loadObject();
-        
-        // Calculate from raw
-        $calcHours = 0;
-        $firstIn = '';
-        $lastOut = '';
-        $rawCount = count($rawTimes);
-        
-        if ($rawCount > 0) {
-            $firstIn = substr($rawTimes[0], 0, 5);
-            $lastOut = substr($rawTimes[$rawCount - 1], 0, 5);
-            
-            $first = new DateTime($rawTimes[0]);
-            $last = new DateTime($rawTimes[$rawCount - 1]);
-            $diff = $first->diff($last);
-            $calcHours = $diff->h + ($diff->i / 60);
-        }
-        
-        // Determine status and validation
-        $status = 'N/A';
-        $validation = '';
-        $rowClass = 'nodata';
-        
-        if ($rawCount > 0 || $summary) {
-            if (!$summary) {
-                $status = 'NO SUMMARY';
-                $validation = '❌ Missing Summary';
-                $rowClass = 'error';
-            } elseif ($rawCount == 0) {
-                $status = 'NO RAW DATA';
-                $validation = '❌ Missing Raw';
-                $rowClass = 'error';
-            } else {
-                // Compare data
-                $firstMatch = (substr($rawTimes[0], 0, 8) === $summary->first_entry);
-                $lastMatch = (substr($rawTimes[$rawCount-1], 0, 8) === $summary->last_exit);
-                $hoursMatch = (abs($calcHours - $summary->total_hours) < 0.02);
-                $countMatch = ($rawCount == $summary->total_entries);
-                
-                if ($firstMatch && $lastMatch && $hoursMatch && $countMatch) {
-                    $status = $summary->is_complete ? '✅ Complete' : '⚠️ Incomplete';
-                    $validation = '✅ OK';
-                    $rowClass = 'ok';
-                } else {
-                    $status = 'MISMATCH';
-                    $validation = '';
-                    if (!$firstMatch) $validation .= '❌First ';
-                    if (!$lastMatch) $validation .= '❌Last ';
-                    if (!$hoursMatch) $validation .= '❌Hours ';
-                    if (!$countMatch) $validation .= '❌Count ';
-                    $rowClass = 'error';
-                }
-            }
-        }
-        
-        echo "<tr class='{$rowClass}'>";
-        echo "<td>{$date}</td>";
-        echo "<td>{$dayName}</td>";
-        echo "<td>" . ($rawCount > 0 ? $rawCount : '-') . "</td>";
-        echo "<td>" . ($firstIn ?: '-') . "</td>";
-        echo "<td>" . ($lastOut ?: '-') . "</td>";
-        echo "<td>" . ($calcHours > 0 ? number_format($calcHours, 2) : '-') . "</td>";
-        echo "<td>" . ($summary ? number_format($summary->total_hours, 2) : '-') . "</td>";
-        echo "<td>" . ($summary ? number_format($summary->expected_hours, 1) : '-') . "</td>";
-        echo "<td>{$status}</td>";
-        echo "<td>{$validation}</td>";
-        echo "</tr>";
-    }
-    
-    echo "</table>";
-}
-
-// Overall summary
-$totalRawQuery = $db->getQuery(true)
-    ->select('COUNT(*) as total')
-    ->from($db->quoteName('asistencia'))
-    ->where($db->quoteName('personname') . ' IN (' . implode(',', array_map([$db, 'quote'], $employees)) . ')')
-    ->where($db->quoteName('authdate') . ' >= ' . $db->quote($dates[0]))
-    ->where($db->quoteName('authdate') . ' <= ' . $db->quote($dates[count($dates)-1]));
-
-$db->setQuery($totalRawQuery);
-$totalRaw = $db->loadResult();
-
-$totalSummaryQuery = $db->getQuery(true)
-    ->select('COUNT(*) as total')
-    ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
-    ->where($db->quoteName('personname') . ' IN (' . implode(',', array_map([$db, 'quote'], $employees)) . ')')
-    ->where($db->quoteName('work_date') . ' >= ' . $db->quote($dates[0]))
-    ->where($db->quoteName('work_date') . ' <= ' . $db->quote($dates[count($dates)-1]));
-
-$db->setQuery($totalSummaryQuery);
-$totalSummary = $db->loadResult();
-
-echo "<div class='summary' style='margin-top: 20px;'>";
-echo "<strong>TOTALS:</strong> ";
-echo "Raw Punch Records: <strong>{$totalRaw}</strong> | ";
-echo "Summary Records: <strong>{$totalSummary}</strong> | ";
-echo "Employees: <strong>" . count($employees) . "</strong> | ";
-echo "Days: <strong>" . count($dates) . "</strong>";
-echo "</div>";
-
-echo "<div class='summary'>";
-echo "<strong>Legend:</strong> ";
-echo "✅ OK = All data matches | ";
-echo "❌ = Mismatch or missing data | ";
-echo "⚠️ Incomplete = Less than expected hours | ";
-echo "- = No data";
-echo "</div>";
+$testResults = [];
+$totalTests = 0;
+$passedTests = 0;
 
 // ============================================
-// MANUAL ENTRIES DIAGNOSTIC SECTION
+// TEST 1: Database Table Exists
 // ============================================
-echo "<hr style='margin: 30px 0; border: 2px solid #333;'>";
-echo "<h3>🔍 MANUAL ENTRIES DIAGNOSTIC</h3>";
+echo "<div class='test-section'>";
+echo "<h2>Test 1: Database Table Validation</h2>";
 
-// Get date parameter or use today
-$testDate = $_GET['date'] ?? date('Y-m-d');
-
-echo "<div class='summary'>";
-echo "<strong>Testing Date:</strong> <strong>{$testDate}</strong> | ";
-echo "<form method='GET' style='display: inline;'>";
-echo "<input type='date' name='date' value='{$testDate}' style='margin: 0 5px;'>";
-echo "<button type='submit'>Change Date</button>";
-echo "</form>";
-echo "</div>";
-
-// Query 1: Check manual entries
-echo "<h4>1. Manual Entries in Manual Table</h4>";
-try {
-    $manualQuery = $db->getQuery(true)
-        ->select('*')
-        ->from($db->quoteName('#__ordenproduccion_asistencia_manual'))
-        ->where('DATE(' . $db->quoteName('authdate') . ') = ' . $db->quote($testDate))
-        ->order($db->quoteName('created') . ' DESC')
-        ->setLimit(20);
-    
-    $db->setQuery($manualQuery);
-    $manualEntries = $db->loadObjectList();
-    
-    if (empty($manualEntries)) {
-        echo "<p class='warning'>⚠️ No manual entries found for {$testDate}</p>";
-    } else {
-        echo "<table>";
-        echo "<tr><th>ID</th><th>Person</th><th>Card No</th><th>Date</th><th>Time</th><th>Direction</th><th>Created</th><th>Created By</th></tr>";
-        foreach ($manualEntries as $entry) {
-            echo "<tr>";
-            echo "<td>{$entry->id}</td>";
-            echo "<td>{$entry->personname}</td>";
-            echo "<td>" . ($entry->cardno ?: '-') . "</td>";
-            echo "<td>{$entry->authdate}</td>";
-            echo "<td>{$entry->authtime}</td>";
-            echo "<td>{$entry->direction}</td>";
-            echo "<td>{$entry->created}</td>";
-            echo "<td>{$entry->created_by}</td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-        echo "<p>✅ Found <strong>" . count($manualEntries) . "</strong> manual entries</p>";
-    }
-} catch (Exception $e) {
-    echo "<p class='error'>❌ Error querying manual entries: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// Query 2: Check summaries for that date
-echo "<h4>2. Summary Records for {$testDate}</h4>";
-try {
-    $summaryQuery = $db->getQuery(true)
-        ->select('s.*, e.group_id, g.name AS group_name')
-        ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 's'))
-        ->leftJoin($db->quoteName('#__ordenproduccion_employees', 'e') . ' ON s.personname = e.personname')
-        ->leftJoin($db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON e.group_id = g.id')
-        ->where($db->quoteName('s.work_date') . ' = ' . $db->quote($testDate))
-        ->order($db->quoteName('s.personname') . ' ASC');
-    
-    $db->setQuery($summaryQuery);
-    $summaries = $db->loadObjectList();
-    
-    if (empty($summaries)) {
-        echo "<p class='error'>❌ No summary records found for {$testDate}</p>";
-    } else {
-        echo "<table>";
-        echo "<tr><th>ID</th><th>Person</th><th>Card No</th><th>Date</th><th>Entry</th><th>Exit</th><th>Hours</th><th>Group</th><th>Approval</th></tr>";
-        foreach ($summaries as $summary) {
-            echo "<tr>";
-            echo "<td>{$summary->id}</td>";
-            echo "<td>{$summary->personname}</td>";
-            echo "<td>" . ($summary->cardno ?: '-') . "</td>";
-            echo "<td>{$summary->work_date}</td>";
-            echo "<td>" . ($summary->first_entry ?: '-') . "</td>";
-            echo "<td>" . ($summary->last_exit ?: '-') . "</td>";
-            echo "<td><strong>" . number_format($summary->total_hours, 2) . "h</strong></td>";
-            echo "<td>" . ($summary->group_name ?: '<span style="color:red">NO GROUP</span>') . "</td>";
-            echo "<td>" . ($summary->approval_status ?? 'pending') . "</td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-        echo "<p>✅ Found <strong>" . count($summaries) . "</strong> summary records</p>";
-    }
-} catch (Exception $e) {
-    echo "<p class='error'>❌ Error querying summaries: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// Query 3: Test UNION query
-echo "<h4>3. UNION Query Test (Combined asistencia + manual)</h4>";
-try {
-    // Simplified UNION using only personname and date (matching AsistenciaHelper)
-    $unionTestQuery = "
-        SELECT 
-            CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname,
-            CAST(authdate AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate,
-            CAST(authtime AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime,
-            CAST(direction AS CHAR) COLLATE utf8mb4_unicode_ci AS direction,
-            'biometric' AS source
-        FROM asistencia
-        WHERE DATE(CAST(authdate AS DATE)) = " . $db->quote($testDate) . "
-        UNION ALL
-        SELECT 
-            CAST(personname AS CHAR) COLLATE utf8mb4_unicode_ci AS personname,
-            CAST(authdate AS CHAR) COLLATE utf8mb4_unicode_ci AS authdate,
-            CAST(authtime AS CHAR) COLLATE utf8mb4_unicode_ci AS authtime,
-            CAST(direction AS CHAR) COLLATE utf8mb4_unicode_ci AS direction,
-            'manual' AS source
-        FROM " . $db->quoteName('#__ordenproduccion_asistencia_manual') . "
-        WHERE state = 1
-        AND DATE(CAST(authdate AS DATE)) = " . $db->quote($testDate) . "
-        ORDER BY personname, authtime
-        LIMIT 50";
-    
-    $db->setQuery($unionTestQuery);
-    $combined = $db->loadObjectList();
-    
-    if (empty($combined)) {
-        echo "<p class='warning'>⚠️ UNION query returned no results for {$testDate}</p>";
-    } else {
-        echo "<table>";
-        echo "<tr><th>Person</th><th>Date</th><th>Time</th><th>Direction</th><th>Source</th></tr>";
-        foreach ($combined as $row) {
-            $sourceColor = $row->source === 'manual' ? 'style="background: #d4edda;"' : '';
-            echo "<tr {$sourceColor}>";
-            echo "<td>{$row->personname}</td>";
-            echo "<td>{$row->authdate}</td>";
-            echo "<td>{$row->authtime}</td>";
-            echo "<td>{$row->direction}</td>";
-            echo "<td><strong>" . strtoupper($row->source) . "</strong></td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-        
-        $biometricCount = count(array_filter($combined, fn($r) => $r->source === 'biometric'));
-        $manualCount = count(array_filter($combined, fn($r) => $r->source === 'manual'));
-        
-        echo "<p>✅ UNION found: <strong>{$biometricCount}</strong> biometric + <strong>{$manualCount}</strong> manual = <strong>" . count($combined) . "</strong> total entries</p>";
-    }
-} catch (Exception $e) {
-    echo "<p class='error'>❌ Error in UNION query: " . htmlspecialchars($e->getMessage()) . "</p>";
-    echo "<pre style='background: #f0f0f0; padding: 10px; overflow: auto;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-}
-
-// Query 4: Test calculateDailyHours for a specific employee
-if (!empty($manualEntries)) {
-    echo "<h4>4. Test calculateDailyHours for Manual Entry Employee</h4>";
-    $testEmployee = $manualEntries[0]->personname;
-    echo "<p>Testing: <strong>{$testEmployee}</strong> on <strong>{$testDate}</strong></p>";
-    
-    try {
-        require_once JPATH_BASE . '/components/com_ordenproduccion/src/Helper/AsistenciaHelper.php';
-        $calculation = \Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper::calculateDailyHours($testEmployee, $testDate);
-        
-        if ($calculation) {
-            echo "<table>";
-            echo "<tr><th>Field</th><th>Value</th></tr>";
-            echo "<tr><td>Personname</td><td>{$calculation->personname}</td></tr>";
-            echo "<tr><td>Cardno</td><td>" . ($calculation->cardno ?: '-') . "</td></tr>";
-            echo "<tr><td>Work Date</td><td>{$calculation->work_date}</td></tr>";
-            echo "<tr><td>First Entry</td><td>" . ($calculation->first_entry ?: '-') . "</td></tr>";
-            echo "<tr><td>Last Exit</td><td>" . ($calculation->last_exit ?: '-') . "</td></tr>";
-            echo "<tr><td>Total Hours</td><td><strong>" . number_format($calculation->total_hours, 2) . "h</strong></td></tr>";
-            echo "<tr><td>Total Entries</td><td>{$calculation->total_entries}</td></tr>";
-            echo "<tr><td>Is Complete</td><td>" . ($calculation->is_complete ? 'Yes' : 'No') . "</td></tr>";
-            echo "<tr><td>Is Late</td><td>" . ($calculation->is_late ? 'Yes' : 'No') . "</td></tr>";
-            echo "</table>";
-            echo "<p class='ok'>✅ calculateDailyHours returned valid data</p>";
-        } else {
-            echo "<p class='error'>❌ calculateDailyHours returned NULL/empty</p>";
-        }
-    } catch (Exception $e) {
-        echo "<p class='error'>❌ Error calling calculateDailyHours: " . htmlspecialchars($e->getMessage()) . "</p>";
-    }
-}
-
-// Query 6: Manual trigger updateDailySummary
-if (!empty($manualEntries)) {
-    echo "<h4>6. Manually Trigger updateDailySummary</h4>";
-    $testEmp = $manualEntries[0];
-    echo "<p>Test employee: <strong>{$testEmp->personname}</strong> on <strong>{$testDate}</strong></p>";
-    
-    if (isset($_GET['trigger_update'])) {
-        try {
-            require_once JPATH_BASE . '/components/com_ordenproduccion/src/Helper/AsistenciaHelper.php';
-            $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper::updateDailySummary($testEmp->personname, $testDate);
-            
-            if ($result) {
-                echo "<p class='ok'>✅ updateDailySummary returned TRUE - summary should now exist</p>";
-                echo "<p><a href='?date={$testDate}'>Refresh to see updated summary</a></p>";
-            } else {
-                echo "<p class='error'>❌ updateDailySummary returned FALSE - check error logs</p>";
-            }
-        } catch (Exception $e) {
-            echo "<p class='error'>❌ Error calling updateDailySummary: " . htmlspecialchars($e->getMessage()) . "</p>";
-            echo "<pre style='background: #f0f0f0; padding: 10px; overflow: auto;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-        }
-    } else {
-        echo "<p><a href='?date={$testDate}&trigger_update=1' class='btn' style='background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;'>Trigger updateDailySummary</a></p>";
-    }
-}
-
-// Query 5: Employees table check
-echo "<h4>5. Employee Records Check</h4>";
-if (!empty($manualEntries)) {
-    $uniqueEmployees = array_unique(array_column($manualEntries, 'personname'));
-    echo "<p>Checking if manual entry employees exist in employees table...</p>";
-    echo "<table>";
-    echo "<tr><th>Personname</th><th>Exists in Employees?</th><th>Group ID</th><th>Group Name</th></tr>";
-    
-    foreach ($uniqueEmployees as $empName) {
-        $empQuery = $db->getQuery(true)
-            ->select('e.*, g.name AS group_name, g.manager_user_id')
-            ->from($db->quoteName('#__ordenproduccion_employees', 'e'))
-            ->leftJoin($db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON e.group_id = g.id')
-            ->where($db->quoteName('e.personname') . ' = ' . $db->quote($empName));
-        
-        $db->setQuery($empQuery);
-        $employee = $db->loadObject();
-        
-        if ($employee) {
-            echo "<tr class='ok'>";
-            echo "<td>{$empName}</td>";
-            echo "<td>✅ Yes</td>";
-            echo "<td>" . ($employee->group_id ?: '<span style="color:red">NULL</span>') . "</td>";
-            echo "<td>" . ($employee->group_name ?: '<span style="color:red">NO GROUP</span>') . "</td>";
-            echo "</tr>";
-        } else {
-            echo "<tr class='error'>";
-            echo "<td>{$empName}</td>";
-            echo "<td>❌ No</td>";
-            echo "<td>-</td>";
-            echo "<td>-</td>";
-            echo "</tr>";
-        }
-    }
-    echo "</table>";
-}
-
-// ============================================
-// MODULE TROUBLESHOOTING SECTION
-// ============================================
-echo "<hr style='margin: 30px 0; border: 2px solid #333;'>";
-echo "<h3>🔧 MODULE TROUBLESHOOTING - mod_acciones_produccion</h3>";
-
-// Get order ID from URL
-$moduleTestOrderId = $_GET['module_test_id'] ?? 0;
-
-echo "<div class='summary'>";
-echo "<strong>Module Diagnostics:</strong> Check shipping slip JavaScript functionality | ";
-echo "<form method='GET' style='display: inline;'>";
-if (isset($_GET['date'])) {
-    echo "<input type='hidden' name='date' value='{$_GET['date']}'>";
-}
-echo "Test Order ID: <input type='number' name='module_test_id' value='{$moduleTestOrderId}' style='margin: 0 5px; width: 100px;'>";
-echo "<button type='submit'>Test Module</button>";
-echo "</form>";
-echo "</div>";
-
-// ============================================
-// Check 1: Module File Checks
-// ============================================
-echo "<h4>1. Module File Checks</h4>";
-
-$moduleFiles = [
-    JPATH_BASE . '/modules/mod_acciones_produccion/mod_acciones_produccion.php' => 'Main Module File',
-    JPATH_BASE . '/modules/mod_acciones_produccion/tmpl/default.php' => 'Template File',
-    JPATH_BASE . '/modules/mod_acciones_produccion/mod_acciones_produccion.xml' => 'Manifest File'
-];
-
-$allModuleFilesExist = true;
-echo "<table>";
-echo "<tr><th>File</th><th>Status</th><th>Size</th><th>Modified</th></tr>";
-foreach ($moduleFiles as $path => $label) {
-    $exists = file_exists($path);
-    $allModuleFilesExist = $allModuleFilesExist && $exists;
-    $rowClass = $exists ? 'ok' : 'error';
-    
-    echo "<tr class='{$rowClass}'>";
-    echo "<td><strong>{$label}</strong><br><small>" . basename($path) . "</small></td>";
-    echo "<td>" . ($exists ? '✅ EXISTS' : '❌ NOT FOUND') . "</td>";
-    echo "<td>" . ($exists ? filesize($path) . ' bytes' : '-') . "</td>";
-    echo "<td>" . ($exists ? date('Y-m-d H:i:s', filemtime($path)) : '-') . "</td>";
-    echo "</tr>";
-}
-echo "</table>";
-
-if (!$allModuleFilesExist) {
-    echo "<p class='error'><strong>⚠️ MODULE FILES MISSING!</strong> Deploy using: <code>sudo ./update_build_simple.sh</code></p>";
-} else {
-    echo "<p class='ok'>✅ All module files present</p>";
-}
-
-// ============================================
-// Check 2: submitShippingWithDescription Function Code
-// ============================================
-echo "<h4>2. submitShippingWithDescription Function Code</h4>";
-
-$templateFile = JPATH_BASE . '/modules/mod_acciones_produccion/tmpl/default.php';
-if (file_exists($templateFile)) {
-    $contents = file_get_contents($templateFile);
-    
-    // Check for the function definition
-    if (strpos($contents, 'window.submitShippingWithDescription') !== false) {
-        echo "<p class='ok'>✅ Function definition FOUND in template file</p>";
-        
-        // Check for the fix (const shippingForm declaration)
-        if (strpos($contents, 'const shippingForm = document.getElementById') !== false) {
-            echo "<p class='ok'>✅ FIXED VERSION: <code>const shippingForm</code> declaration present</p>";
-            
-            // Extract and show the code snippet
-            preg_match('/window\.submitShippingWithDescription\s*=\s*function\(\)\s*\{([^\}]{0,400})/s', $contents, $matches);
-            if (!empty($matches[0])) {
-                echo "<p><strong>Code Snippet (first 400 chars):</strong></p>";
-                echo "<pre style='max-height: 200px; overflow-y: auto;'>" . htmlspecialchars(substr($matches[0], 0, 500)) . "...</pre>";
-            }
-        } else {
-            echo "<p class='error'>❌ BROKEN VERSION: Missing <code>const shippingForm</code> declaration</p>";
-            echo "<p class='error'>This is the bug! The variable is used but never declared.</p>";
-            echo "<p class='warning'>Deploy fix: <code>cd /var/www/grimpsa_webserver && sudo ./update_build_simple.sh</code></p>";
-        }
-        
-        // Check for debug logging
-        if (strpos($contents, "console.log('Module script loading...')") !== false) {
-            echo "<p class='ok'>✅ Debug logging present (helps diagnose issues)</p>";
-        } else {
-            echo "<p class='warning'>⚠️ Debug logging not found (older version)</p>";
-        }
-    } else {
-        echo "<p class='error'>❌ Function definition NOT FOUND in template file</p>";
-    }
-} else {
-    echo "<p class='error'>❌ Template file not found at: {$templateFile}</p>";
-}
-
-// ============================================
-// Check 3: Module Database Registration
-// ============================================
-echo "<h4>3. Module Database Registration</h4>";
+$totalTests++;
+$tableName = '#__ordenproduccion_banks';
+$tableExists = false;
 
 try {
-    $moduleQuery = $db->getQuery(true)
-        ->select('*')
-        ->from($db->quoteName('#__modules'))
-        ->where($db->quoteName('module') . ' = ' . $db->quote('mod_acciones_produccion'));
+    $query = $db->getQuery(true)
+        ->select('COUNT(*)')
+        ->from('information_schema.TABLES')
+        ->where('TABLE_SCHEMA = ' . $db->quote($db->getDatabase()))
+        ->where('TABLE_NAME = ' . $db->quote(str_replace('#__', $db->getPrefix(), $tableName)));
     
-    $db->setQuery($moduleQuery);
-    $modules = $db->loadObjectList();
+    $db->setQuery($query);
+    $count = $db->loadResult();
+    $tableExists = ($count > 0);
     
-    if (empty($modules)) {
-        echo "<p class='error'>❌ Module NOT registered in database</p>";
-        echo "<p class='error'>Register it: <code>php " . JPATH_BASE . "/modules/mod_acciones_produccion/register_module_joomla5.php</code></p>";
-    } else {
-        echo "<p class='ok'>✅ Module registered in database</p>";
-        echo "<p>Found: <strong>" . count($modules) . "</strong> instance(s)</p>";
+    if ($tableExists) {
+        echo "<p class='ok'>✅ Table <code>{$tableName}</code> exists in database</p>";
+        $passedTests++;
+        $testResults['table_exists'] = true;
         
-        if (count($modules) > 1) {
-            echo "<p class='warning'>⚠️ MULTIPLE INSTANCES FOUND! This causes duplication and JavaScript conflicts.</p>";
-            echo "<p class='warning'>Delete duplicate instances in: System → Manage → Site Modules</p>";
-        }
-        
-        echo "<table>";
-        echo "<tr><th>ID</th><th>Title</th><th>Position</th><th>Published</th><th>Access</th><th>Ordering</th></tr>";
-        foreach ($modules as $mod) {
-            $publishedClass = $mod->published ? 'ok' : 'error';
-            echo "<tr class='{$publishedClass}'>";
-            echo "<td>{$mod->id}</td>";
-            echo "<td>{$mod->title}</td>";
-            echo "<td><strong>{$mod->position}</strong></td>";
-            echo "<td>" . ($mod->published ? '✅ Published' : '❌ Unpublished') . "</td>";
-            echo "<td>{$mod->access}</td>";
-            echo "<td>{$mod->ordering}</td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-    }
-} catch (Exception $e) {
-    echo "<p class='error'>❌ Error querying modules: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// ============================================
-// Check 4: Test with Specific Order
-// ============================================
-echo "<h4>4. Test Module Logic with Specific Order</h4>";
-
-if ($moduleTestOrderId > 0) {
-    echo "<p>Testing with Order ID: <strong>{$moduleTestOrderId}</strong></p>";
-    
-    try {
-        $orderQuery = $db->getQuery(true)
+        // Get table structure
+        $query = $db->getQuery(true)
             ->select('*')
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('id') . ' = ' . (int)$moduleTestOrderId)
+            ->from($db->quoteName($tableName))
+            ->limit(1);
+        $db->setQuery($query);
+        $sample = $db->loadObject();
+        
+        if ($sample) {
+            echo "<p class='info'>Table structure validated with sample record</p>";
+        }
+    } else {
+        echo "<p class='error'>❌ Table <code>{$tableName}</code> does NOT exist in database</p>";
+        echo "<p class='warning'>Action required: Run SQL migration script to create table</p>";
+        $testResults['table_exists'] = false;
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error checking table: " . htmlspecialchars($e->getMessage()) . "</p>";
+    $testResults['table_exists'] = false;
+}
+
+echo "</div>";
+
+// ============================================
+// TEST 2: Bank Data in Database
+// ============================================
+if ($tableExists) {
+    echo "<div class='test-section'>";
+    echo "<h2>Test 2: Bank Data Validation</h2>";
+    
+    $totalTests++;
+    try {
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName($tableName))
             ->where($db->quoteName('state') . ' = 1');
         
-        $db->setQuery($orderQuery);
-        $workOrderData = $db->loadObject();
+        $db->setQuery($query);
+        $activeBanksCount = (int) $db->loadResult();
         
-        if ($workOrderData) {
-            echo "<p class='ok'>✅ Work order data FOUND</p>";
-            echo "<table>";
-            echo "<tr><th>Field</th><th>Value</th></tr>";
-            echo "<tr><td>Order Number</td><td><strong>" . htmlspecialchars($workOrderData->orden_de_trabajo ?? 'N/A') . "</strong></td></tr>";
-            echo "<tr><td>Client</td><td>" . htmlspecialchars($workOrderData->client_name ?? 'N/A') . "</td></tr>";
-            echo "<tr><td>Status</td><td>" . htmlspecialchars($workOrderData->status ?? 'N/A') . "</td></tr>";
-            echo "<tr><td>Order Type</td><td>" . htmlspecialchars($workOrderData->order_type ?? 'N/A') . "</td></tr>";
-            echo "<tr><td>Created</td><td>" . htmlspecialchars($workOrderData->created ?? 'N/A') . "</td></tr>";
-            echo "</table>";
-            
-            echo "<p class='ok'>✅ PHP Condition <code>if (\$orderId && \$workOrderData)</code> would be <strong>TRUE</strong></p>";
-            echo "<p class='ok'>✅ Script block SHOULD be output to HTML</p>";
-            
-            echo "<p><strong>Test in Browser:</strong></p>";
-            echo "<ol>";
-            echo "<li>Open: <a href='/index.php/component/ordenproduccion/?view=orden&id={$moduleTestOrderId}' target='_blank'>Order {$moduleTestOrderId}</a></li>";
-            echo "<li>Press F12 → Console tab</li>";
-            echo "<li>Look for: <code>Module script loading...</code></li>";
-            echo "<li>Check: <code>typeof window.submitShippingWithDescription</code> should be 'function'</li>";
-            echo "</ol>";
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName($tableName));
+        
+        $db->setQuery($query);
+        $totalBanksCount = (int) $db->loadResult();
+        
+        echo "<table>";
+        echo "<tr><th>Metric</th><th>Value</th><th>Status</th></tr>";
+        echo "<tr class='" . ($totalBanksCount > 0 ? 'ok' : 'error') . "'>";
+        echo "<td>Total Banks in Database</td>";
+        echo "<td><strong>{$totalBanksCount}</strong></td>";
+        echo "<td>" . ($totalBanksCount > 0 ? "✅ OK" : "❌ No banks found") . "</td>";
+        echo "</tr>";
+        echo "<tr class='" . ($activeBanksCount > 0 ? 'ok' : 'error') . "'>";
+        echo "<td>Active Banks (state=1)</td>";
+        echo "<td><strong>{$activeBanksCount}</strong></td>";
+        echo "<td>" . ($activeBanksCount > 0 ? "✅ OK" : "❌ No active banks") . "</td>";
+        echo "</tr>";
+        echo "</table>";
+        
+        // Check for default bank
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName($tableName))
+            ->where($db->quoteName('is_default') . ' = 1')
+            ->where($db->quoteName('state') . ' = 1');
+        
+        $db->setQuery($query);
+        $defaultBankCount = (int) $db->loadResult();
+        
+        echo "<p class='" . ($defaultBankCount == 1 ? 'ok' : 'warning') . "'>";
+        echo ($defaultBankCount == 1 ? "✅" : "⚠️") . " Default bank: <strong>{$defaultBankCount}</strong> ";
+        if ($defaultBankCount == 0) {
+            echo "(No default bank set)";
+        } elseif ($defaultBankCount > 1) {
+            echo "(Multiple default banks - should be only 1)";
         } else {
-            echo "<p class='error'>❌ Work order data NOT FOUND</p>";
-            echo "<p class='error'>PHP Condition <code>if (\$orderId && \$workOrderData)</code> would be <strong>FALSE</strong></p>";
-            echo "<p class='error'>Script block will NOT be output!</p>";
-            echo "<p>Possible reasons:</p>";
-            echo "<ul>";
-            echo "<li>Order ID {$moduleTestOrderId} doesn't exist</li>";
-            echo "<li>Order state is not 1 (not published)</li>";
-            echo "<li>Order was deleted</li>";
-            echo "</ul>";
+            // Get default bank code
+            $query = $db->getQuery(true)
+                ->select('code, name, name_es, name_en')
+                ->from($db->quoteName($tableName))
+                ->where($db->quoteName('is_default') . ' = 1')
+                ->where($db->quoteName('state') . ' = 1')
+                ->limit(1);
+            $db->setQuery($query);
+            $defaultBank = $db->loadObject();
+            if ($defaultBank) {
+                echo "(Code: <code>{$defaultBank->code}</code>, Name: " . 
+                     htmlspecialchars($defaultBank->name_es ?: $defaultBank->name ?: $defaultBank->code) . ")";
+            }
         }
-    } catch (Exception $e) {
-        echo "<p class='error'>❌ Error querying work order: " . htmlspecialchars($e->getMessage()) . "</p>";
+        echo "</p>";
+        
+        if ($activeBanksCount > 0) {
+            $passedTests++;
+            $testResults['bank_data'] = true;
+            
+            // Show sample banks
+            $query = $db->getQuery(true)
+                ->select('id, code, name, name_es, name_en, ordering, is_default, state')
+                ->from($db->quoteName($tableName))
+                ->where($db->quoteName('state') . ' = 1')
+                ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC')
+                ->limit(10);
+            
+            $db->setQuery($query);
+            $banks = $db->loadObjectList();
+            
+            if (!empty($banks)) {
+                echo "<h3>Sample Banks (first 10 by ordering):</h3>";
+                echo "<table>";
+                echo "<tr><th>ID</th><th>Code</th><th>Name</th><th>Name (ES)</th><th>Ordering</th><th>Default</th><th>State</th></tr>";
+                foreach ($banks as $bank) {
+                    $rowClass = $bank->is_default ? 'warning' : 'ok';
+                    echo "<tr class='{$rowClass}'>";
+                    echo "<td>{$bank->id}</td>";
+                    echo "<td><code>{$bank->code}</code></td>";
+                    echo "<td>" . htmlspecialchars($bank->name ?: '-') . "</td>";
+                    echo "<td>" . htmlspecialchars($bank->name_es ?: '-') . "</td>";
+                    echo "<td>{$bank->ordering}</td>";
+                    echo "<td>" . ($bank->is_default ? '✅ Yes' : 'No') . "</td>";
+                    echo "<td>{$bank->state}</td>";
+                    echo "</tr>";
+                }
+                echo "</table>";
+            }
+        } else {
+            $testResults['bank_data'] = false;
+        }
+    } catch (\Exception $e) {
+        echo "<p class='error'>❌ Error querying bank data: " . htmlspecialchars($e->getMessage()) . "</p>";
+        $testResults['bank_data'] = false;
     }
-} else {
-    echo "<p class='warning'>⚠️ No Order ID provided for testing</p>";
-    echo "<p>Enter an order ID above and click 'Test Module' to verify module logic</p>";
+    
+    echo "</div>";
 }
 
 // ============================================
-// Check 5: Quick Action Links
+// TEST 3: BankModel Class Loading
 // ============================================
-echo "<h4>5. Quick Actions & Recommendations</h4>";
+echo "<div class='test-section'>";
+echo "<h2>Test 3: BankModel Class Validation</h2>";
 
-echo "<div class='summary' style='background: #e7f3ff;'>";
-echo "<p><strong>🚀 Deploy Latest Version:</strong></p>";
-echo "<pre>ssh pgrant@192.168.1.208
-cd /var/www/grimpsa_webserver
-sudo ./update_build_simple.sh</pre>";
+$totalTests++;
+$bankModelLoaded = false;
 
-echo "<p><strong>🧹 Clear All Caches:</strong></p>";
-echo "<pre>sudo rm -rf /var/www/grimpsa_webserver/administrator/cache/*
-sudo rm -rf /var/www/grimpsa_webserver/cache/*
-sudo systemctl restart php-fpm</pre>";
+try {
+    $component = $app->bootComponent('com_ordenproduccion');
+    echo "<p class='ok'>✅ Component booted successfully</p>";
+    
+    $mvcFactory = $component->getMVCFactory();
+    echo "<p class='ok'>✅ MVC Factory available</p>";
+    
+    $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
+    
+    if ($bankModel) {
+        echo "<p class='ok'>✅ BankModel created successfully</p>";
+        $bankModelLoaded = true;
+        $passedTests++;
+        $testResults['bank_model_loaded'] = true;
+        
+        // Check methods
+        $requiredMethods = ['getBanks', 'getBankOptions', 'getDefaultBankCode'];
+        echo "<h3>Required Methods Check:</h3>";
+        echo "<table>";
+        echo "<tr><th>Method</th><th>Status</th></tr>";
+        foreach ($requiredMethods as $method) {
+            $exists = method_exists($bankModel, $method);
+            $rowClass = $exists ? 'ok' : 'error';
+            echo "<tr class='{$rowClass}'>";
+            echo "<td><code>BankModel::{$method}()</code></td>";
+            echo "<td>" . ($exists ? "✅ EXISTS" : "❌ MISSING") . "</td>";
+            echo "</tr>";
+            if (!$exists) {
+                $bankModelLoaded = false;
+            }
+        }
+        echo "</table>";
+        
+    } else {
+        echo "<p class='error'>❌ BankModel could not be created</p>";
+        $testResults['bank_model_loaded'] = false;
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error loading BankModel: " . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    $testResults['bank_model_loaded'] = false;
+}
 
-echo "<p><strong>🔍 Check PHP Error Logs:</strong></p>";
-echo "<pre>tail -50 /var/log/php8.1-fpm/error.log | grep 'MOD_ACCIONES'</pre>";
-
-echo "<p><strong>✅ Test Orders:</strong></p>";
-echo "<p>";
-echo "<a href='?module_test_id=5610" . (isset($_GET['date']) ? "&date={$_GET['date']}" : "") . "' style='display: inline-block; padding: 8px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 2px;'>Test Order 5610</a>";
-echo "<a href='?module_test_id=5613" . (isset($_GET['date']) ? "&date={$_GET['date']}" : "") . "' style='display: inline-block; padding: 8px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 2px;'>Test Order 5613</a>";
-echo "<a href='/index.php/component/ordenproduccion/?view=ordenes' target='_blank' style='display: inline-block; padding: 8px 12px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 2px;'>View All Orders</a>";
-echo "</p>";
 echo "</div>";
 
 // ============================================
-// Summary
+// TEST 4: BankModel::getBankOptions() Functionality
 // ============================================
-echo "<div class='summary' style='background: #f0f0f0; margin-top: 20px;'>";
-echo "<h4>📊 Module Troubleshooting Summary</h4>";
-echo "<table style='width: auto;'>";
-echo "<tr><th>Check</th><th>Status</th></tr>";
-echo "<tr><td>Module Files</td><td>" . ($allModuleFilesExist ? '✅ Present' : '❌ Missing') . "</td></tr>";
-echo "<tr><td>Function Code</td><td>" . ((isset($contents) && strpos($contents, 'window.submitShippingWithDescription') !== false) ? '✅ Found' : '❌ Not Found') . "</td></tr>";
-echo "<tr><td>Fix Applied</td><td>" . ((isset($contents) && strpos($contents, 'const shippingForm = document.getElementById') !== false) ? '✅ Yes' : '❌ No') . "</td></tr>";
-echo "<tr><td>Database Registration</td><td>" . ((isset($modules) && !empty($modules)) ? '✅ Registered' : '❌ Not Registered') . "</td></tr>";
-echo "<tr><td>Multiple Instances</td><td>" . ((isset($modules) && count($modules) > 1) ? '⚠️ Yes (BAD)' : '✅ No') . "</td></tr>";
-if ($moduleTestOrderId > 0) {
-    echo "<tr><td>Test Order Data</td><td>" . (isset($workOrderData) && $workOrderData ? '✅ Found' : '❌ Not Found') . "</td></tr>";
+if ($bankModelLoaded && isset($bankModel)) {
+    echo "<div class='test-section'>";
+    echo "<h2>Test 4: BankModel::getBankOptions() Validation</h2>";
+    
+    $totalTests++;
+    try {
+        $bankOptions = $bankModel->getBankOptions();
+        
+        if (is_array($bankOptions)) {
+            $optionsCount = count($bankOptions);
+            echo "<p class='" . ($optionsCount > 0 ? 'ok' : 'warning') . "'>";
+            echo ($optionsCount > 0 ? "✅" : "⚠️") . " getBankOptions() returned <strong>{$optionsCount}</strong> options";
+            echo "</p>";
+            
+            if ($optionsCount > 0) {
+                $passedTests++;
+                $testResults['bank_options'] = true;
+                
+                echo "<h3>Bank Options Array:</h3>";
+                echo "<table>";
+                echo "<tr><th>Code (Key)</th><th>Name (Value)</th></tr>";
+                $count = 0;
+                foreach ($bankOptions as $code => $name) {
+                    $count++;
+                    if ($count <= 20) { // Show first 20
+                        echo "<tr class='ok'>";
+                        echo "<td><code>" . htmlspecialchars($code) . "</code></td>";
+                        echo "<td>" . htmlspecialchars($name) . "</td>";
+                        echo "</tr>";
+                    }
+                }
+                if ($count > 20) {
+                    echo "<tr><td colspan='2' class='info'>... and " . ($count - 20) . " more banks</td></tr>";
+                }
+                echo "</table>";
+                
+                // Check for empty codes or names
+                $invalidOptions = [];
+                foreach ($bankOptions as $code => $name) {
+                    if (empty($code) || empty($name)) {
+                        $invalidOptions[] = ['code' => $code, 'name' => $name];
+                    }
+                }
+                
+                if (!empty($invalidOptions)) {
+                    echo "<p class='warning'>⚠️ Found " . count($invalidOptions) . " options with empty code or name:</p>";
+                    echo "<pre>" . print_r($invalidOptions, true) . "</pre>";
+                }
+            } else {
+                echo "<p class='error'>❌ getBankOptions() returned empty array - dropdown will be empty!</p>";
+                $testResults['bank_options'] = false;
+            }
+        } else {
+            echo "<p class='error'>❌ getBankOptions() did not return an array. Got: " . gettype($bankOptions) . "</p>";
+            $testResults['bank_options'] = false;
+        }
+    } catch (\Exception $e) {
+        echo "<p class='error'>❌ Error calling getBankOptions(): " . htmlspecialchars($e->getMessage()) . "</p>";
+        echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+        $testResults['bank_options'] = false;
+    }
+    
+    echo "</div>";
 }
+
+// ============================================
+// TEST 5: BankModel::getDefaultBankCode() Functionality
+// ============================================
+if ($bankModelLoaded && isset($bankModel) && method_exists($bankModel, 'getDefaultBankCode')) {
+    echo "<div class='test-section'>";
+    echo "<h2>Test 5: Default Bank Code Validation</h2>";
+    
+    $totalTests++;
+    try {
+        $defaultBankCode = $bankModel->getDefaultBankCode();
+        
+        if (!empty($defaultBankCode)) {
+            echo "<p class='ok'>✅ Default bank code: <code>{$defaultBankCode}</code></p>";
+            $passedTests++;
+            $testResults['default_bank_code'] = true;
+            
+            // Verify it exists in options
+            if (isset($bankOptions) && isset($bankOptions[$defaultBankCode])) {
+                echo "<p class='ok'>✅ Default bank code exists in options: " . 
+                     htmlspecialchars($bankOptions[$defaultBankCode]) . "</p>";
+            } else {
+                echo "<p class='warning'>⚠️ Default bank code not found in options array</p>";
+            }
+        } else {
+            echo "<p class='warning'>⚠️ No default bank code set (getDefaultBankCode() returned null/empty)</p>";
+            echo "<p class='info'>This is OK - dropdown will show 'Select Bank' option first</p>";
+            $testResults['default_bank_code'] = null; // Not an error, just informational
+        }
+    } catch (\Exception $e) {
+        echo "<p class='error'>❌ Error calling getDefaultBankCode(): " . htmlspecialchars($e->getMessage()) . "</p>";
+        $testResults['default_bank_code'] = false;
+    }
+    
+    echo "</div>";
+}
+
+// ============================================
+// TEST 6: PaymentProofModel Integration
+// ============================================
+echo "<div class='test-section'>";
+echo "<h2>Test 6: PaymentProofModel Integration</h2>";
+
+$totalTests++;
+$paymentProofModelLoaded = false;
+
+try {
+    $paymentProofModel = $mvcFactory->createModel('PaymentProof', 'Site', ['ignore_request' => true]);
+    
+    if ($paymentProofModel) {
+        echo "<p class='ok'>✅ PaymentProofModel created successfully</p>";
+        $paymentProofModelLoaded = true;
+        
+        if (method_exists($paymentProofModel, 'getBankOptions')) {
+            echo "<p class='ok'>✅ PaymentProofModel::getBankOptions() method exists</p>";
+            
+            try {
+                $paymentProofOptions = $paymentProofModel->getBankOptions();
+                $paymentOptionsCount = is_array($paymentProofOptions) ? count($paymentProofOptions) : 0;
+                
+                echo "<p class='" . ($paymentOptionsCount > 0 ? 'ok' : 'warning') . "'>";
+                echo ($paymentOptionsCount > 0 ? "✅" : "⚠️") . 
+                     " PaymentProofModel::getBankOptions() returned <strong>{$paymentOptionsCount}</strong> options";
+                echo "</p>";
+                
+                if ($paymentOptionsCount > 0) {
+                    $passedTests++;
+                    $testResults['payment_proof_model'] = true;
+                    
+                    // Compare with BankModel results
+                    if (isset($bankOptions)) {
+                        $diff1 = array_diff_key($bankOptions, $paymentProofOptions);
+                        $diff2 = array_diff_key($paymentProofOptions, $bankOptions);
+                        
+                        if (empty($diff1) && empty($diff2)) {
+                            echo "<p class='ok'>✅ PaymentProofModel options match BankModel options perfectly</p>";
+                        } else {
+                            echo "<p class='warning'>⚠️ Options mismatch detected:</p>";
+                            if (!empty($diff1)) {
+                                echo "<p>In BankModel but not in PaymentProofModel: " . implode(', ', array_keys($diff1)) . "</p>";
+                            }
+                            if (!empty($diff2)) {
+                                echo "<p>In PaymentProofModel but not in BankModel: " . implode(', ', array_keys($diff2)) . "</p>";
+                            }
+                        }
+                    }
+                } else {
+                    $testResults['payment_proof_model'] = false;
+                }
+            } catch (\Exception $e) {
+                echo "<p class='error'>❌ Error calling PaymentProofModel::getBankOptions(): " . 
+                     htmlspecialchars($e->getMessage()) . "</p>";
+                $testResults['payment_proof_model'] = false;
+            }
+        } else {
+            echo "<p class='error'>❌ PaymentProofModel::getBankOptions() method does not exist</p>";
+            $testResults['payment_proof_model'] = false;
+        }
+    } else {
+        echo "<p class='error'>❌ PaymentProofModel could not be created</p>";
+        $testResults['payment_proof_model'] = false;
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error loading PaymentProofModel: " . htmlspecialchars($e->getMessage()) . "</p>";
+    $testResults['payment_proof_model'] = false;
+}
+
+echo "</div>";
+
+// ============================================
+// TEST 7: View Integration
+// ============================================
+echo "<div class='test-section'>";
+echo "<h2>Test 7: PaymentProof View Integration</h2>";
+
+$totalTests++;
+$viewLoaded = false;
+
+try {
+    $view = $mvcFactory->createView('PaymentProof', 'Site');
+    
+    if ($view) {
+        echo "<p class='ok'>✅ PaymentProof View created successfully</p>";
+        $viewLoaded = true;
+        
+        $viewMethods = ['getBankOptions', 'getDefaultBankCode'];
+        echo "<h3>View Methods Check:</h3>";
+        echo "<table>";
+        echo "<tr><th>Method</th><th>Status</th></tr>";
+        $allMethodsExist = true;
+        foreach ($viewMethods as $method) {
+            $exists = method_exists($view, $method);
+            $rowClass = $exists ? 'ok' : 'warning';
+            echo "<tr class='{$rowClass}'>";
+            echo "<td><code>HtmlView::{$method}()</code></td>";
+            echo "<td>" . ($exists ? "✅ EXISTS" : "⚠️ MISSING (may use model directly)") . "</td>";
+            echo "</tr>";
+            if (!$exists && $method == 'getDefaultBankCode') {
+                $allMethodsExist = false; // This is more critical
+            }
+        }
+        echo "</table>";
+        
+        if ($allMethodsExist) {
+            $passedTests++;
+            $testResults['view_integration'] = true;
+            
+            // Test getBankOptions if available
+            if (method_exists($view, 'getBankOptions')) {
+                try {
+                    $viewOptions = $view->getBankOptions();
+                    $viewOptionsCount = is_array($viewOptions) ? count($viewOptions) : 0;
+                    echo "<p class='" . ($viewOptionsCount > 0 ? 'ok' : 'warning') . "'>";
+                    echo "View::getBankOptions() returned <strong>{$viewOptionsCount}</strong> options";
+                    echo "</p>";
+                } catch (\Exception $e) {
+                    echo "<p class='error'>❌ Error calling View::getBankOptions(): " . 
+                         htmlspecialchars($e->getMessage()) . "</p>";
+                }
+            }
+        } else {
+            $testResults['view_integration'] = false;
+        }
+    } else {
+        echo "<p class='error'>❌ PaymentProof View could not be created</p>";
+        $testResults['view_integration'] = false;
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error loading PaymentProof View: " . htmlspecialchars($e->getMessage()) . "</p>";
+    $testResults['view_integration'] = false;
+}
+
+echo "</div>";
+
+// ============================================
+// TEST 8: Template File Check
+// ============================================
+echo "<div class='test-section'>";
+echo "<h2>Test 8: Template File Validation</h2>";
+
+$totalTests++;
+$templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/paymentproof/default.php';
+$templateExists = file_exists($templatePath);
+
+echo "<table>";
+echo "<tr><th>Check</th><th>Result</th></tr>";
+echo "<tr class='" . ($templateExists ? 'ok' : 'error') . "'>";
+echo "<td>Template file exists</td>";
+echo "<td>" . ($templateExists ? "✅ <code>default.php</code> found" : "❌ Template file not found") . "</td>";
+echo "</tr>";
+
+if ($templateExists) {
+    $passedTests++;
+    $testResults['template_file'] = true;
+    
+    // Check for key code in template
+    $templateContent = file_get_contents($templatePath);
+    $hasGetBankOptions = (strpos($templateContent, 'getBankOptions') !== false);
+    $hasGetDefaultBankCode = (strpos($templateContent, 'getDefaultBankCode') !== false);
+    $hasBankSelect = (strpos($templateContent, '<select') !== false && strpos($templateContent, 'bank') !== false);
+    
+    echo "<tr class='" . ($hasGetBankOptions ? 'ok' : 'warning') . "'>";
+    echo "<td>Uses getBankOptions()</td>";
+    echo "<td>" . ($hasGetBankOptions ? "✅ Found" : "⚠️ Not found") . "</td>";
+    echo "</tr>";
+    
+    echo "<tr class='" . ($hasGetDefaultBankCode ? 'ok' : 'warning') . "'>";
+    echo "<td>Uses getDefaultBankCode()</td>";
+    echo "<td>" . ($hasGetDefaultBankCode ? "✅ Found" : "⚠️ Not found (may use method_exists check)") . "</td>";
+    echo "</tr>";
+    
+    echo "<tr class='" . ($hasBankSelect ? 'ok' : 'warning') . "'>";
+    echo "<td>Contains bank dropdown</td>";
+    echo "<td>" . ($hasBankSelect ? "✅ Found" : "⚠️ Not found") . "</td>";
+    echo "</tr>";
+} else {
+    $testResults['template_file'] = false;
+}
+
+echo "</table>";
+echo "</div>";
+
+// ============================================
+// FINAL SUMMARY
+// ============================================
+echo "<div class='test-section'>";
+echo "<h2>📊 Final Summary</h2>";
+
+$criticalTests = [
+    'table_exists' => 'Database table exists',
+    'bank_data' => 'Bank data in database',
+    'bank_model_loaded' => 'BankModel loads successfully',
+    'bank_options' => 'Bank options populated',
+    'payment_proof_model' => 'PaymentProofModel integration',
+];
+
+$criticalPassed = 0;
+foreach ($criticalTests as $test => $label) {
+    if (isset($testResults[$test]) && $testResults[$test]) {
+        $criticalPassed++;
+    }
+}
+
+echo "<table>";
+echo "<tr><th>Test</th><th>Status</th></tr>";
+
+foreach ($criticalTests as $test => $label) {
+    $status = isset($testResults[$test]) ? $testResults[$test] : false;
+    $rowClass = $status ? 'ok' : 'error';
+    $icon = $status ? '✅' : '❌';
+    echo "<tr class='{$rowClass}'>";
+    echo "<td>{$label}</td>";
+    echo "<td>{$icon} " . ($status ? 'PASS' : 'FAIL') . "</td>";
+    echo "</tr>";
+}
+
+// Additional tests
+$additionalTests = [
+    'default_bank_code' => 'Default bank code available',
+    'view_integration' => 'View integration working',
+    'template_file' => 'Template file exists',
+];
+
+foreach ($additionalTests as $test => $label) {
+    $status = isset($testResults[$test]);
+    if ($status) {
+        $value = $testResults[$test];
+        if ($value === null) {
+            $rowClass = 'info';
+            $icon = 'ℹ️';
+            $text = 'INFO (optional)';
+        } else {
+            $rowClass = $value ? 'ok' : 'warning';
+            $icon = $value ? '✅' : '⚠️';
+            $text = $value ? 'PASS' : 'WARNING';
+        }
+        echo "<tr class='{$rowClass}'>";
+        echo "<td>{$label}</td>";
+        echo "<td>{$icon} {$text}</td>";
+        echo "</tr>";
+    }
+}
+
 echo "</table>";
 
-echo "<p><strong>Next Steps:</strong></p>";
-echo "<ol>";
-if (!$allModuleFilesExist || !(isset($contents) && strpos($contents, 'const shippingForm = document.getElementById') !== false)) {
-    echo "<li><strong>DEPLOY:</strong> Run <code>sudo ./update_build_simple.sh</code> on server</li>";
+echo "<div class='summary' style='margin-top: 20px;'>";
+echo "<h3>Test Results: {$criticalPassed} / " . count($criticalTests) . " Critical Tests Passed</h3>";
+echo "<p><strong>Total Tests:</strong> {$passedTests} / {$totalTests} passed</p>";
+
+if ($criticalPassed == count($criticalTests)) {
+    echo "<p class='ok' style='padding: 10px; border-radius: 4px;'><strong>✅ SUCCESS:</strong> Bank dropdown should be working correctly!</p>";
+    echo "<p class='info'>All critical tests passed. The dropdown should populate with banks from the database.</p>";
+} else {
+    echo "<p class='error' style='padding: 10px; border-radius: 4px;'><strong>❌ ISSUES DETECTED:</strong> Some critical tests failed.</p>";
+    echo "<p class='warning'>Please review the failed tests above and take corrective action:</p>";
+    echo "<ul>";
+    if (!$testResults['table_exists'] ?? false) {
+        echo "<li>Run the SQL migration script to create the banks table</li>";
+    }
+    if (!$testResults['bank_data'] ?? false) {
+        echo "<li>Add banks to the database via Component > Administracion > Herramientas > Bancos</li>";
+    }
+    if (!$testResults['bank_model_loaded'] ?? false) {
+        echo "<li>Check that BankModel.php file exists and is properly deployed</li>";
+    }
+    if (!$testResults['bank_options'] ?? false) {
+        echo "<li>Verify BankModel::getBankOptions() is returning data correctly</li>";
+    }
+    echo "</ul>";
 }
-if (isset($modules) && count($modules) > 1) {
-    echo "<li><strong>FIX DUPLICATES:</strong> Delete extra module instances in Joomla Admin</li>";
-}
-echo "<li><strong>CLEAR CACHE:</strong> Delete Joomla cache and restart PHP-FPM</li>";
-echo "<li><strong>TEST:</strong> Open orden page in incognito window with DevTools console</li>";
-echo "<li><strong>VERIFY:</strong> Look for 'Module script loading...' in console</li>";
-echo "</ol>";
 echo "</div>";
 
-echo "</body></html>";
+echo "</div>"; // End summary section
+
+echo "</div></body></html>";
