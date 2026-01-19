@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -300,6 +301,115 @@ $isReadOnly = $this->isReadOnly;
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="bank_direct_db" style="color: #dc3545; font-weight: bold;">
+                                            Banco (Direct DB Query - Test Only)
+                                            <small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (No fallbacks)</small>
+                                        </label>
+                                        <select name="bank_direct_db" id="bank_direct_db" class="form-control" style="border: 2px solid #dc3545;">
+                                            <?php 
+                                            // DIRECT DATABASE QUERY - NO FALLBACKS
+                                            $directDbOptions = [];
+                                            $directDbDefaultCode = null;
+                                            
+                                            try {
+                                                $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+                                                
+                                                // Get all banks directly from database
+                                                $query = $db->getQuery(true)
+                                                    ->select('id, code, name, name_es, name_en, ordering, is_default, state')
+                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
+                                                    ->where($db->quoteName('state') . ' = 1')
+                                                    ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+                                                
+                                                $db->setQuery($query);
+                                                $directBanks = $db->loadObjectList() ?: [];
+                                                
+                                                error_log("PaymentProofTemplate DIRECT DB: Found " . count($directBanks) . " banks from direct query");
+                                                
+                                                // Get default bank code directly
+                                                $defaultQuery = $db->getQuery(true)
+                                                    ->select($db->quoteName('code'))
+                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
+                                                    ->where($db->quoteName('is_default') . ' = 1')
+                                                    ->where($db->quoteName('state') . ' = 1');
+                                                $db->setQuery($defaultQuery);
+                                                $directDbDefaultCode = $db->loadResult();
+                                                
+                                                error_log("PaymentProofTemplate DIRECT DB: Default bank code = " . ($directDbDefaultCode ?: 'none'));
+                                                
+                                                // Process banks into options array
+                                                $lang = Factory::getLanguage();
+                                                $langTag = $lang->getTag();
+                                                $isSpanish = (strpos($langTag, 'es') === 0);
+                                                
+                                                foreach ($directBanks as $bank) {
+                                                    if (empty($bank->code)) {
+                                                        error_log("PaymentProofTemplate DIRECT DB: Skipping bank ID {$bank->id} - empty code");
+                                                        continue;
+                                                    }
+                                                    
+                                                    // Select name based on language
+                                                    if ($isSpanish && !empty($bank->name_es)) {
+                                                        $displayName = trim($bank->name_es);
+                                                    } elseif (!empty($bank->name_en)) {
+                                                        $displayName = trim($bank->name_en);
+                                                    } elseif (!empty($bank->name)) {
+                                                        $displayName = trim($bank->name);
+                                                    } else {
+                                                        $displayName = $bank->code; // Last resort
+                                                    }
+                                                    
+                                                    $directDbOptions[$bank->code] = $displayName;
+                                                }
+                                                
+                                                error_log("PaymentProofTemplate DIRECT DB: Processed " . count($directDbOptions) . " options");
+                                                error_log("PaymentProofTemplate DIRECT DB: Bank codes: " . implode(', ', array_keys($directDbOptions)));
+                                                
+                                            } catch (\Exception $e) {
+                                                error_log("PaymentProofTemplate DIRECT DB: ERROR - " . $e->getMessage());
+                                                error_log("PaymentProofTemplate DIRECT DB: Stack trace: " . $e->getTraceAsString());
+                                            }
+                                            
+                                            // Determine selected bank for direct DB dropdown
+                                            $directDbSelected = null;
+                                            if (!$isReadOnly && !empty($directDbDefaultCode)) {
+                                                $directDbSelected = $directDbDefaultCode;
+                                            }
+                                            
+                                            // Render "Select Bank" option only if no default
+                                            if (empty($directDbSelected)) {
+                                                echo '<option value="">' . Text::_('COM_ORDENPRODUCCION_SELECT_BANK') . '</option>';
+                                            }
+                                            
+                                            // Render bank options
+                                            foreach ($directDbOptions as $code => $name) {
+                                                $isSelected = ($directDbSelected && $code === $directDbSelected);
+                                                $codeEscaped = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+                                                $nameEscaped = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+                                                ?>
+                                                <option value="<?php echo $codeEscaped; ?>"<?php echo $isSelected ? ' selected="selected"' : ''; ?>>
+                                                    <?php echo $nameEscaped; ?>
+                                                    <?php if ($isSelected) echo ' (Default)'; ?>
+                                                </option>
+                                                <?php
+                                            }
+                                            
+                                            if (empty($directDbOptions)) {
+                                                echo '<option value="">NO BANKS FOUND IN DATABASE</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                        <small class="form-text text-muted" style="color: #dc3545;">
+                                            This is a test dropdown using direct database query. Count: <?php echo count($directDbOptions); ?> banks
+                                            <?php if ($directDbDefaultCode): ?>
+                                                | Default: <?php echo htmlspecialchars($directDbDefaultCode); ?>
+                                            <?php endif; ?>
+                                        </small>
                                     </div>
                                 </div>
 
