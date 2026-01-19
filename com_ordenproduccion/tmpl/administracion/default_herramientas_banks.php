@@ -21,16 +21,14 @@ $lang = $app->getLanguage();
 $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
-// Get active subtab
-$activeSubTab = isset($this->activeSubTab) ? $this->activeSubTab : 'banks';
-$app->input->set('subtab', $activeSubTab);
-
 // Get banks data - ensure it's an array
 $banks = isset($this->banks) && is_array($this->banks) ? $this->banks : [];
 $token = HTMLHelper::_('form.token');
 $tokenName = Session::getFormToken();
 ?>
 
+<!-- Copy all the existing banks management content from default_herramientas.php -->
+<!-- This will be the banks management interface -->
 <style>
 .banks-management-container {
     max-width: 1200px;
@@ -175,6 +173,9 @@ $tokenName = Session::getFormToken();
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .btn-set-default {
@@ -214,12 +215,16 @@ $tokenName = Session::getFormToken();
 }
 
 .empty-state i {
-    font-size: 48px;
-    margin-bottom: 15px;
+    font-size: 64px;
     color: #dee2e6;
+    margin-bottom: 20px;
 }
 
-/* Modal Styles */
+.empty-state p {
+    font-size: 16px;
+    margin: 0;
+}
+
 .bank-modal {
     display: none;
     position: fixed;
@@ -228,11 +233,12 @@ $tokenName = Session::getFormToken();
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.5);
+    overflow: auto;
 }
 
 .bank-modal-content {
-    background-color: white;
+    background: white;
     margin: 5% auto;
     padding: 30px;
     border-radius: 8px;
@@ -346,6 +352,10 @@ $tokenName = Session::getFormToken();
     background: #5a6268;
 }
 
+#alert-container {
+    margin-bottom: 20px;
+}
+
 .alert {
     padding: 12px 20px;
     margin-bottom: 20px;
@@ -388,82 +398,9 @@ $tokenName = Session::getFormToken();
     color: #17a2b8;
     font-size: 18px;
 }
-.subtab-content {
-    margin-top: 20px;
-    animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
 </style>
 
-<div class="herramientas-container">
-    <!-- Subtab Navigation -->
-    <div class="herramientas-subtabs">
-        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas&subtab=banks'); ?>" 
-           class="herramientas-subtab <?php echo $activeSubTab === 'banks' ? 'subtab-active' : ''; ?>">
-            <i class="fas fa-university"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_BANKS'); ?>
-        </a>
-        <!-- Add more subtabs here in the future -->
-    </div>
-
-    <!-- Subtab Content -->
-    <div class="subtab-content">
-        <?php if ($activeSubTab === 'banks'): ?>
-            <?php include __DIR__ . '/default_herramientas_banks.php'; ?>
-        <?php else: ?>
-            <div class="empty-state">
-                <p><?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_NOT_FOUND'); ?></p>
-            </div>
-        <?php endif; ?>
-    </div>
-</div>
-
-<style>
-.herramientas-container {
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.herramientas-subtabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 2px solid #dee2e6;
-    margin-bottom: 30px;
-}
-
-.herramientas-subtab {
-    padding: 12px 24px;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
-    color: #666;
-    text-decoration: none;
-    transition: all 0.3s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.herramientas-subtab:hover {
-    color: #667eea;
-    text-decoration: none;
-    background: rgba(102, 126, 234, 0.05);
-}
-
-.subtab-active {
-    color: #667eea;
-    border-bottom-color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
-}
-</style>
+<div class="banks-management-container">
     <div class="banks-header">
         <div class="header-title-section">
             <h2>
@@ -634,6 +571,7 @@ $tokenName = Session::getFormToken();
         document.getElementById('modal-title').textContent = '<?php echo Text::_('COM_ORDENPRODUCCION_BANK_ADD_NEW'); ?>';
         document.getElementById('bank-form').reset();
         document.getElementById('bank-id').value = '0';
+        document.getElementById('bank-code').readOnly = false;
         document.getElementById('bank-modal').style.display = 'block';
     };
     
@@ -671,6 +609,7 @@ $tokenName = Session::getFormToken();
         .then(data => {
             if (data.success) {
                 showAlert('success', data.message);
+                closeBankModal();
                 setTimeout(() => location.reload(), 1000);
             } else {
                 showAlert('error', data.message);
@@ -764,23 +703,24 @@ $tokenName = Session::getFormToken();
             showAlert('error', 'Error: ' + error.message);
             location.reload();
         });
-    }
+    };
     
-    // Show alert
+    // Show alert function
     function showAlert(type, message) {
-        const container = document.getElementById('alert-container');
-        const alert = document.createElement('div');
-        alert.className = 'alert alert-' + type;
-        alert.textContent = message;
-        container.innerHTML = '';
-        container.appendChild(alert);
+        const alertContainer = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-' + type;
+        alertDiv.textContent = message;
+        alertContainer.innerHTML = '';
+        alertContainer.appendChild(alertDiv);
         
+        // Auto-remove after 5 seconds
         setTimeout(() => {
-            alert.remove();
+            alertDiv.remove();
         }, 5000);
     }
     
-    // Close modal on outside click
+    // Close modal when clicking outside
     window.onclick = function(event) {
         const modal = document.getElementById('bank-modal');
         if (event.target === modal) {

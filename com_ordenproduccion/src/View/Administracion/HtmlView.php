@@ -95,6 +95,14 @@ class HtmlView extends BaseHtmlView
     protected $banks = [];
 
     /**
+     * Active subtab for herramientas tab
+     *
+     * @var    string
+     * @since  3.5.2
+     */
+    protected $activeSubTab = 'banks';
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -123,6 +131,10 @@ class HtmlView extends BaseHtmlView
 
         // Get active tab - default to workorders for better UX
         $activeTab = $input->get('tab', 'workorders', 'string');
+        
+        // Get active subtab for herramientas tab - default to banks
+        $activeSubTab = $input->get('subtab', 'banks', 'string');
+        $this->activeSubTab = $activeSubTab;
 
         // Get statistics model and data
         $statsModel = $this->getModel('Administracion');
@@ -224,8 +236,8 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        // Load banks data if herramientas tab is active
-        if ($activeTab === 'herramientas') {
+        // Load banks data if herramientas tab is active and banks subtab is selected
+        if ($activeTab === 'herramientas' && $activeSubTab === 'banks') {
             try {
                 // Get Bank model using MVC factory
                 $component = $app->bootComponent('com_ordenproduccion');
@@ -242,7 +254,7 @@ class HtmlView extends BaseHtmlView
                 $this->banks = [];
             }
         } else {
-            // Initialize banks as empty array if not herramientas tab
+            // Initialize banks as empty array if not banks subtab
             $this->banks = [];
         }
 
