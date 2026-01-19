@@ -152,6 +152,33 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Get default bank code
+     *
+     * @return  string|null  Default bank code or null if no default set
+     *
+     * @since   3.5.2
+     */
+    public function getDefaultBankCode()
+    {
+        try {
+            $app = Factory::getApplication();
+            $component = $app->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
+            
+            if ($bankModel && method_exists($bankModel, 'getDefaultBankCode')) {
+                $defaultCode = $bankModel->getDefaultBankCode();
+                error_log("PaymentProofView::getDefaultBankCode() - Default bank code: " . ($defaultCode ?: 'none'));
+                return $defaultCode;
+            }
+        } catch (\Exception $e) {
+            error_log("PaymentProofView::getDefaultBankCode() - Exception: " . $e->getMessage());
+        }
+        
+        return null;
+    }
+
+    /**
      * Format currency value
      *
      * @param   float  $value  The currency value

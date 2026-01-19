@@ -140,23 +140,44 @@ $isReadOnly = $this->isReadOnly;
                                             <?php echo Text::_('COM_ORDENPRODUCCION_BANK'); ?>
                                         </label>
                                         <select name="bank" id="bank" class="form-control" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
-                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_BANK'); ?></option>
                                             <?php 
                                             $bankOptions = $this->getBankOptions();
+                                            // Get default bank code (if no existing payment)
+                                            $defaultBankCode = null;
+                                            if (!$isReadOnly || !$existingPayment) {
+                                                $defaultBankCode = $this->getDefaultBankCode();
+                                            }
+                                            
+                                            // Determine which bank should be selected
+                                            // Priority: 1. Existing payment's bank (if readonly), 2. Default bank, 3. None
+                                            $selectedBankCode = null;
+                                            if ($isReadOnly && $existingPayment && !empty($existingPayment->bank)) {
+                                                $selectedBankCode = $existingPayment->bank;
+                                            } elseif ($defaultBankCode && !$isReadOnly) {
+                                                $selectedBankCode = $defaultBankCode;
+                                            }
+                                            
                                             // Debug: Log what we're getting in the template
                                             if (empty($bankOptions)) {
                                                 error_log("PaymentProofTemplate: getBankOptions() returned empty array");
                                             } else {
                                                 error_log("PaymentProofTemplate: getBankOptions() returned " . count($bankOptions) . " banks");
-                                                foreach ($bankOptions as $code => $name) {
-                                                    error_log("PaymentProofTemplate: Bank code='$code', name='$name'");
-                                                }
+                                                error_log("PaymentProofTemplate: Default bank code = " . ($defaultBankCode ?: 'none'));
+                                                error_log("PaymentProofTemplate: Selected bank code = " . ($selectedBankCode ?: 'none'));
                                             }
+                                            
+                                            // Show "Select Bank" option only if no default is set or if readonly
+                                            if (!$defaultBankCode || ($isReadOnly && !$selectedBankCode)) {
+                                                echo '<option value="">' . Text::_('COM_ORDENPRODUCCION_SELECT_BANK') . '</option>';
+                                            }
+                                            
                                             foreach ($bankOptions as $value => $text) : 
                                                 // Ensure we have valid text - use value as fallback
                                                 $displayText = !empty($text) ? htmlspecialchars($text, ENT_QUOTES, 'UTF-8') : htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                                                // Check if this option should be selected
+                                                $isSelected = ($selectedBankCode && $value === $selectedBankCode);
                                             ?>
-                                                <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo ($isReadOnly && $existingPayment && $existingPayment->bank === $value) ? 'selected' : ''; ?>>
+                                                <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isSelected ? 'selected' : ''; ?>>
                                                     <?php echo $displayText; ?>
                                                 </option>
                                             <?php endforeach; ?>

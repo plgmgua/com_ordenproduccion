@@ -237,6 +237,30 @@ class BankModel extends BaseDatabaseModel
     }
 
     /**
+     * Get default bank code
+     *
+     * @return  string|null  Default bank code or null if no default set
+     *
+     * @since   3.5.2
+     */
+    public function getDefaultBankCode()
+    {
+        $db = $this->getDatabase();
+        
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('code'))
+            ->from($db->quoteName('#__ordenproduccion_banks'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('is_default') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+        
+        $db->setQuery($query);
+        $defaultCode = $db->loadResult();
+        
+        return $defaultCode ?: null;
+    }
+
+    /**
      * Get bank options for dropdown (compatible with PaymentProofModel)
      *
      * @return  array  Array of bank options (code => name)
