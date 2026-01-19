@@ -22,13 +22,13 @@ ADMIN_COMPONENT_PATH="$JOOMLA_ROOT/administrator/components/$COMPONENT_NAME"
 MEDIA_PATH="$JOOMLA_ROOT/media/$COMPONENT_NAME"
 BACKUP_DIR="/var/backups/joomla_components"
 
-# Logging functions
+# Logging functions (all output to stderr so stdout can be used for data)
 log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 error() {
@@ -36,7 +36,7 @@ error() {
 }
 
 warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
 # Function to check prerequisites
@@ -107,37 +107,57 @@ create_backup() {
 download_repository() {
     log "Downloading repository from GitHub..."
     
-    # Create temporary directory for clone in user's home
-    TEMP_DIR="$HOME/${COMPONENT_NAME}_deploy_$$"
+    # Create temporary directory for clone in /tmp (more reliable than $HOME)
+    TEMP_DIR="/tmp/${COMPONENT_NAME}_deploy_$$"
     mkdir -p "$TEMP_DIR"
     
     # Clone repository from GitHub
     log "Cloning repository from: $REPO_URL"
-    cd "$TEMP_DIR"
-    git clone "$REPO_URL" "$COMPONENT_NAME"
+    cd "$TEMP_DIR" || error "Failed to change to temp directory: $TEMP_DIR"
+    
+    # Clone without specifying target name - git will use repo name
+    git clone "$REPO_URL" || error "Failed to clone repository from GitHub"
+    
+    # Git clone creates a directory with the repo name (com_ordenproduccion)
+    # The repo root is now at: $TEMP_DIR/com_ordenproduccion
+    # Inside that is: com_ordenproduccion/ (the component folder)
+    REPO_ROOT="$TEMP_DIR/com_ordenproduccion"
     
     # Verify repository was cloned successfully
-    if [ ! -d "$TEMP_DIR/$COMPONENT_NAME" ]; then
-        error "Failed to clone repository from GitHub"
+    if [ ! -d "$REPO_ROOT" ]; then
+        error "Failed to clone repository - directory not found: $REPO_ROOT"
         exit 1
     fi
     
-    success "Repository downloaded successfully"
-    echo "$TEMP_DIR/$COMPONENT_NAME"
+    success "Repository downloaded successfully to: $REPO_ROOT"
+    
+    # Store the path in a variable that can be accessed
+    # Return only the path to stdout (redirect logs to stderr)
+    echo "$REPO_ROOT"
 }
 
 # Function to verify downloaded files
 verify_downloaded_files() {
     local repo_path="$1"
+    
+    # Clean the path - remove any log output that might have been captured
+    repo_path=$(echo "$repo_path" | tr -d '\n' | sed 's/\[.*\]//g' | xargs)
+    
     log "Verifying downloaded files..."
     log "Repository path: $repo_path"
+    
+    # Verify the path exists
+    if [ ! -d "$repo_path" ]; then
+        error "Repository path does not exist: $repo_path"
+        exit 1
+    fi
     
     # Debug: Show what's actually in the repo (without color codes in ls output)
     log "Repository contents:"
     /bin/ls -la "$repo_path" 2>/dev/null | head -10 || log "Could not list repository contents"
     
     # The component folder is directly in the repo root: com_ordenproduccion/
-    # But check both possible locations
+    # Structure: repo_root/com_ordenproduccion/ (component folder)
     local component_source="$repo_path/$COMPONENT_NAME"
     
     # Check if component_source exists, if not, maybe repo_path itself is the component
@@ -149,9 +169,12 @@ verify_downloaded_files() {
             log "Found component structure directly in repo_path"
             component_source="$repo_path"
         else
-            error "Cannot find component directory. Checked: $component_source and $repo_path"
-            error "Repository structure:"
-            /bin/ls -la "$repo_path" 2>/dev/null || true
+            error "Cannot find component directory."
+            error "Checked paths:"
+            error "  1. $component_source"
+            error "  2. $repo_path"
+            error "Repository structure at $repo_path:"
+            /bin/ls -la "$repo_path" 2>/dev/null | head -20 || true
             exit 1
         fi
     fi
@@ -445,10 +468,19 @@ main() {
     create_backup
     
     # Download and verify
+    # Since log functions now output to stderr, we can capture stdout (the path) cleanly
     REPO_PATH=$(download_repository)
+    
+    if [ -z "$REPO_PATH" ] || [ ! -d "$REPO_PATH" ]; then
+        error "Failed to get valid repository path: $REPO_PATH"
+        exit 1
+    fi
+    
     verify_downloaded_files "$REPO_PATH"
     
     # Deploy and verify
+    # Clean the path again before deploying
+    REPO_PATH=$(echo "$REPO_PATH" | tr -d '\n' | sed 's/\[.*\]//g' | xargs)
     deploy_component "$REPO_PATH"
     verify_deployed_files
     set_permissions
