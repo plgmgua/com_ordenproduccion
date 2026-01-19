@@ -4,7 +4,10 @@
  * Validates component functionality, especially bank dropdown population
  */
 
-define('_JEXEC', 1);
+// Define _JEXEC if not already defined (may be defined by Joomla framework)
+if (!defined('_JEXEC')) {
+    define('_JEXEC', 1);
+}
 
 // Detect JPATH_ROOT automatically
 if (!defined('JPATH_ROOT')) {
@@ -561,7 +564,18 @@ $totalTests++;
 $viewLoaded = false;
 
 try {
-    $view = $mvcFactory->createView('PaymentProof', 'Site');
+    // Try both PaymentProof and Paymentproof (case sensitivity matters in some systems)
+    try {
+        $view = $mvcFactory->createView('PaymentProof', 'Site');
+        echo "<p class='ok'>✅ PaymentProof View created successfully (with capital P)</p>";
+    } catch (\Exception $e1) {
+        try {
+            $view = $mvcFactory->createView('Paymentproof', 'Site');
+            echo "<p class='ok'>✅ Paymentproof View created successfully (with lowercase p)</p>";
+        } catch (\Exception $e2) {
+            throw new \Exception("Failed with both cases. PaymentProof: " . $e1->getMessage() . "; Paymentproof: " . $e2->getMessage());
+        }
+    }
     
     if ($view) {
         echo "<p class='ok'>✅ PaymentProof View created successfully</p>";
