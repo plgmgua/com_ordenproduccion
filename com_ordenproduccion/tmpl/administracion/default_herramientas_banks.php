@@ -607,16 +607,15 @@ $tokenName = Session::getFormToken();
             body: formData
         })
         .then(response => {
-            // Check if response is actually JSON
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                // If not JSON, read as text to see what we got
-                return response.text().then(text => {
-                    console.error('Non-JSON response:', text);
-                    throw new Error('Server returned non-JSON response. Check console for details.');
-                });
-            }
-            return response.json();
+            // Try to parse as JSON first - sometimes Content-Type header isn't set correctly
+            return response.text().then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON response:', text);
+                    throw new Error('Server returned invalid JSON response. Check console for details.');
+                }
+            });
         })
         .then(data => {
             if (data && data.success) {

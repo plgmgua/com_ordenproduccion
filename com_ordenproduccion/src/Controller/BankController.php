@@ -264,7 +264,19 @@ class BankController extends BaseController
     protected function sendJsonResponse($success, $message, $data = [])
     {
         $app = Factory::getApplication();
-        $app->setHeader('Content-Type', 'application/json', true);
+        
+        // Clear any existing output
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
+        // Set proper headers for JSON response
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        $app->setHeader('Cache-Control', 'no-cache, must-revalidate', true);
+        $app->setHeader('Expires', 'Mon, 26 Jul 1997 05:00:00 GMT', true);
+        
+        // Send headers
+        $app->sendHeaders();
         
         $response = [
             'success' => $success,
@@ -272,7 +284,7 @@ class BankController extends BaseController
             'data' => $data
         ];
         
-        echo json_encode($response);
+        echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $app->close();
     }
 }
