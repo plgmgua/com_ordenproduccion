@@ -269,6 +269,13 @@ class PaymentproofModel extends ItemModel
             
             if ($bankModel && method_exists($bankModel, 'getBankOptions')) {
                 $options = $bankModel->getBankOptions();
+                
+                // Debug logging to verify what we're getting
+                error_log("PaymentProofModel::getBankOptions() - Got " . count($options) . " banks from BankModel");
+                if (!empty($options)) {
+                    error_log("PaymentProofModel::getBankOptions() - Bank codes: " . implode(', ', array_keys($options)));
+                }
+                
                 // ALWAYS return database banks - even if empty array
                 // This ensures deleted banks are not shown
                 return $options;
@@ -279,14 +286,17 @@ class PaymentproofModel extends ItemModel
             return [];
             
         } catch (\Exception $e) {
-            // Log the exception for debugging
+            // Log full exception details for debugging
             error_log("PaymentProofModel::getBankOptions() - Exception: " . $e->getMessage());
+            error_log("PaymentProofModel::getBankOptions() - Stack trace: " . $e->getTraceAsString());
             
             // Only fall back to hardcoded list if it's a database table missing error
             // For all other errors, return empty array to avoid showing stale hardcoded banks
             if (strpos($e->getMessage(), 'doesn\'t exist') !== false || 
-                strpos($e->getMessage(), 'Table') !== false) {
+                strpos($e->getMessage(), 'Table') !== false ||
+                strpos($e->getMessage(), 'Unknown table') !== false) {
                 // Database table doesn't exist yet - use fallback during initial setup
+                error_log("PaymentProofModel::getBankOptions() - Database table missing, using hardcoded fallback");
                 Factory::getApplication()->enqueueMessage(
                     'Error loading banks from database: ' . $e->getMessage(), 
                     'notice'
