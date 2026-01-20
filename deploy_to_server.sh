@@ -410,6 +410,46 @@ deploy_component() {
     success "Component files deployed"
 }
 
+# Function to deploy module
+deploy_module() {
+    local repo_path="$1"
+    
+    # Clean the path - remove any log output that might have been captured
+    repo_path=$(echo "$repo_path" | tr -d '\n' | sed 's/\[.*\]//g' | xargs)
+    
+    local MODULE_NAME="mod_acciones_produccion"
+    local MODULE_PATH="$JOOMLA_ROOT/modules/$MODULE_NAME"
+    local module_source="$repo_path/$MODULE_NAME"
+    
+    log "Deploying $MODULE_NAME module..."
+    
+    # Check if module source exists
+    if [ ! -d "$module_source" ]; then
+        warning "Module $MODULE_NAME not found at $module_source, skipping module deployment"
+        return 0
+    fi
+    
+    # Create module directory if it doesn't exist
+    if [ "$USE_SUDO" = true ]; then
+        sudo mkdir -p "$MODULE_PATH"
+    else
+        mkdir -p "$MODULE_PATH"
+    fi
+    
+    # Copy all module files
+    log "Copying module files from $module_source to $MODULE_PATH..."
+    if [ "$USE_SUDO" = true ]; then
+        sudo cp -r "$module_source/"* "$MODULE_PATH/" 2>/dev/null || warning "Some module files may not have been copied"
+        sudo chown -R www-data:www-data "$MODULE_PATH"
+        sudo chmod -R 755 "$MODULE_PATH"
+    else
+        cp -r "$module_source/"* "$MODULE_PATH/" 2>/dev/null || warning "Some module files may not have been copied"
+        chmod -R 755 "$MODULE_PATH"
+    fi
+    
+    success "Module $MODULE_NAME deployed successfully"
+}
+
 # Function to verify deployed files
 verify_deployed_files() {
     log "Verifying deployed files..."
