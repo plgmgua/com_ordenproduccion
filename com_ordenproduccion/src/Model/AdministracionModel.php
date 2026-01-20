@@ -510,7 +510,31 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $stats->paymentProofsRecorded = (int) $db->loadResult();
 
-        // 4. Shipping slips printed - full (completo)
+        // 4. Amount of money generated from new orders (invoice_value sum)
+        $query = $db->getQuery(true)
+            ->select('SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(10,2))) as total')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where($db->quoteName('invoice_value') . ' IS NOT NULL')
+            ->where($db->quoteName('invoice_value') . ' > 0');
+        $db->setQuery($query);
+        $stats->moneyGenerated = (float) ($db->loadResult() ?: 0);
+
+        // 5. Value of money collected via payment proofs (payment_amount sum)
+        $query = $db->getQuery(true)
+            ->select('SUM(CAST(' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where($db->quoteName('payment_amount') . ' IS NOT NULL')
+            ->where($db->quoteName('payment_amount') . ' > 0');
+        $db->setQuery($query);
+        $stats->moneyCollected = (float) ($db->loadResult() ?: 0);
+
+        // 6. Shipping slips printed - full (completo)
         // Check historial for print events with tipo_envio = completo
         // The event_description contains "Envio completo impreso via" or metadata has tipo_envio = completo
         $query = $db->getQuery(true)
@@ -525,7 +549,7 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $stats->shippingSlipsFull = (int) $db->loadResult();
 
-        // 5. Shipping slips printed - partial (parcial)
+        // 7. Shipping slips printed - partial (parcial)
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
             ->from($db->quoteName('#__ordenproduccion_historial'))
@@ -538,7 +562,7 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $stats->shippingSlipsPartial = (int) $db->loadResult();
 
-        // Alternative: Check for print events with tipo_envio in metadata
+        // 8. Alternative: Check for print events with tipo_envio in metadata
         // If the above doesn't work well, we'll also check for any print events related to shipping
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')

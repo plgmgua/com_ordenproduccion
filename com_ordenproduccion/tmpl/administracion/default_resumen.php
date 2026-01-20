@@ -33,16 +33,16 @@ $activityStats = $this->activityStats ?? (object) [
 $currentStats = null;
 switch ($selectedPeriod) {
     case 'week':
-        $currentStats = $activityStats->weekly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
+        $currentStats = $activityStats->weekly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
         $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_WEEKLY');
         break;
     case 'month':
-        $currentStats = $activityStats->monthly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
+        $currentStats = $activityStats->monthly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
         $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_MONTHLY');
         break;
     case 'day':
     default:
-        $currentStats = $activityStats->daily ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
+        $currentStats = $activityStats->daily ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
         $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_DAILY');
         break;
 }
@@ -190,8 +190,10 @@ switch ($selectedPeriod) {
             <thead>
                 <tr>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDERS_CREATED'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_GENERATED'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -200,10 +202,16 @@ switch ($selectedPeriod) {
                         <span class="stat-value"><?php echo number_format($currentStats->workOrdersCreated ?? 0); ?></span>
                     </td>
                     <td>
+                        <span class="stat-value">Q. <?php echo number_format($currentStats->moneyGenerated ?? 0, 2); ?></span>
+                    </td>
+                    <td>
                         <span class="stat-value"><?php echo number_format($currentStats->statusChanges ?? 0); ?></span>
                     </td>
                     <td>
                         <span class="stat-value"><?php echo number_format($currentStats->paymentProofsRecorded ?? 0); ?></span>
+                    </td>
+                    <td>
+                        <span class="stat-value">Q. <?php echo number_format($currentStats->moneyCollected ?? 0, 2); ?></span>
                     </td>
                 </tr>
             </tbody>
