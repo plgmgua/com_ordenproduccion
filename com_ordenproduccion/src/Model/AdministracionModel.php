@@ -834,5 +834,323 @@ class AdministracionModel extends BaseDatabaseModel
 
         return $agentsStats;
     }
+
+    /**
+     * Get status changes statistics grouped by sales agent for a period
+     *
+     * @param   string  $period  Period to get stats for: 'day', 'week', or 'month'
+     *
+     * @return  array  Status changes statistics grouped by sales agent and status
+     *
+     * @since   3.6.0
+     */
+    public function getStatusChangesByAgent($period = 'day')
+    {
+        // Determine date range based on period
+        switch ($period) {
+            case 'week':
+                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
+                break;
+            case 'month':
+                $startDate = date('Y-m-01') . ' 00:00:00';
+                $endDate = date('Y-m-t') . ' 23:59:59';
+                break;
+            case 'day':
+            default:
+                $today = date('Y-m-d');
+                $startDate = $today . ' 00:00:00';
+                $endDate = $today . ' 23:59:59';
+                break;
+        }
+
+        return $this->getStatusChangesByAgentForPeriod($startDate, $endDate);
+    }
+
+    /**
+     * Get status changes statistics grouped by sales agent for a specific date range
+     *
+     * @param   string  $startDate  Start date (Y-m-d H:i:s)
+     * @param   string  $endDate    End date (Y-m-d H:i:s)
+     *
+     * @return  array  Status changes statistics grouped by sales agent and status
+     *
+     * @since   3.6.0
+     */
+    protected function getStatusChangesByAgentForPeriod($startDate, $endDate)
+    {
+        $db = Factory::getDbo();
+        $agentsStats = [];
+
+        // Get all sales agents who have status changes in this period
+        $query = $db->getQuery(true)
+            ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('o.' . $db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
+            ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
+        $db->setQuery($query);
+        $agents = $db->loadColumn() ?: [];
+
+        // Get all status values that have occurred
+        $query = $db->getQuery(true)
+            ->select('DISTINCT h.' . $db->quoteName('event_description'))
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->order('h.' . $db->quoteName('event_description') . ' ASC');
+        $db->setQuery($query);
+        $allStatuses = $db->loadColumn() ?: [];
+
+        foreach ($agents as $agent) {
+            $agentStats = new \stdClass();
+            $agentStats->salesAgent = $agent;
+            $agentStats->statusCounts = [];
+
+            // Get status counts for this agent
+            foreach ($allStatuses as $status) {
+                $query = $db->getQuery(true)
+                    ->select('COUNT(*) as total')
+                    ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+                    ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                    ->where('h.' . $db->quoteName('state') . ' = 1')
+                    ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+                    ->where('h.' . $db->quoteName('event_description') . ' = ' . $db->quote($status))
+                    ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
+                    ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                    ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+                $db->setQuery($query);
+                $agentStats->statusCounts[$status] = (int) $db->loadResult();
+            }
+
+            // Get total status changes
+            $query = $db->getQuery(true)
+                ->select('COUNT(*) as total')
+                ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                ->where('h.' . $db->quoteName('state') . ' = 1')
+                ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+                ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
+                ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+            $db->setQuery($query);
+            $agentStats->totalStatusChanges = (int) $db->loadResult();
+
+            $agentsStats[] = $agentStats;
+        }
+
+        // Get status changes without agent
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
+                   $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
+                   $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
+        $db->setQuery($query);
+        $noAgentCount = (int) $db->loadResult();
+
+        if ($noAgentCount > 0) {
+            $noAgentStats = new \stdClass();
+            $noAgentStats->salesAgent = null;
+            $noAgentStats->statusCounts = [];
+            foreach ($allStatuses as $status) {
+                $query = $db->getQuery(true)
+                    ->select('COUNT(*) as total')
+                    ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+                    ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                    ->where('h.' . $db->quoteName('state') . ' = 1')
+                    ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+                    ->where('h.' . $db->quoteName('event_description') . ' = ' . $db->quote($status))
+                    ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
+                           $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
+                           $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
+                    ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                    ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+                $db->setQuery($query);
+                $noAgentStats->statusCounts[$status] = (int) $db->loadResult();
+            }
+            $noAgentStats->totalStatusChanges = $noAgentCount;
+            $agentsStats[] = $noAgentStats;
+        }
+
+        // Add all statuses to the result for easy access in template
+        $result = new \stdClass();
+        $result->agents = $agentsStats;
+        $result->allStatuses = $allStatuses;
+
+        return $result;
+    }
+
+    /**
+     * Get payment proofs statistics grouped by sales agent for a period
+     *
+     * @param   string  $period  Period to get stats for: 'day', 'week', or 'month'
+     *
+     * @return  array  Payment proofs statistics grouped by sales agent
+     *
+     * @since   3.6.0
+     */
+    public function getPaymentProofsByAgent($period = 'day')
+    {
+        // Determine date range based on period
+        switch ($period) {
+            case 'week':
+                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
+                break;
+            case 'month':
+                $startDate = date('Y-m-01') . ' 00:00:00';
+                $endDate = date('Y-m-t') . ' 23:59:59';
+                break;
+            case 'day':
+            default:
+                $today = date('Y-m-d');
+                $startDate = $today . ' 00:00:00';
+                $endDate = $today . ' 23:59:59';
+                break;
+        }
+
+        return $this->getPaymentProofsByAgentForPeriod($startDate, $endDate);
+    }
+
+    /**
+     * Get payment proofs statistics grouped by sales agent for a specific date range
+     *
+     * @param   string  $startDate  Start date (Y-m-d H:i:s)
+     * @param   string  $endDate    End date (Y-m-d H:i:s)
+     *
+     * @return  array  Payment proofs statistics grouped by sales agent
+     *
+     * @since   3.6.0
+     */
+    protected function getPaymentProofsByAgentForPeriod($startDate, $endDate)
+    {
+        $db = Factory::getDbo();
+        $agentsStats = [];
+
+        // Get all sales agents who have payment proofs in this period
+        $query = $db->getQuery(true)
+            ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('o.' . $db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
+            ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
+        $db->setQuery($query);
+        $agents = $db->loadColumn() ?: [];
+
+        foreach ($agents as $agent) {
+            $agentStats = new \stdClass();
+            $agentStats->salesAgent = $agent;
+
+            // Get payment proofs for this agent
+            $query = $db->getQuery(true)
+                ->select([
+                    'pp.' . $db->quoteName('id'),
+                    'pp.' . $db->quoteName('order_id'),
+                    'pp.' . $db->quoteName('payment_amount'),
+                    'pp.' . $db->quoteName('payment_date'),
+                    'pp.' . $db->quoteName('created'),
+                    'o.' . $db->quoteName('orden_de_trabajo'),
+                    'o.' . $db->quoteName('order_number'),
+                    'o.' . $db->quoteName('work_description')
+                ])
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                ->where('pp.' . $db->quoteName('state') . ' = 1')
+                ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
+                ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                ->order('pp.' . $db->quoteName('created') . ' DESC');
+            $db->setQuery($query);
+            $paymentProofs = $db->loadObjectList() ?: [];
+
+            $agentStats->paymentProofs = $paymentProofs;
+            $agentStats->paymentProofsCount = count($paymentProofs);
+
+            // Get total money collected
+            $query = $db->getQuery(true)
+                ->select('SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                ->where('pp.' . $db->quoteName('state') . ' = 1')
+                ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
+                ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
+                ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
+            $db->setQuery($query);
+            $agentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
+
+            $agentsStats[] = $agentStats;
+        }
+
+        // Get payment proofs without agent
+        $query = $db->getQuery(true)
+            ->select([
+                'pp.' . $db->quoteName('id'),
+                'pp.' . $db->quoteName('order_id'),
+                'pp.' . $db->quoteName('payment_amount'),
+                'pp.' . $db->quoteName('payment_date'),
+                'pp.' . $db->quoteName('created'),
+                'o.' . $db->quoteName('orden_de_trabajo'),
+                'o.' . $db->quoteName('order_number'),
+                'o.' . $db->quoteName('work_description')
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
+                   $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
+                   $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
+            ->order('pp.' . $db->quoteName('created') . ' DESC');
+        $db->setQuery($query);
+        $noAgentPaymentProofs = $db->loadObjectList() ?: [];
+
+        if (!empty($noAgentPaymentProofs)) {
+            $noAgentStats = new \stdClass();
+            $noAgentStats->salesAgent = null;
+            $noAgentStats->paymentProofs = $noAgentPaymentProofs;
+            $noAgentStats->paymentProofsCount = count($noAgentPaymentProofs);
+
+            $query = $db->getQuery(true)
+                ->select('SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                ->where('pp.' . $db->quoteName('state') . ' = 1')
+                ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
+                       $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
+                       $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
+                ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
+                ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
+            $db->setQuery($query);
+            $noAgentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
+
+            $agentsStats[] = $noAgentStats;
+        }
+
+        return $agentsStats;
+    }
 }
 

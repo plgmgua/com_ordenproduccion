@@ -119,6 +119,22 @@ class HtmlView extends BaseHtmlView
     protected $activityStatsByAgent = [];
 
     /**
+     * Status changes statistics grouped by sales agent (for resumen tab)
+     *
+     * @var    object
+     * @since  3.6.0
+     */
+    protected $statusChangesByAgent = null;
+
+    /**
+     * Payment proofs statistics grouped by sales agent (for resumen tab)
+     *
+     * @var    array
+     * @since  3.6.0
+     */
+    protected $paymentProofsByAgent = [];
+
+    /**
      * Selected period for activity statistics (day, week, month)
      *
      * @var    string
@@ -172,6 +188,10 @@ class HtmlView extends BaseHtmlView
                 $this->activityStats = $statsModel->getActivityStatistics($selectedPeriod);
                 // Get activity statistics grouped by sales agent
                 $this->activityStatsByAgent = $statsModel->getActivityStatisticsByAgent($selectedPeriod);
+                // Get status changes grouped by sales agent
+                $this->statusChangesByAgent = $statsModel->getStatusChangesByAgent($selectedPeriod);
+                // Get payment proofs grouped by sales agent
+                $this->paymentProofsByAgent = $statsModel->getPaymentProofsByAgent($selectedPeriod);
                 // Store selected period for template
                 $this->selectedPeriod = $selectedPeriod;
             } catch (\Exception $e) {
@@ -182,6 +202,8 @@ class HtmlView extends BaseHtmlView
                     'monthly' => []
                 ];
                 $this->activityStatsByAgent = [];
+                $this->statusChangesByAgent = null;
+                $this->paymentProofsByAgent = [];
                 $this->selectedPeriod = 'day';
             }
         }

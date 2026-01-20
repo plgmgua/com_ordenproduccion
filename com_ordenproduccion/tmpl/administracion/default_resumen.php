@@ -287,9 +287,6 @@ switch ($selectedPeriod) {
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
                     <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDERS_CREATED'); ?></th>
                     <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_GENERATED'); ?></th>
-                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES'); ?></th>
-                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
-                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -302,15 +299,6 @@ switch ($selectedPeriod) {
                     </td>
                     <td style="text-align: right;">
                         <span class="invoice-value">Q <?php echo number_format($currentStats->moneyGenerated ?? 0, 2); ?></span>
-                    </td>
-                    <td style="text-align: center;">
-                        <span class="badge-orders"><?php echo number_format($currentStats->statusChanges ?? 0); ?></span>
-                    </td>
-                    <td style="text-align: center;">
-                        <span class="badge-orders"><?php echo number_format($currentStats->paymentProofsRecorded ?? 0); ?></span>
-                    </td>
-                    <td style="text-align: right;">
-                        <span class="invoice-value">Q <?php echo number_format($currentStats->moneyCollected ?? 0, 2); ?></span>
                     </td>
                 </tr>
 
@@ -343,19 +331,6 @@ switch ($selectedPeriod) {
                         <td style="text-align: right;">
                             <span class="invoice-value">Q <?php echo number_format($agentStats->moneyGenerated ?? 0, 2); ?></span>
                         </td>
-                        <td style="text-align: center;">
-                            <span class="badge-orders">
-                                <?php echo number_format($agentStats->statusChanges ?? 0); ?>
-                            </span>
-                        </td>
-                        <td style="text-align: center;">
-                            <span class="badge-orders">
-                                <?php echo number_format($agentStats->paymentProofsRecorded ?? 0); ?>
-                            </span>
-                        </td>
-                        <td style="text-align: right;">
-                            <span class="invoice-value">Q <?php echo number_format($agentStats->moneyCollected ?? 0, 2); ?></span>
-                        </td>
                     </tr>
 
                     <!-- Orders Detail Rows (Initially Hidden) -->
@@ -376,11 +351,6 @@ switch ($selectedPeriod) {
                                 <td style="text-align: right;">
                                     <span class="invoice-value">Q <?php echo number_format((float)($order->invoice_value ?? 0), 2); ?></span>
                                 </td>
-                                <td style="text-align: center;"></td>
-                                <td style="text-align: center;"></td>
-                                <td style="text-align: right;">
-                                    <span style="color: #999;">-</span>
-                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -391,6 +361,191 @@ switch ($selectedPeriod) {
             </tbody>
         </table>
     </div>
+
+    <!-- Status Changes Section -->
+    <?php 
+    $statusChangesData = $this->statusChangesByAgent ?? null;
+    if ($statusChangesData && !empty($statusChangesData->agents)):
+        $allStatuses = $statusChangesData->allStatuses ?? [];
+        $statusAgents = $statusChangesData->agents ?? [];
+    ?>
+    <div class="resumen-section" style="margin-top: 40px;">
+        <h3>
+            <i class="fas fa-exchange-alt"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES_TITLE'); ?>
+            <small style="color: #666; font-weight: normal; margin-left: 10px;">(<?php echo htmlspecialchars($periodLabel); ?>)</small>
+        </h3>
+        
+        <table class="expandable-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
+                    <?php foreach ($allStatuses as $status): ?>
+                        <th style="text-align: center;"><?php echo htmlspecialchars($status); ?></th>
+                    <?php endforeach; ?>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Overall Summary Row -->
+                <?php
+                $totalByStatus = [];
+                $grandTotal = 0;
+                foreach ($allStatuses as $status) {
+                    $totalByStatus[$status] = 0;
+                }
+                foreach ($statusAgents as $agentStat) {
+                    foreach ($allStatuses as $status) {
+                        $totalByStatus[$status] += $agentStat->statusCounts[$status] ?? 0;
+                    }
+                    $grandTotal += $agentStat->totalStatusChanges ?? 0;
+                }
+                ?>
+                <tr class="agent-row" style="font-weight: bold; background: #f8f9fa;">
+                    <td></td>
+                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
+                    <?php foreach ($allStatuses as $status): ?>
+                        <td style="text-align: center;">
+                            <span class="badge-orders"><?php echo number_format($totalByStatus[$status] ?? 0); ?></span>
+                        </td>
+                    <?php endforeach; ?>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($grandTotal); ?></span>
+                    </td>
+                </tr>
+
+                <!-- Agent Rows -->
+                <?php foreach ($statusAgents as $index => $agentStat): 
+                    $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
+                    $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
+                    $hasData = ($agentStat->totalStatusChanges ?? 0) > 0;
+                ?>
+                    <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
+                        <td class="expand-cell">
+                            <?php if ($hasData): ?>
+                                <button class="expand-btn" onclick="toggleStatusDetails('<?php echo $agentId; ?>')">
+                                    <i class="fas fa-plus-circle"></i>
+                                </button>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <strong><?php echo $agentName; ?></strong>
+                        </td>
+                        <?php foreach ($allStatuses as $status): ?>
+                            <td style="text-align: center;">
+                                <span class="badge-orders">
+                                    <?php echo number_format($agentStat->statusCounts[$status] ?? 0); ?>
+                                </span>
+                            </td>
+                        <?php endforeach; ?>
+                        <td style="text-align: center;">
+                            <span class="badge-orders">
+                                <?php echo number_format($agentStat->totalStatusChanges ?? 0); ?>
+                            </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+
+    <!-- Payment Proofs Section -->
+    <?php 
+    $paymentProofsByAgent = $this->paymentProofsByAgent ?? [];
+    if (!empty($paymentProofsByAgent)):
+        // Calculate totals
+        $totalProofs = 0;
+        $totalCollected = 0;
+        foreach ($paymentProofsByAgent as $agentStat) {
+            $totalProofs += $agentStat->paymentProofsCount ?? 0;
+            $totalCollected += $agentStat->moneyCollected ?? 0;
+        }
+    ?>
+    <div class="resumen-section" style="margin-top: 40px;">
+        <h3>
+            <i class="fas fa-money-check-alt"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS_TITLE'); ?>
+            <small style="color: #666; font-weight: normal; margin-left: 10px;">(<?php echo htmlspecialchars($periodLabel); ?>)</small>
+        </h3>
+        
+        <table class="expandable-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
+                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Overall Summary Row -->
+                <tr class="agent-row" style="font-weight: bold; background: #f8f9fa;">
+                    <td></td>
+                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalProofs); ?></span>
+                    </td>
+                    <td style="text-align: right;">
+                        <span class="invoice-value">Q <?php echo number_format($totalCollected, 2); ?></span>
+                    </td>
+                </tr>
+
+                <!-- Agent Rows -->
+                <?php foreach ($paymentProofsByAgent as $index => $agentStat): 
+                    $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
+                    $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
+                    $hasProofs = !empty($agentStat->paymentProofs);
+                ?>
+                    <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
+                        <td class="expand-cell">
+                            <?php if ($hasProofs): ?>
+                                <button class="expand-btn" onclick="togglePaymentProofs('<?php echo $agentId; ?>')">
+                                    <i class="fas fa-plus-circle"></i>
+                                </button>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <strong><?php echo $agentName; ?></strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge-orders">
+                                <?php echo number_format($agentStat->paymentProofsCount ?? 0); ?>
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="invoice-value">Q <?php echo number_format($agentStat->moneyCollected ?? 0, 2); ?></span>
+                        </td>
+                    </tr>
+
+                    <!-- Payment Proof Details (Initially Hidden) -->
+                    <?php if ($hasProofs): ?>
+                        <?php foreach ($agentStat->paymentProofs as $proof): ?>
+                            <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
+                                <td></td>
+                                <td style="padding-left: 40px; color: #999;">
+                                    <i class="fas fa-minus"></i>
+                                </td>
+                                <td style="padding-left: 20px;">
+                                    <i class="fas fa-file-invoice-dollar" style="color: #28a745; margin-right: 8px;"></i>
+                                    <strong><?php echo htmlspecialchars($proof->orden_de_trabajo ?? $proof->order_number ?? 'ORD-' . $proof->order_id); ?></strong>
+                                    <br>
+                                    <span style="color: #666; font-size: 13px; margin-left: 32px;">
+                                        <?php echo htmlspecialchars($proof->work_description ?? '-'); ?>
+                                    </span>
+                                </td>
+                                <td style="text-align: right;">
+                                    <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
 
     <!-- Shipping Slips Section -->
     <div class="resumen-section">
@@ -436,6 +591,33 @@ function toggleAgentOrders(agentId) {
     const isExpanded = orderRows[0].style.display !== 'none';
     
     orderRows.forEach(row => {
+        row.style.display = isExpanded ? 'none' : 'table-row';
+    });
+    
+    if (isExpanded) {
+        icon.className = 'fas fa-plus-circle';
+        expandBtn.classList.remove('expanded');
+    } else {
+        icon.className = 'fas fa-minus-circle';
+        expandBtn.classList.add('expanded');
+    }
+}
+
+function toggleStatusDetails(agentId) {
+    // Status details can be expanded if needed in the future
+    // For now, this is a placeholder
+}
+
+function togglePaymentProofs(agentId) {
+    const proofRows = document.querySelectorAll('tr.payment-proof-row[data-agent-id="' + agentId + '"]');
+    const expandBtn = document.querySelector('tr.agent-row[data-agent-id="' + agentId + '"] .expand-btn');
+    
+    if (!expandBtn || proofRows.length === 0) return;
+    
+    const icon = expandBtn.querySelector('i');
+    const isExpanded = proofRows[0].style.display !== 'none';
+    
+    proofRows.forEach(row => {
         row.style.display = isExpanded ? 'none' : 'table-row';
     });
     
