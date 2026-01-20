@@ -111,6 +111,14 @@ class HtmlView extends BaseHtmlView
     protected $activityStats;
 
     /**
+     * Selected period for activity statistics (day, week, month)
+     *
+     * @var    string
+     * @since  3.6.0
+     */
+    protected $selectedPeriod = 'day';
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -151,8 +159,11 @@ class HtmlView extends BaseHtmlView
         // Load activity statistics if resumen tab is active
         if ($activeTab === 'resumen') {
             try {
-                $period = $input->get('period', 'day', 'string'); // day, week, month
-                $this->activityStats = $statsModel->getActivityStatistics($period);
+                // Get selected period from request, default to 'day'
+                $selectedPeriod = $input->get('period', 'day', 'string'); // day, week, month
+                $this->activityStats = $statsModel->getActivityStatistics($selectedPeriod);
+                // Store selected period for template
+                $this->selectedPeriod = $selectedPeriod;
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading activity statistics: ' . $e->getMessage(), 'error');
                 $this->activityStats = (object) [
@@ -160,6 +171,7 @@ class HtmlView extends BaseHtmlView
                     'weekly' => [],
                     'monthly' => []
                 ];
+                $this->selectedPeriod = 'day';
             }
         }
 
