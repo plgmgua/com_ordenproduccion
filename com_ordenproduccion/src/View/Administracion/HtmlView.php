@@ -111,6 +111,14 @@ class HtmlView extends BaseHtmlView
     protected $activityStats;
 
     /**
+     * Activity statistics grouped by sales agent (for resumen tab)
+     *
+     * @var    array
+     * @since  3.6.0
+     */
+    protected $activityStatsByAgent = [];
+
+    /**
      * Selected period for activity statistics (day, week, month)
      *
      * @var    string
@@ -162,6 +170,8 @@ class HtmlView extends BaseHtmlView
                 // Get selected period from request, default to 'day'
                 $selectedPeriod = $input->get('period', 'day', 'string'); // day, week, month
                 $this->activityStats = $statsModel->getActivityStatistics($selectedPeriod);
+                // Get activity statistics grouped by sales agent
+                $this->activityStatsByAgent = $statsModel->getActivityStatisticsByAgent($selectedPeriod);
                 // Store selected period for template
                 $this->selectedPeriod = $selectedPeriod;
             } catch (\Exception $e) {
@@ -171,6 +181,7 @@ class HtmlView extends BaseHtmlView
                     'weekly' => [],
                     'monthly' => []
                 ];
+                $this->activityStatsByAgent = [];
                 $this->selectedPeriod = 'day';
             }
         }
