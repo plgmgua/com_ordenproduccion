@@ -109,10 +109,8 @@ if ($orderId > 0) {
 // Get status options for dropdown - matching the filter values exactly
 $statusOptions = [
     'Nueva' => 'Nueva',
-    'En Proceso' => 'En Proceso', 
     'Terminada' => 'Terminada',
-    'Entregada' => 'Entregada',
-    'Cerrada' => 'Cerrada'
+    'Entregada' => 'Entregada'
 ];
 
 // Load the template
