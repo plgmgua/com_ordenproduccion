@@ -363,20 +363,23 @@ switch ($selectedPeriod) {
                         <?php foreach ($agentStats->orders as $order): ?>
                             <tr class="order-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
                                 <td></td>
-                                <td style="padding-left: 40px; color: #999;">
-                                    <i class="fas fa-minus"></i>
-                                </td>
-                                <td style="padding-left: 20px;">
+                                <td style="padding-left: 40px;">
+                                    <i class="fas fa-minus" style="color: #999; margin-right: 8px;"></i>
                                     <i class="fas fa-file-alt" style="color: #667eea; margin-right: 8px;"></i>
                                     <strong><?php echo htmlspecialchars($order->orden_de_trabajo ?? $order->order_number ?? 'ORD-' . $order->id); ?></strong>
+                                    <br>
+                                    <span style="color: #666; font-size: 13px; margin-left: 32px;">
+                                        <?php echo htmlspecialchars($order->work_description ?? '-'); ?>
+                                    </span>
                                 </td>
-                                <td style="color: #666;">
-                                    <?php echo htmlspecialchars($order->work_description ?? '-'); ?>
-                                </td>
-                                <td></td>
-                                <td></td>
+                                <td style="text-align: center;"></td>
                                 <td style="text-align: right;">
-                                    <span style="color: #666;">Q <?php echo number_format((float)($order->invoice_value ?? 0), 2); ?></span>
+                                    <span class="invoice-value">Q <?php echo number_format((float)($order->invoice_value ?? 0), 2); ?></span>
+                                </td>
+                                <td style="text-align: center;"></td>
+                                <td style="text-align: center;"></td>
+                                <td style="text-align: right;">
+                                    <span style="color: #999;">-</span>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
