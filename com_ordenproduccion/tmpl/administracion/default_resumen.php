@@ -19,8 +19,8 @@ $lang = $app->getLanguage();
 $lang->load('com_ordenproduccion', JPATH_SITE);
 $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
-// Get selected period from view, default to 'day'
-$selectedPeriod = isset($this->selectedPeriod) ? $this->selectedPeriod : $input->get('period', 'day', 'string');
+// Get selected period from view, default to 'week'
+$selectedPeriod = isset($this->selectedPeriod) ? $this->selectedPeriod : $input->get('period', 'week', 'string');
 
 // Get activity statistics from view
 $activityStats = $this->activityStats ?? (object) [
