@@ -143,8 +143,97 @@ switch ($selectedPeriod) {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+/* Expandable Table Styles (matching estadisticas) */
+.expandable-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.expandable-table thead {
+    background: linear-gradient(135deg, #007cba 0%, #0056b3 100%);
+    color: white;
+}
+
+.expandable-table th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.expandable-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.agent-row {
+    background: #fff;
+    transition: background-color 0.2s;
+}
+
 .agent-row:hover {
-    background-color: #f1f3f5 !important;
+    background: #f8f9fa;
+}
+
+.expand-cell {
+    width: 40px;
+    text-align: center;
+}
+
+.expand-btn {
+    background: none;
+    border: none;
+    color: #007cba;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 5px;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expand-btn:hover {
+    color: #0056b3;
+    transform: scale(1.2);
+}
+
+.expand-btn.expanded {
+    color: #28a745;
+}
+
+.order-row {
+    background: #f8f9fa;
+    transition: background-color 0.2s;
+}
+
+.order-row:hover {
+    background: #e9ecef;
+}
+
+.order-row td {
+    border-bottom: 1px solid #dee2e6;
+    font-size: 14px;
+}
+
+.badge-orders {
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.invoice-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #28a745;
 }
 </style>
 
@@ -191,95 +280,107 @@ switch ($selectedPeriod) {
         </h3>
         
         <!-- Single compact table with expandable rows -->
-        <table class="resumen-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <table class="expandable-table">
             <thead>
-                <tr style="background: #667eea; color: white;">
-                    <th style="padding: 8px 10px; text-align: left; border: 1px solid #ddd; width: 30px;">+</th>
-                    <th style="padding: 8px 10px; text-align: left; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
-                    <th style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDERS_CREATED'); ?></th>
-                    <th style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_GENERATED'); ?></th>
-                    <th style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES'); ?></th>
-                    <th style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
-                    <th style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDERS_CREATED'); ?></th>
+                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_GENERATED'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
+                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <!-- Overall Summary Row -->
-                <tr style="background: #f8f9fa; font-weight: bold; border-bottom: 2px solid #667eea;">
-                    <td style="padding: 8px 10px; border: 1px solid #ddd;">-</td>
-                    <td style="padding: 8px 10px; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></td>
-                    <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo number_format($currentStats->workOrdersCreated ?? 0); ?></td>
-                    <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;">Q. <?php echo number_format($currentStats->moneyGenerated ?? 0, 2); ?></td>
-                    <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo number_format($currentStats->statusChanges ?? 0); ?></td>
-                    <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo number_format($currentStats->paymentProofsRecorded ?? 0); ?></td>
-                    <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;">Q. <?php echo number_format($currentStats->moneyCollected ?? 0, 2); ?></td>
+                <tr class="agent-row" style="font-weight: bold; background: #f8f9fa;">
+                    <td></td>
+                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($currentStats->workOrdersCreated ?? 0); ?></span>
+                    </td>
+                    <td style="text-align: right;">
+                        <span class="invoice-value">Q <?php echo number_format($currentStats->moneyGenerated ?? 0, 2); ?></span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($currentStats->statusChanges ?? 0); ?></span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($currentStats->paymentProofsRecorded ?? 0); ?></span>
+                    </td>
+                    <td style="text-align: right;">
+                        <span class="invoice-value">Q <?php echo number_format($currentStats->moneyCollected ?? 0, 2); ?></span>
+                    </td>
                 </tr>
 
                 <!-- Agent Rows -->
                 <?php 
                 $agentsStats = $this->activityStatsByAgent ?? [];
                 if (!empty($agentsStats)): 
-                    foreach ($agentsStats as $agentStats): 
+                    foreach ($agentsStats as $index => $agentStats): 
                         $agentId = md5($agentStats->salesAgent ?? 'no-agent');
                         $agentName = htmlspecialchars($agentStats->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
+                        $hasOrders = !empty($agentStats->orders);
                 ?>
-                    <!-- Agent Summary Row (Clickable) -->
-                    <tr class="agent-row" style="cursor: pointer; border-bottom: 1px solid #ddd;" onclick="toggleAgentOrders('agent-<?php echo $agentId; ?>')">
-                        <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: center;">
-                            <i class="fas fa-plus" id="icon-agent-<?php echo $agentId; ?>" style="color: #667eea; transition: transform 0.2s;"></i>
+                    <!-- Agent Summary Row -->
+                    <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
+                        <td class="expand-cell">
+                            <?php if ($hasOrders): ?>
+                                <button class="expand-btn" onclick="toggleAgentOrders('<?php echo $agentId; ?>')">
+                                    <i class="fas fa-plus-circle"></i>
+                                </button>
+                            <?php endif; ?>
                         </td>
-                        <td style="padding: 8px 10px; border: 1px solid #ddd;"><?php echo $agentName; ?></td>
-                        <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo number_format($agentStats->workOrdersCreated ?? 0); ?></td>
-                        <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;">Q. <?php echo number_format($agentStats->moneyGenerated ?? 0, 2); ?></td>
-                        <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo number_format($agentStats->statusChanges ?? 0); ?></td>
-                        <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;"><?php echo number_format($agentStats->paymentProofsRecorded ?? 0); ?></td>
-                        <td style="padding: 8px 10px; text-align: right; border: 1px solid #ddd;">Q. <?php echo number_format($agentStats->moneyCollected ?? 0, 2); ?></td>
+                        <td>
+                            <strong><?php echo $agentName; ?></strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge-orders">
+                                <?php echo number_format($agentStats->workOrdersCreated ?? 0); ?>
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="invoice-value">Q <?php echo number_format($agentStats->moneyGenerated ?? 0, 2); ?></span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge-orders">
+                                <?php echo number_format($agentStats->statusChanges ?? 0); ?>
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge-orders">
+                                <?php echo number_format($agentStats->paymentProofsRecorded ?? 0); ?>
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="invoice-value">Q <?php echo number_format($agentStats->moneyCollected ?? 0, 2); ?></span>
+                        </td>
                     </tr>
 
-                    <!-- Orders Detail Rows (Hidden by default) -->
-                    <tr id="agent-<?php echo $agentId; ?>" style="display: none;">
-                        <td colspan="7" style="padding: 0; border: none;">
-                            <table style="width: 100%; border-collapse: collapse; background: #f8f9fa; font-size: 12px;">
-                                <thead>
-                                    <tr style="background: #e9ecef;">
-                                        <th style="padding: 6px 10px; text-align: left; border: 1px solid #ddd; width: 30px;"></th>
-                                        <th style="padding: 6px 10px; text-align: left; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDER_NUMBER'); ?></th>
-                                        <th style="padding: 6px 10px; text-align: left; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDER_DESCRIPTION'); ?></th>
-                                        <th style="padding: 6px 10px; text-align: right; border: 1px solid #ddd;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_ORDER_VALUE'); ?></th>
-                                        <th colspan="3" style="padding: 6px 10px; border: 1px solid #ddd;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php 
-                                    $orders = $agentStats->orders ?? [];
-                                    if (empty($orders)): 
-                                    ?>
-                                        <tr>
-                                            <td colspan="7" style="padding: 8px 10px; text-align: center; color: #6c757d; border: 1px solid #ddd;">
-                                                <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_ORDERS'); ?>
-                                            </td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($orders as $order): ?>
-                                            <tr style="border-bottom: 1px solid #e9ecef;">
-                                                <td style="padding: 6px 10px; border: 1px solid #ddd;"></td>
-                                                <td style="padding: 6px 10px; border: 1px solid #ddd;">
-                                                    <strong><?php echo htmlspecialchars($order->orden_de_trabajo ?? $order->order_number ?? 'ORD-' . $order->id); ?></strong>
-                                                </td>
-                                                <td style="padding: 6px 10px; border: 1px solid #ddd; color: #495057;">
-                                                    <?php echo htmlspecialchars($order->work_description ?? '-'); ?>
-                                                </td>
-                                                <td style="padding: 6px 10px; text-align: right; border: 1px solid #ddd; font-weight: 600; color: #28a745;">
-                                                    Q. <?php echo number_format((float)($order->invoice_value ?? 0), 2); ?>
-                                                </td>
-                                                <td colspan="3" style="padding: 6px 10px; border: 1px solid #ddd;"></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
+                    <!-- Orders Detail Rows (Initially Hidden) -->
+                    <?php if ($hasOrders): ?>
+                        <?php foreach ($agentStats->orders as $order): ?>
+                            <tr class="order-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
+                                <td></td>
+                                <td style="padding-left: 40px; color: #999;">
+                                    <i class="fas fa-minus"></i>
+                                </td>
+                                <td style="padding-left: 20px;">
+                                    <i class="fas fa-file-alt" style="color: #667eea; margin-right: 8px;"></i>
+                                    <strong><?php echo htmlspecialchars($order->orden_de_trabajo ?? $order->order_number ?? 'ORD-' . $order->id); ?></strong>
+                                </td>
+                                <td style="color: #666;">
+                                    <?php echo htmlspecialchars($order->work_description ?? '-'); ?>
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td style="text-align: right;">
+                                    <span style="color: #666;">Q <?php echo number_format((float)($order->invoice_value ?? 0), 2); ?></span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 <?php 
                     endforeach;
                 endif; 
@@ -323,21 +424,24 @@ switch ($selectedPeriod) {
 
 <script>
 function toggleAgentOrders(agentId) {
-    const ordersList = document.getElementById(agentId);
-    const icon = document.getElementById('icon-' + agentId);
+    const orderRows = document.querySelectorAll('tr.order-row[data-agent-id="' + agentId + '"]');
+    const expandBtn = document.querySelector('tr.agent-row[data-agent-id="' + agentId + '"] .expand-btn');
     
-    if (ordersList.style.display === 'none' || ordersList.style.display === '') {
-        ordersList.style.display = 'table-row';
-        if (icon) {
-            icon.classList.remove('fa-plus');
-            icon.classList.add('fa-minus');
-        }
+    if (!expandBtn || orderRows.length === 0) return;
+    
+    const icon = expandBtn.querySelector('i');
+    const isExpanded = orderRows[0].style.display !== 'none';
+    
+    orderRows.forEach(row => {
+        row.style.display = isExpanded ? 'none' : 'table-row';
+    });
+    
+    if (isExpanded) {
+        icon.className = 'fas fa-plus-circle';
+        expandBtn.classList.remove('expanded');
     } else {
-        ordersList.style.display = 'none';
-        if (icon) {
-            icon.classList.remove('fa-minus');
-            icon.classList.add('fa-plus');
-        }
+        icon.className = 'fas fa-minus-circle';
+        expandBtn.classList.add('expanded');
     }
 }
 </script>
