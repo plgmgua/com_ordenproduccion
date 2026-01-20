@@ -701,6 +701,7 @@ main() {
     # Clean the path again before deploying
     REPO_PATH=$(echo "$REPO_PATH" | tr -d '\n' | sed 's/\[.*\]//g' | xargs)
     deploy_component "$REPO_PATH"
+    deploy_module "$REPO_PATH"
     verify_deployed_files
     set_permissions
     clear_cache
