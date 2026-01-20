@@ -372,95 +372,6 @@ switch ($selectedPeriod) {
         </table>
     </div>
 
-    <!-- Status Changes Section -->
-    <?php 
-    $statusChangesData = $this->statusChangesByAgent ?? null;
-    if ($statusChangesData && !empty($statusChangesData->agents)):
-        $allStatuses = $statusChangesData->allStatuses ?? [];
-        $statusAgents = $statusChangesData->agents ?? [];
-    ?>
-    <div class="resumen-section" style="margin-top: 40px;">
-        <h3>
-            <i class="fas fa-exchange-alt"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES_TITLE'); ?>
-            <small style="color: #666; font-weight: normal; margin-left: 10px;">(<?php echo htmlspecialchars($periodLabel); ?>)</small>
-        </h3>
-        
-        <table class="expandable-table">
-            <thead>
-                <tr>
-                    <th style="width: 40px;"></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
-                    <?php foreach ($allStatuses as $status): ?>
-                        <th style="text-align: center;"><?php echo htmlspecialchars($status); ?></th>
-                    <?php endforeach; ?>
-                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Overall Summary Row -->
-                <?php
-                $totalByStatus = [];
-                $grandTotal = 0;
-                foreach ($allStatuses as $status) {
-                    $totalByStatus[$status] = 0;
-                }
-                foreach ($statusAgents as $agentStat) {
-                    foreach ($allStatuses as $status) {
-                        $totalByStatus[$status] += $agentStat->statusCounts[$status] ?? 0;
-                    }
-                    $grandTotal += $agentStat->totalStatusChanges ?? 0;
-                }
-                ?>
-                <tr class="agent-row" style="font-weight: bold; background: #f8f9fa;">
-                    <td></td>
-                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
-                    <?php foreach ($allStatuses as $status): ?>
-                        <td style="text-align: center;">
-                            <span class="badge-orders"><?php echo number_format($totalByStatus[$status] ?? 0); ?></span>
-                        </td>
-                    <?php endforeach; ?>
-                    <td style="text-align: center;">
-                        <span class="badge-orders"><?php echo number_format($grandTotal); ?></span>
-                    </td>
-                </tr>
-
-                <!-- Agent Rows -->
-                <?php foreach ($statusAgents as $index => $agentStat): 
-                    $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
-                    $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
-                    $hasData = ($agentStat->totalStatusChanges ?? 0) > 0;
-                ?>
-                    <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
-                        <td class="expand-cell">
-                            <?php if ($hasData): ?>
-                                <button class="expand-btn" onclick="toggleStatusDetails('<?php echo $agentId; ?>')">
-                                    <i class="fas fa-plus-circle"></i>
-                                </button>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <strong><?php echo $agentName; ?></strong>
-                        </td>
-                        <?php foreach ($allStatuses as $status): ?>
-                            <td style="text-align: center;">
-                                <span class="badge-orders">
-                                    <?php echo number_format($agentStat->statusCounts[$status] ?? 0); ?>
-                                </span>
-                            </td>
-                        <?php endforeach; ?>
-                        <td style="text-align: center;">
-                            <span class="badge-orders">
-                                <?php echo number_format($agentStat->totalStatusChanges ?? 0); ?>
-                            </span>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-    <?php endif; ?>
-
     <!-- Payment Proofs Section -->
     <?php 
     $paymentProofsByAgent = $this->paymentProofsByAgent ?? [];
@@ -563,6 +474,90 @@ switch ($selectedPeriod) {
         </table>
     </div>
 
+    <!-- Status Changes Section -->
+    <?php 
+    $statusChangesData = $this->statusChangesByAgent ?? null;
+    if ($statusChangesData && !empty($statusChangesData->agents)):
+        $allStatuses = $statusChangesData->allStatuses ?? [];
+        $statusAgents = $statusChangesData->agents ?? [];
+    ?>
+    <div class="resumen-section" style="margin-top: 40px;">
+        <h3>
+            <i class="fas fa-exchange-alt"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_STATUS_CHANGES_TITLE'); ?>
+            <small style="color: #666; font-weight: normal; margin-left: 10px;">(<?php echo htmlspecialchars($periodLabel); ?>)</small>
+        </h3>
+        
+        <table class="expandable-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
+                    <?php foreach ($allStatuses as $status): ?>
+                        <th style="text-align: center;"><?php echo htmlspecialchars($status); ?></th>
+                    <?php endforeach; ?>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Overall Summary Row -->
+                <?php
+                $totalByStatus = [];
+                $grandTotal = 0;
+                foreach ($allStatuses as $status) {
+                    $totalByStatus[$status] = 0;
+                }
+                foreach ($statusAgents as $agentStat) {
+                    foreach ($allStatuses as $status) {
+                        $totalByStatus[$status] += $agentStat->statusCounts[$status] ?? 0;
+                    }
+                    $grandTotal += $agentStat->totalStatusChanges ?? 0;
+                }
+                ?>
+                <tr class="agent-row" style="font-weight: bold; background: #f8f9fa;">
+                    <td></td>
+                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
+                    <?php foreach ($allStatuses as $status): ?>
+                        <td style="text-align: center;">
+                            <span class="badge-orders"><?php echo number_format($totalByStatus[$status] ?? 0); ?></span>
+                        </td>
+                    <?php endforeach; ?>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($grandTotal); ?></span>
+                    </td>
+                </tr>
+
+                <!-- Agent Rows -->
+                <?php foreach ($statusAgents as $index => $agentStat): 
+                    $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
+                    $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
+                ?>
+                    <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
+                        <td class="expand-cell">
+                            <!-- No expand button for status changes as there are no details to show -->
+                        </td>
+                        <td>
+                            <strong><?php echo $agentName; ?></strong>
+                        </td>
+                        <?php foreach ($allStatuses as $status): ?>
+                            <td style="text-align: center;">
+                                <span class="badge-orders">
+                                    <?php echo number_format($agentStat->statusCounts[$status] ?? 0); ?>
+                                </span>
+                            </td>
+                        <?php endforeach; ?>
+                        <td style="text-align: center;">
+                            <span class="badge-orders">
+                                <?php echo number_format($agentStat->totalStatusChanges ?? 0); ?>
+                            </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+
     <!-- Shipping Slips Section -->
     <div class="resumen-section">
         <h3>
@@ -619,10 +614,6 @@ function toggleAgentOrders(agentId) {
     }
 }
 
-function toggleStatusDetails(agentId) {
-    // Status details can be expanded if needed in the future
-    // For now, this is a placeholder
-}
 
 function togglePaymentProofs(agentId) {
     const proofRows = document.querySelectorAll('tr.payment-proof-row[data-agent-id="' + agentId + '"]');
