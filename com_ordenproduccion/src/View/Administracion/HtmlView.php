@@ -183,8 +183,8 @@ class HtmlView extends BaseHtmlView
         // Load activity statistics if resumen tab is active
         if ($activeTab === 'resumen') {
             try {
-                // Get selected period from request, default to 'day'
-                $selectedPeriod = $input->get('period', 'day', 'string'); // day, week, month
+                // Get selected period from request, default to 'week'
+                $selectedPeriod = $input->get('period', 'week', 'string'); // week, month, year
                 $this->activityStats = $statsModel->getActivityStatistics($selectedPeriod);
                 // Get activity statistics grouped by sales agent
                 $this->activityStatsByAgent = $statsModel->getActivityStatisticsByAgent($selectedPeriod);
@@ -197,14 +197,14 @@ class HtmlView extends BaseHtmlView
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading activity statistics: ' . $e->getMessage(), 'error');
                 $this->activityStats = (object) [
-                    'daily' => [],
                     'weekly' => [],
-                    'monthly' => []
+                    'monthly' => [],
+                    'yearly' => []
                 ];
                 $this->activityStatsByAgent = [];
                 $this->statusChangesByAgent = null;
                 $this->paymentProofsByAgent = [];
-                $this->selectedPeriod = 'day';
+                $this->selectedPeriod = 'week';
             }
         }
 

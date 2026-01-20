@@ -434,15 +434,10 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getActivityStatistics($period = 'day')
+    public function getActivityStatistics($period = 'week')
     {
         $db = Factory::getDbo();
         $stats = new \stdClass();
-
-        // Get today's date range
-        $today = date('Y-m-d');
-        $todayStart = $today . ' 00:00:00';
-        $todayEnd = $today . ' 23:59:59';
 
         // Get this week's date range (Monday to Sunday)
         $weekStart = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
@@ -452,14 +447,18 @@ class AdministracionModel extends BaseDatabaseModel
         $monthStart = date('Y-m-01') . ' 00:00:00';
         $monthEnd = date('Y-m-t') . ' 23:59:59';
 
-        // Daily statistics
-        $stats->daily = $this->getActivityStatsForPeriod($todayStart, $todayEnd);
+        // Get this year's date range
+        $yearStart = date('Y-01-01') . ' 00:00:00';
+        $yearEnd = date('Y-12-31') . ' 23:59:59';
 
         // Weekly statistics
         $stats->weekly = $this->getActivityStatsForPeriod($weekStart, $weekEnd);
 
         // Monthly statistics
         $stats->monthly = $this->getActivityStatsForPeriod($monthStart, $monthEnd);
+
+        // Yearly statistics
+        $stats->yearly = $this->getActivityStatsForPeriod($yearStart, $yearEnd);
 
         return $stats;
     }
@@ -473,23 +472,22 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getActivityStatisticsByAgent($period = 'day')
+    public function getActivityStatisticsByAgent($period = 'week')
     {
         // Determine date range based on period
         switch ($period) {
-            case 'week':
-                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
-                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
-                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';
                 break;
-            case 'day':
+            case 'year':
+                $startDate = date('Y-01-01') . ' 00:00:00';
+                $endDate = date('Y-12-31') . ' 23:59:59';
+                break;
+            case 'week':
             default:
-                $today = date('Y-m-d');
-                $startDate = $today . ' 00:00:00';
-                $endDate = $today . ' 23:59:59';
+                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
                 break;
         }
 
@@ -846,23 +844,22 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getStatusChangesByAgent($period = 'day')
+    public function getStatusChangesByAgent($period = 'week')
     {
         // Determine date range based on period
         switch ($period) {
-            case 'week':
-                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
-                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
-                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';
                 break;
-            case 'day':
+            case 'year':
+                $startDate = date('Y-01-01') . ' 00:00:00';
+                $endDate = date('Y-12-31') . ' 23:59:59';
+                break;
+            case 'week':
             default:
-                $today = date('Y-m-d');
-                $startDate = $today . ' 00:00:00';
-                $endDate = $today . ' 23:59:59';
+                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
                 break;
         }
 
@@ -1005,23 +1002,22 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getPaymentProofsByAgent($period = 'day')
+    public function getPaymentProofsByAgent($period = 'week')
     {
         // Determine date range based on period
         switch ($period) {
-            case 'week':
-                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
-                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
-                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';
                 break;
-            case 'day':
+            case 'year':
+                $startDate = date('Y-01-01') . ' 00:00:00';
+                $endDate = date('Y-12-31') . ' 23:59:59';
+                break;
+            case 'week':
             default:
-                $today = date('Y-m-d');
-                $startDate = $today . ' 00:00:00';
-                $endDate = $today . ' 23:59:59';
+                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
                 break;
         }
 

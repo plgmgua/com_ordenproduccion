@@ -256,17 +256,17 @@ switch ($selectedPeriod) {
                 <label for="period-select" style="margin-right: 10px; font-weight: 600; color: #333;">
                     <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SELECT_PERIOD'); ?>:
                 </label>
-                <select name="period" id="period-select" class="form-control" style="display: inline-block; width: auto; min-width: 150px; padding: 8px 12px; font-size: 14px;" onchange="this.form.submit();">
-                    <option value="day" <?php echo $selectedPeriod === 'day' ? 'selected' : ''; ?>>
-                        <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_DAY'); ?>
-                    </option>
-                    <option value="week" <?php echo $selectedPeriod === 'week' ? 'selected' : ''; ?>>
-                        <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_WEEK'); ?>
-                    </option>
-                    <option value="month" <?php echo $selectedPeriod === 'month' ? 'selected' : ''; ?>>
-                        <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_MONTH'); ?>
-                    </option>
-                </select>
+                    <select name="period" id="period-select" class="form-control" style="display: inline-block; width: auto; min-width: 150px; padding: 8px 12px; font-size: 14px;" onchange="this.form.submit();">
+                        <option value="week" <?php echo $selectedPeriod === 'week' ? 'selected' : ''; ?>>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_WEEK'); ?>
+                        </option>
+                        <option value="month" <?php echo $selectedPeriod === 'month' ? 'selected' : ''; ?>>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_MONTH'); ?>
+                        </option>
+                        <option value="year" <?php echo $selectedPeriod === 'year' ? 'selected' : ''; ?>>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_YEAR'); ?>
+                        </option>
+                    </select>
             </form>
         </div>
     </div>
