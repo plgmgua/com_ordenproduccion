@@ -512,6 +512,7 @@ class AdministracionModel extends BaseDatabaseModel
 
         // 4. Shipping slips printed - full (completo)
         // Check historial for print events with tipo_envio = completo
+        // The event_description contains "Envio completo impreso via" or metadata has tipo_envio = completo
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
             ->from($db->quoteName('#__ordenproduccion_historial'))
@@ -519,8 +520,8 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
             ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') . 
-                    ' OR (' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print') . 
-                    ' AND ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"completo"%') . '))');
+                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"completo"%') . 
+                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%\"tipo_envio\":\"completo\"%') . ')');
         $db->setQuery($query);
         $stats->shippingSlipsFull = (int) $db->loadResult();
 
@@ -532,8 +533,8 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
             ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') . 
-                    ' OR (' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print') . 
-                    ' AND ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"parcial"%') . '))');
+                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"parcial"%') . 
+                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%\"tipo_envio\":\"parcial\"%') . ')');
         $db->setQuery($query);
         $stats->shippingSlipsPartial = (int) $db->loadResult();
 
