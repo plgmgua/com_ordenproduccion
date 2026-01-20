@@ -56,8 +56,8 @@ try {
         exit;
     }
     
-    // Validate status value
-    $validStatuses = ['Nueva', 'En Proceso', 'Terminada', 'Entregada', 'Cerrada', 'nueva', 'en_proceso', 'terminada', 'entregada', 'cerrada'];
+    // Validate status value (removed 'En Proceso' and 'Cerrada' to match module dropdown)
+    $validStatuses = ['Nueva', 'Terminada', 'Entregada', 'nueva', 'terminada', 'entregada'];
     if (!in_array($newStatus, $validStatuses)) {
         echo json_encode([
             'success' => false,
