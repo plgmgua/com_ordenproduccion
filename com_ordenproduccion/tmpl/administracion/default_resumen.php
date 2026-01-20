@@ -24,26 +24,26 @@ $selectedPeriod = isset($this->selectedPeriod) ? $this->selectedPeriod : $input-
 
 // Get activity statistics from view
 $activityStats = $this->activityStats ?? (object) [
-    'daily' => (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0],
     'weekly' => (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0],
-    'monthly' => (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0]
+    'monthly' => (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0],
+    'yearly' => (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0]
 ];
 
 // Get stats for selected period only
 $currentStats = null;
 switch ($selectedPeriod) {
-    case 'week':
-        $currentStats = $activityStats->weekly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
-        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_WEEKLY');
-        break;
     case 'month':
         $currentStats = $activityStats->monthly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
-        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_MONTHLY');
+        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_MONTH');
         break;
-    case 'day':
+    case 'year':
+        $currentStats = $activityStats->yearly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
+        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_YEAR');
+        break;
+    case 'week':
     default:
-        $currentStats = $activityStats->daily ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
-        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_DAILY');
+        $currentStats = $activityStats->weekly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
+        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_WEEK');
         break;
 }
 ?>
