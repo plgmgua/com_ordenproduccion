@@ -559,33 +559,159 @@ switch ($selectedPeriod) {
     <?php endif; ?>
 
     <!-- Shipping Slips Section -->
-    <div class="resumen-section">
+    <?php 
+    $shippingSlipsByAgent = $this->shippingSlipsByAgent ?? [];
+    // Calculate totals
+    $totalFull = 0;
+    $totalPartial = 0;
+    $totalSlips = 0;
+    foreach ($shippingSlipsByAgent as $agentStat) {
+        $totalFull += $agentStat->shippingSlipsFull ?? 0;
+        $totalPartial += $agentStat->shippingSlipsPartial ?? 0;
+        $totalSlips += $agentStat->shippingSlipsTotal ?? 0;
+    }
+    ?>
+    <div class="resumen-section" style="margin-top: 40px;">
         <h3>
             <i class="fas fa-shipping-fast"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_SLIPS'); ?>
             <small style="color: #666; font-weight: normal; margin-left: 10px;">(<?php echo htmlspecialchars($periodLabel); ?>)</small>
         </h3>
         
-        <table class="resumen-table">
+        <table class="expandable-table">
             <thead>
                 <tr>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_FULL'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_PARTIAL'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_TOTAL'); ?></th>
+                    <th style="width: 40px;"></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_FULL'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_PARTIAL'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_TOTAL'); ?></th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>
-                        <span class="stat-value"><?php echo number_format($currentStats->shippingSlipsFull ?? 0); ?></span>
+                <!-- Overall Summary Row -->
+                <tr class="agent-row" style="font-weight: bold; background: #f8f9fa;">
+                    <td></td>
+                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalFull); ?></span>
                     </td>
-                    <td>
-                        <span class="stat-value"><?php echo number_format($currentStats->shippingSlipsPartial ?? 0); ?></span>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalPartial); ?></span>
                     </td>
-                    <td>
-                        <span class="stat-value"><?php echo number_format(($currentStats->shippingSlipsFull ?? 0) + ($currentStats->shippingSlipsPartial ?? 0)); ?></span>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalSlips); ?></span>
                     </td>
                 </tr>
+
+                <!-- Agent Rows -->
+                <?php if (!empty($shippingSlipsByAgent)): ?>
+                    <?php foreach ($shippingSlipsByAgent as $index => $agentStat): 
+                        $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
+                        $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
+                        $hasSlips = !empty($agentStat->shippingSlips);
+                    ?>
+                        <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
+                            <td class="expand-cell">
+                                <?php if ($hasSlips): ?>
+                                    <button class="expand-btn" onclick="toggleShippingSlips('<?php echo $agentId; ?>')">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <strong><?php echo $agentName; ?></strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-orders">
+                                    <?php echo number_format($agentStat->shippingSlipsFull ?? 0); ?>
+                                </span>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-orders">
+                                    <?php echo number_format($agentStat->shippingSlipsPartial ?? 0); ?>
+                                </span>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-orders">
+                                    <?php echo number_format($agentStat->shippingSlipsTotal ?? 0); ?>
+                                </span>
+                            </td>
+                        </tr>
+
+                        <!-- Shipping Slip Details (Initially Hidden) -->
+                        <?php if ($hasSlips): ?>
+                            <?php foreach ($agentStat->shippingSlips as $slip): 
+                                // Determine if full or partial
+                                $isFull = false;
+                                $isPartial = false;
+                                if (!empty($slip->metadata)) {
+                                    $meta = json_decode($slip->metadata, true);
+                                    if (isset($meta['tipo_envio'])) {
+                                        $isFull = ($meta['tipo_envio'] === 'completo');
+                                        $isPartial = ($meta['tipo_envio'] === 'parcial');
+                                    }
+                                }
+                                if (!$isFull && !$isPartial) {
+                                    if (stripos($slip->event_description ?? '', 'completo') !== false) {
+                                        $isFull = true;
+                                    } elseif (stripos($slip->event_description ?? '', 'parcial') !== false) {
+                                        $isPartial = true;
+                                    }
+                                }
+                                $tipoLabel = $isFull ? Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_FULL') : Text::_('COM_ORDENPRODUCCION_RESUMEN_SHIPPING_PARTIAL');
+                            ?>
+                                <tr class="shipping-slip-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
+                                    <td></td>
+                                    <td style="padding-left: 40px; color: #999;">
+                                        <i class="fas fa-minus"></i>
+                                    </td>
+                                    <td style="padding-left: 20px;">
+                                        <i class="fas fa-file-pdf" style="color: #dc3545; margin-right: 8px;"></i>
+                                        <strong><?php echo htmlspecialchars($slip->orden_de_trabajo ?? $slip->order_number ?? 'ORD-' . $slip->order_id); ?></strong>
+                                        <?php if (!empty($slip->client_name)): ?>
+                                            <span style="color: #666; margin-left: 12px; font-size: 13px;">
+                                                | <?php echo htmlspecialchars($slip->client_name); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($slip->created)): ?>
+                                            <span style="color: #999; margin-left: 12px; font-size: 12px;">
+                                                | <?php echo Factory::getDate($slip->created)->format('d/m/Y'); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <br>
+                                        <span style="color: #666; font-size: 13px; margin-left: 32px;">
+                                            <?php echo htmlspecialchars($slip->work_description ?? '-'); ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <?php if ($isFull): ?>
+                                            <span class="badge-orders">1</span>
+                                        <?php else: ?>
+                                            <span style="color: #999;">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <?php if ($isPartial): ?>
+                                            <span class="badge-orders">1</span>
+                                        <?php else: ?>
+                                            <span style="color: #999;">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span class="badge-orders">1</span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="5" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_SHIPPING_SLIPS'); ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>
@@ -625,6 +751,28 @@ function togglePaymentProofs(agentId) {
     const isExpanded = proofRows[0].style.display !== 'none';
     
     proofRows.forEach(row => {
+        row.style.display = isExpanded ? 'none' : 'table-row';
+    });
+    
+    if (isExpanded) {
+        icon.className = 'fas fa-plus-circle';
+        expandBtn.classList.remove('expanded');
+    } else {
+        icon.className = 'fas fa-minus-circle';
+        expandBtn.classList.add('expanded');
+    }
+}
+
+function toggleShippingSlips(agentId) {
+    const slipRows = document.querySelectorAll('tr.shipping-slip-row[data-agent-id="' + agentId + '"]');
+    const expandBtn = document.querySelector('tr.agent-row[data-agent-id="' + agentId + '"] .expand-btn');
+    
+    if (!expandBtn || slipRows.length === 0) return;
+    
+    const icon = expandBtn.querySelector('i');
+    const isExpanded = slipRows[0].style.display !== 'none';
+    
+    slipRows.forEach(row => {
         row.style.display = isExpanded ? 'none' : 'table-row';
     });
     

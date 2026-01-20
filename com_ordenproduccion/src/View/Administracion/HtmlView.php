@@ -135,6 +135,14 @@ class HtmlView extends BaseHtmlView
     protected $paymentProofsByAgent = [];
 
     /**
+     * Shipping slips statistics grouped by sales agent (for resumen tab)
+     *
+     * @var    array
+     * @since  3.6.0
+     */
+    protected $shippingSlipsByAgent = [];
+
+    /**
      * Selected period for activity statistics (day, week, month)
      *
      * @var    string
@@ -192,6 +200,8 @@ class HtmlView extends BaseHtmlView
                 $this->statusChangesByAgent = $statsModel->getStatusChangesByAgent($selectedPeriod);
                 // Get payment proofs grouped by sales agent
                 $this->paymentProofsByAgent = $statsModel->getPaymentProofsByAgent($selectedPeriod);
+                // Get shipping slips grouped by sales agent
+                $this->shippingSlipsByAgent = $statsModel->getShippingSlipsByAgent($selectedPeriod);
                 // Store selected period for template
                 $this->selectedPeriod = $selectedPeriod;
             } catch (\Exception $e) {
@@ -204,6 +214,7 @@ class HtmlView extends BaseHtmlView
                 $this->activityStatsByAgent = [];
                 $this->statusChangesByAgent = null;
                 $this->paymentProofsByAgent = [];
+                $this->shippingSlipsByAgent = [];
                 $this->selectedPeriod = 'week';
             }
         }

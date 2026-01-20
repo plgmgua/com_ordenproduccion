@@ -1148,5 +1148,218 @@ class AdministracionModel extends BaseDatabaseModel
 
         return $agentsStats;
     }
+
+    /**
+     * Get shipping slips statistics grouped by sales agent for a period
+     *
+     * @param   string  $period  Period to get stats for: 'week', 'month', or 'year'
+     *
+     * @return  array  Shipping slips statistics grouped by sales agent
+     *
+     * @since   3.6.0
+     */
+    public function getShippingSlipsByAgent($period = 'week')
+    {
+        // Determine date range based on period
+        switch ($period) {
+            case 'month':
+                $startDate = date('Y-m-01') . ' 00:00:00';
+                $endDate = date('Y-m-t') . ' 23:59:59';
+                break;
+            case 'year':
+                $startDate = date('Y-01-01') . ' 00:00:00';
+                $endDate = date('Y-12-31') . ' 23:59:59';
+                break;
+            case 'week':
+            default:
+                $startDate = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
+                break;
+        }
+
+        return $this->getShippingSlipsByAgentForPeriod($startDate, $endDate);
+    }
+
+    /**
+     * Get shipping slips statistics grouped by sales agent for a specific date range
+     *
+     * @param   string  $startDate  Start date (Y-m-d H:i:s)
+     * @param   string  $endDate    End date (Y-m-d H:i:s)
+     *
+     * @return  array  Shipping slips statistics grouped by sales agent
+     *
+     * @since   3.6.0
+     */
+    protected function getShippingSlipsByAgentForPeriod($startDate, $endDate)
+    {
+        $db = Factory::getDbo();
+        $agentsStats = [];
+
+        // Get all sales agents who have shipping slips in this period
+        $query = $db->getQuery(true)
+            ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') . 
+                   ' OR h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') .
+                   ' OR h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')')
+            ->where('o.' . $db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
+            ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
+        $db->setQuery($query);
+        $agents = $db->loadColumn() ?: [];
+
+        foreach ($agents as $agent) {
+            $agentStats = new \stdClass();
+            $agentStats->salesAgent = $agent;
+
+            // Get shipping slips for this agent
+            $query = $db->getQuery(true)
+                ->select([
+                    'h.' . $db->quoteName('id'),
+                    'h.' . $db->quoteName('order_id'),
+                    'h.' . $db->quoteName('event_description'),
+                    'h.' . $db->quoteName('metadata'),
+                    'h.' . $db->quoteName('created'),
+                    'o.' . $db->quoteName('orden_de_trabajo'),
+                    'o.' . $db->quoteName('order_number'),
+                    'o.' . $db->quoteName('work_description'),
+                    'o.' . $db->quoteName('client_name'),
+                    'o.' . $db->quoteName('invoice_value')
+                ])
+                ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                ->where('h.' . $db->quoteName('state') . ' = 1')
+                ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
+                ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                ->where('(h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') . 
+                       ' OR h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') .
+                       ' OR h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')')
+                ->order('h.' . $db->quoteName('created') . ' DESC');
+            $db->setQuery($query);
+            $shippingSlips = $db->loadObjectList() ?: [];
+
+            // Process shipping slips and categorize
+            $fullSlips = [];
+            $partialSlips = [];
+            foreach ($shippingSlips as $slip) {
+                $isFull = false;
+                $isPartial = false;
+
+                // Check metadata first
+                if (!empty($slip->metadata)) {
+                    $meta = json_decode($slip->metadata, true);
+                    if (isset($meta['tipo_envio'])) {
+                        if ($meta['tipo_envio'] === 'completo') {
+                            $isFull = true;
+                        } elseif ($meta['tipo_envio'] === 'parcial') {
+                            $isPartial = true;
+                        }
+                    }
+                }
+
+                // Check event description if metadata doesn't have tipo_envio
+                if (!$isFull && !$isPartial) {
+                    if (stripos($slip->event_description, 'completo') !== false) {
+                        $isFull = true;
+                    } elseif (stripos($slip->event_description, 'parcial') !== false) {
+                        $isPartial = true;
+                    }
+                }
+
+                if ($isFull) {
+                    $fullSlips[] = $slip;
+                } elseif ($isPartial) {
+                    $partialSlips[] = $slip;
+                }
+            }
+
+            $agentStats->shippingSlips = array_merge($fullSlips, $partialSlips);
+            $agentStats->shippingSlipsFull = count($fullSlips);
+            $agentStats->shippingSlipsPartial = count($partialSlips);
+            $agentStats->shippingSlipsTotal = count($agentStats->shippingSlips);
+
+            $agentsStats[] = $agentStats;
+        }
+
+        // Get shipping slips without agent
+        $query = $db->getQuery(true)
+            ->select([
+                'h.' . $db->quoteName('id'),
+                'h.' . $db->quoteName('order_id'),
+                'h.' . $db->quoteName('event_description'),
+                'h.' . $db->quoteName('metadata'),
+                'h.' . $db->quoteName('created'),
+                'o.' . $db->quoteName('orden_de_trabajo'),
+                'o.' . $db->quoteName('order_number'),
+                'o.' . $db->quoteName('work_description'),
+                'o.' . $db->quoteName('client_name'),
+                'o.' . $db->quoteName('invoice_value')
+            ])
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') . 
+                   ' OR h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') .
+                   ' OR h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')')
+            ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
+                   $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
+                   $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
+            ->order('h.' . $db->quoteName('created') . ' DESC');
+        $db->setQuery($query);
+        $noAgentShippingSlips = $db->loadObjectList() ?: [];
+
+        if (!empty($noAgentShippingSlips)) {
+            $fullSlips = [];
+            $partialSlips = [];
+            foreach ($noAgentShippingSlips as $slip) {
+                $isFull = false;
+                $isPartial = false;
+
+                if (!empty($slip->metadata)) {
+                    $meta = json_decode($slip->metadata, true);
+                    if (isset($meta['tipo_envio'])) {
+                        if ($meta['tipo_envio'] === 'completo') {
+                            $isFull = true;
+                        } elseif ($meta['tipo_envio'] === 'parcial') {
+                            $isPartial = true;
+                        }
+                    }
+                }
+
+                if (!$isFull && !$isPartial) {
+                    if (stripos($slip->event_description, 'completo') !== false) {
+                        $isFull = true;
+                    } elseif (stripos($slip->event_description, 'parcial') !== false) {
+                        $isPartial = true;
+                    }
+                }
+
+                if ($isFull) {
+                    $fullSlips[] = $slip;
+                } elseif ($isPartial) {
+                    $partialSlips[] = $slip;
+                }
+            }
+
+            $noAgentStats = new \stdClass();
+            $noAgentStats->salesAgent = null;
+            $noAgentStats->shippingSlips = array_merge($fullSlips, $partialSlips);
+            $noAgentStats->shippingSlipsFull = count($fullSlips);
+            $noAgentStats->shippingSlipsPartial = count($partialSlips);
+            $noAgentStats->shippingSlipsTotal = count($noAgentStats->shippingSlips);
+
+            $agentsStats[] = $noAgentStats;
+        }
+
+        return $agentsStats;
+    }
 }
 
