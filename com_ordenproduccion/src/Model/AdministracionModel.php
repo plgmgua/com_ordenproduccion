@@ -686,7 +686,8 @@ class AdministracionModel extends BaseDatabaseModel
                     $db->quoteName('work_description'),
                     $db->quoteName('invoice_value'),
                     $db->quoteName('status'),
-                    $db->quoteName('created')
+                    $db->quoteName('created'),
+                    $db->quoteName('client_name')
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes'))
                 ->where($db->quoteName('state') . ' = 1')
@@ -768,7 +769,8 @@ class AdministracionModel extends BaseDatabaseModel
                 $db->quoteName('work_description'),
                 $db->quoteName('invoice_value'),
                 $db->quoteName('status'),
-                $db->quoteName('created')
+                $db->quoteName('created'),
+                $db->quoteName('client_name')
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1')

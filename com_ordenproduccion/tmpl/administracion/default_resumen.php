@@ -342,6 +342,16 @@ switch ($selectedPeriod) {
                                     <i class="fas fa-minus" style="color: #999; margin-right: 8px;"></i>
                                     <i class="fas fa-file-alt" style="color: #667eea; margin-right: 8px;"></i>
                                     <strong><?php echo htmlspecialchars($order->orden_de_trabajo ?? $order->order_number ?? 'ORD-' . $order->id); ?></strong>
+                                    <?php if (!empty($order->client_name)): ?>
+                                        <span style="color: #666; margin-left: 12px; font-size: 13px;">
+                                            | <?php echo htmlspecialchars($order->client_name); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($order->created)): ?>
+                                        <span style="color: #999; margin-left: 12px; font-size: 12px;">
+                                            | <?php echo Factory::getDate($order->created)->format('d/m/Y'); ?>
+                                        </span>
+                                    <?php endif; ?>
                                     <br>
                                     <span style="color: #666; font-size: 13px; margin-left: 32px;">
                                         <?php echo htmlspecialchars($order->work_description ?? '-'); ?>
