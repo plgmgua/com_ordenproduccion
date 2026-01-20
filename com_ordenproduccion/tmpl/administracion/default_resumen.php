@@ -464,14 +464,13 @@ switch ($selectedPeriod) {
     <!-- Payment Proofs Section -->
     <?php 
     $paymentProofsByAgent = $this->paymentProofsByAgent ?? [];
-    if (!empty($paymentProofsByAgent)):
-        // Calculate totals
-        $totalProofs = 0;
-        $totalCollected = 0;
-        foreach ($paymentProofsByAgent as $agentStat) {
-            $totalProofs += $agentStat->paymentProofsCount ?? 0;
-            $totalCollected += $agentStat->moneyCollected ?? 0;
-        }
+    // Calculate totals
+    $totalProofs = 0;
+    $totalCollected = 0;
+    foreach ($paymentProofsByAgent as $agentStat) {
+        $totalProofs += $agentStat->paymentProofsCount ?? 0;
+        $totalCollected += $agentStat->moneyCollected ?? 0;
+    }
     ?>
     <div class="resumen-section" style="margin-top: 40px;">
         <h3>
@@ -503,59 +502,66 @@ switch ($selectedPeriod) {
                 </tr>
 
                 <!-- Agent Rows -->
-                <?php foreach ($paymentProofsByAgent as $index => $agentStat): 
-                    $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
-                    $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
-                    $hasProofs = !empty($agentStat->paymentProofs);
-                ?>
-                    <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
-                        <td class="expand-cell">
-                            <?php if ($hasProofs): ?>
-                                <button class="expand-btn" onclick="togglePaymentProofs('<?php echo $agentId; ?>')">
-                                    <i class="fas fa-plus-circle"></i>
-                                </button>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <strong><?php echo $agentName; ?></strong>
-                        </td>
-                        <td style="text-align: center;">
-                            <span class="badge-orders">
-                                <?php echo number_format($agentStat->paymentProofsCount ?? 0); ?>
-                            </span>
-                        </td>
-                        <td style="text-align: right;">
-                            <span class="invoice-value">Q <?php echo number_format($agentStat->moneyCollected ?? 0, 2); ?></span>
+                <?php if (!empty($paymentProofsByAgent)): ?>
+                    <?php foreach ($paymentProofsByAgent as $index => $agentStat): 
+                        $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
+                        $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
+                        $hasProofs = !empty($agentStat->paymentProofs);
+                    ?>
+                        <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
+                            <td class="expand-cell">
+                                <?php if ($hasProofs): ?>
+                                    <button class="expand-btn" onclick="togglePaymentProofs('<?php echo $agentId; ?>')">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <strong><?php echo $agentName; ?></strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-orders">
+                                    <?php echo number_format($agentStat->paymentProofsCount ?? 0); ?>
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="invoice-value">Q <?php echo number_format($agentStat->moneyCollected ?? 0, 2); ?></span>
+                            </td>
+                        </tr>
+
+                        <!-- Payment Proof Details (Initially Hidden) -->
+                        <?php if ($hasProofs): ?>
+                            <?php foreach ($agentStat->paymentProofs as $proof): ?>
+                                <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
+                                    <td></td>
+                                    <td style="padding-left: 40px; color: #999;">
+                                        <i class="fas fa-minus"></i>
+                                    </td>
+                                    <td style="padding-left: 20px;">
+                                        <i class="fas fa-file-invoice-dollar" style="color: #28a745; margin-right: 8px;"></i>
+                                        <strong><?php echo htmlspecialchars($proof->orden_de_trabajo ?? $proof->order_number ?? 'ORD-' . $proof->order_id); ?></strong>
+                                        <br>
+                                        <span style="color: #666; font-size: 13px; margin-left: 32px;">
+                                            <?php echo htmlspecialchars($proof->work_description ?? '-'); ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="4" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_PAYMENT_PROOFS'); ?>
                         </td>
                     </tr>
-
-                    <!-- Payment Proof Details (Initially Hidden) -->
-                    <?php if ($hasProofs): ?>
-                        <?php foreach ($agentStat->paymentProofs as $proof): ?>
-                            <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
-                                <td></td>
-                                <td style="padding-left: 40px; color: #999;">
-                                    <i class="fas fa-minus"></i>
-                                </td>
-                                <td style="padding-left: 20px;">
-                                    <i class="fas fa-file-invoice-dollar" style="color: #28a745; margin-right: 8px;"></i>
-                                    <strong><?php echo htmlspecialchars($proof->orden_de_trabajo ?? $proof->order_number ?? 'ORD-' . $proof->order_id); ?></strong>
-                                    <br>
-                                    <span style="color: #666; font-size: 13px; margin-left: 32px;">
-                                        <?php echo htmlspecialchars($proof->work_description ?? '-'); ?>
-                                    </span>
-                                </td>
-                                <td style="text-align: right;">
-                                    <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                <?php endforeach; ?>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>
-    <?php endif; ?>
 
     <!-- Shipping Slips Section -->
     <div class="resumen-section">
