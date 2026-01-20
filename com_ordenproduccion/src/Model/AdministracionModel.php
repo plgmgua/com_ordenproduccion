@@ -424,5 +424,167 @@ class AdministracionModel extends BaseDatabaseModel
             'clients' => $trendData
         ];
     }
+
+    /**
+     * Get activity statistics for daily, weekly, and monthly views
+     *
+     * @param   string  $period  Period to get stats for: 'day', 'week', or 'month'
+     *
+     * @return  object  Activity statistics data
+     *
+     * @since   3.6.0
+     */
+    public function getActivityStatistics($period = 'day')
+    {
+        $db = Factory::getDbo();
+        $stats = new \stdClass();
+
+        // Get today's date range
+        $today = date('Y-m-d');
+        $todayStart = $today . ' 00:00:00';
+        $todayEnd = $today . ' 23:59:59';
+
+        // Get this week's date range (Monday to Sunday)
+        $weekStart = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
+        $weekEnd = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
+
+        // Get this month's date range
+        $monthStart = date('Y-m-01') . ' 00:00:00';
+        $monthEnd = date('Y-m-t') . ' 23:59:59';
+
+        // Daily statistics
+        $stats->daily = $this->getActivityStatsForPeriod($todayStart, $todayEnd);
+
+        // Weekly statistics
+        $stats->weekly = $this->getActivityStatsForPeriod($weekStart, $weekEnd);
+
+        // Monthly statistics
+        $stats->monthly = $this->getActivityStatsForPeriod($monthStart, $monthEnd);
+
+        return $stats;
+    }
+
+    /**
+     * Get activity statistics for a specific date range
+     *
+     * @param   string  $startDate  Start date (Y-m-d H:i:s)
+     * @param   string  $endDate    End date (Y-m-d H:i:s)
+     *
+     * @return  object  Activity statistics for the period
+     *
+     * @since   3.6.0
+     */
+    protected function getActivityStatsForPeriod($startDate, $endDate)
+    {
+        $db = Factory::getDbo();
+        $stats = new \stdClass();
+
+        // 1. Work orders created
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate));
+        $db->setQuery($query);
+        $stats->workOrdersCreated = (int) $db->loadResult();
+
+        // 2. Status changes (from historial table)
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_historial'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate));
+        $db->setQuery($query);
+        $stats->statusChanges = (int) $db->loadResult();
+
+        // 3. Payment proofs recorded
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate));
+        $db->setQuery($query);
+        $stats->paymentProofsRecorded = (int) $db->loadResult();
+
+        // 4. Shipping slips printed - full (completo)
+        // Check historial for print events with tipo_envio = completo
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_historial'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') . 
+                    ' OR (' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print') . 
+                    ' AND ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"completo"%') . '))');
+        $db->setQuery($query);
+        $stats->shippingSlipsFull = (int) $db->loadResult();
+
+        // 5. Shipping slips printed - partial (parcial)
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_historial'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') . 
+                    ' OR (' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print') . 
+                    ' AND ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"parcial"%') . '))');
+        $db->setQuery($query);
+        $stats->shippingSlipsPartial = (int) $db->loadResult();
+
+        // Alternative: Check for print events with tipo_envio in metadata
+        // If the above doesn't work well, we'll also check for any print events related to shipping
+        $query = $db->getQuery(true)
+            ->select('COUNT(*) as total')
+            ->from($db->quoteName('#__ordenproduccion_historial'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('event_type') . ' = ' . $db->quote('print'))
+            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%impreso%') . 
+                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')');
+        $db->setQuery($query);
+        $printEvents = (int) $db->loadResult();
+
+        // If we didn't get good results from the specific queries, use print events as fallback
+        if ($stats->shippingSlipsFull == 0 && $stats->shippingSlipsPartial == 0 && $printEvents > 0) {
+            // Try to parse metadata to determine tipo_envio
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('metadata'))
+                ->from($db->quoteName('#__ordenproduccion_historial'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('event_type') . ' = ' . $db->quote('print'))
+                ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                ->where($db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%'));
+            $db->setQuery($query);
+            $metadataList = $db->loadColumn() ?: [];
+            
+            $fullCount = 0;
+            $partialCount = 0;
+            foreach ($metadataList as $metadata) {
+                $meta = json_decode($metadata, true);
+                if (isset($meta['tipo_envio'])) {
+                    if ($meta['tipo_envio'] === 'completo') {
+                        $fullCount++;
+                    } elseif ($meta['tipo_envio'] === 'parcial') {
+                        $partialCount++;
+                    }
+                }
+            }
+            
+            if ($fullCount > 0 || $partialCount > 0) {
+                $stats->shippingSlipsFull = $fullCount;
+                $stats->shippingSlipsPartial = $partialCount;
+            }
+        }
+
+        return $stats;
+    }
 }
 

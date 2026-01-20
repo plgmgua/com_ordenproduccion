@@ -72,6 +72,12 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 </style>
 
 <div class="admin-tabs">
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen'); ?>" 
+       class="admin-tab <?php echo $activeTab === 'resumen' ? 'active' : ''; ?>">
+        <i class="fas fa-chart-bar"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_RESUMEN'); ?>
+    </a>
+    
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=workorders'); ?>" 
        class="admin-tab <?php echo $activeTab === 'workorders' ? 'active' : ''; ?>">
         <i class="fas fa-clipboard-list"></i>
@@ -99,7 +105,9 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 
 <div class="tab-content">
     <!-- DEBUG: Active tab: <?php echo $activeTab; ?> -->
-    <?php if ($activeTab === 'workorders'): ?>
+    <?php if ($activeTab === 'resumen'): ?>
+        <?php echo $this->loadTemplate('resumen'); ?>
+    <?php elseif ($activeTab === 'workorders'): ?>
         <?php 
         // Pass variables to the included template
         $workOrders = $this->workOrders ?? [];

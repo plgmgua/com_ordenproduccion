@@ -103,6 +103,14 @@ class HtmlView extends BaseHtmlView
     protected $activeSubTab = 'banks';
 
     /**
+     * Activity statistics (for resumen tab)
+     *
+     * @var    object
+     * @since  3.6.0
+     */
+    protected $activityStats;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -129,8 +137,8 @@ class HtmlView extends BaseHtmlView
         $this->currentMonth = $input->getInt('month', 0); // 0 = All Year, 1-12 = specific month
         $this->currentYear = $input->getInt('year', date('Y'));
 
-        // Get active tab - default to workorders for better UX
-        $activeTab = $input->get('tab', 'workorders', 'string');
+        // Get active tab - default to resumen for better UX
+        $activeTab = $input->get('tab', 'resumen', 'string');
         
         // Get active subtab for herramientas tab - default to banks
         $activeSubTab = $input->get('subtab', 'banks', 'string');
@@ -139,6 +147,21 @@ class HtmlView extends BaseHtmlView
         // Get statistics model and data
         $statsModel = $this->getModel('Administracion');
         $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear);
+
+        // Load activity statistics if resumen tab is active
+        if ($activeTab === 'resumen') {
+            try {
+                $period = $input->get('period', 'day', 'string'); // day, week, month
+                $this->activityStats = $statsModel->getActivityStatistics($period);
+            } catch (\Exception $e) {
+                $app->enqueueMessage('Error loading activity statistics: ' . $e->getMessage(), 'error');
+                $this->activityStats = (object) [
+                    'daily' => [],
+                    'weekly' => [],
+                    'monthly' => []
+                ];
+            }
+        }
 
         // Initialize data arrays - ensure all properties are set before parent::display()
         $this->invoices = [];
