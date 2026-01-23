@@ -22,6 +22,21 @@ INSERT IGNORE INTO `#__menu` (
     0, 0, 0, '*', 1, '0000-00-00 00:00:00', '0000-00-00 00:00:00', 0
 );
 
+-- Add SMTP Accounts menu item (if not exists)
+INSERT IGNORE INTO `#__menu` (
+    `menutype`, `title`, `alias`, `note`, `path`, `link`, `type`, `published`,
+    `parent_id`, `level`, `component_id`, `checked_out`, `checked_out_time`,
+    `browserNav`, `access`, `img`, `template_style_id`, `params`, `lft`, `rgt`,
+    `home`, `language`, `client_id`, `publish_up`, `publish_down`, `stale`
+) VALUES (
+    'main', 'COM_ORDENPRODUCCION_MENU_SMTPACCOUNTS', 'smtpaccounts', '', 'Production Orders/SMTP Accounts',
+    'index.php?option=com_ordenproduccion&view=smtpaccounts', 'component', 1,
+    @parent_id, 2, @component_id, 0, '0000-00-00 00:00:00',
+    0, 1, 'class:ordenproduccion-settings', 0,
+    '{"menu-anchor_title":"","menu-anchor_css":"","menu_image":"","menu_image_css":"","menu_text":1,"menu_show":1}',
+    0, 0, 0, '*', 1, '0000-00-00 00:00:00', '0000-00-00 00:00:00', 0
+);
+
 -- Update parent_id reference
 SET @parent_id = (SELECT id FROM `#__menu` WHERE `link` = 'index.php?option=com_ordenproduccion&view=dashboard' AND `menutype` = 'main' AND `client_id` = 1 LIMIT 1);
 
