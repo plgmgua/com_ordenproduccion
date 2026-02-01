@@ -175,25 +175,45 @@ class PaymentproofModel extends ItemModel
             
             $paymentProofId = $db->insertid();
             
-            // Insert into junction table (payment_orders) for each order
-            if (!empty($data['payment_orders']) && is_array($data['payment_orders'])) {
-                foreach ($data['payment_orders'] as $paymentOrder) {
-                    $orderId = (int) ($paymentOrder['order_id'] ?? 0);
-                    $amountApplied = (float) ($paymentOrder['value'] ?? 0);
-                    
-                    if ($orderId > 0 && $amountApplied > 0) {
-                        $insertQuery = $db->getQuery(true);
-                        $insertQuery->insert($db->quoteName('#__ordenproduccion_payment_orders'))
-                            ->columns($db->quoteName(['payment_proof_id', 'order_id', 'amount_applied', 'created', 'created_by']))
-                            ->values(
-                                (int) $paymentProofId . ',' .
-                                $orderId . ',' .
-                                $amountApplied . ',' .
-                                $db->quote($data['created']) . ',' .
-                                (int) $data['created_by']
-                            );
-                        $db->setQuery($insertQuery);
+            if ($this->hasPaymentOrdersTable()) {
+                // Insert into junction table (payment_orders) for each order
+                if (!empty($data['payment_orders']) && is_array($data['payment_orders'])) {
+                    foreach ($data['payment_orders'] as $paymentOrder) {
+                        $orderId = (int) ($paymentOrder['order_id'] ?? 0);
+                        $amountApplied = (float) ($paymentOrder['value'] ?? 0);
+                        
+                        if ($orderId > 0 && $amountApplied > 0) {
+                            $insertQuery = $db->getQuery(true);
+                            $insertQuery->insert($db->quoteName('#__ordenproduccion_payment_orders'))
+                                ->columns($db->quoteName(['payment_proof_id', 'order_id', 'amount_applied', 'created', 'created_by']))
+                                ->values(
+                                    (int) $paymentProofId . ',' .
+                                    $orderId . ',' .
+                                    $amountApplied . ',' .
+                                    $db->quote($data['created']) . ',' .
+                                    (int) $data['created_by']
+                                );
+                            $db->setQuery($insertQuery);
+                            $db->execute();
+                        }
+                    }
+                }
+            } else {
+                // Legacy: update ordenes with payment_proof_id and payment_value for first order (if columns exist)
+                $first = $data['payment_orders'][0] ?? null;
+                if ($first && (int) ($first['order_id'] ?? 0) > 0 && $this->ordenesHasPaymentColumns($db)) {
+                    try {
+                        $orderId = (int) $first['order_id'];
+                        $amountApplied = (float) ($first['value'] ?? 0);
+                        $updateQuery = $db->getQuery(true)
+                            ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                            ->set($db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId)
+                            ->set($db->quoteName('payment_value') . ' = ' . (float) $amountApplied)
+                            ->where($db->quoteName('id') . ' = ' . $orderId);
+                        $db->setQuery($updateQuery);
                         $db->execute();
+                    } catch (\Throwable $e) {
+                        // Columns may have been removed by migration; payment_proof is still saved
                     }
                 }
             }
@@ -223,6 +243,9 @@ class PaymentproofModel extends ItemModel
     {
         try {
             $db = $this->getDatabase();
+            if (!$this->hasPaymentOrdersTable()) {
+                return $this->getPaymentProofsByOrderIdLegacy($orderId);
+            }
             $query = $db->getQuery(true)
                 ->select([
                     'pp.*',
@@ -239,8 +262,72 @@ class PaymentproofModel extends ItemModel
             $db->setQuery($query);
             return $db->loadObjectList();
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->setError($e->getMessage());
+            return $this->getPaymentProofsByOrderIdLegacy($orderId);
+        }
+    }
+
+    /**
+     * Check if ordenes table still has payment_proof_id column (pre-3.54.0 schema)
+     */
+    protected function ordenesHasPaymentColumns($db)
+    {
+        try {
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_ordenes';
+            $db->setQuery(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS " .
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($tableName) . " " .
+                "AND COLUMN_NAME = 'payment_proof_id'"
+            );
+            return (int) $db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if payment_orders junction table exists (3.54.0+ schema)
+     */
+    protected function hasPaymentOrdersTable()
+    {
+        try {
+            $db = $this->getDatabase();
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_payment_orders';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $tableName) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Legacy fallback: get payment proofs when junction table does not exist (pre-3.54.0)
+     */
+    protected function getPaymentProofsByOrderIdLegacy($orderId)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('pp.*')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->where('pp.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where('pp.' . $db->quoteName('state') . ' = 1')
+                ->order('pp.' . $db->quoteName('created') . ' DESC');
+            $db->setQuery($query);
+            $rows = $db->loadObjectList();
+            foreach ($rows as $row) {
+                $row->amount_applied = $row->payment_amount ?? 0;
+            }
+            return $rows;
+        } catch (\Throwable $e) {
             return [];
         }
     }
@@ -257,6 +344,9 @@ class PaymentproofModel extends ItemModel
     public function getTotalPaidByOrderId($orderId)
     {
         try {
+            if (!$this->hasPaymentOrdersTable()) {
+                return $this->getTotalPaidByOrderIdLegacy($orderId);
+            }
             $db = $this->getDatabase();
             $query = $db->getQuery(true)
                 ->select('COALESCE(SUM(po.amount_applied), 0)')
@@ -270,7 +360,23 @@ class PaymentproofModel extends ItemModel
             $db->setQuery($query);
             return (float) $db->loadResult();
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            return $this->getTotalPaidByOrderIdLegacy($orderId);
+        }
+    }
+
+    protected function getTotalPaidByOrderIdLegacy($orderId)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('COALESCE(SUM(pp.payment_amount), 0)')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->where('pp.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where('pp.' . $db->quoteName('state') . ' = 1');
+            $db->setQuery($query);
+            return (float) $db->loadResult();
+        } catch (\Throwable $e) {
             return 0.0;
         }
     }

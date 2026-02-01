@@ -224,7 +224,9 @@ class HtmlView extends BaseHtmlView
             if (empty($clientName)) {
                 return [];
             }
-            
+            if (!$this->hasPaymentOrdersTable($db)) {
+                return [];
+            }
             $clientColumn = 'COALESCE(o.' . $db->quoteName('client_name') . ', o.' . $db->quoteName('nombre_del_cliente') . ')';
             
             // Get all orders from same client (excluding current for "additional" list)
@@ -250,7 +252,7 @@ class HtmlView extends BaseHtmlView
             
             $db->setQuery($query);
             $orders = $db->loadObjectList();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return [];
         }
         
@@ -294,5 +296,26 @@ class HtmlView extends BaseHtmlView
         }
         
         return json_encode($data);
+    }
+
+    /**
+     * Check if payment_orders junction table exists (3.54.0+ schema)
+     */
+    protected function hasPaymentOrdersTable($db = null)
+    {
+        try {
+            $db = $db ?: Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_payment_orders';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $tableName) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }
