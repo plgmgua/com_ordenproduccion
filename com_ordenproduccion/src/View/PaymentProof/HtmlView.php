@@ -218,38 +218,45 @@ class HtmlView extends BaseHtmlView
      */
     public function getOrdersWithRemainingBalanceFromClient()
     {
-        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-        
-        $clientName = $this->order->client_name ?? $this->order->nombre_del_cliente ?? '';
-        if (empty($clientName)) {
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $clientName = $this->order->client_name ?? $this->order->nombre_del_cliente ?? '';
+            if (empty($clientName)) {
+                return [];
+            }
+            
+            $clientColumn = 'COALESCE(o.' . $db->quoteName('client_name') . ', o.' . $db->quoteName('nombre_del_cliente') . ')';
+            
+            // Get all orders from same client (excluding current for "additional" list)
+            $query = $db->getQuery(true)
+                ->select([
+                    'o.id',
+                    'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
+                    'COALESCE(o.invoice_value, 0) AS invoice_value',
+                    'COALESCE(SUM(CASE WHEN pp.state = 1 THEN po.amount_applied ELSE 0 END), 0) AS total_paid'
+                ])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->leftJoin(
+                    $db->quoteName('#__ordenproduccion_payment_orders', 'po') . ' ON po.order_id = o.id'
+                )
+                ->leftJoin(
+                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id'
+                )
+                ->where('o.state = 1')
+                ->where('(' . $clientColumn . ' = ' . $db->quote($clientName) . ')')
+                ->where('o.id != ' . (int) $this->orderId)
+                ->group('o.id')
+                ->order('COALESCE(o.order_number, o.orden_de_trabajo) DESC');
+            
+            $db->setQuery($query);
+            $orders = $db->loadObjectList();
+        } catch (\Exception $e) {
             return [];
         }
         
-        $clientColumn = 'COALESCE(' . $db->quoteName('client_name') . ', ' . $db->quoteName('nombre_del_cliente') . ')';
-        
-        // Get all orders from same client (excluding current for "additional" list)
-        $query = $db->getQuery(true)
-            ->select([
-                'o.id',
-                'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
-                'COALESCE(o.invoice_value, 0) AS invoice_value',
-                'COALESCE(SUM(CASE WHEN pp.state = 1 THEN po.amount_applied ELSE 0 END), 0) AS total_paid'
-            ])
-            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
-            ->leftJoin(
-                $db->quoteName('#__ordenproduccion_payment_orders', 'po') . ' ON po.order_id = o.id'
-            )
-            ->leftJoin(
-                $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id'
-            )
-            ->where('o.state = 1')
-            ->where('(' . $clientColumn . ' = ' . $db->quote($clientName) . ')')
-            ->where('o.id != ' . (int) $this->orderId)
-            ->group('o.id')
-            ->order('COALESCE(o.order_number, o.orden_de_trabajo) DESC');
-        
-        $db->setQuery($query);
-        $orders = $db->loadObjectList();
+        if (empty($orders)) {
+            return [];
+        }
         
         // Filter: only orders with remaining balance (total_paid < invoice_value)
         $result = [];

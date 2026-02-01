@@ -219,12 +219,12 @@ function displayYesNoBadge($value) {
                                     <td><?php echo $this->formatCurrency($item->invoice_value); ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_INFO'); ?>:</strong></td>
+                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PAYMENT_INFO'); ?>:</strong></td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-outline-primary" 
                                                 onclick="if(typeof showPaymentInfoPopup==='function')showPaymentInfoPopup(<?php echo (int)($item->id ?? 0); ?>, window.paymentInfoBaseUrl||'', window.paymentInfoToken||'');"
-                                                title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>">
-                                            <i class="fas fa-credit-card"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>
+                                                title="<?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_VIEW_PAYMENT_INFO'); ?>">
+                                            <i class="fas fa-credit-card"></i> <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_VIEW_PAYMENT_INFO'); ?>
                                         </button>
                                     </td>
                                 </tr>
