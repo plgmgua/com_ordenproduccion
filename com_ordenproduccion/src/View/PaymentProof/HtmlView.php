@@ -21,8 +21,7 @@ class HtmlView extends BaseHtmlView
     protected $user;
     protected $orderId;
     protected $order;
-    protected $existingPayment;
-    protected $isReadOnly;
+    protected $existingPayments = [];
 
     public function display($tpl = null)
     {
@@ -56,9 +55,8 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        // Check if payment already exists for this order
-        $this->existingPayment = $this->checkExistingPayment();
-        $this->isReadOnly = !empty($this->existingPayment);
+        // Get existing payments for display (no longer blocks adding more - many-to-many)
+        $this->existingPayments = $this->getExistingPayments();
 
         // Get component params
         $this->params = $app->getParams('com_ordenproduccion');
@@ -73,28 +71,17 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Check if payment proof already exists for this order
+     * Get existing payment proofs for this order (many-to-many - can have multiple)
      *
-     * @return  object|null  Existing payment proof or null
+     * @return  array  Array of payment proof objects with amount_applied
      */
-    protected function checkExistingPayment()
+    protected function getExistingPayments()
     {
-        if (empty($this->order->payment_proof_id)) {
-            return null;
+        $model = $this->getModel();
+        if (method_exists($model, 'getPaymentProofsByOrderId')) {
+            return $model->getPaymentProofsByOrderId($this->orderId);
         }
-
-        try {
-            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-            $query = $db->getQuery(true)
-                ->select('*')
-                ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
-                ->where($db->quoteName('id') . ' = ' . (int) $this->order->payment_proof_id);
-            
-            $db->setQuery($query);
-            return $db->loadObject();
-        } catch (\Exception $e) {
-            return null;
-        }
+        return [];
     }
 
     protected function _prepareDocument()
@@ -222,60 +209,80 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Get unpaid orders from same client for dropdown
+     * Get orders with remaining balance from same client (for adding to payment)
+     * Includes: orders where total paid < invoice_value, same client
      *
-     * @return  array  Array of order objects
+     * @return  array  Array of order objects with id, order_number, invoice_value, total_paid, remaining_balance
      *
-     * @since   3.1.5
+     * @since   3.54.0
      */
-    public function getUnpaidOrdersFromClient()
+    public function getOrdersWithRemainingBalanceFromClient()
     {
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
         
-        // Get client name from current order
-        $clientName = $this->order->client_name ?? '';
-        
+        $clientName = $this->order->client_name ?? $this->order->nombre_del_cliente ?? '';
         if (empty($clientName)) {
             return [];
         }
         
-        // Get unpaid orders from same client
+        $clientColumn = 'COALESCE(' . $db->quoteName('client_name') . ', ' . $db->quoteName('nombre_del_cliente') . ')';
+        
+        // Get all orders from same client (excluding current for "additional" list)
         $query = $db->getQuery(true)
             ->select([
-                $db->quoteName('id'),
-                $db->quoteName('order_number'),
-                $db->quoteName('orden_de_trabajo'),
-                $db->quoteName('client_name'),
-                $db->quoteName('invoice_value')
+                'o.id',
+                'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
+                'COALESCE(o.invoice_value, 0) AS invoice_value',
+                'COALESCE(SUM(CASE WHEN pp.state = 1 THEN po.amount_applied ELSE 0 END), 0) AS total_paid'
             ])
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName))
-            ->where($db->quoteName('payment_proof_id') . ' IS NULL') // Only unpaid orders
-            ->where($db->quoteName('id') . ' != ' . (int) $this->orderId) // Exclude current order
-            ->order($db->quoteName('order_number') . ' DESC');
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->leftJoin(
+                $db->quoteName('#__ordenproduccion_payment_orders', 'po') . ' ON po.order_id = o.id'
+            )
+            ->leftJoin(
+                $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id'
+            )
+            ->where('o.state = 1')
+            ->where('(' . $clientColumn . ' = ' . $db->quote($clientName) . ')')
+            ->where('o.id != ' . (int) $this->orderId)
+            ->group('o.id')
+            ->order('COALESCE(o.order_number, o.orden_de_trabajo) DESC');
         
         $db->setQuery($query);
-        return $db->loadObjectList();
+        $orders = $db->loadObjectList();
+        
+        // Filter: only orders with remaining balance (total_paid < invoice_value)
+        $result = [];
+        foreach ($orders as $order) {
+            $invoiceValue = (float) ($order->invoice_value ?? 0);
+            $totalPaid = (float) ($order->total_paid ?? 0);
+            $remainingBalance = $invoiceValue - $totalPaid;
+            if ($remainingBalance > 0.01) {
+                $order->remaining_balance = $remainingBalance;
+                $result[] = $order;
+            }
+        }
+        return $result;
     }
     
     /**
-     * Get unpaid orders as JSON for JavaScript
+     * Get orders with remaining balance as JSON for JavaScript
      *
      * @return  string  JSON encoded array
      *
-     * @since   3.1.5
+     * @since   3.54.0
      */
     public function getUnpaidOrdersJson()
     {
-        $orders = $this->getUnpaidOrdersFromClient();
+        $orders = $this->getOrdersWithRemainingBalanceFromClient();
         $data = [];
         
         foreach ($orders as $order) {
             $data[] = [
                 'id' => (int) $order->id,
                 'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? '',
-                'invoice_value' => (float) ($order->invoice_value ?? 0)
+                'invoice_value' => (float) ($order->invoice_value ?? 0),
+                'remaining_balance' => (float) ($order->remaining_balance ?? $order->invoice_value ?? 0)
             ];
         }
         

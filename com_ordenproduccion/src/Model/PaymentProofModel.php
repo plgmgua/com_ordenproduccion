@@ -120,6 +120,7 @@ class PaymentproofModel extends ItemModel
 
     /**
      * Method to save payment proof data
+     * Uses junction table for many-to-many: multiple payments per order, multiple orders per payment
      *
      * @param   array  $data  The form data.
      *
@@ -135,7 +136,11 @@ class PaymentproofModel extends ItemModel
             // Start transaction
             $db->transactionStart();
             
-            // Insert new payment proof record
+            $primaryOrderId = !empty($data['payment_orders'][0]['order_id']) 
+                ? (int) $data['payment_orders'][0]['order_id'] 
+                : 0;
+            
+            // Insert new payment proof record (order_id nullable for standalone payments)
             $query = $db->getQuery(true);
             $columns = [
                 'order_id',
@@ -150,7 +155,7 @@ class PaymentproofModel extends ItemModel
             ];
             
             $values = [
-                (int) $data['order_id'],
+                $primaryOrderId > 0 ? $primaryOrderId : 'NULL',
                 $db->quote($data['payment_type']),
                 $db->quote($data['bank']),
                 $db->quote($data['document_number']),
@@ -168,36 +173,35 @@ class PaymentproofModel extends ItemModel
             $db->setQuery($query);
             $db->execute();
             
-            // Get the inserted payment proof ID
             $paymentProofId = $db->insertid();
             
-            // Update orders table with payment_proof_id and payment_value
+            // Insert into junction table (payment_orders) for each order
             if (!empty($data['payment_orders']) && is_array($data['payment_orders'])) {
                 foreach ($data['payment_orders'] as $paymentOrder) {
-                    $orderId = (int) $paymentOrder['order_id'];
-                    $value = (float) $paymentOrder['value'];
+                    $orderId = (int) ($paymentOrder['order_id'] ?? 0);
+                    $amountApplied = (float) ($paymentOrder['value'] ?? 0);
                     
-                    // Update the order with payment information
-                    $updateQuery = $db->getQuery(true);
-                    $updateQuery->update($db->quoteName('#__ordenproduccion_ordenes'))
-                        ->set($db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId)
-                        ->set($db->quoteName('payment_value') . ' = ' . $value)
-                        ->set($db->quoteName('modified') . ' = ' . $db->quote($data['created']))
-                        ->set($db->quoteName('modified_by') . ' = ' . (int) $data['created_by'])
-                        ->where($db->quoteName('id') . ' = ' . $orderId);
-                    
-                    $db->setQuery($updateQuery);
-                    $db->execute();
+                    if ($orderId > 0 && $amountApplied > 0) {
+                        $insertQuery = $db->getQuery(true);
+                        $insertQuery->insert($db->quoteName('#__ordenproduccion_payment_orders'))
+                            ->columns($db->quoteName(['payment_proof_id', 'order_id', 'amount_applied', 'created', 'created_by']))
+                            ->values(
+                                (int) $paymentProofId . ',' .
+                                $orderId . ',' .
+                                $amountApplied . ',' .
+                                $db->quote($data['created']) . ',' .
+                                (int) $data['created_by']
+                            );
+                        $db->setQuery($insertQuery);
+                        $db->execute();
+                    }
                 }
             }
             
-            // Commit transaction
             $db->transactionCommit();
-            
             return true;
             
         } catch (\Exception $e) {
-            // Rollback transaction on error
             if (isset($db)) {
                 $db->transactionRollback();
             }
@@ -207,11 +211,11 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
-     * Get payment proofs for a specific order
+     * Get payment proofs for a specific order (via junction table - many-to-many)
      *
      * @param   integer  $orderId  The order ID
      *
-     * @return  array  Array of payment proof objects
+     * @return  array  Array of objects with payment proof data + amount_applied for this order
      *
      * @since   3.1.3
      */
@@ -220,17 +224,88 @@ class PaymentproofModel extends ItemModel
         try {
             $db = $this->getDatabase();
             $query = $db->getQuery(true)
-                ->select('*')
-                ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
-                ->where($db->quoteName('order_id') . ' = ' . (int) $orderId)
-                ->where($db->quoteName('state') . ' = 1')
-                ->order($db->quoteName('created') . ' DESC');
+                ->select([
+                    'pp.*',
+                    'po.' . $db->quoteName('amount_applied')
+                ])
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->innerJoin(
+                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id'
+                )
+                ->where('po.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where('pp.' . $db->quoteName('state') . ' = 1')
+                ->order('pp.' . $db->quoteName('created') . ' DESC');
 
             $db->setQuery($query);
             return $db->loadObjectList();
             
         } catch (\Exception $e) {
             $this->setError($e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get total amount paid for a specific order (sum of amount_applied from all payment proofs)
+     *
+     * @param   integer  $orderId  The order ID
+     *
+     * @return  float  Total paid amount
+     *
+     * @since   3.54.0
+     */
+    public function getTotalPaidByOrderId($orderId)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('COALESCE(SUM(po.amount_applied), 0)')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->innerJoin(
+                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id'
+                )
+                ->where('po.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where('pp.' . $db->quoteName('state') . ' = 1');
+
+            $db->setQuery($query);
+            return (float) $db->loadResult();
+            
+        } catch (\Exception $e) {
+            return 0.0;
+        }
+    }
+
+    /**
+     * Get orders linked to a payment proof
+     *
+     * @param   integer  $paymentProofId  The payment proof ID
+     *
+     * @return  array  Array of objects with order_id, amount_applied, order_number
+     *
+     * @since   3.54.0
+     */
+    public function getOrdersByPaymentProofId($paymentProofId)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select([
+                    'po.order_id',
+                    'po.amount_applied',
+                    'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
+                    'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name'
+                ])
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->innerJoin(
+                    $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id'
+                )
+                ->where('po.' . $db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId)
+                ->where('o.' . $db->quoteName('state') . ' = 1');
+
+            $db->setQuery($query);
+            return $db->loadObjectList();
+            
+        } catch (\Exception $e) {
             return [];
         }
     }

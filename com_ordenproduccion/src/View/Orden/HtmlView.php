@@ -320,7 +320,7 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Check if user can see invoice value
+     * Check if user can see invoice value (and payment info)
      *
      * @return  boolean  True if user can see invoice value
      *
@@ -328,22 +328,7 @@ class HtmlView extends BaseHtmlView
      */
     public function canSeeInvoiceValue()
     {
-        $userGroups = $this->getUserGroups();
-        $isVentas = in_array(2, $userGroups); // Adjust group ID as needed
-        $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
-
-        if ($isVentas && !$isProduccion) {
-            // Sales users can see invoice value for their own orders
-            return true;
-        } elseif ($isProduccion && !$isVentas) {
-            // Production users cannot see invoice value
-            return false;
-        } elseif ($isVentas && $isProduccion) {
-            // Users in both groups can see invoice value only for their own orders
-            return $this->item->sales_agent === $this->user->get('name');
-        }
-
-        return false;
+        return AccessHelper::canSeeValorFactura($this->item->sales_agent ?? '');
     }
 
     /**

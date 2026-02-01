@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function addOrderRow() {
         if (unpaidOrders.length === 0) {
-            showAlert('warning', 'No hay órdenes sin pago disponibles para este cliente');
+            showAlert('warning', 'No hay órdenes con saldo pendiente para este cliente');
             return;
         }
 
@@ -93,11 +93,12 @@ document.addEventListener('DOMContentLoaded', function() {
         newRow.className = 'payment-order-row';
         newRow.setAttribute('data-row-index', rowIndex);
 
-        // Create dropdown options
+        // Create dropdown options (use remaining_balance for suggested amount)
         let options = '<option value="">Seleccionar orden...</option>';
         unpaidOrders.forEach(order => {
-            options += `<option value="${order.id}" data-invoice-value="${order.invoice_value}">
-                ${order.order_number} (Q.${parseFloat(order.invoice_value || 0).toFixed(2)})
+            const remaining = order.remaining_balance ?? order.invoice_value ?? 0;
+            options += `<option value="${order.id}" data-invoice-value="${order.invoice_value}" data-remaining-balance="${remaining}">
+                ${order.order_number} (Saldo: Q.${parseFloat(remaining).toFixed(2)})
             </option>`;
         });
 
@@ -150,10 +151,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedOption && selectedOption.value) {
             hiddenInput.value = selectedOption.value;
             
-            // Optionally pre-fill the amount with invoice value
-            const invoiceValue = selectedOption.getAttribute('data-invoice-value');
-            if (invoiceValue && (!valueInput.value || valueInput.value === '0')) {
-                valueInput.value = parseFloat(invoiceValue).toFixed(2);
+            // Pre-fill with remaining balance (or full invoice value if no partial payments)
+            const remainingBalance = selectedOption.getAttribute('data-remaining-balance');
+            const fallback = selectedOption.getAttribute('data-invoice-value');
+            const defaultVal = remainingBalance || fallback;
+            if (defaultVal && (!valueInput.value || valueInput.value === '0')) {
+                valueInput.value = parseFloat(defaultVal).toFixed(2);
                 updateTotalAndValidate();
             }
         } else {

@@ -225,12 +225,20 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                                                 <?php endif; ?>
                                                 <!-- Payment Proof -->
                                                 <?php $paymentProofUrl = 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id; ?>
-                                                <a href="<?php echo $paymentProofUrl; ?>"
+                                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id); ?>"
                                                    class="btn btn-sm btn-outline-success"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>"
                                                    aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>">
                                                     <i class="fas fa-credit-card fa-sm" aria-hidden="true"></i>
                                                 </a>
+                                                <?php if ($this->canSeeInvoiceValue($item)) : ?>
+                                                <!-- Payment Info Popup -->
+                                                <button type="button" class="btn btn-sm btn-outline-info"
+                                                        onclick="if(typeof showPaymentInfoPopup==='function')showPaymentInfoPopup(<?php echo (int) $item->id; ?>, window.paymentInfoBaseUrl||'', window.paymentInfoToken||'');"
+                                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>">
+                                                    <i class="fas fa-receipt fa-sm" aria-hidden="true"></i>
+                                                </button>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -254,6 +262,20 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                     </div>
                 </div>
             <?php endif; ?>
+        <?php endif; ?>
+
+        <!-- Payment Info Modal (for users who can see payment info) -->
+        <?php 
+        $hasPaymentInfoAccess = false;
+        foreach ($this->items as $it) {
+            if ($this->canSeeInvoiceValue($it)) { $hasPaymentInfoAccess = true; break; }
+        }
+        if ($hasPaymentInfoAccess && !empty($this->items)) : 
+            $paymentInfoBaseUrl = \Joomla\CMS\Uri\Uri::base() . 'index.php?option=com_ordenproduccion&task=ajax.getOrderPayments&format=raw';
+            $paymentInfoToken = \Joomla\CMS\Session\Session::getFormToken();
+        ?>
+        <script>window.paymentInfoBaseUrl='<?php echo $paymentInfoBaseUrl; ?>';window.paymentInfoToken='<?php echo $paymentInfoToken; ?>';</script>
+        <?php include __DIR__ . '/../payment_info_modal.php'; ?>
         <?php endif; ?>
     </div>
 </div>

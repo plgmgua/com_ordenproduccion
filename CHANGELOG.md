@@ -19,6 +19,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [3.54.0-STABLE] - 2025-02-01
+
+### Added
+- **Many-to-many payment documents and work orders**
+  - Multiple payment documents can be associated with a single work order
+  - Multiple work orders can be associated with a single payment document
+  - Payment info popup: view all payment information (owner or Administracion group only)
+  - Default amount in payment form set to order value (editable)
+  - Support for partial/advance payments
+
+### Changed
+- **Payment registration**
+  - Removed read-only restriction when order already has payments
+  - "Add order" dropdown shows orders with remaining balance (same customer only)
+  - Existing payments displayed as info table, form always editable
+- **Access control**: Payment info popup uses same access as valor a facturar (owner + Administracion)
+
+### Database Changes
+- New junction table `#__ordenproduccion_payment_orders` (payment_proof_id, order_id, amount_applied)
+- Migration: existing payment_proof_id/payment_value from ordenes migrated to junction table
+- Removed payment_proof_id and payment_value columns from ordenes
+- payment_proofs.order_id made nullable
+
 ## [3.4.0-STABLE] - 2025-10-29
 
 ### Added

@@ -162,6 +162,7 @@ class HtmlView extends BaseHtmlView
         
         $wa = $this->document->getWebAssetManager();
         $wa->registerAndUseStyle('com_ordenproduccion.ordenes', 'media/com_ordenproduccion/css/ordenes.css', [], ['version' => 'auto']);
+        $wa->registerAndUseScript('com_ordenproduccion.paymentinfo', 'media/com_ordenproduccion/js/payment-info.js', [], ['version' => 'auto']);
     }
 
     /**
@@ -248,7 +249,7 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Check if user can see invoice value
+     * Check if user can see invoice value (and payment info)
      *
      * @param   object  $item  The order item
      *
@@ -258,22 +259,7 @@ class HtmlView extends BaseHtmlView
      */
     public function canSeeInvoiceValue($item)
     {
-        $userGroups = $this->getUserGroups();
-        $isVentas = in_array(2, $userGroups); // Adjust group ID as needed
-        $isProduccion = in_array(3, $userGroups); // Adjust group ID as needed
-
-        if ($isVentas && !$isProduccion) {
-            // Sales users can see invoice value for their own orders
-            return true;
-        } elseif ($isProduccion && !$isVentas) {
-            // Production users cannot see invoice value
-            return false;
-        } elseif ($isVentas && $isProduccion) {
-            // Users in both groups can see invoice value only for their own orders
-            return $item->sales_agent === $this->user->get('name');
-        }
-
-        return false;
+        return AccessHelper::canSeeValorFactura($item->sales_agent ?? '');
     }
 
     /**

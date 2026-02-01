@@ -218,6 +218,16 @@ function displayYesNoBadge($value) {
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_VALOR_FACTURA'); ?>:</strong></td>
                                     <td><?php echo $this->formatCurrency($item->invoice_value); ?></td>
                                 </tr>
+                                <tr>
+                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_INFO'); ?>:</strong></td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                onclick="if(typeof showPaymentInfoPopup==='function')showPaymentInfoPopup(<?php echo (int)($item->id ?? 0); ?>, window.paymentInfoBaseUrl||'', window.paymentInfoToken||'');"
+                                                title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>">
+                                            <i class="fas fa-credit-card"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>
+                                        </button>
+                                    </td>
+                                </tr>
                             <?php endif; ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_AGENTE_VENTAS'); ?>:</strong></td>
@@ -590,3 +600,18 @@ window.currentOrderData = <?php echo json_encode([
     'perforation_details' => $item->perforation_details ?? ''
 ], JSON_UNESCAPED_UNICODE); ?>;
 </script>
+
+<?php if ($canSeeInvoice) : ?>
+<?php 
+$paymentInfoBaseUrl = \Joomla\CMS\Uri\Uri::base() . 'index.php?option=com_ordenproduccion&task=ajax.getOrderPayments&format=raw';
+$paymentInfoToken = \Joomla\CMS\Session\Session::getFormToken();
+?>
+<script>
+window.paymentInfoBaseUrl = '<?php echo $paymentInfoBaseUrl; ?>';
+window.paymentInfoToken = '<?php echo $paymentInfoToken; ?>';
+</script>
+<?php 
+$this->document->getWebAssetManager()->registerAndUseScript('com_ordenproduccion.paymentinfo', 'media/com_ordenproduccion/js/payment-info.js', [], ['version' => 'auto']);
+include __DIR__ . '/../payment_info_modal.php'; 
+?>
+<?php endif; ?>

@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Ajax controller for com_ordenproduccion
@@ -412,6 +413,73 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
         }
         
+        exit;
+    }
+
+    /**
+     * Get payment info for a work order (AJAX)
+     * Access: owner (sales agent) or Administracion group - same as valor a facturar
+     *
+     * @return  void
+     *
+     * @since   3.54.0
+     */
+    public function getOrderPayments()
+    {
+        header('Content-Type: application/json');
+        
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => 'Login required']);
+            exit;
+        }
+        
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => 'Invalid token']);
+            exit;
+        }
+        
+        $orderId = $app->input->getInt('order_id', 0);
+        if ($orderId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid order']);
+            exit;
+        }
+        
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+        $db->setQuery($query);
+        $order = $db->loadObject();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            exit;
+        }
+        
+        $salesAgent = $order->sales_agent ?? $order->agente_ventas ?? '';
+        if (!AccessHelper::canSeeValorFactura($salesAgent)) {
+            echo json_encode(['success' => false, 'message' => 'Access denied']);
+            exit;
+        }
+        
+        $paymentModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Paymentproof', 'Site');
+        $paymentProofs = $paymentModel->getPaymentProofsByOrderId($orderId);
+        $totalPaid = $paymentModel->getTotalPaidByOrderId($orderId);
+        $invoiceValue = (float) ($order->invoice_value ?? $order->valor_a_facturar ?? 0);
+        $remainingBalance = $invoiceValue - $totalPaid;
+        
+        echo json_encode([
+            'success' => true,
+            'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? '',
+            'invoice_value' => $invoiceValue,
+            'total_paid' => $totalPaid,
+            'remaining_balance' => max(0, $remainingBalance),
+            'payment_proofs' => $paymentProofs
+        ]);
         exit;
     }
 }
