@@ -968,9 +968,7 @@ try {
 echo "<h3>5. Deployed Component Files</h3>";
 $sitePath = JPATH_ROOT . '/components/com_ordenproduccion';
 $filesToCheck = [
-    'src/Model/PaymentProofModel.php',
     'src/Model/PaymentproofModel.php',
-    'src/View/PaymentProof/HtmlView.php',
     'src/View/Paymentproof/HtmlView.php',
     'tmpl/paymentproof/default.php',
 ];

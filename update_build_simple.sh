@@ -1030,6 +1030,10 @@ EOF
         log "✅ Paymentproof JS copied"
     fi
 
+    # Remove stale PaymentProof (capital P) files - Joomla loads Paymentproof (lowercase)
+    sudo rm -f "$SITE_COMPONENT_PATH/src/Model/PaymentProofModel.php" 2>/dev/null || true
+    sudo rm -rf "$SITE_COMPONENT_PATH/src/View/PaymentProof" 2>/dev/null || true
+    sudo rm -f "$SITE_COMPONENT_PATH/src/Controller/PaymentProofController.php" 2>/dev/null || true
     # Clean any mis-copied files in view folder (defensive)
     sudo find "$SITE_COMPONENT_PATH/src/View/Paymentproof" -maxdepth 1 -type f ! -name "HtmlView.php" -delete 2>/dev/null || true
 
