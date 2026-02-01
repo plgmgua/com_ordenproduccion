@@ -44,7 +44,7 @@ $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 echo "<!DOCTYPE html>
 <html><head>
 <meta charset='UTF-8'>
-<title>Bank Dropdown Validation - com_ordenproduccion</title>
+<title>Troubleshooting - com_ordenproduccion (Banks & Payment Proof)</title>
 <style>
 body { 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -134,11 +134,12 @@ pre {
 </head><body>
 <div class='container'>";
 
-echo "<h1>🔍 Bank Dropdown Validation & Troubleshooting</h1>";
+echo "<h1>🔍 com_ordenproduccion Troubleshooting</h1>";
 echo "<div class='summary'>";
 echo "<strong>Timestamp:</strong> " . date('Y-m-d H:i:s') . "<br>";
 echo "<strong>Joomla Root:</strong> " . JPATH_ROOT . "<br>";
 echo "<strong>Component:</strong> com_ordenproduccion<br>";
+echo "<strong>Quick links:</strong> <a href='#payment-diag'>💳 Payment Proof 1054 Error Diagnostics</a><br>";
 echo "</div>";
 
 $testResults = [];
@@ -829,6 +830,188 @@ try {
     echo "<p class='error'>❌ Error rendering dropdown: " . htmlspecialchars($e->getMessage()) . "</p>";
     echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
     $testResults['dropdown_rendering'] = false;
+}
+
+echo "</div>";
+
+// ============================================
+// PAYMENT PROOF SCHEMA DIAGNOSTICS (1054 payment_proof_id error)
+// ============================================
+echo "<div class='test-section' id='payment-diag'>";
+echo "<h2>💳 Payment Proof Schema Diagnostics (1054 Unknown column 'payment_proof_id')</h2>";
+echo "<p class='info'>This section diagnoses the <code>1054 Unknown column 'payment_proof_id' in 'where clause'</code> error on the payment registration page.</p>";
+
+$prefix = $db->getPrefix();
+$ordenesTable = $prefix . 'ordenproduccion_ordenes';
+$paymentOrdersTable = $prefix . 'ordenproduccion_payment_orders';
+$paymentProofsTable = $prefix . 'ordenproduccion_payment_proofs';
+
+$hasPaymentProofId = false;
+$hasPaymentValue = false;
+
+// 1. Check ordenes table columns
+echo "<h3>1. Ordenes Table Schema</h3>";
+try {
+    $db->setQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($ordenesTable) . " ORDER BY ORDINAL_POSITION");
+    $ordenesCols = $db->loadColumn() ?: [];
+    $hasPaymentProofId = in_array('payment_proof_id', $ordenesCols);
+    $hasPaymentValue = in_array('payment_value', $ordenesCols);
+    
+    echo "<table><tr><th>Column</th><th>Exists in ordenes</th><th>Status</th></tr>";
+    echo "<tr class='" . ($hasPaymentProofId ? 'warning' : 'ok') . "'><td>payment_proof_id</td><td>" . ($hasPaymentProofId ? 'YES' : 'NO') . "</td><td>";
+    echo $hasPaymentProofId ? "⚠️ OLD schema - 3.54.0 migration should remove it" : "✅ Removed (post-migration)";
+    echo "</td></tr>";
+    echo "<tr class='" . ($hasPaymentValue ? 'warning' : 'ok') . "'><td>payment_value</td><td>" . ($hasPaymentValue ? 'YES' : 'NO') . "</td><td>";
+    echo $hasPaymentValue ? "⚠️ OLD schema" : "✅ Removed (post-migration)";
+    echo "</td></tr></table>";
+    echo "<p class='info'>All ordenes columns: <code>" . implode('</code>, <code>', $ordenesCols) . "</code></p>";
+} catch (\Exception $e) {
+    echo "<p class='error'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// 2. Check payment_orders table existence
+echo "<h3>2. Payment Orders Junction Table</h3>";
+$paymentOrdersExists = false;
+try {
+    $db->setQuery("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($paymentOrdersTable));
+    $paymentOrdersExists = (int) $db->loadResult() > 0;
+    echo "<p class='" . ($paymentOrdersExists ? 'ok' : 'error') . "'>" . ($paymentOrdersExists ? "✅" : "❌") . " Table <code>{$paymentOrdersTable}</code> " . ($paymentOrdersExists ? "exists" : "does NOT exist") . "</p>";
+    if ($paymentOrdersExists) {
+        $db->setQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($paymentOrdersTable));
+        $poCols = $db->loadColumn() ?: [];
+        echo "<p class='info'>Columns: <code>" . implode('</code>, <code>', $poCols) . "</code></p>";
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// 3. getTableList output (used by hasPaymentOrdersTable)
+echo "<h3>3. getTableList() Output (Table Existence Check)</h3>";
+try {
+    $tables = $db->getTableList();
+    $matches = array_filter($tables, function($t) use ($paymentOrdersTable) {
+        return strcasecmp($t, $paymentOrdersTable) === 0 || stripos($t, 'ordenproduccion_payment_orders') !== false;
+    });
+    echo "<p class='info'>Looking for: <code>{$paymentOrdersTable}</code></p>";
+    echo "<p class='info'>Matches in getTableList: " . (empty($matches) ? "NONE" : implode(', ', $matches)) . "</p>";
+    echo "<p class='info'>Sample of table list (first 20): <code>" . implode('</code>, <code>', array_slice($tables, 0, 20)) . "</code></p>";
+} catch (\Exception $e) {
+    echo "<p class='error'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// 4. Test queries that could trigger the error
+echo "<h3>4. Query Tests (Simulate Payment Proof Page Load)</h3>";
+
+// Test A: getPaymentProofsByOrderId equivalent (junction table)
+echo "<h4>Test A: Junction table query (payment_orders + payment_proofs)</h4>";
+try {
+    $orderId = 6025;
+    $q = $db->getQuery(true)
+        ->select('pp.id, pp.document_number, po.amount_applied')
+        ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+        ->innerJoin($db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id')
+        ->where('po.order_id = ' . (int) $orderId);
+    $db->setQuery($q);
+    $rows = $db->loadObjectList();
+    echo "<p class='ok'>✅ Junction query OK - returned " . count($rows) . " row(s)</p>";
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Junction query FAILED: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// Test B: Query that would use ordenes.payment_proof_id (WRONG - this causes the error)
+echo "<h4>Test B: Query using ordenes.payment_proof_id (should fail if column removed)</h4>";
+try {
+    $q = $db->getQuery(true)
+        ->select('o.id, o.payment_proof_id, o.payment_value')
+        ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+        ->where('o.id = 6025');
+    $db->setQuery($q);
+    $row = $db->loadObject();
+    echo "<p class='warning'>⚠️ Query succeeded - ordenes still has payment_proof_id/payment_value columns</p>";
+} catch (\Exception $e) {
+    $err = $e->getMessage();
+    echo "<p class='" . (strpos($err, 'payment_proof_id') !== false ? 'error' : 'warning') . "'>";
+    echo (strpos($err, 'payment_proof_id') !== false ? "❌ FOUND ERROR: " : "Error: ") . htmlspecialchars($err) . "</p>";
+}
+
+// Test C: Legacy payment_proofs-only query
+echo "<h4>Test C: Legacy query (payment_proofs.order_id only)</h4>";
+try {
+    $q = $db->getQuery(true)
+        ->select('pp.id, pp.document_number, pp.payment_amount')
+        ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+        ->where('pp.order_id = 6025')->where('pp.state = 1');
+    $db->setQuery($q);
+    $rows = $db->loadObjectList();
+    echo "<p class='ok'>✅ Legacy query OK - returned " . count($rows) . " row(s)</p>";
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Legacy query FAILED: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// Test D: getOrdersWithRemainingBalanceFromClient-style query (ordenes only + subquery)
+echo "<h4>Test D: View getOrdersWithRemainingBalance (ordenes + subquery, no JOIN to payment_orders)</h4>";
+try {
+    $subquery = '(SELECT COALESCE(SUM(pp2.payment_amount), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
+        ' WHERE pp2.order_id = o.id AND pp2.state = 1)';
+    $q = $db->getQuery(true)
+        ->select(['o.id', 'o.order_number', 'o.invoice_value', $subquery . ' AS total_paid'])
+        ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+        ->where('o.state = 1')->where('o.id = 6025');
+    $db->setQuery($q);
+    $row = $db->loadObject();
+    echo "<p class='ok'>✅ View query (legacy subquery) OK</p>";
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ View query FAILED: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// 5. Deployed files check
+echo "<h3>5. Deployed Component Files</h3>";
+$sitePath = JPATH_ROOT . '/components/com_ordenproduccion';
+$filesToCheck = [
+    'src/Model/PaymentProofModel.php',
+    'src/Model/PaymentproofModel.php',
+    'src/View/PaymentProof/HtmlView.php',
+    'src/View/Paymentproof/HtmlView.php',
+    'tmpl/paymentproof/default.php',
+];
+echo "<table><tr><th>File</th><th>Exists</th><th>hasPaymentOrdersTable</th><th>Last Modified</th></tr>";
+foreach ($filesToCheck as $relPath) {
+    $fullPath = $sitePath . '/' . $relPath;
+    $exists = file_exists($fullPath);
+    $hasCheck = false;
+    if ($exists && (strpos($relPath, 'Model') !== false || strpos($relPath, 'View') !== false)) {
+        $content = @file_get_contents($fullPath);
+        $hasCheck = $content && (strpos($content, 'hasPaymentOrdersTable') !== false);
+    }
+    $mtime = $exists ? date('Y-m-d H:i:s', filemtime($fullPath)) : '-';
+    echo "<tr class='" . ($exists ? 'ok' : 'nodata') . "'>";
+    echo "<td><code>{$relPath}</code></td>";
+    echo "<td>" . ($exists ? '✅' : '❌') . "</td>";
+    echo "<td>" . ($hasCheck ? '✅' : (strpos($relPath, 'tmpl') !== false ? '-' : ($exists ? '❌' : '-'))) . "</td>";
+    echo "<td>{$mtime}</td></tr>";
+}
+echo "</table>";
+
+// 6. Recommended actions
+echo "<h3>6. Recommended Actions</h3>";
+$recommendations = [];
+if ($hasPaymentProofId) {
+    $recommendations[] = "ordenes has payment_proof_id - Run 3.54.0 migration to create payment_orders and drop old columns";
+}
+if (!$paymentOrdersExists) {
+    $recommendations[] = "payment_orders table missing - Run admin/sql/updates/mysql/3.54.0.sql manually";
+}
+if (!$hasPaymentProofId && !$paymentOrdersExists) {
+    $recommendations[] = "Schema inconsistent: ordenes has no payment_proof_id but payment_orders doesn't exist. Run full 3.54.0 migration.";
+}
+if (empty($recommendations)) {
+    echo "<p class='ok'>✅ Schema appears consistent. If error persists, check for cached/old PHP files or plugins querying ordenes.payment_proof_id.</p>";
+} else {
+    echo "<ul>";
+    foreach ($recommendations as $r) {
+        echo "<li class='warning'>" . htmlspecialchars($r) . "</li>";
+    }
+    echo "</ul>";
 }
 
 echo "</div>";
