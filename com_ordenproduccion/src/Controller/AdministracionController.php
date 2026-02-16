@@ -24,7 +24,7 @@ use Joomla\CMS\Router\Route;
 class AdministracionController extends BaseController
 {
     /**
-     * Export report to CSV (Excel-compatible).
+     * Export report to Excel (.xlsx) or fallback to CSV if PhpSpreadsheet not available.
      *
      * @return  void
      *
@@ -69,6 +69,33 @@ class AdministracionController extends BaseController
             Text::_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'),
         ];
 
+        $autoload = JPATH_ROOT . '/vendor/autoload.php';
+        if (is_file($autoload)) {
+            require_once $autoload;
+            try {
+                $this->exportReportXlsx($cols, $rows, $app);
+                return;
+            } catch (\Throwable $e) {
+                // Fall through to CSV if XLSX fails
+            }
+        }
+
+        $this->exportReportCsv($cols, $rows, $app);
+    }
+
+    /**
+     * Export report data to CSV (fallback when PhpSpreadsheet not available).
+     *
+     * @param   array   $cols   Column headers
+     * @param   array   $rows   Data rows (objects from getReportWorkOrders)
+     * @param   object  $app    Application
+     *
+     * @return  void
+     *
+     * @since   3.6.0
+     */
+    protected function exportReportCsv($cols, $rows, $app)
+    {
         $filename = 'reporte-ordenes-' . date('Y-m-d-His') . '.csv';
         @ob_clean();
         header('Content-Type: text/csv; charset=UTF-8');
@@ -76,10 +103,8 @@ class AdministracionController extends BaseController
         header('Cache-Control: no-cache, must-revalidate');
 
         $out = fopen('php://output', 'w');
-        fprintf($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
-
+        fprintf($out, "\xEF\xBB\xBF");
         fputcsv($out, $cols);
-
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
@@ -93,8 +118,61 @@ class AdministracionController extends BaseController
                 number_format($invoiceVal, 2),
             ]);
         }
-
         fclose($out);
+        $app->close();
+    }
+
+    /**
+     * Export report data to Excel .xlsx using PhpSpreadsheet.
+     *
+     * @param   array   $cols   Column headers
+     * @param   array   $rows   Data rows (objects from getReportWorkOrders)
+     * @param   object  $app    Application
+     *
+     * @return  void
+     *
+     * @since   3.6.0
+     */
+    protected function exportReportXlsx($cols, $rows, $app)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Reporte órdenes');
+
+        $sheet->fromArray($cols, null, 'A1');
+        $headerStyle = $sheet->getStyle('A1:F1');
+        $headerStyle->getFont()->setBold(true);
+        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
+
+        $rowIndex = 2;
+        foreach ($rows as $row) {
+            $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
+            $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
+            $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
+            $sheet->fromArray([
+                $row->orden_de_trabajo ?? '',
+                $row->client_name ?? '',
+                $requestDate,
+                $deliveryDate,
+                $row->work_description ?? '',
+                number_format($invoiceVal, 2),
+            ], null, 'A' . $rowIndex);
+            $rowIndex++;
+        }
+
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'reporte-ordenes-' . date('Y-m-d-His') . '.xlsx';
+        @ob_clean();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
         $app->close();
     }
 }
