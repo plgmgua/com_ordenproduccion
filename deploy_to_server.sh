@@ -3,6 +3,12 @@
 # Production Deployment Script for com_ordenproduccion
 # Downloads from GitHub repository and deploys to Joomla webserver
 # Verifies all steps are completed successfully
+#
+# IMPORTANT: This script clones a fresh copy from GitHub (branch: main). The
+# webserver will get exactly what is on GitHub—not your local uncommitted or
+# unpushed changes. Before running deploy: (1) commit all changes, (2) push to
+# origin main. If the Agente de ventas filter or Client column (or any recent
+# change) does not appear after deploy, check: git status, git log origin/main..HEAD
 
 set -e
 
@@ -111,19 +117,22 @@ create_backup() {
 }
 
 # Function to download repository from GitHub
+# IMPORTANT: Deploy uses whatever is on GitHub (default branch). If you don't see
+# your latest changes after deploy, ensure they are committed AND pushed to GitHub first.
 download_repository() {
     log "Downloading repository from GitHub..."
+    warning "Deploy uses the latest commit on GitHub. Ensure all changes are committed and pushed before running deploy."
     
     # Create temporary directory for clone in /tmp (more reliable than $HOME)
     TEMP_DIR="/tmp/${COMPONENT_NAME}_deploy_$$"
     mkdir -p "$TEMP_DIR"
     
-    # Clone repository from GitHub
-    log "Cloning repository from: $REPO_URL"
+    # Clone repository from GitHub (explicit branch: main)
+    log "Cloning repository from: $REPO_URL (branch: main)"
     cd "$TEMP_DIR" || error "Failed to change to temp directory: $TEMP_DIR"
     
-    # Clone without specifying target name - git will use repo name
-    git clone "$REPO_URL" || error "Failed to clone repository from GitHub"
+    # Clone with explicit branch so we always get main
+    git clone --depth 1 --branch main "$REPO_URL" || error "Failed to clone repository from GitHub"
     
     # Git clone creates a directory with the repo name (com_ordenproduccion)
     # The repo root is now at: $TEMP_DIR/com_ordenproduccion
