@@ -10,9 +10,12 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
 
 $clients = $this->clients ?? [];
+$canMerge = !empty($this->canMergeClients);
 
 function safeEscape($value, $default = '')
 {
@@ -101,6 +104,29 @@ function safeEscape($value, $default = '')
     color: #6c757d;
     font-size: 16px;
 }
+
+.clientes-merge-actions {
+    margin-bottom: 20px;
+}
+
+.clientes-table .col-select {
+    width: 40px;
+    text-align: center;
+}
+
+#mergeModal .merge-target-option {
+    cursor: pointer;
+    padding: 10px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+#mergeModal .merge-target-option:hover,
+#mergeModal .merge-target-option.selected {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.08);
+}
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -112,39 +138,63 @@ function safeEscape($value, $default = '')
         <p class="text-muted mb-0">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DESC'); ?>
         </p>
+        <?php if ($canMerge && !empty($clients)) : ?>
+        <div class="clientes-merge-actions mt-3">
+            <button type="button" class="btn btn-primary" id="btn-merge-clients" disabled title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_SELECT_TIP'); ?>">
+                <i class="fas fa-compress-arrows-alt"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_BTN'); ?>
+            </button>
+        </div>
+        <?php endif; ?>
     </div>
 
     <?php if (!empty($clients)) : ?>
+        <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.mergeClients'); ?>" id="clientes-merge-form" style="display:none;">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <div id="merge-form-fields"></div>
+        </form>
         <div class="table-responsive">
-            <table class="clientes-table">
-                <thead>
-                    <tr>
-                        <th class="col-client-name"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?></th>
-                        <th class="col-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_NIT'); ?></th>
-                        <th class="col-order-count"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_ORDER_COUNT'); ?></th>
-                        <th class="col-total-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_TOTAL_VALUE'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $grandTotal = 0;
-                    $totalOrders = 0;
-                    foreach ($clients as $client) :
-                        $totalVal = (float) ($client->total_invoice_value ?? 0);
-                        $orderCount = (int) ($client->order_count ?? 0);
-                        $grandTotal += $totalVal;
-                        $totalOrders += $orderCount;
-                    ?>
+                <table class="clientes-table">
+                    <thead>
                         <tr>
-                            <td class="col-client-name"><?php echo safeEscape($client->client_name ?? ''); ?></td>
-                            <td class="col-nit"><?php echo safeEscape($client->nit ?? '—'); ?></td>
-                            <td class="col-order-count"><?php echo $orderCount; ?></td>
-                            <td class="col-total-value">Q.<?php echo number_format($totalVal, 2); ?></td>
+                            <?php if ($canMerge) : ?>
+                            <th class="col-select"><input type="checkbox" id="select-all-clients" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SELECT_ALL'); ?>"></th>
+                            <?php endif; ?>
+                            <th class="col-client-name"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?></th>
+                            <th class="col-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_NIT'); ?></th>
+                            <th class="col-order-count"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_ORDER_COUNT'); ?></th>
+                            <th class="col-total-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_TOTAL_VALUE'); ?></th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $grandTotal = 0;
+                        $totalOrders = 0;
+                        foreach ($clients as $idx => $client) :
+                            $totalVal = (float) ($client->total_invoice_value ?? 0);
+                            $orderCount = (int) ($client->order_count ?? 0);
+                            $grandTotal += $totalVal;
+                            $totalOrders += $orderCount;
+                            $cn = $client->client_name ?? '';
+                            $nit = $client->nit ?? '';
+                        ?>
+                            <tr>
+                                <?php if ($canMerge) : ?>
+                                <td class="col-select">
+                                    <input type="checkbox" class="client-merge-cb" value=""
+                                        data-client-name="<?php echo safeEscape($cn); ?>"
+                                        data-nit="<?php echo safeEscape($nit); ?>">
+                                </td>
+                                <?php endif; ?>
+                                <td class="col-client-name"><?php echo safeEscape($cn); ?></td>
+                                <td class="col-nit"><?php echo safeEscape($nit ?: '—'); ?></td>
+                                <td class="col-order-count"><?php echo $orderCount; ?></td>
+                                <td class="col-total-value">Q.<?php echo number_format($totalVal, 2); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <div class="clientes-summary">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_CLIENTS'); ?>: <?php echo count($clients); ?>
             &nbsp;|&nbsp;
@@ -158,3 +208,125 @@ function safeEscape($value, $default = '')
         </div>
     <?php endif; ?>
 </div>
+
+<?php if ($canMerge && !empty($clients)) : ?>
+<!-- Merge modal -->
+<div class="modal fade" id="mergeModal" tabindex="-1" role="dialog" aria-labelledby="mergeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mergeModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_MODAL_TITLE'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_CHOOSE_TARGET'); ?></p>
+                <div id="merge-target-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                <button type="button" class="btn btn-primary" id="merge-confirm-btn" disabled><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_CONFIRM'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var selectAll = document.getElementById('select-all-clients');
+    var checkboxes = document.querySelectorAll('.client-merge-cb');
+    var mergeBtn = document.getElementById('btn-merge-clients');
+    var form = document.getElementById('clientes-merge-form');
+    var formFields = document.getElementById('merge-form-fields');
+    var mergeModal = document.getElementById('mergeModal');
+    var mergeTargetList = document.getElementById('merge-target-list');
+    var mergeConfirmBtn = document.getElementById('merge-confirm-btn');
+    var selectedTarget = null;
+
+    function updateMergeBtn() {
+        var checked = document.querySelectorAll('.client-merge-cb:checked');
+        mergeBtn.disabled = checked.length < 2;
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
+            updateMergeBtn();
+        });
+    }
+
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            updateMergeBtn();
+        });
+    });
+
+    if (mergeBtn) {
+        mergeBtn.addEventListener('click', function() {
+            var checked = document.querySelectorAll('.client-merge-cb:checked');
+            if (checked.length < 2) return;
+            mergeTargetList.innerHTML = '';
+            selectedTarget = null;
+            var selected = [];
+            checked.forEach(function(cb) {
+                selected.push({
+                    name: cb.getAttribute('data-client-name') || '',
+                    nit: cb.getAttribute('data-nit') || ''
+                });
+            });
+            selected.forEach(function(s, i) {
+                var div = document.createElement('div');
+                div.className = 'merge-target-option';
+                div.dataset.name = s.name;
+                div.dataset.nit = s.nit;
+                div.innerHTML = '<strong>' + (s.name || '—') + '</strong>' + (s.nit ? ' <span class="text-muted">(' + s.nit + ')</span>' : '');
+                div.addEventListener('click', function() {
+                    document.querySelectorAll('#merge-target-list .merge-target-option').forEach(function(o) { o.classList.remove('selected'); });
+                    div.classList.add('selected');
+                    selectedTarget = { name: div.dataset.name, nit: div.dataset.nit || '' };
+                    mergeConfirmBtn.disabled = false;
+                });
+                mergeTargetList.appendChild(div);
+            });
+            mergeConfirmBtn.disabled = true;
+            var bsModal = typeof bootstrap !== 'undefined' ? new bootstrap.Modal(mergeModal) : null;
+            if (bsModal) bsModal.show(); else if (typeof jQuery !== 'undefined') jQuery(mergeModal).modal('show');
+        });
+    }
+
+    if (mergeConfirmBtn && form && formFields) {
+        mergeConfirmBtn.addEventListener('click', function() {
+            if (!selectedTarget || !selectedTarget.name) return;
+            var checked = document.querySelectorAll('.client-merge-cb:checked');
+            formFields.innerHTML = '';
+            var idx = 0;
+            checked.forEach(function(cb) {
+                var name = cb.getAttribute('data-client-name') || '';
+                var nit = cb.getAttribute('data-nit') || '';
+                var in1 = document.createElement('input');
+                in1.type = 'hidden';
+                in1.name = 'merge_sources[' + idx + '][client_name]';
+                in1.value = name;
+                formFields.appendChild(in1);
+                var in2 = document.createElement('input');
+                in2.type = 'hidden';
+                in2.name = 'merge_sources[' + idx + '][nit]';
+                in2.value = nit;
+                formFields.appendChild(in2);
+                idx++;
+            });
+            var t1 = document.createElement('input');
+            t1.type = 'hidden';
+            t1.name = 'merge_target_name';
+            t1.value = selectedTarget.name;
+            formFields.appendChild(t1);
+            var t2 = document.createElement('input');
+            t2.type = 'hidden';
+            t2.name = 'merge_target_nit';
+            t2.value = selectedTarget.nit;
+            formFields.appendChild(t2);
+            form.submit();
+        });
+    }
+})();
+</script>
+<?php endif; ?>

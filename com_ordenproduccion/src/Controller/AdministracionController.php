@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 /**
  * Administracion controller (reportes export).
@@ -174,5 +175,56 @@ class AdministracionController extends BaseController
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
         $app->close();
+    }
+
+    /**
+     * Merge selected clients into one (super user only).
+     *
+     * @return  void
+     *
+     * @since   3.55.0
+     */
+    public function mergeClients()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        if (!$user->authorise('core.admin')) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_SUPER_USER_ONLY'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
+            return;
+        }
+
+        $sources = $app->input->post->get('merge_sources', [], 'array');
+        $targetName = trim($app->input->post->getString('merge_target_name', ''));
+        $targetNit = trim($app->input->post->getString('merge_target_nit', ''));
+
+        if (empty($sources) || $targetName === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_SELECT_AT_LEAST_ONE'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
+            return;
+        }
+
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $updated = $model->mergeClients($sources, $targetName, $targetNit !== '' ? $targetNit : null);
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_CLIENTES_MERGE_SUCCESS', $updated), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
     }
 }

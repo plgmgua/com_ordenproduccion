@@ -293,6 +293,119 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Merge multiple clients into one target. Updates ordenes and logs to client_merges.
+     * Only call from controller after super user check.
+     *
+     * @param   array   $sources  Array of ['client_name' => x, 'nit' => y] to merge from
+     * @param   string  $targetClientName  Target client name
+     * @param   string  $targetNit  Target NIT
+     *
+     * @return  int  Total orders updated
+     *
+     * @since   3.55.0
+     */
+    public function mergeClients(array $sources, $targetClientName, $targetNit)
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $totalUpdated = 0;
+
+        $this->ensureClientMergesTableExists($db);
+
+        foreach ($sources as $src) {
+            $srcName = trim($src['client_name'] ?? '');
+            $srcNit = isset($src['nit']) ? trim($src['nit']) : null;
+
+            if ($srcName === '' || ($srcName === $targetClientName && ($srcNit === $targetNit || ($srcNit === null && $targetNit === null)))) {
+                continue;
+            }
+
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                ->set($db->quoteName('client_name') . ' = ' . $db->quote($targetClientName))
+                ->set($db->quoteName('nit') . ' = ' . $db->quote($targetNit ?? ''))
+                ->where($db->quoteName('client_name') . ' = ' . $db->quote($srcName))
+                ->where($db->quoteName('state') . ' = 1');
+
+            if ($srcNit !== null && $srcNit !== '') {
+                $query->where($db->quoteName('nit') . ' = ' . $db->quote($srcNit));
+            } else {
+                $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+            }
+
+            $db->setQuery($query);
+            $updated = $db->execute();
+            $affected = $updated ? $db->getAffectedRows() : 0;
+            $totalUpdated += $affected;
+
+            if ($affected > 0) {
+                $this->logClientMerge($db, $srcName, $srcNit, $targetClientName, $targetNit, $affected, $user->id);
+            }
+        }
+
+        return $totalUpdated;
+    }
+
+    /**
+     * Ensure client_merges table exists; create if not.
+     *
+     * @param   object  $db  Database instance
+     *
+     * @since   3.55.0
+     */
+    protected function ensureClientMergesTableExists($db)
+    {
+        $table = $db->replacePrefix('#__ordenproduccion_client_merges');
+        $tables = $db->getTableList();
+        foreach ($tables as $t) {
+            if (strcasecmp($t, $table) === 0) {
+                return;
+            }
+        }
+
+        $sql = 'CREATE TABLE IF NOT EXISTS ' . $db->quoteName($table) . ' (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            source_client_name varchar(255) NOT NULL,
+            source_nit varchar(100) DEFAULT NULL,
+            target_client_name varchar(255) NOT NULL,
+            target_nit varchar(100) DEFAULT NULL,
+            orders_updated int(11) NOT NULL DEFAULT 0,
+            merged_by int(11) NOT NULL,
+            merged_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_merged_at (merged_at),
+            KEY idx_merged_by (merged_by)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        $db->setQuery($sql);
+        $db->execute();
+    }
+
+    /**
+     * Log a client merge to the audit table.
+     *
+     * @param   object  $db       Database instance
+     * @param   string  $srcName  Source client name
+     * @param   string  $srcNit   Source NIT
+     * @param   string  $tgtName  Target client name
+     * @param   string  $tgtNit   Target NIT
+     * @param   int     $ordersUpdated  Count of orders updated
+     * @param   int     $mergedBy  User ID
+     *
+     * @since   3.55.0
+     */
+    protected function logClientMerge($db, $srcName, $srcNit, $tgtName, $tgtNit, $ordersUpdated, $mergedBy)
+    {
+        $srcNitVal = ($srcNit !== null && $srcNit !== '') ? $db->quote($srcNit) : 'NULL';
+        $tgtNitVal = ($tgtNit !== null && $tgtNit !== '') ? $db->quote($tgtNit) : 'NULL';
+        $query = $db->getQuery(true)
+            ->insert($db->quoteName('#__ordenproduccion_client_merges'))
+            ->columns([$db->quoteName('source_client_name'), $db->quoteName('source_nit'), $db->quoteName('target_client_name'), $db->quoteName('target_nit'), $db->quoteName('orders_updated'), $db->quoteName('merged_by')])
+            ->values($db->quote($srcName) . ',' . $srcNitVal . ',' . $db->quote($tgtName) . ',' . $tgtNitVal . ',' . (int) $ordersUpdated . ',' . (int) $mergedBy);
+        $db->setQuery($query);
+        $db->execute();
+    }
+
+    /**
      * Get distinct client names that have work orders in the given date range (for report autocomplete)
      *
      * @param   string  $dateFrom  Start date (Y-m-d)

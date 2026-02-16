@@ -215,6 +215,14 @@ class HtmlView extends BaseHtmlView
     protected $clients = [];
 
     /**
+     * Whether current user can merge clients (super user only)
+     *
+     * @var    bool
+     * @since  3.55.0
+     */
+    protected $canMergeClients = false;
+
+    /**
      * Sales agents list for report dropdown
      *
      * @var    array
@@ -301,6 +309,7 @@ class HtmlView extends BaseHtmlView
         $this->reportWorkOrders = [];
         $this->reportClients = [];
         $this->clients = [];
+        $this->canMergeClients = false;
         $this->reportDateFrom = '';
         $this->reportDateTo = '';
         $this->reportClient = '';
@@ -401,9 +410,11 @@ class HtmlView extends BaseHtmlView
             try {
                 $statsModel = $this->getModel('Administracion');
                 $this->clients = $statsModel->getClientsWithTotals();
+                $this->canMergeClients = $user->authorise('core.admin');
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading clients: ' . $e->getMessage(), 'error');
                 $this->clients = [];
+                $this->canMergeClients = false;
             }
         }
 
