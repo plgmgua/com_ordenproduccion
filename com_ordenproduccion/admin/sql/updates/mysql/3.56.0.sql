@@ -3,8 +3,9 @@
 -- ============================================
 -- Stores initial amount paid per client up to Dec 31 2025 for accounting cutover.
 -- Saldo (balance) = Total invoiced - initial_paid_to_dec31_2025 - payments from Jan 1 2026
+-- Note: Uses joomla_ prefix for direct phpMyAdmin execution. For other prefixes, replace joomla_ accordingly.
 
-CREATE TABLE IF NOT EXISTS `#__ordenproduccion_client_opening_balance` (
+CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_client_opening_balance` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
     `client_name` varchar(255) NOT NULL,
     `nit` varchar(100) DEFAULT NULL,
