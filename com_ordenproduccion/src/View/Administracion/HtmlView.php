@@ -191,6 +191,14 @@ class HtmlView extends BaseHtmlView
     protected $reportClient = '';
 
     /**
+     * Report filter: NIT
+     *
+     * @var    string
+     * @since  3.6.0
+     */
+    protected $reportNit = '';
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -271,6 +279,7 @@ class HtmlView extends BaseHtmlView
         $this->reportDateFrom = '';
         $this->reportDateTo = '';
         $this->reportClient = '';
+        $this->reportNit = '';
         
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -367,10 +376,12 @@ class HtmlView extends BaseHtmlView
                 $this->reportDateFrom = $input->getString('filter_report_date_from', '');
                 $this->reportDateTo = $input->getString('filter_report_date_to', '');
                 $this->reportClient = $input->getString('filter_report_client', '');
+                $this->reportNit = $input->getString('filter_report_nit', '');
                 $this->reportWorkOrders = $statsModel->getReportWorkOrders(
                     $this->reportDateFrom,
                     $this->reportDateTo,
-                    $this->reportClient
+                    $this->reportClient,
+                    $this->reportNit
                 );
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');

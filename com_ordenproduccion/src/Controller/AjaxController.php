@@ -502,7 +502,7 @@ class AjaxController extends BaseController
             exit;
         }
 
-        if (!Session::checkToken()) {
+        if (!Session::checkToken('get')) {
             echo json_encode(['success' => false, 'clients' => []]);
             exit;
         }
@@ -522,6 +522,49 @@ class AjaxController extends BaseController
             echo json_encode(['success' => true, 'clients' => $clients]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'clients' => []]);
+        }
+        exit;
+    }
+
+    /**
+     * Suggest NITs for report filter (by date range and search query)
+     *
+     * @return  void
+     *
+     * @since   3.6.0
+     */
+    public function suggestReportNits()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'nits' => []]);
+            exit;
+        }
+
+        if (!Session::checkToken('get')) {
+            echo json_encode(['success' => false, 'nits' => []]);
+            exit;
+        }
+
+        $dateFrom = $app->input->getString('date_from', '');
+        $dateTo = $app->input->getString('date_to', '');
+        $q = $app->input->getString('q', '');
+
+        if (empty($dateFrom) || empty($dateTo)) {
+            echo json_encode(['success' => true, 'nits' => [], 'message' => 'Select date range first']);
+            exit;
+        }
+
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $nits = $model->getReportNitsInDateRange($dateFrom, $dateTo, $q);
+            echo json_encode(['success' => true, 'nits' => $nits]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'nits' => []]);
         }
         exit;
     }

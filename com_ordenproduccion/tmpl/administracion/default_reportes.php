@@ -23,9 +23,15 @@ $reportWorkOrders = $this->reportWorkOrders ?? [];
 $reportDateFrom = $this->reportDateFrom ?? '';
 $reportDateTo = $this->reportDateTo ?? '';
 $reportClient = $this->reportClient ?? '';
+$reportNit = $this->reportNit ?? '';
 
+$tokenParam = Session::getFormToken() . '=1';
 $suggestClientsUrl = Route::_(
-    'index.php?option=com_ordenproduccion&task=ajax.suggestReportClients&format=json&' . Session::getFormToken() . '=1',
+    'index.php?option=com_ordenproduccion&task=ajax.suggestReportClients&format=json&' . $tokenParam,
+    false
+);
+$suggestNitsUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=ajax.suggestReportNits&format=json&' . $tokenParam,
     false
 );
 
@@ -145,10 +151,22 @@ function safeEscape($value, $default = '')
     font-size: 13px;
 }
 
-.reportes-client-hint {
+.reportes-client-hint,
+.reportes-nit-hint {
     font-size: 12px;
     color: #6c757d;
     margin-top: 2px;
+}
+
+.reportes-nit-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reportes-nit-wrap input {
+    min-width: 200px;
 }
 
 .reportes-filters .filter-btn {
@@ -258,6 +276,18 @@ function safeEscape($value, $default = '')
                 <span id="reportes-client-hint" class="reportes-client-hint"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT_HINT'); ?></span>
                 <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
             </label>
+            <label class="reportes-nit-wrap">
+                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>
+                <input type="text" 
+                       name="filter_report_nit" 
+                       id="filter_report_nit" 
+                       value="<?php echo safeEscape($reportNit); ?>" 
+                       autocomplete="off"
+                       placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_NITS'); ?>"
+                       aria-describedby="reportes-nit-hint" />
+                <span id="reportes-nit-hint" class="reportes-nit-hint"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT_HINT'); ?></span>
+                <ul id="reportes-nit-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" hidden></ul>
+            </label>
             <button type="submit" class="filter-btn">
                 <i class="fas fa-search"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
@@ -303,126 +333,158 @@ function safeEscape($value, $default = '')
 
 <script>
 (function() {
-    var input = document.getElementById('filter_report_client');
-    var list = document.getElementById('reportes-suggestions');
     var dateFrom = document.querySelector('input[name="filter_report_date_from"]');
     var dateTo = document.querySelector('input[name="filter_report_date_to"]');
-    var suggestUrl = <?php echo json_encode($suggestClientsUrl); ?>;
-    var debounceTimer = null;
-    var activeIndex = -1;
+    var suggestClientsUrl = <?php echo json_encode($suggestClientsUrl); ?>;
+    var suggestNitsUrl = <?php echo json_encode($suggestNitsUrl); ?>;
 
-    if (!input || !list) return;
+    var msgSelectDates = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_SELECT_DATES_FIRST')); ?>;
+    var msgNoClientsInRange = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_NO_CLIENTS_IN_RANGE')); ?>;
+    var msgNoClientsMatch = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_NO_CLIENTS_MATCH')); ?>;
+    var msgSuggestionsError = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_SUGGESTIONS_ERROR')); ?>;
+    var msgNoNitsInRange = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_NO_NITS_IN_RANGE')); ?>;
+    var msgNoNitsMatch = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_NO_NITS_MATCH')); ?>;
 
-    function showSuggestions(items, isEmpty) {
-        list.innerHTML = '';
-        list.hidden = true;
-        if (isEmpty && items.length === 0) {
-            var li = document.createElement('li');
-            li.className = 'reportes-suggestions-empty';
-            li.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_SELECT_DATES_FIRST')); ?>;
-            list.appendChild(li);
+    function setupSuggest(input, list, suggestUrl, isEmptyMsg, emptyInRangeMsg, noMatchMsg, responseKey) {
+        if (!input || !list) return;
+        var debounceTimer = null;
+        var activeIndex = -1;
+
+        function showSuggestions(items, isEmpty, isError) {
+            list.innerHTML = '';
+            list.hidden = true;
+            if (isEmpty && items.length === 0) {
+                var li = document.createElement('li');
+                li.className = 'reportes-suggestions-empty';
+                li.textContent = msgSelectDates;
+                list.appendChild(li);
+                list.hidden = false;
+                return;
+            }
+            if (isError) {
+                var errLi = document.createElement('li');
+                errLi.className = 'reportes-suggestions-empty';
+                errLi.textContent = msgSuggestionsError;
+                list.appendChild(errLi);
+                list.hidden = false;
+                return;
+            }
+            if (items.length === 0) {
+                var emptyLi = document.createElement('li');
+                emptyLi.className = 'reportes-suggestions-empty';
+                emptyLi.textContent = emptyInRangeMsg;
+                list.appendChild(emptyLi);
+                list.hidden = false;
+                return;
+            }
+            items.forEach(function(name, i) {
+                var li = document.createElement('li');
+                li.textContent = name;
+                li.setAttribute('role', 'option');
+                li.addEventListener('click', function() {
+                    input.value = name;
+                    list.hidden = true;
+                    activeIndex = -1;
+                });
+                list.appendChild(li);
+            });
             list.hidden = false;
-            return;
+            activeIndex = -1;
         }
-        if (items.length === 0) {
-            var emptyLi = document.createElement('li');
-            emptyLi.className = 'reportes-suggestions-empty';
-            emptyLi.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_NO_CLIENTS_MATCH')); ?>;
-            list.appendChild(emptyLi);
-            list.hidden = false;
-            return;
+
+        function fetchSuggestions() {
+            var from = (dateFrom && dateFrom.value) ? dateFrom.value.trim() : '';
+            var to = (dateTo && dateTo.value) ? dateTo.value.trim() : '';
+            var q = input.value.trim();
+            if (!from || !to) {
+                showSuggestions([], true, false);
+                return;
+            }
+            var url = suggestUrl + '&date_from=' + encodeURIComponent(from) + '&date_to=' + encodeURIComponent(to) + '&q=' + encodeURIComponent(q);
+            fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success && Array.isArray(data[responseKey])) {
+                        showSuggestions(data[responseKey], false, false);
+                    } else {
+                        showSuggestions([], false, true);
+                    }
+                })
+                .catch(function() {
+                    showSuggestions([], false, true);
+                });
         }
-        items.forEach(function(name, i) {
-            var li = document.createElement('li');
-            li.textContent = name;
-            li.setAttribute('role', 'option');
-            li.setAttribute('data-index', i);
-            li.addEventListener('click', function() {
-                input.value = name;
+
+        function onInput() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(fetchSuggestions, 220);
+        }
+
+        input.addEventListener('focus', function() {
+            if (dateFrom && dateFrom.value && dateTo && dateTo.value) {
+                fetchSuggestions();
+            } else {
+                showSuggestions([], true, false);
+            }
+        });
+        input.addEventListener('input', onInput);
+        input.addEventListener('keydown', function(e) {
+            var items = list.querySelectorAll('li:not(.reportes-suggestions-empty)');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = Math.min(activeIndex + 1, items.length - 1);
+                items.forEach(function(li, i) {
+                    li.classList.toggle('reportes-suggestion-active', i === activeIndex);
+                    if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
+                });
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = Math.max(activeIndex - 1, -1);
+                items.forEach(function(li, i) {
+                    li.classList.toggle('reportes-suggestion-active', i === activeIndex);
+                    if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
+                });
+                return;
+            }
+            if (e.key === 'Enter' && activeIndex >= 0 && items[activeIndex]) {
+                e.preventDefault();
+                input.value = items[activeIndex].textContent;
                 list.hidden = true;
                 activeIndex = -1;
-            });
-            list.appendChild(li);
+                return;
+            }
+            if (e.key === 'Escape') {
+                list.hidden = true;
+                activeIndex = -1;
+            }
         });
-        list.hidden = false;
-        activeIndex = -1;
+
+        document.addEventListener('click', function(e) {
+            if (list && !list.hidden && input && !input.contains(e.target) && !list.contains(e.target)) {
+                list.hidden = true;
+            }
+        });
     }
 
-    function fetchSuggestions() {
-        var from = (dateFrom && dateFrom.value) ? dateFrom.value.trim() : '';
-        var to = (dateTo && dateTo.value) ? dateTo.value.trim() : '';
-        var q = input.value.trim();
-
-        if (!from || !to) {
-            showSuggestions([], true);
-            return;
-        }
-
-        var url = suggestUrl + '&date_from=' + encodeURIComponent(from) + '&date_to=' + encodeURIComponent(to) + '&q=' + encodeURIComponent(q);
-        fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success && Array.isArray(data.clients)) {
-                    showSuggestions(data.clients, false);
-                } else {
-                    showSuggestions([], false);
-                }
-            })
-            .catch(function() {
-                showSuggestions([], false);
-            });
-    }
-
-    function onInput() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(fetchSuggestions, 220);
-    }
-
-    input.addEventListener('focus', function() {
-        if (dateFrom && dateFrom.value && dateTo && dateTo.value) {
-            fetchSuggestions();
-        } else {
-            showSuggestions([], true);
-        }
-    });
-    input.addEventListener('input', onInput);
-    input.addEventListener('keydown', function(e) {
-        var items = list.querySelectorAll('li:not(.reportes-suggestions-empty)');
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            activeIndex = Math.min(activeIndex + 1, items.length - 1);
-            items.forEach(function(li, i) {
-                li.classList.toggle('reportes-suggestion-active', i === activeIndex);
-                if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
-            });
-            return;
-        }
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            activeIndex = Math.max(activeIndex - 1, -1);
-            items.forEach(function(li, i) {
-                li.classList.toggle('reportes-suggestion-active', i === activeIndex);
-                if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
-            });
-            return;
-        }
-        if (e.key === 'Enter' && activeIndex >= 0 && items[activeIndex]) {
-            e.preventDefault();
-            input.value = items[activeIndex].textContent;
-            list.hidden = true;
-            activeIndex = -1;
-            return;
-        }
-        if (e.key === 'Escape') {
-            list.hidden = true;
-            activeIndex = -1;
-        }
-    });
-
-    document.addEventListener('click', function(e) {
-        if (list && !list.hidden && input && !input.contains(e.target) && !list.contains(e.target)) {
-            list.hidden = true;
-        }
-    });
+    setupSuggest(
+        document.getElementById('filter_report_client'),
+        document.getElementById('reportes-suggestions'),
+        suggestClientsUrl,
+        msgSelectDates,
+        msgNoClientsInRange,
+        msgNoClientsMatch,
+        'clients'
+    );
+    setupSuggest(
+        document.getElementById('filter_report_nit'),
+        document.getElementById('reportes-nit-suggestions'),
+        suggestNitsUrl,
+        msgSelectDates,
+        msgNoNitsInRange,
+        msgNoNitsMatch,
+        'nits'
+    );
 })();
 </script>

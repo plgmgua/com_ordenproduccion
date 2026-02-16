@@ -191,12 +191,13 @@ class AdministracionModel extends BaseDatabaseModel
      * @param   string  $dateFrom   Start date (Y-m-d)
      * @param   string  $dateTo     End date (Y-m-d)
      * @param   string  $clientName Optional client name filter
+     * @param   string  $nit        Optional NIT filter
      *
      * @return  array  List of objects with orden_de_trabajo, work_description, invoice_value, client_name
      *
      * @since   3.6.0
      */
-    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '')
+    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '')
     {
         $db = Factory::getDbo();
         $query = $db->getQuery(true)
@@ -217,6 +218,9 @@ class AdministracionModel extends BaseDatabaseModel
         }
         if (!empty($clientName)) {
             $query->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+        }
+        if (!empty($nit)) {
+            $query->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
         }
 
         $query->order($db->quoteName('orden_de_trabajo') . ' ASC');
@@ -258,6 +262,45 @@ class AdministracionModel extends BaseDatabaseModel
 
         $query->group($db->quoteName('client_name'))
             ->order($db->quoteName('client_name') . ' ASC')
+            ->setLimit(30);
+        $db->setQuery($query);
+        $rows = $db->loadColumn() ?: [];
+        return array_values($rows);
+    }
+
+    /**
+     * Get distinct NITs that have work orders in the given date range (for report autocomplete)
+     *
+     * @param   string  $dateFrom  Start date (Y-m-d)
+     * @param   string  $dateTo    End date (Y-m-d)
+     * @param   string  $search    Optional search string to filter NIT (LIKE %search%)
+     *
+     * @return  array  List of NIT strings
+     *
+     * @since   3.6.0
+     */
+    public function getReportNitsInDateRange($dateFrom, $dateTo, $search = '')
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('nit'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('(' . $db->quoteName('nit') . ' IS NOT NULL AND ' . $db->quoteName('nit') . ' != ' . $db->quote('') . ')');
+
+        if (!empty($dateFrom)) {
+            $query->where($db->quoteName('created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));
+        }
+        if (!empty($dateTo)) {
+            $query->where($db->quoteName('created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
+        }
+        if ($search !== '') {
+            $searchEscaped = $db->quote('%' . $db->escape(trim($search), true) . '%');
+            $query->where($db->quoteName('nit') . ' LIKE ' . $searchEscaped);
+        }
+
+        $query->group($db->quoteName('nit'))
+            ->order($db->quoteName('nit') . ' ASC')
             ->setLimit(30);
         $db->setQuery($query);
         $rows = $db->loadColumn() ?: [];
