@@ -311,6 +311,7 @@ class AdministracionModel extends BaseDatabaseModel
         $openingMap = $this->getOpeningBalancesMap($db);
         $paidFromJan2026Map = $this->getPaidFromJan2026ByClientMap($db);
         $invoiceOctDec2025Map = $this->getInvoiceValueOctDec2025ByClientMap($db);
+        $invoiceFromJan2026Map = $this->getInvoiceValueFromJan2026ByClientMap($db);
 
         foreach ($clients as $c) {
             $key = $this->clientKey($c->client_name ?? '', $c->nit ?? '');
@@ -318,10 +319,12 @@ class AdministracionModel extends BaseDatabaseModel
             $paidFromJan = (float) ($paidFromJan2026Map[$key] ?? 0);
             $totalInvoiced = (float) ($c->total_invoice_value ?? 0);
             $invoiceOctDec2025 = (float) ($invoiceOctDec2025Map[$key] ?? 0);
+            $compras = (float) ($invoiceFromJan2026Map[$key] ?? 0);
             $c->invoice_value_oct_dec_2025 = $invoiceOctDec2025;
             $c->initial_paid_to_dec31_2025 = $initialPaid;
             $c->display_pagado = $initialPaid > 0 ? $initialPaid : $invoiceOctDec2025;
             $c->paid_from_jan2026 = $paidFromJan;
+            $c->compras = $compras;
             $c->saldo = max(0, round($totalInvoiced - $initialPaid - $paidFromJan, 2));
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
@@ -535,6 +538,31 @@ class AdministracionModel extends BaseDatabaseModel
         $map = [];
         foreach ($rows as $r) {
             $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->total_paid ?? 0);
+        }
+        return $map;
+    }
+
+    /**
+     * Get map of client_key => sum of invoice_value for orders from Jan 1 2026 (Compras)
+     */
+    protected function getInvoiceValueFromJan2026ByClientMap($db)
+    {
+        $query = $db->getQuery(true)
+            ->select([
+                'o.' . $db->quoteName('client_name'),
+                'o.' . $db->quoteName('nit'),
+                'SUM(CAST(o.' . $db->quoteName('invoice_value') . ' AS DECIMAL(15,2))) AS total_invoice'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
+            ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
+            ->group(['o.client_name', 'o.nit']);
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->total_invoice ?? 0);
         }
         return $map;
     }
