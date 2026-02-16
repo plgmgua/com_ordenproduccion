@@ -269,9 +269,9 @@ class AdministracionModel extends BaseDatabaseModel
     public function getClientsWithTotals()
     {
         $db = Factory::getDbo();
-        $clientCol = 'COALESCE(' . $db->quoteName('client_name') . ', ' . $db->quoteName('nombre_del_cliente') . ')';
+        $clientCol = $db->quoteName('client_name');
         $nitCol = $db->quoteName('nit');
-        $invoiceCol = 'COALESCE(' . $db->quoteName('invoice_value') . ', ' . $db->quoteName('valor_a_facturar') . ', 0)';
+        $invoiceCol = $db->quoteName('invoice_value');
 
         $query = $db->getQuery(true)
             ->select([
