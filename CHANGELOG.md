@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Future features
+
+## [3.57.0-STABLE] - 2025-02-16
+
+### Added
+- **Client balance (Saldo) table** - `#__ordenproduccion_client_balance`
+  - Saldo saved for reuse by other views/modules
+  - `getClientBalances()` / `getClientBalance($clientName, $nit)` for module access
+  - Synced on clientes view load, opening balance save, initialize, merge
+
+### Database Changes
+- New table `#__ordenproduccion_client_balance` (client_name, nit, saldo, updated_at)
 - Future features and improvements
 
 ### Changed

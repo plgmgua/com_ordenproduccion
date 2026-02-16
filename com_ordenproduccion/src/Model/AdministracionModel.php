@@ -270,6 +270,19 @@ class AdministracionModel extends BaseDatabaseModel
      */
     public function getClientsWithTotals()
     {
+        $clients = $this->buildClientsWithBalances();
+        $this->syncClientBalances($clients);
+        return $clients;
+    }
+
+    /**
+     * Build clients list with calculated balances (used internally and for sync).
+     *
+     * @return  array
+     * @since   3.57.0
+     */
+    protected function buildClientsWithBalances()
+    {
         $db = Factory::getDbo();
         $this->ensureClientOpeningBalanceTableExists($db);
 
@@ -314,6 +327,154 @@ class AdministracionModel extends BaseDatabaseModel
         }
 
         return $clients;
+    }
+
+    /**
+     * Sync client balances to the reusable table for other views/modules.
+     *
+     * @param   array  $clients  Clients with saldo property
+     *
+     * @return  void
+     * @since   3.57.0
+     */
+    protected function syncClientBalances(array $clients)
+    {
+        $db = Factory::getDbo();
+        $this->ensureClientBalanceTableExists($db);
+
+        foreach ($clients as $c) {
+            $clientName = trim($c->client_name ?? '');
+            $nit = trim($c->nit ?? '');
+            $saldo = max(0, round((float) ($c->saldo ?? 0), 2));
+            if ($clientName === '') {
+                continue;
+            }
+            $this->upsertClientBalance($db, $clientName, $nit, $saldo);
+        }
+    }
+
+    /**
+     * Upsert a single client balance row.
+     */
+    protected function upsertClientBalance($db, $clientName, $nit, $saldo)
+    {
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_client_balance'))
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+        if ($nit !== '') {
+            $query->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
+        } else {
+            $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+        }
+        $db->setQuery($query);
+        $id = (int) $db->loadResult();
+
+        if ($id > 0) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_client_balance'))
+                    ->set($db->quoteName('saldo') . ' = ' . $saldo)
+                    ->where($db->quoteName('id') . ' = ' . $id)
+            );
+            $db->execute();
+        } else {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_client_balance'))
+                    ->columns([$db->quoteName('client_name'), $db->quoteName('nit'), $db->quoteName('saldo')])
+                    ->values($db->quote($clientName) . ',' . $db->quote($nit) . ',' . $saldo)
+            );
+            $db->execute();
+        }
+    }
+
+    /**
+     * Ensure client_balance table exists.
+     */
+    protected function ensureClientBalanceTableExists($db)
+    {
+        if ($this->hasTable($db, '#__ordenproduccion_client_balance')) {
+            return;
+        }
+        $sql = 'CREATE TABLE IF NOT EXISTS ' . $db->quoteName($db->replacePrefix('#__ordenproduccion_client_balance')) . ' (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            client_name varchar(255) NOT NULL,
+            nit varchar(100) DEFAULT NULL,
+            saldo decimal(15,2) NOT NULL DEFAULT 0.00,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_client_nit (client_name(191), nit(50)),
+            KEY idx_client_name (client_name(191)),
+            KEY idx_nit (nit(50)),
+            KEY idx_updated_at (updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        $db->setQuery($sql);
+        $db->execute();
+    }
+
+    /**
+     * Refresh the client_balance table (call after opening balance save, init, or merge).
+     *
+     * @return  void
+     * @since   3.57.0
+     */
+    public function refreshClientBalances()
+    {
+        $clients = $this->buildClientsWithBalances();
+        $this->syncClientBalances($clients);
+    }
+
+    /**
+     * Get all client balances from the reusable table (for other views/modules).
+     *
+     * @return  array  List of objects with client_name, nit, saldo, updated_at
+     * @since   3.57.0
+     */
+    public function getClientBalances()
+    {
+        $db = Factory::getDbo();
+        $this->ensureClientBalanceTableExists($db);
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('client_name'),
+                $db->quoteName('nit'),
+                $db->quoteName('saldo'),
+                $db->quoteName('updated_at')
+            ])
+            ->from($db->quoteName('#__ordenproduccion_client_balance'))
+            ->order($db->quoteName('client_name') . ' ASC, ' . $db->quoteName('nit') . ' ASC');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Get balance for a single client (for use by modules).
+     *
+     * @param   string  $clientName  Client name
+     * @param   string  $nit         Client NIT
+     *
+     * @return  float  Saldo or 0 if not found
+     * @since   3.57.0
+     */
+    public function getClientBalance($clientName, $nit = '')
+    {
+        $db = Factory::getDbo();
+        if (!$this->hasTable($db, '#__ordenproduccion_client_balance')) {
+            return 0.0;
+        }
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('saldo'))
+            ->from($db->quoteName('#__ordenproduccion_client_balance'))
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote(trim($clientName ?? '')));
+        if (trim($nit ?? '') !== '') {
+            $query->where($db->quoteName('nit') . ' = ' . $db->quote(trim($nit)));
+        } else {
+            $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+        }
+        $db->setQuery($query);
+        $row = $db->loadObject();
+        return $row ? (float) ($row->saldo ?? 0) : 0.0;
     }
 
     /**
@@ -455,7 +616,7 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.56.0
      */
-    public function saveOpeningBalance($clientName, $nit, $amount)
+    public function saveOpeningBalance($clientName, $nit, $amount, $refreshBalances = true)
     {
         $db = Factory::getDbo();
         $user = Factory::getUser();
@@ -509,6 +670,9 @@ class AdministracionModel extends BaseDatabaseModel
         }
         $db->setQuery($query);
         $db->execute();
+        if ($refreshBalances) {
+            $this->refreshClientBalances();
+        }
         return true;
     }
 
@@ -541,10 +705,11 @@ class AdministracionModel extends BaseDatabaseModel
             if ($clientName === '') {
                 continue;
             }
-            $this->saveOpeningBalance($clientName, $nit, $amount);
+            $this->saveOpeningBalance($clientName, $nit, $amount, false);
             $count++;
         }
 
+        $this->refreshClientBalances();
         return $count;
     }
 
@@ -600,6 +765,7 @@ class AdministracionModel extends BaseDatabaseModel
             if ($affected > 0) {
                 $this->logClientMerge($db, $srcName, $srcNit, $targetClientName, $targetNit, $affected, $user->id);
                 $openingBalanceToAdd += $this->getAndRemoveOpeningBalance($db, $srcName, $srcNit);
+                $this->removeClientBalance($db, $srcName, $srcNit);
             }
         }
 
@@ -607,7 +773,28 @@ class AdministracionModel extends BaseDatabaseModel
             $this->addToTargetOpeningBalance($db, $targetClientName, $targetNit, $openingBalanceToAdd, $user->id);
         }
 
+        $this->refreshClientBalances();
         return $totalUpdated;
+    }
+
+    /**
+     * Remove client balance row (used when merging - source client no longer exists).
+     */
+    protected function removeClientBalance($db, $clientName, $nit)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_client_balance')) {
+            return;
+        }
+        $query = $db->getQuery(true)
+            ->delete($db->quoteName('#__ordenproduccion_client_balance'))
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+        if ($nit !== '' && $nit !== null) {
+            $query->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
+        } else {
+            $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+        }
+        $db->setQuery($query);
+        $db->execute();
     }
 
     /**
