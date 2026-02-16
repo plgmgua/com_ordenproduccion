@@ -116,16 +116,45 @@ function safeEscape($value, $default = '')
 
 #mergeModal .merge-target-option {
     cursor: pointer;
-    padding: 10px;
+    padding: 12px 16px;
     border: 2px solid #dee2e6;
-    border-radius: 6px;
-    margin-bottom: 8px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-#mergeModal .merge-target-option:hover,
+#mergeModal .merge-target-option::before {
+    content: '';
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #adb5bd;
+    border-radius: 50%;
+    background: #fff;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+#mergeModal .merge-target-option:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.06);
+}
+
+#mergeModal .merge-target-option:hover::before {
+    border-color: #667eea;
+}
+
 #mergeModal .merge-target-option.selected {
     border-color: #667eea;
-    background: rgba(102, 126, 234, 0.08);
+    background: rgba(102, 126, 234, 0.12);
+}
+
+#mergeModal .merge-target-option.selected::before {
+    border-color: #667eea;
+    background: #667eea;
+    box-shadow: inset 0 0 0 3px #fff;
 }
 </style>
 
@@ -296,6 +325,8 @@ function safeEscape($value, $default = '')
     if (mergeConfirmBtn && form && formFields) {
         mergeConfirmBtn.addEventListener('click', function() {
             if (!selectedTarget || !selectedTarget.name) return;
+            mergeConfirmBtn.disabled = true;
+            mergeConfirmBtn.textContent = '<?php echo addslashes(Text::_('JPROCESSING')); ?>';
             var checked = document.querySelectorAll('.client-merge-cb:checked');
             formFields.innerHTML = '';
             var idx = 0;
