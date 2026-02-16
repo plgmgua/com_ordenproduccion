@@ -297,13 +297,17 @@ class AdministracionModel extends BaseDatabaseModel
 
         $openingMap = $this->getOpeningBalancesMap($db);
         $paidFromJan2026Map = $this->getPaidFromJan2026ByClientMap($db);
+        $invoiceOctDec2025Map = $this->getInvoiceValueOctDec2025ByClientMap($db);
 
         foreach ($clients as $c) {
             $key = $this->clientKey($c->client_name ?? '', $c->nit ?? '');
             $initialPaid = (float) ($openingMap[$key] ?? 0);
             $paidFromJan = (float) ($paidFromJan2026Map[$key] ?? 0);
             $totalInvoiced = (float) ($c->total_invoice_value ?? 0);
+            $invoiceOctDec2025 = (float) ($invoiceOctDec2025Map[$key] ?? 0);
+            $c->invoice_value_oct_dec_2025 = $invoiceOctDec2025;
             $c->initial_paid_to_dec31_2025 = $initialPaid;
+            $c->display_pagado = $initialPaid > 0 ? $initialPaid : $invoiceOctDec2025;
             $c->paid_from_jan2026 = $paidFromJan;
             $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
@@ -370,6 +374,32 @@ class AdministracionModel extends BaseDatabaseModel
         $map = [];
         foreach ($rows as $r) {
             $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->total_paid ?? 0);
+        }
+        return $map;
+    }
+
+    /**
+     * Get map of client_key => sum of invoice_value for orders Oct 1 - Dec 31 2025
+     */
+    protected function getInvoiceValueOctDec2025ByClientMap($db)
+    {
+        $query = $db->getQuery(true)
+            ->select([
+                'o.' . $db->quoteName('client_name'),
+                'o.' . $db->quoteName('nit'),
+                'SUM(CAST(o.' . $db->quoteName('invoice_value') . ' AS DECIMAL(15,2))) AS total_invoice'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2025-10-01 00:00:00'))
+            ->where('o.' . $db->quoteName('created') . ' <= ' . $db->quote('2025-12-31 23:59:59'))
+            ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
+            ->group(['o.client_name', 'o.nit']);
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->total_invoice ?? 0);
         }
         return $map;
     }
@@ -480,6 +510,42 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $db->execute();
         return true;
+    }
+
+    /**
+     * Initialize opening balances: set amount_paid_to_dec31_2025 = sum of invoice_value
+     * for orders Oct 1 - Dec 31 2025 per client. Ensures balance starts at 0 on Jan 1 2026.
+     *
+     * @return  int  Number of clients updated
+     *
+     * @since   3.56.0
+     */
+    public function initializeOpeningBalances()
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $this->ensureClientOpeningBalanceTableExists($db);
+
+        $map = $this->getInvoiceValueOctDec2025ByClientMap($db);
+        $count = 0;
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+
+        foreach ($map as $key => $amount) {
+            if ($amount <= 0) {
+                continue;
+            }
+            $parts = explode('|', $key, 2);
+            $clientName = $parts[0] ?? '';
+            $nit = $parts[1] ?? '';
+            if ($clientName === '') {
+                continue;
+            }
+            $this->saveOpeningBalance($clientName, $nit, $amount);
+            $count++;
+        }
+
+        return $count;
     }
 
     /**

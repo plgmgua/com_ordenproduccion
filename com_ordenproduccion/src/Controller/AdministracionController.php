@@ -272,4 +272,45 @@ class AdministracionController extends BaseController
 
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
     }
+
+    /**
+     * Initialize opening balances from Oct–Dec 2025 invoice totals (super user only).
+     *
+     * @return  void
+     *
+     * @since   3.56.0
+     */
+    public function initializeOpeningBalances()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        if (!$user->authorise('core.admin')) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_SUPER_USER_ONLY'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
+            return;
+        }
+
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $count = $model->initializeOpeningBalances();
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_CLIENTES_INITIALIZE_SUCCESS', $count), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENTES_INITIALIZE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
+    }
 }

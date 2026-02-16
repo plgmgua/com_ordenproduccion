@@ -16,6 +16,7 @@ use Joomla\CMS\Router\Route;
 
 $clients = $this->clients ?? [];
 $canMerge = !empty($this->canMergeClients);
+$canInitialize = !empty($this->canInitializeOpeningBalances);
 
 function safeEscape($value, $default = '')
 {
@@ -179,12 +180,23 @@ function safeEscape($value, $default = '')
         <p class="text-muted mb-0">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DESC'); ?>
         </p>
-        <?php if ($canMerge && !empty($clients)) : ?>
-        <div class="clientes-merge-actions mt-3">
+        <?php if (($canMerge || $canInitialize) && !empty($clients)) : ?>
+        <div class="clientes-merge-actions mt-3 d-flex flex-wrap gap-2">
+            <?php if ($canMerge) : ?>
             <button type="button" class="btn btn-primary" id="btn-merge-clients" disabled title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_SELECT_TIP'); ?>">
                 <i class="fas fa-compress-arrows-alt"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_MERGE_BTN'); ?>
             </button>
+            <?php endif; ?>
+            <?php if ($canInitialize) : ?>
+            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.initializeOpeningBalances'); ?>" class="d-inline">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <button type="submit" class="btn btn-outline-primary" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_INITIALIZE_TIP'); ?>">
+                    <i class="fas fa-calculator"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_INITIALIZE_BTN'); ?>
+                </button>
+            </form>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>
@@ -215,8 +227,7 @@ function safeEscape($value, $default = '')
                         foreach ($clients as $idx => $client) :
                             $orderCount = (int) ($client->order_count ?? 0);
                             $saldo = (float) ($client->saldo ?? 0);
-                            $initialPaid = (float) ($client->initial_paid_to_dec31_2025 ?? 0);
-                            $invoiceToDec31 = (float) ($client->invoice_value_to_dec31_2025 ?? 0);
+                            $displayPagado = (float) ($client->display_pagado ?? $client->initial_paid_to_dec31_2025 ?? 0);
                             $totalSaldo += $saldo;
                             $totalOrders += $orderCount;
                             $cn = $client->client_name ?? '';
@@ -238,8 +249,8 @@ function safeEscape($value, $default = '')
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <input type="hidden" name="client_name" value="<?php echo safeEscape($cn); ?>">
                                         <input type="hidden" name="nit" value="<?php echo safeEscape($nit); ?>">
-                                        <input type="number" name="amount" step="0.01" min="0" class="form-control form-control-sm text-end" value="<?php echo number_format($initialPaid, 2, '.', ''); ?>"
-                                            placeholder="<?php echo $invoiceToDec31 > 0 ? number_format($invoiceToDec31, 2) : '0'; ?>" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_INITIAL_PAID_HINT'); ?>">
+                                        <input type="number" name="amount" step="0.01" min="0" class="form-control form-control-sm text-end" value="<?php echo number_format($displayPagado, 2, '.', ''); ?>"
+                                            title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_INITIAL_PAID_HINT'); ?>">
                                         <button type="submit" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SAVE_OPENING_BALANCE'); ?>">
                                             <i class="fas fa-save"></i>
                                         </button>

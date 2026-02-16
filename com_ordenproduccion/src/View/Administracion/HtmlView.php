@@ -412,10 +412,12 @@ class HtmlView extends BaseHtmlView
                 $this->clients = $statsModel->getClientsWithTotals();
                 $user = Factory::getUser();
                 $this->canMergeClients = $user && $user->authorise('core.admin');
+                $this->canInitializeOpeningBalances = $user && $user->authorise('core.admin');
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading clients: ' . $e->getMessage(), 'error');
                 $this->clients = [];
                 $this->canMergeClients = false;
+                $this->canInitializeOpeningBalances = false;
             }
         }
 
