@@ -482,4 +482,47 @@ class AjaxController extends BaseController
         ]);
         exit;
     }
+
+    /**
+     * Suggest client names for report filter (by date range and search query)
+     *
+     * @return  void
+     *
+     * @since   3.6.0
+     */
+    public function suggestReportClients()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'clients' => []]);
+            exit;
+        }
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'clients' => []]);
+            exit;
+        }
+
+        $dateFrom = $app->input->getString('date_from', '');
+        $dateTo = $app->input->getString('date_to', '');
+        $q = $app->input->getString('q', '');
+
+        if (empty($dateFrom) || empty($dateTo)) {
+            echo json_encode(['success' => true, 'clients' => [], 'message' => 'Select date range first']);
+            exit;
+        }
+
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $clients = $model->getReportClientsInDateRange($dateFrom, $dateTo, $q);
+            echo json_encode(['success' => true, 'clients' => $clients]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'clients' => []]);
+        }
+        exit;
+    }
 }

@@ -225,6 +225,46 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Get distinct client names that have work orders in the given date range (for report autocomplete)
+     *
+     * @param   string  $dateFrom  Start date (Y-m-d)
+     * @param   string  $dateTo    End date (Y-m-d)
+     * @param   string  $search    Optional search string to filter client names (LIKE %search%)
+     *
+     * @return  array  List of client names
+     *
+     * @since   3.6.0
+     */
+    public function getReportClientsInDateRange($dateFrom, $dateTo, $search = '')
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('client_name'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('client_name') . ' IS NOT NULL')
+            ->where($db->quoteName('client_name') . ' != ' . $db->quote(''));
+
+        if (!empty($dateFrom)) {
+            $query->where($db->quoteName('created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));
+        }
+        if (!empty($dateTo)) {
+            $query->where($db->quoteName('created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
+        }
+        if ($search !== '') {
+            $searchEscaped = $db->quote('%' . $db->escape(trim($search), true) . '%');
+            $query->where($db->quoteName('client_name') . ' LIKE ' . $searchEscaped);
+        }
+
+        $query->group($db->quoteName('client_name'))
+            ->order($db->quoteName('client_name') . ' ASC')
+            ->setLimit(30);
+        $db->setQuery($query);
+        $rows = $db->loadColumn() ?: [];
+        return array_values($rows);
+    }
+
+    /**
      * Get top 10 clients trend data
      *
      * @param   int  $year   Year

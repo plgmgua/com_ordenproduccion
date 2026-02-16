@@ -360,11 +360,10 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        // Load reportes tab data: clients list and work orders by date/client
+        // Load reportes tab data: work orders by date/client (client suggestions via AJAX)
         if ($activeTab === 'reportes') {
             try {
                 $statsModel = $this->getModel('Administracion');
-                $this->reportClients = $statsModel->getReportClients();
                 $this->reportDateFrom = $input->getString('filter_report_date_from', '');
                 $this->reportDateTo = $input->getString('filter_report_date_to', '');
                 $this->reportClient = $input->getString('filter_report_client', '');
@@ -376,7 +375,6 @@ class HtmlView extends BaseHtmlView
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
                 $this->reportWorkOrders = [];
-                $this->reportClients = [];
             }
         }
 

@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 $app = Factory::getApplication();
 $lang = $app->getLanguage();
@@ -19,10 +20,14 @@ $lang->load('com_ordenproduccion', JPATH_SITE);
 $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
 $reportWorkOrders = $this->reportWorkOrders ?? [];
-$reportClients = $this->reportClients ?? [];
 $reportDateFrom = $this->reportDateFrom ?? '';
 $reportDateTo = $this->reportDateTo ?? '';
 $reportClient = $this->reportClient ?? '';
+
+$suggestClientsUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=ajax.suggestReportClients&format=json&' . Session::getFormToken() . '=1',
+    false
+);
 
 function safeEscape($value, $default = '')
 {
@@ -87,6 +92,63 @@ function safeEscape($value, $default = '')
 
 .reportes-filters select {
     min-width: 220px;
+}
+
+.reportes-client-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reportes-client-wrap input {
+    min-width: 260px;
+}
+
+.reportes-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 100;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.reportes-suggestions li {
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.reportes-suggestions li:last-child {
+    border-bottom: none;
+}
+
+.reportes-suggestions li:hover,
+.reportes-suggestions li.reportes-suggestion-active {
+    background: #e7f3ff;
+}
+
+.reportes-suggestions-empty {
+    padding: 12px;
+    color: #6c757d;
+    font-size: 13px;
+}
+
+.reportes-client-hint {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 2px;
 }
 
 .reportes-filters .filter-btn {
@@ -184,16 +246,17 @@ function safeEscape($value, $default = '')
                 <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_TO'); ?>
                 <input type="date" name="filter_report_date_to" value="<?php echo safeEscape($reportDateTo); ?>" />
             </label>
-            <label>
+            <label class="reportes-client-wrap">
                 <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>
-                <select name="filter_report_client">
-                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?></option>
-                    <?php foreach ($reportClients as $client) : ?>
-                        <option value="<?php echo safeEscape($client); ?>" <?php echo $reportClient === $client ? 'selected="selected"' : ''; ?>>
-                            <?php echo safeEscape($client); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <input type="text" 
+                       name="filter_report_client" 
+                       id="filter_report_client" 
+                       value="<?php echo safeEscape($reportClient); ?>" 
+                       autocomplete="off"
+                       placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?>"
+                       aria-describedby="reportes-client-hint" />
+                <span id="reportes-client-hint" class="reportes-client-hint"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT_HINT'); ?></span>
+                <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
             </label>
             <button type="submit" class="filter-btn">
                 <i class="fas fa-search"></i>
@@ -237,3 +300,129 @@ function safeEscape($value, $default = '')
         </div>
     <?php endif; ?>
 </div>
+
+<script>
+(function() {
+    var input = document.getElementById('filter_report_client');
+    var list = document.getElementById('reportes-suggestions');
+    var dateFrom = document.querySelector('input[name="filter_report_date_from"]');
+    var dateTo = document.querySelector('input[name="filter_report_date_to"]');
+    var suggestUrl = <?php echo json_encode($suggestClientsUrl); ?>;
+    var debounceTimer = null;
+    var activeIndex = -1;
+
+    if (!input || !list) return;
+
+    function showSuggestions(items, isEmpty) {
+        list.innerHTML = '';
+        list.hidden = true;
+        if (isEmpty && items.length === 0) {
+            var li = document.createElement('li');
+            li.className = 'reportes-suggestions-empty';
+            li.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_SELECT_DATES_FIRST')); ?>;
+            list.appendChild(li);
+            list.hidden = false;
+            return;
+        }
+        if (items.length === 0) {
+            var emptyLi = document.createElement('li');
+            emptyLi.className = 'reportes-suggestions-empty';
+            emptyLi.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_REPORTES_NO_CLIENTS_MATCH')); ?>;
+            list.appendChild(emptyLi);
+            list.hidden = false;
+            return;
+        }
+        items.forEach(function(name, i) {
+            var li = document.createElement('li');
+            li.textContent = name;
+            li.setAttribute('role', 'option');
+            li.setAttribute('data-index', i);
+            li.addEventListener('click', function() {
+                input.value = name;
+                list.hidden = true;
+                activeIndex = -1;
+            });
+            list.appendChild(li);
+        });
+        list.hidden = false;
+        activeIndex = -1;
+    }
+
+    function fetchSuggestions() {
+        var from = (dateFrom && dateFrom.value) ? dateFrom.value.trim() : '';
+        var to = (dateTo && dateTo.value) ? dateTo.value.trim() : '';
+        var q = input.value.trim();
+
+        if (!from || !to) {
+            showSuggestions([], true);
+            return;
+        }
+
+        var url = suggestUrl + '&date_from=' + encodeURIComponent(from) + '&date_to=' + encodeURIComponent(to) + '&q=' + encodeURIComponent(q);
+        fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && Array.isArray(data.clients)) {
+                    showSuggestions(data.clients, false);
+                } else {
+                    showSuggestions([], false);
+                }
+            })
+            .catch(function() {
+                showSuggestions([], false);
+            });
+    }
+
+    function onInput() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fetchSuggestions, 220);
+    }
+
+    input.addEventListener('focus', function() {
+        if (dateFrom && dateFrom.value && dateTo && dateTo.value) {
+            fetchSuggestions();
+        } else {
+            showSuggestions([], true);
+        }
+    });
+    input.addEventListener('input', onInput);
+    input.addEventListener('keydown', function(e) {
+        var items = list.querySelectorAll('li:not(.reportes-suggestions-empty)');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = Math.min(activeIndex + 1, items.length - 1);
+            items.forEach(function(li, i) {
+                li.classList.toggle('reportes-suggestion-active', i === activeIndex);
+                if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
+            });
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = Math.max(activeIndex - 1, -1);
+            items.forEach(function(li, i) {
+                li.classList.toggle('reportes-suggestion-active', i === activeIndex);
+                if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
+            });
+            return;
+        }
+        if (e.key === 'Enter' && activeIndex >= 0 && items[activeIndex]) {
+            e.preventDefault();
+            input.value = items[activeIndex].textContent;
+            list.hidden = true;
+            activeIndex = -1;
+            return;
+        }
+        if (e.key === 'Escape') {
+            list.hidden = true;
+            activeIndex = -1;
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (list && !list.hidden && input && !input.contains(e.target) && !list.contains(e.target)) {
+            list.hidden = true;
+        }
+    });
+})();
+</script>
