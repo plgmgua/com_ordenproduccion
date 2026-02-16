@@ -231,6 +231,8 @@ class AdministracionModel extends BaseDatabaseModel
                 $db->quoteName('work_description'),
                 $db->quoteName('invoice_value'),
                 $db->quoteName('client_name'),
+                $db->quoteName('request_date'),
+                $db->quoteName('delivery_date'),
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1');

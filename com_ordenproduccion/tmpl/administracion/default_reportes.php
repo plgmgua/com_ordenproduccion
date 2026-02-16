@@ -314,6 +314,8 @@ function safeEscape($value, $default = '')
                 <tr>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_ORDER'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_CLIENT_NAME'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_REQUEST_DATE'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_DELIVERY_DATE'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'); ?></th>
                     <th class="col-invoice-value"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'); ?></th>
                 </tr>
@@ -324,10 +326,14 @@ function safeEscape($value, $default = '')
                 foreach ($reportWorkOrders as $row) :
                     $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
                     $totalValue += $invoiceVal;
+                    $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
+                    $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
                 ?>
                     <tr>
                         <td class="col-work-order"><?php echo safeEscape($row->orden_de_trabajo ?? ''); ?></td>
                         <td><?php echo safeEscape($row->client_name ?? ''); ?></td>
+                        <td><?php echo $requestDate !== '' ? safeEscape($requestDate) : '—'; ?></td>
+                        <td><?php echo $deliveryDate !== '' ? safeEscape($deliveryDate) : '—'; ?></td>
                         <td><?php echo safeEscape($row->work_description ?? ''); ?></td>
                         <td class="col-invoice-value"><?php echo number_format($invoiceVal, 2); ?></td>
                     </tr>
