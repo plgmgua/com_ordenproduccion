@@ -287,7 +287,7 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')
-            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2025-11-01 00:00:00'))
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2025-10-01 00:00:00'))
             ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
             ->group([$clientCol, $nitCol])
             ->order($clientCol . ' ASC, ' . $nitCol . ' ASC');
@@ -309,7 +309,7 @@ class AdministracionModel extends BaseDatabaseModel
             $c->initial_paid_to_dec31_2025 = $initialPaid;
             $c->display_pagado = $initialPaid > 0 ? $initialPaid : $invoiceOctDec2025;
             $c->paid_from_jan2026 = $paidFromJan;
-            $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
+            $c->saldo = max(0, round($totalInvoiced - $initialPaid - $paidFromJan, 2));
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
 
@@ -567,6 +567,9 @@ class AdministracionModel extends BaseDatabaseModel
         $totalUpdated = 0;
 
         $this->ensureClientMergesTableExists($db);
+        $this->ensureClientOpeningBalanceTableExists($db);
+
+        $openingBalanceToAdd = 0.0;
 
         foreach ($sources as $src) {
             $srcName = trim($src['client_name'] ?? '');
@@ -596,10 +599,103 @@ class AdministracionModel extends BaseDatabaseModel
 
             if ($affected > 0) {
                 $this->logClientMerge($db, $srcName, $srcNit, $targetClientName, $targetNit, $affected, $user->id);
+                $openingBalanceToAdd += $this->getAndRemoveOpeningBalance($db, $srcName, $srcNit);
             }
         }
 
+        if ($openingBalanceToAdd > 0) {
+            $this->addToTargetOpeningBalance($db, $targetClientName, $targetNit, $openingBalanceToAdd, $user->id);
+        }
+
         return $totalUpdated;
+    }
+
+    /**
+     * Get and remove opening balance for a client (used when merging into another).
+     *
+     * @param   object  $db   Database
+     * @param   string  $clientName  Client name
+     * @param   string  $nit         Client NIT
+     *
+     * @return  float  Amount that was stored
+     */
+    protected function getAndRemoveOpeningBalance($db, $clientName, $nit)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_client_opening_balance')) {
+            return 0.0;
+        }
+        $key = $this->clientKey($clientName, $nit);
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id') . ',' . $db->quoteName('amount_paid_to_dec31_2025'))
+            ->from($db->quoteName('#__ordenproduccion_client_opening_balance'))
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+        if ($nit !== '' && $nit !== null) {
+            $query->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
+        } else {
+            $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+        }
+        $db->setQuery($query);
+        $row = $db->loadObject();
+        if (!$row) {
+            return 0.0;
+        }
+        $amount = (float) ($row->amount_paid_to_dec31_2025 ?? 0);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                ->where($db->quoteName('id') . ' = ' . (int) $row->id)
+        );
+        $db->execute();
+        return $amount;
+    }
+
+    /**
+     * Add amount to target client's opening balance (create or update).
+     */
+    protected function addToTargetOpeningBalance($db, $targetClientName, $targetNit, $amountToAdd, $userId)
+    {
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id') . ',' . $db->quoteName('amount_paid_to_dec31_2025'))
+            ->from($db->quoteName('#__ordenproduccion_client_opening_balance'))
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote($targetClientName));
+        if (($targetNit ?? '') !== '') {
+            $query->where($db->quoteName('nit') . ' = ' . $db->quote($targetNit));
+        } else {
+            $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+        }
+        $db->setQuery($query);
+        $row = $db->loadObject();
+        $now = Factory::getDate()->toSql();
+        if ($row) {
+            $newAmount = (float) ($row->amount_paid_to_dec31_2025 ?? 0) + $amountToAdd;
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                    ->set($db->quoteName('amount_paid_to_dec31_2025') . ' = ' . $newAmount)
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->set($db->quoteName('modified_by') . ' = ' . $userId)
+                    ->where($db->quoteName('id') . ' = ' . (int) $row->id)
+            );
+            $db->execute();
+        } else {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                    ->columns([
+                        $db->quoteName('client_name'),
+                        $db->quoteName('nit'),
+                        $db->quoteName('amount_paid_to_dec31_2025'),
+                        $db->quoteName('created_by')
+                    ])
+                    ->values(
+                        $db->quote($targetClientName) . ',' .
+                        $db->quote($targetNit ?? '') . ',' .
+                        $amountToAdd . ',' .
+                        (int) $userId
+                    )
+            );
+            $db->execute();
+        }
     }
 
     /**
