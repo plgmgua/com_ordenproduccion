@@ -72,8 +72,8 @@ class HtmlView extends BaseHtmlView
 
         // Load component language
         $lang = $app->getLanguage();
-        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/site/language');
-        $lang->load('com_ordenproduccion', JPATH_ROOT . '/components/com_ordenproduccion/admin/language');
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
         // Check if user is logged in
         if ($user->guest) {
