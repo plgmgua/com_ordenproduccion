@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.54.0-STABLE</version>
+    <version>3.56.0-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
 
     <namespace path="src">Grimpsa\Component\Ordenproduccion</namespace>
@@ -33,6 +33,7 @@
             <folder>src</folder>
             <folder>tmpl</folder>
             <folder>language</folder>
+            <folder>sql</folder>
         </files>
     </administration>
 

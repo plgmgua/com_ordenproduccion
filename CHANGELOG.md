@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [3.56.0-STABLE] - 2025-02-16
+
+### Added
+- **Client Saldo (Balance) with Jan 1 2026 accounting cutover**
+  - Renamed column "Valor a Facturar (Total)" to "Saldo"
+  - New "Pagado al 31/12/2025" (Initial paid) field per client to set amount paid up to Dec 31 2025
+  - Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
+  - Client list now shows all clients (removed Oct 2025 filter)
+  - Total Saldo summary at bottom
+
+### Database Changes
+- New table `#__ordenproduccion_client_opening_balance` (client_name, nit, amount_paid_to_dec31_2025)
+- Migration: 3.56.0.sql
+
 ## [3.54.0-STABLE] - 2025-02-01
 
 ### Added

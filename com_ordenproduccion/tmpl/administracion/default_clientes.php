@@ -83,10 +83,22 @@ function safeEscape($value, $default = '')
     text-align: center;
 }
 
-.clientes-table .col-total-value {
-    min-width: 140px;
+.clientes-table .col-total-value,
+.clientes-table .col-initial-paid,
+.clientes-table .col-saldo {
+    min-width: 120px;
     text-align: right;
+}
+
+.clientes-table .col-saldo {
     font-weight: 600;
+}
+
+.clientes-table .col-initial-paid input {
+    width: 100%;
+    max-width: 120px;
+    text-align: right;
+    padding: 6px 8px;
 }
 
 .clientes-summary {
@@ -192,17 +204,20 @@ function safeEscape($value, $default = '')
                             <th class="col-client-name"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?></th>
                             <th class="col-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_NIT'); ?></th>
                             <th class="col-order-count"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_ORDER_COUNT'); ?></th>
-                            <th class="col-total-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_TOTAL_VALUE'); ?></th>
+                            <th class="col-initial-paid"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_INITIAL_PAID'); ?></th>
+                            <th class="col-saldo"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_SALDO'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
-                        $grandTotal = 0;
+                        $totalSaldo = 0;
                         $totalOrders = 0;
                         foreach ($clients as $idx => $client) :
-                            $totalVal = (float) ($client->total_invoice_value ?? 0);
                             $orderCount = (int) ($client->order_count ?? 0);
-                            $grandTotal += $totalVal;
+                            $saldo = (float) ($client->saldo ?? 0);
+                            $initialPaid = (float) ($client->initial_paid_to_dec31_2025 ?? 0);
+                            $invoiceToDec31 = (float) ($client->invoice_value_to_dec31_2025 ?? 0);
+                            $totalSaldo += $saldo;
                             $totalOrders += $orderCount;
                             $cn = $client->client_name ?? '';
                             $nit = $client->nit ?? '';
@@ -218,7 +233,19 @@ function safeEscape($value, $default = '')
                                 <td class="col-client-name"><?php echo safeEscape($cn); ?></td>
                                 <td class="col-nit"><?php echo safeEscape($nit ?: '—'); ?></td>
                                 <td class="col-order-count"><?php echo $orderCount; ?></td>
-                                <td class="col-total-value">Q.<?php echo number_format($totalVal, 2); ?></td>
+                                <td class="col-initial-paid">
+                                    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.saveOpeningBalance'); ?>" class="opening-balance-form d-flex align-items-center gap-1">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="client_name" value="<?php echo safeEscape($cn); ?>">
+                                        <input type="hidden" name="nit" value="<?php echo safeEscape($nit); ?>">
+                                        <input type="number" name="amount" step="0.01" min="0" class="form-control form-control-sm text-end" value="<?php echo number_format($initialPaid, 2, '.', ''); ?>"
+                                            placeholder="<?php echo $invoiceToDec31 > 0 ? number_format($invoiceToDec31, 2) : '0'; ?>" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_INITIAL_PAID_HINT'); ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SAVE_OPENING_BALANCE'); ?>">
+                                            <i class="fas fa-save"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                <td class="col-saldo">Q.<?php echo number_format($saldo, 2); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -229,7 +256,7 @@ function safeEscape($value, $default = '')
             &nbsp;|&nbsp;
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_ORDERS'); ?>: <?php echo $totalOrders; ?>
             &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_GRAND_TOTAL'); ?>: Q.<?php echo number_format($grandTotal, 2); ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_SALDO'); ?>: Q.<?php echo number_format($totalSaldo, 2); ?>
         </div>
     <?php else : ?>
         <div class="clientes-empty">

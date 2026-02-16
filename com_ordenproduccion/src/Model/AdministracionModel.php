@@ -259,37 +259,226 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get all clients from work orders with sum of valor a facturar (invoice value)
-     * Uses all records, no date filter. Groups by client name and NIT.
+     * Get all clients from work orders with Saldo (balance) using Jan 1 2026 accounting cutover.
+     * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
      *
-     * @return  array  List of objects with client_name, nit, total_invoice_value, order_count
+     * @return  array  List of objects with client_name, nit, order_count, total_invoice_value,
+     *                 invoice_value_to_dec31_2025, initial_paid_to_dec31_2025, paid_from_jan2026, saldo
      *
      * @since   3.54.0
+     * @since   3.56.0  Added Saldo, opening balance, payments from Jan 1 2026
      */
     public function getClientsWithTotals()
     {
         $db = Factory::getDbo();
-        $clientCol = $db->quoteName('client_name');
-        $nitCol = $db->quoteName('nit');
-        $invoiceCol = $db->quoteName('invoice_value');
+        $this->ensureClientOpeningBalanceTableExists($db);
+
+        $clientCol = 'o.' . $db->quoteName('client_name');
+        $nitCol = 'o.' . $db->quoteName('nit');
+        $invoiceCol = $db->quoteName('o.invoice_value');
 
         $query = $db->getQuery(true)
             ->select([
                 $clientCol . ' AS client_name',
                 $nitCol . ' AS nit',
                 'COUNT(*) AS order_count',
-                'SUM(CAST(' . $invoiceCol . ' AS DECIMAL(15,2))) AS total_invoice_value'
+                'SUM(CAST(' . $invoiceCol . ' AS DECIMAL(15,2))) AS total_invoice_value',
+                'SUM(CASE WHEN o.created <= ' . $db->quote('2025-12-31 23:59:59') . ' THEN CAST(' . $invoiceCol . ' AS DECIMAL(15,2)) ELSE 0 END) AS invoice_value_to_dec31_2025'
             ])
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('created') . ' >= ' . $db->quote('2025-10-01 00:00:00'))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote('2025-10-31 23:59:59'))
-            ->where('(' . $clientCol . ' IS NOT NULL AND ' . $clientCol . ' != ' . $db->quote('') . ')')
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
             ->group([$clientCol, $nitCol])
             ->order($clientCol . ' ASC, ' . $nitCol . ' ASC');
 
         $db->setQuery($query);
-        return $db->loadObjectList() ?: [];
+        $clients = $db->loadObjectList() ?: [];
+
+        $openingMap = $this->getOpeningBalancesMap($db);
+        $paidFromJan2026Map = $this->getPaidFromJan2026ByClientMap($db);
+
+        foreach ($clients as $c) {
+            $key = $this->clientKey($c->client_name ?? '', $c->nit ?? '');
+            $initialPaid = (float) ($openingMap[$key] ?? 0);
+            $paidFromJan = (float) ($paidFromJan2026Map[$key] ?? 0);
+            $totalInvoiced = (float) ($c->total_invoice_value ?? 0);
+            $c->initial_paid_to_dec31_2025 = $initialPaid;
+            $c->paid_from_jan2026 = $paidFromJan;
+            $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
+            $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
+        }
+
+        return $clients;
+    }
+
+    /**
+     * Create a unique key for client (name + nit)
+     */
+    protected function clientKey($clientName, $nit)
+    {
+        return trim($clientName ?? '') . '|' . trim($nit ?? '');
+    }
+
+    /**
+     * Get map of client_key => amount_paid_to_dec31_2025 from opening balance table
+     */
+    protected function getOpeningBalancesMap($db)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_client_opening_balance')) {
+            return [];
+        }
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('client_name'),
+                $db->quoteName('nit'),
+                $db->quoteName('amount_paid_to_dec31_2025')
+            ])
+            ->from($db->quoteName('#__ordenproduccion_client_opening_balance'));
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->amount_paid_to_dec31_2025 ?? 0);
+        }
+        return $map;
+    }
+
+    /**
+     * Get map of client_key => sum of payments from Jan 1 2026
+     */
+    protected function getPaidFromJan2026ByClientMap($db)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_payment_orders') || !$this->hasTable($db, '#__ordenproduccion_payment_proofs')) {
+            return [];
+        }
+        $query = $db->getQuery(true)
+            ->select([
+                'o.' . $db->quoteName('client_name'),
+                'o.' . $db->quoteName('nit'),
+                'SUM(CAST(po.' . $db->quoteName('amount_applied') . ' AS DECIMAL(15,2))) AS total_paid'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id AND pp.state = 1'
+                . ' AND pp.created >= ' . $db->quote('2026-01-01 00:00:00')
+            )
+            ->innerJoin($db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id AND o.state = 1')
+            ->group(['o.client_name', 'o.nit']);
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->total_paid ?? 0);
+        }
+        return $map;
+    }
+
+    /**
+     * Check if table exists
+     */
+    protected function hasTable($db, $tableName)
+    {
+        $t = $db->replacePrefix($tableName);
+        foreach ($db->getTableList() as $name) {
+            if (strcasecmp($name, $t) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Ensure client_opening_balance table exists
+     */
+    protected function ensureClientOpeningBalanceTableExists($db)
+    {
+        if ($this->hasTable($db, '#__ordenproduccion_client_opening_balance')) {
+            return;
+        }
+        $sql = 'CREATE TABLE IF NOT EXISTS ' . $db->quoteName($db->replacePrefix('#__ordenproduccion_client_opening_balance')) . ' (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            client_name varchar(255) NOT NULL,
+            nit varchar(100) DEFAULT NULL,
+            amount_paid_to_dec31_2025 decimal(15,2) NOT NULL DEFAULT 0.00,
+            created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_by int(11) NOT NULL DEFAULT 0,
+            modified datetime DEFAULT NULL,
+            modified_by int(11) DEFAULT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_client_nit (client_name(191), nit(50)),
+            KEY idx_client_name (client_name(191)),
+            KEY idx_nit (nit(50))
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        $db->setQuery($sql);
+        $db->execute();
+    }
+
+    /**
+     * Save or update opening balance for a client (amount paid up to Dec 31 2025)
+     *
+     * @param   string  $clientName  Client name
+     * @param   string  $nit         Client NIT
+     * @param   float   $amount      Amount paid to Dec 31 2025
+     *
+     * @return  bool
+     *
+     * @since   3.56.0
+     */
+    public function saveOpeningBalance($clientName, $nit, $amount)
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $this->ensureClientOpeningBalanceTableExists($db);
+
+        $clientName = trim($clientName ?? '');
+        $nit = trim($nit ?? '');
+        $amount = (float) $amount;
+
+        if ($clientName === '') {
+            return false;
+        }
+
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+
+        $existing = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_client_opening_balance'))
+            ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+        if ($nit !== '') {
+            $existing->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
+        } else {
+            $existing->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
+        }
+        $db->setQuery($existing);
+        $id = (int) $db->loadResult();
+
+        if ($id > 0) {
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                ->set($db->quoteName('amount_paid_to_dec31_2025') . ' = ' . $amount)
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . $userId)
+                ->where($db->quoteName('id') . ' = ' . $id);
+        } else {
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                ->columns([
+                    $db->quoteName('client_name'),
+                    $db->quoteName('nit'),
+                    $db->quoteName('amount_paid_to_dec31_2025'),
+                    $db->quoteName('created_by')
+                ])
+                ->values(
+                    $db->quote($clientName) . ',' .
+                    $db->quote($nit) . ',' .
+                    $amount . ',' .
+                    $userId
+                );
+        }
+        $db->setQuery($query);
+        $db->execute();
+        return true;
     }
 
     /**
