@@ -207,6 +207,14 @@ class HtmlView extends BaseHtmlView
     protected $reportSalesAgent = '';
 
     /**
+     * Clients list with totals (for clientes tab)
+     *
+     * @var    array
+     * @since  3.54.0
+     */
+    protected $clients = [];
+
+    /**
      * Sales agents list for report dropdown
      *
      * @var    array
@@ -292,6 +300,7 @@ class HtmlView extends BaseHtmlView
         $this->banks = [];
         $this->reportWorkOrders = [];
         $this->reportClients = [];
+        $this->clients = [];
         $this->reportDateFrom = '';
         $this->reportDateTo = '';
         $this->reportClient = '';
@@ -384,6 +393,17 @@ class HtmlView extends BaseHtmlView
                 $app->enqueueMessage('Error loading work orders: ' . $e->getMessage(), 'error');
                 $this->workOrders = [];
                 $this->workOrdersPagination = null;
+            }
+        }
+
+        // Load clientes tab data: all clients with sum of valor a facturar
+        if ($activeTab === 'clientes') {
+            try {
+                $statsModel = $this->getModel('Administracion');
+                $this->clients = $statsModel->getClientsWithTotals();
+            } catch (\Exception $e) {
+                $app->enqueueMessage('Error loading clients: ' . $e->getMessage(), 'error');
+                $this->clients = [];
             }
         }
 

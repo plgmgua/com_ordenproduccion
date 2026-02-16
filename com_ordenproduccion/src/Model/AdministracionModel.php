@@ -259,6 +259,38 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Get all clients from work orders with sum of valor a facturar (invoice value)
+     * Uses all records, no date filter. Groups by client name and NIT.
+     *
+     * @return  array  List of objects with client_name, nit, total_invoice_value, order_count
+     *
+     * @since   3.54.0
+     */
+    public function getClientsWithTotals()
+    {
+        $db = Factory::getDbo();
+        $clientCol = 'COALESCE(' . $db->quoteName('client_name') . ', ' . $db->quoteName('nombre_del_cliente') . ')';
+        $nitCol = $db->quoteName('nit');
+        $invoiceCol = 'COALESCE(' . $db->quoteName('invoice_value') . ', ' . $db->quoteName('valor_a_facturar') . ', 0)';
+
+        $query = $db->getQuery(true)
+            ->select([
+                $clientCol . ' AS client_name',
+                $nitCol . ' AS nit',
+                'COUNT(*) AS order_count',
+                'SUM(CAST(' . $invoiceCol . ' AS DECIMAL(15,2))) AS total_invoice_value'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('(' . $clientCol . ' IS NOT NULL AND ' . $clientCol . ' != ' . $db->quote('') . ')')
+            ->group([$clientCol, $nitCol])
+            ->order($clientCol . ' ASC, ' . $nitCol . ' ASC');
+
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
      * Get distinct client names that have work orders in the given date range (for report autocomplete)
      *
      * @param   string  $dateFrom  Start date (Y-m-d)
