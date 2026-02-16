@@ -163,6 +163,68 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Get distinct client names for report filters
+     *
+     * @return  array  List of client names
+     *
+     * @since   3.6.0
+     */
+    public function getReportClients()
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('client_name'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('client_name') . ' IS NOT NULL')
+            ->where($db->quoteName('client_name') . ' != ' . $db->quote(''))
+            ->group($db->quoteName('client_name'))
+            ->order($db->quoteName('client_name') . ' ASC');
+        $db->setQuery($query);
+        $rows = $db->loadColumn() ?: [];
+        return array_values($rows);
+    }
+
+    /**
+     * Get work orders for report by date range and optional client
+     *
+     * @param   string  $dateFrom   Start date (Y-m-d)
+     * @param   string  $dateTo     End date (Y-m-d)
+     * @param   string  $clientName Optional client name filter
+     *
+     * @return  array  List of objects with orden_de_trabajo, work_description, invoice_value, client_name
+     *
+     * @since   3.6.0
+     */
+    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '')
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('orden_de_trabajo'),
+                $db->quoteName('work_description'),
+                $db->quoteName('invoice_value'),
+                $db->quoteName('client_name'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1');
+
+        if (!empty($dateFrom)) {
+            $query->where($db->quoteName('created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));
+        }
+        if (!empty($dateTo)) {
+            $query->where($db->quoteName('created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
+        }
+        if (!empty($clientName)) {
+            $query->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+        }
+
+        $query->order($db->quoteName('orden_de_trabajo') . ' ASC');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
      * Get top 10 clients trend data
      *
      * @param   int  $year   Year

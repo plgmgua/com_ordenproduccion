@@ -151,6 +151,46 @@ class HtmlView extends BaseHtmlView
     protected $selectedPeriod = 'day';
 
     /**
+     * Report work orders (for reportes tab)
+     *
+     * @var    array
+     * @since  3.6.0
+     */
+    protected $reportWorkOrders = [];
+
+    /**
+     * Distinct clients for report filter dropdown
+     *
+     * @var    array
+     * @since  3.6.0
+     */
+    protected $reportClients = [];
+
+    /**
+     * Report filter: date from
+     *
+     * @var    string
+     * @since  3.6.0
+     */
+    protected $reportDateFrom = '';
+
+    /**
+     * Report filter: date to
+     *
+     * @var    string
+     * @since  3.6.0
+     */
+    protected $reportDateTo = '';
+
+    /**
+     * Report filter: client name
+     *
+     * @var    string
+     * @since  3.6.0
+     */
+    protected $reportClient = '';
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -226,6 +266,11 @@ class HtmlView extends BaseHtmlView
         $this->workOrdersPagination = null;
         $this->state = new \Joomla\Registry\Registry();
         $this->banks = [];
+        $this->reportWorkOrders = [];
+        $this->reportClients = [];
+        $this->reportDateFrom = '';
+        $this->reportDateTo = '';
+        $this->reportClient = '';
         
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -312,6 +357,26 @@ class HtmlView extends BaseHtmlView
                 $app->enqueueMessage('Error loading work orders: ' . $e->getMessage(), 'error');
                 $this->workOrders = [];
                 $this->workOrdersPagination = null;
+            }
+        }
+
+        // Load reportes tab data: clients list and work orders by date/client
+        if ($activeTab === 'reportes') {
+            try {
+                $statsModel = $this->getModel('Administracion');
+                $this->reportClients = $statsModel->getReportClients();
+                $this->reportDateFrom = $input->getString('filter_report_date_from', '');
+                $this->reportDateTo = $input->getString('filter_report_date_to', '');
+                $this->reportClient = $input->getString('filter_report_client', '');
+                $this->reportWorkOrders = $statsModel->getReportWorkOrders(
+                    $this->reportDateFrom,
+                    $this->reportDateTo,
+                    $this->reportClient
+                );
+            } catch (\Exception $e) {
+                $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
+                $this->reportWorkOrders = [];
+                $this->reportClients = [];
             }
         }
 

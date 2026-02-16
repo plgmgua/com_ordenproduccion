@@ -96,6 +96,12 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_STATISTICS'); ?>
     </a>
     
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes'); ?>" 
+       class="admin-tab <?php echo $activeTab === 'reportes' ? 'active' : ''; ?>">
+        <i class="fas fa-file-alt"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_REPORTES'); ?>
+    </a>
+    
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas'); ?>" 
        class="admin-tab <?php echo $activeTab === 'herramientas' ? 'active' : ''; ?>">
         <i class="fas fa-tools"></i>
@@ -126,6 +132,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('invoices'); ?>
     <?php elseif ($activeTab === 'statistics'): ?>
         <?php echo $this->loadTemplate('statistics'); ?>
+    <?php elseif ($activeTab === 'reportes'): ?>
+        <?php echo $this->loadTemplate('reportes'); ?>
     <?php elseif ($activeTab === 'herramientas'): ?>
         <?php echo $this->loadTemplate('herramientas'); ?>
     <?php else: ?>
