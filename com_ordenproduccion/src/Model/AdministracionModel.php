@@ -282,6 +282,7 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('created') . ' >= ' . $db->quote('2025-01-01 00:00:00'))
             ->where('(' . $clientCol . ' IS NOT NULL AND ' . $clientCol . ' != ' . $db->quote('') . ')')
             ->group([$clientCol, $nitCol])
             ->order($clientCol . ' ASC, ' . $nitCol . ' ASC');
