@@ -37,6 +37,16 @@ $suggestNitsUrl = Route::_(
     false
 );
 
+$exportReportUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=administracion.exportReport&format=raw' .
+    '&filter_report_date_from=' . rawurlencode($reportDateFrom) .
+    '&filter_report_date_to=' . rawurlencode($reportDateTo) .
+    '&filter_report_client=' . rawurlencode($reportClient) .
+    '&filter_report_nit=' . rawurlencode($reportNit) .
+    '&filter_report_sales_agent=' . rawurlencode($reportSalesAgent),
+    false
+);
+
 function safeEscape($value, $default = '')
 {
     if (is_string($value) && $value !== '') {
@@ -47,7 +57,8 @@ function safeEscape($value, $default = '')
 ?>
 
 <style>
-.reportes-section {
+/* Scoped under #com-op-reportes so template CSS does not override */
+#com-op-reportes.reportes-section {
     background: white;
     padding: 25px;
     border-radius: 10px;
@@ -187,41 +198,107 @@ function safeEscape($value, $default = '')
     background: #005a8b;
 }
 
-.reportes-table {
+/* Actions row: font size + export (always visible, inside filter card) */
+#com-op-reportes .reportes-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 14px 0 0;
+    margin-top: 8px;
+    border-top: 1px solid #dee2e6;
+}
+
+#com-op-reportes .reportes-toolbar-label {
+    font-weight: 700;
+    color: #212529;
+    font-size: 14px;
+}
+
+#com-op-reportes .reportes-font-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#com-op-reportes .reportes-font-btn {
+    padding: 8px 16px;
+    border: 1px solid #adb5bd;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+}
+
+#com-op-reportes .reportes-font-btn:hover {
+    background: #e9ecef;
+}
+
+#com-op-reportes .reportes-font-btn.active {
+    background: #667eea;
+    color: #fff;
+    border-color: #667eea;
+}
+
+#com-op-reportes .reportes-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: #198754;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#com-op-reportes .reportes-export-btn:hover {
+    background: #157347;
+    color: #fff;
+}
+
+#com-op-reportes .reportes-table-wrap {
+    margin-top: 16px;
+}
+
+/* Base table – default (medium). Font size also set inline by JS to override template. */
+#com-op-reportes .reportes-table-wrap .reportes-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
     background: white;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.reportes-table th {
+#com-op-reportes .reportes-table-wrap .reportes-table th,
+#com-op-reportes .reportes-table-wrap .reportes-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+
+#com-op-reportes .reportes-table-wrap .reportes-table th {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 15px 12px;
-    text-align: left;
     font-weight: 600;
-    font-size: 14px;
 }
 
-.reportes-table td {
-    padding: 12px;
-    border-bottom: 1px solid #e9ecef;
-    font-size: 14px;
-}
-
-.reportes-table tbody tr:hover {
+#com-op-reportes .reportes-table-wrap .reportes-table tbody tr:hover {
     background: #f8f9fa;
 }
 
-.reportes-table .col-work-order {
+#com-op-reportes .reportes-table-wrap .reportes-table .col-work-order {
     font-weight: 600;
     color: #007cba;
 }
 
-.reportes-table .col-invoice-value {
+#com-op-reportes .reportes-table-wrap .reportes-table .col-invoice-value {
     text-align: right;
     font-weight: 500;
     white-space: nowrap;
@@ -234,17 +311,18 @@ function safeEscape($value, $default = '')
     font-size: 16px;
 }
 
-.reportes-summary {
+#com-op-reportes .reportes-summary {
     margin-top: 15px;
-    padding: 12px 15px;
+    padding: 10px 12px;
     background: #e7f3ff;
     border-radius: 6px;
     font-weight: 600;
+    font-size: 12px;
     color: #004085;
 }
 </style>
 
-<div class="reportes-section">
+<div id="com-op-reportes" class="reportes-section">
     <div class="reportes-header">
         <h2 class="reportes-title">
             <i class="fas fa-file-alt"></i>
@@ -305,10 +383,23 @@ function safeEscape($value, $default = '')
                 <i class="fas fa-search"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
             </button>
+            <div class="reportes-actions-row">
+                <span class="reportes-toolbar-label"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SIZE'); ?></span>
+                <div class="reportes-font-controls">
+                    <button type="button" class="reportes-font-btn" data-size="small" aria-pressed="false"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?></button>
+                    <button type="button" class="reportes-font-btn active" data-size="medium" aria-pressed="true"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_MEDIUM'); ?></button>
+                    <button type="button" class="reportes-font-btn" data-size="large" aria-pressed="false"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_LARGE'); ?></button>
+                </div>
+                <a href="<?php echo $exportReportUrl; ?>" class="reportes-export-btn" target="_blank" rel="noopener">
+                    <i class="fas fa-file-excel"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_EXCEL'); ?>
+                </a>
+            </div>
         </div>
     </form>
 
     <?php if (!empty($reportWorkOrders)) : ?>
+        <div id="reportes-table-wrap" class="reportes-table-wrap reportes-font-medium" style="font-size: 12px;">
         <table class="reportes-table">
             <thead>
                 <tr>
@@ -344,6 +435,7 @@ function safeEscape($value, $default = '')
             <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TOTAL_ORDERS'); ?>: <?php echo count($reportWorkOrders); ?>
             &nbsp;|&nbsp;
             <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TOTAL_VALUE'); ?>: <?php echo number_format($totalValue, 2); ?>
+        </div>
         </div>
     <?php else : ?>
         <div class="reportes-empty">
@@ -507,5 +599,35 @@ function safeEscape($value, $default = '')
         msgNoNitsMatch,
         'nits'
     );
+
+    (function fontSizeControls() {
+        var section = document.getElementById('com-op-reportes');
+        if (!section) return;
+        var wrap = document.getElementById('reportes-table-wrap');
+        var btns = section.querySelectorAll('.reportes-font-btn');
+        if (!btns.length) return;
+        var storageKey = 'com_ordenproduccion_reportes_font';
+        var size = (typeof localStorage !== 'undefined' && localStorage.getItem(storageKey)) || 'medium';
+        var sizes = { small: '11px', medium: '12px', large: '14px' };
+        function applySize(s) {
+            if (wrap) {
+                wrap.style.fontSize = sizes[s] || sizes.medium;
+                wrap.classList.remove('reportes-font-small', 'reportes-font-medium', 'reportes-font-large');
+                wrap.classList.add('reportes-font-' + s);
+            }
+            btns.forEach(function(b) {
+                b.classList.toggle('active', b.getAttribute('data-size') === s);
+                b.setAttribute('aria-pressed', b.getAttribute('data-size') === s ? 'true' : 'false');
+            });
+        }
+        applySize(size);
+        btns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var s = this.getAttribute('data-size');
+                applySize(s);
+                try { localStorage.setItem(storageKey, s); } catch (e) {}
+            });
+        });
+    })();
 })();
 </script>
