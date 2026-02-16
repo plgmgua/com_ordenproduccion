@@ -24,6 +24,8 @@ $reportDateFrom = $this->reportDateFrom ?? '';
 $reportDateTo = $this->reportDateTo ?? '';
 $reportClient = $this->reportClient ?? '';
 $reportNit = $this->reportNit ?? '';
+$reportSalesAgent = $this->reportSalesAgent ?? '';
+$reportSalesAgents = $this->reportSalesAgents ?? [];
 
 $tokenParam = Session::getFormToken() . '=1';
 $suggestClientsUrl = Route::_(
@@ -287,6 +289,17 @@ function safeEscape($value, $default = '')
                        aria-describedby="reportes-nit-hint" />
                 <span id="reportes-nit-hint" class="reportes-nit-hint"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT_HINT'); ?></span>
                 <ul id="reportes-nit-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" hidden></ul>
+            </label>
+            <label>
+                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SALES_AGENT'); ?>
+                <select name="filter_report_sales_agent">
+                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS'); ?></option>
+                    <?php foreach ($reportSalesAgents as $agent) : ?>
+                        <option value="<?php echo safeEscape($agent); ?>" <?php echo $reportSalesAgent === $agent ? 'selected="selected"' : ''; ?>>
+                            <?php echo safeEscape($agent); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </label>
             <button type="submit" class="filter-btn">
                 <i class="fas fa-search"></i>

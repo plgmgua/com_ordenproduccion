@@ -186,18 +186,43 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get work orders for report by date range and optional client
+     * Get distinct sales agent names for report filter dropdown
      *
-     * @param   string  $dateFrom   Start date (Y-m-d)
-     * @param   string  $dateTo     End date (Y-m-d)
-     * @param   string  $clientName Optional client name filter
-     * @param   string  $nit        Optional NIT filter
+     * @return  array  List of sales agent names
+     *
+     * @since   3.6.0
+     */
+    public function getReportSalesAgents()
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('sales_agent'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
+            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
+            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
+            ->group($db->quoteName('sales_agent'))
+            ->order($db->quoteName('sales_agent') . ' ASC');
+        $db->setQuery($query);
+        $rows = $db->loadColumn() ?: [];
+        return array_values($rows);
+    }
+
+    /**
+     * Get work orders for report by date range and optional client, NIT, sales agent
+     *
+     * @param   string  $dateFrom    Start date (Y-m-d)
+     * @param   string  $dateTo      End date (Y-m-d)
+     * @param   string  $clientName  Optional client name filter
+     * @param   string  $nit         Optional NIT filter
+     * @param   string  $salesAgent  Optional sales agent filter
      *
      * @return  array  List of objects with orden_de_trabajo, work_description, invoice_value, client_name
      *
      * @since   3.6.0
      */
-    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '')
+    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
     {
         $db = Factory::getDbo();
         $query = $db->getQuery(true)
@@ -221,6 +246,9 @@ class AdministracionModel extends BaseDatabaseModel
         }
         if (!empty($nit)) {
             $query->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
+        }
+        if (!empty($salesAgent)) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
 
         $query->order($db->quoteName('orden_de_trabajo') . ' ASC');

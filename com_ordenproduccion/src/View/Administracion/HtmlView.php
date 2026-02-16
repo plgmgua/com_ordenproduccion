@@ -199,6 +199,22 @@ class HtmlView extends BaseHtmlView
     protected $reportNit = '';
 
     /**
+     * Report filter: sales agent
+     *
+     * @var    string
+     * @since  3.6.0
+     */
+    protected $reportSalesAgent = '';
+
+    /**
+     * Sales agents list for report dropdown
+     *
+     * @var    array
+     * @since  3.6.0
+     */
+    protected $reportSalesAgents = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -280,6 +296,8 @@ class HtmlView extends BaseHtmlView
         $this->reportDateTo = '';
         $this->reportClient = '';
         $this->reportNit = '';
+        $this->reportSalesAgent = '';
+        $this->reportSalesAgents = [];
         
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -369,19 +387,22 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        // Load reportes tab data: work orders by date/client (client suggestions via AJAX)
+        // Load reportes tab data: work orders by date/client/NIT/sales agent (client/NIT suggestions via AJAX)
         if ($activeTab === 'reportes') {
             try {
                 $statsModel = $this->getModel('Administracion');
+                $this->reportSalesAgents = $statsModel->getReportSalesAgents();
                 $this->reportDateFrom = $input->getString('filter_report_date_from', '');
                 $this->reportDateTo = $input->getString('filter_report_date_to', '');
                 $this->reportClient = $input->getString('filter_report_client', '');
                 $this->reportNit = $input->getString('filter_report_nit', '');
+                $this->reportSalesAgent = $input->getString('filter_report_sales_agent', '');
                 $this->reportWorkOrders = $statsModel->getReportWorkOrders(
                     $this->reportDateFrom,
                     $this->reportDateTo,
                     $this->reportClient,
-                    $this->reportNit
+                    $this->reportNit,
+                    $this->reportSalesAgent
                 );
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
