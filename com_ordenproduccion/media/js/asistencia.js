@@ -158,7 +158,10 @@
         form.querySelector('#filter_search').value = '';
         form.querySelector('#filter_date_from').value = '';
         form.querySelector('#filter_date_to').value = '';
-        form.querySelector('#filter_cardno').value = '';
+        // Multi-select: deselect all options
+        [].forEach.call(form.querySelectorAll('#filter_cardno option, #filter_group_id option'), function(opt) {
+            opt.selected = false;
+        });
         form.querySelector('#filter_is_complete').value = '';
         form.querySelector('#filter_is_late').value = '';
         

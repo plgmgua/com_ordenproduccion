@@ -76,12 +76,13 @@ class AsistenciaModel extends ListModel
         $dateTo = $app->getUserStateFromRequest($this->context . '.filter.date_to', 'filter_date_to', '', 'string');
         $this->setState('filter.date_to', $dateTo);
 
-        // Employee filter
-        $cardno = $app->getUserStateFromRequest($this->context . '.filter.cardno', 'filter_cardno', '', 'string');
-        $this->setState('filter.cardno', $cardno);
+        // Employee filter (array for multi-select)
+        $cardno = $app->getUserStateFromRequest($this->context . '.filter.cardno', 'filter_cardno', [], 'array');
+        $this->setState('filter.cardno', is_array($cardno) ? array_values(array_filter($cardno, 'strlen')) : []);
 
-        // Group filter
-        $groupId = $app->getUserStateFromRequest($this->context . '.filter.group_id', 'filter_group_id', '', 'int');
+        // Group filter (array for multi-select)
+        $groupId = $app->getUserStateFromRequest($this->context . '.filter.group_id', 'filter_group_id', [], 'array');
+        $groupId = is_array($groupId) ? array_values(array_filter(array_map('intval', $groupId))) : [];
         $this->setState('filter.group_id', $groupId);
 
         // Status filters
@@ -116,8 +117,8 @@ class AsistenciaModel extends ListModel
         $id .= ':' . $this->getState('filter.search');
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
-        $id .= ':' . $this->getState('filter.cardno');
-        $id .= ':' . $this->getState('filter.group_id');
+        $id .= ':' . implode(',', (array) $this->getState('filter.cardno', []));
+        $id .= ':' . implode(',', (array) $this->getState('filter.group_id', []));
         $id .= ':' . $this->getState('filter.is_complete');
         $id .= ':' . $this->getState('filter.is_late');
 
@@ -177,16 +178,20 @@ class AsistenciaModel extends ListModel
             $query->where($db->quoteName('a.work_date') . ' <= ' . $db->quote($dateTo));
         }
 
-        // Filter by employee
-        $cardno = $this->getState('filter.cardno');
+        // Filter by employee(s) - supports multi-select (personname or cardno)
+        $cardno = (array) $this->getState('filter.cardno', []);
+        $cardno = array_values(array_filter($cardno, 'strlen'));
         if (!empty($cardno)) {
-            $query->where($db->quoteName('a.cardno') . ' = ' . $db->quote($cardno));
+            $cardnoQuoted = array_map([$db, 'quote'], $cardno);
+            $query->where('(' . $db->quoteName('a.personname') . ' IN (' . implode(',', $cardnoQuoted) . ') OR ' .
+                         $db->quoteName('a.cardno') . ' IN (' . implode(',', $cardnoQuoted) . '))');
         }
 
-        // Filter by employee group
-        $groupId = $this->getState('filter.group_id');
+        // Filter by employee group(s) - supports multi-select
+        $groupId = (array) $this->getState('filter.group_id', []);
+        $groupId = array_values(array_filter(array_map('intval', $groupId)));
         if (!empty($groupId)) {
-            $query->where($db->quoteName('e.group_id') . ' = ' . (int) $groupId);
+            $query->where($db->quoteName('e.group_id') . ' IN (' . implode(',', $groupId) . ')');
         }
 
         // Filter by complete status

@@ -32,12 +32,12 @@ $wa->useScript('form.validate');
 $listOrder = $this->escape($this->state->get('list.ordering', 'a.work_date'));
 $listDirn = $this->escape($this->state->get('list.direction', 'DESC'));
 
-// Get filter values
+// Get filter values (cardno and group_id are arrays for multi-select)
 $filterSearch = $this->state->get('filter.search');
 $filterDateFrom = $this->state->get('filter.date_from');
 $filterDateTo = $this->state->get('filter.date_to');
-$filterCardno = $this->state->get('filter.cardno');
-$filterGroupId = $this->state->get('filter.group_id');
+$filterCardno = (array) $this->state->get('filter.cardno', []);
+$filterGroupId = (array) $this->state->get('filter.group_id', []);
 $filterIsComplete = $this->state->get('filter.is_complete');
 $filterIsLate = $this->state->get('filter.is_late');
 ?>
@@ -114,27 +114,26 @@ $filterIsLate = $this->state->get('filter.is_late');
                     </div>
                     <div class="col-md-2">
                         <label for="filter_cardno" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE'); ?></label>
-                        <select name="filter_cardno" id="filter_cardno" class="form-select">
-                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_EMPLOYEES'); ?></option>
+                        <select name="filter_cardno[]" id="filter_cardno" class="form-select" multiple size="5" title="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?>">
                             <?php foreach ($this->employees as $employee): ?>
-                                <option value="<?php echo safeEscape($employee->cardno); ?>" 
-                                        <?php echo ($filterCardno == $employee->cardno) ? 'selected' : ''; ?>>
+                                <?php $val = safeEscape($employee->personname ?: $employee->cardno); ?>
+                                <option value="<?php echo $val; ?>" <?php echo in_array($val, $filterCardno, true) ? 'selected' : ''; ?>>
                                     <?php echo safeEscape($employee->personname); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <small class="text-muted form-text"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?></small>
                     </div>
                     <div class="col-md-2">
                         <label for="filter_group_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'); ?></label>
-                        <select name="filter_group_id" id="filter_group_id" class="form-select">
-                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?></option>
+                        <select name="filter_group_id[]" id="filter_group_id" class="form-select" multiple size="5" title="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?>">
                             <?php foreach ($this->groups as $group): ?>
-                                <option value="<?php echo (int) $group->id; ?>" 
-                                        <?php echo ($filterGroupId == $group->id) ? 'selected' : ''; ?>>
+                                <option value="<?php echo (int) $group->id; ?>" <?php echo in_array((int) $group->id, $filterGroupId, true) ? 'selected' : ''; ?>>
                                     <?php echo safeEscape($group->name); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <small class="text-muted form-text"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?></small>
                     </div>
                     <div class="col-md-1">
                         <label for="filter_is_complete" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'); ?></label>
