@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.58.0-STABLE] - 2025-02-16
+
+### Added
+- **Clientes list sort & filter**
+  - Sort by Name, Compras, or Saldo (asc/desc)
+  - Option to hide clients with Saldo 0
+
 ## [3.57.0-STABLE] - 2025-02-16
 
 ### Added

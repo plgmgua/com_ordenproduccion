@@ -409,7 +409,13 @@ class HtmlView extends BaseHtmlView
         if ($activeTab === 'clientes') {
             try {
                 $statsModel = $this->getModel('Administracion');
-                $this->clients = $statsModel->getClientsWithTotals();
+                $clientesOrdering = $input->getString('filter_clientes_ordering', 'name');
+                $clientesDirection = $input->getString('filter_clientes_direction', 'asc');
+                $clientesHideZero = (bool) $input->getInt('filter_clientes_hide_zero', 0);
+                $this->clients = $statsModel->getClientsWithTotals($clientesOrdering, $clientesDirection, $clientesHideZero);
+                $this->clientesOrdering = $clientesOrdering;
+                $this->clientesDirection = $clientesDirection;
+                $this->clientesHideZero = $clientesHideZero;
                 $user = Factory::getUser();
                 $this->canMergeClients = $user && $user->authorise('core.admin');
                 $this->canInitializeOpeningBalances = $user && $user->authorise('core.admin');

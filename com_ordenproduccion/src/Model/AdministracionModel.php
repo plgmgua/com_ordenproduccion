@@ -262,16 +262,45 @@ class AdministracionModel extends BaseDatabaseModel
      * Get all clients from work orders with Saldo (balance) using Jan 1 2026 accounting cutover.
      * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
      *
-     * @return  array  List of objects with client_name, nit, order_count, total_invoice_value,
-     *                 invoice_value_to_dec31_2025, initial_paid_to_dec31_2025, paid_from_jan2026, saldo
+     * @param   string   $ordering        Sort column: name, compras, saldo
+     * @param   string   $direction       Sort direction: asc, desc
+     * @param   boolean  $hideZeroSaldo   Hide clients with Saldo = 0
+     *
+     * @return  array  List of objects with client_name, nit, order_count, compras, saldo, etc.
      *
      * @since   3.54.0
      * @since   3.56.0  Added Saldo, opening balance, payments from Jan 1 2026
      */
-    public function getClientsWithTotals()
+    public function getClientsWithTotals($ordering = 'name', $direction = 'asc', $hideZeroSaldo = false)
     {
         $clients = $this->buildClientsWithBalances();
         $this->syncClientBalances($clients);
+
+        if ($hideZeroSaldo) {
+            $clients = array_filter($clients, function ($c) {
+                return (float) ($c->saldo ?? 0) > 0;
+            });
+            $clients = array_values($clients);
+        }
+
+        $dir = strtolower($direction ?? 'asc') === 'desc' ? -1 : 1;
+        usort($clients, function ($a, $b) use ($ordering, $dir) {
+            $o = strtolower($ordering ?? 'name');
+            if ($o === 'compras') {
+                $va = (float) ($a->compras ?? 0);
+                $vb = (float) ($b->compras ?? 0);
+                return $dir * ($va <=> $vb);
+            }
+            if ($o === 'saldo') {
+                $va = (float) ($a->saldo ?? 0);
+                $vb = (float) ($b->saldo ?? 0);
+                return $dir * ($va <=> $vb);
+            }
+            $na = trim($a->client_name ?? '') . '|' . trim($a->nit ?? '');
+            $nb = trim($b->client_name ?? '') . '|' . trim($b->nit ?? '');
+            return $dir * strcasecmp($na, $nb);
+        });
+
         return $clients;
     }
 
