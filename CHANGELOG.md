@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.63.0-STABLE] - 2025-02-16
+
+### Added
+- **Half-day work option** for company holidays (e.g. Easter Wednesday 7am–12pm)
+  - Festivos form: "Full day off" vs "Half day" with start/end time inputs
+  - Half days count as work days; on-time and early-exit use the half-day schedule
+  - Full days off reduce expected work days; half days do not
+
+### Database Changes
+- `joomla_ordenproduccion_company_holidays`: add `is_half_day`, `start_time`, `end_time`
+- Migration: 3.63.0.sql
+
 ## [3.62.0-STABLE] - 2025-02-16
 
 ### Added

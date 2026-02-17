@@ -121,7 +121,10 @@ class AsistenciaController extends BaseController
         $data = [
             'id' => $app->input->getInt('id', 0),
             'holiday_date' => $app->input->getString('holiday_date', ''),
-            'name' => $app->input->getString('name', '')
+            'name' => $app->input->getString('name', ''),
+            'is_half_day' => $app->input->getInt('is_half_day', 0),
+            'start_time' => $app->input->getString('start_time', ''),
+            'end_time' => $app->input->getString('end_time', '')
         ];
 
         if ($model->saveCompanyHoliday($data)) {

@@ -873,6 +873,7 @@ class AsistenciaModel extends ListModel
                 ->select($db->quoteName('holiday_date'))
                 ->from($db->quoteName('#__ordenproduccion_company_holidays'))
                 ->where($db->quoteName('state') . ' = 1')
+                ->where('(COALESCE(' . $db->quoteName('is_half_day') . ', 0) = 0)')
                 ->where($db->quoteName('holiday_date') . ' >= ' . $db->quote($dateFrom))
                 ->where($db->quoteName('holiday_date') . ' <= ' . $db->quote($dateTo));
             $db->setQuery($query);
@@ -1175,29 +1176,42 @@ class AsistenciaModel extends ListModel
             $id = isset($data['id']) ? (int) $data['id'] : 0;
             $date = $data['holiday_date'] ?? '';
             $name = $data['name'] ?? '';
+            $isHalfDay = !empty($data['is_half_day']) ? 1 : 0;
+            $startTime = $isHalfDay && !empty($data['start_time']) ? $data['start_time'] : null;
+            $endTime = $isHalfDay && !empty($data['end_time']) ? $data['end_time'] : null;
+            if ($startTime && strlen($startTime) === 5) {
+                $startTime .= ':00';
+            }
+            if ($endTime && strlen($endTime) === 5) {
+                $endTime .= ':00';
+            }
 
             if (empty($date)) {
                 return false;
             }
 
             if ($id) {
-                $db->setQuery(
-                    $db->getQuery(true)
-                        ->update($db->quoteName('#__ordenproduccion_company_holidays'))
-                        ->set($db->quoteName('holiday_date') . ' = ' . $db->quote($date))
-                        ->set($db->quoteName('name') . ' = ' . $db->quote($name))
-                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
-                        ->where($db->quoteName('id') . ' = ' . $id)
-                );
+                $updater = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_company_holidays'))
+                    ->set($db->quoteName('holiday_date') . ' = ' . $db->quote($date))
+                    ->set($db->quoteName('name') . ' = ' . $db->quote($name))
+                    ->set($db->quoteName('is_half_day') . ' = ' . $isHalfDay)
+                    ->set($db->quoteName('start_time') . ' = ' . ($startTime ? $db->quote($startTime) : 'NULL'))
+                    ->set($db->quoteName('end_time') . ' = ' . ($endTime ? $db->quote($endTime) : 'NULL'))
+                    ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                    ->where($db->quoteName('id') . ' = ' . $id);
+                $db->setQuery($updater);
                 $db->execute();
                 return $id;
             }
 
+            $cols = [$db->quoteName('holiday_date'), $db->quoteName('name'), $db->quoteName('is_half_day'), $db->quoteName('start_time'), $db->quoteName('end_time'), $db->quoteName('created_by')];
+            $vals = $db->quote($date) . ', ' . $db->quote($name) . ', ' . $isHalfDay . ', ' . ($startTime ? $db->quote($startTime) : 'NULL') . ', ' . ($endTime ? $db->quote($endTime) : 'NULL') . ', ' . (int) $user->id;
             $db->setQuery(
                 $db->getQuery(true)
                     ->insert($db->quoteName('#__ordenproduccion_company_holidays'))
-                    ->columns([$db->quoteName('holiday_date'), $db->quoteName('name'), $db->quoteName('created_by')])
-                    ->values($db->quote($date) . ', ' . $db->quote($name) . ', ' . (int) $user->id)
+                    ->columns($cols)
+                    ->values($vals)
             );
             $db->execute();
             return (int) $db->insertid();

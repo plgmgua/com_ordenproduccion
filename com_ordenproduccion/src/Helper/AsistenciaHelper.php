@@ -242,7 +242,17 @@ class AsistenciaHelper
         
         $lunchBreakHours = 1.0;
 
-        if ($employee) {
+        // Company half-day overrides group schedule (e.g. Easter Wednesday 7am-12pm)
+        $companyHalfDay = self::getCompanyHalfDay($date);
+        if ($companyHalfDay) {
+            $workStart = $companyHalfDay->start_time;
+            $workEnd = $companyHalfDay->end_time;
+            $expectedHours = $companyHalfDay->expected_hours;
+            $lunchBreakHours = 0; // No lunch for half-day shifts
+            if ($employee && isset($employee->grace_period_minutes)) {
+                $graceMinutes = (int) $employee->grace_period_minutes;
+            }
+        } elseif ($employee) {
             // Check if group has weekly schedule
             $daySchedule = null;
             if (!empty($employee->weekly_schedule)) {
@@ -641,6 +651,52 @@ class AsistenciaHelper
     public static function getStatusText($isComplete)
     {
         return $isComplete ? 'Complete' : 'Incomplete';
+    }
+
+    /**
+     * Get company half-day schedule for a date (e.g. Easter Wednesday 7am-12pm)
+     *
+     * @param   string  $date  Date in Y-m-d format
+     *
+     * @return  object|null  {start_time, end_time, expected_hours} or null if not a half day
+     *
+     * @since   3.63.0
+     */
+    public static function getCompanyHalfDay($date)
+    {
+        self::init();
+        try {
+            $query = self::$db->getQuery(true)
+                ->select([
+                    self::$db->quoteName('start_time'),
+                    self::$db->quoteName('end_time')
+                ])
+                ->from(self::$db->quoteName('#__ordenproduccion_company_holidays'))
+                ->where(self::$db->quoteName('state') . ' = 1')
+                ->where(self::$db->quoteName('holiday_date') . ' = ' . self::$db->quote($date))
+                ->where('COALESCE(' . self::$db->quoteName('is_half_day') . ', 0) = 1')
+                ->where(self::$db->quoteName('start_time') . ' IS NOT NULL')
+                ->where(self::$db->quoteName('end_time') . ' IS NOT NULL');
+            self::$db->setQuery($query);
+            $row = self::$db->loadObject();
+            if ($row && $row->start_time && $row->end_time) {
+                $start = new \DateTime($row->start_time);
+                $end = new \DateTime($row->end_time);
+                $diff = $start->diff($end);
+                $expectedHours = $diff->h + ($diff->i / 60) + ($diff->s / 3600);
+                if ($expectedHours < 0) {
+                    $expectedHours += 24;
+                }
+                return (object) [
+                    'start_time' => $row->start_time,
+                    'end_time' => $row->end_time,
+                    'expected_hours' => round($expectedHours, 2)
+                ];
+            }
+        } catch (\Exception $e) {
+            // Table or columns may not exist
+        }
+        return null;
     }
 }
 
