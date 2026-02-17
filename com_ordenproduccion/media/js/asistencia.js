@@ -46,6 +46,74 @@
 
         // Add click handlers for statistics cards
         addStatisticsCardHandlers();
+
+        // Initialize checkbox dropdowns (Grupo, Empleado)
+        initCheckboxDropdowns();
+    }
+
+    /**
+     * Initialize checkbox dropdowns for multi-select filters
+     */
+    function initCheckboxDropdowns() {
+        const dropdowns = document.querySelectorAll('.com-ordenproduccion-asistencia .checkbox-dropdown');
+        dropdowns.forEach(function(dd) {
+            const toggle = dd.querySelector('.checkbox-dropdown-toggle');
+            const panel = dd.querySelector('.checkbox-dropdown-panel');
+            const labelEl = dd.querySelector('.checkbox-dropdown-label');
+            const checkboxes = panel.querySelectorAll('input[type="checkbox"]');
+            const allLabel = dd.getAttribute('data-all-label') || 'All';
+            const selectedLabel = dd.getAttribute('data-selected-label') || '%d selected';
+
+            function updateLabel() {
+                const n = [].slice.call(checkboxes).filter(function(cb) { return cb.checked; }).length;
+                labelEl.textContent = n === 0 ? allLabel : selectedLabel.replace('%d', n);
+            }
+
+            function close() {
+                dd.classList.remove('open');
+                if (toggle) toggle.setAttribute('aria-expanded', 'false');
+            }
+
+            function open() {
+                dd.classList.add('open');
+                if (toggle) toggle.setAttribute('aria-expanded', 'true');
+            }
+
+            if (toggle && panel) {
+                toggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (dd.classList.contains('open')) {
+                        close();
+                    } else {
+                        document.querySelectorAll('.com-ordenproduccion-asistencia .checkbox-dropdown.open').forEach(function(o) {
+                            o.classList.remove('open');
+                            o.querySelector('.checkbox-dropdown-toggle').setAttribute('aria-expanded', 'false');
+                        });
+                        open();
+                    }
+                });
+            }
+
+            checkboxes.forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    updateLabel();
+                    submitFilterForm();
+                });
+            });
+
+            updateLabel();
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.checkbox-dropdown')) {
+                document.querySelectorAll('.com-ordenproduccion-asistencia .checkbox-dropdown.open').forEach(function(dd) {
+                    dd.classList.remove('open');
+                    const t = dd.querySelector('.checkbox-dropdown-toggle');
+                    if (t) t.setAttribute('aria-expanded', 'false');
+                });
+            }
+        });
     }
 
     /**
@@ -155,17 +223,28 @@
         if (!form) return;
         
         // Clear all filter inputs
-        form.querySelector('#filter_search').value = '';
-        form.querySelector('#filter_date_from').value = '';
-        form.querySelector('#filter_date_to').value = '';
-        // Multi-select: deselect all options
-        [].forEach.call(form.querySelectorAll('#filter_cardno option, #filter_group_id option'), function(opt) {
-            opt.selected = false;
+        const searchEl = form.querySelector('#filter_search');
+        if (searchEl) searchEl.value = '';
+        const dateFromEl = form.querySelector('#filter_date_from');
+        if (dateFromEl) dateFromEl.value = '';
+        const dateToEl = form.querySelector('#filter_date_to');
+        if (dateToEl) dateToEl.value = '';
+        // Checkbox dropdowns: uncheck all
+        [].forEach.call(form.querySelectorAll('.checkbox-dropdown input[type="checkbox"]'), function(cb) {
+            cb.checked = false;
         });
-        form.querySelector('#filter_is_complete').value = '';
-        form.querySelector('#filter_is_late').value = '';
+        const isCompleteEl = form.querySelector('#filter_is_complete');
+        if (isCompleteEl) isCompleteEl.value = '';
+        const isLateEl = form.querySelector('#filter_is_late');
+        if (isLateEl) isLateEl.value = '';
         
-        // Submit form
+        // Update dropdown labels
+        document.querySelectorAll('.com-ordenproduccion-asistencia .checkbox-dropdown').forEach(function(dd) {
+            const labelEl = dd.querySelector('.checkbox-dropdown-label');
+            const allLabel = dd.getAttribute('data-all-label') || 'All';
+            if (labelEl) labelEl.textContent = allLabel;
+        });
+        
         form.submit();
     };
 

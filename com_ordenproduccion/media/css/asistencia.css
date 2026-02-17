@@ -109,6 +109,90 @@
     box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
 }
 
+/* Checkbox dropdown - multi-select with checkboxes */
+.com-ordenproduccion-asistencia .checkbox-dropdown {
+    position: relative;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    color: #212529;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    text-align: left;
+    min-height: 38px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-toggle:hover {
+    border-color: #adb5bd;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-toggle:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    outline: 0;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-toggle .dropdown-caret {
+    margin-left: 0.5rem;
+    opacity: 0.6;
+    font-size: 0.65rem;
+    transition: transform 0.2s ease;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown.open .checkbox-dropdown-toggle .dropdown-caret {
+    transform: rotate(180deg);
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    margin-top: 2px;
+    padding: 0.5rem 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown.open .checkbox-dropdown-panel {
+    display: block;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-option {
+    display: block;
+    margin: 0;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-option:hover {
+    background-color: #f8f9fa;
+}
+
+.com-ordenproduccion-asistencia .checkbox-dropdown-option input[type="checkbox"] {
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
 /* ==========================================
    Table Styles
    ========================================== */

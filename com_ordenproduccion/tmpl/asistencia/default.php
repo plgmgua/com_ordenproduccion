@@ -113,27 +113,39 @@ $filterIsLate = $this->state->get('filter.is_late');
                                value="<?php echo safeEscape($filterDateTo); ?>">
                     </div>
                     <div class="col-md-2">
-                        <label for="filter_cardno" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE'); ?></label>
-                        <select name="filter_cardno[]" id="filter_cardno" class="form-select" multiple size="5" title="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?>">
-                            <?php foreach ($this->employees as $employee): ?>
-                                <?php $val = safeEscape($employee->personname ?: $employee->cardno); ?>
-                                <option value="<?php echo $val; ?>" <?php echo in_array($val, $filterCardno, true) ? 'selected' : ''; ?>>
-                                    <?php echo safeEscape($employee->personname); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <small class="text-muted form-text"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?></small>
+                        <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE'); ?></label>
+                        <div class="checkbox-dropdown" id="filter_cardno_dropdown" data-all-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_EMPLOYEES'); ?>" data-selected-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SELECTED'); ?>">
+                            <button type="button" class="checkbox-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="checkbox-dropdown-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_EMPLOYEES'); ?></span>
+                                <span class="dropdown-caret" aria-hidden="true">&#9662;</span>
+                            </button>
+                            <div class="checkbox-dropdown-panel" role="listbox">
+                                <?php foreach ($this->employees as $employee): ?>
+                                    <?php $val = $employee->personname ?: $employee->cardno; ?>
+                                    <label class="checkbox-dropdown-option">
+                                        <input type="checkbox" name="filter_cardno[]" value="<?php echo $this->escape($val); ?>" <?php echo in_array($val, $filterCardno, true) ? 'checked' : ''; ?>>
+                                        <?php echo safeEscape($employee->personname); ?>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-2">
-                        <label for="filter_group_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'); ?></label>
-                        <select name="filter_group_id[]" id="filter_group_id" class="form-select" multiple size="5" title="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?>">
-                            <?php foreach ($this->groups as $group): ?>
-                                <option value="<?php echo (int) $group->id; ?>" <?php echo in_array((int) $group->id, $filterGroupId, true) ? 'selected' : ''; ?>>
-                                    <?php echo safeEscape($group->name); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <small class="text-muted form-text"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_MULTI_SELECT_HINT'); ?></small>
+                        <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'); ?></label>
+                        <div class="checkbox-dropdown" id="filter_group_id_dropdown" data-all-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?>" data-selected-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SELECTED'); ?>">
+                            <button type="button" class="checkbox-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="checkbox-dropdown-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?></span>
+                                <span class="dropdown-caret" aria-hidden="true">&#9662;</span>
+                            </button>
+                            <div class="checkbox-dropdown-panel" role="listbox">
+                                <?php foreach ($this->groups as $group): ?>
+                                    <label class="checkbox-dropdown-option">
+                                        <input type="checkbox" name="filter_group_id[]" value="<?php echo (int) $group->id; ?>" <?php echo in_array((int) $group->id, $filterGroupId, true) ? 'checked' : ''; ?>>
+                                        <?php echo safeEscape($group->name); ?>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-1">
                         <label for="filter_is_complete" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_STATUS'); ?></label>
