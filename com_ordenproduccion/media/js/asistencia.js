@@ -85,6 +85,7 @@
                     e.preventDefault();
                     if (dd.classList.contains('open')) {
                         close();
+                        submitFilterForm();
                     } else {
                         document.querySelectorAll('.com-ordenproduccion-asistencia .checkbox-dropdown.open').forEach(function(o) {
                             o.classList.remove('open');
@@ -98,7 +99,7 @@
             checkboxes.forEach(function(cb) {
                 cb.addEventListener('change', function() {
                     updateLabel();
-                    submitFilterForm();
+                    /* Do not auto-submit here - allows multi-select; submit when dropdown closes */
                 });
             });
 
@@ -107,11 +108,13 @@
 
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.checkbox-dropdown')) {
+                const hadOpen = document.querySelector('.com-ordenproduccion-asistencia .checkbox-dropdown.open');
                 document.querySelectorAll('.com-ordenproduccion-asistencia .checkbox-dropdown.open').forEach(function(dd) {
                     dd.classList.remove('open');
                     const t = dd.querySelector('.checkbox-dropdown-toggle');
                     if (t) t.setAttribute('aria-expanded', 'false');
                 });
+                if (hadOpen) submitFilterForm();
             }
         });
     }
