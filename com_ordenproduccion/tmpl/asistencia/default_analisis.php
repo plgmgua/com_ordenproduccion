@@ -7,7 +7,6 @@
  */
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
@@ -21,11 +20,14 @@ function safeEscapeAnalisis($v, $d = '') {
 }
 
 $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.getAnalysisDetails&format=json', false);
+$msgLoadError = AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_LOAD_ERROR', 'Error loading data', 'Error al cargar los datos');
+$msgYes = AsistenciaHelper::safeText('JYES', 'Yes', 'Sí');
+$msgNo = AsistenciaHelper::safeText('JNO', 'No', 'No');
 ?>
 
 <div class="card mb-3">
     <div class="card-header">
-        <h5 class="mb-0">Análisis de Puntualidad</h5>
+        <h5 class="mb-0"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ANALISIS_TITLE', 'Punctuality Analysis', 'Análisis de Puntualidad'); ?></h5>
     </div>
     <div class="card-body">
         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=analisis'); ?>" class="row g-3 mb-4">
@@ -33,7 +35,7 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
             <input type="hidden" name="view" value="asistencia" />
             <input type="hidden" name="tab" value="analisis" />
             <div class="col-md-6">
-                <label for="quincena" class="form-label">Quincena</label>
+                <label for="quincena" class="form-label"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_QUINCENA', 'Quincena', 'Quincena'); ?></label>
                 <select name="quincena" id="quincena" class="form-select" onchange="this.form.submit()">
                     <?php foreach ($quincenas as $q): ?>
                     <option value="<?php echo safeEscapeAnalisis($q->value); ?>" <?php echo $q->value === $selectedQuincena ? 'selected' : ''; ?>>
@@ -44,10 +46,16 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
             </div>
         </form>
 
-        <p class="text-muted">Empleados con % de llegadas a tiempo >= <?php echo (int) $config->on_time_threshold; ?>% (configurable en Configuración)</p>
+        <?php
+        $thresholdDesc = AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ANALISIS_THRESHOLD_DESC',
+            'Employees with on-time arrival % >= %d%% (configurable in Configuration)',
+            'Empleados con % de llegadas a tiempo >= %d%% (configurable en Configuración)');
+        $thresholdDesc = str_replace(['%d', '%%'], [(string) (int) $config->on_time_threshold, '%'], $thresholdDesc);
+        ?>
+        <p class="text-muted"><?php echo htmlspecialchars($thresholdDesc, ENT_QUOTES, 'UTF-8'); ?></p>
 
         <?php if (empty($analysisData)): ?>
-        <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?></p>
+        <p class="text-muted"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS', 'No attendance records found', 'No se encontraron registros de asistencia'); ?></p>
         <?php else: ?>
         <?php foreach ($analysisData as $group): ?>
         <div class="mb-4">
@@ -60,12 +68,12 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
                 <table class="table table-sm table-striped">
                     <thead class="table-light">
                         <tr>
-                            <th>Empleado</th>
-                            <th class="text-center">Días trabajados</th>
-                            <th class="text-center">Llegadas a tiempo</th>
-                            <th class="text-center">% Puntualidad</th>
-                            <th class="text-center">Estado</th>
-                            <th class="text-center">Acciones</th>
+                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE', 'Employee', 'Empleado'); ?></th>
+                            <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_DAYS', 'Days worked', 'Días trabajados'); ?></th>
+                            <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_DAYS', 'On-time arrivals', 'Llegadas a tiempo'); ?></th>
+                            <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_PUNCTUALITY_PCT', 'Punctuality', 'Puntualidad'); ?> %</th>
+                            <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_STATUS', 'Status', 'Estado'); ?></th>
+                            <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ACTIONS', 'Actions', 'Acciones'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -77,16 +85,16 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
                             <td class="text-center"><strong><?php echo number_format($emp->on_time_pct, 1); ?>%</strong></td>
                             <td class="text-center">
                                 <?php if ($emp->meets_threshold): ?>
-                                <span class="badge bg-success">Cumple</span>
+                                <span class="badge bg-success"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_OK', 'Complies', 'Cumple'); ?></span>
                                 <?php else: ?>
-                                <span class="badge bg-warning text-dark">Debajo</span>
+                                <span class="badge bg-warning text-dark"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_BELOW', 'Below', 'Debajo'); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-outline-primary btn-analisis-detalle"
                                     data-personname="<?php echo safeEscapeAnalisis($emp->personname); ?>"
-                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DETAILS'); ?>">
-                                    <span class="icon-eye"></span> <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DETAILS'); ?>
+                                    title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DETAILS', 'View details', 'Ver detalle'); ?>">
+                                    <span class="icon-eye"></span> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DETAILS', 'View details', 'Ver detalle'); ?>
                                 </button>
                             </td>
                         </tr>
@@ -106,33 +114,33 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalAnalisisDetalleTitle">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DETAILS'); ?>: <span id="modalAnalisisEmployee"></span>
+                    <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_VIEW_DETAILS', 'View details', 'Ver detalle'); ?>: <span id="modalAnalisisEmployee"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div id="modalAnalisisLoading" class="text-center py-4">
                     <span class="spinner-border text-primary"></span>
-                    <p class="mt-2 text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_LOADING'); ?></p>
+                    <p class="mt-2 text-muted"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_LOADING', 'Loading...', 'Cargando...'); ?></p>
                 </div>
                 <div id="modalAnalisisContent" class="d-none">
                     <p class="mb-3">
-                        <strong><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_DAYS'); ?>:</strong>
+                        <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_DAYS', 'Days worked', 'Días trabajados'); ?>:</strong>
                         <span id="modalTotalDays"></span> |
-                        <strong><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_DAYS'); ?>:</strong>
+                        <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_DAYS', 'On-time arrivals', 'Llegadas a tiempo'); ?>:</strong>
                         <span id="modalOnTimeDays"></span> |
-                        <strong><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PUNCTUALITY_PCT'); ?>:</strong>
+                        <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_PUNCTUALITY_PCT', 'Punctuality', 'Puntualidad'); ?>:</strong>
                         <span id="modalOnTimePct"></span>%
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped">
                             <thead class="table-light">
                                 <tr>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'); ?></th>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'); ?></th>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'); ?></th>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'); ?></th>
-                                    <th class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LATE'); ?></th>
+                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE', 'Work Date', 'Fecha de trabajo'); ?></th>
+                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY', 'First Entry', 'Primera entrada'); ?></th>
+                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT', 'Last Exit', 'Última salida'); ?></th>
+                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS', 'Total Hours', 'Horas totales'); ?></th>
+                                    <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_LATE', 'Late', 'Llegada tarde'); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="modalAnalisisTableBody"></tbody>
@@ -140,7 +148,7 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
                     </div>
                 </div>
                 <div id="modalAnalisisError" class="alert alert-danger d-none"></div>
-                <div id="modalAnalisisEmpty" class="alert alert-info d-none"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?></div>
+                <div id="modalAnalisisEmpty" class="alert alert-info d-none"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS', 'No attendance records found', 'No se encontraron registros de asistencia'); ?></div>
             </div>
         </div>
     </div>
@@ -149,6 +157,9 @@ $detailsUrl = Route::_('index.php?option=com_ordenproduccion&task=asistencia.get
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var detailsUrl = <?php echo json_encode($detailsUrl); ?>;
+    var msgLoadError = <?php echo json_encode($msgLoadError); ?>;
+    var msgYes = <?php echo json_encode($msgYes); ?>;
+    var msgNo = <?php echo json_encode($msgNo); ?>;
     var selectedQuincena = <?php echo json_encode($selectedQuincena); ?>;
     var btnDetails = document.querySelectorAll('.btn-analisis-detalle');
     var modal = document.getElementById('modalAnalisisDetalle');
@@ -229,14 +240,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             '<td>' + formatTime(r.last_exit) + '</td>' +
                             '<td>' + (r.total_hours != null ? parseFloat(r.total_hours).toFixed(2) : '-') + '</td>' +
                             '<td class="text-center">' + (r.is_late == 1 ?
-                                '<span class="badge bg-warning text-dark">Sí</span>' :
-                                '<span class="badge bg-success">No</span>') + '</td>';
+                                '<span class="badge bg-warning text-dark">' + msgYes + '</span>' :
+                                '<span class="badge bg-success">' + msgNo + '</span>') + '</td>';
                         tbody.appendChild(tr);
                     });
                     showModal('content');
                 })
                 .catch(function(err) {
-                    modalError.textContent = err.message || 'Error al cargar los datos';
+                    modalError.textContent = err.message || msgLoadError;
                     showModal('error');
                 });
         });
