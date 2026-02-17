@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sort by Name, Compras, or Saldo (asc/desc)
   - Option to hide clients with Saldo 0
 
+### Fixed
+- **Excel report column headers** – Now display in Spanish (Orden de trabajo, Nombre del cliente, etc.) instead of language constant names
+
 ## [3.57.0-STABLE] - 2025-02-16
 
 ### Added

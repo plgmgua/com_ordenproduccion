@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\LanguageFactoryInterface;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
@@ -57,17 +58,19 @@ class AdministracionController extends BaseController
             return;
         }
 
-        $lang = $app->getLanguage();
+        // Use Spanish for Excel column headers (reportes)
+        $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage('es-ES');
         $lang->load('com_ordenproduccion', JPATH_SITE);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
         $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
         $cols = [
-            Text::_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_ORDER'),
-            Text::_('COM_ORDENPRODUCCION_REPORTES_COL_CLIENT_NAME'),
-            Text::_('COM_ORDENPRODUCCION_REPORTES_COL_REQUEST_DATE'),
-            Text::_('COM_ORDENPRODUCCION_REPORTES_COL_DELIVERY_DATE'),
-            Text::_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'),
-            Text::_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_ORDER'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_CLIENT_NAME'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_REQUEST_DATE'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_DELIVERY_DATE'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'),
         ];
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
