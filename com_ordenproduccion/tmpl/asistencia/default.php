@@ -26,6 +26,16 @@ function safeEscape($value, $default = '') {
     return $default;
 }
 
+// Fallback when language string not found (avoids raw keys like COM_ORDENPRODUCCION_*)
+function safeTranslate($key, $enFallback, $esFallback = null) {
+    $s = Text::_($key);
+    if ($s === $key) {
+        $tag = Factory::getApplication()->getLanguage()->getTag();
+        return $tag === 'es-ES' ? ($esFallback ?? $enFallback) : $enFallback;
+    }
+    return $s;
+}
+
 $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
 $wa->useScript('form.validate');
 
@@ -114,7 +124,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                     </div>
                     <div class="col-md-2">
                         <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE'); ?></label>
-                        <div class="checkbox-dropdown" id="filter_cardno_dropdown" data-all-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_EMPLOYEES'); ?>" data-selected-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SELECTED'); ?>">
+                        <div class="checkbox-dropdown" id="filter_cardno_dropdown" data-all-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_EMPLOYEES'); ?>" data-selected-label="<?php echo safeTranslate('COM_ORDENPRODUCCION_ASISTENCIA_SELECTED', '%d selected', '%d seleccionados'); ?>">
                             <button type="button" class="checkbox-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
                                 <span class="checkbox-dropdown-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_EMPLOYEES'); ?></span>
                                 <span class="dropdown-caret" aria-hidden="true">&#9662;</span>
@@ -132,7 +142,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                     </div>
                     <div class="col-md-2">
                         <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_GROUP'); ?></label>
-                        <div class="checkbox-dropdown" id="filter_group_id_dropdown" data-all-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?>" data-selected-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_SELECTED'); ?>">
+                        <div class="checkbox-dropdown" id="filter_group_id_dropdown" data-all-label="<?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?>" data-selected-label="<?php echo safeTranslate('COM_ORDENPRODUCCION_ASISTENCIA_SELECTED', '%d selected', '%d seleccionados'); ?>">
                             <button type="button" class="checkbox-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
                                 <span class="checkbox-dropdown-label"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALL_GROUPS'); ?></span>
                                 <span class="dropdown-caret" aria-hidden="true">&#9662;</span>
@@ -193,7 +203,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <th style="width: 110px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALERTS'); ?></th>
                         <th style="width: 100px;">Grupo</th>
                         <th style="width: 90px;">Fecha</th>
-                        <th style="width: 90px;"><?php echo Text::_('COM_ORDENPRODUCCION_DAY'); ?></th>
+                        <th style="width: 90px;"><?php echo safeTranslate('COM_ORDENPRODUCCION_DAY', 'Day', 'Día'); ?></th>
                         <th style="width: 70px;">Entrada</th>
                         <th style="width: 70px;">Salida</th>
                         <th style="width: 80px;">Horas</th>

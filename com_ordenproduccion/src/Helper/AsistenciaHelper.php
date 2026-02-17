@@ -577,7 +577,7 @@ class AsistenciaHelper
     }
 
     /**
-     * Get localized day name for a date
+     * Get localized day name for a date (uses IntlDateFormatter; no language file dependency)
      *
      * @param   string  $date  Date in Y-m-d format
      *
@@ -587,18 +587,48 @@ class AsistenciaHelper
      */
     public static function getDayName($date)
     {
-        $dayKeys = [
-            'COM_ORDENPRODUCCION_SUNDAY',
-            'COM_ORDENPRODUCCION_MONDAY',
-            'COM_ORDENPRODUCCION_TUESDAY',
-            'COM_ORDENPRODUCCION_WEDNESDAY',
-            'COM_ORDENPRODUCCION_THURSDAY',
-            'COM_ORDENPRODUCCION_FRIDAY',
-            'COM_ORDENPRODUCCION_SATURDAY'
+        $ts = strtotime($date);
+        if ($ts === false) {
+            return '';
+        }
+        $langTag = Factory::getApplication()->getLanguage()->getTag();
+        $locale = str_replace('-', '_', $langTag);
+        if (class_exists('IntlDateFormatter')) {
+            $fmt = new \IntlDateFormatter($locale, \IntlDateFormatter::FULL, \IntlDateFormatter::NONE, null, null, 'EEEE');
+            $formatted = $fmt->format($ts);
+            if ($formatted !== false && $formatted !== '') {
+                return $formatted;
+            }
+        }
+        $dayNames = [
+            'en-GB' => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+            'es-ES' => ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
         ];
-        $dayNum = (int) date('w', strtotime($date));
+        $dayNum = (int) date('w', $ts);
+        $names = $dayNames[$langTag] ?? $dayNames['en-GB'];
 
-        return Text::_($dayKeys[$dayNum]);
+        return $names[$dayNum];
+    }
+
+    /**
+     * Get translated string with fallback when language key not loaded
+     *
+     * @param   string  $key         Language key
+     * @param   string  $enFallback  English fallback
+     * @param   string  $esFallback  Spanish fallback
+     *
+     * @return  string
+     *
+     * @since   3.59.0
+     */
+    public static function safeText($key, $enFallback, $esFallback = null)
+    {
+        $s = Text::_($key);
+        if ($s === $key) {
+            $tag = Factory::getApplication()->getLanguage()->getTag();
+            return $tag === 'es-ES' ? ($esFallback ?? $enFallback) : $enFallback;
+        }
+        return $s;
     }
 
     /**
