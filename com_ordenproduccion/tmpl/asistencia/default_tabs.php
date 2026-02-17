@@ -74,10 +74,10 @@ $activeTab = $this->activeTab ?? 'registro';
         <i class="icon-chart"></i>
         <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TAB_ANALISIS', 'Análisis', 'Análisis'); ?>
     </a>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos'); ?>"
-       class="asistencia-tab <?php echo $activeTab === 'festivos' ? 'active' : ''; ?>">
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias'); ?>"
+       class="asistencia-tab <?php echo $activeTab === 'ausencias' ? 'active' : ''; ?>">
         <i class="icon-calendar"></i>
-        <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TAB_FESTIVOS', 'Festivos / Ausencias', 'Festivos / Ausencias'); ?>
+        <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TAB_AUSENCIAS', 'Ausencias', 'Ausencias'); ?>
     </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion'); ?>"
        class="asistencia-tab <?php echo $activeTab === 'configuracion' ? 'active' : ''; ?>">
@@ -91,8 +91,8 @@ $activeTab = $this->activeTab ?? 'registro';
         <?php echo $this->loadTemplate('registro'); ?>
     <?php elseif ($activeTab === 'analisis'): ?>
         <?php echo $this->loadTemplate('analisis'); ?>
-    <?php elseif ($activeTab === 'festivos'): ?>
-        <?php echo $this->loadTemplate('festivos'); ?>
+    <?php elseif ($activeTab === 'ausencias'): ?>
+        <?php echo $this->loadTemplate('ausencias'); ?>
     <?php elseif ($activeTab === 'configuracion'): ?>
         <?php echo $this->loadTemplate('configuracion'); ?>
     <?php else: ?>

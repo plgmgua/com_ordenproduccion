@@ -2,7 +2,7 @@
 /**
  * @package     Grimpsa.Component
  * @subpackage  com_ordenproduccion
- * Asistencia Configuración tab - work days of week, on-time threshold
+ * Asistencia Configuración tab - work days, threshold, and Días Festivos subtab
  * @copyright   Copyright (C) 2025 Grimpsa. All rights reserved.
  */
 
@@ -14,6 +14,28 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
+$configSubtab = $this->configSubtab ?? 'general';
+?>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=general'); ?>"
+           class="nav-link <?php echo $configSubtab === 'general' ? 'active' : ''; ?>">
+            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_CONFIG_GENERAL', 'General', 'General'); ?>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos'); ?>"
+           class="nav-link <?php echo $configSubtab === 'festivos' ? 'active' : ''; ?>">
+            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_HOLIDAYS_TITLE', 'Company Holidays', 'Días Festivos'); ?>
+        </a>
+    </li>
+</ul>
+
+<?php if ($configSubtab === 'festivos'): ?>
+    <?php echo $this->loadTemplate('configuracion_festivos'); ?>
+<?php else: ?>
+<?php
 $config = $this->asistenciaConfig ?? (object) ['work_days' => [1, 2, 3, 4, 5], 'on_time_threshold' => 90];
 $workDays = (array) ($config->work_days ?? [1, 2, 3, 4, 5]);
 $threshold = (int) ($config->on_time_threshold ?? 90);
@@ -28,7 +50,6 @@ $dayLabels = [
     6 => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SATURDAY', 'Saturday', 'Sábado'),
 ];
 ?>
-
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_CONFIG_TITLE', 'Configuración de Asistencia', 'Configuración de Asistencia'); ?></h5>
@@ -69,3 +90,4 @@ $dayLabels = [
         </form>
     </div>
 </div>
+<?php endif; ?>

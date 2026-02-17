@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Asistencia;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 
@@ -135,7 +136,12 @@ class HtmlView extends BaseHtmlView
 
         try {
             $input = $app->input;
-            $this->activeTab = $input->get('tab', 'registro', 'string');
+            $tab = $input->get('tab', 'registro', 'string');
+            if ($tab === 'festivos') {
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
+                return;
+            }
+            $this->activeTab = $tab;
 
             $this->items = $this->get('Items');
             $this->pagination = $this->get('Pagination');
@@ -168,6 +174,7 @@ class HtmlView extends BaseHtmlView
             $this->festivosFilterYear = $filterYear;
             $this->festivosFilterMonth = $filterMonth;
             $this->festivosFilterPerson = $filterPerson;
+            $this->configSubtab = $input->get('subtab', 'general', 'string');
 
         } catch (\Exception $e) {
             $app->enqueueMessage($e->getMessage(), 'error');
@@ -186,6 +193,7 @@ class HtmlView extends BaseHtmlView
             $this->festivosFilterYear = (int) date('Y');
             $this->festivosFilterMonth = 0;
             $this->festivosFilterPerson = '';
+            $this->configSubtab = 'general';
         }
 
         $this->addToolbar();

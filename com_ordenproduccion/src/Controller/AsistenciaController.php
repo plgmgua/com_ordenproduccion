@@ -107,13 +107,13 @@ class AsistenciaController extends BaseController
 
         if ($user->guest) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos', false));
             return;
         }
 
         if (!\Joomla\CMS\Session\Session::checkToken()) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos', false));
             return;
         }
 
@@ -132,7 +132,7 @@ class AsistenciaController extends BaseController
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_HOLIDAY_ERROR'), 'error');
         }
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos', false));
     }
 
     /**
@@ -149,13 +149,13 @@ class AsistenciaController extends BaseController
 
         if ($user->guest) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos', false));
             return;
         }
 
         if (!\Joomla\CMS\Session\Session::checkToken()) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos', false));
             return;
         }
 
@@ -166,7 +166,7 @@ class AsistenciaController extends BaseController
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_HOLIDAY_DELETE_ERROR'), 'error');
         }
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion&subtab=festivos', false));
     }
 
     /**
@@ -183,13 +183,13 @@ class AsistenciaController extends BaseController
 
         if ($user->guest) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
             return;
         }
 
         if (!\Joomla\CMS\Session\Session::checkToken()) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
             return;
         }
 
@@ -206,7 +206,7 @@ class AsistenciaController extends BaseController
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_JUSTIFIED_ABSENCE_ERROR'), 'error');
         }
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
     }
 
     /**
@@ -223,13 +223,13 @@ class AsistenciaController extends BaseController
 
         if ($user->guest) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
             return;
         }
 
         if (!\Joomla\CMS\Session\Session::checkToken()) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
             return;
         }
 
@@ -240,7 +240,7 @@ class AsistenciaController extends BaseController
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_JUSTIFIED_ABSENCE_DELETE_ERROR'), 'error');
         }
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=ausencias', false));
     }
 
     /**
