@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.59.0-STABLE] - 2025-02-16
+
+### Added
+- **Control de Asistencia: Tabs (Registro, Análisis, Configuración)**
+  - **Registro tab**: Existing attendance list (unchanged)
+  - **Análisis tab**: On-time arrival % per employee by quincena (1st-15th, 16th-end of month); employees grouped by employee group; threshold (default 90%) configurable
+  - **Configuración tab**: Work days of week (checkboxes Mon-Sun) and on-time threshold % for attendance calculations
+- New table `#__ordenproduccion_asistencia_config` for asistencia settings (work_days, on_time_threshold)
+- AsistenciaController::saveConfig() task
+- AsistenciaModel: getAsistenciaConfig(), saveAsistenciaConfig(), getQuincenas(), getAnalysisData()
+
+### Database Changes
+- New table `#__ordenproduccion_asistencia_config` (param_key, param_value)
+- Migration: 3.59.0.sql
+
 ## [3.58.0-STABLE] - 2025-02-16
 
 ### Added

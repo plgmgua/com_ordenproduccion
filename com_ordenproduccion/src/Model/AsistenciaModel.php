@@ -687,5 +687,245 @@ class AsistenciaModel extends ListModel
             error_log('Error ensuring employee exists: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get asistencia config (work days, on-time threshold)
+     *
+     * @return  object  Config with work_days (array of 0-6) and on_time_threshold (int)
+     *
+     * @since   3.59.0
+     */
+    public function getAsistenciaConfig()
+    {
+        $db = $this->getDatabase();
+        $config = (object) [
+            'work_days' => [1, 2, 3, 4, 5],
+            'on_time_threshold' => 90
+        ];
+
+        try {
+            $query = $db->getQuery(true)
+                ->select([$db->quoteName('param_key'), $db->quoteName('param_value')])
+                ->from($db->quoteName('#__ordenproduccion_asistencia_config'));
+            $db->setQuery($query);
+            $rows = $db->loadObjectList();
+
+            foreach ($rows as $row) {
+                if ($row->param_key === 'work_days') {
+                    $config->work_days = array_map('intval', array_filter(explode(',', $row->param_value)));
+                } elseif ($row->param_key === 'on_time_threshold') {
+                    $config->on_time_threshold = (int) $row->param_value;
+                }
+            }
+        } catch (\Exception $e) {
+            // Return defaults on error
+        }
+
+        return $config;
+    }
+
+    /**
+     * Save asistencia config
+     *
+     * @param   array  $data  work_days (array or comma string), on_time_threshold (int)
+     *
+     * @return  bool
+     *
+     * @since   3.59.0
+     */
+    public function saveAsistenciaConfig($data)
+    {
+        $db = $this->getDatabase();
+
+        try {
+            if (isset($data['work_days'])) {
+                $days = is_array($data['work_days']) ? $data['work_days'] : explode(',', $data['work_days']);
+                $days = array_map('intval', array_filter($days));
+                $value = implode(',', $days);
+                $this->upsertConfig($db, 'work_days', $value);
+            }
+            if (isset($data['on_time_threshold'])) {
+                $this->upsertConfig($db, 'on_time_threshold', (string) max(0, min(100, (int) $data['on_time_threshold'])));
+            }
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Upsert a config row
+     */
+    protected function upsertConfig($db, $key, $value)
+    {
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_asistencia_config'))
+            ->where($db->quoteName('param_key') . ' = ' . $db->quote($key));
+        $db->setQuery($query);
+        $id = $db->loadResult();
+
+        if ($id) {
+            $update = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_asistencia_config'))
+                ->set($db->quoteName('param_value') . ' = ' . $db->quote($value))
+                ->set($db->quoteName('modified') . ' = NOW()')
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+            $db->setQuery($update);
+            $db->execute();
+        } else {
+            $insert = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_asistencia_config'))
+                ->columns([$db->quoteName('param_key'), $db->quoteName('param_value')])
+                ->values($db->quote($key) . ', ' . $db->quote($value));
+            $db->setQuery($insert);
+            $db->execute();
+        }
+    }
+
+    /**
+     * Get list of quincenas (1st-15th, 16th-end) for dropdown
+     *
+     * @param   int  $count  Number of quincenas to return (default 12 = 6 months)
+     *
+     * @return  array  [{value, label, date_from, date_to}, ...]
+     *
+     * @since   3.59.0
+     */
+    public function getQuincenas($count = 12)
+    {
+        $quincenas = [];
+        $date = new \DateTime('first day of this month');
+        $date->setTime(0, 0, 0);
+
+        $monthNames = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+        ];
+
+        for ($i = 0; $i < $count; $i++) {
+            $y = (int) $date->format('Y');
+            $m = (int) $date->format('n');
+            $monthName = $monthNames[$m] ?? $date->format('F');
+
+            $q1_from = sprintf('%04d-%02d-01', $y, $m);
+            $q1_to = sprintf('%04d-%02d-15', $y, $m);
+            $q1_value = $y . '-' . $m . '-1';
+            $q1_label = $monthName . ' ' . $y . ' - 1ra quincena (1-15)';
+            $quincenas[] = (object) ['value' => $q1_value, 'label' => $q1_label, 'date_from' => $q1_from, 'date_to' => $q1_to];
+
+            $lastDay = (int) $date->format('t');
+            $q2_from = sprintf('%04d-%02d-16', $y, $m);
+            $q2_to = sprintf('%04d-%02d-%02d', $y, $m, $lastDay);
+            $q2_value = $y . '-' . $m . '-2';
+            $q2_label = $monthName . ' ' . $y . ' - 2da quincena (16-' . $lastDay . ')';
+            $quincenas[] = (object) ['value' => $q2_value, 'label' => $q2_label, 'date_from' => $q2_from, 'date_to' => $q2_to];
+
+            $date->modify('-1 month');
+        }
+
+        return $quincenas;
+    }
+
+    /**
+     * Get analysis data: employees grouped by group with on-time %
+     *
+     * @param   string  $quincenaValue  e.g. 2026-2-1 (year-month-1 or 2)
+     *
+     * @return  array  Groups with employees and percentages
+     *
+     * @since   3.59.0
+     */
+    public function getAnalysisData($quincenaValue)
+    {
+        $quincenas = $this->getQuincenas(24);
+        $selected = null;
+        foreach ($quincenas as $q) {
+            if ($q->value === $quincenaValue) {
+                $selected = $q;
+                break;
+            }
+        }
+        if (!$selected) {
+            return [];
+        }
+
+        $config = $this->getAsistenciaConfig();
+        $workDays = $config->work_days;
+
+        $db = $this->getDatabase();
+        $dateFrom = $selected->date_from;
+        $dateTo = $selected->date_to;
+
+        $query = $db->getQuery(true)
+            ->select([
+                'a.personname',
+                'a.work_date',
+                'a.is_late',
+                'e.group_id',
+                'g.name AS group_name',
+                'g.color AS group_color'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 'a'))
+            ->leftJoin(
+                $db->quoteName('#__ordenproduccion_employees', 'e') . ' ON ' . $db->quoteName('a.personname') . ' = ' . $db->quoteName('e.personname')
+            )
+            ->leftJoin(
+                $db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON ' . $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
+            )
+            ->where($db->quoteName('a.state') . ' = 1')
+            ->where($db->quoteName('a.work_date') . ' >= ' . $db->quote($dateFrom))
+            ->where($db->quoteName('a.work_date') . ' <= ' . $db->quote($dateTo));
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList();
+
+        $byPerson = [];
+        foreach ($rows as $row) {
+            $dow = (int) date('w', strtotime($row->work_date));
+            if (!in_array($dow, $workDays, true)) {
+                continue;
+            }
+            $pn = $row->personname;
+            if (!isset($byPerson[$pn])) {
+                $byPerson[$pn] = (object) [
+                    'personname' => $pn,
+                    'group_id' => $row->group_id,
+                    'group_name' => $row->group_name ?: AsistenciaHelper::safeText('COM_ORDENPRODUCCION_EMPLOYEE_NO_GROUP', 'Sin grupo', 'Sin grupo'),
+                    'group_color' => $row->group_color ?: '#6c757d',
+                    'total_days' => 0,
+                    'on_time_days' => 0
+                ];
+            }
+            $byPerson[$pn]->total_days++;
+            if (!$row->is_late) {
+                $byPerson[$pn]->on_time_days++;
+            }
+        }
+
+        $byGroup = [];
+        foreach ($byPerson as $emp) {
+            $gid = $emp->group_id ?: 0;
+            $gname = $emp->group_name;
+            if (!isset($byGroup[$gid])) {
+                $byGroup[$gid] = (object) [
+                    'group_id' => $gid,
+                    'group_name' => $gname,
+                    'group_color' => $emp->group_color,
+                    'employees' => []
+                ];
+            }
+            $pct = $emp->total_days > 0 ? round(100 * $emp->on_time_days / $emp->total_days, 1) : 0;
+            $emp->on_time_pct = $pct;
+            $emp->meets_threshold = $pct >= $config->on_time_threshold;
+            $byGroup[$gid]->employees[] = $emp;
+        }
+
+        usort($byGroup, function ($a, $b) {
+            return strcasecmp($a->group_name, $b->group_name);
+        });
+
+        return array_values($byGroup);
+    }
 }
 

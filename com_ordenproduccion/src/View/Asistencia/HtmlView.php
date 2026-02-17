@@ -81,6 +81,46 @@ class HtmlView extends BaseHtmlView
     protected $stats;
 
     /**
+     * Active tab (registro, analisis, configuracion)
+     *
+     * @var    string
+     * @since  3.59.0
+     */
+    protected $activeTab;
+
+    /**
+     * Quincenas for analysis dropdown
+     *
+     * @var    array
+     * @since  3.59.0
+     */
+    protected $quincenas;
+
+    /**
+     * Analysis data (grouped by group)
+     *
+     * @var    array
+     * @since  3.59.0
+     */
+    protected $analysisData;
+
+    /**
+     * Asistencia config (work days, threshold)
+     *
+     * @var    object
+     * @since  3.59.0
+     */
+    protected $asistenciaConfig;
+
+    /**
+     * Selected quincena value for analysis
+     *
+     * @var    string
+     * @since  3.59.0
+     */
+    protected $selectedQuincena;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -94,18 +134,28 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
 
         try {
+            $input = $app->input;
+            $this->activeTab = $input->get('tab', 'registro', 'string');
+
             $this->items = $this->get('Items');
             $this->pagination = $this->get('Pagination');
             $this->state = $this->get('State');
             $this->params = ComponentHelper::getParams('com_ordenproduccion');
-            
+
             $model = $this->getModel();
             $this->employees = $model->getEmployeeList();
             $this->groups = $model->getEmployeeGroups();
-            
-            // Statistics cards removed per user request
+
             $this->stats = null;
-            
+
+            $this->quincenas = $model->getQuincenas(12);
+            $this->selectedQuincena = $input->getString('quincena', '');
+            if (empty($this->selectedQuincena) && !empty($this->quincenas)) {
+                $this->selectedQuincena = $this->quincenas[0]->value;
+            }
+            $this->analysisData = $model->getAnalysisData($this->selectedQuincena);
+            $this->asistenciaConfig = $model->getAsistenciaConfig();
+
         } catch (\Exception $e) {
             $app->enqueueMessage($e->getMessage(), 'error');
             $this->items = [];
@@ -113,6 +163,11 @@ class HtmlView extends BaseHtmlView
             $this->employees = [];
             $this->groups = [];
             $this->stats = new \stdClass();
+            $this->activeTab = 'registro';
+            $this->quincenas = [];
+            $this->analysisData = [];
+            $this->selectedQuincena = '';
+            $this->asistenciaConfig = (object) ['work_days' => [1, 2, 3, 4, 5], 'on_time_threshold' => 90];
         }
 
         $this->addToolbar();

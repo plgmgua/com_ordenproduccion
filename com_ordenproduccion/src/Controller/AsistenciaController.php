@@ -53,6 +53,47 @@ class AsistenciaController extends BaseController
     }
 
     /**
+     * Save asistencia configuration (work days, on-time threshold)
+     *
+     * @return  void
+     *
+     * @since   3.59.0
+     */
+    public function saveConfig()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion', false));
+            return;
+        }
+
+        if (!\Joomla\CMS\Session\Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion', false));
+            return;
+        }
+
+        $workDays = $app->input->post->get('work_days', [], 'array');
+        $workDays = array_map('intval', array_filter($workDays));
+        $onTimeThreshold = $app->input->post->getInt('on_time_threshold', 90);
+
+        $model = $this->getModel('Asistencia');
+        if ($model->saveAsistenciaConfig([
+            'work_days' => $workDays,
+            'on_time_threshold' => max(0, min(100, $onTimeThreshold))
+        ])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_CONFIG_SAVED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ASISTENCIA_CONFIG_ERROR'), 'error');
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=configuracion', false));
+    }
+
+    /**
      * Sync recent data from biometric system (last 7 days)
      *
      * @return  void
