@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Excel report column headers** – Now display in Spanish (Orden de trabajo, Nombre del cliente, etc.) instead of language constant names
+- **Recalcular Resúmenes (asistencia)** – When manual entries exist for a person/date, hours are now calculated using first-entry-to-last-exit (min/max) so manual corrections (e.g. "16:00 Puerta" as end-of-day exit) are fully included. Previously, an intermediate biometric exit would orphan the manual exit. Added "Puerta" as valid exit direction. Fixed hardcoded table prefix in recalculateSummaries.
 
 ## [3.57.0-STABLE] - 2025-02-16
 

@@ -572,7 +572,7 @@ class AsistenciaModel extends ListModel
                 'DISTINCT TRIM(' . $db->quoteName('personname') . ') AS personname',
                 $db->quoteName('work_date')
             ])
-            ->from($db->quoteName('joomla_ordenproduccion_asistencia_summary'))
+            ->from($db->quoteName('#__ordenproduccion_asistencia_summary'))
             ->where([
                 $db->quoteName('work_date') . ' >= ' . $db->quote($dateFrom),
                 $db->quoteName('work_date') . ' <= ' . $db->quote($dateTo),

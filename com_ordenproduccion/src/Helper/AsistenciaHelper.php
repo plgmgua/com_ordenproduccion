@@ -133,8 +133,23 @@ class AsistenciaHelper
         $firstEntry = $result->first_entry ?: $result->last_exit;
         $lastExit = $result->last_exit ?: $result->first_entry;
         
+        // Check if manual entries exist for this person/date (manual entries are corrections)
+        $hasManualEntries = false;
+        $manualCheckQuery = self::$db->getQuery(true)
+            ->select('1')
+            ->from(self::$db->quoteName('#__ordenproduccion_asistencia_manual'))
+            ->where(self::$db->quoteName('personname') . ' = :personname')
+            ->where(self::$db->quoteName('state') . ' = 1')
+            ->where('DATE(CAST(' . self::$db->quoteName('authdate') . ' AS DATE)) = ' . $quotedDate)
+            ->setLimit(1)
+            ->bind(':personname', $cardno);
+        self::$db->setQuery($manualCheckQuery);
+        $hasManualEntries = (bool) self::$db->loadResult();
+        
         // Calculate total worked hours by processing entry/exit pairs
-        // If we have direction data, use it; otherwise assume alternating pattern
+        // IMPORTANT: When manual entries exist, use min/max (first to last) so manual corrections
+        // (e.g. "16:00 Puerta" as end-of-day exit) are included. Otherwise an intermediate biometric
+        // exit (e.g. 11:00) would orphan the manual exit and it would be ignored.
         $totalHours = 0;
         $entryTime = null;
         $exitTime = null;
@@ -142,9 +157,14 @@ class AsistenciaHelper
         if (count($allEntries) === 1) {
             // Single entry - can't calculate hours
             $totalHours = 0;
+        } elseif ($hasManualEntries && $firstEntry && $lastExit) {
+            // Manual entries exist: use first-to-last so manual corrections are included
+            $firstTime = new \DateTime($firstEntry);
+            $lastTime = new \DateTime($lastExit);
+            $interval = $firstTime->diff($lastTime);
+            $totalHours = $interval->h + ($interval->i / 60) + ($interval->s / 3600);
         } else {
-            // Process entries to calculate actual worked time
-            // Strategy: If direction is available, use it; otherwise assume first is entry, last is exit
+            // Process entries to calculate actual worked time (direction pairing)
             $hasDirection = false;
             foreach ($allEntries as $entry) {
                 if (!empty($entry->direction) && strtoupper(trim($entry->direction)) !== '') {
@@ -168,8 +188,8 @@ class AsistenciaHelper
                         }
                         $entryTime = $entryObj;
                         $exitTime = null;
-                    } elseif (in_array($direction, ['OUT', 'SALIDA', 'S', '0'])) {
-                        // Exit - calculate hours if we have an entry
+                    } elseif (in_array($direction, ['OUT', 'SALIDA', 'S', '0', 'PUERTA'])) {
+                        // Exit - calculate hours if we have an entry (Puerta = door/gate, common for manual entries)
                         if ($entryTime !== null) {
                             $exitTime = $entryObj;
                             $interval = $entryTime->diff($exitTime);
