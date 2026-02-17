@@ -263,7 +263,7 @@ class AsistenciaController extends BaseController
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_CARDNO'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
-            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DAY_NAME'),
+            Text::_('COM_ORDENPRODUCCION_DAY'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),
@@ -376,7 +376,7 @@ class AsistenciaController extends BaseController
             $headers = [
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
-                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DAY_NAME'),
+                Text::_('COM_ORDENPRODUCCION_DAY'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),

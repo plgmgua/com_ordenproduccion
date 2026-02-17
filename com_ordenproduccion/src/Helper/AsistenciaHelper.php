@@ -588,13 +588,13 @@ class AsistenciaHelper
     public static function getDayName($date)
     {
         $dayKeys = [
-            'COM_ORDENPRODUCCION_DAY_SUNDAY',
-            'COM_ORDENPRODUCCION_DAY_MONDAY',
-            'COM_ORDENPRODUCCION_DAY_TUESDAY',
-            'COM_ORDENPRODUCCION_DAY_WEDNESDAY',
-            'COM_ORDENPRODUCCION_DAY_THURSDAY',
-            'COM_ORDENPRODUCCION_DAY_FRIDAY',
-            'COM_ORDENPRODUCCION_DAY_SATURDAY'
+            'COM_ORDENPRODUCCION_SUNDAY',
+            'COM_ORDENPRODUCCION_MONDAY',
+            'COM_ORDENPRODUCCION_TUESDAY',
+            'COM_ORDENPRODUCCION_WEDNESDAY',
+            'COM_ORDENPRODUCCION_THURSDAY',
+            'COM_ORDENPRODUCCION_FRIDAY',
+            'COM_ORDENPRODUCCION_SATURDAY'
         ];
         $dayNum = (int) date('w', strtotime($date));
 
