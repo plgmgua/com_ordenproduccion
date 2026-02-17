@@ -70,6 +70,7 @@ $msgNo = AsistenciaHelper::safeText('JNO', 'No', 'No');
                         <tr>
                             <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_EMPLOYEE', 'Employee', 'Empleado'); ?></th>
                             <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_DAYS', 'Days worked', 'Días trabajados'); ?></th>
+                            <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ATTENDANCE_PCT', 'Attendance %', 'Asistencia %'); ?></th>
                             <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_DAYS', 'On-time arrivals', 'Llegadas a tiempo'); ?></th>
                             <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_PUNCTUALITY_PCT', 'Punctuality', 'Puntualidad'); ?> %</th>
                             <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_STATUS', 'Status', 'Estado'); ?></th>
@@ -80,7 +81,8 @@ $msgNo = AsistenciaHelper::safeText('JNO', 'No', 'No');
                         <?php foreach ($group->employees as $emp): ?>
                         <tr class="<?php echo $emp->meets_threshold ? '' : 'table-warning'; ?>">
                             <td><strong><?php echo safeEscapeAnalisis($emp->personname); ?></strong></td>
-                            <td class="text-center"><?php echo (int) $emp->total_days; ?></td>
+                            <td class="text-center"><?php echo (int) $emp->total_days; ?><?php echo isset($emp->work_days_in_quincena) && $emp->work_days_in_quincena > 0 ? ' / ' . (int) $emp->work_days_in_quincena : ''; ?></td>
+                            <td class="text-center"><?php echo number_format($emp->attendance_pct ?? 0, 1); ?>%</td>
                             <td class="text-center"><?php echo (int) $emp->on_time_days; ?></td>
                             <td class="text-center"><strong><?php echo number_format($emp->on_time_pct, 1); ?>%</strong></td>
                             <td class="text-center">
@@ -126,7 +128,9 @@ $msgNo = AsistenciaHelper::safeText('JNO', 'No', 'No');
                 <div id="modalAnalisisContent" class="d-none">
                     <p class="mb-3">
                         <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_DAYS', 'Days worked', 'Días trabajados'); ?>:</strong>
-                        <span id="modalTotalDays"></span> |
+                        <span id="modalTotalDays"></span> / <span id="modalWorkDaysInQuincena"></span> |
+                        <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ATTENDANCE_PCT', 'Attendance %', 'Asistencia %'); ?>:</strong>
+                        <span id="modalAttendancePct"></span>% |
                         <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_DAYS', 'On-time arrivals', 'Llegadas a tiempo'); ?>:</strong>
                         <span id="modalOnTimeDays"></span> |
                         <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_PUNCTUALITY_PCT', 'Punctuality', 'Puntualidad'); ?>:</strong>
@@ -140,7 +144,7 @@ $msgNo = AsistenciaHelper::safeText('JNO', 'No', 'No');
                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY', 'First Entry', 'Primera entrada'); ?></th>
                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT', 'Last Exit', 'Última salida'); ?></th>
                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS', 'Total Hours', 'Horas totales'); ?></th>
-                                    <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_LATE', 'Late', 'Llegada tarde'); ?></th>
+                                    <th class="text-center"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_PUNTUAL', 'On-time', 'Puntual'); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="modalAnalisisTableBody"></tbody>
@@ -170,6 +174,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var modalEmpty = document.getElementById('modalAnalisisEmpty');
     var tbody = document.getElementById('modalAnalisisTableBody');
     var modalTotalDays = document.getElementById('modalTotalDays');
+    var modalWorkDaysInQuincena = document.getElementById('modalWorkDaysInQuincena');
+    var modalAttendancePct = document.getElementById('modalAttendancePct');
     var modalOnTimeDays = document.getElementById('modalOnTimeDays');
     var modalOnTimePct = document.getElementById('modalOnTimePct');
 
@@ -222,6 +228,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         return;
                     }
                     modalTotalDays.textContent = data.total_days;
+                    modalWorkDaysInQuincena.textContent = data.work_days_in_quincena || 0;
+                    modalAttendancePct.textContent = data.attendance_pct != null ? data.attendance_pct : 0;
                     modalOnTimeDays.textContent = data.on_time_days;
                     modalOnTimePct.textContent = data.on_time_pct;
                     tbody.innerHTML = '';
@@ -232,16 +240,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     data.records.forEach(function(r) {
+                        var isOnTime = r.is_late != 1;
                         var tr = document.createElement('tr');
-                        tr.className = r.is_late == 1 ? 'table-warning' : '';
+                        tr.className = !isOnTime ? 'table-warning' : '';
                         tr.innerHTML =
                             '<td>' + r.work_date + ' (' + getDayName(r.work_date) + ')</td>' +
                             '<td>' + formatTime(r.first_entry) + '</td>' +
                             '<td>' + formatTime(r.last_exit) + '</td>' +
                             '<td>' + (r.total_hours != null ? parseFloat(r.total_hours).toFixed(2) : '-') + '</td>' +
-                            '<td class="text-center">' + (r.is_late == 1 ?
-                                '<span class="badge bg-warning text-dark">' + msgYes + '</span>' :
-                                '<span class="badge bg-success">' + msgNo + '</span>') + '</td>';
+                            '<td class="text-center">' + (isOnTime ?
+                                '<span class="badge bg-success">' + msgYes + '</span>' :
+                                '<span class="badge bg-warning text-dark">' + msgNo + '</span>') + '</td>';
                         tbody.appendChild(tr);
                     });
                     showModal('content');

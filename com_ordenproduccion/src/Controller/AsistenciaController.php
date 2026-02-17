@@ -129,7 +129,9 @@ class AsistenciaController extends BaseController
             'records' => $data['records'],
             'total_days' => $data['total_days'],
             'on_time_days' => $data['on_time_days'],
-            'on_time_pct' => $data['on_time_pct']
+            'on_time_pct' => $data['on_time_pct'],
+            'work_days_in_quincena' => $data['work_days_in_quincena'] ?? 0,
+            'attendance_pct' => $data['attendance_pct'] ?? 0
         ]);
         $app->close();
     }

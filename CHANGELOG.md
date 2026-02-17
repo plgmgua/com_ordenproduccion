@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.61.0-STABLE] - 2025-02-16
+
+### Added
+- **Análisis: Attendance %** – Percentage of work days in quincena the employee showed up (days worked / total work days in quincena)
+- Main table: new "Asistencia %" column; "Días trabajados" shows "X / Y" (worked / total work days)
+- Modal: attendance % in summary line
+
+### Changed
+- **Análisis: "Llegada Tarde" → "Puntual"** – Column renamed; shows Sí when on time, No when late (logic flipped for clarity)
+
 ## [3.60.0-STABLE] - 2025-02-16
 
 ### Added

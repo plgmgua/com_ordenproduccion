@@ -828,6 +828,33 @@ class AsistenciaModel extends ListModel
     }
 
     /**
+     * Count work days in a date range (based on work_days 0-6, Sun-Sat)
+     *
+     * @param   string  $dateFrom   Y-m-d
+     * @param   string  $dateTo     Y-m-d
+     * @param   array   $workDays   e.g. [1,2,3,4,5] for Mon-Fri
+     *
+     * @return  int
+     *
+     * @since   3.61.0
+     */
+    protected function countWorkDaysInRange($dateFrom, $dateTo, $workDays)
+    {
+        $from = new \DateTime($dateFrom);
+        $to = new \DateTime($dateTo);
+        $count = 0;
+        $current = clone $from;
+        while ($current <= $to) {
+            $dow = (int) $current->format('w');
+            if (in_array($dow, $workDays, true)) {
+                $count++;
+            }
+            $current->modify('+1 day');
+        }
+        return $count;
+    }
+
+    /**
      * Get analysis data: employees grouped by group with on-time %
      *
      * @param   string  $quincenaValue  e.g. 2026-2-1 (year-month-1 or 2)
@@ -852,6 +879,7 @@ class AsistenciaModel extends ListModel
 
         $config = $this->getAsistenciaConfig();
         $workDays = $config->work_days;
+        $workDaysInQuincena = $this->countWorkDaysInRange($selected->date_from, $selected->date_to, $workDays);
 
         $db = $this->getDatabase();
         $dateFrom = $selected->date_from;
@@ -918,6 +946,10 @@ class AsistenciaModel extends ListModel
             $pct = $emp->total_days > 0 ? round(100 * $emp->on_time_days / $emp->total_days, 1) : 0;
             $emp->on_time_pct = $pct;
             $emp->meets_threshold = $pct >= $config->on_time_threshold;
+            $emp->work_days_in_quincena = $workDaysInQuincena;
+            $emp->attendance_pct = $workDaysInQuincena > 0
+                ? round(100 * $emp->total_days / $workDaysInQuincena, 1)
+                : 0;
             $byGroup[$gid]->employees[] = $emp;
         }
 
@@ -949,7 +981,7 @@ class AsistenciaModel extends ListModel
             }
         }
         if (!$selected || empty($personname)) {
-            return ['records' => [], 'total_days' => 0, 'on_time_days' => 0, 'on_time_pct' => 0];
+            return ['records' => [], 'total_days' => 0, 'on_time_days' => 0, 'on_time_pct' => 0, 'work_days_in_quincena' => 0, 'attendance_pct' => 0];
         }
 
         $config = $this->getAsistenciaConfig();
@@ -996,12 +1028,16 @@ class AsistenciaModel extends ListModel
 
         $totalDays = count($records);
         $pct = $totalDays > 0 ? round(100 * $onTimeDays / $totalDays, 1) : 0;
+        $workDaysInQuincena = $this->countWorkDaysInRange($dateFrom, $dateTo, $workDays);
+        $attendancePct = $workDaysInQuincena > 0 ? round(100 * $totalDays / $workDaysInQuincena, 1) : 0;
 
         return [
             'records' => $records,
             'total_days' => $totalDays,
             'on_time_days' => $onTimeDays,
-            'on_time_pct' => $pct
+            'on_time_pct' => $pct,
+            'work_days_in_quincena' => $workDaysInQuincena,
+            'attendance_pct' => $attendancePct
         ];
     }
 }
