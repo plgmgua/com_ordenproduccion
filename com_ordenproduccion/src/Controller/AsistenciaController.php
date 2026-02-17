@@ -94,6 +94,153 @@ class AsistenciaController extends BaseController
     }
 
     /**
+     * Save company holiday
+     *
+     * @return  void
+     *
+     * @since   3.62.0
+     */
+    public function saveHoliday()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        if (!\Joomla\CMS\Session\Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        $model = $this->getModel('Asistencia');
+        $data = [
+            'id' => $app->input->getInt('id', 0),
+            'holiday_date' => $app->input->getString('holiday_date', ''),
+            'name' => $app->input->getString('name', '')
+        ];
+
+        if ($model->saveCompanyHoliday($data)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_HOLIDAY_SAVED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_HOLIDAY_ERROR'), 'error');
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+    }
+
+    /**
+     * Delete company holiday
+     *
+     * @return  void
+     *
+     * @since   3.62.0
+     */
+    public function deleteHoliday()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        if (!\Joomla\CMS\Session\Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        $id = $app->input->getInt('id', 0);
+        $model = $this->getModel('Asistencia');
+        if ($id && $model->deleteCompanyHoliday($id)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_HOLIDAY_DELETED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_HOLIDAY_DELETE_ERROR'), 'error');
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+    }
+
+    /**
+     * Save justified absence
+     *
+     * @return  void
+     *
+     * @since   3.62.0
+     */
+    public function saveJustifiedAbsence()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        if (!\Joomla\CMS\Session\Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        $model = $this->getModel('Asistencia');
+        $data = [
+            'id' => $app->input->getInt('id', 0),
+            'personname' => $app->input->getString('personname', ''),
+            'absence_date' => $app->input->getString('absence_date', ''),
+            'reason' => $app->input->getString('reason', '')
+        ];
+
+        if ($model->saveJustifiedAbsence($data)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_JUSTIFIED_ABSENCE_SAVED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_JUSTIFIED_ABSENCE_ERROR'), 'error');
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+    }
+
+    /**
+     * Delete justified absence
+     *
+     * @return  void
+     *
+     * @since   3.62.0
+     */
+    public function deleteJustifiedAbsence()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        if (!\Joomla\CMS\Session\Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+            return;
+        }
+
+        $id = $app->input->getInt('id', 0);
+        $model = $this->getModel('Asistencia');
+        if ($id && $model->deleteJustifiedAbsence($id)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_JUSTIFIED_ABSENCE_DELETED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_JUSTIFIED_ABSENCE_DELETE_ERROR'), 'error');
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=asistencia&tab=festivos', false));
+    }
+
+    /**
      * Get employee analysis details (AJAX JSON) for the analysis modal
      *
      * @return  void
@@ -131,6 +278,7 @@ class AsistenciaController extends BaseController
             'on_time_days' => $data['on_time_days'],
             'on_time_pct' => $data['on_time_pct'],
             'work_days_in_quincena' => $data['work_days_in_quincena'] ?? 0,
+            'justified_days' => $data['justified_days'] ?? 0,
             'attendance_pct' => $data['attendance_pct'] ?? 0
         ]);
         $app->close();

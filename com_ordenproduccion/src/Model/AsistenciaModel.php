@@ -855,6 +855,82 @@ class AsistenciaModel extends ListModel
     }
 
     /**
+     * Count company holidays in a date range that fall on work days
+     *
+     * @param   string  $dateFrom   Y-m-d
+     * @param   string  $dateTo     Y-m-d
+     * @param   array   $workDays   e.g. [1,2,3,4,5]
+     *
+     * @return  int
+     *
+     * @since   3.62.0
+     */
+    protected function countCompanyHolidaysInRange($dateFrom, $dateTo, $workDays)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('holiday_date'))
+                ->from($db->quoteName('#__ordenproduccion_company_holidays'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('holiday_date') . ' >= ' . $db->quote($dateFrom))
+                ->where($db->quoteName('holiday_date') . ' <= ' . $db->quote($dateTo));
+            $db->setQuery($query);
+            $dates = $db->loadColumn();
+        } catch (\Exception $e) {
+            return 0;
+        }
+
+        $count = 0;
+        foreach ($dates as $d) {
+            $dow = (int) date('w', strtotime($d));
+            if (in_array($dow, $workDays, true)) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Count justified absences for an employee in a date range (on work days only)
+     *
+     * @param   string  $personname  Employee personname
+     * @param   string  $dateFrom    Y-m-d
+     * @param   string  $dateTo      Y-m-d
+     * @param   array   $workDays    e.g. [1,2,3,4,5]
+     *
+     * @return  int
+     *
+     * @since   3.62.0
+     */
+    protected function countJustifiedAbsencesInRange($personname, $dateFrom, $dateTo, $workDays)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('absence_date'))
+                ->from($db->quoteName('#__ordenproduccion_employee_justified_absence'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('personname') . ' = ' . $db->quote($personname))
+                ->where($db->quoteName('absence_date') . ' >= ' . $db->quote($dateFrom))
+                ->where($db->quoteName('absence_date') . ' <= ' . $db->quote($dateTo));
+            $db->setQuery($query);
+            $dates = $db->loadColumn();
+        } catch (\Exception $e) {
+            return 0;
+        }
+
+        $count = 0;
+        foreach ($dates as $d) {
+            $dow = (int) date('w', strtotime($d));
+            if (in_array($dow, $workDays, true)) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
      * Get analysis data: employees grouped by group with on-time %
      *
      * @param   string  $quincenaValue  e.g. 2026-2-1 (year-month-1 or 2)
@@ -880,6 +956,8 @@ class AsistenciaModel extends ListModel
         $config = $this->getAsistenciaConfig();
         $workDays = $config->work_days;
         $workDaysInQuincena = $this->countWorkDaysInRange($selected->date_from, $selected->date_to, $workDays);
+        $companyHolidaysCount = $this->countCompanyHolidaysInRange($selected->date_from, $selected->date_to, $workDays);
+        $effectiveWorkDays = max(0, $workDaysInQuincena - $companyHolidaysCount);
 
         $db = $this->getDatabase();
         $dateFrom = $selected->date_from;
@@ -946,9 +1024,10 @@ class AsistenciaModel extends ListModel
             $pct = $emp->total_days > 0 ? round(100 * $emp->on_time_days / $emp->total_days, 1) : 0;
             $emp->on_time_pct = $pct;
             $emp->meets_threshold = $pct >= $config->on_time_threshold;
-            $emp->work_days_in_quincena = $workDaysInQuincena;
-            $emp->attendance_pct = $workDaysInQuincena > 0
-                ? round(100 * $emp->total_days / $workDaysInQuincena, 1)
+            $emp->work_days_in_quincena = $effectiveWorkDays;
+            $emp->justified_days = $this->countJustifiedAbsencesInRange($emp->personname, $dateFrom, $dateTo, $workDays);
+            $emp->attendance_pct = $effectiveWorkDays > 0
+                ? min(100, round(100 * ($emp->total_days + $emp->justified_days) / $effectiveWorkDays, 1))
                 : 0;
             $byGroup[$gid]->employees[] = $emp;
         }
@@ -1029,16 +1108,237 @@ class AsistenciaModel extends ListModel
         $totalDays = count($records);
         $pct = $totalDays > 0 ? round(100 * $onTimeDays / $totalDays, 1) : 0;
         $workDaysInQuincena = $this->countWorkDaysInRange($dateFrom, $dateTo, $workDays);
-        $attendancePct = $workDaysInQuincena > 0 ? round(100 * $totalDays / $workDaysInQuincena, 1) : 0;
+        $companyHolidaysCount = $this->countCompanyHolidaysInRange($dateFrom, $dateTo, $workDays);
+        $effectiveWorkDays = max(0, $workDaysInQuincena - $companyHolidaysCount);
+        $justifiedDays = $this->countJustifiedAbsencesInRange($personname, $dateFrom, $dateTo, $workDays);
+        $attendancePct = $effectiveWorkDays > 0
+            ? min(100, round(100 * ($totalDays + $justifiedDays) / $effectiveWorkDays, 1))
+            : 0;
 
         return [
             'records' => $records,
             'total_days' => $totalDays,
             'on_time_days' => $onTimeDays,
             'on_time_pct' => $pct,
-            'work_days_in_quincena' => $workDaysInQuincena,
+            'work_days_in_quincena' => $effectiveWorkDays,
+            'justified_days' => $justifiedDays,
             'attendance_pct' => $attendancePct
         ];
+    }
+
+    /**
+     * Get company holidays (optionally filtered by year/month)
+     *
+     * @param   int|null  $year   Filter by year
+     * @param   int|null  $month  Filter by month
+     *
+     * @return  array
+     *
+     * @since   3.62.0
+     */
+    public function getCompanyHolidays($year = null, $month = null)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_company_holidays'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->order($db->quoteName('holiday_date'));
+            if ($year !== null) {
+                $query->where('YEAR(' . $db->quoteName('holiday_date') . ') = ' . (int) $year);
+            }
+            if ($month !== null) {
+                $query->where('MONTH(' . $db->quoteName('holiday_date') . ') = ' . (int) $month);
+            }
+            $db->setQuery($query);
+            return $db->loadObjectList();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Save company holiday
+     *
+     * @param   array  $data  id (optional), holiday_date, name
+     *
+     * @return  bool|int  id on success, false on failure
+     *
+     * @since   3.62.0
+     */
+    public function saveCompanyHoliday($data)
+    {
+        try {
+            $db = $this->getDatabase();
+            $user = Factory::getUser();
+            $id = isset($data['id']) ? (int) $data['id'] : 0;
+            $date = $data['holiday_date'] ?? '';
+            $name = $data['name'] ?? '';
+
+            if (empty($date)) {
+                return false;
+            }
+
+            if ($id) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_company_holidays'))
+                        ->set($db->quoteName('holiday_date') . ' = ' . $db->quote($date))
+                        ->set($db->quoteName('name') . ' = ' . $db->quote($name))
+                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                        ->where($db->quoteName('id') . ' = ' . $id)
+                );
+                $db->execute();
+                return $id;
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_company_holidays'))
+                    ->columns([$db->quoteName('holiday_date'), $db->quoteName('name'), $db->quoteName('created_by')])
+                    ->values($db->quote($date) . ', ' . $db->quote($name) . ', ' . (int) $user->id)
+            );
+            $db->execute();
+            return (int) $db->insertid();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Delete company holiday
+     *
+     * @param   int  $id  Holiday id
+     *
+     * @return  bool
+     *
+     * @since   3.62.0
+     */
+    public function deleteCompanyHoliday($id)
+    {
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_company_holidays'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $id)
+            );
+            $db->execute();
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get justified absences (optionally filtered by personname, date range)
+     *
+     * @param   string|null  $personname  Filter by employee
+     * @param   string|null  $dateFrom    Filter from date
+     * @param   string|null  $dateTo      Filter to date
+     *
+     * @return  array
+     *
+     * @since   3.62.0
+     */
+    public function getJustifiedAbsences($personname = null, $dateFrom = null, $dateTo = null)
+    {
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('a.*')
+                ->from($db->quoteName('#__ordenproduccion_employee_justified_absence', 'a'))
+                ->where($db->quoteName('a.state') . ' = 1')
+                ->order($db->quoteName('a.absence_date') . ' DESC');
+            if (!empty($personname)) {
+                $query->where($db->quoteName('a.personname') . ' = ' . $db->quote($personname));
+            }
+            if (!empty($dateFrom)) {
+                $query->where($db->quoteName('a.absence_date') . ' >= ' . $db->quote($dateFrom));
+            }
+            if (!empty($dateTo)) {
+                $query->where($db->quoteName('a.absence_date') . ' <= ' . $db->quote($dateTo));
+            }
+            $db->setQuery($query);
+            return $db->loadObjectList();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Save justified absence
+     *
+     * @param   array  $data  id (optional), personname, absence_date, reason
+     *
+     * @return  bool|int  id on success, false on failure
+     *
+     * @since   3.62.0
+     */
+    public function saveJustifiedAbsence($data)
+    {
+        try {
+            $db = $this->getDatabase();
+            $user = Factory::getUser();
+            $id = isset($data['id']) ? (int) $data['id'] : 0;
+            $personname = $data['personname'] ?? '';
+            $date = $data['absence_date'] ?? '';
+            $reason = $data['reason'] ?? '';
+
+            if (empty($personname) || empty($date)) {
+                return false;
+            }
+
+            if ($id) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_employee_justified_absence'))
+                        ->set($db->quoteName('absence_date') . ' = ' . $db->quote($date))
+                        ->set($db->quoteName('reason') . ' = ' . $db->quote($reason))
+                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                        ->where($db->quoteName('id') . ' = ' . $id)
+                );
+                $db->execute();
+                return $id;
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_employee_justified_absence'))
+                    ->columns([$db->quoteName('personname'), $db->quoteName('absence_date'), $db->quoteName('reason'), $db->quoteName('created_by')])
+                    ->values($db->quote($personname) . ', ' . $db->quote($date) . ', ' . $db->quote($reason) . ', ' . (int) $user->id)
+            );
+            $db->execute();
+            return (int) $db->insertid();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Delete justified absence
+     *
+     * @param   int  $id  Absence id
+     *
+     * @return  bool
+     *
+     * @since   3.62.0
+     */
+    public function deleteJustifiedAbsence($id)
+    {
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_employee_justified_absence'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $id)
+            );
+            $db->execute();
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 }
 

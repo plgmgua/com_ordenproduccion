@@ -156,6 +156,19 @@ class HtmlView extends BaseHtmlView
             $this->analysisData = $model->getAnalysisData($this->selectedQuincena);
             $this->asistenciaConfig = $model->getAsistenciaConfig();
 
+            $filterYear = $input->getInt('filter_year', (int) date('Y'));
+            $filterMonth = $input->getInt('filter_month', 0);
+            $filterPerson = $input->getString('filter_person', '');
+            $this->companyHolidays = $model->getCompanyHolidays($filterYear, $filterMonth ?: null);
+            $this->justifiedAbsences = $model->getJustifiedAbsences(
+                $filterPerson ?: null,
+                $filterYear && $filterMonth ? sprintf('%04d-%02d-01', $filterYear, $filterMonth) : null,
+                $filterYear && $filterMonth ? date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $filterYear, $filterMonth))) : null
+            );
+            $this->festivosFilterYear = $filterYear;
+            $this->festivosFilterMonth = $filterMonth;
+            $this->festivosFilterPerson = $filterPerson;
+
         } catch (\Exception $e) {
             $app->enqueueMessage($e->getMessage(), 'error');
             $this->items = [];
@@ -168,6 +181,11 @@ class HtmlView extends BaseHtmlView
             $this->analysisData = [];
             $this->selectedQuincena = '';
             $this->asistenciaConfig = (object) ['work_days' => [1, 2, 3, 4, 5], 'on_time_threshold' => 90];
+            $this->companyHolidays = [];
+            $this->justifiedAbsences = [];
+            $this->festivosFilterYear = (int) date('Y');
+            $this->festivosFilterMonth = 0;
+            $this->festivosFilterPerson = '';
         }
 
         $this->addToolbar();

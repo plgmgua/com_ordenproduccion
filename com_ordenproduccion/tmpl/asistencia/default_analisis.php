@@ -128,7 +128,8 @@ $msgNo = AsistenciaHelper::safeText('JNO', 'No', 'No');
                 <div id="modalAnalisisContent" class="d-none">
                     <p class="mb-3">
                         <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_DAYS', 'Days worked', 'Días trabajados'); ?>:</strong>
-                        <span id="modalTotalDays"></span> / <span id="modalWorkDaysInQuincena"></span> |
+                        <span id="modalTotalDays"></span> / <span id="modalWorkDaysInQuincena"></span>
+                        (<span id="modalJustifiedDays" class="text-muted">0</span> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_JUSTIFIED_DAYS', 'justified', 'justificados'); ?>) |
                         <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ATTENDANCE_PCT', 'Attendance %', 'Asistencia %'); ?>:</strong>
                         <span id="modalAttendancePct"></span>% |
                         <strong><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ASISTENCIA_ON_TIME_DAYS', 'On-time arrivals', 'Llegadas a tiempo'); ?>:</strong>
@@ -175,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var tbody = document.getElementById('modalAnalisisTableBody');
     var modalTotalDays = document.getElementById('modalTotalDays');
     var modalWorkDaysInQuincena = document.getElementById('modalWorkDaysInQuincena');
+    var modalJustifiedDays = document.getElementById('modalJustifiedDays');
     var modalAttendancePct = document.getElementById('modalAttendancePct');
     var modalOnTimeDays = document.getElementById('modalOnTimeDays');
     var modalOnTimePct = document.getElementById('modalOnTimePct');
@@ -229,6 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     modalTotalDays.textContent = data.total_days;
                     modalWorkDaysInQuincena.textContent = data.work_days_in_quincena || 0;
+                    modalJustifiedDays.textContent = data.justified_days != null ? data.justified_days : 0;
                     modalAttendancePct.textContent = data.attendance_pct != null ? data.attendance_pct : 0;
                     modalOnTimeDays.textContent = data.on_time_days;
                     modalOnTimePct.textContent = data.on_time_pct;

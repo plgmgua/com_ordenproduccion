@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.62.0-STABLE] - 2025-02-16
+
+### Added
+- **Festivos / Ausencias tab** – Manage holidays and justified absences for correct attendance %
+  - **Company holidays**: Apply to everyone; reduce expected work days for attendance calculation
+  - **Justified absences**: Per-employee excused days off (vacation, medical, etc.) that count as present
+- Filter by year/month for holidays; filter by employee and month for justified absences
+- Attendance % formula: (days worked + justified days) / (work days in quincena - company holidays)
+
+### Database Changes
+- New table `#__ordenproduccion_company_holidays` (holiday_date, name)
+- New table `#__ordenproduccion_employee_justified_absence` (personname, absence_date, reason)
+- Migration: 3.62.0.sql
+
 ## [3.61.0-STABLE] - 2025-02-16
 
 ### Added
