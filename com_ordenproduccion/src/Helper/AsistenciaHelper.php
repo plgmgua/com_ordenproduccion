@@ -10,6 +10,7 @@
 namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
 use Joomla\CMS\Component\ComponentHelper;
 
@@ -573,6 +574,31 @@ class AsistenciaHelper
     public static function getStatusBadgeClass($isComplete)
     {
         return $isComplete ? 'badge bg-success' : 'badge bg-danger';
+    }
+
+    /**
+     * Get localized day name for a date
+     *
+     * @param   string  $date  Date in Y-m-d format
+     *
+     * @return  string  Localized day name (e.g. Monday, Lunes)
+     *
+     * @since   3.59.0
+     */
+    public static function getDayName($date)
+    {
+        $dayKeys = [
+            'COM_ORDENPRODUCCION_DAY_SUNDAY',
+            'COM_ORDENPRODUCCION_DAY_MONDAY',
+            'COM_ORDENPRODUCCION_DAY_TUESDAY',
+            'COM_ORDENPRODUCCION_DAY_WEDNESDAY',
+            'COM_ORDENPRODUCCION_DAY_THURSDAY',
+            'COM_ORDENPRODUCCION_DAY_FRIDAY',
+            'COM_ORDENPRODUCCION_DAY_SATURDAY'
+        ];
+        $dayNum = (int) date('w', strtotime($date));
+
+        return Text::_($dayKeys[$dayNum]);
     }
 
     /**

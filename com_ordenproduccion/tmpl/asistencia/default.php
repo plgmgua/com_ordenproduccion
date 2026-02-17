@@ -193,6 +193,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <th style="width: 110px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_ALERTS'); ?></th>
                         <th style="width: 100px;">Grupo</th>
                         <th style="width: 90px;">Fecha</th>
+                        <th style="width: 90px;"><?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DAY_NAME'); ?></th>
                         <th style="width: 70px;">Entrada</th>
                         <th style="width: 70px;">Salida</th>
                         <th style="width: 80px;">Horas</th>
@@ -231,6 +232,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                                 <?php endif; ?>
                             </td>
                             <td style="font-size: 0.8rem;"><?php echo date('d/m/y', strtotime($item->work_date)); ?></td>
+                            <td style="font-size: 0.8rem;"><?php echo AsistenciaHelper::getDayName($item->work_date); ?></td>
                             <td style="font-size: 0.8rem;"><?php echo substr(safeEscape($item->first_entry, '-'), 0, 5); ?></td>
                             <td style="font-size: 0.8rem;"><?php echo substr(safeEscape($item->last_exit, '-'), 0, 5); ?></td>
                             <td style="font-size: 0.8rem;">
@@ -253,7 +255,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php if (!empty($item->manual_entries)) : ?>
                             <?php foreach ($item->manual_entries as $manual) : ?>
                             <tr class="manual-entry-row" style="background-color: #f8f9fa; font-size: 0.85em;">
-                                <td colspan="4" style="padding-left: 40px;">
+                                <td colspan="5" style="padding-left: 40px;">
                                     <i class="fas fa-hand-paper text-info"></i>
                                     <span class="text-muted">Manual:</span>
                                     <strong><?php echo $manual->authtime ? substr($manual->authtime, 0, 5) : '-'; ?></strong>
@@ -285,7 +287,7 @@ $filterIsLate = $this->state->get('filter.is_late');
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="9" class="text-center">
+                            <td colspan="10" class="text-center">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_ASISTENCIA_NO_RECORDS'); ?>
                             </td>
                         </tr>

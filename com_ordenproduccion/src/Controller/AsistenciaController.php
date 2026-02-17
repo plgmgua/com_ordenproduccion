@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
 defined('_JEXEC') or die;
 
@@ -262,6 +263,7 @@ class AsistenciaController extends BaseController
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_CARDNO'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
+            Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DAY_NAME'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
             Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),
@@ -278,6 +280,7 @@ class AsistenciaController extends BaseController
                 $item->cardno,
                 $item->personname,
                 $item->work_date,
+                AsistenciaHelper::getDayName($item->work_date),
                 $item->first_entry,
                 $item->last_exit,
                 $item->total_hours,
@@ -373,6 +376,7 @@ class AsistenciaController extends BaseController
             $headers = [
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_PERSONNAME'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_WORK_DATE'),
+                Text::_('COM_ORDENPRODUCCION_ASISTENCIA_DAY_NAME'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_FIRST_ENTRY'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_LAST_EXIT'),
                 Text::_('COM_ORDENPRODUCCION_ASISTENCIA_TOTAL_HOURS'),
@@ -388,7 +392,7 @@ class AsistenciaController extends BaseController
             $sheet->fromArray($headers, null, 'A1');
             
             // Style headers
-            $headerStyle = $sheet->getStyle('A1:L1');
+            $headerStyle = $sheet->getStyle('A1:M1');
             $headerStyle->getFont()->setBold(true);
             $headerStyle->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
             $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
@@ -400,6 +404,7 @@ class AsistenciaController extends BaseController
                 $sheet->fromArray([
                     $item->personname,
                     $item->work_date,
+                    AsistenciaHelper::getDayName($item->work_date),
                     $item->first_entry,
                     $item->last_exit,
                     number_format($item->total_hours, 2),
@@ -412,26 +417,26 @@ class AsistenciaController extends BaseController
                     $item->is_early_exit ? Text::_('JYES') : Text::_('JNO')
                 ], null, 'A' . $rowIndex);
                 
-                // Color code status
+                // Color code status (column I after day name)
                 if ($item->is_complete) {
-                    $sheet->getStyle('H' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-                    $sheet->getStyle('H' . $rowIndex)->getFill()->getStartColor()->setARGB('FFC8E6C9');
+                    $sheet->getStyle('I' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                    $sheet->getStyle('I' . $rowIndex)->getFill()->getStartColor()->setARGB('FFC8E6C9');
                 } else {
-                    $sheet->getStyle('H' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-                    $sheet->getStyle('H' . $rowIndex)->getFill()->getStartColor()->setARGB('FFFFCDD2');
+                    $sheet->getStyle('I' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                    $sheet->getStyle('I' . $rowIndex)->getFill()->getStartColor()->setARGB('FFFFCDD2');
                 }
                 
-                // Highlight late entries
+                // Highlight late entries (column L)
                 if ($item->is_late) {
-                    $sheet->getStyle('K' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-                    $sheet->getStyle('K' . $rowIndex)->getFill()->getStartColor()->setARGB('FFFFF9C4');
+                    $sheet->getStyle('L' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                    $sheet->getStyle('L' . $rowIndex)->getFill()->getStartColor()->setARGB('FFFFF9C4');
                 }
                 
                 $rowIndex++;
             }
             
             // Auto-size columns
-            foreach (range('A', 'L') as $col) {
+            foreach (range('A', 'M') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             
@@ -444,7 +449,7 @@ class AsistenciaController extends BaseController
                     ],
                 ],
             ];
-            $sheet->getStyle('A1:L' . ($rowIndex - 1))->applyFromArray($styleArray);
+            $sheet->getStyle('A1:M' . ($rowIndex - 1))->applyFromArray($styleArray);
             
             // Generate filename with date range
             $filename = 'asistencia_' . $dateFrom . '_to_' . $dateTo . '.xlsx';
