@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.60.0-STABLE] - 2025-02-16
+
+### Added
+- **Análisis tab: "Ver detalle" button** – Each employee row now has a "Ver detalle" (View details) button that opens a modal with day-by-day attendance records for the selected quincena (work date, first entry, last exit, total hours, late status)
+- AsistenciaModel::getEmployeeAnalysisDetails()
+- AsistenciaController::getAnalysisDetails() – AJAX JSON endpoint for analysis modal data
+
 ## [3.59.0-STABLE] - 2025-02-16
 
 ### Added

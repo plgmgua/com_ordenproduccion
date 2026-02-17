@@ -205,8 +205,9 @@ class HtmlView extends BaseHtmlView
             ['version' => 'auto', 'defer' => true]
         );
 
-        // Load Bootstrap for styling
+        // Load Bootstrap for styling and modal (used in Análisis tab)
         $wa->useStyle('bootstrap.css');
+        $wa->useScript('bootstrap.modal');
     }
 
     /**

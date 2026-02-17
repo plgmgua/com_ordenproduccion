@@ -927,5 +927,82 @@ class AsistenciaModel extends ListModel
 
         return array_values($byGroup);
     }
+
+    /**
+     * Get day-by-day attendance details for an employee in a quincena (for analysis modal)
+     *
+     * @param   string  $personname     Employee personname
+     * @param   string  $quincenaValue  e.g. 2026-2-1 (year-month-1 or 2)
+     *
+     * @return  array  { records: [...], total_days, on_time_days, on_time_pct }
+     *
+     * @since   3.60.0
+     */
+    public function getEmployeeAnalysisDetails($personname, $quincenaValue)
+    {
+        $quincenas = $this->getQuincenas(24);
+        $selected = null;
+        foreach ($quincenas as $q) {
+            if ($q->value === $quincenaValue) {
+                $selected = $q;
+                break;
+            }
+        }
+        if (!$selected || empty($personname)) {
+            return ['records' => [], 'total_days' => 0, 'on_time_days' => 0, 'on_time_pct' => 0];
+        }
+
+        $config = $this->getAsistenciaConfig();
+        $workDays = $config->work_days;
+
+        $db = $this->getDatabase();
+        $dateFrom = $selected->date_from;
+        $dateTo = $selected->date_to;
+
+        $query = $db->getQuery(true)
+            ->select([
+                'a.work_date',
+                'a.first_entry',
+                'a.last_exit',
+                'a.total_hours',
+                'a.expected_hours',
+                'a.hours_difference',
+                'a.is_late',
+                'a.is_early_exit',
+                'a.is_complete'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_asistencia_summary', 'a'))
+            ->where($db->quoteName('a.state') . ' = 1')
+            ->where($db->quoteName('a.personname') . ' = ' . $db->quote($personname))
+            ->where($db->quoteName('a.work_date') . ' >= ' . $db->quote($dateFrom))
+            ->where($db->quoteName('a.work_date') . ' <= ' . $db->quote($dateTo))
+            ->order($db->quoteName('a.work_date'));
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList();
+
+        $records = [];
+        $onTimeDays = 0;
+        foreach ($rows as $row) {
+            $dow = (int) date('w', strtotime($row->work_date));
+            if (!in_array($dow, $workDays, true)) {
+                continue;
+            }
+            $records[] = $row;
+            if (!$row->is_late) {
+                $onTimeDays++;
+            }
+        }
+
+        $totalDays = count($records);
+        $pct = $totalDays > 0 ? round(100 * $onTimeDays / $totalDays, 1) : 0;
+
+        return [
+            'records' => $records,
+            'total_days' => $totalDays,
+            'on_time_days' => $onTimeDays,
+            'on_time_pct' => $pct
+        ];
+    }
 }
 

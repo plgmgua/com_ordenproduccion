@@ -94,6 +94,47 @@ class AsistenciaController extends BaseController
     }
 
     /**
+     * Get employee analysis details (AJAX JSON) for the analysis modal
+     *
+     * @return  void
+     *
+     * @since   3.60.0
+     */
+    public function getAnalysisDetails()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'records' => []]);
+            $app->close();
+        }
+
+        $personname = $app->input->getString('personname', '');
+        $quincena = $app->input->getString('quincena', '');
+
+        if (empty($personname) || empty($quincena)) {
+            echo json_encode(['success' => false, 'message' => 'Missing parameters', 'records' => []]);
+            $app->close();
+        }
+
+        $model = $this->getModel('Asistencia');
+        $data = $model->getEmployeeAnalysisDetails($personname, $quincena);
+
+        echo json_encode([
+            'success' => true,
+            'personname' => $personname,
+            'records' => $data['records'],
+            'total_days' => $data['total_days'],
+            'on_time_days' => $data['on_time_days'],
+            'on_time_pct' => $data['on_time_pct']
+        ]);
+        $app->close();
+    }
+
+    /**
      * Sync recent data from biometric system (last 7 days)
      *
      * @return  void
