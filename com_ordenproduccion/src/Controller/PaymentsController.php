@@ -194,13 +194,15 @@ class PaymentsController extends BaseController
         }
 
         $app->setHeader('Content-Type', 'application/json; charset=utf-8');
+        $proofBank = $details->proof->bank ?? '';
         $data = [
             'proof' => [
                 'id' => (int) $details->proof->id,
                 'created' => $details->proof->created ?? '',
                 'payment_type' => $details->proof->payment_type ?? '',
                 'payment_type_label' => $this->translatePaymentType($details->proof->payment_type ?? ''),
-                'bank' => $details->proof->bank ?? '',
+                'bank' => $proofBank,
+                'bank_label' => $this->translateBank($proofBank),
                 'document_number' => $details->proof->document_number ?? '',
                 'payment_amount' => (float) ($details->proof->payment_amount ?? 0),
                 'client_name' => $details->proof->client_name ?? '',
@@ -214,10 +216,12 @@ class PaymentsController extends BaseController
 
         foreach ($details->lines as $line) {
             $amount = isset($line->amount) ? (float) $line->amount : (float) ($line->payment_amount ?? 0);
+            $lineBank = $line->bank ?? '';
             $data['lines'][] = [
                 'payment_type' => $line->payment_type ?? '',
                 'payment_type_label' => $this->translatePaymentType($line->payment_type ?? $details->proof->payment_type ?? ''),
-                'bank' => $line->bank ?? '',
+                'bank' => $lineBank,
+                'bank_label' => $this->translateBank($lineBank),
                 'document_number' => $line->document_number ?? '',
                 'amount' => $amount,
             ];
@@ -321,7 +325,7 @@ class PaymentsController extends BaseController
         $pdf->Cell(45, 6, 'Tipo de pago:', 0, 0, 'L');
         $pdf->Cell(0, 6, $typeLabel, 0, 1, 'L');
         $pdf->Cell(45, 6, 'Banco:', 0, 0, 'L');
-        $pdf->Cell(0, 6, $fixSpanishChars($details->proof->bank ?? '-'), 0, 1, 'L');
+        $pdf->Cell(0, 6, $fixSpanishChars($this->translateBank($details->proof->bank ?? '')), 0, 1, 'L');
         $pdf->Cell(45, 6, 'No. Documento:', 0, 0, 'L');
         $pdf->Cell(0, 6, $fixSpanishChars($details->proof->document_number ?? '-'), 0, 1, 'L');
         $pdf->Cell(45, 6, 'Monto total:', 0, 0, 'L');
@@ -339,7 +343,7 @@ class PaymentsController extends BaseController
             foreach ($details->lines as $line) {
                 $amount = isset($line->amount) ? (float) $line->amount : (float) ($line->payment_amount ?? 0);
                 $pdf->Cell(45, 6, $fixSpanishChars($this->translatePaymentType($line->payment_type ?? '')), 1, 0, 'L');
-                $pdf->Cell(35, 6, $fixSpanishChars($line->bank ?? '-'), 1, 0, 'L');
+                $pdf->Cell(35, 6, $fixSpanishChars($this->translateBank($line->bank ?? '')), 1, 0, 'L');
                 $pdf->Cell(45, 6, $fixSpanishChars($line->document_number ?? '-'), 1, 0, 'L');
                 $pdf->Cell(0, 6, number_format($amount, 2), 1, 1, 'R');
             }
@@ -375,13 +379,47 @@ class PaymentsController extends BaseController
     protected function translatePaymentType($type)
     {
         $map = [
-            'efectivo' => 'Efectivo',
-            'cheque' => 'Cheque',
-            'transferencia' => 'Transferencia',
-            'deposito' => 'Depósito',
-            'nota_credito_fiscal' => 'Nota Crédito Fiscal',
+            'efectivo' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH',
+            'cheque' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK',
+            'transferencia' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER',
+            'deposito' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT',
+            'nota_credito_fiscal' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE',
         ];
-        return $map[strtolower($type ?? '')] ?? $type;
+        $key = strtolower($type ?? '');
+        $langKey = $map[$key] ?? null;
+        return $langKey ? Text::_($langKey) : htmlspecialchars($type ?? '');
+    }
+
+    /**
+     * Translate bank code to display label (from BankModel or language constants)
+     *
+     * @param   string  $code  Bank code (e.g. banco_industrial)
+     *
+     * @return  string
+     */
+    protected function translateBank($code)
+    {
+        if (empty(trim($code ?? ''))) {
+            return '-';
+        }
+        $code = trim($code);
+        try {
+            $model = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Bank', 'Site', ['ignore_request' => true]);
+            if ($model && method_exists($model, 'getBankOptions')) {
+                $options = $model->getBankOptions();
+                if (isset($options[$code])) {
+                    return $options[$code];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fall through to language constants
+        }
+        // Language keys use suffix after banco_ (e.g. banco_industrial -> COM_ORDENPRODUCCION_BANK_INDUSTRIAL)
+        $suffix = preg_replace('/^banco_/', '', $code);
+        $key = 'COM_ORDENPRODUCCION_BANK_' . strtoupper(str_replace(['-', ' '], '_', $suffix));
+        $label = Text::_($key);
+        return ($label !== $key) ? $label : $code;
     }
 
     /**

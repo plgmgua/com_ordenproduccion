@@ -181,11 +181,11 @@ use Joomla\CMS\Session\Session;
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="deletePaymentModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_TITLE'); ?></h5>
+                    <h5 class="modal-title" id="deletePaymentModalLabel"><?php echo htmlspecialchars($this->modalDeleteTitle ?? 'Confirmar eliminación de pago'); ?></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_DESC'); ?></p>
+                    <p class="text-muted small"><?php echo htmlspecialchars($this->modalDeleteDesc ?? 'Revise los datos del pago antes de eliminar. Se generará un PDF como comprobante.'); ?></p>
                     <div id="deletePaymentLoading" class="text-center py-4">
                         <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
                     </div>
@@ -215,11 +215,11 @@ use Joomla\CMS\Session\Session;
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('COM_ORDENPRODUCCION_CANCEL'); ?></button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars($this->modalCancel ?? 'Cancelar'); ?></button>
                     <form id="deletePaymentForm" method="post" style="display:inline">
                         <?php echo HTMLHelper::_('form.token'); ?>
                         <input type="hidden" name="payment_id" id="modalPaymentId" value="">
-                        <button type="submit" class="btn btn-danger" id="modalConfirmDelete"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIRM_DELETE'); ?></button>
+                        <button type="submit" class="btn btn-danger" id="modalConfirmDelete"><?php echo htmlspecialchars($this->modalConfirmDelete ?? 'Confirmar eliminación'); ?></button>
                     </form>
                 </div>
             </div>
@@ -265,14 +265,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('modalClient').textContent = p.client_name || '-';
                     document.getElementById('modalDate').textContent = p.created ? new Date(p.created).toLocaleString('es-GT') : '-';
                     document.getElementById('modalType').textContent = p.payment_type_label || '-';
-                    document.getElementById('modalBank').textContent = p.bank || '-';
+                    document.getElementById('modalBank').textContent = p.bank_label || p.bank || '-';
                     document.getElementById('modalDoc').textContent = p.document_number || '-';
                     document.getElementById('modalAmount').textContent = 'Q ' + (p.payment_amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2});
                     var tbody = document.getElementById('modalLinesBody');
                     tbody.innerHTML = '';
                     (d.lines || []).forEach(function(l) {
                         var tr = document.createElement('tr');
-                        tr.innerHTML = '<td>' + (l.payment_type_label || '-') + '</td><td>' + (l.bank || '-') + '</td><td>' + (l.document_number || '-') + '</td><td class="text-end">Q ' + (l.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2}) + '</td>';
+                        tr.innerHTML = '<td>' + (l.payment_type_label || '-') + '</td><td>' + (l.bank_label || l.bank || '-') + '</td><td>' + (l.document_number || '-') + '</td><td class="text-end">Q ' + (l.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2}) + '</td>';
                         tbody.appendChild(tr);
                     });
                     if (!d.lines || d.lines.length === 0) {

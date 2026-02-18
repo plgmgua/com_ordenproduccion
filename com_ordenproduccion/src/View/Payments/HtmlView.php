@@ -94,6 +94,16 @@ class HtmlView extends BaseHtmlView
 
         $this->_prepareDocument();
 
+        // Modal labels with fallbacks for when language file keys are not loaded
+        $t = function ($key, $fallback) {
+            $v = Text::_($key);
+            return ($v !== $key) ? $v : $fallback;
+        };
+        $this->modalDeleteTitle = $t('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_TITLE', 'Confirmar eliminación de pago');
+        $this->modalDeleteDesc = $t('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_DESC', 'Revise los datos del pago antes de eliminar. Se generará un PDF como comprobante de eliminación.');
+        $this->modalConfirmDelete = $t('COM_ORDENPRODUCCION_CONFIRM_DELETE', 'Confirmar eliminación');
+        $this->modalCancel = $t('COM_ORDENPRODUCCION_CANCEL', 'Cancelar');
+
         parent::display($tpl);
     }
 
