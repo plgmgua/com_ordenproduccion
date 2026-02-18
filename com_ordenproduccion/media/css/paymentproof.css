@@ -310,22 +310,40 @@
     }
 }
 
-/* Payment lines table - responsive, fit viewport */
+/* Payment lines table - fixed layout to prevent column mixing */
 #payment-lines-table {
-    table-layout: auto;
+    table-layout: fixed;
     width: 100%;
-    max-width: 100%;
 }
+
+#payment-lines-table th:nth-child(1),
+#payment-lines-table td:nth-child(1) { width: 18%; min-width: 100px; }
+#payment-lines-table th:nth-child(2),
+#payment-lines-table td:nth-child(2) { width: 18%; min-width: 100px; }
+#payment-lines-table th:nth-child(3),
+#payment-lines-table td:nth-child(3) { width: 28%; min-width: 120px; }
+#payment-lines-table th:nth-child(4),
+#payment-lines-table td:nth-child(4) { width: 18%; min-width: 95px; }
+#payment-lines-table th:nth-child(5),
+#payment-lines-table td:nth-child(5) { width: 8%; min-width: 40px; }
 
 #payment-lines-table th,
 #payment-lines-table td {
     white-space: normal;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 #payment-lines-table .payment-line-type,
 #payment-lines-table .payment-line-bank {
-    min-width: 120px;
+    width: 100%;
     max-width: 100%;
+}
+
+#payment-lines-table input[name*="document_number"] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Smaller delete line button so it doesn't affect Monto column */
@@ -359,8 +377,10 @@
         font-size: 13px;
     }
     
-    #payment-lines-table .payment-line-type,
-    #payment-lines-table .payment-line-bank {
-        min-width: 100px;
-    }
+    #payment-lines-table th:nth-child(1),
+    #payment-lines-table td:nth-child(1) { min-width: 80px; }
+    #payment-lines-table th:nth-child(2),
+    #payment-lines-table td:nth-child(2) { min-width: 80px; }
+    #payment-lines-table th:nth-child(3),
+    #payment-lines-table td:nth-child(3) { min-width: 100px; }
 }

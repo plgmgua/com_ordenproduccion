@@ -387,7 +387,8 @@ window.validateFile = function(input) {
         const typeSel = row.querySelector('.payment-line-type');
         const bankCell = row.querySelector('.bank-cell');
         if (!typeSel || !bankCell) return;
-        bankCell.style.display = (typeSel.value === 'efectivo') ? 'none' : '';
+        // Use visibility instead of display:none so column layout stays fixed
+        bankCell.style.visibility = (typeSel.value === 'efectivo') ? 'hidden' : 'visible';
     }
 
     function updateLinesTotal() {

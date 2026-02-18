@@ -209,9 +209,14 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Get orders with remaining balance from same client (for adding to payment)
-     * Includes: orders where total paid < invoice_value, same client
-     * Supports both schema variants: invoice_value/valor_a_facturar, client_name/nombre_del_cliente
+     * Get orders with remaining balance from same client (for adding to payment).
+     *
+     * Filtering (all must apply):
+     * - Same client only: TRIM(client_name|nombre_del_cliente) = current order's client
+     * - Excludes current order (already in first row)
+     * - Pending balance only: invoice_value - total_paid > 0.01
+     *
+     * Supports both schema: invoice_value/valor_a_facturar, client_name/nombre_del_cliente
      *
      * @return  array  Array of order objects with id, order_number, invoice_value, total_paid, remaining_balance
      *
