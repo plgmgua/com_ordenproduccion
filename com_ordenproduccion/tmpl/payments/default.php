@@ -79,12 +79,22 @@ use Joomla\CMS\Router\Route;
             </div>
         </div>
 
-        <!-- Results Summary - compact -->
+        <!-- Results Summary and Export -->
         <div class="row mb-2">
-            <div class="col-12">
-                <div class="alert alert-info py-2 mb-0 small">
+            <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="alert alert-info py-2 mb-0 small flex-grow-1">
                     <i class="fas fa-info-circle"></i> Se encontraron <?php echo count($this->items); ?> pagos
                 </div>
+                <?php
+                $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=payments.export&format=raw');
+                $exportUrl .= '&filter_client=' . rawurlencode($this->state->get('filter.client', ''));
+                $exportUrl .= '&filter_date_from=' . rawurlencode($this->state->get('filter.date_from', ''));
+                $exportUrl .= '&filter_date_to=' . rawurlencode($this->state->get('filter.date_to', ''));
+                $exportUrl .= '&filter_sales_agent=' . rawurlencode($this->state->get('filter.sales_agent', ''));
+                ?>
+                <a href="<?php echo $exportUrl; ?>" class="btn btn-success btn-sm" target="_blank" rel="noopener">
+                    <i class="fas fa-file-excel"></i> Exportar a Excel
+                </a>
             </div>
         </div>
 
