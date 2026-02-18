@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="COM_ORDENPRODUCCION_PAYMENTS_MENU_TITLE">
+    <layout title="Listado de Pagos">
         <message>
-            <![CDATA[COM_ORDENPRODUCCION_PAYMENTS_MENU_DESC]]>
+            <![CDATA[Muestra la lista de todos los pagos con filtros por cliente, fecha o agente de ventas]]>
         </message>
     </layout>
 </metadata>

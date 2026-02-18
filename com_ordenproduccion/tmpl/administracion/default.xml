@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="COM_ORDENPRODUCCION_ADMINISTRACION_MENU_TITLE" option="COM_ORDENPRODUCCION_ADMINISTRACION_MENU_DESC">
+    <layout title="Panel de Administración">
         <help
             key="JHELP_MENUS_MENU_ITEM_COMPONENT_ORDENPRODUCCION_ADMINISTRACION"
         />
         <message>
-            <![CDATA[COM_ORDENPRODUCCION_ADMINISTRACION_MENU_DESC]]>
+            <![CDATA[Muestra el panel de administración con estadísticas]]>
         </message>
     </layout>
     

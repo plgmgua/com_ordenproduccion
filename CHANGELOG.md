@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Menu item type labels** – Replaced raw language constants with human-friendly Spanish text in layout metadata:
+  - Administración: "Panel de Administración"
+  - Asistencia: "Reporte de Asistencia"
+  - Timesheets: "Hojas de Tiempo"
+  - Payments: "Listado de Pagos"
+- Note: After update, clear Joomla cache (System → Clear Cache) so new menu types (e.g. Payments) appear
+
 ### Added
 - **Payments list view** – New frontend view to manage payment data
   - Filters: client, date range, sales person

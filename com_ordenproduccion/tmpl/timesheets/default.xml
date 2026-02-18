@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_TITLE" option="COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_OPTION">
-        <message><![CDATA[COM_ORDENPRODUCCION_TIMESHEETS_VIEW_DEFAULT_DESC]]></message>
+    <layout title="Hojas de Tiempo">
+        <message><![CDATA[Revisar y aprobar resúmenes semanales de hojas de tiempo]]></message>
     </layout>
 
     <fields name="request">
