@@ -378,16 +378,27 @@ class PaymentsController extends BaseController
      */
     protected function translatePaymentType($type)
     {
-        $map = [
+        $langMap = [
             'efectivo' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH',
             'cheque' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK',
             'transferencia' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER',
             'deposito' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT',
             'nota_credito_fiscal' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE',
         ];
+        $fallbackMap = [
+            'efectivo' => 'Efectivo',
+            'cheque' => 'Cheque',
+            'transferencia' => 'Transferencia Bancaria',
+            'deposito' => 'Depósito Bancario',
+            'nota_credito_fiscal' => 'Nota Crédito Fiscal',
+        ];
         $key = strtolower($type ?? '');
-        $langKey = $map[$key] ?? null;
-        return $langKey ? Text::_($langKey) : htmlspecialchars($type ?? '');
+        $langKey = $langMap[$key] ?? null;
+        if ($langKey) {
+            $translated = Text::_($langKey);
+            return ($translated !== $langKey) ? $translated : ($fallbackMap[$key] ?? htmlspecialchars($type ?? ''));
+        }
+        return htmlspecialchars($type ?? '');
     }
 
     /**
