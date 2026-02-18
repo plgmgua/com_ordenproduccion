@@ -69,82 +69,68 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
                             <input type="hidden" name="option" value="com_ordenproduccion">
                             <input type="hidden" name="view" value="ordenes">
-                            <div class="row mb-3">
-                                <div class="col-md-2">
-                                    <div class="form-group mb-0">
-                                        <label for="filter_search"><?php echo htmlspecialchars($labelFilterSearch); ?></label>
-                                        <input type="text" 
-                                               name="filter_search" 
-                                               id="filter_search" 
-                                               class="form-control" 
-                                               value="<?php echo htmlspecialchars($this->state->get('filter.search')); ?>"
-                                               placeholder="<?php echo htmlspecialchars($labelFilterSearchPlaceholder); ?>">
-                                    </div>
+                            <div class="ordenes-filters-compact d-flex flex-wrap align-items-end gap-3">
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_search" class="form-label"><?php echo htmlspecialchars($labelFilterSearch); ?></label>
+                                    <input type="text" 
+                                           name="filter_search" 
+                                           id="filter_search" 
+                                           class="form-control form-control-sm" 
+                                           value="<?php echo htmlspecialchars($this->state->get('filter.search')); ?>"
+                                           placeholder="<?php echo htmlspecialchars($labelFilterSearchPlaceholder); ?>">
                                 </div>
-                                <div class="col-md-2">
-                                    <div class="form-group mb-0">
-                                        <label for="filter_status"><?php echo htmlspecialchars($labelFilterStatus); ?></label>
-                                        <select name="filter_status" id="filter_status" class="form-control">
-                                            <option value=""><?php echo htmlspecialchars($labelSelectStatus); ?></option>
-                                            <?php foreach ($this->getModel()->getStatusOptions() as $value => $text) : ?>
-                                                <?php if ($value !== '') : ?>
-                                                    <option value="<?php echo htmlspecialchars($value); ?>" 
-                                                            <?php echo $this->state->get('filter.status') == $value ? 'selected' : ''; ?>>
-                                                        <?php echo htmlspecialchars($text); ?>
-                                                    </option>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group mb-0">
-                                        <label for="filter_date_from"><?php echo htmlspecialchars($labelFilterDateFrom); ?></label>
-                                        <input type="date" 
-                                               name="filter_date_from" 
-                                               id="filter_date_from" 
-                                               class="form-control" 
-                                               value="<?php echo htmlspecialchars($this->state->get('filter.date_from')); ?>">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group mb-0">
-                                        <label for="filter_date_to"><?php echo htmlspecialchars($labelFilterDateTo); ?></label>
-                                        <input type="date" 
-                                               name="filter_date_to" 
-                                               id="filter_date_to" 
-                                               class="form-control" 
-                                               value="<?php echo htmlspecialchars($this->state->get('filter.date_to')); ?>">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row align-items-end">
-                                <div class="col-md-3">
-                                    <div class="form-group mb-0">
-                                        <label for="filter_payment_status"><?php echo htmlspecialchars($labelFilterPaymentStatus); ?></label>
-                                        <select name="filter_payment_status" id="filter_payment_status" class="form-control">
-                                            <?php foreach ($this->getModel()->getPaymentStatusOptions() as $value => $text) : ?>
-                                                <option value="<?php echo htmlspecialchars($value); ?>"
-                                                        <?php echo $this->state->get('filter.payment_status') === $value ? 'selected' : ''; ?>>
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_status" class="form-label"><?php echo htmlspecialchars($labelFilterStatus); ?></label>
+                                    <select name="filter_status" id="filter_status" class="form-control form-control-sm">
+                                        <option value=""><?php echo htmlspecialchars($labelSelectStatus); ?></option>
+                                        <?php foreach ($this->getModel()->getStatusOptions() as $value => $text) : ?>
+                                            <?php if ($value !== '') : ?>
+                                                <option value="<?php echo htmlspecialchars($value); ?>" 
+                                                        <?php echo $this->state->get('filter.status') == $value ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($text); ?>
                                                 </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
-                                <div class="col-auto">
-                                    <div class="d-flex gap-1 align-items-stretch">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-search"></i>
-                                            <?php echo htmlspecialchars($labelFilterApply); ?>
-                                        </button>
-                                        <a href="<?php echo $clearFiltersUrl; ?>" 
-                                           class="btn btn-secondary d-inline-flex align-items-center"
-                                           title="<?php echo htmlspecialchars($labelFilterClear); ?>">
-                                            <i class="fas fa-times"></i>
-                                            <?php echo htmlspecialchars($labelFilterClear); ?>
-                                        </a>
-                                    </div>
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_date_from" class="form-label"><?php echo htmlspecialchars($labelFilterDateFrom); ?></label>
+                                    <input type="date" 
+                                           name="filter_date_from" 
+                                           id="filter_date_from" 
+                                           class="form-control form-control-sm" 
+                                           value="<?php echo htmlspecialchars($this->state->get('filter.date_from')); ?>">
+                                </div>
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_date_to" class="form-label"><?php echo htmlspecialchars($labelFilterDateTo); ?></label>
+                                    <input type="date" 
+                                           name="filter_date_to" 
+                                           id="filter_date_to" 
+                                           class="form-control form-control-sm" 
+                                           value="<?php echo htmlspecialchars($this->state->get('filter.date_to')); ?>">
+                                </div>
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_payment_status" class="form-label"><?php echo htmlspecialchars($labelFilterPaymentStatus); ?></label>
+                                    <select name="filter_payment_status" id="filter_payment_status" class="form-control form-control-sm">
+                                        <?php foreach ($this->getModel()->getPaymentStatusOptions() as $value => $text) : ?>
+                                            <option value="<?php echo htmlspecialchars($value); ?>"
+                                                    <?php echo $this->state->get('filter.payment_status') === $value ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($text); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="ordenes-filter-buttons d-flex gap-1">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-search"></i>
+                                        <?php echo htmlspecialchars($labelFilterApply); ?>
+                                    </button>
+                                    <a href="<?php echo $clearFiltersUrl; ?>" 
+                                       class="btn btn-secondary btn-sm d-inline-flex align-items-center"
+                                       title="<?php echo htmlspecialchars($labelFilterClear); ?>">
+                                        <i class="fas fa-times"></i>
+                                        <?php echo htmlspecialchars($labelFilterClear); ?>
+                                    </a>
                                 </div>
                             </div>
                         </form>

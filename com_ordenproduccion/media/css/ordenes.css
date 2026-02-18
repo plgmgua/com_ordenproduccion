@@ -1,3 +1,27 @@
+/* Compact filters - flex wrap, minimal gaps, content-sized */
+.ordenes-filters-compact {
+  row-gap: 0.5rem;
+}
+.ordenes-filter-item {
+  flex: 0 0 auto;
+  min-width: 140px;
+}
+.ordenes-filter-item label {
+  margin-bottom: 0.2rem;
+  font-size: 0.875rem;
+}
+.ordenes-filter-item input,
+.ordenes-filter-item select {
+  min-width: 140px;
+}
+.ordenes-filter-item input[type="text"] {
+  min-width: 180px;
+}
+.ordenes-filter-buttons {
+  flex: 0 0 auto;
+  align-self: flex-end;
+}
+
 /* Actions column - compact square icon buttons like the example */
 .ordenes-actions .btn {
   width: 36px;
