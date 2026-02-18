@@ -48,15 +48,45 @@ class PaymentproofController extends BaseController
         }
 
         try {
-            // Get form data
-            $paymentType = $this->input->getString('payment_type', '');
-            $bank = $this->input->getString('bank', '');
-            $documentNumber = $this->input->getString('document_number', '');
-            $paymentAmount = $this->input->getFloat('payment_amount', 0);
+            // Get form data - support multi-line (payment_lines) or legacy single-line
+            $paymentLines = $this->input->get('payment_lines', [], 'array');
             $paymentOrders = $this->input->get('payment_orders', [], 'array');
-            
-            // Validate required fields
-            if (empty($paymentType) || empty($documentNumber) || $paymentAmount <= 0) {
+
+            // Validate payment lines (new multi-line format)
+            $validatedLines = [];
+            if (!empty($paymentLines) && is_array($paymentLines)) {
+                foreach ($paymentLines as $line) {
+                    $type = trim($line['payment_type'] ?? '');
+                    $doc = trim($line['document_number'] ?? '');
+                    $amount = (float) ($line['amount'] ?? 0);
+                    if ($amount > 0 && $type !== '' && $doc !== '') {
+                        $validatedLines[] = [
+                            'payment_type' => $type,
+                            'bank' => trim($line['bank'] ?? ''),
+                            'document_number' => $doc,
+                            'amount' => $amount
+                        ];
+                    }
+                }
+            }
+
+            // Legacy: single payment_type, document_number, payment_amount
+            if (empty($validatedLines)) {
+                $paymentType = $this->input->getString('payment_type', '');
+                $bank = $this->input->getString('bank', '');
+                $documentNumber = $this->input->getString('document_number', '');
+                $paymentAmount = $this->input->getFloat('payment_amount', 0);
+                if ($paymentType !== '' && $documentNumber !== '' && $paymentAmount > 0) {
+                    $validatedLines[] = [
+                        'payment_type' => $paymentType,
+                        'bank' => $bank,
+                        'document_number' => $documentNumber,
+                        'amount' => $paymentAmount
+                    ];
+                }
+            }
+
+            if (empty($validatedLines)) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
             }
 
@@ -88,25 +118,20 @@ class PaymentproofController extends BaseController
             $files = $this->input->files->get('payment_proof_file', [], 'array');
             
             if (!empty($files) && isset($files['name']) && !empty($files['name'])) {
-                // Use first order ID for file naming
                 $uploadedFile = $this->handleFileUpload($files, $validatedOrders[0]['order_id']);
             }
 
-            // Get the model
             $model = $this->getModel('Paymentproof');
             
-            // Save payment proof with all associated orders
             $data = [
-                'order_id' => $validatedOrders[0]['order_id'], // Primary order (first one)
-                'payment_type' => $paymentType,
-                'bank' => $bank,
-                'document_number' => $documentNumber,
-                'payment_amount' => $paymentAmount,
-                'file_path' => $uploadedFile,
+                'order_id' => $validatedOrders[0]['order_id'],
+                'payment_amount' => array_sum(array_column($validatedLines, 'amount')),
+                'file_path' => $uploadedFile ?? '',
                 'created_by' => $user->id,
                 'created' => Factory::getDate()->toSql(),
                 'state' => 1,
-                'payment_orders' => $validatedOrders // Pass array of orders with values
+                'payment_orders' => $validatedOrders,
+                'payment_lines' => $validatedLines
             ];
 
             if ($model->save($data)) {

@@ -120,9 +120,10 @@ class PaymentproofModel extends ItemModel
 
     /**
      * Method to save payment proof data
-     * Uses junction table for many-to-many: multiple payments per order, multiple orders per payment
+     * Uses junction table for many-to-many: multiple payments per order, multiple orders per payment.
+     * Supports multiple payment method lines (3.64.0+): cheque + nota crédito fiscal, etc.
      *
-     * @param   array  $data  The form data.
+     * @param   array  $data  The form data. May include payment_lines (array of {payment_type, bank, document_number, amount}).
      *
      * @return  boolean  True on success, false on failure.
      *
@@ -132,6 +133,25 @@ class PaymentproofModel extends ItemModel
     {
         try {
             $db = $this->getDatabase();
+
+            // Build payment_lines from data (new multi-line or legacy single-line)
+            $paymentLines = $this->normalizePaymentLines($data);
+            if (empty($paymentLines)) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
+                return false;
+            }
+            $paymentAmount = 0;
+            foreach ($paymentLines as $line) {
+                $paymentAmount += (float) ($line['amount'] ?? 0);
+            }
+            if ($paymentAmount <= 0) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
+                return false;
+            }
+            $firstLine = $paymentLines[0] ?? null;
+            $paymentType = $firstLine['payment_type'] ?? ($data['payment_type'] ?? 'efectivo');
+            $bank = $firstLine['bank'] ?? ($data['bank'] ?? '');
+            $documentNumber = $firstLine['document_number'] ?? ($data['document_number'] ?? '');
             
             // Start transaction
             $db->transactionStart();
@@ -140,7 +160,7 @@ class PaymentproofModel extends ItemModel
                 ? (int) $data['payment_orders'][0]['order_id'] 
                 : 0;
             
-            // Insert new payment proof record (order_id nullable for standalone payments)
+            // Insert new payment proof record
             $query = $db->getQuery(true);
             $columns = [
                 'order_id',
@@ -156,14 +176,14 @@ class PaymentproofModel extends ItemModel
             
             $values = [
                 $primaryOrderId > 0 ? $primaryOrderId : 'NULL',
-                $db->quote($data['payment_type']),
-                $db->quote($data['bank']),
-                $db->quote($data['document_number']),
-                (float) $data['payment_amount'],
-                $db->quote($data['file_path']),
-                (int) $data['created_by'],
-                $db->quote($data['created']),
-                (int) $data['state']
+                $db->quote($paymentType),
+                $db->quote($bank),
+                $db->quote($documentNumber),
+                (float) $paymentAmount,
+                $db->quote($data['file_path'] ?? ''),
+                (int) ($data['created_by'] ?? 0),
+                $db->quote($data['created'] ?? Factory::getDate()->toSql()),
+                (int) ($data['state'] ?? 1)
             ];
             
             $query->insert($db->quoteName('#__ordenproduccion_payment_proofs'))
@@ -174,6 +194,30 @@ class PaymentproofModel extends ItemModel
             $db->execute();
             
             $paymentProofId = $db->insertid();
+
+            // Insert payment_proof_lines if table exists (3.64.0+)
+            if ($this->hasPaymentProofLinesTable() && !empty($paymentLines)) {
+                $ordering = 0;
+                foreach ($paymentLines as $line) {
+                    $amt = (float) ($line['amount'] ?? 0);
+                    if ($amt <= 0) {
+                        continue;
+                    }
+                    $insertLine = $db->getQuery(true)
+                        ->insert($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                        ->columns($db->quoteName(['payment_proof_id', 'payment_type', 'bank', 'document_number', 'amount', 'ordering']))
+                        ->values(
+                            (int) $paymentProofId . ',' .
+                            $db->quote($line['payment_type'] ?? 'efectivo') . ',' .
+                            $db->quote($line['bank'] ?? '') . ',' .
+                            $db->quote($line['document_number'] ?? '') . ',' .
+                            $amt . ',' .
+                            $ordering++
+                        );
+                    $db->setQuery($insertLine);
+                    $db->execute();
+                }
+            }
             
             if ($this->hasPaymentOrdersTable()) {
                 // Insert into junction table (payment_orders) for each order
@@ -219,6 +263,18 @@ class PaymentproofModel extends ItemModel
             }
             
             $db->transactionCommit();
+
+            // Update client Saldo immediately (3.64.0)
+            try {
+                $adminModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                    ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+                if ($adminModel && method_exists($adminModel, 'refreshClientBalances')) {
+                    $adminModel->refreshClientBalances();
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal: Saldo will update on next clientes view load
+            }
+
             return true;
             
         } catch (\Exception $e) {
@@ -228,6 +284,44 @@ class PaymentproofModel extends ItemModel
             $this->setError($e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Normalize payment lines from form data (multi-line or legacy single-line)
+     *
+     * @param   array  $data  Form data
+     *
+     * @return  array  Array of {payment_type, bank, document_number, amount}
+     */
+    protected function normalizePaymentLines($data)
+    {
+        $lines = [];
+        if (!empty($data['payment_lines']) && is_array($data['payment_lines'])) {
+            foreach ($data['payment_lines'] as $line) {
+                $amount = (float) ($line['amount'] ?? 0);
+                if ($amount <= 0) {
+                    continue;
+                }
+                $lines[] = [
+                    'payment_type' => $line['payment_type'] ?? 'efectivo',
+                    'bank' => $line['bank'] ?? '',
+                    'document_number' => trim($line['document_number'] ?? ''),
+                    'amount' => $amount
+                ];
+            }
+        }
+        if (empty($lines) && !empty($data['payment_type']) && !empty($data['document_number'])) {
+            $amt = (float) ($data['payment_amount'] ?? 0);
+            if ($amt > 0) {
+                $lines[] = [
+                    'payment_type' => $data['payment_type'],
+                    'bank' => $data['bank'] ?? '',
+                    'document_number' => trim($data['document_number']),
+                    'amount' => $amt
+                ];
+            }
+        }
+        return $lines;
     }
 
     /**
@@ -382,6 +476,33 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Get payment lines for a proof (3.64.0+)
+     *
+     * @param   int  $paymentProofId  Payment proof ID
+     *
+     * @return  array
+     */
+    public function getPaymentProofLines($paymentProofId)
+    {
+        if (!$this->hasPaymentProofLinesTable()) {
+            return [];
+        }
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId)
+                    ->order($db->quoteName('ordering') . ' ASC, id ASC')
+            );
+            return $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
      * Get orders linked to a payment proof
      *
      * @param   integer  $paymentProofId  The payment proof ID
@@ -429,8 +550,30 @@ class PaymentproofModel extends ItemModel
             'efectivo' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH'),
             'cheque' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK'),
             'transferencia' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER'),
-            'deposito' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT')
+            'deposito' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT'),
+            'nota_credito_fiscal' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE')
         ];
+    }
+
+    /**
+     * Check if payment_proof_lines table exists (3.64.0+ schema)
+     */
+    protected function hasPaymentProofLinesTable()
+    {
+        try {
+            $db = $this->getDatabase();
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_payment_proof_lines';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $tableName) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

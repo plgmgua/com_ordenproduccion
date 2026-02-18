@@ -21,6 +21,27 @@ $orderId = $this->orderId;
 $existingPayments = $this->existingPayments ?? [];
 $invoiceValue = (float) ($order->invoice_value ?? 0);
 $defaultAmount = $invoiceValue > 0 ? number_format($invoiceValue, 2, '.', '') : '';
+
+// Bank options for payment lines (JS will clone from first row)
+$bankOptions = [];
+$defaultBankCode = null;
+try {
+    $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+    $q = $db->getQuery(true)->select('id, code, name, name_es, name_en, is_default')
+        ->from($db->quoteName('#__ordenproduccion_banks'))->where($db->quoteName('state') . ' = 1')
+        ->order($db->quoteName('ordering') . ' ASC, id ASC');
+    $db->setQuery($q);
+    $banks = $db->loadObjectList() ?: [];
+    $lang = Factory::getLanguage();
+    $isSpanish = (strpos($lang->getTag(), 'es') === 0);
+    foreach ($banks as $b) {
+        if (empty($b->code)) continue;
+        $displayName = ($isSpanish && !empty($b->name_es)) ? trim($b->name_es) : (trim($b->name_en ?? $b->name ?? '') ?: $b->code);
+        $bankOptions[$b->code] = $displayName;
+        if (!empty($b->is_default)) $defaultBankCode = $b->code;
+    }
+} catch (\Exception $e) { /* ignore */ }
+$paymentTypeOptions = $this->getPaymentTypeOptions();
 ?>
 
 <div class="com-ordenproduccion-paymentproof">
@@ -70,14 +91,29 @@ $defaultAmount = $invoiceValue > 0 ? number_format($invoiceValue, 2, '.', '') : 
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($existingPayments as $proof): ?>
+                                <?php
+                                $proofModel = $this->getModel();
+                                foreach ($existingPayments as $proof):
+                                    $lines = method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
+                                    if (!empty($lines)):
+                                        foreach ($lines as $line):
+                                ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
+                                    <td><?php echo htmlspecialchars($line->payment_type ?? ''); ?></td>
+                                    <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
+                                    <td><?php echo $line === reset($lines) ? 'Q ' . number_format((float)($proof->amount_applied ?? 0), 2) : ''; ?></td>
+                                </tr>
+                                <?php endforeach;
+                                    else:
+                                ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td><?php echo htmlspecialchars($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->amount_applied ?? 0), 2); ?></td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php endif; endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -140,170 +176,67 @@ $defaultAmount = $invoiceValue > 0 ? number_format($invoiceValue, 2, '.', '') : 
                             <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
                             <?php echo HTMLHelper::_('form.token'); ?>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="payment_type" class="required">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?> *
-                                        </label>
-                                        <select name="payment_type" id="payment_type" class="form-control required" required>
-                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE'); ?></option>
-                                            <?php foreach ($this->getPaymentTypeOptions() as $value => $text) : ?>
-                                                <option value="<?php echo $value; ?>"><?php echo $text; ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="bank">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_BANK'); ?>
-                                            <?php 
-                                            // Add version number for deployment verification
-                                            $manifestPath = JPATH_ROOT . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml';
-                                            $templateVersion = 'v3.5.3'; // Template version - update when template changes
-                                            if (file_exists($manifestPath)) {
-                                                try {
-                                                    $manifest = simplexml_load_file($manifestPath);
-                                                    if ($manifest && isset($manifest->version)) {
-                                                        $componentVersion = (string) $manifest->version;
-                                                        echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ' | Component ' . htmlspecialchars($componentVersion) . ')</small>';
-                                                    } else {
-                                                        echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ')</small>';
-                                                    }
-                                                } catch (Exception $e) {
-                                                    echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ')</small>';
-                                                }
-                                            } else {
-                                                echo '<small class="text-muted" style="font-weight: normal; font-size: 0.85em;"> (Template ' . htmlspecialchars($templateVersion) . ')</small>';
-                                            }
-                                            ?>
-                                        </label>
-                                        <select name="bank" id="bank" class="form-control" required>
-                                            <?php 
-                                            // DIRECT DATABASE QUERY - NO FALLBACKS (using working solution from test dropdown)
-                                            $bankOptions = [];
-                                            $defaultBankCode = null;
-                                            
-                                            try {
-                                                $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-                                                
-                                                // Get all banks directly from database
-                                                $query = $db->getQuery(true)
-                                                    ->select('id, code, name, name_es, name_en, ordering, is_default, state')
-                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
-                                                    ->where($db->quoteName('state') . ' = 1')
-                                                    ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
-                                                
-                                                $db->setQuery($query);
-                                                $banks = $db->loadObjectList() ?: [];
-                                                
-                                                // Get default bank code directly
-                                                $defaultQuery = $db->getQuery(true)
-                                                    ->select($db->quoteName('code'))
-                                                    ->from($db->quoteName('#__ordenproduccion_banks'))
-                                                    ->where($db->quoteName('is_default') . ' = 1')
-                                                    ->where($db->quoteName('state') . ' = 1');
-                                                $db->setQuery($defaultQuery);
-                                                $defaultBankCode = $db->loadResult();
-                                                
-                                                // Process banks into options array
-                                                $lang = Factory::getLanguage();
-                                                $langTag = $lang->getTag();
-                                                $isSpanish = (strpos($langTag, 'es') === 0);
-                                                
-                                                foreach ($banks as $bank) {
-                                                    if (empty($bank->code)) {
-                                                        continue;
-                                                    }
-                                                    
-                                                    // Select name based on language
-                                                    if ($isSpanish && !empty($bank->name_es)) {
-                                                        $displayName = trim($bank->name_es);
-                                                    } elseif (!empty($bank->name_en)) {
-                                                        $displayName = trim($bank->name_en);
-                                                    } elseif (!empty($bank->name)) {
-                                                        $displayName = trim($bank->name);
-                                                    } else {
-                                                        $displayName = $bank->code; // Last resort
-                                                    }
-                                                    
-                                                    $bankOptions[$bank->code] = $displayName;
-                                                }
-                                                
-                                            } catch (\Exception $e) {
-                                                error_log("PaymentProofTemplate: Error loading banks from database - " . $e->getMessage());
-                                            }
-                                            
-                                            // Pre-select default bank for new form
-                                            $selectedBankCode = !empty($defaultBankCode) ? $defaultBankCode : null;
-                                            
-                                            // Show "Select Bank" option only if no valid selection
-                                            $showSelectOption = empty($selectedBankCode) || !isset($bankOptions[$selectedBankCode]);
-                                            
-                                            // Render options
-                                            if ($showSelectOption) {
-                                                echo '<option value="">' . Text::_('COM_ORDENPRODUCCION_SELECT_BANK') . '</option>';
-                                            }
-                                            
-                                            foreach ($bankOptions as $value => $text) : 
-                                                // Ensure we have valid text - use value as fallback
-                                                $displayText = !empty($text) ? htmlspecialchars($text, ENT_QUOTES, 'UTF-8') : htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-                                                // Check if this option should be selected (strict comparison)
-                                                $isSelected = (!empty($selectedBankCode) && $value === $selectedBankCode);
-                                            ?>
-                                                <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $isSelected ? ' selected="selected"' : ''; ?>>
-                                                    <?php echo $displayText; ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                            
-                                            <?php if (empty($bankOptions)): ?>
-                                                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_NO_BANKS_AVAILABLE'); ?></option>
-                                            <?php endif; ?>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="payment_amount" class="required">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?> *
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">Q.</span>
-                                            <input type="number" 
-                                                   name="payment_amount" 
-                                                   id="payment_amount" 
-                                                   class="form-control required" 
-                                                   required
-                                                   min="0.01"
-                                                   step="0.01"
-                                                   placeholder="0.00"
-                                                   value="">
-                                        </div>
-                                        <small class="form-text text-muted">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT_HELP'); ?>
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="document_number" class="required">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?> *
-                                        </label>
-                                        <input type="text" 
-                                               name="document_number" 
-                                               id="document_number" 
-                                               class="form-control required" 
-                                               required
-                                               maxlength="255"
-                                               placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER'); ?>"
-                                               value="">
+                            <!-- Payment method lines (cheque + NCF + etc.) -->
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <label><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES'); ?></label>
+                                    <small class="form-text text-muted d-block mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES_HELP'); ?></small>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered" id="payment-lines-table">
+                                            <thead>
+                                                <tr>
+                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?></th>
+                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_BANK'); ?></th>
+                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?></th>
+                                                    <th style="width: 140px;"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?></th>
+                                                    <th style="width: 60px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="payment-lines-body">
+                                                <tr class="payment-line-row">
+                                                    <td>
+                                                        <select name="payment_lines[0][payment_type]" class="form-control form-control-sm payment-line-type" required>
+                                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE'); ?></option>
+                                                            <?php foreach ($paymentTypeOptions as $val => $txt): ?>
+                                                            <option value="<?php echo htmlspecialchars($val); ?>"><?php echo htmlspecialchars($txt); ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </td>
+                                                    <td class="bank-cell">
+                                                        <select name="payment_lines[0][bank]" class="form-control form-control-sm payment-line-bank">
+                                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_BANK'); ?></option>
+                                                            <?php foreach ($bankOptions as $code => $name): ?>
+                                                            <option value="<?php echo htmlspecialchars($code); ?>"<?php echo ($defaultBankCode && $code === $defaultBankCode) ? ' selected' : ''; ?>><?php echo htmlspecialchars($name); ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER'); ?>" maxlength="255" required>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">Q.</span>
+                                                            <input type="number" name="payment_lines[0][amount]" class="form-control payment-line-amount" min="0.01" step="0.01" placeholder="0.00" required>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo Text::_('COM_ORDENPRODUCCION_ADD_LINE'); ?>"><i class="fas fa-plus"></i></button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="table-info">
+                                                    <td colspan="3" class="text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</strong></td>
+                                                    <td><strong id="payment-lines-total">Q. 0.00</strong></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
+
+                            <input type="hidden" name="payment_amount" id="payment_amount" value="">
 
                             <!-- Dynamic Orders Table -->
                             <div class="row">
@@ -423,18 +356,16 @@ $defaultAmount = $invoiceValue > 0 ? number_format($invoiceValue, 2, '.', '') : 
 </div>
 
 <script>
-function validateFile(input) {
+window.validateFile = function(input) {
     const file = input.files[0];
     if (file) {
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        
+        const maxSize = 5 * 1024 * 1024;
         if (!allowedTypes.includes(file.type)) {
             alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_FILE_TYPE'); ?>');
             input.value = '';
             return false;
         }
-        
         if (file.size > maxSize) {
             alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_FILE_TOO_LARGE'); ?>');
             input.value = '';
@@ -442,17 +373,77 @@ function validateFile(input) {
         }
     }
     return true;
-}
+};
 
-// Form validation
-document.getElementById('payment-proof-form').addEventListener('submit', function(e) {
-    const paymentType = document.getElementById('payment_type').value;
-    const documentNumber = document.getElementById('document_number').value;
-    
-    if (!paymentType || !documentNumber) {
-        e.preventDefault();
-        alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'); ?>');
-        return false;
+(function() {
+    const bankOpts = <?php echo json_encode($bankOptions); ?>;
+    const defaultBank = <?php echo json_encode($defaultBankCode ?? ''); ?>;
+    const typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
+    const typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
+    let lineIndex = 1;
+
+    function toggleBankCell(row) {
+        const typeSel = row.querySelector('.payment-line-type');
+        const bankCell = row.querySelector('.bank-cell');
+        if (!typeSel || !bankCell) return;
+        bankCell.style.display = (typeSel.value === 'efectivo') ? 'none' : '';
     }
-});
+
+    function updateLinesTotal() {
+        let sum = 0;
+        document.querySelectorAll('.payment-line-amount').forEach(function(inp) {
+            sum += parseFloat(inp.value) || 0;
+        });
+        document.getElementById('payment-lines-total').textContent = 'Q. ' + sum.toFixed(2);
+        const amt = document.getElementById('payment_amount');
+        if (amt) amt.value = sum.toFixed(2);
+        return sum;
+    }
+
+    function addLine() {
+        const tbody = document.getElementById('payment-lines-body');
+        const firstRow = tbody.querySelector('.payment-line-row');
+        if (!firstRow) return;
+        const newRow = firstRow.cloneNode(true);
+        newRow.classList.remove('payment-line-row');
+        newRow.querySelector('.add-payment-line-btn').outerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn" title="<?php echo Text::_('JDELETE'); ?>"><i class="fas fa-minus"></i></button>';
+        newRow.querySelectorAll('select, input').forEach(function(el) {
+            const m = el.name && el.name.match(/payment_lines\[\d+\]\[(\w+)\]/);
+            if (m) {
+                el.name = 'payment_lines[' + lineIndex + '][' + m[1] + ']';
+                if (m[1] === 'amount') el.value = '';
+                else if (m[1] === 'document_number') el.value = '';
+                else if (m[1] === 'payment_type') el.value = '';
+            }
+        });
+        tbody.appendChild(newRow);
+        lineIndex++;
+        toggleBankCell(newRow);
+        newRow.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(newRow); });
+        newRow.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
+        newRow.querySelector('.remove-payment-line-btn').addEventListener('click', function() {
+            newRow.remove();
+            updateLinesTotal();
+        });
+        updateLinesTotal();
+    }
+
+    document.getElementById('payment-lines-body').addEventListener('click', function(e) {
+        if (e.target.closest('.add-payment-line-btn')) { e.preventDefault(); addLine(); }
+    });
+    document.querySelectorAll('.payment-line-type').forEach(function(el) {
+        el.addEventListener('change', function() { toggleBankCell(el.closest('tr')); });
+    });
+    document.querySelectorAll('.payment-line-amount').forEach(function(el) {
+        el.addEventListener('input', updateLinesTotal);
+    });
+    document.querySelectorAll('.remove-payment-line-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            btn.closest('tr').remove();
+            updateLinesTotal();
+        });
+    });
+    toggleBankCell(document.querySelector('.payment-line-row'));
+    updateLinesTotal();
+})();
 </script>

@@ -198,34 +198,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setupPaymentAmountValidation() {
+        // Payment amount comes from payment lines total (hidden field updated by inline script)
         const paymentAmountInput = document.getElementById('payment_amount');
-        if (!paymentAmountInput) return;
-
-        paymentAmountInput.addEventListener('input', updateTotalAndValidate);
+        if (paymentAmountInput) {
+            paymentAmountInput.addEventListener('input', updateTotalAndValidate);
+        }
     }
 
     function setupPaymentTypeChange() {
-        const paymentTypeSelect = document.getElementById('payment_type');
-        const bankSelect = document.getElementById('bank');
-        
-        if (!paymentTypeSelect || !bankSelect) return;
-
-        paymentTypeSelect.addEventListener('change', function() {
-            const paymentType = this.value;
-            const bankGroup = bankSelect.closest('.form-group');
-            
-            // Show/hide bank field based on payment type
-            if (paymentType === 'efectivo') {
-                if (bankGroup) bankGroup.style.display = 'none';
-                bankSelect.required = false;
-            } else {
-                if (bankGroup) bankGroup.style.display = 'block';
-                bankSelect.required = true;
-            }
-        });
-
-        // Trigger change event on page load
-        paymentTypeSelect.dispatchEvent(new Event('change'));
+        // Handled by inline script for payment lines
     }
 
     function setupFormValidation() {
@@ -248,39 +229,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validateForm() {
-        const paymentType = document.getElementById('payment_type');
-        const documentNumber = document.getElementById('document_number');
-        const paymentAmount = document.getElementById('payment_amount');
+        const paymentAmountInput = document.getElementById('payment_amount');
         const valueInputs = document.querySelectorAll('.payment-value-input');
+        const lineAmounts = document.querySelectorAll('.payment-line-amount');
+        const lineTypes = document.querySelectorAll('.payment-line-type');
+        const lineDocs = document.querySelectorAll('.payment-line-row input[name*="document_number"], .payment-line-row input[name*="[document_number]"]');
         
         let isValid = true;
         let errorMessage = '';
 
-        // Validate payment type
-        if (!paymentType || !paymentType.value) {
-            isValid = false;
-            errorMessage += '• Tipo de pago es requerido\n';
-        }
-
-        // Validate payment amount
-        if (!paymentAmount || !paymentAmount.value || parseFloat(paymentAmount.value) <= 0) {
-            isValid = false;
-            errorMessage += '• Monto de pago es requerido\n';
-        }
-
-        // Validate document number
-        if (!documentNumber || !documentNumber.value.trim()) {
-            isValid = false;
-            errorMessage += '• Número de documento es requerido\n';
-        }
-
-        // Validate bank for non-cash payments
-        if (paymentType && paymentType.value !== 'efectivo') {
-            const bankSelect = document.getElementById('bank');
-            if (!bankSelect || !bankSelect.value) {
-                isValid = false;
-                errorMessage += '• Banco es requerido para este tipo de pago\n';
+        // Validate at least one payment line with amount and type
+        let linesTotal = 0;
+        for (let i = 0; i < lineAmounts.length; i++) {
+            const amt = parseFloat(lineAmounts[i].value) || 0;
+            if (amt > 0) {
+                const row = lineAmounts[i].closest('tr');
+                const typeSel = row && row.querySelector('.payment-line-type');
+                const docInp = row && row.querySelector('input[name*="document_number"]');
+                if (!typeSel || !typeSel.value) {
+                    isValid = false;
+                    errorMessage += '• Tipo de pago es requerido en cada línea\n';
+                    break;
+                }
+                if (typeSel.value !== 'efectivo') {
+                    const bankSel = row && row.querySelector('.payment-line-bank');
+                    if (!bankSel || !bankSel.value) {
+                        isValid = false;
+                        errorMessage += '• Banco es requerido para pagos no efectivo\n';
+                        break;
+                    }
+                }
+                if (!docInp || !docInp.value.trim()) {
+                    isValid = false;
+                    errorMessage += '• Número de documento es requerido en cada línea\n';
+                    break;
+                }
+                linesTotal += amt;
             }
+        }
+        if (linesTotal <= 0) {
+            isValid = false;
+            errorMessage += '• Agregue al menos una línea de pago con monto mayor a cero\n';
         }
 
         // Validate at least one order with value
