@@ -51,7 +51,12 @@ class PaymentsController extends BaseController
 
         try {
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
-                ->createModel('Payments', 'Site', ['ignore_request' => false]);
+                ->createModel('Payments', 'Site', ['ignore_request' => true]);
+            $model->setState('filter.state', 1);
+            $model->setState('filter.client', $app->input->get('filter_client', '', 'string'));
+            $model->setState('filter.date_from', $app->input->get('filter_date_from', '', 'string'));
+            $model->setState('filter.date_to', $app->input->get('filter_date_to', '', 'string'));
+            $model->setState('filter.sales_agent', $app->input->get('filter_sales_agent', '', 'string'));
             $items = $model->getItems();
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_ERROR'), 'error');

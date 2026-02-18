@@ -18,9 +18,19 @@ use Joomla\CMS\Session\Session;
 ?>
 <div class="com-ordenproduccion-payments">
     <div class="container-fluid">
+        <?php $isDeletedView = (int) $this->state->get('filter.state', 1) === 0; ?>
         <div class="row mb-2">
-            <div class="col-12">
-                <h1 class="page-title h4 mb-0">Control de Pagos</h1>
+            <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h1 class="page-title h4 mb-0"><?php echo $isDeletedView ? 'Pagos eliminados' : 'Control de Pagos'; ?></h1>
+                <?php if ($isDeletedView) : ?>
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Volver a pagos activos
+                    </a>
+                <?php else : ?>
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments&filter_state=0'); ?>" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-trash"></i> Ver pagos eliminados
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -37,6 +47,7 @@ use Joomla\CMS\Session\Session;
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>">
                             <input type="hidden" name="option" value="com_ordenproduccion">
                             <input type="hidden" name="view" value="payments">
+                            <input type="hidden" name="filter_state" value="<?php echo (int) $this->state->get('filter.state', 1); ?>">
                             <div class="row g-2 align-items-end">
                                 <div class="col-md-2">
                                     <label for="filter_client" class="form-label small mb-0">Cliente</label>
@@ -69,7 +80,7 @@ use Joomla\CMS\Session\Session;
                                     <button type="submit" class="btn btn-primary btn-sm">
                                         <i class="fas fa-search"></i> Aplicar
                                     </button>
-                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>" class="btn btn-outline-secondary btn-sm">
+                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments' . ($isDeletedView ? '&filter_state=0' : '')); ?>" class="btn btn-outline-secondary btn-sm">
                                         <i class="fas fa-times"></i> Limpiar
                                     </a>
                                 </div>
@@ -84,18 +95,19 @@ use Joomla\CMS\Session\Session;
         <div class="row mb-2">
             <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="alert alert-info py-2 mb-0 small flex-grow-1">
-                    <i class="fas fa-info-circle"></i> Se encontraron <?php echo count($this->items); ?> pagos
+                    <i class="fas fa-info-circle"></i> Se encontraron <?php echo count($this->items); ?> <?php echo $isDeletedView ? 'pagos eliminados' : 'pagos'; ?>
                 </div>
-                <?php
-                $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=payments.export&format=raw');
-                $exportUrl .= '&filter_client=' . rawurlencode($this->state->get('filter.client', ''));
-                $exportUrl .= '&filter_date_from=' . rawurlencode($this->state->get('filter.date_from', ''));
-                $exportUrl .= '&filter_date_to=' . rawurlencode($this->state->get('filter.date_to', ''));
-                $exportUrl .= '&filter_sales_agent=' . rawurlencode($this->state->get('filter.sales_agent', ''));
-                ?>
+                <?php if (!$isDeletedView) :
+                    $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=payments.export&format=raw');
+                    $exportUrl .= '&filter_client=' . rawurlencode($this->state->get('filter.client', ''));
+                    $exportUrl .= '&filter_date_from=' . rawurlencode($this->state->get('filter.date_from', ''));
+                    $exportUrl .= '&filter_date_to=' . rawurlencode($this->state->get('filter.date_to', ''));
+                    $exportUrl .= '&filter_sales_agent=' . rawurlencode($this->state->get('filter.sales_agent', ''));
+                    ?>
                 <a href="<?php echo $exportUrl; ?>" class="btn btn-success btn-sm" target="_blank" rel="noopener">
                     <i class="fas fa-file-excel"></i> Exportar a Excel
                 </a>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -104,7 +116,7 @@ use Joomla\CMS\Session\Session;
             <div class="row">
                 <div class="col-12">
                     <div class="alert alert-warning py-2 text-center small mb-0">
-                        <i class="fas fa-exclamation-triangle"></i> No se encontraron pagos
+                        <i class="fas fa-exclamation-triangle"></i> <?php echo $isDeletedView ? 'No se encontraron pagos eliminados' : 'No se encontraron pagos'; ?>
                     </div>
                 </div>
             </div>
@@ -123,6 +135,10 @@ use Joomla\CMS\Session\Session;
                                     <th scope="col" class="small">Monto</th>
                                     <th scope="col" class="small">Agente</th>
                                     <th scope="col" class="small">Registrado por</th>
+                                    <?php if ($isDeletedView) : ?>
+                                    <th scope="col" class="small">Eliminado</th>
+                                    <th scope="col" class="small">Eliminado por</th>
+                                    <?php endif; ?>
                                     <th scope="col" class="small"></th>
                                 </tr>
                             </thead>
@@ -143,17 +159,23 @@ use Joomla\CMS\Session\Session;
                                         <td class="small"><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
                                         <td class="small"><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
                                         <td class="small"><?php echo htmlspecialchars($item->created_by_name ?? '-'); ?></td>
+                                        <?php if ($isDeletedView) : ?>
+                                        <td class="small"><?php echo !empty($item->modified) ? $this->formatDate($item->modified) : '-'; ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($item->modified_by_name ?? '-'); ?></td>
+                                        <?php endif; ?>
                                         <td class="small">
-                                            <?php if (!empty($item->order_id)) : ?>
-                                                <a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>"
-                                                   class="btn btn-sm btn-outline-primary py-0 px-1" title="Ver comprobante">
-                                                    <i class="fas fa-credit-card"></i>
-                                                </a>
+                                            <?php if (!$isDeletedView) : ?>
+                                                <?php if (!empty($item->order_id)) : ?>
+                                                    <a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>"
+                                                       class="btn btn-sm btn-outline-primary py-0 px-1" title="Ver comprobante">
+                                                        <i class="fas fa-credit-card"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-delete-payment"
+                                                        title="Eliminar pago" data-payment-id="<?php echo (int) $item->id; ?>">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             <?php endif; ?>
-                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-delete-payment"
-                                                    title="Eliminar pago" data-payment-id="<?php echo (int) $item->id; ?>">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

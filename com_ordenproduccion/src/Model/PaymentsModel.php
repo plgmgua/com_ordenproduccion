@@ -63,6 +63,7 @@ class PaymentsModel extends ListModel
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
         $id .= ':' . $this->getState('filter.sales_agent');
+        $id .= ':' . $this->getState('filter.state');
 
         return parent::getStoreId($id);
     }
@@ -113,6 +114,15 @@ class PaymentsModel extends ListModel
 
         $salesAgent = $app->getUserStateFromRequest($this->context . '.filter.sales_agent', 'filter_sales_agent', '', 'string');
         $this->setState('filter.sales_agent', $salesAgent);
+
+        $state = $app->input->get('filter_state', null, 'string');
+        if ($state !== null && $state !== '') {
+            $state = (int) $state;
+            $this->setState('filter.state', $state);
+        } else {
+            $state = $app->getUserStateFromRequest($this->context . '.filter.state', 'filter_state', 1, 'int');
+            $this->setState('filter.state', $state);
+        }
     }
 
     /**
@@ -143,11 +153,17 @@ class PaymentsModel extends ListModel
             'o.sales_agent',
             'o.orden_de_trabajo',
             'o.order_number',
-            'creator.name AS created_by_name'
+            'creator.name AS created_by_name',
+            'pp.modified',
+            'pp.modified_by',
+            'deleter.name AS modified_by_name'
         ])
             ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
             ->leftJoin(
                 $db->quoteName('#__users', 'creator') . ' ON creator.id = pp.created_by'
+            )
+            ->leftJoin(
+                $db->quoteName('#__users', 'deleter') . ' ON deleter.id = pp.modified_by'
             );
 
         if ($this->hasPaymentOrdersTable()) {
@@ -170,7 +186,8 @@ class PaymentsModel extends ListModel
             );
         }
 
-        $query->where($db->quoteName('pp.state') . ' = 1');
+        $stateFilter = (int) $this->getState('filter.state', 1);
+        $query->where($db->quoteName('pp.state') . ' = ' . $stateFilter);
 
         // Apply sales agent filter for restricted users (e.g. Ventas sees only their payments)
         $salesAgentFilter = AccessHelper::getSalesAgentFilter();
@@ -229,7 +246,7 @@ class PaymentsModel extends ListModel
                 $db->quoteName('#__ordenproduccion_ordenes', 'o') .
                 ' ON o.id = pp.order_id'
             )
-            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('state') . ' = ' . (int) $this->getState('filter.state', 1))
             ->where('o.' . $db->quoteName('sales_agent') . ' IS NOT NULL')
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
