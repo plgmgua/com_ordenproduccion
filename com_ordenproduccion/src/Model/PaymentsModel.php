@@ -278,6 +278,112 @@ class PaymentsModel extends ListModel
     }
 
     /**
+     * Delete a payment proof and its associated data, then refresh client balances.
+     *
+     * @param   int  $paymentId  Payment proof ID
+     *
+     * @return  bool  True on success
+     *
+     * @since   1.0.0
+     */
+    public function deletePayment($paymentId)
+    {
+        $paymentId = (int) $paymentId;
+        if ($paymentId <= 0) {
+            $this->setError('Invalid payment ID');
+            return false;
+        }
+
+        $db = $this->getDatabase();
+
+        // Verify payment exists and user has access (sales agent filter)
+        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        if ($salesAgentFilter !== null) {
+            $checkQuery = $db->getQuery(true)
+                ->select('1')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'));
+            if ($this->hasPaymentOrdersTable()) {
+                $subQuery = $db->getQuery(true)
+                    ->select('po.payment_proof_id, MIN(po.order_id) AS first_order_id')
+                    ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                    ->group('po.payment_proof_id');
+                $checkQuery->leftJoin('(' . (string) $subQuery . ') AS first_po ON first_po.payment_proof_id = pp.id')
+                    ->leftJoin(
+                        $db->quoteName('#__ordenproduccion_ordenes', 'o') .
+                        ' ON o.id = COALESCE(pp.order_id, first_po.first_order_id)'
+                    );
+            } else {
+                $checkQuery->leftJoin(
+                    $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = pp.order_id'
+                );
+            }
+            $checkQuery->where('pp.id = ' . $paymentId)
+                ->where('pp.state = 1')
+                ->where('o.sales_agent = ' . $db->quote($salesAgentFilter));
+            $db->setQuery($checkQuery);
+            if (!$db->loadResult()) {
+                $this->setError('Payment not found or access denied');
+                return false;
+            }
+        }
+
+        try {
+            $db->transactionStart();
+
+            // Get file_path before deleting (to remove physical file)
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('file_path'))
+                    ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+                    ->where($db->quoteName('id') . ' = ' . $paymentId)
+            );
+            $filePath = $db->loadResult();
+
+            if ($this->hasPaymentOrdersTable()) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->delete($db->quoteName('#__ordenproduccion_payment_orders'))
+                        ->where($db->quoteName('payment_proof_id') . ' = ' . $paymentId)
+                );
+                $db->execute();
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                    ->set($db->quoteName('state') . ' = 0')
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                    ->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id)
+                    ->where($db->quoteName('id') . ' = ' . $paymentId)
+            );
+            $db->execute();
+
+            $db->transactionCommit();
+
+            if (!empty($filePath) && strpos($filePath, '..') === false) {
+                $fullPath = JPATH_ROOT . '/' . ltrim($filePath, '/');
+                if (is_file($fullPath)) {
+                    @unlink($fullPath);
+                }
+            }
+
+            $adminModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            if ($adminModel && method_exists($adminModel, 'refreshClientBalances')) {
+                $adminModel->refreshClientBalances();
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            if ($db->transactionDepth()) {
+                $db->transactionRollback();
+            }
+            $this->setError($e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Check if payment_orders junction table exists (3.54.0+ schema)
      *
      * @return  boolean

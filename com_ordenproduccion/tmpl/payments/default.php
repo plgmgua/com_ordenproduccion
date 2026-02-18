@@ -147,6 +147,14 @@ use Joomla\CMS\Router\Route;
                                                     <i class="fas fa-credit-card"></i>
                                                 </a>
                                             <?php endif; ?>
+                                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=payments.delete'); ?>"
+                                                  style="display:inline" onsubmit="return confirm('¿Eliminar este pago? Se actualizará el saldo del cliente.');">
+                                                <?php echo \Joomla\CMS\HTML\HTMLHelper::_('form.token'); ?>
+                                                <input type="hidden" name="payment_id" value="<?php echo (int) $item->id; ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Eliminar pago">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

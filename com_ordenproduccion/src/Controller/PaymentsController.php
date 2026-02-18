@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
@@ -87,6 +88,55 @@ class PaymentsController extends BaseController
         }
 
         $this->exportCsv($cols, $rows, $app);
+    }
+
+    /**
+     * Delete a payment and refresh client balances.
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    public function delete()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        if (!AccessHelper::hasOrderAccess()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+            $app->redirect(Route::_('index.php', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+            return;
+        }
+
+        $paymentId = $app->input->post->getInt('payment_id', 0);
+        if ($paymentId <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_ITEM'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+            return;
+        }
+
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Payments', 'Site', ['ignore_request' => true]);
+
+        if ($model->deletePayment($paymentId)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETED_SUCCESS'), 'success');
+        } else {
+            $app->enqueueMessage($model->getError() ?: Text::_('COM_ORDENPRODUCCION_ERROR_DELETE_FAILED'), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
     }
 
     /**
