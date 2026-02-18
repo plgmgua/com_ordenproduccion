@@ -63,6 +63,7 @@ class OrdenesModel extends ListModel
         // Compile the store id.
         $id .= ':' . $this->getState('filter.search');
         $id .= ':' . $this->getState('filter.status');
+        $id .= ':' . $this->getState('filter.payment_status');
         $id .= ':' . $this->getState('filter.client_name');
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
@@ -114,6 +115,9 @@ class OrdenesModel extends ListModel
 
         $status = $app->getUserStateFromRequest($this->context . '.filter.status', 'filter_status', '', 'string');
         $this->setState('filter.status', $status);
+
+        $paymentStatus = $app->getUserStateFromRequest($this->context . '.filter.payment_status', 'filter_payment_status', '', 'string');
+        $this->setState('filter.payment_status', $paymentStatus);
 
         $clientName = $app->getUserStateFromRequest($this->context . '.filter.client_name', 'filter_client_name', '', 'string');
         $this->setState('filter.client_name', $clientName);
@@ -199,6 +203,19 @@ class OrdenesModel extends ListModel
         $status = $this->getState('filter.status');
         if (!empty($status)) {
             $query->where($db->quoteName('a.status') . ' = ' . $db->quote($status));
+        }
+
+        // Filter by payment status (Pagado / Pago pendiente)
+        $paymentStatus = $this->getState('filter.payment_status');
+        if (!empty($paymentStatus) && in_array($paymentStatus, ['pagado', 'pendiente'])) {
+            $invoiceCol = 'COALESCE(a.invoice_value, a.valor_a_facturar, 0)';
+            $totalPaidExpr = $this->getTotalPaidSubquery($db);
+            if ($paymentStatus === 'pagado') {
+                $query->where('(' . $totalPaidExpr . ') >= ' . $invoiceCol . ' - 0.01');
+            } else {
+                $query->where($invoiceCol . ' > 0.01');
+                $query->where('(' . $totalPaidExpr . ') < ' . $invoiceCol . ' - 0.01');
+            }
         }
 
         // Filter by client name
@@ -289,5 +306,55 @@ class OrdenesModel extends ListModel
             'Terminada' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_COMPLETED'),
             'Cerrada' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_CLOSED')
         ];
+    }
+
+    /**
+     * Get payment status filter options (Pagado / Pago pendiente)
+     *
+     * @return  array  Array of value => label
+     *
+     * @since   3.56.0
+     */
+    public function getPaymentStatusOptions()
+    {
+        return [
+            '' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_SELECT_PAYMENT_STATUS'),
+            'pagado' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_PAYMENT_STATUS_PAID'),
+            'pendiente' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_PAYMENT_STATUS_PENDING')
+        ];
+    }
+
+    /**
+     * Build subquery for total amount paid per order (supports payment_orders junction and legacy)
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database driver
+     *
+     * @return  string  SQL subquery expression
+     *
+     * @since   3.56.0
+     */
+    protected function getTotalPaidSubquery($db)
+    {
+        $tables = $db->getTableList();
+        $prefix = $db->getPrefix();
+        $tableName = $prefix . 'ordenproduccion_payment_orders';
+        $hasPaymentOrders = false;
+        foreach ($tables as $t) {
+            if (strcasecmp($t, $tableName) === 0) {
+                $hasPaymentOrders = true;
+                break;
+            }
+        }
+
+        if ($hasPaymentOrders) {
+            return '(SELECT COALESCE(SUM(po.amount_applied), 0) FROM ' .
+                $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
+                ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+                ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = a.id)';
+        }
+
+        return '(SELECT COALESCE(SUM(pp.payment_amount), 0) FROM ' .
+            $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+            ' WHERE pp.order_id = a.id AND pp.state = 1)';
     }
 }

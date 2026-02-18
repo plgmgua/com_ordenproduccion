@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.66.0-STABLE] - 2025-02-16
+
+### Added
+- **Payment status filter** on ordenes de trabajo view: "Pagado" and "Pago pendiente"
+  - Filter by whether orders are fully paid (total paid ≥ invoice value) or have remaining balance
+
 ### Fixed
 - **Menu item type labels** – Replaced raw language constants with human-friendly Spanish text in layout metadata:
   - Administración: "Panel de Administración"

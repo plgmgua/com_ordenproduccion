@@ -54,7 +54,7 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                             <input type="hidden" name="option" value="com_ordenproduccion">
                             <input type="hidden" name="view" value="ordenes">
                             <div class="row">
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <div class="form-group">
                                         <label for="filter_search">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_SEARCH'); ?>
@@ -87,6 +87,21 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group">
+                                        <label for="filter_payment_status">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_PAYMENT_STATUS'); ?>
+                                        </label>
+                                        <select name="filter_payment_status" id="filter_payment_status" class="form-control">
+                                            <?php foreach ($this->getModel()->getPaymentStatusOptions() as $value => $text) : ?>
+                                                <option value="<?php echo htmlspecialchars($value); ?>"
+                                                        <?php echo $this->state->get('filter.payment_status') === $value ? 'selected' : ''; ?>>
+                                                    <?php echo $text; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
                                         <label for="filter_date_from">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_DATE_FROM'); ?>
                                         </label>
@@ -109,7 +124,7 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                                                value="<?php echo htmlspecialchars($this->state->get('filter.date_to')); ?>">
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <div class="form-group">
                                         <label>&nbsp;</label>
                                         <div class="btn-group d-block">
