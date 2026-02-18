@@ -117,25 +117,8 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                value="<?php echo htmlspecialchars($this->state->get('filter.date_to')); ?>">
                                     </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <div class="form-group mb-0">
-                                        <label>&nbsp;</label>
-                                        <div class="d-flex gap-1 flex-wrap">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-search"></i>
-                                                <?php echo htmlspecialchars($labelFilterApply); ?>
-                                            </button>
-                                            <a href="<?php echo $clearFiltersUrl; ?>" 
-                                               class="btn btn-secondary"
-                                               title="<?php echo htmlspecialchars($labelFilterClear); ?>">
-                                                <i class="fas fa-times"></i>
-                                                <?php echo htmlspecialchars($labelFilterClear); ?>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
-                            <div class="row">
+                            <div class="row align-items-end">
                                 <div class="col-md-3">
                                     <div class="form-group mb-0">
                                         <label for="filter_payment_status"><?php echo htmlspecialchars($labelFilterPaymentStatus); ?></label>
@@ -147,6 +130,20 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="d-flex gap-1 align-items-stretch">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-search"></i>
+                                            <?php echo htmlspecialchars($labelFilterApply); ?>
+                                        </button>
+                                        <a href="<?php echo $clearFiltersUrl; ?>" 
+                                           class="btn btn-secondary d-inline-flex align-items-center"
+                                           title="<?php echo htmlspecialchars($labelFilterClear); ?>">
+                                            <i class="fas fa-times"></i>
+                                            <?php echo htmlspecialchars($labelFilterClear); ?>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
