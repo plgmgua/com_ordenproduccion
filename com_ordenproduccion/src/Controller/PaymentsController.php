@@ -59,7 +59,7 @@ class PaymentsController extends BaseController
             return;
         }
 
-        $cols = ['Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Banco'];
+        $cols = ['Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
 
         $rows = [];
         foreach ($items as $item) {
@@ -72,7 +72,8 @@ class PaymentsController extends BaseController
                 $item->document_number ?? '',
                 number_format((float) ($item->payment_amount ?? 0), 2),
                 $item->sales_agent ?? '',
-                $item->bank ?? '',
+                $item->created_by_name ?? '',
+                $this->translateBank($item->bank ?? ''),
             ];
         }
 
@@ -144,8 +145,9 @@ class PaymentsController extends BaseController
         }
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETED_SUCCESS'), 'success');
+        $deletedByUser = Factory::getUser();
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=payments', false);
-        $this->outputDeletionProofPdf($details, $redirectUrl);
+        $this->outputDeletionProofPdf($details, $redirectUrl, $deletedByUser);
     }
 
     /**
@@ -209,6 +211,7 @@ class PaymentsController extends BaseController
                 'sales_agent' => $details->proof->sales_agent ?? '',
                 'orden_de_trabajo' => $details->proof->orden_de_trabajo ?? '',
                 'order_number' => $details->proof->order_number ?? '',
+                'created_by_name' => $details->proof->created_by_name ?? '',
             ],
             'lines' => [],
             'orders' => [],
@@ -243,16 +246,17 @@ class PaymentsController extends BaseController
     /**
      * Output deletion proof PDF and set X-Redirect header for client-side redirect.
      *
-     * @param   object  $details       Payment details from getPaymentDetailsForDelete
-     * @param   string  $redirectUrl   URL to redirect after PDF download
+     * @param   object       $details       Payment details from getPaymentDetailsForDelete
+     * @param   string       $redirectUrl   URL to redirect after PDF download
+     * @param   object|null  $deletedByUser Joomla user who performed the deletion
      *
      * @return  void
      *
      * @since   1.0.0
      */
-    protected function outputDeletionProofPdf($details, $redirectUrl)
+    protected function outputDeletionProofPdf($details, $redirectUrl, $deletedByUser = null)
     {
-        $pdfPath = $this->generateDeletionProofPdf($details);
+        $pdfPath = $this->generateDeletionProofPdf($details, $deletedByUser);
         if (!$pdfPath || !is_file($pdfPath)) {
             Factory::getApplication()->enqueueMessage(
                 Text::_('COM_ORDENPRODUCCION_PDF_GENERATION_FAILED'),
@@ -277,13 +281,14 @@ class PaymentsController extends BaseController
     /**
      * Generate deletion proof PDF. Returns temp file path.
      *
-     * @param   object  $details  Payment details from getPaymentDetailsForDelete
+     * @param   object       $details       Payment details from getPaymentDetailsForDelete
+     * @param   object|null  $deletedByUser Joomla user who performed the deletion
      *
      * @return  string|null  Temp file path or null on failure
      *
      * @since   1.0.0
      */
-    protected function generateDeletionProofPdf($details)
+    protected function generateDeletionProofPdf($details, $deletedByUser = null)
     {
         $fpdfPath = JPATH_ROOT . '/fpdf/fpdf.php';
         if (!is_file($fpdfPath)) {
@@ -314,6 +319,8 @@ class PaymentsController extends BaseController
         $deletedAt = Factory::getDate()->format('d/m/Y H:i');
         $clientName = $fixSpanishChars($details->proof->client_name ?? 'N/A');
         $typeLabel = $fixSpanishChars($this->translatePaymentType($details->proof->payment_type ?? ''));
+        $createdByName = $fixSpanishChars($details->proof->created_by_name ?? 'N/A');
+        $deletedByName = $deletedByUser ? $fixSpanishChars($deletedByUser->name ?? $deletedByUser->username ?? 'N/A') : 'N/A';
 
         $pdf->SetFont('Arial', '', 10);
         $pdf->Cell(45, 6, 'Fecha de eliminacion:', 0, 0, 'L');
@@ -330,6 +337,10 @@ class PaymentsController extends BaseController
         $pdf->Cell(0, 6, $fixSpanishChars($details->proof->document_number ?? '-'), 0, 1, 'L');
         $pdf->Cell(45, 6, 'Monto total:', 0, 0, 'L');
         $pdf->Cell(0, 6, 'Q ' . number_format((float) ($details->proof->payment_amount ?? 0), 2), 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Registrado por:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $createdByName, 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Eliminado por:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $deletedByName, 0, 1, 'L');
         $pdf->Ln(6);
 
         if (!empty($details->lines)) {
@@ -449,7 +460,7 @@ class PaymentsController extends BaseController
         $sheet->setTitle('Pagos');
 
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:H1');
+        $headerStyle = $sheet->getStyle('A1:I1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
@@ -460,7 +471,7 @@ class PaymentsController extends BaseController
             $rowIndex++;
         }
 
-        foreach (range('A', 'H') as $col) {
+        foreach (range('A', 'I') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 

@@ -137,13 +137,18 @@ class PaymentsModel extends ListModel
             'pp.document_number',
             'pp.payment_amount',
             'pp.created',
+            'pp.created_by',
             'pp.file_path',
             $clientCol . ' AS client_name',
             'o.sales_agent',
             'o.orden_de_trabajo',
-            'o.order_number'
+            'o.order_number',
+            'creator.name AS created_by_name'
         ])
-            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'));
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->leftJoin(
+                $db->quoteName('#__users', 'creator') . ' ON creator.id = pp.created_by'
+            );
 
         if ($this->hasPaymentOrdersTable()) {
             $subQuery = $db->getQuery(true)
@@ -299,11 +304,15 @@ class PaymentsModel extends ListModel
         $query = $db->getQuery(true)
             ->select([
                 'pp.id', 'pp.order_id', 'pp.payment_type', 'pp.bank', 'pp.document_number',
-                'pp.payment_amount', 'pp.created', 'pp.file_path',
+                'pp.payment_amount', 'pp.created', 'pp.created_by', 'pp.file_path',
                 $clientCol . ' AS client_name',
-                'o.sales_agent', 'o.orden_de_trabajo', 'o.order_number'
+                'o.sales_agent', 'o.orden_de_trabajo', 'o.order_number',
+                'creator.name AS created_by_name'
             ])
-            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'));
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->leftJoin(
+                $db->quoteName('#__users', 'creator') . ' ON creator.id = pp.created_by'
+            );
 
         if ($this->hasPaymentOrdersTable()) {
             $subQuery = $db->getQuery(true)

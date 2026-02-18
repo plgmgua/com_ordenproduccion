@@ -122,6 +122,7 @@ use Joomla\CMS\Session\Session;
                                     <th scope="col" class="small">Nº Doc.</th>
                                     <th scope="col" class="small">Monto</th>
                                     <th scope="col" class="small">Agente</th>
+                                    <th scope="col" class="small">Registrado por</th>
                                     <th scope="col" class="small"></th>
                                 </tr>
                             </thead>
@@ -141,6 +142,7 @@ use Joomla\CMS\Session\Session;
                                         <td class="small"><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
                                         <td class="small"><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
                                         <td class="small"><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($item->created_by_name ?? '-'); ?></td>
                                         <td class="small">
                                             <?php if (!empty($item->order_id)) : ?>
                                                 <a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>"
@@ -197,6 +199,7 @@ use Joomla\CMS\Session\Session;
                             <tr><th class="bg-light">Banco</th><td id="modalBank"></td></tr>
                             <tr><th class="bg-light">No. Documento</th><td id="modalDoc"></td></tr>
                             <tr><th class="bg-light">Monto total</th><td id="modalAmount" class="fw-bold"></td></tr>
+                            <tr><th class="bg-light">Registrado por</th><td id="modalCreatedBy"></td></tr>
                         </table>
                         <h6 class="small fw-bold">Líneas de pago</h6>
                         <div class="table-responsive mb-3">
@@ -268,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('modalBank').textContent = p.bank_label || p.bank || '-';
                     document.getElementById('modalDoc').textContent = p.document_number || '-';
                     document.getElementById('modalAmount').textContent = 'Q ' + (p.payment_amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2});
+                    document.getElementById('modalCreatedBy').textContent = p.created_by_name || '-';
                     var tbody = document.getElementById('modalLinesBody');
                     tbody.innerHTML = '';
                     (d.lines || []).forEach(function(l) {
