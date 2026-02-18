@@ -53,17 +53,21 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h1 class="page-title">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_TITLE'); ?>
+                            <?php echo htmlspecialchars($this->labelPaymentProofTitle ?? 'Registro de Comprobante de Pago'); ?>
                         </h1>
                         <p class="text-muted">
-                            <?php echo Text::sprintf('COM_ORDENPRODUCCION_PAYMENT_PROOF_FOR_ORDER', $order->order_number ?? $order->orden_de_trabajo ?? $orderId); ?>
+                            <?php
+                            $orderNum = $order->order_number ?? $order->orden_de_trabajo ?? $orderId;
+                            $fmt = $this->labelPaymentProofForOrder ?? 'Comprobante de Pago para Orden %s';
+                            echo htmlspecialchars(sprintf($fmt, $orderNum));
+                            ?>
                         </p>
                     </div>
                     <div>
                         <a href="<?php echo $this->getBackToOrderRoute(); ?>" 
                            class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_BACK_TO_ORDER'); ?>
+                            <?php echo htmlspecialchars($this->labelBackToOrder ?? 'Volver a la Orden'); ?>
                         </a>
                     </div>
                 </div>
@@ -78,17 +82,17 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-history"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_EXISTING_PAYMENTS'); ?>
+                            <?php echo htmlspecialchars($this->labelExistingPayments ?? 'Pagos Existentes para Esta Orden'); ?>
                         </h5>
                     </div>
                     <div class="card-body">
                         <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?></th>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?></th>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?></th>
-                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_VALUE_TO_APPLY'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -101,7 +105,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
-                                    <td><?php echo htmlspecialchars($line->payment_type ?? ''); ?></td>
+                                    <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td><?php echo $line === reset($lines) ? 'Q ' . number_format((float)($proof->amount_applied ?? 0), 2) : ''; ?></td>
                                 </tr>
@@ -110,7 +114,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
-                                    <td><?php echo htmlspecialchars($proof->payment_type ?? ''); ?></td>
+                                    <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->amount_applied ?? 0), 2); ?></td>
                                 </tr>
@@ -130,25 +134,25 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-info-circle"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDER_INFORMATION'); ?>
+                            <?php echo htmlspecialchars($this->labelOrderInformation ?? 'Información de la Orden'); ?>
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong>
+                                <strong><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?>:</strong>
                                 <?php echo htmlspecialchars($order->order_number ?? $order->orden_de_trabajo ?? 'N/A'); ?>
                             </div>
                             <div class="col-md-6">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?>:</strong>
+                                <strong><?php echo htmlspecialchars($this->labelClientName ?? 'Nombre del Cliente'); ?>:</strong>
                                 <?php echo htmlspecialchars($order->client_name ?? 'N/A'); ?>
                             </div>
                             <div class="col-md-6">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_VALUE'); ?>:</strong>
+                                <strong><?php echo htmlspecialchars($this->labelInvoiceValue ?? 'Valor de Factura'); ?>:</strong>
                                 <?php echo $this->formatCurrency($order->invoice_value ?? 0); ?>
                             </div>
                             <div class="col-md-6">
-                                <strong><?php echo Text::_('COM_ORDENPRODUCCION_REQUEST_DATE'); ?>:</strong>
+                                <strong><?php echo htmlspecialchars($this->labelRequestDate ?? 'Fecha de Solicitud'); ?>:</strong>
                                 <?php echo $this->formatDate($order->request_date ?? ''); ?>
                             </div>
                         </div>
@@ -164,7 +168,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-credit-card"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION'); ?>
+                            <?php echo htmlspecialchars($this->labelPaymentProofRegistration ?? 'Registro de Comprobante de Pago'); ?>
                         </h5>
                     </div>
                     <div class="card-body">
@@ -222,7 +226,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             </tbody>
                                             <tfoot>
                                                 <tr class="table-info">
-                                                    <td colspan="3" class="text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</strong></td>
+                                                    <td colspan="3" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                     <td><strong id="payment-lines-total">Q. 0.00</strong></td>
                                                     <td></td>
                                                 </tr>
@@ -250,9 +254,9 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <table class="table table-bordered" id="payment-orders-table">
                                                 <thead>
                                                     <tr>
-                                                        <th style="width: 50%"><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?></th>
-                                                        <th style="width: 35%"><?php echo Text::_('COM_ORDENPRODUCCION_VALUE_TO_APPLY'); ?></th>
-                                                        <th style="width: 15%"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                                                        <th style="width: 50%"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
+                                                        <th style="width: 35%"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
+                                                        <th style="width: 15%"><?php echo htmlspecialchars($this->labelActions ?? 'Acciones'); ?></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="payment-orders-body">
@@ -283,7 +287,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                         <td class="text-center">
                                                             <button type="button" 
                                                                     class="btn btn-sm btn-success add-row-btn" 
-                                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_ADD_ORDER'); ?>">
+                                                                    title="<?php echo htmlspecialchars($this->labelAddOrder ?? 'Agregar orden'); ?>">
                                                                 <i class="fas fa-plus"></i>
                                                             </button>
                                                         </td>
@@ -291,7 +295,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 </tbody>
                                                 <tfoot>
                                                     <tr class="table-info">
-                                                        <td class="text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</strong></td>
+                                                        <td class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                         <td>
                                                             <div class="input-group">
                                                                 <span class="input-group-text">Q.</span>
@@ -341,11 +345,11 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>
+                                    <?php echo htmlspecialchars($this->labelRegisterPaymentProof ?? 'Registrar Comprobante de Pago'); ?>
                                 </button>
                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-secondary">
                                     <i class="fas fa-arrow-left"></i>
-                                    <?php echo Text::_('JCANCEL'); ?>
+                                    <?php echo htmlspecialchars($this->labelCancel ?? 'Cancelar'); ?>
                                 </a>
                             </div>
                         </form>
@@ -363,12 +367,12 @@ window.validateFile = function(input) {
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
         const maxSize = 5 * 1024 * 1024;
         if (!allowedTypes.includes(file.type)) {
-            alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_FILE_TYPE'); ?>');
+            alert('<?php echo addslashes(htmlspecialchars($this->labelErrorInvalidFileType ?? 'Tipo de archivo inválido. Solo se permiten JPG, PNG y PDF.')); ?>');
             input.value = '';
             return false;
         }
         if (file.size > maxSize) {
-            alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_FILE_TOO_LARGE'); ?>');
+            alert('<?php echo addslashes(htmlspecialchars($this->labelErrorFileTooLarge ?? 'Archivo demasiado grande. Máximo 5MB.')); ?>');
             input.value = '';
             return false;
         }
@@ -409,7 +413,7 @@ window.validateFile = function(input) {
         const newRow = firstRow.cloneNode(true);
         newRow.classList.remove('payment-line-row');
         var lastTd = newRow.querySelector('td:last-child');
-        if (lastTd) lastTd.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn" title="<?php echo Text::_('JDELETE'); ?>"><i class="fas fa-minus"></i></button>';
+        if (lastTd) lastTd.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn" title="<?php echo htmlspecialchars($this->labelDelete ?? 'Eliminar'); ?>"><i class="fas fa-minus"></i></button>';
         newRow.querySelectorAll('select, input').forEach(function(el) {
             const m = el.name && el.name.match(/payment_lines\[\d+\]\[(\w+)\]/);
             if (m) {

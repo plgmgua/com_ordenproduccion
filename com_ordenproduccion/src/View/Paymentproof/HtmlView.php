@@ -67,6 +67,37 @@ class HtmlView extends BaseHtmlView
         $this->item->order_id = $this->orderId;
 
         $this->_prepareDocument();
+
+        // Labels with fallbacks when language keys are not loaded
+        $t = function ($key, $fallback) {
+            $v = Text::_($key);
+            return ($v !== $key) ? $v : $fallback;
+        };
+        $this->labelExistingPayments = $t('COM_ORDENPRODUCCION_EXISTING_PAYMENTS', 'Pagos Existentes para Esta Orden');
+        $this->labelDocumentNumber = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Número de Documento');
+        $this->labelPaymentType = $t('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Tipo de Pago');
+        $this->labelPaymentAmount = $t('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Monto del Pago');
+        $this->labelValueToApply = $t('COM_ORDENPRODUCCION_VALUE_TO_APPLY', 'Valor a Aplicar');
+        $this->labelOrderInformation = $t('COM_ORDENPRODUCCION_ORDER_INFORMATION', 'Información de la Orden');
+        $this->labelPaymentProofTitle = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_TITLE', 'Registro de Comprobante de Pago');
+        $this->labelBackToOrder = $t('COM_ORDENPRODUCCION_BACK_TO_ORDER', 'Volver a la Orden');
+        $fmt = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_FOR_ORDER');
+        $this->labelPaymentProofForOrder = (strpos($fmt, 'COM_ORDENPRODUCCION') === 0) ? 'Comprobante de Pago para Orden %s' : $fmt;
+        $this->labelOrderNumber = $t('COM_ORDENPRODUCCION_ORDER_NUMBER', 'Orden #');
+        $this->labelClientName = $t('COM_ORDENPRODUCCION_CLIENT_NAME', 'Nombre del Cliente');
+        $this->labelInvoiceValue = $t('COM_ORDENPRODUCCION_INVOICE_VALUE', 'Valor de Factura');
+        $this->labelRequestDate = $t('COM_ORDENPRODUCCION_REQUEST_DATE', 'Fecha de Solicitud');
+        $this->labelPaymentProofRegistration = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION', 'Registro de Comprobante de Pago');
+        $this->labelTotal = $t('COM_ORDENPRODUCCION_TOTAL', 'Total');
+        $this->labelValueToApply = $t('COM_ORDENPRODUCCION_VALUE_TO_APPLY', 'Valor a Aplicar');
+        $this->labelActions = $t('COM_ORDENPRODUCCION_ACTIONS', 'Acciones');
+        $this->labelAddOrder = $t('COM_ORDENPRODUCCION_ADD_ORDER', 'Agregar orden');
+        $this->labelRegisterPaymentProof = $t('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF', 'Registrar Comprobante de Pago');
+        $this->labelCancel = $t('JCANCEL', 'Cancelar');
+        $this->labelDelete = $t('JDELETE', 'Eliminar');
+        $this->labelErrorInvalidFileType = $t('COM_ORDENPRODUCCION_ERROR_INVALID_FILE_TYPE', 'Tipo de archivo inválido. Solo se permiten JPG, PNG y PDF.');
+        $this->labelErrorFileTooLarge = $t('COM_ORDENPRODUCCION_ERROR_FILE_TOO_LARGE', 'Archivo demasiado grande. Máximo 5MB.');
+
         parent::display($tpl);
     }
 
@@ -111,6 +142,35 @@ class HtmlView extends BaseHtmlView
         $wa = $this->document->getWebAssetManager();
         $wa->registerAndUseStyle('com_ordenproduccion.paymentproof', 'media/com_ordenproduccion/css/paymentproof.css', [], ['version' => 'auto']);
         $wa->registerAndUseScript('com_ordenproduccion.paymentproof', 'media/com_ordenproduccion/js/paymentproof.js', [], ['version' => 'auto']);
+    }
+
+    /**
+     * Translate payment type code to display label
+     *
+     * @param   string  $type  Payment type code
+     *
+     * @return  string
+     */
+    public function translatePaymentType($type)
+    {
+        $options = $this->getPaymentTypeOptions();
+        if (isset($options[$type ?? ''])) {
+            return $options[$type];
+        }
+        $map = [
+            'efectivo' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH',
+            'cheque' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK',
+            'transferencia' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER',
+            'deposito' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT',
+            'nota_credito_fiscal' => 'COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE',
+        ];
+        $key = strtolower($type ?? '');
+        $langKey = $map[$key] ?? null;
+        if ($langKey) {
+            $v = Text::_($langKey);
+            return ($v !== $langKey) ? $v : ($key === 'transferencia' ? 'Transferencia Bancaria' : htmlspecialchars($type ?? ''));
+        }
+        return htmlspecialchars($type ?? '');
     }
 
     public function getBackToOrderRoute()
