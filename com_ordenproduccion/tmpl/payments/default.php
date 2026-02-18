@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Payments\HtmlView $this */
 ?>
@@ -147,14 +148,10 @@ use Joomla\CMS\Router\Route;
                                                     <i class="fas fa-credit-card"></i>
                                                 </a>
                                             <?php endif; ?>
-                                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=payments.delete'); ?>"
-                                                  style="display:inline" onsubmit="return confirm('¿Eliminar este pago? Se actualizará el saldo del cliente.');">
-                                                <?php echo \Joomla\CMS\HTML\HTMLHelper::_('form.token'); ?>
-                                                <input type="hidden" name="payment_id" value="<?php echo (int) $item->id; ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Eliminar pago">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-delete-payment"
+                                                    title="Eliminar pago" data-payment-id="<?php echo (int) $item->id; ?>">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -178,8 +175,160 @@ use Joomla\CMS\Router\Route;
             <?php endif; ?>
         <?php endif; ?>
     </div>
+
+    <!-- Modal: Confirm delete payment -->
+    <div class="modal fade" id="deletePaymentModal" tabindex="-1" aria-labelledby="deletePaymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deletePaymentModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_TITLE'); ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_DESC'); ?></p>
+                    <div id="deletePaymentLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    </div>
+                    <div id="deletePaymentContent" class="d-none">
+                        <table class="table table-sm table-bordered mb-3">
+                            <tr><th class="bg-light" style="width:35%">Cliente</th><td id="modalClient"></td></tr>
+                            <tr><th class="bg-light">Fecha</th><td id="modalDate"></td></tr>
+                            <tr><th class="bg-light">Tipo</th><td id="modalType"></td></tr>
+                            <tr><th class="bg-light">Banco</th><td id="modalBank"></td></tr>
+                            <tr><th class="bg-light">No. Documento</th><td id="modalDoc"></td></tr>
+                            <tr><th class="bg-light">Monto total</th><td id="modalAmount" class="fw-bold"></td></tr>
+                        </table>
+                        <h6 class="small fw-bold">Líneas de pago</h6>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-striped" id="modalLinesTable">
+                                <thead><tr><th>Tipo</th><th>Banco</th><th>No. Doc.</th><th class="text-end">Monto</th></tr></thead>
+                                <tbody id="modalLinesBody"></tbody>
+                            </table>
+                        </div>
+                        <h6 class="small fw-bold">Órdenes asociadas</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped" id="modalOrdersTable">
+                                <thead><tr><th>Orden</th><th>Cliente</th><th class="text-end">Monto aplicado</th></tr></thead>
+                                <tbody id="modalOrdersBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('COM_ORDENPRODUCCION_CANCEL'); ?></button>
+                    <form id="deletePaymentForm" method="post" style="display:inline">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="payment_id" id="modalPaymentId" value="">
+                        <button type="submit" class="btn btn-danger" id="modalConfirmDelete"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIRM_DELETE'); ?></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <style>
 .com-ordenproduccion-payments .card-compact .card-body { padding: 0.5rem 1rem; }
 .com-ordenproduccion-payments .table th, .com-ordenproduccion-payments .table td { vertical-align: middle; }
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteModal = document.getElementById('deletePaymentModal');
+    var modalPaymentId = document.getElementById('modalPaymentId');
+    var deleteForm = document.getElementById('deletePaymentForm');
+    var deleteUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&task=payments.delete', false)); ?>;
+    var paymentsUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&view=payments', false)); ?>;
+    var getDetailsBase = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&task=payments.getPaymentDetails&format=json', false)); ?>;
+    var tokenParam = <?php echo json_encode(Session::getFormToken() . '=1'); ?>;
+
+    document.querySelectorAll('.btn-delete-payment').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-payment-id');
+            if (!id) return;
+            modalPaymentId.value = id;
+            document.getElementById('deletePaymentLoading').classList.remove('d-none');
+            document.getElementById('deletePaymentContent').classList.add('d-none');
+            var modal = new bootstrap.Modal(deleteModal);
+            modal.show();
+            var url = getDetailsBase + (getDetailsBase.indexOf('?') >= 0 ? '&' : '?') + 'payment_id=' + encodeURIComponent(id) + '&' + tokenParam;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.onload = function() {
+                document.getElementById('deletePaymentLoading').classList.add('d-none');
+                try {
+                    var d = JSON.parse(xhr.responseText);
+                    if (d.error) {
+                        alert(d.message || 'Error al cargar');
+                        return;
+                    }
+                    var p = d.proof;
+                    document.getElementById('modalClient').textContent = p.client_name || '-';
+                    document.getElementById('modalDate').textContent = p.created ? new Date(p.created).toLocaleString('es-GT') : '-';
+                    document.getElementById('modalType').textContent = p.payment_type_label || '-';
+                    document.getElementById('modalBank').textContent = p.bank || '-';
+                    document.getElementById('modalDoc').textContent = p.document_number || '-';
+                    document.getElementById('modalAmount').textContent = 'Q ' + (p.payment_amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2});
+                    var tbody = document.getElementById('modalLinesBody');
+                    tbody.innerHTML = '';
+                    (d.lines || []).forEach(function(l) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td>' + (l.payment_type_label || '-') + '</td><td>' + (l.bank || '-') + '</td><td>' + (l.document_number || '-') + '</td><td class="text-end">Q ' + (l.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2}) + '</td>';
+                        tbody.appendChild(tr);
+                    });
+                    if (!d.lines || d.lines.length === 0) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td colspan="4" class="text-muted">Sin líneas detalladas</td>';
+                        tbody.appendChild(tr);
+                    }
+                    var obody = document.getElementById('modalOrdersBody');
+                    obody.innerHTML = '';
+                    (d.orders || []).forEach(function(o) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td>' + (o.order_number || '-') + '</td><td>' + (o.client_name || '-') + '</td><td class="text-end">Q ' + (o.amount_applied || 0).toLocaleString('es-GT', {minimumFractionDigits: 2}) + '</td>';
+                        obody.appendChild(tr);
+                    });
+                    if (!d.orders || d.orders.length === 0) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td colspan="3" class="text-muted">Sin órdenes asociadas</td>';
+                        obody.appendChild(tr);
+                    }
+                    document.getElementById('deletePaymentContent').classList.remove('d-none');
+                } catch (e) {
+                    alert('Error al cargar los datos');
+                }
+            };
+            xhr.onerror = function() { document.getElementById('deletePaymentLoading').classList.add('d-none'); alert('Error de red'); };
+            xhr.send();
+        });
+    });
+
+    deleteForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var formData = new FormData(deleteForm);
+        var btn = document.getElementById('modalConfirmDelete');
+        btn.disabled = true;
+        fetch(deleteUrl, { method: 'POST', body: formData })
+            .then(function(r) {
+                var redirect = r.headers.get('X-Redirect');
+                var ct = r.headers.get('Content-Type') || '';
+                return r.blob().then(function(blob) {
+                    if (ct.indexOf('application/pdf') >= 0 && blob.type === 'application/pdf' && redirect) {
+                        var a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = 'comprobante-eliminacion-pago-' + modalPaymentId.value + '.pdf';
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                        window.location.href = redirect;
+                    } else if (redirect) {
+                        window.location.href = redirect;
+                    } else {
+                        btn.disabled = false;
+                        bootstrap.Modal.getInstance(deleteModal).hide();
+                        window.location.href = paymentsUrl;
+                    }
+                });
+            })
+            .catch(function() { btn.disabled = false; alert('Error de red'); });
+    });
+});
+</script>

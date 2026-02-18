@@ -130,13 +130,239 @@ class PaymentsController extends BaseController
         $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Payments', 'Site', ['ignore_request' => true]);
 
-        if ($model->deletePayment($paymentId)) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETED_SUCCESS'), 'success');
-        } else {
-            $app->enqueueMessage($model->getError() ?: Text::_('COM_ORDENPRODUCCION_ERROR_DELETE_FAILED'), 'error');
+        $details = $model->getPaymentDetailsForDelete($paymentId);
+        if (!$details) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_ITEM'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+            return;
         }
 
-        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+        if (!$model->deletePayment($paymentId)) {
+            $app->enqueueMessage($model->getError() ?: Text::_('COM_ORDENPRODUCCION_ERROR_DELETE_FAILED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+            return;
+        }
+
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETED_SUCCESS'), 'success');
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=payments', false);
+        $this->outputDeletionProofPdf($details, $redirectUrl);
+    }
+
+    /**
+     * Get payment details for delete preview (AJAX JSON).
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    public function getPaymentDetails()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest || !AccessHelper::hasOrderAccess()) {
+            $app->setHeader('Content-Type', 'application/json');
+            echo json_encode(['error' => true, 'message' => 'Access denied']);
+            $app->close();
+            return;
+        }
+
+        if (!Session::checkToken('get') && !Session::checkToken('post')) {
+            $app->setHeader('Content-Type', 'application/json');
+            echo json_encode(['error' => true, 'message' => 'Invalid token']);
+            $app->close();
+            return;
+        }
+
+        $paymentId = $app->input->getInt('payment_id', 0);
+        if ($paymentId <= 0) {
+            $app->setHeader('Content-Type', 'application/json');
+            echo json_encode(['error' => true, 'message' => 'Invalid payment ID']);
+            $app->close();
+            return;
+        }
+
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Payments', 'Site', ['ignore_request' => true]);
+        $details = $model->getPaymentDetailsForDelete($paymentId);
+
+        if (!$details) {
+            $app->setHeader('Content-Type', 'application/json');
+            echo json_encode(['error' => true, 'message' => 'Payment not found']);
+            $app->close();
+            return;
+        }
+
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8');
+        $data = [
+            'proof' => [
+                'id' => (int) $details->proof->id,
+                'created' => $details->proof->created ?? '',
+                'payment_type' => $details->proof->payment_type ?? '',
+                'payment_type_label' => $this->translatePaymentType($details->proof->payment_type ?? ''),
+                'bank' => $details->proof->bank ?? '',
+                'document_number' => $details->proof->document_number ?? '',
+                'payment_amount' => (float) ($details->proof->payment_amount ?? 0),
+                'client_name' => $details->proof->client_name ?? '',
+                'sales_agent' => $details->proof->sales_agent ?? '',
+                'orden_de_trabajo' => $details->proof->orden_de_trabajo ?? '',
+                'order_number' => $details->proof->order_number ?? '',
+            ],
+            'lines' => [],
+            'orders' => [],
+        ];
+
+        foreach ($details->lines as $line) {
+            $amount = isset($line->amount) ? (float) $line->amount : (float) ($line->payment_amount ?? 0);
+            $data['lines'][] = [
+                'payment_type' => $line->payment_type ?? '',
+                'payment_type_label' => $this->translatePaymentType($line->payment_type ?? $details->proof->payment_type ?? ''),
+                'bank' => $line->bank ?? '',
+                'document_number' => $line->document_number ?? '',
+                'amount' => $amount,
+            ];
+        }
+
+        foreach ($details->orders as $ord) {
+            $data['orders'][] = [
+                'order_id' => (int) $ord->order_id,
+                'order_number' => $ord->order_number ?? '#' . $ord->order_id,
+                'client_name' => $ord->client_name ?? '',
+                'amount_applied' => (float) ($ord->amount_applied ?? 0),
+            ];
+        }
+
+        echo json_encode($data);
+        $app->close();
+    }
+
+    /**
+     * Output deletion proof PDF and set X-Redirect header for client-side redirect.
+     *
+     * @param   object  $details       Payment details from getPaymentDetailsForDelete
+     * @param   string  $redirectUrl   URL to redirect after PDF download
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function outputDeletionProofPdf($details, $redirectUrl)
+    {
+        $pdfPath = $this->generateDeletionProofPdf($details);
+        if (!$pdfPath || !is_file($pdfPath)) {
+            Factory::getApplication()->enqueueMessage(
+                Text::_('COM_ORDENPRODUCCION_PDF_GENERATION_FAILED'),
+                'error'
+            );
+            Factory::getApplication()->redirect($redirectUrl);
+            return;
+        }
+
+        $filename = 'comprobante-eliminacion-pago-' . (int) $details->proof->id . '-' . date('Y-m-d-His') . '.pdf';
+        @ob_clean();
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, must-revalidate');
+        header('X-Redirect: ' . $redirectUrl);
+        header('Content-Length: ' . filesize($pdfPath));
+        readfile($pdfPath);
+        @unlink($pdfPath);
+        Factory::getApplication()->close();
+    }
+
+    /**
+     * Generate deletion proof PDF. Returns temp file path.
+     *
+     * @param   object  $details  Payment details from getPaymentDetailsForDelete
+     *
+     * @return  string|null  Temp file path or null on failure
+     *
+     * @since   1.0.0
+     */
+    protected function generateDeletionProofPdf($details)
+    {
+        $fpdfPath = JPATH_ROOT . '/fpdf/fpdf.php';
+        if (!is_file($fpdfPath)) {
+            return null;
+        }
+        require_once $fpdfPath;
+
+        $fixSpanishChars = function ($text) {
+            if (empty($text)) {
+                return $text;
+            }
+            $map = [
+                'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
+                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
+                'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c'
+            ];
+            return strtr($text, $map);
+        };
+
+        $pdf = new \FPDF('P', 'mm', 'A4');
+        $pdf->AddPage();
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->Cell(0, 8, 'COMPROBANTE DE ELIMINACION DE PAGO', 0, 1, 'C');
+        $pdf->Ln(4);
+
+        $created = !empty($details->proof->created)
+            ? Factory::getDate($details->proof->created)->format('d/m/Y H:i') : '-';
+        $deletedAt = Factory::getDate()->format('d/m/Y H:i');
+        $clientName = $fixSpanishChars($details->proof->client_name ?? 'N/A');
+        $typeLabel = $fixSpanishChars($this->translatePaymentType($details->proof->payment_type ?? ''));
+
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(45, 6, 'Fecha de eliminacion:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $deletedAt, 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Fecha del pago original:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $created, 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Cliente:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $clientName, 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Tipo de pago:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $typeLabel, 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Banco:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $fixSpanishChars($details->proof->bank ?? '-'), 0, 1, 'L');
+        $pdf->Cell(45, 6, 'No. Documento:', 0, 0, 'L');
+        $pdf->Cell(0, 6, $fixSpanishChars($details->proof->document_number ?? '-'), 0, 1, 'L');
+        $pdf->Cell(45, 6, 'Monto total:', 0, 0, 'L');
+        $pdf->Cell(0, 6, 'Q ' . number_format((float) ($details->proof->payment_amount ?? 0), 2), 0, 1, 'L');
+        $pdf->Ln(6);
+
+        if (!empty($details->lines)) {
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(0, 6, 'LINEAS DE PAGO', 0, 1, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(45, 6, 'Tipo', 1, 0, 'L');
+            $pdf->Cell(35, 6, 'Banco', 1, 0, 'L');
+            $pdf->Cell(45, 6, 'No. Doc.', 1, 0, 'L');
+            $pdf->Cell(0, 6, 'Monto', 1, 1, 'R');
+            foreach ($details->lines as $line) {
+                $amount = isset($line->amount) ? (float) $line->amount : (float) ($line->payment_amount ?? 0);
+                $pdf->Cell(45, 6, $fixSpanishChars($this->translatePaymentType($line->payment_type ?? '')), 1, 0, 'L');
+                $pdf->Cell(35, 6, $fixSpanishChars($line->bank ?? '-'), 1, 0, 'L');
+                $pdf->Cell(45, 6, $fixSpanishChars($line->document_number ?? '-'), 1, 0, 'L');
+                $pdf->Cell(0, 6, number_format($amount, 2), 1, 1, 'R');
+            }
+            $pdf->Ln(4);
+        }
+
+        if (!empty($details->orders)) {
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(0, 6, 'ORDENES ASOCIADAS', 0, 1, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(25, 6, 'Orden', 1, 0, 'L');
+            $pdf->Cell(80, 6, 'Cliente', 1, 0, 'L');
+            $pdf->Cell(0, 6, 'Monto aplicado', 1, 1, 'R');
+            foreach ($details->orders as $ord) {
+                $pdf->Cell(25, 6, $ord->order_number ?? '#' . $ord->order_id, 1, 0, 'L');
+                $pdf->Cell(80, 6, $fixSpanishChars($ord->client_name ?? '-'), 1, 0, 'L');
+                $pdf->Cell(0, 6, 'Q ' . number_format((float) ($ord->amount_applied ?? 0), 2), 1, 1, 'R');
+            }
+        }
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'op_del_proof_') . '.pdf';
+        $pdf->Output('F', $tmpFile);
+        return $tmpFile;
     }
 
     /**

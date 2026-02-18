@@ -278,6 +278,137 @@ class PaymentsModel extends ListModel
     }
 
     /**
+     * Get full payment details for delete preview and PDF (proof, lines, orders).
+     *
+     * @param   int  $paymentId  Payment proof ID
+     *
+     * @return  object|null  { proof, lines, orders } or null if not found/access denied
+     *
+     * @since   1.0.0
+     */
+    public function getPaymentDetailsForDelete($paymentId)
+    {
+        $paymentId = (int) $paymentId;
+        if ($paymentId <= 0) {
+            return null;
+        }
+
+        $db = $this->getDatabase();
+
+        $clientCol = 'o.' . $this->getOrdenesClientColumn();
+        $query = $db->getQuery(true)
+            ->select([
+                'pp.id', 'pp.order_id', 'pp.payment_type', 'pp.bank', 'pp.document_number',
+                'pp.payment_amount', 'pp.created', 'pp.file_path',
+                $clientCol . ' AS client_name',
+                'o.sales_agent', 'o.orden_de_trabajo', 'o.order_number'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'));
+
+        if ($this->hasPaymentOrdersTable()) {
+            $subQuery = $db->getQuery(true)
+                ->select('po.payment_proof_id, MIN(po.order_id) AS first_order_id')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->group('po.payment_proof_id');
+            $query->leftJoin('(' . (string) $subQuery . ') AS first_po ON first_po.payment_proof_id = pp.id')
+                ->leftJoin(
+                    $db->quoteName('#__ordenproduccion_ordenes', 'o') .
+                    ' ON o.id = COALESCE(pp.order_id, first_po.first_order_id)'
+                );
+        } else {
+            $query->leftJoin(
+                $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = pp.order_id'
+            );
+        }
+
+        $query->where('pp.id = ' . $paymentId)->where('pp.state = 1');
+
+        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
+
+        $db->setQuery($query);
+        $proof = $db->loadObject();
+        if (!$proof) {
+            return null;
+        }
+
+        $lines = $this->getPaymentLinesForProof($paymentId);
+        $orders = $this->getOrdersForProof($paymentId);
+
+        return (object) ['proof' => $proof, 'lines' => $lines, 'orders' => $orders];
+    }
+
+    /**
+     * Get payment lines (from payment_proof_lines or legacy single from proof)
+     */
+    protected function getPaymentLinesForProof($paymentId)
+    {
+        $db = $this->getDatabase();
+        if ($this->hasPaymentProofLinesTable()) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . (int) $paymentId)
+                    ->order($db->quoteName('ordering') . ' ASC, id ASC')
+            );
+            return $db->loadObjectList() ?: [];
+        }
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('id, payment_type, bank, document_number, payment_amount AS amount')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->where($db->quoteName('id') . ' = ' . (int) $paymentId)
+        );
+        $row = $db->loadObject();
+        return $row ? [$row] : [];
+    }
+
+    /**
+     * Get orders linked to this payment proof
+     */
+    protected function getOrdersForProof($paymentId)
+    {
+        if (!$this->hasPaymentOrdersTable()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                'po.order_id', 'po.amount_applied',
+                'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
+                'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id'
+            )
+            ->where('po.payment_proof_id = ' . (int) $paymentId)
+            ->where('o.state = 1');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    protected function hasPaymentProofLinesTable()
+    {
+        try {
+            $db = $this->getDatabase();
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $name = $prefix . 'ordenproduccion_payment_proof_lines';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $name) === 0) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+        return false;
+    }
+
+    /**
      * Delete a payment proof and its associated data, then refresh client balances.
      *
      * @param   int  $paymentId  Payment proof ID
