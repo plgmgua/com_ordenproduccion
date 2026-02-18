@@ -208,7 +208,7 @@ class OrdenesModel extends ListModel
         // Filter by payment status (Pagado / Pago pendiente)
         $paymentStatus = $this->getState('filter.payment_status');
         if (!empty($paymentStatus) && in_array($paymentStatus, ['pagado', 'pendiente'])) {
-            $invoiceCol = 'COALESCE(a.invoice_value, a.valor_a_facturar, 0)';
+            $invoiceCol = $this->getInvoiceValueColumn($db);
             $totalPaidExpr = $this->getTotalPaidSubquery($db);
             if ($paymentStatus === 'pagado') {
                 $query->where('(' . $totalPaidExpr . ') >= ' . $invoiceCol . ' - 0.01');
@@ -330,6 +330,28 @@ class OrdenesModel extends ListModel
             'pagado' => $t('COM_ORDENPRODUCCION_PAYMENT_STATUS_PAID', 'Pagado'),
             'pendiente' => $t('COM_ORDENPRODUCCION_PAYMENT_STATUS_PENDING', 'Pago pendiente')
         ];
+    }
+
+    /**
+     * Get the invoice value column expression (supports invoice_value or valor_a_facturar schema)
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database driver
+     *
+     * @return  string  SQL expression e.g. COALESCE(a.invoice_value, 0)
+     *
+     * @since   3.66.0
+     */
+    protected function getInvoiceValueColumn($db)
+    {
+        $orderColumns = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $orderColumns = array_change_key_case($orderColumns ?: [], CASE_LOWER);
+        if (isset($orderColumns['invoice_value'])) {
+            return 'COALESCE(a.invoice_value, 0)';
+        }
+        if (isset($orderColumns['valor_a_facturar'])) {
+            return 'COALESCE(a.valor_a_facturar, 0)';
+        }
+        return '0';
     }
 
     /**
