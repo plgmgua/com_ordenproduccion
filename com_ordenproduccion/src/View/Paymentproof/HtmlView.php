@@ -211,6 +211,7 @@ class HtmlView extends BaseHtmlView
     /**
      * Get orders with remaining balance from same client (for adding to payment)
      * Includes: orders where total paid < invoice_value, same client
+     * Supports both schema variants: invoice_value/valor_a_facturar, client_name/nombre_del_cliente
      *
      * @return  array  Array of order objects with id, order_number, invoice_value, total_paid, remaining_balance
      *
@@ -220,11 +221,21 @@ class HtmlView extends BaseHtmlView
     {
         try {
             $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-            $clientName = $this->order->client_name ?? $this->order->nombre_del_cliente ?? '';
+            $clientName = trim($this->order->client_name ?? $this->order->nombre_del_cliente ?? '');
             if (empty($clientName)) {
                 return [];
             }
-            $clientColumn = 'COALESCE(o.' . $db->quoteName('client_name') . ', o.' . $db->quoteName('nombre_del_cliente') . ')';
+
+            // Detect columns (support both schema: invoice_value/valor_a_facturar, client_name/nombre_del_cliente)
+            $orderColumns = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $orderColumns = array_change_key_case($orderColumns ?: [], CASE_LOWER);
+
+            $invoiceCol = isset($orderColumns['invoice_value']) ? 'o.invoice_value'
+                : (isset($orderColumns['valor_a_facturar']) ? 'o.valor_a_facturar' : '0');
+            $clientCol = isset($orderColumns['client_name']) ? 'o.client_name'
+                : (isset($orderColumns['nombre_del_cliente']) ? 'o.nombre_del_cliente' : 'o.nombre_del_cliente');
+            $orderNumCol = isset($orderColumns['order_number']) ? 'o.order_number'
+                : 'o.orden_de_trabajo';
 
             if ($this->hasPaymentOrdersTable($db)) {
                 $totalPaidExpr = '(SELECT COALESCE(SUM(po2.amount_applied), 0) FROM ' .
@@ -240,15 +251,15 @@ class HtmlView extends BaseHtmlView
             $query = $db->getQuery(true)
                 ->select([
                     'o.id',
-                    'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
-                    'COALESCE(o.invoice_value, 0) AS invoice_value',
+                    $orderNumCol . ' AS order_number',
+                    'COALESCE(' . $invoiceCol . ', 0) AS invoice_value',
                     $totalPaidExpr . ' AS total_paid'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where('o.state = 1')
-                ->where('(' . $clientColumn . ' = ' . $db->quote($clientName) . ')')
+                ->where('TRIM(' . $clientCol . ') = ' . $db->quote($clientName))
                 ->where('o.id != ' . (int) $this->orderId)
-                ->order('COALESCE(o.order_number, o.orden_de_trabajo) DESC');
+                ->order($orderNumCol . ' DESC');
 
             $db->setQuery($query);
             $orders = $db->loadObjectList();

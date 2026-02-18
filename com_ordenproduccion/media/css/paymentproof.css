@@ -328,6 +328,19 @@
     max-width: 100%;
 }
 
+/* Smaller delete line button so it doesn't affect Monto column */
+#payment-lines-table .remove-payment-line-btn {
+    min-width: 28px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 #payment-lines-table .payment-line-amount {
     min-width: 95px;
     width: 95px;

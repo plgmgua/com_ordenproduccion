@@ -190,7 +190,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
                                                     <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
-                                                    <th style="width: 50px;"></th>
+                                                    <th style="width: 40px;"></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="payment-lines-body">
