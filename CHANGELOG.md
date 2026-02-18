@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Future features
+- **Payments list view** – New frontend view to manage payment data
+  - Filters: client, date range, sales person
+  - Menu item type: "Payments List" available when creating frontend menu items
+  - Access control: requires login and order access (same as Ordenes); sales agents see only their payments
 
 ## [3.65.0-STABLE] - 2025-02-16
 
