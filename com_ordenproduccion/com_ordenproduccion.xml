@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.63.0-STABLE</version>
+    <version>3.65.0-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
 
     <namespace path="src">Grimpsa\Component\Ordenproduccion</namespace>

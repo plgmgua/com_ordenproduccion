@@ -407,13 +407,19 @@ $tokenName = Session::getFormToken();
             <i class="fas fa-university"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_BANKS'); ?>
         </a>
-        <!-- Add more subtabs here in the future -->
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas&subtab=paymenttypes'); ?>" 
+           class="herramientas-subtab <?php echo $activeSubTab === 'paymenttypes' ? 'subtab-active' : ''; ?>">
+            <i class="fas fa-credit-card"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_PAYMENT_TYPES'); ?>
+        </a>
     </div>
 
     <!-- Subtab Content -->
     <div class="subtab-content">
         <?php if ($activeSubTab === 'banks'): ?>
             <?php include __DIR__ . '/default_herramientas_banks.php'; ?>
+        <?php elseif ($activeSubTab === 'paymenttypes'): ?>
+            <?php include __DIR__ . '/default_herramientas_paymenttypes.php'; ?>
         <?php else: ?>
             <div class="empty-state">
                 <p><?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_NOT_FOUND'); ?></p>

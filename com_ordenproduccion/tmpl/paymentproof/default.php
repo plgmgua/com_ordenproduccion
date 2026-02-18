@@ -190,7 +190,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
                                                     <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
-                                                    <th style="width: 60px;"></th>
+                                                    <th style="width: 50px;"></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="payment-lines-body">
@@ -215,14 +215,9 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                         <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'e.g. Check #, reference', 'ej. Número de cheque, referencia')); ?>" maxlength="255" required>
                                                     </td>
                                                     <td>
-                                                        <div class="input-group input-group-sm">
-                                                            <span class="input-group-text">Q.</span>
-                                                            <input type="number" name="payment_lines[0][amount]" class="form-control payment-line-amount" min="0.01" step="0.01" placeholder="0.00" required>
-                                                        </div>
+                                                        <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>
                                                     </td>
-                                                    <td class="text-center">
-                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>"><i class="fas fa-plus"></i></button>
-                                                    </td>
+                                                    <td class="text-center"></td>
                                                 </tr>
                                             </tbody>
                                             <tfoot>
@@ -233,6 +228,11 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 </tr>
                                             </tfoot>
                                         </table>
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                                                <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -407,7 +407,8 @@ window.validateFile = function(input) {
         if (!firstRow) return;
         const newRow = firstRow.cloneNode(true);
         newRow.classList.remove('payment-line-row');
-        newRow.querySelector('.add-payment-line-btn').outerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn" title="<?php echo Text::_('JDELETE'); ?>"><i class="fas fa-minus"></i></button>';
+        var lastTd = newRow.querySelector('td:last-child');
+        if (lastTd) lastTd.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn" title="<?php echo Text::_('JDELETE'); ?>"><i class="fas fa-minus"></i></button>';
         newRow.querySelectorAll('select, input').forEach(function(el) {
             const m = el.name && el.name.match(/payment_lines\[\d+\]\[(\w+)\]/);
             if (m) {
@@ -422,15 +423,13 @@ window.validateFile = function(input) {
         toggleBankCell(newRow);
         newRow.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(newRow); });
         newRow.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
-        newRow.querySelector('.remove-payment-line-btn').addEventListener('click', function() {
-            newRow.remove();
-            updateLinesTotal();
-        });
+        var rmBtn = newRow.querySelector('.remove-payment-line-btn');
+        if (rmBtn) rmBtn.addEventListener('click', function() { newRow.remove(); updateLinesTotal(); });
         updateLinesTotal();
     }
 
-    document.getElementById('payment-lines-body').addEventListener('click', function(e) {
-        if (e.target.closest('.add-payment-line-btn')) { e.preventDefault(); addLine(); }
+    document.querySelectorAll('.add-payment-line-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.preventDefault(); addLine(); });
     });
     document.querySelectorAll('.payment-line-type').forEach(function(el) {
         el.addEventListener('change', function() { toggleBankCell(el.closest('tr')); });

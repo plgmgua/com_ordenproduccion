@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future features
 
+## [3.65.0-STABLE] - 2025-02-16
+
+### Added
+- **Payment Types Management** – Add/edit/reorder payment types (Efectivo, Cheque, etc.) like banks
+  - Herramientas tab: new "Tipos de Pago" subtab with CRUD and drag-to-reorder
+  - PaymentproofModel loads types from DB when `#__ordenproduccion_payment_types` exists
+- Payment proof form: "Agregar línea" button moved below the payment methods table
+
+### Changed
+- Payment proof form: Removed "Q." from Monto input (kept only on Total line)
+- Payment proof form: Amount input sized for 6 digits + 2 decimals (999999.99) without horizontal scrolling
+
+### Database Changes
+- New table `#__ordenproduccion_payment_types` (code, name, name_en, name_es, requires_bank, ordering)
+- Migration: 3.65.0_create_payment_types.sql (run manually if needed; uses joomla_ prefix)
+
 ## [3.63.0-STABLE] - 2025-02-16
 
 ### Added

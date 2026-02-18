@@ -539,14 +539,29 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
-     * Get payment type options
+     * Get payment type options (from DB if payment_types table exists, else hardcoded fallback)
      *
-     * @return  array  Array of payment type options
+     * @return  array  Array of payment type options (code => label)
      *
      * @since   3.1.3
      */
     public function getPaymentTypeOptions()
     {
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $paymenttypeModel = $mvcFactory->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+
+            if ($paymenttypeModel && method_exists($paymenttypeModel, 'getPaymentTypeOptions')) {
+                $options = $paymenttypeModel->getPaymentTypeOptions();
+                if (!empty($options)) {
+                    return $options;
+                }
+            }
+        } catch (\Exception $e) {
+            // Table may not exist yet - fall through to hardcoded
+        }
+
         return [
             'efectivo' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH', 'Cash', 'Efectivo'),
             'cheque' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK', 'Check', 'Cheque'),

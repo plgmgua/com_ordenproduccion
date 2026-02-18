@@ -95,6 +95,14 @@ class HtmlView extends BaseHtmlView
     protected $banks = [];
 
     /**
+     * Payment types list
+     *
+     * @var    array
+     * @since  3.65.0
+     */
+    protected $paymentTypes = [];
+
+    /**
      * Active subtab for herramientas tab
      *
      * @var    string
@@ -470,6 +478,26 @@ class HtmlView extends BaseHtmlView
         } else {
             // Initialize banks as empty array if not banks subtab
             $this->banks = [];
+        }
+
+        // Load payment types if herramientas tab is active and paymenttypes subtab is selected
+        if ($activeTab === 'herramientas' && $activeSubTab === 'paymenttypes') {
+            try {
+                $component = $app->bootComponent('com_ordenproduccion');
+                $mvcFactory = $component->getMVCFactory();
+                $paymenttypeModel = $mvcFactory->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+
+                if ($paymenttypeModel && method_exists($paymenttypeModel, 'getPaymentTypes')) {
+                    $this->paymentTypes = $paymenttypeModel->getPaymentTypes();
+                } else {
+                    $this->paymentTypes = [];
+                }
+            } catch (\Exception $e) {
+                $app->enqueueMessage('Error loading payment types: ' . $e->getMessage(), 'warning');
+                $this->paymentTypes = [];
+            }
+        } else {
+            $this->paymentTypes = [];
         }
 
         // Final safeguard: Ensure banks is always an array before parent::display()
