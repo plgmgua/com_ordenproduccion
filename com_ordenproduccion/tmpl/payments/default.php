@@ -15,65 +15,47 @@ use Joomla\CMS\Router\Route;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Payments\HtmlView $this */
 ?>
-
 <div class="com-ordenproduccion-payments">
     <div class="container-fluid">
-        <div class="row mb-4">
+        <div class="row mb-2">
             <div class="col-12">
-                <h1 class="page-title">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_TITLE'); ?>
-                </h1>
-                <?php if ($this->params->get('show_page_heading')) : ?>
-                    <p class="page-description">
-                        <?php echo $this->params->get('page_heading'); ?>
-                    </p>
-                <?php endif; ?>
+                <h1 class="page-title h4 mb-0">Control de Pagos</h1>
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="row mb-4">
+        <!-- Filters - compact -->
+        <div class="row mb-2">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-filter"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTERS'); ?>
+                <div class="card card-compact">
+                    <div class="card-header py-2">
+                        <h5 class="card-title mb-0 small">
+                            <i class="fas fa-filter"></i> Filtros
                         </h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body py-2">
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>">
                             <input type="hidden" name="option" value="com_ordenproduccion">
                             <input type="hidden" name="view" value="payments">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <label for="filter_client"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_CLIENT'); ?></label>
-                                    <input type="text"
-                                           name="filter_client"
-                                           id="filter_client"
-                                           class="form-control"
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-2">
+                                    <label for="filter_client" class="form-label small mb-0">Cliente</label>
+                                    <input type="text" name="filter_client" id="filter_client" class="form-control form-control-sm"
                                            value="<?php echo htmlspecialchars($this->state->get('filter.client')); ?>"
-                                           placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_CLIENT_PLACEHOLDER'); ?>">
+                                           placeholder="Filtrar por cliente...">
                                 </div>
                                 <div class="col-md-2">
-                                    <label for="filter_date_from"><?php echo Text::_('COM_ORDENPRODUCCION_FILTER_DATE_FROM'); ?></label>
-                                    <input type="date"
-                                           name="filter_date_from"
-                                           id="filter_date_from"
-                                           class="form-control"
+                                    <label for="filter_date_from" class="form-label small mb-0">Fecha Desde</label>
+                                    <input type="date" name="filter_date_from" id="filter_date_from" class="form-control form-control-sm"
                                            value="<?php echo htmlspecialchars($this->state->get('filter.date_from')); ?>">
                                 </div>
                                 <div class="col-md-2">
-                                    <label for="filter_date_to"><?php echo Text::_('COM_ORDENPRODUCCION_FILTER_DATE_TO'); ?></label>
-                                    <input type="date"
-                                           name="filter_date_to"
-                                           id="filter_date_to"
-                                           class="form-control"
+                                    <label for="filter_date_to" class="form-label small mb-0">Fecha Hasta</label>
+                                    <input type="date" name="filter_date_to" id="filter_date_to" class="form-control form-control-sm"
                                            value="<?php echo htmlspecialchars($this->state->get('filter.date_to')); ?>">
                                 </div>
-                                <div class="col-md-3">
-                                    <label for="filter_sales_agent"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_SALES_AGENT'); ?></label>
-                                    <select name="filter_sales_agent" id="filter_sales_agent" class="form-control">
+                                <div class="col-md-2">
+                                    <label for="filter_sales_agent" class="form-label small mb-0">Agente de Ventas</label>
+                                    <select name="filter_sales_agent" id="filter_sales_agent" class="form-select form-select-sm">
                                         <?php foreach ($this->getModel()->getSalesAgentOptions() as $value => $text) : ?>
                                             <option value="<?php echo htmlspecialchars($value); ?>"
                                                 <?php echo $this->state->get('filter.sales_agent') === $value ? 'selected' : ''; ?>>
@@ -83,18 +65,12 @@ use Joomla\CMS\Router\Route;
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <label>&nbsp;</label>
-                                    <div class="btn-group d-block">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-search"></i>
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_APPLY'); ?>
-                                        </button>
-                                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>"
-                                           class="btn btn-secondary">
-                                            <i class="fas fa-times"></i>
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_CLEAR'); ?>
-                                        </a>
-                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-search"></i> Aplicar
+                                    </button>
+                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-times"></i> Limpiar
+                                    </a>
                                 </div>
                             </div>
                         </form>
@@ -103,12 +79,11 @@ use Joomla\CMS\Router\Route;
             </div>
         </div>
 
-        <!-- Results Summary -->
-        <div class="row mb-3">
+        <!-- Results Summary - compact -->
+        <div class="row mb-2">
             <div class="col-12">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    <?php echo Text::sprintf('COM_ORDENPRODUCCION_PAYMENTS_FOUND', count($this->items)); ?>
+                <div class="alert alert-info py-2 mb-0 small">
+                    <i class="fas fa-info-circle"></i> Se encontraron <?php echo count($this->items); ?> pagos
                 </div>
             </div>
         </div>
@@ -117,9 +92,8 @@ use Joomla\CMS\Router\Route;
         <?php if (empty($this->items)) : ?>
             <div class="row">
                 <div class="col-12">
-                    <div class="alert alert-warning text-center">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_NO_ITEMS'); ?>
+                    <div class="alert alert-warning py-2 text-center small mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> No se encontraron pagos
                     </div>
                 </div>
             </div>
@@ -127,43 +101,40 @@ use Joomla\CMS\Router\Route;
             <div class="row">
                 <div class="col-12">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead class="thead-dark">
+                        <table class="table table-sm table-striped table-hover">
+                            <thead class="table-dark">
                                 <tr>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_DATE'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ORDER'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_DOCUMENT'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_AGENTE_VENTAS'); ?></th>
-                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                                    <th scope="col" class="small">Fecha</th>
+                                    <th scope="col" class="small">Cliente</th>
+                                    <th scope="col" class="small">Orden</th>
+                                    <th scope="col" class="small">Tipo</th>
+                                    <th scope="col" class="small">Nº Doc.</th>
+                                    <th scope="col" class="small">Monto</th>
+                                    <th scope="col" class="small">Agente</th>
+                                    <th scope="col" class="small"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($this->items as $item) : ?>
                                     <tr>
-                                        <td><?php echo $this->formatDate($item->created); ?></td>
-                                        <td><?php echo htmlspecialchars($item->client_name ?? '-'); ?></td>
-                                        <td>
+                                        <td class="small"><?php echo $this->formatDate($item->created); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($item->client_name ?? '-'); ?></td>
+                                        <td class="small">
                                             <?php if (!empty($item->order_id)) : ?>
                                                 <a href="<?php echo $this->getOrderRoute($item->order_id); ?>" class="text-primary">
                                                     <?php echo htmlspecialchars($item->order_number ?? $item->orden_de_trabajo ?? '#' . $item->order_id); ?>
                                                 </a>
-                                            <?php else : ?>
-                                                -
-                                            <?php endif; ?>
+                                            <?php else : ?>-<?php endif; ?>
                                         </td>
-                                        <td><?php echo $this->translatePaymentType($item->payment_type ?? ''); ?></td>
-                                        <td><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
-                                        <td><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
-                                        <td><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
-                                        <td>
+                                        <td class="small"><?php echo $this->translatePaymentType($item->payment_type ?? ''); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
+                                        <td class="small"><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
+                                        <td class="small">
                                             <?php if (!empty($item->order_id)) : ?>
                                                 <a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>"
-                                                   class="btn btn-sm btn-outline-primary"
-                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_PROOF'); ?>">
-                                                    <i class="fas fa-credit-card fa-sm"></i>
+                                                   class="btn btn-sm btn-outline-primary py-0 px-1" title="Ver comprobante">
+                                                    <i class="fas fa-credit-card"></i>
                                                 </a>
                                             <?php endif; ?>
                                         </td>
@@ -176,12 +147,12 @@ use Joomla\CMS\Router\Route;
             </div>
 
             <?php if ($this->pagination->pagesTotal > 1) : ?>
-                <div class="row mt-4">
+                <div class="row mt-2">
                     <div class="col-12">
-                        <nav aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_PAGINATION'); ?>">
+                        <nav aria-label="Paginación" class="small">
                             <?php echo $this->pagination->getPagesLinks(); ?>
                         </nav>
-                        <div class="pagination-info text-center mt-2">
+                        <div class="pagination-info text-center small mt-1">
                             <?php echo $this->pagination->getResultsCounter(); ?>
                         </div>
                     </div>
@@ -190,3 +161,7 @@ use Joomla\CMS\Router\Route;
         <?php endif; ?>
     </div>
 </div>
+<style>
+.com-ordenproduccion-payments .card-compact .card-body { padding: 0.5rem 1rem; }
+.com-ordenproduccion-payments .table th, .com-ordenproduccion-payments .table td { vertical-align: middle; }
+</style>
