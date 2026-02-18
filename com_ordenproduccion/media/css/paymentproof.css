@@ -8,6 +8,14 @@
 
 .com-ordenproduccion-paymentproof {
     padding: 20px 0;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.com-ordenproduccion-paymentproof .container {
+    max-width: 100%;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
 .com-ordenproduccion-paymentproof .page-title {
@@ -299,5 +307,44 @@
         min-width: 30px;
         height: 30px;
         font-size: 12px;
+    }
+}
+
+/* Payment lines table - responsive, fit viewport */
+#payment-lines-table {
+    table-layout: auto;
+    width: 100%;
+    max-width: 100%;
+}
+
+#payment-lines-table th,
+#payment-lines-table td {
+    white-space: normal;
+}
+
+#payment-lines-table .payment-line-type,
+#payment-lines-table .payment-line-bank {
+    min-width: 120px;
+    max-width: 100%;
+}
+
+#payment-lines-table .payment-line-amount {
+    width: 90px;
+}
+
+@media (max-width: 992px) {
+    .com-ordenproduccion-paymentproof .container {
+        max-width: 100%;
+    }
+    
+    #payment-lines-table th,
+    #payment-lines-table td {
+        padding: 6px 4px;
+        font-size: 13px;
+    }
+    
+    #payment-lines-table .payment-line-type,
+    #payment-lines-table .payment-line-bank {
+        min-width: 100px;
     }
 }

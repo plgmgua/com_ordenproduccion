@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Paymentproof\HtmlView $this */
 
@@ -45,7 +46,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
 ?>
 
 <div class="com-ordenproduccion-paymentproof">
-    <div class="container-fluid">
+    <div class="container">
         <!-- Page Header -->
         <div class="row mb-4">
             <div class="col-12">
@@ -179,16 +180,16 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             <!-- Payment method lines (cheque + NCF + etc.) -->
                             <div class="row mb-3">
                                 <div class="col-12">
-                                    <label><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES'); ?></label>
-                                    <small class="form-text text-muted d-block mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES_HELP'); ?></small>
+                                    <label><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES', 'Payment method lines', 'Métodos de pago'); ?></label>
+                                    <small class="form-text text-muted d-block mb-2"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES_HELP', 'Add one or more lines (e.g. Check + Tax Credit Note). Use + to add.', 'Agregue una o más líneas (ej. Cheque + Nota Crédito Fiscal). Use el botón + para agregar.'); ?></small>
                                     <div class="table-responsive">
                                         <table class="table table-bordered" id="payment-lines-table">
                                             <thead>
                                                 <tr>
-                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE'); ?></th>
-                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_BANK'); ?></th>
-                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?></th>
-                                                    <th style="width: 140px;"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?></th>
+                                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
+                                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
+                                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
+                                                    <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
                                                     <th style="width: 60px;"></th>
                                                 </tr>
                                             </thead>
@@ -196,7 +197,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 <tr class="payment-line-row">
                                                     <td>
                                                         <select name="payment_lines[0][payment_type]" class="form-control form-control-sm payment-line-type" required>
-                                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE'); ?></option>
+                                                            <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Select payment type', 'Seleccionar tipo de pago'); ?></option>
                                                             <?php foreach ($paymentTypeOptions as $val => $txt): ?>
                                                             <option value="<?php echo htmlspecialchars($val); ?>"><?php echo htmlspecialchars($txt); ?></option>
                                                             <?php endforeach; ?>
@@ -204,14 +205,14 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     </td>
                                                     <td class="bank-cell">
                                                         <select name="payment_lines[0][bank]" class="form-control form-control-sm payment-line-bank">
-                                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_BANK'); ?></option>
+                                                            <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_BANK', 'Select bank', 'Seleccionar banco'); ?></option>
                                                             <?php foreach ($bankOptions as $code => $name): ?>
                                                             <option value="<?php echo htmlspecialchars($code); ?>"<?php echo ($defaultBankCode && $code === $defaultBankCode) ? ' selected' : ''; ?>><?php echo htmlspecialchars($name); ?></option>
                                                             <?php endforeach; ?>
                                                         </select>
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER'); ?>" maxlength="255" required>
+                                                        <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'e.g. Check #, reference', 'ej. Número de cheque, referencia')); ?>" maxlength="255" required>
                                                     </td>
                                                     <td>
                                                         <div class="input-group input-group-sm">
@@ -220,7 +221,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                         </div>
                                                     </td>
                                                     <td class="text-center">
-                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo Text::_('COM_ORDENPRODUCCION_ADD_LINE'); ?>"><i class="fas fa-plus"></i></button>
+                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>"><i class="fas fa-plus"></i></button>
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -243,7 +244,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <div class="col-md-12">
                                     <div class="form-group">
                                         <label>
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_PAYMENT'); ?>
+                                            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_PAYMENT', 'Orders to apply payment', 'Órdenes a aplicar este pago'); ?>
                                         </label>
                                         <div class="table-responsive">
                                             <table class="table table-bordered" id="payment-orders-table">
@@ -307,7 +308,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             </table>
                                         </div>
                                         <small class="form-text text-muted">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_HELP'); ?>
+                                            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_HELP', 'Add work orders and amount for each', 'Agregue las órdenes de trabajo y el monto para cada una'); ?>
                                         </small>
                                     </div>
                                 </div>
@@ -317,7 +318,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="payment_proof_file">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE'); ?>
+                                            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE', 'Payment proof file', 'Archivo comprobante de pago'); ?>
                                         </label>
                                         <input type="file" 
                                                name="payment_proof_file" 
@@ -326,7 +327,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                accept=".jpg,.jpeg,.png,.pdf"
                                                onchange="validateFile(this)">
                                         <small class="form-text text-muted">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE_HELP'); ?>
+                                            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE_HELP', 'Accepted: JPG, PNG, PDF (Max: 5MB)', 'Formatos aceptados: JPG, PNG, PDF (Máx: 5MB)'); ?>
                                         </small>
                                     </div>
                                 </div>

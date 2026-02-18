@@ -10,6 +10,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Joomla\CMS\Language\Text;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
 class PaymentproofModel extends ItemModel
 {
@@ -547,11 +548,11 @@ class PaymentproofModel extends ItemModel
     public function getPaymentTypeOptions()
     {
         return [
-            'efectivo' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH'),
-            'cheque' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK'),
-            'transferencia' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER'),
-            'deposito' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT'),
-            'nota_credito_fiscal' => Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE')
+            'efectivo' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_CASH', 'Cash', 'Efectivo'),
+            'cheque' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_CHECK', 'Check', 'Cheque'),
+            'transferencia' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_TRANSFER', 'Bank Transfer', 'Transferencia Bancaria'),
+            'deposito' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT', 'Bank Deposit', 'Depósito Bancario'),
+            'nota_credito_fiscal' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE', 'Tax Credit Note', 'Nota Crédito Fiscal')
         ];
     }
 
