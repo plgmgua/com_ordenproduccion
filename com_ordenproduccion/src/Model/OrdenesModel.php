@@ -299,12 +299,16 @@ class OrdenesModel extends ListModel
      */
     public function getStatusOptions()
     {
+        $t = function ($key, $fallback) {
+            $v = \Joomla\CMS\Language\Text::_($key);
+            return ($v !== $key) ? $v : $fallback;
+        };
         return [
-            '' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_SELECT_STATUS'),
-            'Nueva' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_NEW'),
-            'En Proceso' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_IN_PROCESS'),
-            'Terminada' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_COMPLETED'),
-            'Cerrada' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_STATUS_CLOSED')
+            '' => $t('COM_ORDENPRODUCCION_SELECT_STATUS', 'Seleccionar Estado'),
+            'Nueva' => $t('COM_ORDENPRODUCCION_STATUS_NEW', 'Nueva'),
+            'En Proceso' => $t('COM_ORDENPRODUCCION_STATUS_IN_PROCESS', 'En Proceso'),
+            'Terminada' => $t('COM_ORDENPRODUCCION_STATUS_COMPLETED', 'Terminada'),
+            'Cerrada' => $t('COM_ORDENPRODUCCION_STATUS_CLOSED', 'Cerrada')
         ];
     }
 
@@ -317,10 +321,14 @@ class OrdenesModel extends ListModel
      */
     public function getPaymentStatusOptions()
     {
+        $t = function ($key, $fallback) {
+            $v = \Joomla\CMS\Language\Text::_($key);
+            return ($v !== $key) ? $v : $fallback;
+        };
         return [
-            '' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_SELECT_PAYMENT_STATUS'),
-            'pagado' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_PAYMENT_STATUS_PAID'),
-            'pendiente' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_PAYMENT_STATUS_PENDING')
+            '' => $t('COM_ORDENPRODUCCION_SELECT_PAYMENT_STATUS', 'Todos'),
+            'pagado' => $t('COM_ORDENPRODUCCION_PAYMENT_STATUS_PAID', 'Pagado'),
+            'pendiente' => $t('COM_ORDENPRODUCCION_PAYMENT_STATUS_PENDING', 'Pago pendiente')
         ];
     }
 

@@ -50,35 +50,47 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                         </h5>
                     </div>
                     <div class="card-body">
+<?php
+$t = function ($key, $fallback) {
+    $v = Text::_($key);
+    return ($v !== $key) ? $v : $fallback;
+};
+$labelFilterSearch = $t('COM_ORDENPRODUCCION_FILTER_SEARCH', 'Buscar');
+$labelFilterSearchPlaceholder = $t('COM_ORDENPRODUCCION_FILTER_SEARCH_PLACEHOLDER', 'Buscar por número de orden, cliente o descripción...');
+$labelFilterStatus = $t('COM_ORDENPRODUCCION_FILTER_STATUS', 'Estado');
+$labelSelectStatus = $t('COM_ORDENPRODUCCION_SELECT_STATUS', 'Seleccionar Estado');
+$labelFilterDateFrom = $t('COM_ORDENPRODUCCION_FILTER_DATE_FROM', 'Fecha Desde');
+$labelFilterDateTo = $t('COM_ORDENPRODUCCION_FILTER_DATE_TO', 'Fecha Hasta');
+$labelFilterPaymentStatus = $t('COM_ORDENPRODUCCION_FILTER_PAYMENT_STATUS', 'Estado de Pago');
+$labelFilterApply = $t('COM_ORDENPRODUCCION_FILTER_APPLY', 'Aplicar Filtros');
+$labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
+$clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=');
+?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
                             <input type="hidden" name="option" value="com_ordenproduccion">
                             <input type="hidden" name="view" value="ordenes">
-                            <div class="row">
+                            <div class="row mb-3">
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="filter_search">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_SEARCH'); ?>
-                                        </label>
+                                    <div class="form-group mb-0">
+                                        <label for="filter_search"><?php echo htmlspecialchars($labelFilterSearch); ?></label>
                                         <input type="text" 
                                                name="filter_search" 
                                                id="filter_search" 
                                                class="form-control" 
                                                value="<?php echo htmlspecialchars($this->state->get('filter.search')); ?>"
-                                               placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_FILTER_SEARCH_PLACEHOLDER'); ?>">
+                                               placeholder="<?php echo htmlspecialchars($labelFilterSearchPlaceholder); ?>">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="filter_status">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_STATUS'); ?>
-                                        </label>
+                                    <div class="form-group mb-0">
+                                        <label for="filter_status"><?php echo htmlspecialchars($labelFilterStatus); ?></label>
                                         <select name="filter_status" id="filter_status" class="form-control">
-                                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_STATUS'); ?></option>
+                                            <option value=""><?php echo htmlspecialchars($labelSelectStatus); ?></option>
                                             <?php foreach ($this->getModel()->getStatusOptions() as $value => $text) : ?>
                                                 <?php if ($value !== '') : ?>
-                                                    <option value="<?php echo $value; ?>" 
+                                                    <option value="<?php echo htmlspecialchars($value); ?>" 
                                                             <?php echo $this->state->get('filter.status') == $value ? 'selected' : ''; ?>>
-                                                        <?php echo $this->translateStatus($value); ?>
+                                                        <?php echo htmlspecialchars($text); ?>
                                                     </option>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
@@ -86,25 +98,8 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="filter_payment_status">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_PAYMENT_STATUS'); ?>
-                                        </label>
-                                        <select name="filter_payment_status" id="filter_payment_status" class="form-control">
-                                            <?php foreach ($this->getModel()->getPaymentStatusOptions() as $value => $text) : ?>
-                                                <option value="<?php echo htmlspecialchars($value); ?>"
-                                                        <?php echo $this->state->get('filter.payment_status') === $value ? 'selected' : ''; ?>>
-                                                    <?php echo $text; ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="filter_date_from">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_DATE_FROM'); ?>
-                                        </label>
+                                    <div class="form-group mb-0">
+                                        <label for="filter_date_from"><?php echo htmlspecialchars($labelFilterDateFrom); ?></label>
                                         <input type="date" 
                                                name="filter_date_from" 
                                                id="filter_date_from" 
@@ -113,10 +108,8 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="filter_date_to">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_DATE_TO'); ?>
-                                        </label>
+                                    <div class="form-group mb-0">
+                                        <label for="filter_date_to"><?php echo htmlspecialchars($labelFilterDateTo); ?></label>
                                         <input type="date" 
                                                name="filter_date_to" 
                                                id="filter_date_to" 
@@ -125,19 +118,35 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="form-group">
+                                    <div class="form-group mb-0">
                                         <label>&nbsp;</label>
-                                        <div class="btn-group d-block">
+                                        <div class="d-flex gap-1 flex-wrap">
                                             <button type="submit" class="btn btn-primary">
                                                 <i class="fas fa-search"></i>
-                                                <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_APPLY'); ?>
+                                                <?php echo htmlspecialchars($labelFilterApply); ?>
                                             </button>
-                                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" 
-                                               class="btn btn-secondary">
+                                            <a href="<?php echo $clearFiltersUrl; ?>" 
+                                               class="btn btn-secondary"
+                                               title="<?php echo htmlspecialchars($labelFilterClear); ?>">
                                                 <i class="fas fa-times"></i>
-                                                <?php echo Text::_('COM_ORDENPRODUCCION_FILTER_CLEAR'); ?>
+                                                <?php echo htmlspecialchars($labelFilterClear); ?>
                                             </a>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-group mb-0">
+                                        <label for="filter_payment_status"><?php echo htmlspecialchars($labelFilterPaymentStatus); ?></label>
+                                        <select name="filter_payment_status" id="filter_payment_status" class="form-control">
+                                            <?php foreach ($this->getModel()->getPaymentStatusOptions() as $value => $text) : ?>
+                                                <option value="<?php echo htmlspecialchars($value); ?>"
+                                                        <?php echo $this->state->get('filter.payment_status') === $value ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($text); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
