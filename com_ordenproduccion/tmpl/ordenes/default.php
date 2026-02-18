@@ -42,14 +42,6 @@ $isAdministracion = AccessHelper::isInAdministracionGroup();
         <!-- Filters -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-filter"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_FILTERS'); ?>
-                        </h5>
-                    </div>
-                    <div class="card-body">
 <?php
 $t = function ($key, $fallback) {
     $v = Text::_($key);
@@ -134,18 +126,6 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                 </div>
                             </div>
                         </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Results Summary -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    <?php echo Text::sprintf('COM_ORDENPRODUCCION_ORDENES_FOUND', count($this->items)); ?>
-                </div>
             </div>
         </div>
 
