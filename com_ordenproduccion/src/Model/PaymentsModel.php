@@ -375,11 +375,12 @@ class PaymentsModel extends ListModel
             return [];
         }
         $db = $this->getDatabase();
+        $clientCol = 'o.' . $this->getOrdenesClientColumn();
         $query = $db->getQuery(true)
             ->select([
                 'po.order_id', 'po.amount_applied',
                 'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
-                'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name'
+                $clientCol . ' AS client_name'
             ])
             ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
             ->innerJoin(
