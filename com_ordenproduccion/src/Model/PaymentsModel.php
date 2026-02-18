@@ -127,7 +127,7 @@ class PaymentsModel extends ListModel
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        $clientCol = 'COALESCE(o.client_name, o.nombre_del_cliente)';
+        $clientCol = 'o.' . $this->getOrdenesClientColumn();
 
         $query->select([
             'pp.id',
@@ -244,6 +244,37 @@ class PaymentsModel extends ListModel
         }
 
         return $options;
+    }
+
+    /**
+     * Get the client name column for ordenes (supports both client_name and nombre_del_cliente)
+     *
+     * @return  string  Column name: 'client_name' or 'nombre_del_cliente'
+     *
+     * @since   1.0.0
+     */
+    protected function getOrdenesClientColumn()
+    {
+        try {
+            $db = $this->getDatabase();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_ordenes';
+            $db->setQuery(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " .
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($tableName) . " " .
+                "AND COLUMN_NAME IN ('client_name', 'nombre_del_cliente')"
+            );
+            $cols = $db->loadColumn() ?: [];
+            if (in_array('client_name', $cols)) {
+                return 'client_name';
+            }
+            if (in_array('nombre_del_cliente', $cols)) {
+                return 'nombre_del_cliente';
+            }
+        } catch (\Throwable $e) {
+            // Fallback
+        }
+        return 'client_name';
     }
 
     /**
