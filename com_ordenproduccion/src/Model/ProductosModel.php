@@ -408,10 +408,10 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Get print prices per size for a paper type (base price: tiro, qty 1–999999).
+     * Get print prices per size for a paper type (tiro and retiro, qty 1–999999).
      *
      * @param   int  $paperTypeId  Paper type ID
-     * @return  array  size_id => price_per_sheet
+     * @return  array  size_id => ['tiro' => price, 'retiro' => price]
      * @since   3.67.0
      */
     public function getPrintPricesForPaperType($paperTypeId)
@@ -425,30 +425,35 @@ class ProductosModel extends BaseDatabaseModel
         }
         $db = $this->getDatabase();
         $query = $db->getQuery(true)
-            ->select($db->quoteName('size_id') . ', ' . $db->quoteName('price_per_sheet'))
+            ->select($db->quoteName('size_id') . ', ' . $db->quoteName('tiro_retiro') . ', ' . $db->quoteName('price_per_sheet'))
             ->from($db->quoteName('#__ordenproduccion_pliego_print_prices'))
             ->where($db->quoteName('paper_type_id') . ' = ' . $paperTypeId)
-            ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote('tiro'))
             ->where($db->quoteName('qty_min') . ' = 1')
             ->where($db->quoteName('state') . ' = 1');
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
         $out = [];
         foreach ($rows as $row) {
-            $out[(int) $row->size_id] = (float) $row->price_per_sheet;
+            $sid = (int) $row->size_id;
+            if (!isset($out[$sid])) {
+                $out[$sid] = ['tiro' => null, 'retiro' => null];
+            }
+            $key = ($row->tiro_retiro === 'retiro') ? 'retiro' : 'tiro';
+            $out[$sid][$key] = (float) $row->price_per_sheet;
         }
         return $out;
     }
 
     /**
-     * Save pliego print prices for one paper type: one price per size (tiro, qty 1–999999).
+     * Save pliego print prices for one paper type: tiro and retiro price per size (qty 1–999999).
      *
-     * @param   int    $paperTypeId  Paper type ID
-     * @param   array  $prices       size_id => price_per_sheet
+     * @param   int    $paperTypeId   Paper type ID
+     * @param   array  $pricesTiro    size_id => price_per_sheet (one side)
+     * @param   array  $pricesRetiro  size_id => price_per_sheet (both sides)
      * @return  bool
      * @since   3.67.0
      */
-    public function savePliegoPrices($paperTypeId, $prices)
+    public function savePliegoPrices($paperTypeId, $pricesTiro, $pricesRetiro = [])
     {
         if (!$this->tablesExist()) {
             $this->setError('Pliego tables not installed.');
@@ -464,46 +469,55 @@ class ProductosModel extends BaseDatabaseModel
         $now = Factory::getDate()->toSql();
         $userId = (int) $user->id;
 
-        foreach ($prices as $sizeId => $price) {
+        $allSizes = array_unique(array_merge(array_keys($pricesTiro), array_keys($pricesRetiro)));
+        foreach ($allSizes as $sizeId) {
             $sizeId = (int) $sizeId;
             if ($sizeId <= 0) {
                 continue;
             }
-            $price = (float) $price;
+            foreach (['tiro' => $pricesTiro, 'retiro' => $pricesRetiro] as $tiroRetiro => $prices) {
+                $price = isset($prices[$sizeId]) ? (float) $prices[$sizeId] : null;
+                if ($price === null && $tiroRetiro === 'retiro') {
+                    continue;
+                }
+                if ($price === null) {
+                    $price = 0.0;
+                }
 
-            $query = $db->getQuery(true)
-                ->select($db->quoteName('id'))
-                ->from($db->quoteName('#__ordenproduccion_pliego_print_prices'))
-                ->where($db->quoteName('paper_type_id') . ' = ' . $paperTypeId)
-                ->where($db->quoteName('size_id') . ' = ' . $sizeId)
-                ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote('tiro'))
-                ->where($db->quoteName('qty_min') . ' = 1');
-            $db->setQuery($query);
-            $id = (int) $db->loadResult();
+                $query = $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_pliego_print_prices'))
+                    ->where($db->quoteName('paper_type_id') . ' = ' . $paperTypeId)
+                    ->where($db->quoteName('size_id') . ' = ' . $sizeId)
+                    ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
+                    ->where($db->quoteName('qty_min') . ' = 1');
+                $db->setQuery($query);
+                $id = (int) $db->loadResult();
 
-            if ($id > 0) {
-                $obj = (object) [
-                    'id' => $id,
-                    'price_per_sheet' => $price,
-                    'modified' => $now,
-                    'modified_by' => $userId,
-                ];
-                $db->updateObject('#__ordenproduccion_pliego_print_prices', $obj, ['id']);
-            } else {
-                $obj = (object) [
-                    'paper_type_id' => $paperTypeId,
-                    'size_id' => $sizeId,
-                    'tiro_retiro' => 'tiro',
-                    'qty_min' => 1,
-                    'qty_max' => 999999,
-                    'price_per_sheet' => $price,
-                    'state' => 1,
-                    'created' => $now,
-                    'created_by' => $userId,
-                    'modified' => $now,
-                    'modified_by' => $userId,
-                ];
-                $db->insertObject('#__ordenproduccion_pliego_print_prices', $obj);
+                if ($id > 0) {
+                    $obj = (object) [
+                        'id' => $id,
+                        'price_per_sheet' => $price,
+                        'modified' => $now,
+                        'modified_by' => $userId,
+                    ];
+                    $db->updateObject('#__ordenproduccion_pliego_print_prices', $obj, ['id']);
+                } else {
+                    $obj = (object) [
+                        'paper_type_id' => $paperTypeId,
+                        'size_id' => $sizeId,
+                        'tiro_retiro' => $tiroRetiro,
+                        'qty_min' => 1,
+                        'qty_max' => 999999,
+                        'price_per_sheet' => $price,
+                        'state' => 1,
+                        'created' => $now,
+                        'created_by' => $userId,
+                        'modified' => $now,
+                        'modified_by' => $userId,
+                    ];
+                    $db->insertObject('#__ordenproduccion_pliego_print_prices', $obj);
+                }
             }
         }
         return true;

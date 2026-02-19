@@ -253,7 +253,7 @@ $l = function ($key, $fallback) {
             <div class="card mb-3">
                 <div class="card-header">Precio por pliego (papel + tamaño)</div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">Seleccione un tipo de papel y defina el precio por pliego para cada tamaño.</p>
+                    <p class="text-muted mb-3">Seleccione un tipo de papel y defina el precio por pliego para cada tamaño. <strong>Tiro</strong> = impresión o laminación en un solo lado; <strong>Tiro/Retiro</strong> = en ambos lados.</p>
                     <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=pliego'); ?>" class="mb-4">
                         <input type="hidden" name="option" value="com_ordenproduccion">
                         <input type="hidden" name="view" value="productos">
@@ -272,21 +272,32 @@ $l = function ($key, $fallback) {
                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.savePliegoPrices'); ?>" method="post">
                             <?php echo HTMLHelper::_('form.token'); ?>
                             <input type="hidden" name="paper_type_id" value="<?php echo (int) $this->selectedPaperTypeId; ?>">
+                            <!-- Pliego: Tiro + Tiro/Retiro price columns (deploy tmpl/productos/default.php) -->
                             <table class="table table-sm table-bordered">
                                 <thead>
                                     <tr>
                                         <th>Tamaño</th>
                                         <th>Dimensiones (in)</th>
-                                        <th style="width:180px;">Precio por pliego (Q)</th>
+                                        <th class="bg-light" style="width:180px;">Tiro (un lado) – Precio (Q)</th>
+                                        <th class="bg-light" style="width:180px;">Tiro/Retiro (ambos lados) – Precio (Q)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($this->sizes as $s) : ?>
+                                    <?php
+                                    $pid = $this->pliegoPrices;
+                                    foreach ($this->sizes as $s) :
+                                        $sid = (int) $s->id;
+                                        $tiroVal = isset($pid[$sid]['tiro']) ? (float) $pid[$sid]['tiro'] : '';
+                                        $retiroVal = isset($pid[$sid]['retiro']) ? (float) $pid[$sid]['retiro'] : '';
+                                    ?>
                                         <tr>
                                             <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
                                             <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
                                             <td>
-                                                <input type="number" name="price[<?php echo (int) $s->id; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo isset($this->pliegoPrices[$s->id]) ? (float) $this->pliegoPrices[$s->id] : ''; ?>" placeholder="0.00">
+                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

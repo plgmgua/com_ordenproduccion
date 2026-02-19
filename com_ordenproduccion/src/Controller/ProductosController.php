@@ -189,11 +189,13 @@ class ProductosController extends BaseController
         }
         $input = Factory::getApplication()->input;
         $paperTypeId = $input->post->getInt('paper_type_id', 0);
-        $prices = $input->post->get('price', [], 'array');
-        $prices = array_map('floatval', $prices);
+        $pricesTiro = $input->post->get('price_tiro', [], 'array');
+        $pricesRetiro = $input->post->get('price_retiro', [], 'array');
+        $pricesTiro = array_map('floatval', $pricesTiro);
+        $pricesRetiro = array_map('floatval', $pricesRetiro);
 
         $model = $this->getModel('Productos', 'Site');
-        if (!$model->savePliegoPrices($paperTypeId, $prices)) {
+        if (!$model->savePliegoPrices($paperTypeId, $pricesTiro, $pricesRetiro)) {
             $this->setRedirectPliego($paperTypeId, $model->getError() ?: 'Error al guardar precios.', 'error');
             return;
         }
