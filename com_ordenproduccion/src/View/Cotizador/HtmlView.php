@@ -49,8 +49,9 @@ class HtmlView extends BaseHtmlView
 
         $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Productos', 'Site', ['ignore_request' => true]);
-        $this->pliegoSizes = $productosModel->getSizes();
-        $this->pliegoPaperTypes = $productosModel->getPaperTypes();
+        // Only show sizes and paper types that have at least one non-zero print price
+        $this->pliegoSizes = $productosModel->getSizesWithNonZeroPrintPrice();
+        $this->pliegoPaperTypes = $productosModel->getPaperTypesWithNonZeroPrintPrice();
         $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();

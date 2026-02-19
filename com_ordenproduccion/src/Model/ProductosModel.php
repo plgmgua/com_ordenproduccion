@@ -98,6 +98,60 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Get pliego sizes that have at least one non-zero print price (excludes 0-only combinations)
+     *
+     * @return  array
+     * @since   3.67.0
+     */
+    public function getSizesWithNonZeroPrintPrice()
+    {
+        if (!$this->tablesExist()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $sizesTable = $db->quoteName('#__ordenproduccion_pliego_sizes', 's');
+        $pricesTable = $db->quoteName('#__ordenproduccion_pliego_print_prices', 'p');
+        $query = $db->getQuery(true)
+            ->select('s.*')
+            ->from($sizesTable)
+            ->innerJoin(
+                $pricesTable . ' ON p.size_id = s.id AND p.state = 1 AND p.price_per_sheet > 0'
+            )
+            ->where($db->quoteName('s.state') . ' = 1')
+            ->group($db->quoteName('s.id'))
+            ->order($db->quoteName('s.ordering') . ' ASC, s.id ASC');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Get paper types that have at least one non-zero print price (excludes 0-only combinations)
+     *
+     * @return  array
+     * @since   3.67.0
+     */
+    public function getPaperTypesWithNonZeroPrintPrice()
+    {
+        if (!$this->tablesExist()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $papersTable = $db->quoteName('#__ordenproduccion_paper_types', 'pt');
+        $pricesTable = $db->quoteName('#__ordenproduccion_pliego_print_prices', 'p');
+        $query = $db->getQuery(true)
+            ->select('pt.*')
+            ->from($papersTable)
+            ->innerJoin(
+                $pricesTable . ' ON p.paper_type_id = pt.id AND p.state = 1 AND p.price_per_sheet > 0'
+            )
+            ->where($db->quoteName('pt.state') . ' = 1')
+            ->group($db->quoteName('pt.id'))
+            ->order($db->quoteName('pt.ordering') . ' ASC, pt.id ASC');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
      * Get size IDs available for a paper type
      *
      * @param   int  $paperTypeId  Paper type ID
