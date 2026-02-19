@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Deployment:** `update_build_simple.sh` Step 18b – explicit copy of Productos and Nueva Cotización (Pliego) view files (`tmpl/productos/`, `tmpl/cotizacion/nueva_cotizacion.*`, related Model/View/Controller) so they are always present on the server after deploy.
+- **Docs:** README section "Deployment and file locations" documenting canonical repo paths and server paths for Productos and Nueva Cotización.
+
+## [3.67.0-STABLE] - 2025-02-16
+
+### Added
+- **Pliego quoting / product system**
+  - **Productos** view with sub-views: Tamaños (sizes), Tipos de Papel (paper types), Tipos de Laminación (lamination types), Procesos Adicionales (cut, bend, perforado, pegado, engrapado, etc.)
+  - **Nueva Cotización (Pliego)** – separate menu item type: form with quantity, paper type, pliego size, Tiro/Retiro checkbox, lamination checkbox + type, additional processes; live price calculation per pliego and total
+  - Database: pliego_sizes, paper_types, paper_type_sizes, pliego_print_prices (paper+size+tiro/retiro+qty ranges 1–500, 501+), lamination_types, lamination_prices (qty ranges 1–9, 10–500, 501+), pliego_processes (fixed price per pliego), cotizaciones_pliego, cotizacion_pliego_processes
+  - Run SQL update `admin/sql/updates/mysql/3.67.0_pliego_quoting.sql` to create tables (replace #__ with your DB prefix if running manually)
+- **Menu item types:** After installing/updating, clear Joomla cache (System → Clear Cache → Delete All) so **Productos** and **Nueva Cotización (Pliego)** appear when creating menu items.
+
 ## [3.66.0-STABLE] - 2025-02-16
 
 ### Added

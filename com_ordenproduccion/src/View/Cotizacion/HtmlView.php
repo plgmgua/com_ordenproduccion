@@ -57,10 +57,17 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
+        $app = Factory::getApplication();
+        $input = $app->input;
+        $layout = $this->getLayout();
+
+        if ($layout === 'nueva_cotizacion') {
+            $this->displayNuevaCotizacionPliego();
+            parent::display($tpl);
+            return;
+        }
+
         try {
-            $app = Factory::getApplication();
-            $input = $app->input;
-            
             // Get client data from URL parameters
             $this->clientName = $input->getString('client_name', '');
             $this->clientNit = $input->getString('nit', '');
@@ -113,6 +120,32 @@ class HtmlView extends BaseHtmlView
         }
 
         parent::display($tpl);
+    }
+
+    /**
+     * Display Nueva Cotización (pliego-based quote form)
+     *
+     * @return  void
+     * @since   3.67.0
+     */
+    protected function displayNuevaCotizacionPliego()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->redirect('index.php?option=com_users&view=login');
+            return;
+        }
+
+        $productosModel = $this->getModel('Productos');
+        $this->pliegoSizes = $productosModel->getSizes();
+        $this->pliegoPaperTypes = $productosModel->getPaperTypes();
+        $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
+        $this->pliegoProcesses = $productosModel->getProcesses();
+        $this->pliegoTablesExist = $productosModel->tablesExist();
+
+        $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_NUEVA_COTIZACION_PLIEGO_TITLE'));
     }
 }
 

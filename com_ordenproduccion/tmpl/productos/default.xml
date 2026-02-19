@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="Productos">
+        <message><![CDATA[Tamaños de pliego, tipos de papel, laminación y procesos adicionales para cotización.]]></message>
+    </layout>
+    <fields name="request">
+        <fieldset name="request">
+            <field name="tab" type="list" default="sizes" label="Subvista">
+                <option value="sizes">Tamaños</option>
+                <option value="papers">Tipos de Papel</option>
+                <option value="lamination">Tipos de Laminación</option>
+                <option value="processes">Procesos Adicionales</option>
+            </field>
+        </fieldset>
+    </fields>
+</metadata>

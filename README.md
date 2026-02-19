@@ -84,6 +84,18 @@
 - Comprehensive error handling
 - Security best practices
 
+### Deployment and file locations (site component)
+The **canonical site component** lives in the inner folder `com_ordenproduccion/` (e.g. `com_ordenproduccion/tmpl/`, `com_ordenproduccion/src/`). When deployed, that content goes to the Joomla **site** path `components/com_ordenproduccion/` (e.g. `/var/www/.../components/com_ordenproduccion/`).
+
+Key views and their repo paths (so they appear under `components/com_ordenproduccion/` after deploy):
+
+| View / feature | Repo path (under `com_ordenproduccion/`) | Server path after deploy |
+|----------------|------------------------------------------|---------------------------|
+| **Productos** (sizes, papers, lamination, processes) | `tmpl/productos/default.php`, `default.xml`; `src/View/Productos/HtmlView.php`; `src/Model/ProductosModel.php` | `components/com_ordenproduccion/tmpl/productos/`, `.../src/View/Productos/`, `.../src/Model/ProductosModel.php` |
+| **Nueva Cotización (Pliego)** | `tmpl/cotizacion/nueva_cotizacion.php`, `nueva_cotizacion.xml`; `src/View/Cotizacion/HtmlView.php`; `src/Controller/CotizacionController.php` | `components/com_ordenproduccion/tmpl/cotizacion/`, `.../src/View/Cotizacion/`, `.../src/Controller/CotizacionController.php` |
+
+Use `update_build_simple.sh` (from repo root) to deploy; it copies from `com_ordenproduccion/` and includes an explicit step for Productos and Nueva Cotización. After deployment, clear Joomla cache (System → Clear Cache) so the new menu item types appear.
+
 ## Support
 
 For support, bug reports, or feature requests, please contact the development team.
