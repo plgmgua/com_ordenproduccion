@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Productos view labels:** Page title, tab names (Tamaños, Tipos de Papel, Tipos de Laminación, Procesos Adicionales), and content labels now show human-friendly Spanish text even when component language file is not loaded (template fallbacks + document title fallback in HtmlView).
+
 ### Added
 - **Deployment:** `update_build_simple.sh` Step 18b – explicit copy of Productos and Nueva Cotización (Pliego) view files (`tmpl/productos/`, `tmpl/cotizacion/nueva_cotizacion.*`, related Model/View/Controller) so they are always present on the server after deploy.
 - **Docs:** README section "Deployment and file locations" documenting canonical repo paths and server paths for Productos and Nueva Cotización.

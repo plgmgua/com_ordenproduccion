@@ -115,6 +115,10 @@ class HtmlView extends BaseHtmlView
      */
     protected function _prepareDocument()
     {
-        $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TITLE'));
+        $title = Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TITLE');
+        if ($title === 'COM_ORDENPRODUCCION_PRODUCTOS_TITLE') {
+            $title = 'Productos';
+        }
+        $this->document->setTitle($title);
     }
 }

@@ -16,17 +16,22 @@ use Joomla\CMS\Router\Route;
 
 $activeTab = $this->activeTab ?? 'sizes';
 $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
-?>
 
+// Fallback to human-friendly labels when language file is not loaded (e.g. after deploy)
+$l = function ($key, $fallback) {
+    $t = Text::_($key);
+    return ($t === $key) ? $fallback : $t;
+};
+?>
 <div class="com-ordenproduccion-productos">
     <div class="container-fluid">
-        <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TITLE'); ?></h1>
+        <h1 class="page-title"><?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TITLE', 'Productos'); ?></h1>
 
         <?php if (!$this->tablesExist) : ?>
             <div class="alert alert-warning">
-                <?php echo Text::_('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING', 'Las tablas del sistema de cotización por pliego no están instaladas.'); ?>
                 <br>
-                <small><?php echo Text::_('COM_ORDENPRODUCCION_PLIEGO_RUN_UPDATE'); ?></small>
+                <small><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_RUN_UPDATE', 'Ejecute el script SQL de actualización 3.67.0_pliego_quoting.sql'); ?></small>
             </div>
         <?php else : ?>
 
@@ -34,38 +39,38 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'sizes' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseUrl . '&tab=sizes'); ?>">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TAB_SIZES'); ?>
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_SIZES', 'Tamaños'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'papers' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseUrl . '&tab=papers'); ?>">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PAPERS'); ?>
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PAPERS', 'Tipos de Papel'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'lamination' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseUrl . '&tab=lamination'); ?>">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TAB_LAMINATION'); ?>
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_LAMINATION', 'Tipos de Laminación'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'processes' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseUrl . '&tab=processes'); ?>">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PROCESSES'); ?>
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PROCESSES', 'Procesos Adicionales'); ?>
                 </a>
             </li>
         </ul>
 
         <?php if ($activeTab === 'sizes') : ?>
             <div class="card">
-                <div class="card-header"><?php echo Text::_('COM_ORDENPRODUCCION_PLIEGO_SIZES'); ?></div>
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_SIZES', 'Tamaños de Pliego'); ?></div>
                 <div class="card-body">
                     <?php if (empty($this->sizes)) : ?>
-                        <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_NO_SIZES'); ?></p>
+                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_SIZES', 'No hay tamaños definidos.'); ?></p>
                     <?php else : ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo Text::_('COM_ORDENPRODUCCION_SIZE_NAME'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_SIZE_DIMENSIONS'); ?></th></tr></thead>
+                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_SIZE_DIMENSIONS', 'Dimensiones (cm)'); ?></th></tr></thead>
                             <tbody>
                                 <?php foreach ($this->sizes as $s) : ?>
                                     <tr>
@@ -83,13 +88,13 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 
         <?php if ($activeTab === 'papers') : ?>
             <div class="card">
-                <div class="card-header"><?php echo Text::_('COM_ORDENPRODUCCION_PAPER_TYPES'); ?></div>
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_PAPER_TYPES', 'Tipos de Papel'); ?></div>
                 <div class="card-body">
                     <?php if (empty($this->paperTypes)) : ?>
-                        <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_NO_PAPER_TYPES'); ?></p>
+                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PAPER_TYPES', 'No hay tipos de papel definidos.'); ?></p>
                     <?php else : ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo Text::_('COM_ORDENPRODUCCION_PAPER_NAME'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_PAPER_CODE'); ?></th></tr></thead>
+                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_PAPER_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PAPER_CODE', 'Código'); ?></th></tr></thead>
                             <tbody>
                                 <?php foreach ($this->paperTypes as $p) : ?>
                                     <tr>
@@ -107,13 +112,13 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 
         <?php if ($activeTab === 'lamination') : ?>
             <div class="card">
-                <div class="card-header"><?php echo Text::_('COM_ORDENPRODUCCION_LAMINATION_TYPES'); ?></div>
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_LAMINATION_TYPES', 'Tipos de Laminación'); ?></div>
                 <div class="card-body">
                     <?php if (empty($this->laminationTypes)) : ?>
-                        <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_NO_LAMINATION_TYPES'); ?></p>
+                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LAMINATION_TYPES', 'No hay tipos de laminación definidos.'); ?></p>
                     <?php else : ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo Text::_('COM_ORDENPRODUCCION_LAMINATION_NAME'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_LAMINATION_CODE'); ?></th></tr></thead>
+                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_LAMINATION_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_LAMINATION_CODE', 'Código'); ?></th></tr></thead>
                             <tbody>
                                 <?php foreach ($this->laminationTypes as $l) : ?>
                                     <tr>
@@ -131,13 +136,13 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 
         <?php if ($activeTab === 'processes') : ?>
             <div class="card">
-                <div class="card-header"><?php echo Text::_('COM_ORDENPRODUCCION_PLIEGO_PROCESSES'); ?></div>
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_PROCESSES', 'Procesos Adicionales (corte, doblez, perforado, etc.)'); ?></div>
                 <div class="card-body">
                     <?php if (empty($this->processes)) : ?>
-                        <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_NO_PROCESSES'); ?></p>
+                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PROCESSES', 'No hay procesos adicionales definidos.'); ?></p>
                     <?php else : ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo Text::_('COM_ORDENPRODUCCION_PROCESS_NAME'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_PROCESS_PRICE'); ?></th></tr></thead>
+                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE', 'Precio por pliego'); ?></th></tr></thead>
                             <tbody>
                                 <?php foreach ($this->processes as $pr) : ?>
                                     <tr>
