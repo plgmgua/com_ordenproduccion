@@ -1137,6 +1137,10 @@ EOF
         sudo cp "$COMPONENT_ROOT/src/Controller/CotizacionController.php" "$SITE_COMPONENT_PATH/src/Controller/" || warning "Failed to copy CotizacionController.php"
         log "✅ CotizacionController.php deployed"
     fi
+    if [ -f "$COMPONENT_ROOT/src/Controller/ProductosController.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/Controller/ProductosController.php" "$SITE_COMPONENT_PATH/src/Controller/" || warning "Failed to copy ProductosController.php"
+        log "✅ ProductosController.php deployed"
+    fi
     sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/tmpl/productos" "$SITE_COMPONENT_PATH/tmpl/cotizacion" "$SITE_COMPONENT_PATH/src/View/Productos" 2>/dev/null || true
     if [ -d "$SITE_COMPONENT_PATH/src/View/Cotizacion" ]; then
         sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/View/Cotizacion" 2>/dev/null || true

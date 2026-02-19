@@ -1,0 +1,187 @@
+<?php
+/**
+ * @package     Joomla.Site
+ * @subpackage  com_ordenproduccion
+ *
+ * @copyright   (C) 2025 Grimpsa. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\Controller\BaseController;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
+
+/**
+ * Productos controller – add/edit pliego sizes, paper types, lamination types, processes.
+ *
+ * @since  3.67.0
+ */
+class ProductosController extends BaseController
+{
+    /**
+     * Save a pliego size (create or update). Redirects back to Productos tab=sizes.
+     *
+     * @return  void
+     * @since   3.67.0
+     */
+    public function saveSize()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectWithMessage('sizes', Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectWithMessage('sizes', Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $data = [
+            'id' => $input->post->getInt('id', 0),
+            'name' => $input->post->getString('name', ''),
+            'code' => $input->post->getString('code', ''),
+            'width_cm' => $input->post->getString('width_cm', ''),
+            'height_cm' => $input->post->getString('height_cm', ''),
+            'ordering' => $input->post->getInt('ordering', 0),
+        ];
+        $model = $this->getModel('Productos', 'Site');
+        $id = $model->saveSize($data);
+        if ($id === false) {
+            $this->setRedirectWithMessage('sizes', $model->getError() ?: 'Error saving size.', 'error');
+            return;
+        }
+        $msg = $data['id'] ? Text::_('COM_ORDENPRODUCCION_SAVED_SUCCESS') : Text::_('COM_ORDENPRODUCCION_ADDED_SUCCESS');
+        if ($msg === 'COM_ORDENPRODUCCION_SAVED_SUCCESS') {
+            $msg = 'Guardado correctamente.';
+        }
+        if ($msg === 'COM_ORDENPRODUCCION_ADDED_SUCCESS') {
+            $msg = 'Agregado correctamente.';
+        }
+        $this->setRedirectWithMessage('sizes', $msg, 'success');
+    }
+
+    /**
+     * Save a paper type. Redirects back to Productos tab=papers.
+     *
+     * @return  void
+     * @since   3.67.0
+     */
+    public function savePaperType()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectWithMessage('papers', Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectWithMessage('papers', Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $data = [
+            'id' => $input->post->getInt('id', 0),
+            'name' => $input->post->getString('name', ''),
+            'code' => $input->post->getString('code', ''),
+            'ordering' => $input->post->getInt('ordering', 0),
+        ];
+        $model = $this->getModel('Productos', 'Site');
+        $id = $model->savePaperType($data);
+        if ($id === false) {
+            $this->setRedirectWithMessage('papers', $model->getError() ?: 'Error saving paper type.', 'error');
+            return;
+        }
+        $msg = $data['id'] ? 'Guardado correctamente.' : 'Agregado correctamente.';
+        $this->setRedirectWithMessage('papers', $msg, 'success');
+    }
+
+    /**
+     * Save a lamination type. Redirects back to Productos tab=lamination.
+     *
+     * @return  void
+     * @since   3.67.0
+     */
+    public function saveLaminationType()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectWithMessage('lamination', Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectWithMessage('lamination', Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $data = [
+            'id' => $input->post->getInt('id', 0),
+            'name' => $input->post->getString('name', ''),
+            'code' => $input->post->getString('code', ''),
+            'ordering' => $input->post->getInt('ordering', 0),
+        ];
+        $model = $this->getModel('Productos', 'Site');
+        $id = $model->saveLaminationType($data);
+        if ($id === false) {
+            $this->setRedirectWithMessage('lamination', $model->getError() ?: 'Error saving lamination type.', 'error');
+            return;
+        }
+        $msg = $data['id'] ? 'Guardado correctamente.' : 'Agregado correctamente.';
+        $this->setRedirectWithMessage('lamination', $msg, 'success');
+    }
+
+    /**
+     * Save an additional process. Redirects back to Productos tab=processes.
+     *
+     * @return  void
+     * @since   3.67.0
+     */
+    public function saveProcess()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectWithMessage('processes', Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectWithMessage('processes', Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $data = [
+            'id' => $input->post->getInt('id', 0),
+            'name' => $input->post->getString('name', ''),
+            'code' => $input->post->getString('code', ''),
+            'price_per_pliego' => $input->post->getString('price_per_pliego', '0'),
+            'ordering' => $input->post->getInt('ordering', 0),
+        ];
+        $model = $this->getModel('Productos', 'Site');
+        $id = $model->saveProcess($data);
+        if ($id === false) {
+            $this->setRedirectWithMessage('processes', $model->getError() ?: 'Error saving process.', 'error');
+            return;
+        }
+        $msg = $data['id'] ? 'Guardado correctamente.' : 'Agregado correctamente.';
+        $this->setRedirectWithMessage('processes', $msg, 'success');
+    }
+
+    /**
+     * Redirect to Productos view with a tab and enqueue a message.
+     *
+     * @param   string  $tab    Tab name: sizes, papers, lamination, processes
+     * @param   string  $msg    Message text
+     * @param   string  $type   Message type: success, error, notice
+     * @return  void
+     * @since   3.67.0
+     */
+    private function setRedirectWithMessage($tab, $msg, $type = 'notice')
+    {
+        Factory::getApplication()->enqueueMessage($msg, $type);
+        $url = Route::_('index.php?option=com_ordenproduccion&view=productos&tab=' . $tab, false);
+        $this->setRedirect($url);
+    }
+}

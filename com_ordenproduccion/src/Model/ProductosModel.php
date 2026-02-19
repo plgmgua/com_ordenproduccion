@@ -226,4 +226,183 @@ class ProductosModel extends BaseDatabaseModel
         $result = $db->loadResult();
         return $result !== null ? (float) $result : null;
     }
+
+    /**
+     * Save a pliego size (create or update)
+     *
+     * @param   array  $data  Keys: id (0 for new), name, code, width_cm, height_cm, ordering, state
+     * @return  int|false  Id on success, false on failure
+     * @since   3.67.0
+     */
+    public function saveSize($data)
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+            return false;
+        }
+        $user = Factory::getUser();
+        $db = $this->getDatabase();
+        $id = (int) ($data['id'] ?? 0);
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            $this->setError('Name is required.');
+            return false;
+        }
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+        $obj = (object) [
+            'id' => $id,
+            'name' => $name,
+            'code' => trim($data['code'] ?? ''),
+            'width_cm' => isset($data['width_cm']) ? (float) $data['width_cm'] : null,
+            'height_cm' => isset($data['height_cm']) ? (float) $data['height_cm'] : null,
+            'ordering' => (int) ($data['ordering'] ?? 0),
+            'state' => isset($data['state']) ? (int) $data['state'] : 1,
+            'modified' => $now,
+            'modified_by' => $userId,
+        ];
+        if ($id > 0) {
+            $db->updateObject('#__ordenproduccion_pliego_sizes', $obj, ['id']);
+        } else {
+            $obj->created = $now;
+            $obj->created_by = $userId;
+            unset($obj->id);
+            $db->insertObject('#__ordenproduccion_pliego_sizes', $obj);
+            $id = (int) $db->insertid();
+        }
+        return $id;
+    }
+
+    /**
+     * Save a paper type (create or update)
+     *
+     * @param   array  $data  Keys: id (0 for new), name, code, ordering, state
+     * @return  int|false  Id on success, false on failure
+     * @since   3.67.0
+     */
+    public function savePaperType($data)
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+            return false;
+        }
+        $user = Factory::getUser();
+        $db = $this->getDatabase();
+        $id = (int) ($data['id'] ?? 0);
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            $this->setError('Name is required.');
+            return false;
+        }
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+        $obj = (object) [
+            'id' => $id,
+            'name' => $name,
+            'code' => trim($data['code'] ?? ''),
+            'ordering' => (int) ($data['ordering'] ?? 0),
+            'state' => isset($data['state']) ? (int) $data['state'] : 1,
+            'modified' => $now,
+            'modified_by' => $userId,
+        ];
+        if ($id > 0) {
+            $db->updateObject('#__ordenproduccion_paper_types', $obj, ['id']);
+        } else {
+            $obj->created = $now;
+            $obj->created_by = $userId;
+            unset($obj->id);
+            $db->insertObject('#__ordenproduccion_paper_types', $obj);
+            $id = (int) $db->insertid();
+        }
+        return $id;
+    }
+
+    /**
+     * Save a lamination type (create or update)
+     *
+     * @param   array  $data  Keys: id (0 for new), name, code, ordering, state
+     * @return  int|false  Id on success, false on failure
+     * @since   3.67.0
+     */
+    public function saveLaminationType($data)
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+            return false;
+        }
+        $user = Factory::getUser();
+        $db = $this->getDatabase();
+        $id = (int) ($data['id'] ?? 0);
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            $this->setError('Name is required.');
+            return false;
+        }
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+        $obj = (object) [
+            'id' => $id,
+            'name' => $name,
+            'code' => trim($data['code'] ?? ''),
+            'ordering' => (int) ($data['ordering'] ?? 0),
+            'state' => isset($data['state']) ? (int) $data['state'] : 1,
+            'modified' => $now,
+            'modified_by' => $userId,
+        ];
+        if ($id > 0) {
+            $db->updateObject('#__ordenproduccion_lamination_types', $obj, ['id']);
+        } else {
+            $obj->created = $now;
+            $obj->created_by = $userId;
+            unset($obj->id);
+            $db->insertObject('#__ordenproduccion_lamination_types', $obj);
+            $id = (int) $db->insertid();
+        }
+        return $id;
+    }
+
+    /**
+     * Save an additional process (create or update)
+     *
+     * @param   array  $data  Keys: id (0 for new), name, code, price_per_pliego, ordering, state
+     * @return  int|false  Id on success, false on failure
+     * @since   3.67.0
+     */
+    public function saveProcess($data)
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+            return false;
+        }
+        $user = Factory::getUser();
+        $db = $this->getDatabase();
+        $id = (int) ($data['id'] ?? 0);
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            $this->setError('Name is required.');
+            return false;
+        }
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+        $obj = (object) [
+            'id' => $id,
+            'name' => $name,
+            'code' => trim($data['code'] ?? ''),
+            'price_per_pliego' => isset($data['price_per_pliego']) ? (float) $data['price_per_pliego'] : 0,
+            'ordering' => (int) ($data['ordering'] ?? 0),
+            'state' => isset($data['state']) ? (int) $data['state'] : 1,
+            'modified' => $now,
+            'modified_by' => $userId,
+        ];
+        if ($id > 0) {
+            $db->updateObject('#__ordenproduccion_pliego_processes', $obj, ['id']);
+        } else {
+            $obj->created = $now;
+            $obj->created_by = $userId;
+            unset($obj->id);
+            $db->insertObject('#__ordenproduccion_pliego_processes', $obj);
+            $id = (int) $db->insertid();
+        }
+        return $id;
+    }
 }
