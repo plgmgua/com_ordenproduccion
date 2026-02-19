@@ -275,14 +275,15 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Get lamination type IDs that have a non-zero price for the given size.
-     * Used to enable/disable lamination and filter lamination type dropdown by selected size.
+     * Get lamination type IDs that have a non-zero price for the given size (and optionally tiro/retiro).
+     * Lamination has different prices for tiro vs tiro/retiro; pass 'tiro' or 'retiro' to filter by that.
      *
-     * @param   int  $sizeId  Size ID
+     * @param   int    $sizeId     Size ID
+     * @param   string $tiroRetiro Optional 'tiro' or 'retiro' to filter by side; null = any
      * @return  array  List of lamination_type_id
      * @since   3.67.0
      */
-    public function getLaminationTypeIdsWithNonZeroPriceForSize($sizeId)
+    public function getLaminationTypeIdsWithNonZeroPriceForSize($sizeId, $tiroRetiro = null)
     {
         if (!$this->tablesExist()) {
             return [];
@@ -294,6 +295,9 @@ class ProductosModel extends BaseDatabaseModel
             ->where($db->quoteName('size_id') . ' = ' . (int) $sizeId)
             ->where($db->quoteName('state') . ' = 1')
             ->where($db->quoteName('price_per_sheet') . ' > 0');
+        if ($tiroRetiro === 'retiro' || $tiroRetiro === 'tiro') {
+            $query->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro));
+        }
         $db->setQuery($query);
         $rows = $db->loadColumn() ?: [];
         return array_map('intval', $rows);

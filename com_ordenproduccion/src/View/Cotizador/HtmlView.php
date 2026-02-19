@@ -59,12 +59,16 @@ class HtmlView extends BaseHtmlView
         }
         $this->pliegoSizeIdsByPaperType = $sizeIdsByPaperType;
         $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
-        // Map size_id => [lamination_type_id, ...] so lamination is only allowed when size has price > 0
-        $laminationTypeIdsBySize = [];
+        // Lamination has different prices for tiro vs tiro/retiro; pass both maps so dropdown is filtered by current selection
+        $laminationTypeIdsBySizeTiro = [];
+        $laminationTypeIdsBySizeRetiro = [];
         foreach ($this->pliegoSizes as $sz) {
-            $laminationTypeIdsBySize[(int) $sz->id] = $productosModel->getLaminationTypeIdsWithNonZeroPriceForSize((int) $sz->id);
+            $sid = (int) $sz->id;
+            $laminationTypeIdsBySizeTiro[$sid] = $productosModel->getLaminationTypeIdsWithNonZeroPriceForSize($sid, 'tiro');
+            $laminationTypeIdsBySizeRetiro[$sid] = $productosModel->getLaminationTypeIdsWithNonZeroPriceForSize($sid, 'retiro');
         }
-        $this->pliegoLaminationTypeIdsBySize = $laminationTypeIdsBySize;
+        $this->pliegoLaminationTypeIdsBySizeTiro = $laminationTypeIdsBySizeTiro;
+        $this->pliegoLaminationTypeIdsBySizeRetiro = $laminationTypeIdsBySizeRetiro;
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();
 

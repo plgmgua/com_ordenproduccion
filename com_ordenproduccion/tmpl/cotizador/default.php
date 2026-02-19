@@ -19,7 +19,8 @@ use Joomla\CMS\Session\Session;
 $sizes = $this->pliegoSizes ?? [];
 $paperTypes = $this->pliegoPaperTypes ?? [];
 $sizeIdsByPaperType = $this->pliegoSizeIdsByPaperType ?? [];
-$laminationTypeIdsBySize = $this->pliegoLaminationTypeIdsBySize ?? [];
+$laminationTypeIdsBySizeTiro = $this->pliegoLaminationTypeIdsBySizeTiro ?? [];
+$laminationTypeIdsBySizeRetiro = $this->pliegoLaminationTypeIdsBySizeRetiro ?? [];
 $laminationTypes = $this->pliegoLaminationTypes ?? [];
 $processes = $this->pliegoProcesses ?? [];
 $tablesExist = $this->pliegoTablesExist ?? false;
@@ -107,7 +108,16 @@ $token = Session::getFormToken();
 
             <div class="border-top pt-3 mt-3">
                 <p class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_PRICE_PER_PLIEGO'); ?>:</strong> <span id="pliego_price_per_sheet">-</span></p>
-                <p class="mb-0"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_TOTAL'); ?>:</strong> <span id="pliego_total_price">-</span></p>
+                <p class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_TOTAL'); ?>:</strong> <span id="pliego_total_price">-</span></p>
+                <div id="pliego_calc_detail" class="mt-2 small text-muted" style="display:none;">
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_CALC_DETAIL'); ?></strong>
+                    <ul class="list-unstyled mb-0 ps-2">
+                        <li id="pliego_calc_print">—</li>
+                        <li id="pliego_calc_lamination">—</li>
+                        <li id="pliego_calc_processes">—</li>
+                        <li id="pliego_calc_total">—</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </form>
@@ -125,7 +135,12 @@ $token = Session::getFormToken();
         var baseUrl = <?php echo json_encode($baseUrl); ?>;
         var token = <?php echo json_encode($token); ?>;
         var sizeIdsByPaperType = <?php echo json_encode($sizeIdsByPaperType); ?>;
-        var laminationTypeIdsBySize = <?php echo json_encode($laminationTypeIdsBySize); ?>;
+        var laminationTypeIdsBySizeTiro = <?php echo json_encode($laminationTypeIdsBySizeTiro); ?>;
+        var laminationTypeIdsBySizeRetiro = <?php echo json_encode($laminationTypeIdsBySizeRetiro); ?>;
+        var pliegoCalcLabelPrint = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_PRINT')); ?>;
+        var pliegoCalcLabelLam = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_LAMINATION')); ?>;
+        var pliegoCalcLabelProc = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_PROCESSES')); ?>;
+        var pliegoCalcLabelTotal = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_TOTAL')); ?>;
 
         function filterSizeDropdown() {
             var paperId = paper && paper.value ? parseInt(paper.value, 10) : 0;
@@ -155,7 +170,9 @@ $token = Session::getFormToken();
 
         function filterLaminationBySize() {
             var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
-            var allowedLamIds = (sizeId && laminationTypeIdsBySize[sizeId]) ? laminationTypeIdsBySize[sizeId] : [];
+            var isRetiro = retiro && retiro.checked;
+            var map = isRetiro ? laminationTypeIdsBySizeRetiro : laminationTypeIdsBySizeTiro;
+            var allowedLamIds = (sizeId && map[sizeId]) ? map[sizeId] : [];
             var hasAnyLamination = allowedLamIds.length > 0;
             if (lamination) {
                 lamination.disabled = !hasAnyLamination;
@@ -191,6 +208,7 @@ $token = Session::getFormToken();
         }
         if (lamination) lamination.addEventListener('change', updateLaminationVisibility);
         if (size) size.addEventListener('change', filterLaminationBySize);
+        if (retiro) retiro.addEventListener('change', filterLaminationBySize);
 
         function getProcessTotal() {
             var total = 0;
@@ -207,6 +225,8 @@ $token = Session::getFormToken();
             if (!quantity || !paperId || !sizeId) {
                 document.getElementById('pliego_price_per_sheet').textContent = '-';
                 document.getElementById('pliego_total_price').textContent = '-';
+                var d = document.getElementById('pliego_calc_detail');
+                if (d) d.style.display = 'none';
                 return;
             }
             var tiroRetiro = (retiro && retiro.checked) ? 'retiro' : 'tiro';
@@ -223,14 +243,30 @@ $token = Session::getFormToken();
                     if (data.success) {
                         document.getElementById('pliego_price_per_sheet').textContent = 'Q ' + (data.price_per_sheet != null ? Number(data.price_per_sheet).toFixed(2) : '-');
                         document.getElementById('pliego_total_price').textContent = 'Q ' + (data.total != null ? Number(data.total).toFixed(2) : '-');
+                        var detail = document.getElementById('pliego_calc_detail');
+                        if (detail) {
+                            detail.style.display = 'block';
+                            var printVal = data.print_price != null ? Number(data.print_price).toFixed(2) : '0.00';
+                            var lamVal = data.lamination_price != null && data.lamination_price > 0 ? Number(data.lamination_price).toFixed(2) : null;
+                            var procVal = data.processes_total != null && data.processes_total > 0 ? Number(data.processes_total).toFixed(2) : null;
+                            var totalVal = data.total != null ? Number(data.total).toFixed(2) : '-';
+                            document.getElementById('pliego_calc_print').textContent = pliegoCalcLabelPrint + ': Q ' + printVal;
+                            document.getElementById('pliego_calc_lamination').textContent = pliegoCalcLabelLam + ': ' + (lamVal ? 'Q ' + lamVal : '—');
+                            document.getElementById('pliego_calc_processes').textContent = pliegoCalcLabelProc + ': ' + (procVal ? 'Q ' + procVal : '—');
+                            document.getElementById('pliego_calc_total').textContent = pliegoCalcLabelTotal + ': Q ' + totalVal;
+                        }
                     } else {
                         document.getElementById('pliego_price_per_sheet').textContent = '-';
                         document.getElementById('pliego_total_price').textContent = data.message || '-';
+                        var detail = document.getElementById('pliego_calc_detail');
+                        if (detail) detail.style.display = 'none';
                     }
                 })
                 .catch(function() {
                     document.getElementById('pliego_price_per_sheet').textContent = '-';
                     document.getElementById('pliego_total_price').textContent = '-';
+                    var detail = document.getElementById('pliego_calc_detail');
+                    if (detail) detail.style.display = 'none';
                 });
         }
 
