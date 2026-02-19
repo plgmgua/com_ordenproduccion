@@ -275,6 +275,31 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Get lamination type IDs that have a non-zero price for the given size.
+     * Used to enable/disable lamination and filter lamination type dropdown by selected size.
+     *
+     * @param   int  $sizeId  Size ID
+     * @return  array  List of lamination_type_id
+     * @since   3.67.0
+     */
+    public function getLaminationTypeIdsWithNonZeroPriceForSize($sizeId)
+    {
+        if (!$this->tablesExist()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('lamination_type_id'))
+            ->from($db->quoteName('#__ordenproduccion_lamination_prices'))
+            ->where($db->quoteName('size_id') . ' = ' . (int) $sizeId)
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('price_per_sheet') . ' > 0');
+        $db->setQuery($query);
+        $rows = $db->loadColumn() ?: [];
+        return array_map('intval', $rows);
+    }
+
+    /**
      * Get lamination price per sheet for given type, size, tiro/retiro and quantity
      *
      * @param   int     $laminationTypeId  Lamination type ID

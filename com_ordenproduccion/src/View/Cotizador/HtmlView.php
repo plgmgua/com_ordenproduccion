@@ -59,6 +59,12 @@ class HtmlView extends BaseHtmlView
         }
         $this->pliegoSizeIdsByPaperType = $sizeIdsByPaperType;
         $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
+        // Map size_id => [lamination_type_id, ...] so lamination is only allowed when size has price > 0
+        $laminationTypeIdsBySize = [];
+        foreach ($this->pliegoSizes as $sz) {
+            $laminationTypeIdsBySize[(int) $sz->id] = $productosModel->getLaminationTypeIdsWithNonZeroPriceForSize((int) $sz->id);
+        }
+        $this->pliegoLaminationTypeIdsBySize = $laminationTypeIdsBySize;
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();
 

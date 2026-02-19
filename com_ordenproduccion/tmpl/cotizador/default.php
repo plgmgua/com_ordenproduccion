@@ -19,6 +19,7 @@ use Joomla\CMS\Session\Session;
 $sizes = $this->pliegoSizes ?? [];
 $paperTypes = $this->pliegoPaperTypes ?? [];
 $sizeIdsByPaperType = $this->pliegoSizeIdsByPaperType ?? [];
+$laminationTypeIdsBySize = $this->pliegoLaminationTypeIdsBySize ?? [];
 $laminationTypes = $this->pliegoLaminationTypes ?? [];
 $processes = $this->pliegoProcesses ?? [];
 $tablesExist = $this->pliegoTablesExist ?? false;
@@ -84,7 +85,7 @@ $token = Session::getFormToken();
                     <select id="pliego_lamination_type" name="lamination_type_id" class="form-select">
                         <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_LAMINATION'); ?></option>
                         <?php foreach ($laminationTypes as $l) : ?>
-                            <option value="<?php echo (int) $l->id; ?>"><?php echo htmlspecialchars($l->name ?? ''); ?></option>
+                            <option value="<?php echo (int) $l->id; ?>" data-lamination-id="<?php echo (int) $l->id; ?>"><?php echo htmlspecialchars($l->name ?? ''); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -124,6 +125,7 @@ $token = Session::getFormToken();
         var baseUrl = <?php echo json_encode($baseUrl); ?>;
         var token = <?php echo json_encode($token); ?>;
         var sizeIdsByPaperType = <?php echo json_encode($sizeIdsByPaperType); ?>;
+        var laminationTypeIdsBySize = <?php echo json_encode($laminationTypeIdsBySize); ?>;
 
         function filterSizeDropdown() {
             var paperId = paper && paper.value ? parseInt(paper.value, 10) : 0;
@@ -151,10 +153,44 @@ $token = Session::getFormToken();
         }
         if (paper) paper.addEventListener('change', filterSizeDropdown);
 
+        function filterLaminationBySize() {
+            var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
+            var allowedLamIds = (sizeId && laminationTypeIdsBySize[sizeId]) ? laminationTypeIdsBySize[sizeId] : [];
+            var hasAnyLamination = allowedLamIds.length > 0;
+            if (lamination) {
+                lamination.disabled = !hasAnyLamination;
+                if (!hasAnyLamination && lamination.checked) {
+                    lamination.checked = false;
+                    if (laminationType) laminationType.value = '';
+                    laminationWrap.style.display = 'none';
+                }
+            }
+            var options = laminationType ? laminationType.querySelectorAll('option') : [];
+            var currentLam = laminationType ? laminationType.value : '';
+            var hasValidLam = false;
+            for (var j = 0; j < options.length; j++) {
+                var opt = options[j];
+                var lid = opt.value ? parseInt(opt.value, 10) : 0;
+                if (lid === 0) {
+                    opt.disabled = false;
+                    opt.style.display = '';
+                    continue;
+                }
+                var show = hasAnyLamination && allowedLamIds.indexOf(lid) !== -1;
+                opt.style.display = show ? '' : 'none';
+                opt.disabled = !show;
+                if (show && opt.value === currentLam) hasValidLam = true;
+            }
+            if (laminationType && currentLam && !hasValidLam) {
+                laminationType.value = '';
+                recalc();
+            }
+        }
         function updateLaminationVisibility() {
             laminationWrap.style.display = lamination && lamination.checked ? 'block' : 'none';
         }
         if (lamination) lamination.addEventListener('change', updateLaminationVisibility);
+        if (size) size.addEventListener('change', filterLaminationBySize);
 
         function getProcessTotal() {
             var total = 0;
@@ -204,6 +240,7 @@ $token = Session::getFormToken();
         if (qty) qty.addEventListener('input', recalc);
         document.querySelectorAll('.pliego-process-cb').forEach(function(cb) { cb.addEventListener('change', recalc); });
         filterSizeDropdown();
+        filterLaminationBySize();
         updateLaminationVisibility();
     })();
     </script>
