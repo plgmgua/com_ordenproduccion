@@ -18,6 +18,7 @@ use Joomla\CMS\Session\Session;
 
 $sizes = $this->pliegoSizes ?? [];
 $paperTypes = $this->pliegoPaperTypes ?? [];
+$sizeIdsByPaperType = $this->pliegoSizeIdsByPaperType ?? [];
 $laminationTypes = $this->pliegoLaminationTypes ?? [];
 $processes = $this->pliegoProcesses ?? [];
 $tablesExist = $this->pliegoTablesExist ?? false;
@@ -55,7 +56,7 @@ $token = Session::getFormToken();
                     <select id="pliego_size" name="size_id" class="form-select" required>
                         <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_SIZE'); ?></option>
                         <?php foreach ($sizes as $s) : ?>
-                            <option value="<?php echo (int) $s->id; ?>"><?php echo htmlspecialchars($s->name ?? ''); ?></option>
+                            <option value="<?php echo (int) $s->id; ?>" data-size-id="<?php echo (int) $s->id; ?>"><?php echo htmlspecialchars($s->name ?? ''); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -122,6 +123,33 @@ $token = Session::getFormToken();
         var laminationWrap = document.getElementById('pliego_lamination_type_wrap');
         var baseUrl = <?php echo json_encode($baseUrl); ?>;
         var token = <?php echo json_encode($token); ?>;
+        var sizeIdsByPaperType = <?php echo json_encode($sizeIdsByPaperType); ?>;
+
+        function filterSizeDropdown() {
+            var paperId = paper && paper.value ? parseInt(paper.value, 10) : 0;
+            var allowedIds = (paperId && sizeIdsByPaperType[paperId]) ? sizeIdsByPaperType[paperId] : [];
+            var options = size ? size.querySelectorAll('option') : [];
+            var currentVal = size ? size.value : '';
+            var hasValidSelection = false;
+            for (var i = 0; i < options.length; i++) {
+                var opt = options[i];
+                var vid = opt.value ? parseInt(opt.value, 10) : 0;
+                if (vid === 0) {
+                    opt.disabled = false;
+                    opt.style.display = '';
+                    continue;
+                }
+                var show = paperId === 0 ? false : allowedIds.indexOf(vid) !== -1;
+                opt.style.display = show ? '' : 'none';
+                opt.disabled = !show;
+                if (show && opt.value === currentVal) hasValidSelection = true;
+            }
+            if (size && currentVal && !hasValidSelection) {
+                size.value = '';
+                recalc();
+            }
+        }
+        if (paper) paper.addEventListener('change', filterSizeDropdown);
 
         function updateLaminationVisibility() {
             laminationWrap.style.display = lamination && lamination.checked ? 'block' : 'none';
@@ -175,6 +203,7 @@ $token = Session::getFormToken();
         });
         if (qty) qty.addEventListener('input', recalc);
         document.querySelectorAll('.pliego-process-cb').forEach(function(cb) { cb.addEventListener('change', recalc); });
+        filterSizeDropdown();
         updateLaminationVisibility();
     })();
     </script>

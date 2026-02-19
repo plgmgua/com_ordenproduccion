@@ -49,9 +49,15 @@ class HtmlView extends BaseHtmlView
 
         $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Productos', 'Site', ['ignore_request' => true]);
-        // Only show sizes and paper types that have at least one non-zero print price
-        $this->pliegoSizes = $productosModel->getSizesWithNonZeroPrintPrice();
+        // Paper types and sizes that have at least one non-zero print price
         $this->pliegoPaperTypes = $productosModel->getPaperTypesWithNonZeroPrintPrice();
+        $this->pliegoSizes = $productosModel->getSizesWithNonZeroPrintPrice();
+        // Map paper_type_id => [size_id, ...] so the size dropdown only shows sizes with price > 0 for the selected paper
+        $sizeIdsByPaperType = [];
+        foreach ($this->pliegoPaperTypes as $pt) {
+            $sizeIdsByPaperType[(int) $pt->id] = $productosModel->getSizeIdsWithNonZeroPrintPriceForPaperType((int) $pt->id);
+        }
+        $this->pliegoSizeIdsByPaperType = $sizeIdsByPaperType;
         $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();

@@ -152,6 +152,31 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Get size IDs that have a non-zero print price for the given paper type.
+     * Used to filter the size dropdown so only (paper type, size) combinations with price > 0 are selectable.
+     *
+     * @param   int  $paperTypeId  Paper type ID
+     * @return  array  List of size_id
+     * @since   3.67.0
+     */
+    public function getSizeIdsWithNonZeroPrintPriceForPaperType($paperTypeId)
+    {
+        if (!$this->tablesExist()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('size_id'))
+            ->from($db->quoteName('#__ordenproduccion_pliego_print_prices'))
+            ->where($db->quoteName('paper_type_id') . ' = ' . (int) $paperTypeId)
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('price_per_sheet') . ' > 0');
+        $db->setQuery($query);
+        $rows = $db->loadColumn() ?: [];
+        return array_map('intval', $rows);
+    }
+
+    /**
      * Get size IDs available for a paper type
      *
      * @param   int  $paperTypeId  Paper type ID
