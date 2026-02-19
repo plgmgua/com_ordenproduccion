@@ -72,6 +72,22 @@ class HtmlView extends BaseHtmlView
     protected $tablesExist = false;
 
     /**
+     * Selected paper type ID for Pliego tab
+     *
+     * @var    int
+     * @since  3.67.0
+     */
+    protected $selectedPaperTypeId = 0;
+
+    /**
+     * Print prices by size_id for Pliego tab (size_id => price_per_sheet)
+     *
+     * @var    array
+     * @since  3.67.0
+     */
+    protected $pliegoPrices = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -99,6 +115,12 @@ class HtmlView extends BaseHtmlView
             $this->paperTypes = $model->getPaperTypes();
             $this->laminationTypes = $model->getLaminationTypes();
             $this->processes = $model->getProcesses();
+            if ($this->activeTab === 'pliego') {
+                $this->selectedPaperTypeId = $input->getInt('paper_type_id', 0);
+                $this->pliegoPrices = $this->selectedPaperTypeId > 0
+                    ? $model->getPrintPricesForPaperType($this->selectedPaperTypeId)
+                    : [];
+            }
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING'), 'warning');
         }

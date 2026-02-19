@@ -61,6 +61,12 @@ $l = function ($key, $fallback) {
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PROCESSES', 'Procesos Adicionales'); ?>
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $activeTab === 'pliego' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseUrl . '&tab=pliego'); ?>">
+                    Pliego
+                </a>
+            </li>
         </ul>
 
         <?php if ($activeTab === 'sizes') : ?>
@@ -238,6 +244,58 @@ $l = function ($key, $fallback) {
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($activeTab === 'pliego') : ?>
+            <div class="card mb-3">
+                <div class="card-header">Precio por pliego (papel + tamaño)</div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Seleccione un tipo de papel y defina el precio por pliego para cada tamaño.</p>
+                    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=pliego'); ?>" class="mb-4">
+                        <input type="hidden" name="option" value="com_ordenproduccion">
+                        <input type="hidden" name="view" value="productos">
+                        <input type="hidden" name="tab" value="pliego">
+                        <label for="pliego_paper_type" class="me-2">Tipo de papel</label>
+                        <select name="paper_type_id" id="pliego_paper_type" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
+                            <option value="0">— Seleccionar —</option>
+                            <?php foreach ($this->paperTypes as $pt) : ?>
+                                <option value="<?php echo (int) $pt->id; ?>" <?php echo (int) $pt->id === (int) $this->selectedPaperTypeId ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($pt->name ?? ''); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                    <?php if ($this->selectedPaperTypeId > 0 && !empty($this->sizes)) : ?>
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.savePliegoPrices'); ?>" method="post">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="paper_type_id" value="<?php echo (int) $this->selectedPaperTypeId; ?>">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Tamaño</th>
+                                        <th>Dimensiones (in)</th>
+                                        <th style="width:180px;">Precio por pliego (Q)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($this->sizes as $s) : ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
+                                            <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
+                                            <td>
+                                                <input type="number" name="price[<?php echo (int) $s->id; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo isset($this->pliegoPrices[$s->id]) ? (float) $this->pliegoPrices[$s->id] : ''; ?>" placeholder="0.00">
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <button type="submit" class="btn btn-primary mt-2">Guardar precios</button>
+                        </form>
+                    <?php elseif ($this->selectedPaperTypeId > 0 && empty($this->sizes)) : ?>
+                        <p class="text-muted">No hay tamaños definidos. Agregue tamaños en la pestaña Tamaños.</p>
                     <?php endif; ?>
                 </div>
             </div>

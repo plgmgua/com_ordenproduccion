@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pliego sizes unit: inches.** Sizes (Tamaños de Pliego) now use **inches** instead of centimetres. DB columns are `width_in` and `height_in`. New installs: use updated `3.67.0_pliego_quoting.sql`. Existing installs with `width_cm`/`height_cm`: run `3.67.1_pliego_sizes_inches.sql` to convert and rename columns. UI labels and form placeholders updated (e.g. "Ancho (in)", "Alto (in)", "Dimensiones (in)"); display shows `width_in` with fallback to `width_cm` during transition.
 
 ### Added
+- **Productos – tab Pliego:** New tab "Pliego" to set the price per pliego for each **paper type × size** combination. Select a paper type (e.g. Bond 120 Gramos), then enter "Precio por pliego" (Q) for each size (11x17 in, 1.5x18 in, etc.). Saves to `pliego_print_prices` (base row: tiro, qty 1–999999). Model: `getPrintPricesForPaperType`, `savePliegoPrices`; controller: `savePliegoPrices`; `tablesExist` now requires `pliego_print_prices`.
 - **Productos view – add new items:** Logged-in users can add sizes (Tamaños de Pliego), paper types (Tipos de Papel), lamination types (Tipos de Laminación), and additional processes (Procesos Adicionales) from the Productos frontend. Each tab has an "Añadir" form; saves go through ProductosController (saveSize, savePaperType, saveLaminationType, saveProcess) and ProductosModel save methods. Language strings added for add-form labels and success messages.
 
 ### Fixed
