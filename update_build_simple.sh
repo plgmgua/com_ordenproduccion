@@ -1120,6 +1120,14 @@ EOF
         sudo cp "$COMPONENT_ROOT/tmpl/productos/default.xml" "$SITE_COMPONENT_PATH/tmpl/productos/" || warning "Failed to copy productos/default.xml"
         log "✅ tmpl/productos/default.xml deployed"
     fi
+    if [ -f "$COMPONENT_ROOT/tmpl/cotizacion/default.php" ]; then
+        sudo cp "$COMPONENT_ROOT/tmpl/cotizacion/default.php" "$SITE_COMPONENT_PATH/tmpl/cotizacion/" || warning "Failed to copy cotizacion/default.php"
+        log "✅ tmpl/cotizacion/default.php deployed"
+    fi
+    if [ -f "$COMPONENT_ROOT/tmpl/cotizacion/default.xml" ]; then
+        sudo cp "$COMPONENT_ROOT/tmpl/cotizacion/default.xml" "$SITE_COMPONENT_PATH/tmpl/cotizacion/" || warning "Failed to copy cotizacion/default.xml"
+        log "✅ tmpl/cotizacion/default.xml deployed"
+    fi
     if [ -f "$COMPONENT_ROOT/tmpl/cotizacion/nueva_cotizacion.php" ]; then
         sudo cp "$COMPONENT_ROOT/tmpl/cotizacion/nueva_cotizacion.php" "$SITE_COMPONENT_PATH/tmpl/cotizacion/" || warning "Failed to copy cotizacion/nueva_cotizacion.php"
         log "✅ tmpl/cotizacion/nueva_cotizacion.php deployed"
@@ -1145,7 +1153,7 @@ EOF
     if [ -d "$SITE_COMPONENT_PATH/src/View/Cotizacion" ]; then
         sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/View/Cotizacion" 2>/dev/null || true
     fi
-    if [ -d "$SITE_COMPONENT_PATH/tmpl/productos" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/productos/default.xml" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/cotizacion/nueva_cotizacion.xml" ]; then
+    if [ -d "$SITE_COMPONENT_PATH/tmpl/productos" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/productos/default.xml" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/cotizacion/default.xml" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/cotizacion/nueva_cotizacion.xml" ]; then
         success "Productos and Nueva Cotización (Pliego) view files deployed"
     else
         warning "Some Productos/Nueva Cotización files may be missing - check tmpl/productos and tmpl/cotizacion"
