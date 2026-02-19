@@ -42,7 +42,8 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        $productosModel = $this->getModel('Productos');
+        $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Productos', 'Site', ['ignore_request' => true]);
         $this->pliegoSizes = $productosModel->getSizes();
         $this->pliegoPaperTypes = $productosModel->getPaperTypes();
         $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
