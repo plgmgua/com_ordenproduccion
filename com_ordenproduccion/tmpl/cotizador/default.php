@@ -1,6 +1,7 @@
 <?php
 /**
- * Nueva Cotización (Pliego-based quote form)
+ * Cotizador (Pliego-based quote form)
+ * View: cotizador — link: index.php?option=com_ordenproduccion&view=cotizador
  *
  * @package     com_ordenproduccion
  * @copyright   (C) 2025 Grimpsa. All rights reserved.
@@ -13,7 +14,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 
-/** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizacion\HtmlView $this */
+/** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
 
 $sizes = $this->pliegoSizes ?? [];
 $paperTypes = $this->pliegoPaperTypes ?? [];
@@ -24,7 +25,7 @@ $baseUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.calcul
 $token = Session::getFormToken();
 ?>
 
-<div class="com-ordenproduccion-nueva-cotizacion-pliego container py-4">
+<div class="com-ordenproduccion-cotizador-pliego container py-4">
     <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_NUEVA_COTIZACION_PLIEGO_TITLE'); ?></h1>
 
     <?php if (!$tablesExist) : ?>

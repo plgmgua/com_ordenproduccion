@@ -1099,11 +1099,13 @@ EOF
     echo "-- find results (maxdepth 4) --"
     find "$SITE_COMPONENT_PATH" -maxdepth 4 -iname "*Paymentproof*.php" -print 2>/dev/null || true
 
-    # Step 18b: Ensure Productos and Nueva Cotización (Pliego) view files are deployed
-    log "Step 18b: Ensuring Productos and Nueva Cotización (Pliego) view files are deployed..."
+    # Step 18b: Ensure Productos and Cotizador (view=cotizador) view files are deployed
+    log "Step 18b: Ensuring Productos and Cotizador (Pliego) view files are deployed..."
     sudo mkdir -p "$SITE_COMPONENT_PATH/src/View/Productos"
+    sudo mkdir -p "$SITE_COMPONENT_PATH/src/View/Cotizador"
     sudo mkdir -p "$SITE_COMPONENT_PATH/tmpl/productos"
     sudo mkdir -p "$SITE_COMPONENT_PATH/tmpl/cotizacion"
+    sudo mkdir -p "$SITE_COMPONENT_PATH/tmpl/cotizador"
     if [ -f "$COMPONENT_ROOT/src/Model/ProductosModel.php" ]; then
         sudo cp "$COMPONENT_ROOT/src/Model/ProductosModel.php" "$SITE_COMPONENT_PATH/src/Model/" || warning "Failed to copy ProductosModel.php"
         log "✅ ProductosModel.php deployed"
@@ -1128,13 +1130,17 @@ EOF
         sudo cp "$COMPONENT_ROOT/tmpl/cotizacion/default.xml" "$SITE_COMPONENT_PATH/tmpl/cotizacion/" || warning "Failed to copy cotizacion/default.xml"
         log "✅ tmpl/cotizacion/default.xml deployed"
     fi
-    if [ -f "$COMPONENT_ROOT/tmpl/cotizacion/nueva_cotizacion.php" ]; then
-        sudo cp "$COMPONENT_ROOT/tmpl/cotizacion/nueva_cotizacion.php" "$SITE_COMPONENT_PATH/tmpl/cotizacion/" || warning "Failed to copy cotizacion/nueva_cotizacion.php"
-        log "✅ tmpl/cotizacion/nueva_cotizacion.php deployed"
+    if [ -f "$COMPONENT_ROOT/tmpl/cotizador/default.php" ]; then
+        sudo cp "$COMPONENT_ROOT/tmpl/cotizador/default.php" "$SITE_COMPONENT_PATH/tmpl/cotizador/" || warning "Failed to copy cotizador/default.php"
+        log "✅ tmpl/cotizador/default.php deployed"
     fi
-    if [ -f "$COMPONENT_ROOT/tmpl/cotizacion/nueva_cotizacion.xml" ]; then
-        sudo cp "$COMPONENT_ROOT/tmpl/cotizacion/nueva_cotizacion.xml" "$SITE_COMPONENT_PATH/tmpl/cotizacion/" || warning "Failed to copy cotizacion/nueva_cotizacion.xml"
-        log "✅ tmpl/cotizacion/nueva_cotizacion.xml deployed"
+    if [ -f "$COMPONENT_ROOT/tmpl/cotizador/default.xml" ]; then
+        sudo cp "$COMPONENT_ROOT/tmpl/cotizador/default.xml" "$SITE_COMPONENT_PATH/tmpl/cotizador/" || warning "Failed to copy cotizador/default.xml"
+        log "✅ tmpl/cotizador/default.xml deployed"
+    fi
+    if [ -f "$COMPONENT_ROOT/src/View/Cotizador/HtmlView.php" ]; then
+        sudo cp "$COMPONENT_ROOT/src/View/Cotizador/HtmlView.php" "$SITE_COMPONENT_PATH/src/View/Cotizador/" || warning "Failed to copy Cotizador HtmlView"
+        log "✅ Cotizador HtmlView.php deployed"
     fi
     if [ -f "$COMPONENT_ROOT/src/View/Cotizacion/HtmlView.php" ]; then
         sudo mkdir -p "$SITE_COMPONENT_PATH/src/View/Cotizacion"
@@ -1149,14 +1155,14 @@ EOF
         sudo cp "$COMPONENT_ROOT/src/Controller/ProductosController.php" "$SITE_COMPONENT_PATH/src/Controller/" || warning "Failed to copy ProductosController.php"
         log "✅ ProductosController.php deployed"
     fi
-    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/tmpl/productos" "$SITE_COMPONENT_PATH/tmpl/cotizacion" "$SITE_COMPONENT_PATH/src/View/Productos" 2>/dev/null || true
+    sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/tmpl/productos" "$SITE_COMPONENT_PATH/tmpl/cotizacion" "$SITE_COMPONENT_PATH/tmpl/cotizador" "$SITE_COMPONENT_PATH/src/View/Productos" "$SITE_COMPONENT_PATH/src/View/Cotizador" 2>/dev/null || true
     if [ -d "$SITE_COMPONENT_PATH/src/View/Cotizacion" ]; then
         sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/View/Cotizacion" 2>/dev/null || true
     fi
-    if [ -d "$SITE_COMPONENT_PATH/tmpl/productos" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/productos/default.xml" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/cotizacion/default.xml" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/cotizacion/nueva_cotizacion.xml" ]; then
-        success "Productos and Nueva Cotización (Pliego) view files deployed"
+    if [ -d "$SITE_COMPONENT_PATH/tmpl/productos" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/productos/default.xml" ] && [ -f "$SITE_COMPONENT_PATH/tmpl/cotizador/default.xml" ]; then
+        success "Productos and Cotizador (view=cotizador) view files deployed"
     else
-        warning "Some Productos/Nueva Cotización files may be missing - check tmpl/productos and tmpl/cotizacion"
+        warning "Some Productos/Cotizador files may be missing - check tmpl/productos and tmpl/cotizador"
     fi
 
     # Step 19: Enable Maximum PHP/Joomla error reporting for troubleshooting

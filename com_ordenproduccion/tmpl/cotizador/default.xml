@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="Nueva Cotización (Pliego)">
+    <layout title="Cotizador (Pliego)">
         <message><![CDATA[Crear cotización por pliego: cantidad, papel, tamaño, tiro/retiro, laminación y procesos.]]></message>
     </layout>
 </metadata>
