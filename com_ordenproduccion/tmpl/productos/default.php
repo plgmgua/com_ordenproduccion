@@ -64,7 +64,13 @@ $l = function ($key, $fallback) {
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'pliego' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseUrl . '&tab=pliego'); ?>">
-                    Pliego
+                    Pliego Papel
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $activeTab === 'pliego_laminado' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseUrl . '&tab=pliego_laminado'); ?>">
+                    Pliego Laminado
                 </a>
             </li>
         </ul>
@@ -251,7 +257,7 @@ $l = function ($key, $fallback) {
 
         <?php if ($activeTab === 'pliego') : ?>
             <div class="card mb-3">
-                <div class="card-header">Precio por pliego (papel + tamaño)</div>
+                <div class="card-header">Pliego Papel – Precio por pliego (papel + tamaño)</div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Seleccione un tipo de papel y defina el precio por pliego para cada tamaño. <strong>Tiro</strong> = impresión o laminación en un solo lado; <strong>Tiro/Retiro</strong> = en ambos lados.</p>
                     <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=pliego'); ?>" class="mb-4">
@@ -306,6 +312,68 @@ $l = function ($key, $fallback) {
                             <button type="submit" class="btn btn-primary mt-2">Guardar precios</button>
                         </form>
                     <?php elseif ($this->selectedPaperTypeId > 0 && empty($this->sizes)) : ?>
+                        <p class="text-muted">No hay tamaños definidos. Agregue tamaños en la pestaña Tamaños.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($activeTab === 'pliego_laminado') : ?>
+            <div class="card mb-3">
+                <div class="card-header">Pliego Laminado – Precio por pliego (tipo de laminación + tamaño)</div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Seleccione un tipo de laminación y defina el precio por pliego para cada tamaño. <strong>Tiro</strong> = un solo lado; <strong>Tiro/Retiro</strong> = ambos lados.</p>
+                    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=pliego_laminado'); ?>" class="mb-4">
+                        <input type="hidden" name="option" value="com_ordenproduccion">
+                        <input type="hidden" name="view" value="productos">
+                        <input type="hidden" name="tab" value="pliego_laminado">
+                        <label for="pliego_lam_type" class="me-2">Tipo de laminación</label>
+                        <select name="lamination_type_id" id="pliego_lam_type" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
+                            <option value="0">— Seleccionar —</option>
+                            <?php foreach ($this->laminationTypes as $lt) : ?>
+                                <option value="<?php echo (int) $lt->id; ?>" <?php echo (int) $lt->id === (int) $this->selectedLaminationTypeId ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($lt->name ?? ''); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                    <?php if ($this->selectedLaminationTypeId > 0 && !empty($this->sizes)) : ?>
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveLaminationPrices'); ?>" method="post">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="lamination_type_id" value="<?php echo (int) $this->selectedLaminationTypeId; ?>">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Tamaño</th>
+                                        <th>Dimensiones (in)</th>
+                                        <th class="bg-light" style="width:180px;">Tiro (un lado) – Precio (Q)</th>
+                                        <th class="bg-light" style="width:180px;">Tiro/Retiro (ambos lados) – Precio (Q)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                    $lamp = $this->laminationPrices;
+                                    foreach ($this->sizes as $s) :
+                                        $sid = (int) $s->id;
+                                        $tiroVal = isset($lamp[$sid]['tiro']) ? (float) $lamp[$sid]['tiro'] : '';
+                                        $retiroVal = isset($lamp[$sid]['retiro']) ? (float) $lamp[$sid]['retiro'] : '';
+                                    ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
+                                            <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
+                                            <td>
+                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <button type="submit" class="btn btn-primary mt-2">Guardar precios</button>
+                        </form>
+                    <?php elseif ($this->selectedLaminationTypeId > 0 && empty($this->sizes)) : ?>
                         <p class="text-muted">No hay tamaños definidos. Agregue tamaños en la pestaña Tamaños.</p>
                     <?php endif; ?>
                 </div>

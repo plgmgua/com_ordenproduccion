@@ -38,6 +38,7 @@ class ProductosModel extends BaseDatabaseModel
             $prefix . 'ordenproduccion_lamination_types',
             $prefix . 'ordenproduccion_pliego_processes',
             $prefix . 'ordenproduccion_pliego_print_prices',
+            $prefix . 'ordenproduccion_lamination_prices',
         ];
         foreach ($required as $t) {
             $found = false;
@@ -517,6 +518,122 @@ class ProductosModel extends BaseDatabaseModel
                         'modified_by' => $userId,
                     ];
                     $db->insertObject('#__ordenproduccion_pliego_print_prices', $obj);
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get lamination prices per size for a lamination type (tiro and retiro, qty 1–999999).
+     *
+     * @param   int  $laminationTypeId  Lamination type ID
+     * @return  array  size_id => ['tiro' => price, 'retiro' => price]
+     * @since   3.67.0
+     */
+    public function getLaminationPricesForType($laminationTypeId)
+    {
+        if (!$this->tablesExist()) {
+            return [];
+        }
+        $laminationTypeId = (int) $laminationTypeId;
+        if ($laminationTypeId <= 0) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('size_id') . ', ' . $db->quoteName('tiro_retiro') . ', ' . $db->quoteName('price_per_sheet'))
+            ->from($db->quoteName('#__ordenproduccion_lamination_prices'))
+            ->where($db->quoteName('lamination_type_id') . ' = ' . $laminationTypeId)
+            ->where($db->quoteName('qty_min') . ' = 1')
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $sid = (int) $row->size_id;
+            if (!isset($out[$sid])) {
+                $out[$sid] = ['tiro' => null, 'retiro' => null];
+            }
+            $key = ($row->tiro_retiro === 'retiro') ? 'retiro' : 'tiro';
+            $out[$sid][$key] = (float) $row->price_per_sheet;
+        }
+        return $out;
+    }
+
+    /**
+     * Save lamination prices for one lamination type: tiro and retiro price per size (qty 1–999999).
+     *
+     * @param   int    $laminationTypeId  Lamination type ID
+     * @param   array  $pricesTiro        size_id => price_per_sheet (one side)
+     * @param   array  $pricesRetiro      size_id => price_per_sheet (both sides)
+     * @return  bool
+     * @since   3.67.0
+     */
+    public function saveLaminationPrices($laminationTypeId, $pricesTiro, $pricesRetiro = [])
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+            return false;
+        }
+        $laminationTypeId = (int) $laminationTypeId;
+        if ($laminationTypeId <= 0) {
+            $this->setError('Invalid lamination type.');
+            return false;
+        }
+        $user = Factory::getUser();
+        $db = $this->getDatabase();
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+
+        $allSizes = array_unique(array_merge(array_keys($pricesTiro), array_keys($pricesRetiro)));
+        foreach ($allSizes as $sizeId) {
+            $sizeId = (int) $sizeId;
+            if ($sizeId <= 0) {
+                continue;
+            }
+            foreach (['tiro' => $pricesTiro, 'retiro' => $pricesRetiro] as $tiroRetiro => $prices) {
+                $price = isset($prices[$sizeId]) ? (float) $prices[$sizeId] : null;
+                if ($price === null && $tiroRetiro === 'retiro') {
+                    continue;
+                }
+                if ($price === null) {
+                    $price = 0.0;
+                }
+
+                $query = $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_lamination_prices'))
+                    ->where($db->quoteName('lamination_type_id') . ' = ' . $laminationTypeId)
+                    ->where($db->quoteName('size_id') . ' = ' . $sizeId)
+                    ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
+                    ->where($db->quoteName('qty_min') . ' = 1');
+                $db->setQuery($query);
+                $id = (int) $db->loadResult();
+
+                if ($id > 0) {
+                    $obj = (object) [
+                        'id' => $id,
+                        'price_per_sheet' => $price,
+                        'modified' => $now,
+                        'modified_by' => $userId,
+                    ];
+                    $db->updateObject('#__ordenproduccion_lamination_prices', $obj, ['id']);
+                } else {
+                    $obj = (object) [
+                        'lamination_type_id' => $laminationTypeId,
+                        'size_id' => $sizeId,
+                        'tiro_retiro' => $tiroRetiro,
+                        'qty_min' => 1,
+                        'qty_max' => 999999,
+                        'price_per_sheet' => $price,
+                        'state' => 1,
+                        'created' => $now,
+                        'created_by' => $userId,
+                        'modified' => $now,
+                        'modified_by' => $userId,
+                    ];
+                    $db->insertObject('#__ordenproduccion_lamination_prices', $obj);
                 }
             }
         }

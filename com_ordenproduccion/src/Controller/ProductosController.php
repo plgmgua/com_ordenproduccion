@@ -236,4 +236,55 @@ class ProductosController extends BaseController
         }
         $this->setRedirect(Route::_($url, false));
     }
+
+    /**
+     * Save pliego lamination prices for the selected lamination type (Tiro and Tiro/Retiro per size).
+     *
+     * @return  void
+     * @since   3.67.0
+     */
+    public function saveLaminationPrices()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectPliegoLaminado(0, Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectPliegoLaminado(0, Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $laminationTypeId = $input->post->getInt('lamination_type_id', 0);
+        $pricesTiro = $input->post->get('price_tiro', [], 'array');
+        $pricesRetiro = $input->post->get('price_retiro', [], 'array');
+        $pricesTiro = array_map('floatval', $pricesTiro);
+        $pricesRetiro = array_map('floatval', $pricesRetiro);
+
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->saveLaminationPrices($laminationTypeId, $pricesTiro, $pricesRetiro)) {
+            $this->setRedirectPliegoLaminado($laminationTypeId, $model->getError() ?: 'Error al guardar precios.', 'error');
+            return;
+        }
+        $this->setRedirectPliegoLaminado($laminationTypeId, 'Precios de laminación guardados correctamente.', 'success');
+    }
+
+    /**
+     * Redirect to Productos Pliego Laminado tab, optionally with lamination_type_id.
+     *
+     * @param   int     $laminationTypeId  Lamination type ID (0 to omit)
+     * @param   string  $msg               Message text
+     * @param   string  $type              Message type
+     * @return  void
+     * @since   3.67.0
+     */
+    private function setRedirectPliegoLaminado($laminationTypeId, $msg, $type = 'notice')
+    {
+        Factory::getApplication()->enqueueMessage($msg, $type);
+        $url = 'index.php?option=com_ordenproduccion&view=productos&tab=pliego_laminado';
+        if ($laminationTypeId > 0) {
+            $url .= '&lamination_type_id=' . (int) $laminationTypeId;
+        }
+        $this->setRedirect(Route::_($url, false));
+    }
 }

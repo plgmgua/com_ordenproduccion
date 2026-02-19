@@ -80,12 +80,28 @@ class HtmlView extends BaseHtmlView
     protected $selectedPaperTypeId = 0;
 
     /**
-     * Print prices by size_id for Pliego tab (size_id => price_per_sheet)
+     * Print prices by size_id for Pliego Papel tab (size_id => ['tiro'=>, 'retiro'=>])
      *
      * @var    array
      * @since  3.67.0
      */
     protected $pliegoPrices = [];
+
+    /**
+     * Selected lamination type ID for Pliego Laminado tab
+     *
+     * @var    int
+     * @since  3.67.0
+     */
+    protected $selectedLaminationTypeId = 0;
+
+    /**
+     * Lamination prices by size_id for Pliego Laminado tab (size_id => ['tiro'=>, 'retiro'=>])
+     *
+     * @var    array
+     * @since  3.67.0
+     */
+    protected $laminationPrices = [];
 
     /**
      * Display the view
@@ -119,6 +135,12 @@ class HtmlView extends BaseHtmlView
                 $this->selectedPaperTypeId = $input->getInt('paper_type_id', 0);
                 $this->pliegoPrices = $this->selectedPaperTypeId > 0
                     ? $model->getPrintPricesForPaperType($this->selectedPaperTypeId)
+                    : [];
+            }
+            if ($this->activeTab === 'pliego_laminado') {
+                $this->selectedLaminationTypeId = $input->getInt('lamination_type_id', 0);
+                $this->laminationPrices = $this->selectedLaminationTypeId > 0
+                    ? $model->getLaminationPricesForType($this->selectedLaminationTypeId)
                     : [];
             }
         } else {
