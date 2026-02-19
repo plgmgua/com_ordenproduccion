@@ -89,6 +89,11 @@ $token = Session::getFormToken();
                             <option value="<?php echo (int) $l->id; ?>" data-lamination-id="<?php echo (int) $l->id; ?>"><?php echo htmlspecialchars($l->name ?? ''); ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" id="pliego_lamination_retiro" name="lamination_tiro_retiro" value="retiro" class="form-check-input">
+                        <label class="form-check-label" for="pliego_lamination_retiro"><?php echo Text::_('COM_ORDENPRODUCCION_LAMINATION_TIRO_RETIRO'); ?></label>
+                    </div>
+                    <small class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_TIRO_DESC'); ?></small>
                 </div>
             </div>
 
@@ -130,6 +135,7 @@ $token = Session::getFormToken();
         var size = document.getElementById('pliego_size');
         var retiro = document.getElementById('pliego_retiro');
         var lamination = document.getElementById('pliego_needs_lamination');
+        var laminationRetiro = document.getElementById('pliego_lamination_retiro');
         var laminationType = document.getElementById('pliego_lamination_type');
         var laminationWrap = document.getElementById('pliego_lamination_type_wrap');
         var baseUrl = <?php echo json_encode($baseUrl); ?>;
@@ -170,8 +176,8 @@ $token = Session::getFormToken();
 
         function filterLaminationBySize() {
             var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
-            var isRetiro = retiro && retiro.checked;
-            var map = isRetiro ? laminationTypeIdsBySizeRetiro : laminationTypeIdsBySizeTiro;
+            var lamRetiro = laminationRetiro && laminationRetiro.checked;
+            var map = lamRetiro ? laminationTypeIdsBySizeRetiro : laminationTypeIdsBySizeTiro;
             var allowedLamIds = (sizeId && map[sizeId]) ? map[sizeId] : [];
             var hasAnyLamination = allowedLamIds.length > 0;
             if (lamination) {
@@ -208,7 +214,7 @@ $token = Session::getFormToken();
         }
         if (lamination) lamination.addEventListener('change', updateLaminationVisibility);
         if (size) size.addEventListener('change', filterLaminationBySize);
-        if (retiro) retiro.addEventListener('change', filterLaminationBySize);
+        if (laminationRetiro) laminationRetiro.addEventListener('change', function() { filterLaminationBySize(); recalc(); });
 
         function getProcessTotal() {
             var total = 0;
@@ -230,11 +236,12 @@ $token = Session::getFormToken();
                 return;
             }
             var tiroRetiro = (retiro && retiro.checked) ? 'retiro' : 'tiro';
+            var lamTiroRetiro = (laminationRetiro && laminationRetiro.checked) ? 'retiro' : 'tiro';
             var lamId = (lamination && lamination.checked && laminationType && laminationType.value) ? laminationType.value : '';
             var processIds = [];
             document.querySelectorAll('.pliego-process-cb:checked').forEach(function(cb) { processIds.push(cb.value); });
 
-            var url = baseUrl + '&' + token + '=1&quantity=' + encodeURIComponent(quantity) + '&paper_type_id=' + encodeURIComponent(paperId) + '&size_id=' + encodeURIComponent(sizeId) + '&tiro_retiro=' + encodeURIComponent(tiroRetiro) + '&lamination_type_id=' + encodeURIComponent(lamId);
+            var url = baseUrl + '&' + token + '=1&quantity=' + encodeURIComponent(quantity) + '&paper_type_id=' + encodeURIComponent(paperId) + '&size_id=' + encodeURIComponent(sizeId) + '&tiro_retiro=' + encodeURIComponent(tiroRetiro) + '&lamination_tiro_retiro=' + encodeURIComponent(lamTiroRetiro) + '&lamination_type_id=' + encodeURIComponent(lamId);
             processIds.forEach(function(id) { url += '&process_ids[]=' + encodeURIComponent(id); });
 
             fetch(url)
@@ -270,7 +277,7 @@ $token = Session::getFormToken();
                 });
         }
 
-        [qty, paper, size, retiro, lamination, laminationType].forEach(function(el) {
+        [qty, paper, size, retiro, lamination, laminationType, laminationRetiro].forEach(function(el) {
             if (el) el.addEventListener('change', recalc);
         });
         if (qty) qty.addEventListener('input', recalc);

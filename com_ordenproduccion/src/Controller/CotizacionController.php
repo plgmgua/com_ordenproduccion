@@ -49,6 +49,10 @@ class CotizacionController extends BaseController
         $sizeId = (int) $app->input->get('size_id', 0);
         $tiroRetiro = $app->input->get('tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro';
         $laminationTypeId = (int) $app->input->get('lamination_type_id', 0);
+        $laminationTiroRetiro = $app->input->get('lamination_tiro_retiro', '', 'cmd');
+        if ($laminationTiroRetiro !== 'retiro' && $laminationTiroRetiro !== 'tiro') {
+            $laminationTiroRetiro = $tiroRetiro;
+        }
         $processIds = $app->input->get('process_ids', [], 'array');
         $processIds = array_map('intval', array_filter($processIds));
 
@@ -67,7 +71,7 @@ class CotizacionController extends BaseController
 
         $laminationPrice = 0.0;
         if ($laminationTypeId > 0) {
-            $laminationPrice = $productosModel->getLaminationPricePerSheet($laminationTypeId, $sizeId, $tiroRetiro, $quantity);
+            $laminationPrice = $productosModel->getLaminationPricePerSheet($laminationTypeId, $sizeId, $laminationTiroRetiro, $quantity);
             if ($laminationPrice === null) {
                 $laminationPrice = 0.0;
             }
