@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Pliego sizes unit: inches.** Sizes (Tamaños de Pliego) now use **inches** instead of centimetres. DB columns are `width_in` and `height_in`. New installs: use updated `3.67.0_pliego_quoting.sql`. Existing installs with `width_cm`/`height_cm`: run `3.67.1_pliego_sizes_inches.sql` to convert and rename columns. UI labels and form placeholders updated (e.g. "Ancho (in)", "Alto (in)", "Dimensiones (in)"); display shows `width_in` with fallback to `width_cm` during transition.
+
 ### Added
 - **Productos view – add new items:** Logged-in users can add sizes (Tamaños de Pliego), paper types (Tipos de Papel), lamination types (Tipos de Laminación), and additional processes (Procesos Adicionales) from the Productos frontend. Each tab has an "Añadir" form; saves go through ProductosController (saveSize, savePaperType, saveLaminationType, saveProcess) and ProductosModel save methods. Language strings added for add-form labels and success messages.
 

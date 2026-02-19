@@ -75,12 +75,12 @@ $l = function ($key, $fallback) {
                             <input type="text" name="name" id="size_name" class="form-control" required placeholder="ej. 60x90" maxlength="100">
                         </div>
                         <div class="form-group mb-2 me-2">
-                            <label for="size_width" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_WIDTH_CM', 'Ancho (cm)'); ?></label>
-                            <input type="number" name="width_cm" id="size_width" class="form-control" step="0.01" placeholder="60">
+                            <label for="size_width" class="me-1">Ancho (in)</label>
+                            <input type="number" name="width_in" id="size_width" class="form-control" step="0.01" placeholder="23.6">
                         </div>
                         <div class="form-group mb-2 me-2">
-                            <label for="size_height" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_HEIGHT_CM', 'Alto (cm)'); ?></label>
-                            <input type="number" name="height_cm" id="size_height" class="form-control" step="0.01" placeholder="90">
+                            <label for="size_height" class="me-1">Alto (in)</label>
+                            <input type="number" name="height_in" id="size_height" class="form-control" step="0.01" placeholder="35.4">
                         </div>
                         <div class="form-group mb-2">
                             <button type="submit" class="btn btn-primary"><?php echo $l('COM_ORDENPRODUCCION_ADD', 'Añadir'); ?></button>
@@ -95,13 +95,13 @@ $l = function ($key, $fallback) {
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_SIZES', 'No hay tamaños definidos.'); ?></p>
                     <?php else : ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_SIZE_DIMENSIONS', 'Dimensiones (cm)'); ?></th></tr></thead>
+                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Nombre'); ?></th><th>Dimensiones (in)</th></tr></thead>
                             <tbody>
                                 <?php foreach ($this->sizes as $s) : ?>
                                     <tr>
                                         <td><?php echo (int) $s->id; ?></td>
                                         <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
-                                        <td><?php echo htmlspecialchars(($s->width_cm ?? '') . ' x ' . ($s->height_cm ?? '')); ?></td>
+                                        <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

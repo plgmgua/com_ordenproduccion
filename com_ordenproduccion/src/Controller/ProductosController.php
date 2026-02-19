@@ -46,8 +46,8 @@ class ProductosController extends BaseController
             'id' => $input->post->getInt('id', 0),
             'name' => $input->post->getString('name', ''),
             'code' => $input->post->getString('code', ''),
-            'width_cm' => $input->post->getString('width_cm', ''),
-            'height_cm' => $input->post->getString('height_cm', ''),
+            'width_in' => $input->post->getString('width_in', ''),
+            'height_in' => $input->post->getString('height_in', ''),
             'ordering' => $input->post->getInt('ordering', 0),
         ];
         $model = $this->getModel('Productos', 'Site');

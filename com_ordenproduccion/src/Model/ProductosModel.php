@@ -230,7 +230,7 @@ class ProductosModel extends BaseDatabaseModel
     /**
      * Save a pliego size (create or update)
      *
-     * @param   array  $data  Keys: id (0 for new), name, code, width_cm, height_cm, ordering, state
+     * @param   array  $data  Keys: id (0 for new), name, code, width_in, height_in, ordering, state
      * @return  int|false  Id on success, false on failure
      * @since   3.67.0
      */
@@ -254,8 +254,8 @@ class ProductosModel extends BaseDatabaseModel
             'id' => $id,
             'name' => $name,
             'code' => trim($data['code'] ?? ''),
-            'width_cm' => isset($data['width_cm']) ? (float) $data['width_cm'] : null,
-            'height_cm' => isset($data['height_cm']) ? (float) $data['height_cm'] : null,
+            'width_in' => isset($data['width_in']) ? (float) $data['width_in'] : null,
+            'height_in' => isset($data['height_in']) ? (float) $data['height_in'] : null,
             'ordering' => (int) ($data['ordering'] ?? 0),
             'state' => isset($data['state']) ? (int) $data['state'] : 1,
             'modified' => $now,

@@ -9,10 +9,10 @@
 -- 1. Pliego sizes (shared by paper and lamination)
 CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_pliego_sizes` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
-    `name` varchar(100) NOT NULL COMMENT 'Display name e.g. 60x90',
+    `name` varchar(100) NOT NULL COMMENT 'Display name e.g. 23.6x35.4',
     `code` varchar(50) DEFAULT NULL,
-    `width_cm` decimal(8,2) DEFAULT NULL,
-    `height_cm` decimal(8,2) DEFAULT NULL,
+    `width_in` decimal(8,2) DEFAULT NULL COMMENT 'Width in inches',
+    `height_in` decimal(8,2) DEFAULT NULL COMMENT 'Height in inches',
     `ordering` int(11) NOT NULL DEFAULT 0,
     `state` tinyint(3) NOT NULL DEFAULT 1,
     `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
