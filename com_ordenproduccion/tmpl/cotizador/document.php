@@ -96,13 +96,16 @@ $tablesExist = $this->pliegoTablesExist ?? false;
                             'breakdown' => $line->breakdown ?? [],
                         ]), ENT_QUOTES, 'UTF-8');
                     ?>
-                        <tr>
+                        <tr class="line-data-row">
                             <td><?php echo (int) $line->quantity; ?></td>
                             <td><?php echo htmlspecialchars($paperName); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
                             <td><?php echo ($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'; ?></td>
                             <td>Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
+                                    <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
+                                </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                 </button>
@@ -112,12 +115,70 @@ $tablesExist = $this->pliegoTablesExist ?? false;
                                 </a>
                             </td>
                         </tr>
+                        <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
+                            <td colspan="6" class="p-0 bg-light align-top">
+                                <div class="p-2">
+                                    <table class="table table-sm table-bordered mb-0" style="max-width: 600px;">
+                                        <thead>
+                                            <tr>
+                                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
+                                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
+                                                <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php
+                                            $breakdown = $line->breakdown ?? [];
+                                            foreach ($breakdown as $row) :
+                                                $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
+                                                $detail = isset($row['detail']) ? htmlspecialchars($row['detail']) : '';
+                                                $subtotal = isset($row['subtotal']) ? number_format((float) $row['subtotal'], 2) : '0.00';
+                                            ?>
+                                                <tr>
+                                                    <td><?php echo $label; ?></td>
+                                                    <td><?php echo $detail; ?></td>
+                                                    <td class="text-end">Q <?php echo $subtotal; ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-secondary fw-bold">
+                                                <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
+                                                <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     <?php endif; ?>
 </div>
+
+<?php if (!empty($lines)) : ?>
+<script>
+(function() {
+    var verDetalle = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE')); ?>;
+    var ocultarDetalle = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OCULTAR_DETALLE')); ?>;
+    document.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest && e.target.closest('.toggle-line-detail');
+        if (!btn) return;
+        var id = btn.getAttribute('data-detail-id');
+        if (!id) return;
+        var row = document.getElementById(id);
+        var label = btn.querySelector('.toggle-detail-label');
+        if (!row || !label) return;
+        var isHidden = row.style.display === 'none';
+        row.style.display = isHidden ? 'table-row' : 'none';
+        btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+        label.textContent = isHidden ? ocultarDetalle : verDetalle;
+    });
+})();
+</script>
+<?php endif; ?>
 
 <?php if ($tablesExist) : ?>
 <!-- Modal: Nueva Línea (Pliego form) -->
