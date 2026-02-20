@@ -119,13 +119,16 @@ $l = function ($key, $fallback) {
                     <?php endif; ?>
                 </div>
             </div>
-        <?php elseif (!$this->tablesExist) : ?>
+            <?php endif; ?>
+        <?php endif; ?>
+        <?php if ($section === 'pliegos') : ?>
+            <?php if (!$this->tablesExist) : ?>
             <div class="alert alert-warning">
                 <?php echo $l('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING', 'Las tablas del sistema de cotización por pliego no están instaladas.'); ?>
                 <br>
                 <small><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_RUN_UPDATE', 'Ejecute el script SQL de actualización 3.67.0_pliego_quoting.sql'); ?></small>
             </div>
-        <?php else : ?>
+            <?php else : ?>
 
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
@@ -512,6 +515,7 @@ $l = function ($key, $fallback) {
             </div>
         <?php endif; ?>
 
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
