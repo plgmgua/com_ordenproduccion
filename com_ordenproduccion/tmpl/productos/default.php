@@ -223,8 +223,12 @@ $l = function ($key, $fallback) {
                             <input type="text" name="name" id="process_name" class="form-control" required placeholder="ej. Corte" maxlength="255">
                         </div>
                         <div class="form-group mb-2 me-2">
-                            <label for="process_price" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE', 'Precio por pliego'); ?></label>
-                            <input type="number" name="price_per_pliego" id="process_price" class="form-control" step="0.01" min="0" value="0">
+                            <label for="process_price_1_1000" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', 'Precio 1–1000 pliegos'); ?></label>
+                            <input type="number" name="price_1_to_1000" id="process_price_1_1000" class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="form-group mb-2 me-2">
+                            <label for="process_price_1001" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', 'Precio 1001+ pliegos'); ?></label>
+                            <input type="number" name="price_1001_plus" id="process_price_1001" class="form-control" step="0.01" min="0" value="0">
                         </div>
                         <div class="form-group mb-2">
                             <button type="submit" class="btn btn-primary"><?php echo $l('COM_ORDENPRODUCCION_ADD', 'Añadir'); ?></button>
@@ -239,13 +243,14 @@ $l = function ($key, $fallback) {
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PROCESSES', 'No hay procesos adicionales definidos.'); ?></p>
                     <?php else : ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE', 'Precio por pliego'); ?></th></tr></thead>
+                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', '1–1000 pliegos'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', '1001+ pliegos'); ?></th></tr></thead>
                             <tbody>
                                 <?php foreach ($this->processes as $pr) : ?>
                                     <tr>
                                         <td><?php echo (int) $pr->id; ?></td>
                                         <td><?php echo htmlspecialchars($pr->name ?? ''); ?></td>
-                                        <td>Q <?php echo number_format((float) ($pr->price_per_pliego ?? 0), 2); ?></td>
+                                        <td>Q <?php echo number_format((float) ($pr->price_1_to_1000 ?? 0), 2); ?></td>
+                                        <td>Q <?php echo number_format((float) ($pr->price_1001_plus ?? 0), 2); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

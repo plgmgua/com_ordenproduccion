@@ -77,18 +77,22 @@ class CotizacionController extends BaseController
             }
         }
 
+        // Procesos Adicionales: price by pliego range (1–1000 vs 1001+), total per process not per sheet
         $processesTotal = 0.0;
         if (!empty($processIds)) {
             $processes = $productosModel->getProcesses();
+            $useRange = $quantity <= 1000;
             foreach ($processes as $p) {
                 if (in_array((int) $p->id, $processIds, true)) {
-                    $processesTotal += (float) ($p->price_per_pliego ?? 0);
+                    $processesTotal += $useRange
+                        ? (float) ($p->price_1_to_1000 ?? 0)
+                        : (float) ($p->price_1001_plus ?? 0);
                 }
             }
         }
 
-        $pricePerSheet = $printPrice + $laminationPrice + $processesTotal;
-        $total = $pricePerSheet * $quantity;
+        $pricePerSheet = $printPrice + $laminationPrice;
+        $total = $pricePerSheet * $quantity + $processesTotal;
 
         echo json_encode([
             'success' => true,

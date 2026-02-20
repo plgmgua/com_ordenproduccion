@@ -474,7 +474,7 @@ class ProductosModel extends BaseDatabaseModel
     /**
      * Save an additional process (create or update)
      *
-     * @param   array  $data  Keys: id (0 for new), name, code, price_per_pliego, ordering, state
+     * @param   array  $data  Keys: id (0 for new), name, code, price_per_pliego, price_1_to_1000, price_1001_plus, ordering, state
      * @return  int|false  Id on success, false on failure
      * @since   3.67.0
      */
@@ -499,6 +499,8 @@ class ProductosModel extends BaseDatabaseModel
             'name' => $name,
             'code' => trim($data['code'] ?? ''),
             'price_per_pliego' => isset($data['price_per_pliego']) ? (float) $data['price_per_pliego'] : 0,
+            'price_1_to_1000' => isset($data['price_1_to_1000']) ? (float) $data['price_1_to_1000'] : 0,
+            'price_1001_plus' => isset($data['price_1001_plus']) ? (float) $data['price_1001_plus'] : 0,
             'ordering' => (int) ($data['ordering'] ?? 0),
             'state' => isset($data['state']) ? (int) $data['state'] : 1,
             'modified' => $now,

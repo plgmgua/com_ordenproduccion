@@ -102,9 +102,13 @@ $token = Session::getFormToken();
                 <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_ADDITIONAL_PROCESSES'); ?></label>
                 <div class="d-flex flex-wrap gap-3">
                     <?php foreach ($processes as $pr) : ?>
+                        <?php
+                        $p1 = (float) ($pr->price_1_to_1000 ?? 0);
+                        $p2 = (float) ($pr->price_1001_plus ?? 0);
+                        ?>
                         <div class="form-check">
-                            <input type="checkbox" name="process_ids[]" value="<?php echo (int) $pr->id; ?>" id="proc_<?php echo (int) $pr->id; ?>" class="form-check-input pliego-process-cb" data-price="<?php echo (float) $pr->price_per_pliego; ?>">
-                            <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?> (Q <?php echo number_format((float) $pr->price_per_pliego, 2); ?>)</label>
+                            <input type="checkbox" name="process_ids[]" value="<?php echo (int) $pr->id; ?>" id="proc_<?php echo (int) $pr->id; ?>" class="form-check-input pliego-process-cb">
+                            <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?> — 1–1000: Q <?php echo number_format($p1, 2); ?> | 1001+: Q <?php echo number_format($p2, 2); ?></label>
                         </div>
                     <?php endforeach; ?>
                 </div>
