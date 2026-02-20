@@ -132,17 +132,11 @@ $token = Session::getFormToken();
                 <div id="pliego_calc_detail" class="mt-2 small" style="display:none;">
                     <strong><?php echo Text::_('COM_ORDENPRODUCCION_CALC_DETAIL'); ?></strong>
                     <div class="table-responsive mt-1">
-                        <table class="table table-sm table-bordered mb-1" id="pliego_calc_per_pliego_table">
-                            <caption class="caption-top small fw-bold text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_SECTION_PER_PLIEGO'); ?></caption>
-                            <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_UNIT'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
-                            <tbody id="pliego_calc_per_pliego_body"></tbody>
+                        <table class="table table-sm table-bordered mb-1" id="pliego_calc_table">
+                            <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th><th class="text-end" style="min-width:6em;"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
+                            <tbody id="pliego_calc_body"></tbody>
+                            <tfoot><tr class="table-secondary fw-bold"><td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td><td class="text-end" id="pliego_calc_total_cell">—</td></tr></tfoot>
                         </table>
-                        <table class="table table-sm table-bordered mb-1" id="pliego_calc_processes_table">
-                            <caption class="caption-top small fw-bold text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_SECTION_PROCESSES'); ?></caption>
-                            <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_PROCESS'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_RANGE_PRICE'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
-                            <tbody id="pliego_calc_processes_body"></tbody>
-                        </table>
-                        <p class="mb-0 fw-bold"><span id="pliego_calc_total_label"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?>:</span> <span id="pliego_calc_total_cell">—</span></p>
                     </div>
                 </div>
             </div>
@@ -277,24 +271,12 @@ $token = Session::getFormToken();
                         var detail = document.getElementById('pliego_calc_detail');
                         if (detail) {
                             detail.style.display = 'block';
-                            var perPliego = data.per_pliego || [];
-                            var tbody1 = document.getElementById('pliego_calc_per_pliego_body');
-                            if (tbody1) {
-                                tbody1.innerHTML = perPliego.map(function(row) {
-                                    return '<tr><td>' + escapeHtml(row.label) + '</td><td>Q ' + Number(row.unit_price).toFixed(2) + '</td><td>Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
+                            var rows = data.rows || [];
+                            var tbody = document.getElementById('pliego_calc_body');
+                            if (tbody) {
+                                tbody.innerHTML = rows.map(function(row) {
+                                    return '<tr><td>' + escapeHtml(row.label) + '</td><td>' + escapeHtml(row.detail) + '</td><td class="text-end">Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
                                 }).join('');
-                            }
-                            var processes = data.processes || [];
-                            var tbody2 = document.getElementById('pliego_calc_processes_body');
-                            if (tbody2) {
-                                if (processes.length === 0) {
-                                    tbody2.innerHTML = '<tr><td colspan="3" class="text-muted">—</td></tr>';
-                                } else {
-                                    tbody2.innerHTML = processes.map(function(row) {
-                                        var rangePrice = (row.range_label || '') + ': Q ' + Number(row.price).toFixed(2);
-                                        return '<tr><td>' + escapeHtml(row.name) + '</td><td>' + escapeHtml(rangePrice) + '</td><td>Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
-                                    }).join('');
-                                }
                             }
                             var totalVal = data.total != null ? Number(data.total).toFixed(2) : '—';
                             var totalCell = document.getElementById('pliego_calc_total_cell');

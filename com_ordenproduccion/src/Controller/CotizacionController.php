@@ -102,17 +102,29 @@ class CotizacionController extends BaseController
         $pricePerSheet = $printPrice + $laminationPrice;
         $total = $pricePerSheet * $quantity + $processesTotal;
 
+        $getLabel = function ($key, $fallback) {
+            $t = Text::_($key);
+            return (is_string($t) && (strpos($t, 'COM_ORDENPRODUCCION_') === 0 || $t === $key)) ? $fallback : $t;
+        };
+
         $printLabel = $tiroRetiro === 'retiro'
-            ? Text::_('COM_ORDENPRODUCCION_CALC_PRINT_RETIRO')
-            : Text::_('COM_ORDENPRODUCCION_CALC_PRINT_TIRO');
-        $perPliego = [
-            ['label' => $printLabel, 'unit_price' => (float) $printPrice, 'subtotal' => round($printPrice * $quantity, 2)],
+            ? $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_RETIRO', 'Impresión (Tiro/Retiro)')
+            : $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_TIRO', 'Impresión (Tiro)');
+        $laminationLabel = $getLabel('COM_ORDENPRODUCCION_CALC_LAMINATION', 'Laminación');
+
+        $rows = [];
+        $rows[] = [
+            'label' => $printLabel,
+            'detail' => 'Q ' . number_format((float) $printPrice, 2),
+            'subtotal' => round($printPrice * $quantity, 2),
         ];
         if ($laminationPrice > 0) {
-            $perPliego[] = ['label' => Text::_('COM_ORDENPRODUCCION_CALC_LAMINATION'), 'unit_price' => (float) $laminationPrice, 'subtotal' => round($laminationPrice * $quantity, 2)];
+            $rows[] = [
+                'label' => $laminationLabel,
+                'detail' => 'Q ' . number_format((float) $laminationPrice, 2),
+                'subtotal' => round($laminationPrice * $quantity, 2),
+            ];
         }
-
-        $processBreakdown = [];
         if (!empty($processIds)) {
             $processes = $productosModel->getProcesses();
             foreach ($processes as $p) {
@@ -126,10 +138,9 @@ class CotizacionController extends BaseController
                 $useRange1 = $quantity <= $ceiling;
                 $price = $useRange1 ? (float) ($p->price_1_to_1000 ?? 0) : (float) ($p->price_1001_plus ?? 0);
                 $rangeLabel = $useRange1 ? ('1–' . $ceiling) : (($ceiling + 1) . '+');
-                $processBreakdown[] = [
-                    'name' => $p->name ?? '',
-                    'range_label' => $rangeLabel,
-                    'price' => $price,
+                $rows[] = [
+                    'label' => $p->name ?? '',
+                    'detail' => $rangeLabel . ': Q ' . number_format($price, 2),
                     'subtotal' => $price,
                 ];
             }
@@ -143,8 +154,7 @@ class CotizacionController extends BaseController
             'print_price' => $printPrice,
             'lamination_price' => $laminationPrice,
             'processes_total' => $processesTotal,
-            'per_pliego' => $perPliego,
-            'processes' => $processBreakdown,
+            'rows' => $rows,
         ]);
         $app->close();
     }
