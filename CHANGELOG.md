@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.70.0-STABLE] - 2026-02-01
+
+### Added
+- **Pre-Cotización (Pre-Quote) CRUD**
+  - Same URL as "Nueva cotización (pliego)" (`view=cotizador`) now shows a **list of Pre-Cotizaciones** for the current user. Each user sees only their own documents.
+  - **Nueva Pre-Cotización** creates a new document with automatic number format `PRE-00001`, `PRE-00002`, … (single global sequence for all users).
+  - **Document view** (`layout=document&id=X`): view one Pre-Cotización and its **lines**. Each line stores one pliego quote (inputs + calculation result) so the calculation can be reproduced.
+  - **Nueva Línea** button opens a **modal** with the pliego quote form (quantity, paper, size, tiro/retiro, lamination, processes). User calculates, then **Añadir línea** saves the line to the current Pre-Cotización.
+  - Database: `#__ordenproduccion_pre_cotizacion` (header: number, created_by, …), `#__ordenproduccion_pre_cotizacion_line` (line: quantity, paper_type_id, size_id, tiro_retiro, lamination, process_ids JSON, price_per_sheet, total, calculation_breakdown JSON). Run SQL update `admin/sql/updates/mysql/3.70.0_pre_cotizacion.sql` (replace `joomla_` with your DB prefix if needed).
+  - Model: `PrecotizacionModel` (list, getItem, getNextNumber, getLines, addLine, delete, deleteLine). Controller: `PrecotizacionController` (create, addLine, delete, deleteLine). Cotizador view: default layout = list, document layout = one Pre-Cotización with lines and modal.
+
 ### Changed
 - **Pliego sizes unit: inches.** Sizes (Tamaños de Pliego) now use **inches** instead of centimetres. DB columns are `width_in` and `height_in`. New installs: use updated `3.67.0_pliego_quoting.sql`. Existing installs with `width_cm`/`height_cm`: run `3.67.1_pliego_sizes_inches.sql` to convert and rename columns. UI labels and form placeholders updated (e.g. "Ancho (in)", "Alto (in)", "Dimensiones (in)"); display shows `width_in` with fallback to `width_cm` during transition.
 

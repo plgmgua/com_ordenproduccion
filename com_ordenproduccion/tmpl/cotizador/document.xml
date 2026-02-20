@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE">
+        <message><![CDATA[Pre-Cotización: documento con líneas (cotización por pliego).]]></message>
+    </layout>
+</metadata>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="Cotizador (Pliego)">
-        <message><![CDATA[Crear cotización por pliego: cantidad, papel, tamaño, tiro/retiro, laminación y procesos.]]></message>
+    <layout title="COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_TITLE">
+        <message><![CDATA[Lista de Pre-Cotizaciones del usuario. Crear nueva y agregar líneas con el cotizador por pliego (modal).]]></message>
     </layout>
 </metadata>

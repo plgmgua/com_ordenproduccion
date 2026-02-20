@@ -12,12 +12,16 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Cotizador;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Router\Route;
 
 /**
- * View for pliego-based quotation (cotizador).
+ * View for Pre-Cotización CRUD and pliego quote (cotizador).
  * Menu link: index.php?option=com_ordenproduccion&view=cotizador
+ * - default layout: list of Pre-Cotizaciones (current user).
+ * - document layout: one Pre-Cotización with lines; "Nueva Línea" opens pliego form in modal.
  *
  * @since  3.67.0
  */
@@ -34,32 +38,33 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $app = Factory::getApplication();
-        $user = Factory::getUser();
+        $app   = Factory::getApplication();
+        $user  = Factory::getUser();
+        $input = $app->input;
 
-        // Ensure component language strings are loaded (fixes labels showing as constants)
         $lang = $app->getLanguage();
         $lang->load('com_ordenproduccion', JPATH_SITE);
         $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 
         if ($user->guest) {
-            $app->redirect('index.php?option=com_users&view=login');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
             return;
         }
 
+        $layout = $input->get('layout', 'default', 'cmd');
+        $id     = (int) $input->get('id', 0);
+
+        // Pliego data for modal (paper types, sizes, lamination, processes)
         $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Productos', 'Site', ['ignore_request' => true]);
-        // Paper types and sizes that have at least one non-zero print price
         $this->pliegoPaperTypes = $productosModel->getPaperTypesWithNonZeroPrintPrice();
         $this->pliegoSizes = $productosModel->getSizesWithNonZeroPrintPrice();
-        // Map paper_type_id => [size_id, ...] so the size dropdown only shows sizes with price > 0 for the selected paper
         $sizeIdsByPaperType = [];
         foreach ($this->pliegoPaperTypes as $pt) {
             $sizeIdsByPaperType[(int) $pt->id] = $productosModel->getSizeIdsWithNonZeroPrintPriceForPaperType((int) $pt->id);
         }
         $this->pliegoSizeIdsByPaperType = $sizeIdsByPaperType;
         $this->pliegoLaminationTypes = $productosModel->getLaminationTypes();
-        // Lamination has different prices for tiro vs tiro/retiro; pass both maps so dropdown is filtered by current selection
         $laminationTypeIdsBySizeTiro = [];
         $laminationTypeIdsBySizeRetiro = [];
         foreach ($this->pliegoSizes as $sz) {
@@ -72,8 +77,47 @@ class HtmlView extends BaseHtmlView
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();
 
-        $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_NUEVA_COTIZACION_PLIEGO_TITLE'));
+        if ($layout === 'document' && $id > 0) {
+            HTMLHelper::_('bootstrap.framework');
+            $wa = $this->document->getWebAssetManager();
+            if ($wa->assetExists('script', 'bootstrap.modal')) {
+                $wa->useScript('bootstrap.modal');
+            }
+            $precotModel = $this->getModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            $this->item  = $precotModel->getItem($id);
+            if (!$this->item) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+                return;
+            }
+            $this->lines = $precotModel->getLines($id);
+            $this->setLayout('document');
+            $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE') . ' ' . $this->item->number);
+        } else {
+            $precotModel = $this->getModel('Precotizacion', 'Site');
+            $this->items = $precotModel->getItems();
+            $this->pagination = $precotModel->getPagination();
+            $this->state = $precotModel->getState();
+            $this->setLayout('default');
+            $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_TITLE'));
+        }
 
         parent::display($tpl);
+    }
+
+    /**
+     * Get the correct model for this view (Precotizacion for list/document).
+     *
+     * @param   string  $name    The model name.
+     * @param   string  $prefix  The class prefix.
+     * @param   array   $config  Optional config.
+     *
+     * @return  \Joomla\CMS\MVC\Model\BaseDatabaseModel|null
+     *
+     * @since   3.70.0
+     */
+    public function getModel($name = 'Precotizacion', $prefix = '', $config = [])
+    {
+        return parent::getModel($name, $prefix, $config);
     }
 }
