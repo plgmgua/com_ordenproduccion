@@ -172,6 +172,38 @@ class ProductosController extends BaseController
     }
 
     /**
+     * Save process prices in bulk (like savePliegoPrices / saveLaminationPrices).
+     * POST: price_1_to_1000[process_id], price_1001_plus[process_id]
+     *
+     * @return  void
+     * @since   3.68.0
+     */
+    public function saveProcessPrices()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectWithMessage('processes', Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectWithMessage('processes', Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $prices1To1000 = $input->post->get('price_1_to_1000', [], 'array');
+        $prices1001Plus = $input->post->get('price_1001_plus', [], 'array');
+        $prices1To1000 = array_map('floatval', $prices1To1000);
+        $prices1001Plus = array_map('floatval', $prices1001Plus);
+
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->saveProcessPrices($prices1To1000, $prices1001Plus)) {
+            $this->setRedirectWithMessage('processes', $model->getError() ?: 'Error al guardar precios.', 'error');
+            return;
+        }
+        $this->setRedirectWithMessage('processes', Text::_('COM_ORDENPRODUCCION_SAVED_SUCCESS'), 'success');
+    }
+
+    /**
      * Save pliego print prices for the selected paper type (one price per size).
      * POST: paper_type_id, price[size_id]=value for each size.
      *

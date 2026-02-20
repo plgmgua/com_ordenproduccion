@@ -519,6 +519,42 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Save process prices in bulk (price_1_to_1000 and price_1001_plus per process id).
+     *
+     * @param   array  $prices1To1000  process_id => price (float)
+     * @param   array  $prices1001Plus process_id => price (float)
+     * @return  bool
+     * @since   3.68.0
+     */
+    public function saveProcessPrices($prices1To1000, $prices1001Plus)
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+            return false;
+        }
+        $db = $this->getDatabase();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+        $ids = array_unique(array_merge(array_keys($prices1To1000), array_keys($prices1001Plus)));
+        foreach ($ids as $processId) {
+            $processId = (int) $processId;
+            if ($processId < 1) {
+                continue;
+            }
+            $obj = (object) [
+                'id' => $processId,
+                'price_1_to_1000' => isset($prices1To1000[$processId]) ? (float) $prices1To1000[$processId] : 0,
+                'price_1001_plus' => isset($prices1001Plus[$processId]) ? (float) $prices1001Plus[$processId] : 0,
+                'modified' => $now,
+                'modified_by' => $userId,
+            ];
+            $db->updateObject('#__ordenproduccion_pliego_processes', $obj, ['id']);
+        }
+        return true;
+    }
+
+    /**
      * Get print prices per size for a paper type (tiro and retiro, qty 1–999999).
      *
      * @param   int  $paperTypeId  Paper type ID

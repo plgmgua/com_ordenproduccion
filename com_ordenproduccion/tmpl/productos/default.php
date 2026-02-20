@@ -239,22 +239,43 @@ $l = function ($key, $fallback) {
             <div class="card">
                 <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_PROCESSES', 'Procesos Adicionales (corte, doblez, perforado, etc.)'); ?></div>
                 <div class="card-body">
+                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_PROCESSES_RANGE_NOTE', 'Precios por rango de pliegos: un precio total para 1–1000 pliegos y otro para 1001+.'); ?></p>
                     <?php if (empty($this->processes)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PROCESSES', 'No hay procesos adicionales definidos.'); ?></p>
                     <?php else : ?>
-                        <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_NAME', 'Nombre'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', '1–1000 pliegos'); ?></th><th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', '1001+ pliegos'); ?></th></tr></thead>
-                            <tbody>
-                                <?php foreach ($this->processes as $pr) : ?>
+                        <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_EDIT_PROCESS_PRICES_DESC', 'Cada valor es el precio total para ese rango (no por pliego). Edite y pulse Guardar precios.'); ?></p>
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveProcessPrices'); ?>" method="post">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <table class="table table-sm table-bordered">
+                                <thead>
                                     <tr>
-                                        <td><?php echo (int) $pr->id; ?></td>
-                                        <td><?php echo htmlspecialchars($pr->name ?? ''); ?></td>
-                                        <td>Q <?php echo number_format((float) ($pr->price_1_to_1000 ?? 0), 2); ?></td>
-                                        <td>Q <?php echo number_format((float) ($pr->price_1001_plus ?? 0), 2); ?></td>
+                                        <th>#</th>
+                                        <th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_NAME', 'Nombre'); ?></th>
+                                        <th class="bg-light" style="width:180px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', '1–1000 pliegos'); ?> (Q)</th>
+                                        <th class="bg-light" style="width:180px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', '1001+ pliegos'); ?> (Q)</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($this->processes as $pr) :
+                                        $pid = (int) $pr->id;
+                                        $v1 = (float) ($pr->price_1_to_1000 ?? 0);
+                                        $v2 = (float) ($pr->price_1001_plus ?? 0);
+                                    ?>
+                                        <tr>
+                                            <td><?php echo $pid; ?></td>
+                                            <td><?php echo htmlspecialchars($pr->name ?? ''); ?></td>
+                                            <td>
+                                                <input type="number" name="price_1_to_1000[<?php echo $pid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $v1; ?>" placeholder="0.00">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="price_1001_plus[<?php echo $pid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $v2; ?>" placeholder="0.00">
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <button type="submit" class="btn btn-primary mt-2"><?php echo $l('COM_ORDENPRODUCCION_SAVE_PRICES', 'Guardar precios'); ?></button>
+                        </form>
                     <?php endif; ?>
                 </div>
             </div>
