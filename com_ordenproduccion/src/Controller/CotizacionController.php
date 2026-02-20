@@ -77,17 +77,22 @@ class CotizacionController extends BaseController
             }
         }
 
-        // Procesos Adicionales: price by pliego range (1–1000 vs 1001+), total per process not per sheet
+        // Procesos Adicionales: custom range per process (range_1_ceiling = upper bound of first range)
         $processesTotal = 0.0;
         if (!empty($processIds)) {
             $processes = $productosModel->getProcesses();
-            $useRange = $quantity <= 1000;
             foreach ($processes as $p) {
-                if (in_array((int) $p->id, $processIds, true)) {
-                    $processesTotal += $useRange
-                        ? (float) ($p->price_1_to_1000 ?? 0)
-                        : (float) ($p->price_1001_plus ?? 0);
+                if (!in_array((int) $p->id, $processIds, true)) {
+                    continue;
                 }
+                $ceiling = (int) ($p->range_1_ceiling ?? 1000);
+                if ($ceiling < 1) {
+                    $ceiling = 1000;
+                }
+                $useRange1 = $quantity <= $ceiling;
+                $processesTotal += $useRange1
+                    ? (float) ($p->price_1_to_1000 ?? 0)
+                    : (float) ($p->price_1001_plus ?? 0);
             }
         }
 

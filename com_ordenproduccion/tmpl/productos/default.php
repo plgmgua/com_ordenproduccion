@@ -223,11 +223,15 @@ $l = function ($key, $fallback) {
                             <input type="text" name="name" id="process_name" class="form-control" required placeholder="ej. Corte" maxlength="255">
                         </div>
                         <div class="form-group mb-2 me-2">
-                            <label for="process_price_1_1000" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', 'Precio 1–1000 pliegos'); ?></label>
+                            <label for="process_range_ceiling" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_RANGE_1_CEILING', 'Rango 1 hasta (pliegos)'); ?></label>
+                            <input type="number" name="range_1_ceiling" id="process_range_ceiling" class="form-control" min="1" value="1000" title="<?php echo $l('COM_ORDENPRODUCCION_RANGE_1_CEILING_DESC', 'Límite superior del primer rango; el segundo rango es desde aquí +1'); ?>">
+                        </div>
+                        <div class="form-group mb-2 me-2">
+                            <label for="process_price_1_1000" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', 'Precio rango 1'); ?></label>
                             <input type="number" name="price_1_to_1000" id="process_price_1_1000" class="form-control" step="0.01" min="0" value="0">
                         </div>
                         <div class="form-group mb-2 me-2">
-                            <label for="process_price_1001" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', 'Precio 1001+ pliegos'); ?></label>
+                            <label for="process_price_1001" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', 'Precio rango 2'); ?></label>
                             <input type="number" name="price_1001_plus" id="process_price_1001" class="form-control" step="0.01" min="0" value="0">
                         </div>
                         <div class="form-group mb-2">
@@ -239,7 +243,7 @@ $l = function ($key, $fallback) {
             <div class="card">
                 <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_PROCESSES', 'Procesos Adicionales (corte, doblez, perforado, etc.)'); ?></div>
                 <div class="card-body">
-                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_PROCESSES_RANGE_NOTE', 'Precios por rango de pliegos: un precio total para 1–1000 pliegos y otro para 1001+.'); ?></p>
+                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_PROCESSES_RANGE_NOTE', 'Cada proceso define su propio rango: "Rango 1 hasta" = tope del primer rango (ej. 500 = 1–500); el segundo rango es desde ese tope +1 en adelante.'); ?></p>
                     <?php if (empty($this->processes)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PROCESSES', 'No hay procesos adicionales definidos.'); ?></p>
                     <?php else : ?>
@@ -251,19 +255,27 @@ $l = function ($key, $fallback) {
                                     <tr>
                                         <th>#</th>
                                         <th><?php echo $l('COM_ORDENPRODUCCION_PROCESS_NAME', 'Nombre'); ?></th>
-                                        <th class="bg-light" style="width:180px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', '1–1000 pliegos'); ?> (Q)</th>
-                                        <th class="bg-light" style="width:180px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', '1001+ pliegos'); ?> (Q)</th>
+                                        <th class="bg-light" style="width:140px;"><?php echo $l('COM_ORDENPRODUCCION_RANGE_1_CEILING', 'Rango 1 hasta'); ?></th>
+                                        <th class="bg-light" style="width:140px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', 'Precio rango 1'); ?> (Q)</th>
+                                        <th class="bg-light" style="width:140px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', 'Precio rango 2'); ?> (Q)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($this->processes as $pr) :
                                         $pid = (int) $pr->id;
+                                        $ceiling = (int) ($pr->range_1_ceiling ?? 1000);
+                                        if ($ceiling < 1) {
+                                            $ceiling = 1000;
+                                        }
                                         $v1 = (float) ($pr->price_1_to_1000 ?? 0);
                                         $v2 = (float) ($pr->price_1001_plus ?? 0);
                                     ?>
                                         <tr>
                                             <td><?php echo $pid; ?></td>
                                             <td><?php echo htmlspecialchars($pr->name ?? ''); ?></td>
+                                            <td>
+                                                <input type="number" name="range_1_ceiling[<?php echo $pid; ?>]" class="form-control form-control-sm" min="1" value="<?php echo $ceiling; ?>" placeholder="1000" title="<?php echo $l('COM_ORDENPRODUCCION_RANGE_1_CEILING_DESC', 'Límite superior del primer rango'); ?>">
+                                            </td>
                                             <td>
                                                 <input type="number" name="price_1_to_1000[<?php echo $pid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $v1; ?>" placeholder="0.00">
                                             </td>

@@ -159,6 +159,7 @@ class ProductosController extends BaseController
             'price_per_pliego' => $input->post->getString('price_per_pliego', '0'),
             'price_1_to_1000' => $input->post->getString('price_1_to_1000', '0'),
             'price_1001_plus' => $input->post->getString('price_1001_plus', '0'),
+            'range_1_ceiling' => $input->post->getInt('range_1_ceiling', 1000),
             'ordering' => $input->post->getInt('ordering', 0),
         ];
         $model = $this->getModel('Productos', 'Site');
@@ -192,11 +193,13 @@ class ProductosController extends BaseController
         $input = Factory::getApplication()->input;
         $prices1To1000 = $input->post->get('price_1_to_1000', [], 'array');
         $prices1001Plus = $input->post->get('price_1001_plus', [], 'array');
+        $rangeCeilings = $input->post->get('range_1_ceiling', [], 'array');
         $prices1To1000 = array_map('floatval', $prices1To1000);
         $prices1001Plus = array_map('floatval', $prices1001Plus);
+        $rangeCeilings = array_map('intval', $rangeCeilings);
 
         $model = $this->getModel('Productos', 'Site');
-        if (!$model->saveProcessPrices($prices1To1000, $prices1001Plus)) {
+        if (!$model->saveProcessPrices($prices1To1000, $prices1001Plus, $rangeCeilings)) {
             $this->setRedirectWithMessage('processes', $model->getError() ?: 'Error al guardar precios.', 'error');
             return;
         }

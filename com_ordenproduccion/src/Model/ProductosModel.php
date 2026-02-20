@@ -494,6 +494,10 @@ class ProductosModel extends BaseDatabaseModel
         }
         $now = Factory::getDate()->toSql();
         $userId = (int) $user->id;
+        $ceiling = (int) ($data['range_1_ceiling'] ?? 1000);
+        if ($ceiling < 1) {
+            $ceiling = 1000;
+        }
         $obj = (object) [
             'id' => $id,
             'name' => $name,
@@ -501,6 +505,7 @@ class ProductosModel extends BaseDatabaseModel
             'price_per_pliego' => isset($data['price_per_pliego']) ? (float) $data['price_per_pliego'] : 0,
             'price_1_to_1000' => isset($data['price_1_to_1000']) ? (float) $data['price_1_to_1000'] : 0,
             'price_1001_plus' => isset($data['price_1001_plus']) ? (float) $data['price_1001_plus'] : 0,
+            'range_1_ceiling' => $ceiling,
             'ordering' => (int) ($data['ordering'] ?? 0),
             'state' => isset($data['state']) ? (int) $data['state'] : 1,
             'modified' => $now,
@@ -519,14 +524,15 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Save process prices in bulk (price_1_to_1000 and price_1001_plus per process id).
+     * Save process prices and range ceilings in bulk.
      *
      * @param   array  $prices1To1000  process_id => price (float)
      * @param   array  $prices1001Plus process_id => price (float)
+     * @param   array  $rangeCeilings process_id => ceiling (int, upper bound of first range)
      * @return  bool
      * @since   3.68.0
      */
-    public function saveProcessPrices($prices1To1000, $prices1001Plus)
+    public function saveProcessPrices($prices1To1000, $prices1001Plus, $rangeCeilings = [])
     {
         if (!$this->tablesExist()) {
             $this->setError('Pliego tables not installed.');
@@ -536,16 +542,25 @@ class ProductosModel extends BaseDatabaseModel
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
         $userId = (int) $user->id;
-        $ids = array_unique(array_merge(array_keys($prices1To1000), array_keys($prices1001Plus)));
+        $ids = array_unique(array_merge(
+            array_keys($prices1To1000),
+            array_keys($prices1001Plus),
+            array_keys($rangeCeilings)
+        ));
         foreach ($ids as $processId) {
             $processId = (int) $processId;
             if ($processId < 1) {
                 continue;
             }
+            $ceiling = isset($rangeCeilings[$processId]) ? (int) $rangeCeilings[$processId] : 1000;
+            if ($ceiling < 1) {
+                $ceiling = 1000;
+            }
             $obj = (object) [
                 'id' => $processId,
                 'price_1_to_1000' => isset($prices1To1000[$processId]) ? (float) $prices1To1000[$processId] : 0,
                 'price_1001_plus' => isset($prices1001Plus[$processId]) ? (float) $prices1001Plus[$processId] : 0,
+                'range_1_ceiling' => $ceiling,
                 'modified' => $now,
                 'modified_by' => $userId,
             ];

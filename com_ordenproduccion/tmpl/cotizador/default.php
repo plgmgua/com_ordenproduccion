@@ -103,12 +103,16 @@ $token = Session::getFormToken();
                 <div class="d-flex flex-wrap gap-3">
                     <?php foreach ($processes as $pr) : ?>
                         <?php
+                        $ceiling = (int) ($pr->range_1_ceiling ?? 1000);
+                        if ($ceiling < 1) {
+                            $ceiling = 1000;
+                        }
                         $p1 = (float) ($pr->price_1_to_1000 ?? 0);
                         $p2 = (float) ($pr->price_1001_plus ?? 0);
                         ?>
                         <div class="form-check">
                             <input type="checkbox" name="process_ids[]" value="<?php echo (int) $pr->id; ?>" id="proc_<?php echo (int) $pr->id; ?>" class="form-check-input pliego-process-cb">
-                            <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?> — 1–1000: Q <?php echo number_format($p1, 2); ?> | 1001+: Q <?php echo number_format($p2, 2); ?></label>
+                            <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?> — 1–<?php echo $ceiling; ?>: Q <?php echo number_format($p1, 2); ?> | <?php echo $ceiling + 1; ?>+: Q <?php echo number_format($p2, 2); ?></label>
                         </div>
                     <?php endforeach; ?>
                 </div>
