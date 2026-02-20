@@ -104,6 +104,38 @@ class HtmlView extends BaseHtmlView
     protected $laminationPrices = [];
 
     /**
+     * Active section: pliegos | elementos
+     *
+     * @var    string
+     * @since  3.71.0
+     */
+    protected $section = 'pliegos';
+
+    /**
+     * Elementos list (for section=elementos)
+     *
+     * @var    array
+     * @since  3.71.0
+     */
+    protected $elementos = [];
+
+    /**
+     * Single elemento for edit form (for section=elementos)
+     *
+     * @var    \stdClass|null
+     * @since  3.71.0
+     */
+    protected $elemento = null;
+
+    /**
+     * Whether elementos table exists (for section=elementos)
+     *
+     * @var    bool
+     * @since  3.71.0
+     */
+    protected $elementosTableExists = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -121,10 +153,21 @@ class HtmlView extends BaseHtmlView
         }
 
         $input = $app->input;
+        $this->section = $input->get('section', 'pliegos', 'cmd');
+        if (!in_array($this->section, ['pliegos', 'elementos'], true)) {
+            $this->section = 'pliegos';
+        }
         $this->activeTab = $input->get('tab', 'sizes', 'cmd');
 
         $model = $this->getModel('Productos');
         $this->tablesExist = $model->tablesExist();
+
+        if ($this->section === 'elementos') {
+            $this->elementosTableExists = $model->elementosTableExists();
+            $this->elementos = $model->getElementos();
+            $editId = $input->getInt('edit_id', 0);
+            $this->elemento = $editId > 0 ? $model->getElemento($editId) : null;
+        }
 
         if ($this->tablesExist) {
             $this->sizes = $model->getSizes();

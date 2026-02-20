@@ -815,4 +815,141 @@ class ProductosModel extends BaseDatabaseModel
         }
         return true;
     }
+
+    /**
+     * Check if elementos table exists
+     *
+     * @return  bool
+     * @since   3.71.0
+     */
+    public function elementosTableExists()
+    {
+        $db = $this->getDatabase();
+        $tables = $db->getTableList();
+        $prefix = $db->getPrefix();
+        $needle = $prefix . 'ordenproduccion_elementos';
+        foreach ($tables as $name) {
+            if (strcasecmp($name, $needle) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get all elementos (name, size, price products)
+     *
+     * @return  array
+     * @since   3.71.0
+     */
+    public function getElementos()
+    {
+        if (!$this->elementosTableExists()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_elementos'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, id ASC');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Get one elemento by id
+     *
+     * @param   int  $id  Elemento id
+     * @return  \stdClass|null
+     * @since   3.71.0
+     */
+    public function getElemento($id)
+    {
+        $id = (int) $id;
+        if ($id < 1 || !$this->elementosTableExists()) {
+            return null;
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_elementos'))
+            ->where($db->quoteName('id') . ' = ' . $id);
+        $db->setQuery($query);
+        return $db->loadObject() ?: null;
+    }
+
+    /**
+     * Save elemento (create or update)
+     *
+     * @param   array  $data  name, size, price, id (optional)
+     * @return  int|false  Id on success
+     * @since   3.71.0
+     */
+    public function saveElemento(array $data)
+    {
+        if (!$this->elementosTableExists()) {
+            $this->setError('Elementos table not installed.');
+            return false;
+        }
+        $db = $this->getDatabase();
+        $user = Factory::getUser();
+        $userId = (int) $user->id;
+        $now = Factory::getDate()->toSql();
+        $id = (int) ($data['id'] ?? 0);
+
+        $obj = (object) [
+            'name' => trim($data['name'] ?? ''),
+            'size' => trim($data['size'] ?? ''),
+            'price' => (float) ($data['price'] ?? 0),
+            'ordering' => (int) ($data['ordering'] ?? 0),
+            'state' => 1,
+            'modified' => $now,
+            'modified_by' => $userId,
+        ];
+
+        if ($id > 0) {
+            $obj->id = $id;
+            try {
+                $db->updateObject('#__ordenproduccion_elementos', $obj, 'id');
+                return $id;
+            } catch (\Exception $e) {
+                $this->setError($e->getMessage());
+                return false;
+            }
+        }
+
+        $obj->created = $now;
+        $obj->created_by = $userId;
+        try {
+            $db->insertObject('#__ordenproduccion_elementos', $obj, 'id');
+            return (int) $obj->id;
+        } catch (\Exception $e) {
+            $this->setError($e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Delete elemento (soft delete: set state = 0)
+     *
+     * @param   int  $id  Elemento id
+     * @return  bool
+     * @since   3.71.0
+     */
+    public function deleteElemento($id)
+    {
+        $id = (int) $id;
+        if ($id < 1 || !$this->elementosTableExists()) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $obj = (object) ['id' => $id, 'state' => 0];
+        try {
+            $db->updateObject('#__ordenproduccion_elementos', $obj, 'id');
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
 }

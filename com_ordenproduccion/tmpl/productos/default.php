@@ -15,8 +15,11 @@ use Joomla\CMS\Router\Route;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Productos\HtmlView $this */
 
+$section = $this->section ?? 'pliegos';
 $activeTab = $this->activeTab ?? 'sizes';
 $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
+$basePliegos = $baseUrl . '&section=pliegos';
+$baseElementos = $baseUrl . '&section=elementos';
 
 // Fallback to human-friendly labels when language file is not loaded (e.g. after deploy)
 $l = function ($key, $fallback) {
@@ -28,7 +31,95 @@ $l = function ($key, $fallback) {
     <div class="container-fluid">
         <h1 class="page-title"><?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TITLE', 'Productos'); ?></h1>
 
-        <?php if (!$this->tablesExist) : ?>
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link <?php echo $section === 'pliegos' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($basePliegos . '&tab=sizes'); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_PLIEGOS', 'Pliegos'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $section === 'elementos' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseElementos); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ELEMENTOS', 'Elementos'); ?>
+                </a>
+            </li>
+        </ul>
+
+        <?php if ($section === 'elementos') : ?>
+            <?php if (empty($this->elementosTableExists)) : ?>
+                <div class="alert alert-warning">
+                    <?php echo $l('COM_ORDENPRODUCCION_ELEMENTOS_TABLE_MISSING', 'La tabla de elementos no está instalada. Ejecute el script 3.71.0_elementos.sql'); ?>
+                </div>
+            <?php else :
+                $elementos = $this->elementos ?? [];
+                $elemento = $this->elemento ?? null;
+            ?>
+            <div class="card mb-3">
+                <div class="card-header"><?php echo $elemento ? $l('COM_ORDENPRODUCCION_ELEMENTO_EDIT', 'Editar elemento') : $l('COM_ORDENPRODUCCION_ELEMENTO_ADD', 'Añadir elemento'); ?></div>
+                <div class="card-body">
+                    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveElemento'); ?>" method="post" class="form-inline flex-wrap gap-2 align-items-end">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="id" value="<?php echo $elemento ? (int) $elemento->id : 0; ?>">
+                        <div class="form-group mb-2 me-2">
+                            <label for="elemento_name" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_NAME', 'Nombre'); ?></label>
+                            <input type="text" name="name" id="elemento_name" class="form-control" required maxlength="255" value="<?php echo $elemento ? htmlspecialchars($elemento->name ?? '') : ''; ?>">
+                        </div>
+                        <div class="form-group mb-2 me-2">
+                            <label for="elemento_size" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_SIZE', 'Tamaño'); ?></label>
+                            <input type="text" name="size" id="elemento_size" class="form-control" maxlength="100" value="<?php echo $elemento ? htmlspecialchars($elemento->size ?? '') : ''; ?>" placeholder="ej. 60x90">
+                        </div>
+                        <div class="form-group mb-2 me-2">
+                            <label for="elemento_price" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE', 'Precio'); ?></label>
+                            <input type="number" name="price" id="elemento_price" class="form-control" step="0.01" min="0" value="<?php echo $elemento ? (float) $elemento->price : ''; ?>" placeholder="0.00">
+                        </div>
+                        <div class="form-group mb-2">
+                            <button type="submit" class="btn btn-primary"><?php echo $elemento ? $l('JSAVE', 'Guardar') : $l('COM_ORDENPRODUCCION_ADD', 'Añadir'); ?></button>
+                            <?php if ($elemento) : ?>
+                                <a href="<?php echo Route::_($baseElementos); ?>" class="btn btn-secondary"><?php echo $l('JCANCEL', 'Cancelar'); ?></a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTOS_LIST', 'Elementos'); ?></div>
+                <div class="card-body">
+                    <?php if (empty($elementos)) : ?>
+                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_ELEMENTOS', 'No hay elementos. Añada uno arriba.'); ?></p>
+                    <?php else : ?>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_NAME', 'Nombre'); ?></th>
+                                    <th><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_SIZE', 'Tamaño'); ?></th>
+                                    <th><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE', 'Precio'); ?></th>
+                                    <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ACTIONS', 'Acciones'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($elementos as $el) :
+                                    $deleteUrl = Route::_('index.php?option=com_ordenproduccion&task=productos.deleteElemento&id=' . (int) $el->id . '&' . \Joomla\CMS\Session\Session::getFormToken() . '=1');
+                                    $editUrl = Route::_($baseElementos . '&edit_id=' . (int) $el->id);
+                                ?>
+                                    <tr>
+                                        <td><?php echo (int) $el->id; ?></td>
+                                        <td><?php echo htmlspecialchars($el->name ?? ''); ?></td>
+                                        <td><?php echo htmlspecialchars($el->size ?? ''); ?></td>
+                                        <td>Q <?php echo number_format((float) ($el->price ?? 0), 2); ?></td>
+                                        <td class="text-end">
+                                            <a href="<?php echo $editUrl; ?>" class="btn btn-sm btn-outline-primary"><?php echo $l('JEDIT', 'Editar'); ?></a>
+                                            <a href="<?php echo $deleteUrl; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ELEMENTO_CONFIRM_DELETE', '¿Eliminar este elemento?')); ?>');"><?php echo $l('JACTION_DELETE', 'Eliminar'); ?></a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php elseif (!$this->tablesExist) : ?>
             <div class="alert alert-warning">
                 <?php echo $l('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING', 'Las tablas del sistema de cotización por pliego no están instaladas.'); ?>
                 <br>
@@ -39,37 +130,37 @@ $l = function ($key, $fallback) {
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'sizes' ? 'active' : ''; ?>"
-                   href="<?php echo Route::_($baseUrl . '&tab=sizes'); ?>">
+                   href="<?php echo Route::_($basePliegos . '&tab=sizes'); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_SIZES', 'Tamaños'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'papers' ? 'active' : ''; ?>"
-                   href="<?php echo Route::_($baseUrl . '&tab=papers'); ?>">
+                   href="<?php echo Route::_($basePliegos . '&tab=papers'); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PAPERS', 'Tipos de Papel'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'lamination' ? 'active' : ''; ?>"
-                   href="<?php echo Route::_($baseUrl . '&tab=lamination'); ?>">
+                   href="<?php echo Route::_($basePliegos . '&tab=lamination'); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_LAMINATION', 'Tipos de Laminación'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'processes' ? 'active' : ''; ?>"
-                   href="<?php echo Route::_($baseUrl . '&tab=processes'); ?>">
+                   href="<?php echo Route::_($basePliegos . '&tab=processes'); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PROCESSES', 'Procesos Adicionales'); ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'pliego' ? 'active' : ''; ?>"
-                   href="<?php echo Route::_($baseUrl . '&tab=pliego'); ?>">
+                   href="<?php echo Route::_($basePliegos . '&tab=pliego'); ?>">
                     Pliego Papel
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'pliego_laminado' ? 'active' : ''; ?>"
-                   href="<?php echo Route::_($baseUrl . '&tab=pliego_laminado'); ?>">
+                   href="<?php echo Route::_($basePliegos . '&tab=pliego_laminado'); ?>">
                     Pliego Laminado
                 </a>
             </li>
@@ -248,7 +339,7 @@ $l = function ($key, $fallback) {
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PROCESSES', 'No hay procesos adicionales definidos.'); ?></p>
                     <?php else : ?>
                         <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_EDIT_PROCESS_PRICES_DESC', 'Cada valor es el precio total para ese rango (no por pliego). Edite y pulse Guardar precios.'); ?></p>
-                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=processes'); ?>" method="post" name="adminForm" id="adminForm_process_prices">
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=processes'); ?>" method="post" name="adminForm" id="adminForm_process_prices">
                             <input type="hidden" name="task" value="productos.saveProcessPrices">
                             <?php echo HTMLHelper::_('form.token'); ?>
                             <table class="table table-sm table-bordered">
@@ -299,9 +390,10 @@ $l = function ($key, $fallback) {
                 <div class="card-header">Pliego Papel – Precio por pliego (papel + tamaño)</div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Seleccione un tipo de papel y defina el precio por pliego para cada tamaño. <strong>Tiro</strong> = impresión o laminación en un solo lado; <strong>Tiro/Retiro</strong> = en ambos lados.</p>
-                    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=pliego'); ?>" class="mb-4">
+                    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego'); ?>" class="mb-4">
                         <input type="hidden" name="option" value="com_ordenproduccion">
                         <input type="hidden" name="view" value="productos">
+                        <input type="hidden" name="section" value="pliegos">
                         <input type="hidden" name="tab" value="pliego">
                         <label for="pliego_paper_type" class="me-2">Tipo de papel</label>
                         <select name="paper_type_id" id="pliego_paper_type" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
@@ -362,9 +454,10 @@ $l = function ($key, $fallback) {
                 <div class="card-header">Pliego Laminado – Precio por pliego (tipo de laminación + tamaño)</div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Seleccione un tipo de laminación y defina el precio por pliego para cada tamaño. <strong>Tiro</strong> = un solo lado; <strong>Tiro/Retiro</strong> = ambos lados.</p>
-                    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=pliego_laminado'); ?>" class="mb-4">
+                    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego_laminado'); ?>" class="mb-4">
                         <input type="hidden" name="option" value="com_ordenproduccion">
                         <input type="hidden" name="view" value="productos">
+                        <input type="hidden" name="section" value="pliegos">
                         <input type="hidden" name="tab" value="pliego_laminado">
                         <label for="pliego_lam_type" class="me-2">Tipo de laminación</label>
                         <select name="lamination_type_id" id="pliego_lam_type" class="form-select d-inline-block w-auto" onchange="this.form.submit()">

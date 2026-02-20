@@ -252,7 +252,7 @@ class ProductosController extends BaseController
     private function setRedirectWithMessage($tab, $msg, $type = 'notice')
     {
         Factory::getApplication()->enqueueMessage($msg, $type);
-        $url = Route::_('index.php?option=com_ordenproduccion&view=productos&tab=' . $tab, false);
+        $url = Route::_('index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=' . $tab, false);
         $this->setRedirect($url);
     }
 
@@ -268,7 +268,7 @@ class ProductosController extends BaseController
     private function setRedirectPliego($paperTypeId, $msg, $type = 'notice')
     {
         Factory::getApplication()->enqueueMessage($msg, $type);
-        $url = 'index.php?option=com_ordenproduccion&view=productos&tab=pliego';
+        $url = 'index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego';
         if ($paperTypeId > 0) {
             $url .= '&paper_type_id=' . (int) $paperTypeId;
         }
@@ -319,10 +319,89 @@ class ProductosController extends BaseController
     private function setRedirectPliegoLaminado($laminationTypeId, $msg, $type = 'notice')
     {
         Factory::getApplication()->enqueueMessage($msg, $type);
-        $url = 'index.php?option=com_ordenproduccion&view=productos&tab=pliego_laminado';
+        $url = 'index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego_laminado';
         if ($laminationTypeId > 0) {
             $url .= '&lamination_type_id=' . (int) $laminationTypeId;
         }
         $this->setRedirect(Route::_($url, false));
+    }
+
+    /**
+     * Save elemento (name, size, price). Redirects to Productos section=elementos.
+     *
+     * @return  void
+     * @since   3.71.0
+     */
+    public function saveElemento()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectElementos(Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectElementos(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $data = [
+            'id' => $input->post->getInt('id', 0),
+            'name' => $input->post->getString('name', ''),
+            'size' => $input->post->getString('size', ''),
+            'price' => $input->post->getFloat('price', 0),
+            'ordering' => $input->post->getInt('ordering', 0),
+        ];
+        $model = $this->getModel('Productos', 'Site');
+        $id = $model->saveElemento($data);
+        if ($id === false) {
+            $this->setRedirectElementos($model->getError() ?: 'Error al guardar elemento.', 'error');
+            return;
+        }
+        $msg = $data['id'] ? Text::_('COM_ORDENPRODUCCION_ELEMENTO_SAVED') : Text::_('COM_ORDENPRODUCCION_ELEMENTO_ADDED');
+        $this->setRedirectElementos($msg, 'success');
+    }
+
+    /**
+     * Delete elemento (soft delete). Redirects to Productos section=elementos.
+     *
+     * @return  void
+     * @since   3.71.0
+     */
+    public function deleteElemento()
+    {
+        if (!Session::checkToken('request')) {
+            $this->setRedirectElementos(Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectElementos(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $id = Factory::getApplication()->input->getInt('id', 0);
+        if ($id < 1) {
+            $this->setRedirectElementos(Text::_('COM_ORDENPRODUCCION_ELEMENTO_ERROR_INVALID'), 'error');
+            return;
+        }
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->deleteElemento($id)) {
+            $this->setRedirectElementos(Text::_('COM_ORDENPRODUCCION_ELEMENTO_ERROR_DELETE'), 'error');
+            return;
+        }
+        $this->setRedirectElementos(Text::_('COM_ORDENPRODUCCION_ELEMENTO_DELETED'), 'success');
+    }
+
+    /**
+     * Redirect to Productos section=elementos.
+     *
+     * @param   string  $msg   Message text
+     * @param   string  $type  Message type
+     * @return  void
+     * @since   3.71.0
+     */
+    private function setRedirectElementos($msg, $type = 'notice')
+    {
+        Factory::getApplication()->enqueueMessage($msg, $type);
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=elementos', false));
     }
 }
