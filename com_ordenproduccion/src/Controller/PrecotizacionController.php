@@ -159,6 +159,70 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Update an existing line (same POST fields as addLine + line_id).
+     *
+     * @return  bool
+     *
+     * @since   3.70.0
+     */
+    public function editLine()
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('request')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+            return false;
+        }
+
+        $lineId = (int) $app->input->get('line_id', 0);
+        $preCotizacionId = (int) $app->input->get('pre_cotizacion_id', 0);
+        if ($lineId < 1 || $preCotizacionId < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        $breakdown = $app->input->get('calculation_breakdown', '', 'raw');
+        if (is_string($breakdown) && $breakdown !== '') {
+            $decoded = json_decode($breakdown, true);
+            $breakdown = is_array($decoded) ? $decoded : [];
+        } else {
+            $breakdown = [];
+        }
+
+        $data = [
+            'quantity'               => (int) $app->input->get('quantity', 1),
+            'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
+            'size_id'                => (int) $app->input->get('size_id', 0),
+            'tiro_retiro'            => $app->input->get('tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
+            'lamination_type_id'     => (int) $app->input->get('lamination_type_id', 0) ?: null,
+            'lamination_tiro_retiro' => $app->input->get('lamination_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
+            'process_ids'            => $app->input->get('process_ids', [], 'array'),
+            'price_per_sheet'        => (float) $app->input->get('price_per_sheet', 0),
+            'total'                  => (float) $app->input->get('total', 0),
+            'calculation_breakdown'  => $breakdown,
+        ];
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->updateLine($lineId, $data)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_EDIT_LINE'), 'error');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_UPDATED'));
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+        return true;
+    }
+
+    /**
      * Delete a Pre-Cotización (only own).
      *
      * @return  bool
