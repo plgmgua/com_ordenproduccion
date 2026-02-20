@@ -70,8 +70,16 @@ $l = function ($key, $fallback) {
                             <input type="text" name="size" id="elemento_size" class="form-control" maxlength="100" value="<?php echo $elemento ? htmlspecialchars($elemento->size ?? '') : ''; ?>" placeholder="ej. 60x90">
                         </div>
                         <div class="form-group mb-2 me-2">
-                            <label for="elemento_price" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE', 'Precio'); ?></label>
-                            <input type="number" name="price" id="elemento_price" class="form-control" step="0.01" min="0" value="<?php echo $elemento ? (float) $elemento->price : ''; ?>" placeholder="0.00">
+                            <label for="elemento_price" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE_RANGE_1', 'Precio rango 1'); ?></label>
+                            <input type="number" name="price" id="elemento_price" class="form-control" step="0.01" min="0" value="<?php echo $elemento ? (float) ($elemento->price_1_to_1000 ?? $elemento->price ?? 0) : ''; ?>" placeholder="0.00" title="<?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE_PER_UNIT', 'Precio por unidad (rango 1)'); ?>">
+                        </div>
+                        <div class="form-group mb-2 me-2">
+                            <label for="elemento_range_1_ceiling" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_RANGE_1_CEILING', 'Rango 1 hasta (unidades)'); ?></label>
+                            <input type="number" name="range_1_ceiling" id="elemento_range_1_ceiling" class="form-control" min="1" value="<?php echo $elemento ? (int) ($elemento->range_1_ceiling ?? 1000) : 1000; ?>" title="<?php echo $l('COM_ORDENPRODUCCION_RANGE_1_CEILING_DESC', 'Límite superior del primer rango'); ?>">
+                        </div>
+                        <div class="form-group mb-2 me-2">
+                            <label for="elemento_price_1001" class="me-1"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE_RANGE_2', 'Precio rango 2'); ?></label>
+                            <input type="number" name="price_1001_plus" id="elemento_price_1001" class="form-control" step="0.01" min="0" value="<?php echo $elemento ? (float) ($elemento->price_1001_plus ?? 0) : ''; ?>" placeholder="0.00" title="<?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE_PER_UNIT_2', 'Precio por unidad (rango 2)'); ?>">
                         </div>
                         <div class="form-group mb-2">
                             <button type="submit" class="btn btn-primary"><?php echo $elemento ? $l('JSAVE', 'Guardar') : $l('COM_ORDENPRODUCCION_ADD', 'Añadir'); ?></button>
@@ -88,13 +96,16 @@ $l = function ($key, $fallback) {
                     <?php if (empty($elementos)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_ELEMENTOS', 'No hay elementos. Añada uno arriba.'); ?></p>
                     <?php else : ?>
-                        <table class="table table-sm">
+                        <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTOS_RANGE_NOTE', 'Cada elemento puede definir dos rangos por cantidad: Rango 1 hasta (unidades) y precios por unidad para cada rango.'); ?></p>
+                        <table class="table table-sm table-bordered">
                             <thead>
                                 <tr>
                                     <th>#</th>
                                     <th><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_NAME', 'Nombre'); ?></th>
                                     <th><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_SIZE', 'Tamaño'); ?></th>
-                                    <th><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE', 'Precio'); ?></th>
+                                    <th class="bg-light"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_RANGE_1_CEILING', 'Rango 1 hasta'); ?></th>
+                                    <th class="bg-light"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE_RANGE_1', 'Precio rango 1'); ?> (Q)</th>
+                                    <th class="bg-light"><?php echo $l('COM_ORDENPRODUCCION_ELEMENTO_PRICE_RANGE_2', 'Precio rango 2'); ?> (Q)</th>
                                     <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ACTIONS', 'Acciones'); ?></th>
                                 </tr>
                             </thead>
@@ -102,12 +113,17 @@ $l = function ($key, $fallback) {
                                 <?php foreach ($elementos as $el) :
                                     $deleteUrl = Route::_('index.php?option=com_ordenproduccion&task=productos.deleteElemento&id=' . (int) $el->id . '&' . \Joomla\CMS\Session\Session::getFormToken() . '=1');
                                     $editUrl = Route::_($baseElementos . '&edit_id=' . (int) $el->id);
+                                    $ceiling = (int) ($el->range_1_ceiling ?? 1000);
+                                    $p1 = (float) ($el->price_1_to_1000 ?? $el->price ?? 0);
+                                    $p2 = (float) ($el->price_1001_plus ?? 0);
                                 ?>
                                     <tr>
                                         <td><?php echo (int) $el->id; ?></td>
                                         <td><?php echo htmlspecialchars($el->name ?? ''); ?></td>
                                         <td><?php echo htmlspecialchars($el->size ?? ''); ?></td>
-                                        <td>Q <?php echo number_format((float) ($el->price ?? 0), 2); ?></td>
+                                        <td><?php echo $ceiling; ?></td>
+                                        <td>Q <?php echo number_format($p1, 2); ?></td>
+                                        <td>Q <?php echo number_format($p2, 2); ?></td>
                                         <td class="text-end">
                                             <a href="<?php echo $editUrl; ?>" class="btn btn-sm btn-outline-primary"><?php echo $l('JEDIT', 'Editar'); ?></a>
                                             <a href="<?php echo $deleteUrl; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ELEMENTO_CONFIRM_DELETE', '¿Eliminar este elemento?')); ?>');"><?php echo $l('JACTION_DELETE', 'Eliminar'); ?></a>

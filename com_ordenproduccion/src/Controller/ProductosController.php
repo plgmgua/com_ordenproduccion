@@ -349,6 +349,9 @@ class ProductosController extends BaseController
             'name' => $input->post->getString('name', ''),
             'size' => $input->post->getString('size', ''),
             'price' => $input->post->getFloat('price', 0),
+            'range_1_ceiling' => $input->post->getInt('range_1_ceiling', 1000),
+            'price_1_to_1000' => $input->post->getFloat('price_1_to_1000', 0),
+            'price_1001_plus' => $input->post->getFloat('price_1001_plus', 0),
             'ordering' => $input->post->getInt('ordering', 0),
         ];
         $model = $this->getModel('Productos', 'Site');

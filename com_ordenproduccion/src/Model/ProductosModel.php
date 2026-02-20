@@ -882,7 +882,7 @@ class ProductosModel extends BaseDatabaseModel
     /**
      * Save elemento (create or update)
      *
-     * @param   array  $data  name, size, price, id (optional)
+     * @param   array  $data  name, size, price, range_1_ceiling, price_1_to_1000, price_1001_plus, id (optional)
      * @return  int|false  Id on success
      * @since   3.71.0
      */
@@ -898,6 +898,11 @@ class ProductosModel extends BaseDatabaseModel
         $now = Factory::getDate()->toSql();
         $id = (int) ($data['id'] ?? 0);
 
+        $ceiling = (int) ($data['range_1_ceiling'] ?? 1000);
+        if ($ceiling < 1) {
+            $ceiling = 1000;
+        }
+
         $obj = (object) [
             'name' => trim($data['name'] ?? ''),
             'size' => trim($data['size'] ?? ''),
@@ -907,6 +912,13 @@ class ProductosModel extends BaseDatabaseModel
             'modified' => $now,
             'modified_by' => $userId,
         ];
+
+        $columns = $db->getTableColumns('#__ordenproduccion_elementos', false);
+        if (isset($columns['range_1_ceiling'])) {
+            $obj->range_1_ceiling = $ceiling;
+            $obj->price_1_to_1000 = isset($data['price_1_to_1000']) ? (float) $data['price_1_to_1000'] : (float) ($data['price'] ?? 0);
+            $obj->price_1001_plus = isset($data['price_1001_plus']) ? (float) $data['price_1001_plus'] : 0;
+        }
 
         if ($id > 0) {
             $obj->id = $id;
