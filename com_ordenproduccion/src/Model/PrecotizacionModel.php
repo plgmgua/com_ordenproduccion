@@ -202,9 +202,7 @@ class PrecotizacionModel extends ListModel
 
         $db = $this->getDatabase();
         $query = $db->getQuery(true)
-            ->select('l.id, l.pre_cotizacion_id, l.quantity, l.paper_type_id, l.size_id, l.tiro_retiro, ' .
-                'l.lamination_type_id, l.lamination_tiro_retiro, l.process_ids, l.price_per_sheet, l.total, ' .
-                'l.calculation_breakdown, l.ordering, l.created')
+            ->select('l.*')
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line', 'l'))
             ->where($db->quoteName('l.pre_cotizacion_id') . ' = ' . $preCotizacionId)
             ->order($db->quoteName('l.ordering') . ' ASC, ' . $db->quoteName('l.id') . ' ASC');
@@ -250,12 +248,9 @@ class PrecotizacionModel extends ListModel
 
         $db = $this->getDatabase();
         $query = $db->getQuery(true)
-            ->select('l.id, l.pre_cotizacion_id, l.quantity, l.paper_type_id, l.size_id, l.tiro_retiro, ' .
-                'l.lamination_type_id, l.lamination_tiro_retiro, l.process_ids, l.price_per_sheet, l.total, ' .
-                'l.calculation_breakdown, l.ordering, l.created')
+            ->select('l.*')
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line', 'l'))
             ->where($db->quoteName('l.id') . ' = ' . $lineId);
-
         $db->setQuery($query);
         $line = $db->loadObject();
         if (!$line) {
@@ -398,6 +393,9 @@ class PrecotizacionModel extends ListModel
             $ordering = (int) $db->loadResult();
         }
 
+        $lineType = (isset($data['line_type']) && $data['line_type'] === 'elementos') ? 'elementos' : 'pliego';
+        $elementoId = $lineType === 'elementos' ? (int) ($data['elemento_id'] ?? 0) : null;
+
         $processIds = isset($data['process_ids']) && is_array($data['process_ids'])
             ? json_encode(array_values(array_map('intval', $data['process_ids'])))
             : '[]';
@@ -408,17 +406,24 @@ class PrecotizacionModel extends ListModel
         $line = (object) [
             'pre_cotizacion_id'       => $preCotizacionId,
             'quantity'               => (int) ($data['quantity'] ?? 1),
-            'paper_type_id'          => (int) ($data['paper_type_id'] ?? 0),
-            'size_id'                => (int) ($data['size_id'] ?? 0),
-            'tiro_retiro'            => ($data['tiro_retiro'] ?? 'tiro') === 'retiro' ? 'retiro' : 'tiro',
-            'lamination_type_id'     => isset($data['lamination_type_id']) ? (int) $data['lamination_type_id'] : null,
-            'lamination_tiro_retiro' => isset($data['lamination_tiro_retiro']) && $data['lamination_tiro_retiro'] === 'retiro' ? 'retiro' : 'tiro',
-            'process_ids'            => $processIds,
+            'paper_type_id'          => $lineType === 'pliego' ? (int) ($data['paper_type_id'] ?? 0) : 0,
+            'size_id'                => $lineType === 'pliego' ? (int) ($data['size_id'] ?? 0) : 0,
+            'tiro_retiro'            => $lineType === 'pliego' ? (($data['tiro_retiro'] ?? 'tiro') === 'retiro' ? 'retiro' : 'tiro') : 'tiro',
+            'lamination_type_id'     => $lineType === 'pliego' && isset($data['lamination_type_id']) ? (int) $data['lamination_type_id'] : null,
+            'lamination_tiro_retiro' => $lineType === 'pliego' && isset($data['lamination_tiro_retiro']) && $data['lamination_tiro_retiro'] === 'retiro' ? 'retiro' : 'tiro',
+            'process_ids'            => $lineType === 'pliego' ? $processIds : '[]',
             'price_per_sheet'        => (float) ($data['price_per_sheet'] ?? 0),
             'total'                  => (float) ($data['total'] ?? 0),
             'calculation_breakdown'  => $breakdown,
             'ordering'               => $ordering,
         ];
+        $db = $this->getDatabase();
+        $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        if (isset($columns['line_type'])) {
+            $line->line_type = $lineType;
+            $line->elemento_id = $elementoId > 0 ? $elementoId : null;
+        }
 
         try {
             $db->insertObject('#__ordenproduccion_pre_cotizacion_line', $line, 'id');

@@ -21,7 +21,7 @@ use Joomla\CMS\Router\Route;
  * View for Pre-Cotización CRUD and pliego quote (cotizador).
  * Menu link: index.php?option=com_ordenproduccion&view=cotizador
  * - default layout: list of Pre-Cotizaciones (current user).
- * - document layout: one Pre-Cotización with lines; "Nueva Línea" opens pliego form in modal.
+ * - document layout: one Pre-Cotización with lines; "Cálculo de Folios" and "Otros Elementos" open modals; Total sums all line subtotals.
  *
  * @since  3.67.0
  */
@@ -93,6 +93,10 @@ class HtmlView extends BaseHtmlView
                 return;
             }
             $this->lines = $precotModel->getLines($id);
+            $this->elementos = [];
+            if ($productosModel->elementosTableExists()) {
+                $this->elementos = $productosModel->getElementos();
+            }
             $this->setLayout('document');
             $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE') . ' ' . $this->item->number);
         } else {

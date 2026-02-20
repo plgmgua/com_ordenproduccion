@@ -1,6 +1,6 @@
 <?php
 /**
- * Pre-Cotización document: header, lines table, "Nueva Línea" opens pliego form in modal.
+ * Pre-Cotización document: header, lines table, "Cálculo de Folios" and "Otros Elementos" modals, Total.
  *
  * @package     com_ordenproduccion
  * @copyright   (C) 2025 Grimpsa. All rights reserved.
@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -45,6 +46,25 @@ $laminationTypeIdsBySizeRetiro = $this->pliegoLaminationTypeIdsBySizeRetiro ?? [
 $laminationTypes = $this->pliegoLaminationTypes ?? [];
 $processes = $this->pliegoProcesses ?? [];
 $tablesExist = $this->pliegoTablesExist ?? false;
+$elementosById = [];
+foreach ($this->elementos ?? [] as $el) {
+    $elementosById[(int) $el->id] = $el;
+}
+$linesTotal = 0;
+if (!empty($lines)) {
+    foreach ($lines as $l) {
+        $linesTotal += (float) ($l->total ?? 0);
+    }
+}
+// Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
+$labelCalculoFolios = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS');
+if ($labelCalculoFolios === 'COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS' || $labelCalculoFolios === 'COM_ORDENPRODUCCION_PRE_COTIZACION_NUEVA_LINEA' || $labelCalculoFolios === 'New Line' || $labelCalculoFolios === 'Nueva Línea') {
+    $labelCalculoFolios = 'Cálculo de Folios';
+}
+$labelOtrosElementos = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS');
+if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS' || $labelOtrosElementos === 'Other elements') {
+    $labelOtrosElementos = 'Otros Elementos';
+}
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document container py-4">
@@ -54,9 +74,12 @@ $tablesExist = $this->pliegoTablesExist ?? false;
 
     <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>
 
-    <div class="mb-3">
+    <div class="mb-3 d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
-            <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NUEVA_LINEA'); ?>
+            <?php echo htmlspecialchars($labelCalculoFolios); ?>
+        </button>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
+            <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
     </div>
 
@@ -64,6 +87,7 @@ $tablesExist = $this->pliegoTablesExist ?? false;
 
     <?php if (empty($lines)) : ?>
         <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
+        <p class="mb-0"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q <?php echo number_format(0, 2); ?></p>
     <?php else : ?>
         <div class="table-responsive">
             <table class="table table-bordered">
@@ -80,8 +104,15 @@ $tablesExist = $this->pliegoTablesExist ?? false;
                 <tbody>
                     <?php foreach ($lines as $line) :
                         $deleteLineUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . (int) $line->id . '&id=' . $preCotizacionId . '&' . $token . '=1');
-                        $paperName = $paperNames[$line->paper_type_id ?? 0] ?? ('ID ' . (int) $line->paper_type_id);
-                        $sizeName = $sizeNames[$line->size_id ?? 0] ?? ('ID ' . (int) $line->size_id);
+                        $isElemento = isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
+                        if ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
+                            $el = $elementosById[(int) $line->elemento_id];
+                            $paperName = $el->name ?? '';
+                            $sizeName = $el->size ?? '—';
+                        } else {
+                            $paperName = $paperNames[$line->paper_type_id ?? 0] ?? ('ID ' . (int) $line->paper_type_id);
+                            $sizeName = $sizeNames[$line->size_id ?? 0] ?? ('ID ' . (int) $line->size_id);
+                        }
                         $lineJson = htmlspecialchars(json_encode([
                             'id' => (int) $line->id,
                             'quantity' => (int) $line->quantity,
@@ -100,21 +131,24 @@ $tablesExist = $this->pliegoTablesExist ?? false;
                             <td><?php echo (int) $line->quantity; ?></td>
                             <td><?php echo htmlspecialchars($paperName); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
-                            <td><?php echo ($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'; ?></td>
+                            <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td>Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
+                                <?php if (!$isElemento) : ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
                                     <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                 </button>
+                                <?php endif; ?>
                                 <a href="<?php echo htmlspecialchars($deleteLineUrl); ?>" class="btn btn-sm btn-outline-danger"
                                    onclick="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
                                     <?php echo Text::_('JACTION_DELETE'); ?>
                                 </a>
                             </td>
                         </tr>
+                        <?php if (!$isElemento) : ?>
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
                             <td colspan="6" class="p-0 bg-light align-top">
                                 <div class="p-2">
@@ -151,8 +185,16 @@ $tablesExist = $this->pliegoTablesExist ?? false;
                                 </div>
                             </td>
                         </tr>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </tbody>
+                <tfoot>
+                    <tr class="table-secondary fw-bold">
+                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
+                        <td>Q <?php echo number_format($linesTotal, 2); ?></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     <?php endif; ?>
@@ -181,7 +223,7 @@ $tablesExist = $this->pliegoTablesExist ?? false;
 <?php endif; ?>
 
 <?php if ($tablesExist) : ?>
-<!-- Modal: Nueva Línea (Pliego form) -->
+<!-- Modal: Cálculo de Folios (Pliego form) -->
 <div class="modal fade" id="pliegoLineModal" tabindex="-1" aria-labelledby="pliegoLineModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -293,7 +335,44 @@ $tablesExist = $this->pliegoTablesExist ?? false;
         </div>
     </div>
 </div>
+<?php endif; ?>
 
+<!-- Modal: Otros Elementos (always shown so "Otros Elementos" button always works) -->
+<div class="modal fade" id="elementosLineModal" tabindex="-1" aria-labelledby="elementosLineModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="elementosLineModalLabel"><?php echo htmlspecialchars($labelOtrosElementos); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addLineElemento'); ?>" method="post" id="elementos-line-form">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preCotizacionId; ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="elementos_modal_elemento_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ELEMENTO_LINE'); ?></label>
+                        <select name="elemento_id" id="elementos_modal_elemento_id" class="form-select" required>
+                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT_ELEMENTO'); ?></option>
+                            <?php foreach ($this->elementos ?? [] as $el) : ?>
+                                <option value="<?php echo (int) $el->id; ?>"><?php echo htmlspecialchars($el->name ?? ''); ?><?php echo ($el->size ?? '') !== '' ? ' (' . htmlspecialchars($el->size) . ')' : ''; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="elementos_modal_quantity" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_QUANTITY'); ?></label>
+                        <input type="number" name="quantity" id="elementos_modal_quantity" class="form-control" min="1" value="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_ELEMENTO_LINE'); ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php if ($tablesExist) : ?>
 <script>
 (function() {
     var baseUrl = <?php echo json_encode($baseUrl); ?>;

@@ -880,6 +880,38 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Get unit price for an element by quantity (uses range_1_ceiling, price_1_to_1000, price_1001_plus when present).
+     *
+     * @param   int  $elementoId  Elemento id
+     * @param   int  $quantity    Quantity
+     * @return  float  Unit price for that quantity
+     * @since   3.73.0
+     */
+    public function getElementoUnitPrice($elementoId, $quantity)
+    {
+        $el = $this->getElemento((int) $elementoId);
+        if (!$el) {
+            return 0.0;
+        }
+        $qty = (int) $quantity;
+        if ($qty < 1) {
+            return 0.0;
+        }
+        $columns = $this->getDatabase()->getTableColumns('#__ordenproduccion_elementos', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        if (isset($columns['range_1_ceiling']) && isset($columns['price_1_to_1000']) && isset($columns['price_1001_plus'])) {
+            $ceiling = (int) ($el->range_1_ceiling ?? 1000);
+            if ($ceiling < 1) {
+                $ceiling = 1000;
+            }
+            $p1 = (float) ($el->price_1_to_1000 ?? $el->price ?? 0);
+            $p2 = (float) ($el->price_1001_plus ?? 0);
+            return $qty <= $ceiling ? $p1 : $p2;
+        }
+        return (float) ($el->price ?? 0);
+    }
+
+    /**
      * Save elemento (create or update)
      *
      * @param   array  $data  name, size, price, range_1_ceiling, price_1_to_1000, price_1001_plus, id (optional)
@@ -914,10 +946,11 @@ class ProductosModel extends BaseDatabaseModel
         ];
 
         $columns = $db->getTableColumns('#__ordenproduccion_elementos', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
         if (isset($columns['range_1_ceiling'])) {
             $obj->range_1_ceiling = $ceiling;
-            $obj->price_1_to_1000 = isset($data['price_1_to_1000']) ? (float) $data['price_1_to_1000'] : (float) ($data['price'] ?? 0);
-            $obj->price_1001_plus = isset($data['price_1001_plus']) ? (float) $data['price_1001_plus'] : 0;
+            $obj->price_1_to_1000 = (float) ($data['price_1_to_1000'] ?? $data['price'] ?? 0);
+            $obj->price_1001_plus = (float) ($data['price_1001_plus'] ?? 0);
         }
 
         if ($id > 0) {

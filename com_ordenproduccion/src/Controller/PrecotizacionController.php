@@ -301,4 +301,76 @@ class PrecotizacionController extends BaseController
         $this->setRedirect(Route::_($redirect, false));
         return true;
     }
+
+    /**
+     * Add an "Otros Elementos" line: element + quantity, price from element ranges.
+     *
+     * POST: pre_cotizacion_id, elemento_id, quantity
+     *
+     * @return  bool
+     *
+     * @since   3.73.0
+     */
+    public function addLineElemento()
+    {
+        $app = Factory::getApplication();
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+            return false;
+        }
+
+        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
+        $elementoId = (int) $app->input->post->get('elemento_id', 0);
+        $quantity = (int) $app->input->post->get('quantity', 1);
+
+        if ($preCotizacionId < 1 || $elementoId < 1 || $quantity < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Productos', 'Site', ['ignore_request' => true]);
+        $elemento = $productosModel->getElemento($elementoId);
+        if (!$elemento) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        $unitPrice = $productosModel->getElementoUnitPrice($elementoId, $quantity);
+        $total = $quantity * $unitPrice;
+        $name = $elemento->name ?? ('ID ' . $elementoId);
+        $breakdown = [
+            ['label' => $name, 'detail' => $quantity . ' × Q ' . number_format($unitPrice, 2), 'subtotal' => $total],
+        ];
+
+        $data = [
+            'line_type'             => 'elementos',
+            'elemento_id'           => $elementoId,
+            'quantity'              => $quantity,
+            'price_per_sheet'       => $unitPrice,
+            'total'                 => $total,
+            'calculation_breakdown' => $breakdown,
+        ];
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $lineId = $model->addLine($preCotizacionId, $data);
+
+        if ($lineId === false) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_ADD_LINE'), 'error');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_ADDED'));
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+        return true;
+    }
 }
