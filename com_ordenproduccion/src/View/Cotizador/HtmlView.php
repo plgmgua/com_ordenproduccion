@@ -77,13 +77,15 @@ class HtmlView extends BaseHtmlView
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();
 
+        $mvcFactory = $app->bootComponent('com_ordenproduccion')->getMVCFactory();
+
         if ($layout === 'document' && $id > 0) {
             HTMLHelper::_('bootstrap.framework');
             $wa = $this->document->getWebAssetManager();
             if ($wa->assetExists('script', 'bootstrap.modal')) {
                 $wa->useScript('bootstrap.modal');
             }
-            $precotModel = $this->getModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            $precotModel = $mvcFactory->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             $this->item  = $precotModel->getItem($id);
             if (!$this->item) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
@@ -94,7 +96,7 @@ class HtmlView extends BaseHtmlView
             $this->setLayout('document');
             $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE') . ' ' . $this->item->number);
         } else {
-            $precotModel = $this->getModel('Precotizacion', 'Site');
+            $precotModel = $mvcFactory->createModel('Precotizacion', 'Site');
             $this->items = $precotModel->getItems();
             $this->pagination = $precotModel->getPagination();
             $this->state = $precotModel->getState();
@@ -105,19 +107,4 @@ class HtmlView extends BaseHtmlView
         parent::display($tpl);
     }
 
-    /**
-     * Get the correct model for this view (Precotizacion for list/document).
-     *
-     * @param   string  $name    The model name.
-     * @param   string  $prefix  The class prefix.
-     * @param   array   $config  Optional config.
-     *
-     * @return  \Joomla\CMS\MVC\Model\BaseDatabaseModel|null
-     *
-     * @since   3.70.0
-     */
-    public function getModel($name = 'Precotizacion', $prefix = '', $config = [])
-    {
-        return parent::getModel($name, $prefix, $config);
-    }
 }
