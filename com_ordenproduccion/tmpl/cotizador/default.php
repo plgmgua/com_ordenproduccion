@@ -38,8 +38,8 @@ $token = Session::getFormToken();
     <?php else : ?>
 
     <form id="pliego-quote-form" class="card">
-        <div class="card-body">
-            <div class="row mb-3">
+        <div class="card-body py-2">
+            <div class="row mb-2">
                 <div class="col-md-4">
                     <label for="pliego_quantity" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_QUANTITY'); ?></label>
                     <input type="number" id="pliego_quantity" name="quantity" class="form-control" min="1" value="1" required>
@@ -64,7 +64,7 @@ $token = Session::getFormToken();
                 </div>
             </div>
 
-            <div class="row mb-3">
+            <div class="row mb-2">
                 <div class="col-md-6">
                     <div class="form-check">
                         <input type="checkbox" id="pliego_retiro" name="tiro_retiro" value="retiro" class="form-check-input">
@@ -74,7 +74,7 @@ $token = Session::getFormToken();
                 </div>
             </div>
 
-            <div class="row mb-3">
+            <div class="row mb-2">
                 <div class="col-md-6">
                     <div class="form-check">
                         <input type="checkbox" id="pliego_needs_lamination" name="needs_lamination" value="1" class="form-check-input">
@@ -89,7 +89,7 @@ $token = Session::getFormToken();
                             <option value="<?php echo (int) $l->id; ?>" data-lamination-id="<?php echo (int) $l->id; ?>"><?php echo htmlspecialchars($l->name ?? ''); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <div class="form-check mt-2">
+                    <div class="form-check mt-1">
                         <input type="checkbox" id="pliego_lamination_retiro" name="lamination_tiro_retiro" value="retiro" class="form-check-input">
                         <label class="form-check-label" for="pliego_lamination_retiro"><?php echo Text::_('COM_ORDENPRODUCCION_LAMINATION_TIRO_RETIRO'); ?></label>
                     </div>
@@ -98,39 +98,46 @@ $token = Session::getFormToken();
             </div>
 
             <?php if (!empty($processes)) : ?>
-            <div class="mb-3">
-                <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_ADDITIONAL_PROCESSES'); ?></label>
-                <div class="d-flex flex-wrap gap-3">
-                    <?php foreach ($processes as $pr) : ?>
-                        <?php
-                        $ceiling = (int) ($pr->range_1_ceiling ?? 1000);
-                        if ($ceiling < 1) {
-                            $ceiling = 1000;
-                        }
-                        $p1 = (float) ($pr->price_1_to_1000 ?? 0);
-                        $p2 = (float) ($pr->price_1001_plus ?? 0);
-                        ?>
-                        <div class="form-check">
-                            <input type="checkbox" name="process_ids[]" value="<?php echo (int) $pr->id; ?>" id="proc_<?php echo (int) $pr->id; ?>" class="form-check-input pliego-process-cb">
-                            <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?> — 1–<?php echo $ceiling; ?>: Q <?php echo number_format($p1, 2); ?> | <?php echo $ceiling + 1; ?>+: Q <?php echo number_format($p2, 2); ?></label>
-                        </div>
-                    <?php endforeach; ?>
+            <div class="mb-2">
+                <label class="form-label mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_ADDITIONAL_PROCESSES'); ?></label>
+                <div class="row g-1">
+                    <?php
+                    $half = (int) ceil(count($processes) / 2);
+                    $col1 = array_slice($processes, 0, $half);
+                    $col2 = array_slice($processes, $half);
+                    ?>
+                    <div class="col-md-6">
+                        <?php foreach ($col1 as $pr) : ?>
+                            <div class="form-check py-0 my-0">
+                                <input type="checkbox" name="process_ids[]" value="<?php echo (int) $pr->id; ?>" id="proc_<?php echo (int) $pr->id; ?>" class="form-check-input pliego-process-cb">
+                                <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?></label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="col-md-6">
+                        <?php foreach ($col2 as $pr) : ?>
+                            <div class="form-check py-0 my-0">
+                                <input type="checkbox" name="process_ids[]" value="<?php echo (int) $pr->id; ?>" id="proc_<?php echo (int) $pr->id; ?>" class="form-check-input pliego-process-cb">
+                                <label class="form-check-label" for="proc_<?php echo (int) $pr->id; ?>"><?php echo htmlspecialchars($pr->name ?? ''); ?></label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
             <?php endif; ?>
 
-            <div class="border-top pt-3 mt-3">
+            <div class="border-top pt-2 mt-2">
                 <p class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_PRICE_PER_PLIEGO'); ?>:</strong> <span id="pliego_price_per_sheet">-</span></p>
                 <p class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_TOTAL'); ?>:</strong> <span id="pliego_total_price">-</span></p>
-                <div id="pliego_calc_detail" class="mt-3 small" style="display:none;">
+                <div id="pliego_calc_detail" class="mt-2 small" style="display:none;">
                     <strong><?php echo Text::_('COM_ORDENPRODUCCION_CALC_DETAIL'); ?></strong>
-                    <div class="table-responsive mt-2">
-                        <table class="table table-sm table-bordered mb-2" id="pliego_calc_per_pliego_table">
+                    <div class="table-responsive mt-1">
+                        <table class="table table-sm table-bordered mb-1" id="pliego_calc_per_pliego_table">
                             <caption class="caption-top small fw-bold text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_SECTION_PER_PLIEGO'); ?></caption>
                             <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_UNIT'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
                             <tbody id="pliego_calc_per_pliego_body"></tbody>
                         </table>
-                        <table class="table table-sm table-bordered mb-2" id="pliego_calc_processes_table">
+                        <table class="table table-sm table-bordered mb-1" id="pliego_calc_processes_table">
                             <caption class="caption-top small fw-bold text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_SECTION_PROCESSES'); ?></caption>
                             <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_PROCESS'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_RANGE_PRICE'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
                             <tbody id="pliego_calc_processes_body"></tbody>

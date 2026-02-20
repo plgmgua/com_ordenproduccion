@@ -34,6 +34,8 @@ class CotizacionController extends BaseController
         $app = Factory::getApplication();
         $app->setHeader('Content-Type', 'application/json', true);
 
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
         if (!Session::checkToken('request')) {
             echo json_encode(['success' => false, 'message' => 'Invalid token']);
             $app->close();
