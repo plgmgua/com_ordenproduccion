@@ -191,9 +191,10 @@ class ProductosController extends BaseController
             return;
         }
         $input = Factory::getApplication()->input;
-        $prices1To1000 = $input->post->get('price_1_to_1000', [], 'array');
-        $prices1001Plus = $input->post->get('price_1001_plus', [], 'array');
-        $rangeCeilings = $input->post->get('range_1_ceiling', [], 'array');
+        $post = $input->post->getArray();
+        $prices1To1000 = isset($post['price_1_to_1000']) && is_array($post['price_1_to_1000']) ? $post['price_1_to_1000'] : [];
+        $prices1001Plus = isset($post['price_1001_plus']) && is_array($post['price_1001_plus']) ? $post['price_1001_plus'] : [];
+        $rangeCeilings = isset($post['range_1_ceiling']) && is_array($post['range_1_ceiling']) ? $post['range_1_ceiling'] : [];
         $prices1To1000 = array_map('floatval', $prices1To1000);
         $prices1001Plus = array_map('floatval', $prices1001Plus);
         $rangeCeilings = array_map('intval', $rangeCeilings);

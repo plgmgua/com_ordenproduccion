@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
 
@@ -99,13 +100,49 @@ class CotizacionController extends BaseController
         $pricePerSheet = $printPrice + $laminationPrice;
         $total = $pricePerSheet * $quantity + $processesTotal;
 
+        $printLabel = $tiroRetiro === 'retiro'
+            ? Text::_('COM_ORDENPRODUCCION_CALC_PRINT_RETIRO')
+            : Text::_('COM_ORDENPRODUCCION_CALC_PRINT_TIRO');
+        $perPliego = [
+            ['label' => $printLabel, 'unit_price' => (float) $printPrice, 'subtotal' => round($printPrice * $quantity, 2)],
+        ];
+        if ($laminationPrice > 0) {
+            $perPliego[] = ['label' => Text::_('COM_ORDENPRODUCCION_CALC_LAMINATION'), 'unit_price' => (float) $laminationPrice, 'subtotal' => round($laminationPrice * $quantity, 2)];
+        }
+
+        $processBreakdown = [];
+        if (!empty($processIds)) {
+            $processes = $productosModel->getProcesses();
+            foreach ($processes as $p) {
+                if (!in_array((int) $p->id, $processIds, true)) {
+                    continue;
+                }
+                $ceiling = (int) ($p->range_1_ceiling ?? 1000);
+                if ($ceiling < 1) {
+                    $ceiling = 1000;
+                }
+                $useRange1 = $quantity <= $ceiling;
+                $price = $useRange1 ? (float) ($p->price_1_to_1000 ?? 0) : (float) ($p->price_1001_plus ?? 0);
+                $rangeLabel = $useRange1 ? ('1–' . $ceiling) : (($ceiling + 1) . '+');
+                $processBreakdown[] = [
+                    'name' => $p->name ?? '',
+                    'range_label' => $rangeLabel,
+                    'price' => $price,
+                    'subtotal' => $price,
+                ];
+            }
+        }
+
         echo json_encode([
             'success' => true,
+            'quantity' => $quantity,
             'price_per_sheet' => round($pricePerSheet, 4),
             'total' => round($total, 2),
             'print_price' => $printPrice,
             'lamination_price' => $laminationPrice,
             'processes_total' => $processesTotal,
+            'per_pliego' => $perPliego,
+            'processes' => $processBreakdown,
         ]);
         $app->close();
     }

@@ -248,7 +248,8 @@ $l = function ($key, $fallback) {
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_PROCESSES', 'No hay procesos adicionales definidos.'); ?></p>
                     <?php else : ?>
                         <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_EDIT_PROCESS_PRICES_DESC', 'Cada valor es el precio total para ese rango (no por pliego). Edite y pulse Guardar precios.'); ?></p>
-                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveProcessPrices'); ?>" method="post">
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&tab=processes'); ?>" method="post" name="adminForm" id="adminForm_process_prices">
+                            <input type="hidden" name="task" value="productos.saveProcessPrices">
                             <?php echo HTMLHelper::_('form.token'); ?>
                             <table class="table table-sm table-bordered">
                                 <thead>

@@ -122,14 +122,21 @@ $token = Session::getFormToken();
             <div class="border-top pt-3 mt-3">
                 <p class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_PRICE_PER_PLIEGO'); ?>:</strong> <span id="pliego_price_per_sheet">-</span></p>
                 <p class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_TOTAL'); ?>:</strong> <span id="pliego_total_price">-</span></p>
-                <div id="pliego_calc_detail" class="mt-2 small text-muted" style="display:none;">
+                <div id="pliego_calc_detail" class="mt-3 small" style="display:none;">
                     <strong><?php echo Text::_('COM_ORDENPRODUCCION_CALC_DETAIL'); ?></strong>
-                    <ul class="list-unstyled mb-0 ps-2">
-                        <li id="pliego_calc_print">—</li>
-                        <li id="pliego_calc_lamination">—</li>
-                        <li id="pliego_calc_processes">—</li>
-                        <li id="pliego_calc_total">—</li>
-                    </ul>
+                    <div class="table-responsive mt-2">
+                        <table class="table table-sm table-bordered mb-2" id="pliego_calc_per_pliego_table">
+                            <caption class="caption-top small fw-bold text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_SECTION_PER_PLIEGO'); ?></caption>
+                            <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_UNIT'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
+                            <tbody id="pliego_calc_per_pliego_body"></tbody>
+                        </table>
+                        <table class="table table-sm table-bordered mb-2" id="pliego_calc_processes_table">
+                            <caption class="caption-top small fw-bold text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_SECTION_PROCESSES'); ?></caption>
+                            <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_PROCESS'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_RANGE_PRICE'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
+                            <tbody id="pliego_calc_processes_body"></tbody>
+                        </table>
+                        <p class="mb-0 fw-bold"><span id="pliego_calc_total_label"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?>:</span> <span id="pliego_calc_total_cell">—</span></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -137,6 +144,12 @@ $token = Session::getFormToken();
 
     <script>
     (function() {
+        function escapeHtml(s) {
+            if (s == null) return '';
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
         var form = document.getElementById('pliego-quote-form');
         var qty = document.getElementById('pliego_quantity');
         var paper = document.getElementById('pliego_paper_type');
@@ -151,10 +164,6 @@ $token = Session::getFormToken();
         var sizeIdsByPaperType = <?php echo json_encode($sizeIdsByPaperType); ?>;
         var laminationTypeIdsBySizeTiro = <?php echo json_encode($laminationTypeIdsBySizeTiro); ?>;
         var laminationTypeIdsBySizeRetiro = <?php echo json_encode($laminationTypeIdsBySizeRetiro); ?>;
-        var pliegoCalcLabelPrint = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_PRINT')); ?>;
-        var pliegoCalcLabelLam = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_LAMINATION')); ?>;
-        var pliegoCalcLabelProc = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_PROCESSES')); ?>;
-        var pliegoCalcLabelTotal = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CALC_TOTAL')); ?>;
 
         function filterSizeDropdown() {
             var paperId = paper && paper.value ? parseInt(paper.value, 10) : 0;
@@ -261,14 +270,28 @@ $token = Session::getFormToken();
                         var detail = document.getElementById('pliego_calc_detail');
                         if (detail) {
                             detail.style.display = 'block';
-                            var printVal = data.print_price != null ? Number(data.print_price).toFixed(2) : '0.00';
-                            var lamVal = data.lamination_price != null && data.lamination_price > 0 ? Number(data.lamination_price).toFixed(2) : null;
-                            var procVal = data.processes_total != null && data.processes_total > 0 ? Number(data.processes_total).toFixed(2) : null;
-                            var totalVal = data.total != null ? Number(data.total).toFixed(2) : '-';
-                            document.getElementById('pliego_calc_print').textContent = pliegoCalcLabelPrint + ': Q ' + printVal;
-                            document.getElementById('pliego_calc_lamination').textContent = pliegoCalcLabelLam + ': ' + (lamVal ? 'Q ' + lamVal : '—');
-                            document.getElementById('pliego_calc_processes').textContent = pliegoCalcLabelProc + ': ' + (procVal ? 'Q ' + procVal : '—');
-                            document.getElementById('pliego_calc_total').textContent = pliegoCalcLabelTotal + ': Q ' + totalVal;
+                            var perPliego = data.per_pliego || [];
+                            var tbody1 = document.getElementById('pliego_calc_per_pliego_body');
+                            if (tbody1) {
+                                tbody1.innerHTML = perPliego.map(function(row) {
+                                    return '<tr><td>' + escapeHtml(row.label) + '</td><td>Q ' + Number(row.unit_price).toFixed(2) + '</td><td>Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
+                                }).join('');
+                            }
+                            var processes = data.processes || [];
+                            var tbody2 = document.getElementById('pliego_calc_processes_body');
+                            if (tbody2) {
+                                if (processes.length === 0) {
+                                    tbody2.innerHTML = '<tr><td colspan="3" class="text-muted">—</td></tr>';
+                                } else {
+                                    tbody2.innerHTML = processes.map(function(row) {
+                                        var rangePrice = (row.range_label || '') + ': Q ' + Number(row.price).toFixed(2);
+                                        return '<tr><td>' + escapeHtml(row.name) + '</td><td>' + escapeHtml(rangePrice) + '</td><td>Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
+                                    }).join('');
+                                }
+                            }
+                            var totalVal = data.total != null ? Number(data.total).toFixed(2) : '—';
+                            var totalCell = document.getElementById('pliego_calc_total_cell');
+                            if (totalCell) totalCell.textContent = 'Q ' + totalVal;
                         }
                     } else {
                         document.getElementById('pliego_price_per_sheet').textContent = '-';

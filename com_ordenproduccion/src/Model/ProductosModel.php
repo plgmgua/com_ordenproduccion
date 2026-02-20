@@ -542,11 +542,19 @@ class ProductosModel extends BaseDatabaseModel
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
         $userId = (int) $user->id;
+
+        $columns = $db->getTableColumns('#__ordenproduccion_pliego_processes', false);
+        $hasRangeCeiling = isset($columns['range_1_ceiling']);
+
         $ids = array_unique(array_merge(
             array_keys($prices1To1000),
             array_keys($prices1001Plus),
             array_keys($rangeCeilings)
         ));
+        if (empty($ids)) {
+            $this->setError('No process data received. Ensure the form includes price and range fields.');
+            return false;
+        }
         foreach ($ids as $processId) {
             $processId = (int) $processId;
             if ($processId < 1) {
@@ -560,11 +568,18 @@ class ProductosModel extends BaseDatabaseModel
                 'id' => $processId,
                 'price_1_to_1000' => isset($prices1To1000[$processId]) ? (float) $prices1To1000[$processId] : 0,
                 'price_1001_plus' => isset($prices1001Plus[$processId]) ? (float) $prices1001Plus[$processId] : 0,
-                'range_1_ceiling' => $ceiling,
                 'modified' => $now,
                 'modified_by' => $userId,
             ];
-            $db->updateObject('#__ordenproduccion_pliego_processes', $obj, ['id']);
+            if ($hasRangeCeiling) {
+                $obj->range_1_ceiling = $ceiling;
+            }
+            try {
+                $db->updateObject('#__ordenproduccion_pliego_processes', $obj, ['id']);
+            } catch (\Throwable $e) {
+                $this->setError($e->getMessage());
+                return false;
+            }
         }
         return true;
     }
