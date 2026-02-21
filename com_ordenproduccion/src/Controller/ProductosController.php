@@ -344,15 +344,18 @@ class ProductosController extends BaseController
             return;
         }
         $input = Factory::getApplication()->input;
-        $price = $input->post->getFloat('price', 0);
+        $priceRaw = $input->post->getString('price', '');
+        $price = $priceRaw !== '' ? (float) $priceRaw : null;
+        $p1Raw = $input->post->getString('price_1_to_1000', '');
+        $p2Raw = $input->post->getString('price_1001_plus', '');
         $data = [
             'id' => $input->post->getInt('id', 0),
             'name' => $input->post->getString('name', ''),
             'size' => $input->post->getString('size', ''),
-            'price' => $price,
+            'price' => $price !== null ? $price : 0,
             'range_1_ceiling' => $input->post->getInt('range_1_ceiling', 1000),
-            'price_1_to_1000' => $input->post->getFloat('price_1_to_1000', $price),
-            'price_1001_plus' => $input->post->getFloat('price_1001_plus', 0),
+            'price_1_to_1000' => $p1Raw !== '' ? (float) $p1Raw : ($price !== null ? $price : null),
+            'price_1001_plus' => $p2Raw !== '' ? (float) $p2Raw : null,
             'ordering' => $input->post->getInt('ordering', 0),
         ];
         $model = $this->getModel('Productos', 'Site');

@@ -949,8 +949,31 @@ class ProductosModel extends BaseDatabaseModel
         $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
         if (isset($columns['range_1_ceiling'])) {
             $obj->range_1_ceiling = $ceiling;
-            $obj->price_1_to_1000 = (float) ($data['price_1_to_1000'] ?? $data['price'] ?? 0);
-            $obj->price_1001_plus = (float) ($data['price_1001_plus'] ?? 0);
+            $p1 = $data['price_1_to_1000'] ?? null;
+            $p2 = $data['price_1001_plus'] ?? null;
+            if ($id > 0) {
+                $existing = $this->getElemento($id);
+                if ($existing) {
+                    if ($p1 === null || $p1 === '') {
+                        $p1 = (float) ($existing->price_1_to_1000 ?? $existing->price ?? 0);
+                    } else {
+                        $p1 = (float) $p1;
+                    }
+                    if ($p2 === null || $p2 === '') {
+                        $p2 = (float) ($existing->price_1001_plus ?? 0);
+                    } else {
+                        $p2 = (float) $p2;
+                    }
+                } else {
+                    $p1 = $p1 !== null && $p1 !== '' ? (float) $p1 : (float) ($data['price'] ?? 0);
+                    $p2 = $p2 !== null && $p2 !== '' ? (float) $p2 : 0.0;
+                }
+            } else {
+                $p1 = $p1 !== null && $p1 !== '' ? (float) $p1 : (float) ($data['price'] ?? 0);
+                $p2 = $p2 !== null && $p2 !== '' ? (float) $p2 : 0.0;
+            }
+            $obj->price_1_to_1000 = $p1;
+            $obj->price_1001_plus = $p2;
         }
 
         if ($id > 0) {

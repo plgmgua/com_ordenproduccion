@@ -114,8 +114,11 @@ $l = function ($key, $fallback) {
                                     $deleteUrl = Route::_('index.php?option=com_ordenproduccion&task=productos.deleteElemento&id=' . (int) $el->id . '&' . \Joomla\CMS\Session\Session::getFormToken() . '=1');
                                     $editUrl = Route::_($baseElementos . '&edit_id=' . (int) $el->id);
                                     $ceiling = (int) ($el->range_1_ceiling ?? 1000);
-                                    $p1 = (float) ($el->price_1_to_1000 ?? $el->price ?? 0);
-                                    $p2 = (float) ($el->price_1001_plus ?? 0);
+                                    $legacy = (float) ($el->price ?? 0);
+                                    $r1 = (float) ($el->price_1_to_1000 ?? 0);
+                                    $r2 = (float) ($el->price_1001_plus ?? 0);
+                                    $p1 = $r1 > 0 ? $r1 : $legacy;
+                                    $p2 = $r2 > 0 ? $r2 : $legacy;
                                 ?>
                                     <tr>
                                         <td><?php echo (int) $el->id; ?></td>
