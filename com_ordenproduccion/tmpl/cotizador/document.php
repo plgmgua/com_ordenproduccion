@@ -103,7 +103,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                 </thead>
                 <tbody>
                     <?php foreach ($lines as $line) :
-                        $deleteLineUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . (int) $line->id . '&id=' . $preCotizacionId . '&' . $token . '=1');
+                        $deleteLineUrl = 'index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . (int) $line->id . '&id=' . $preCotizacionId;
                         $isElemento = isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
                         if ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
                             $el = $elementosById[(int) $line->elemento_id];
@@ -142,10 +142,10 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                                     <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                 </button>
                                 <?php endif; ?>
-                                <a href="<?php echo htmlspecialchars($deleteLineUrl); ?>" class="btn btn-sm btn-outline-danger"
-                                   onclick="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
-                                    <?php echo Text::_('JACTION_DELETE'); ?>
-                                </a>
+                                <form action="<?php echo Route::_($deleteLineUrl); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
+                                    <?php echo HTMLHelper::_('form.token'); ?>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
+                                </form>
                             </td>
                         </tr>
                         <?php if (!$isElemento) : ?>
