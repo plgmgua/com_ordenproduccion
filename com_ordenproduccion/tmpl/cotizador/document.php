@@ -87,7 +87,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
 
     <?php if (empty($lines)) : ?>
         <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
-        <p class="mb-0"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q <?php echo number_format(0, 2); ?></p>
+        <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q <?php echo number_format(0, 2); ?></p>
     <?php else : ?>
         <div class="table-responsive">
             <table class="table table-bordered">
@@ -97,7 +97,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_PAPER_TYPE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_SIZE'); ?></th>
                         <th>Tiro/Retiro</th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
+                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
                 </thead>
@@ -132,7 +132,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                             <td><?php echo htmlspecialchars($paperName); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
                             <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
-                            <td>Q <?php echo number_format((float) $line->total, 2); ?></td>
+                            <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
                                 <?php if (!$isElemento) : ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
@@ -191,7 +191,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                 <tfoot>
                     <tr class="table-secondary fw-bold">
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
-                        <td>Q <?php echo number_format($linesTotal, 2); ?></td>
+                        <td class="text-end">Q <?php echo number_format($linesTotal, 2); ?></td>
                         <td></td>
                     </tr>
                 </tfoot>
