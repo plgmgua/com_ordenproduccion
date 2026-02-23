@@ -249,11 +249,12 @@ class PrecotizacionModel extends ListModel
                             if ($recalc > 0) {
                                 $row->total = $recalc;
                                 $row->price_per_sheet = $unitPrice;
-                                $db->updateObject(
-                                    '#__ordenproduccion_pre_cotizacion_line',
-                                    (object) ['id' => (int) $row->id, 'total' => $recalc, 'price_per_sheet' => $unitPrice],
-                                    ['id']
-                                );
+                                $updateLine = (object) [
+                                    'id' => (int) $row->id,
+                                    'total' => $recalc,
+                                    'price_per_sheet' => $unitPrice,
+                                ];
+                                $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $updateLine, 'id');
                             }
                         }
                     }

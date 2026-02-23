@@ -139,7 +139,7 @@ echo "<div class='summary'>";
 echo "<strong>Timestamp:</strong> " . date('Y-m-d H:i:s') . "<br>";
 echo "<strong>Joomla Root:</strong> " . JPATH_ROOT . "<br>";
 echo "<strong>Component:</strong> com_ordenproduccion<br>";
-echo "<strong>Quick links:</strong> <a href='#payment-diag'>💳 Payment Proof 1054 Error Diagnostics</a><br>";
+echo "<strong>Quick links:</strong> <a href='#payment-diag'>💳 Payment Proof 1054 Error Diagnostics</a> | <a href='#productos-calc'>📦 Productos &amp; Calculations</a><br>";
 echo "</div>";
 
 $testResults = [];
@@ -1015,6 +1015,132 @@ if (empty($recommendations)) {
 echo "</div>";
 
 // ============================================
+// PRODUCTOS & CALCULATIONS (Elementos, Pre-Cotización)
+// ============================================
+echo "<div class='test-section' id='productos-calc'>";
+echo "<h2>📦 Productos &amp; Calculations (Elementos &amp; Pre-Cotización)</h2>";
+echo "<p class='info'>Validates Elementos table, range columns, unit price calculation, and Pre-Cotización lines with total 0.</p>";
+
+$productosOk = true;
+try {
+    $component = $app->bootComponent('com_ordenproduccion');
+    $mvcFactory = $component->getMVCFactory();
+    $productosModel = $mvcFactory->createModel('Productos', 'Site', ['ignore_request' => true]);
+    if (!$productosModel) {
+        echo "<p class='error'>❌ ProductosModel could not be created.</p>";
+        $productosOk = false;
+    } else {
+        echo "<p class='ok'>✅ ProductosModel loaded</p>";
+
+        $elemTableExists = $productosModel->elementosTableExists();
+        echo "<p class='" . ($elemTableExists ? 'ok' : 'error') . "'>" . ($elemTableExists ? "✅" : "❌") . " Elementos table exists</p>";
+        if (!$elemTableExists) {
+            $productosOk = false;
+        }
+
+        if ($elemTableExists) {
+            $prefix = $db->getPrefix();
+            $tbl = $prefix . 'ordenproduccion_elementos';
+            $cols = $db->getTableColumns($tbl, false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $hasRange = isset($cols['range_1_ceiling']) && isset($cols['price_1_to_1000']) && isset($cols['price_1001_plus']);
+            echo "<p class='" . ($hasRange ? 'ok' : 'warning') . "'>" . ($hasRange ? "✅" : "⚠️") . " Range columns (range_1_ceiling, price_1_to_1000, price_1001_plus): " . ($hasRange ? "present" : "missing – run 3.72.0_elementos_ranges.sql") . "</p>";
+            if (!$hasRange) {
+                $productosOk = false;
+            }
+
+            $elementos = $productosModel->getElementos();
+            echo "<h3>Elementos (" . count($elementos) . " rows)</h3>";
+            echo "<p class='info'><strong>Precio rango 1/2</strong> = raw DB (<code>price_1_to_1000</code>, <code>price_1001_plus</code>). ";
+            echo "The admin list uses a fallback: when a range price is 0 it shows the legacy <code>price</code> column so both columns can show a value. So if you see a price in the admin for \"Precio rango 1\" but 0 here, the stored range-1 value is 0 and the admin is showing legacy <code>price</code>.</p>";
+            if (empty($elementos)) {
+                echo "<p class='nodata'>No elementos. Add some in Productos → Elementos.</p>";
+            } else {
+                echo "<table>";
+                echo "<tr><th>#</th><th>Nombre</th><th>Tamaño</th><th>Rango 1 hasta</th><th>Precio rango 1 (DB)</th><th>Precio rango 2 (DB)</th><th>Legacy price (DB)</th><th>Unit price (qty=15)</th><th>Unit price (qty=5000)</th><th>Status</th></tr>";
+                foreach ($elementos as $el) {
+                    $r = array_change_key_case((array) $el, CASE_LOWER);
+                    $id = (int) ($r['id'] ?? 0);
+                    $name = htmlspecialchars($r['name'] ?? '');
+                    $size = htmlspecialchars($r['size'] ?? '—');
+                    $ceiling = (int) ($r['range_1_ceiling'] ?? 1000);
+                    $p1Raw = (float) ($r['price_1_to_1000'] ?? 0);
+                    $p2Raw = (float) ($r['price_1001_plus'] ?? 0);
+                    $legacy = (float) ($r['price'] ?? 0);
+                    $unit15 = $id > 0 ? $productosModel->getElementoUnitPrice($id, 15) : 0;
+                    $unit5000 = $id > 0 ? $productosModel->getElementoUnitPrice($id, 5000) : 0;
+                    $bothZero = ($p1Raw <= 0 && $p2Raw <= 0);
+                    $rowClass = $bothZero ? 'error' : 'ok';
+                    $status = $bothZero ? '⚠️ Both range prices 0 in DB' : 'OK';
+                    echo "<tr class='{$rowClass}'>";
+                    echo "<td>{$id}</td><td>{$name}</td><td>{$size}</td><td>{$ceiling}</td>";
+                    echo "<td>Q " . number_format($p1Raw, 2) . "</td><td>Q " . number_format($p2Raw, 2) . "</td><td>Q " . number_format($legacy, 2) . "</td>";
+                    echo "<td>Q " . number_format($unit15, 2) . "</td><td>Q " . number_format($unit5000, 2) . "</td>";
+                    echo "<td>{$status}</td></tr>";
+                }
+                echo "</table>";
+            }
+
+            $lineTbl = $prefix . 'ordenproduccion_pre_cotizacion_line';
+            $tables = $db->getTableList();
+            $lineTableExists = false;
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $lineTbl) === 0) {
+                    $lineTableExists = true;
+                    break;
+                }
+            }
+            if ($lineTableExists) {
+                $lineCols = $db->getTableColumns($lineTbl, false);
+                $lineCols = is_array($lineCols) ? array_change_key_case($lineCols, CASE_LOWER) : [];
+                $hasLineType = isset($lineCols['line_type']) && isset($lineCols['elemento_id']);
+            } else {
+                $hasLineType = false;
+            }
+            if ($lineTableExists && $hasLineType) {
+                $q = $db->getQuery(true)
+                    ->select('l.id, l.pre_cotizacion_id, l.quantity, l.total, l.line_type, l.elemento_id')
+                    ->from($db->quoteName($lineTbl, 'l'))
+                    ->where($db->quoteName('l.line_type') . ' = ' . $db->quote('elementos'))
+                    ->where($db->quoteName('l.total') . ' <= 0');
+                $db->setQuery($q);
+                $zeroLines = $db->loadObjectList() ?: [];
+                if (!empty($zeroLines)) {
+                    echo "<h3>Pre-Cotización lines (elementos) with total ≤ 0</h3>";
+                    echo "<p class='info'>" . count($zeroLines) . " line(s) have stored total ≤ 0. Below: expected unit price and total from current elemento prices. If expected total is 0, the line is correct (elemento has no price for that qty range).</p>";
+                    echo "<table>";
+                    echo "<tr><th>Line ID</th><th>Pre-Cotiz. ID</th><th>Elemento</th><th>Qty</th><th>Stored total</th><th>Expected unit</th><th>Expected total</th><th>Note</th></tr>";
+                    foreach ($zeroLines as $ln) {
+                        $eid = (int) ($ln->elemento_id ?? 0);
+                        $qty = (int) $ln->quantity;
+                        $stored = (float) $ln->total;
+                        $unit = $eid > 0 ? $productosModel->getElementoUnitPrice($eid, $qty) : 0.0;
+                        $expectedTotal = $qty * $unit;
+                        $el = $eid > 0 ? $productosModel->getElemento($eid) : null;
+                        $elName = $el ? htmlspecialchars(($el->name ?? '') . ' / ' . ($el->size ?? '')) : '—';
+                        $match = (abs($stored - $expectedTotal) < 0.01);
+                        $note = $match ? 'Correct (expected 0)' : 'Should recalc → Q ' . number_format($expectedTotal, 2);
+                        $rowClass = $match ? 'ok' : 'warning';
+                        echo "<tr class='{$rowClass}'>";
+                        echo "<td>{$ln->id}</td><td>{$ln->pre_cotizacion_id}</td><td>{$elName}</td><td>{$qty}</td>";
+                        echo "<td>Q " . number_format($stored, 2) . "</td><td>Q " . number_format($unit, 2) . "</td><td>Q " . number_format($expectedTotal, 2) . "</td>";
+                        echo "<td>{$note}</td></tr>";
+                    }
+                    echo "</table>";
+                } else {
+                    echo "<p class='ok'>✅ No Pre-Cotización elemento lines with total ≤ 0</p>";
+                }
+            }
+        }
+    }
+} catch (\Throwable $e) {
+    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+    $productosOk = false;
+}
+$testResults['productos_calculations'] = $productosOk;
+echo "</div>";
+
+// ============================================
 // FINAL SUMMARY
 // ============================================
 echo "<div class='test-section'>";
@@ -1054,6 +1180,7 @@ $additionalTests = [
     'view_integration' => 'View integration working',
     'template_file' => 'Template file exists',
     'dropdown_rendering' => 'Dropdown HTML rendering',
+    'productos_calculations' => 'Productos & calculations (elementos, ranges, unit price)',
 ];
 
 foreach ($additionalTests as $test => $label) {
