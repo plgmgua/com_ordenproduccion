@@ -900,15 +900,17 @@ class ProductosModel extends BaseDatabaseModel
         $columns = $this->getDatabase()->getTableColumns('#__ordenproduccion_elementos', false);
         $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
         if (isset($columns['range_1_ceiling']) && isset($columns['price_1_to_1000']) && isset($columns['price_1001_plus'])) {
-            $ceiling = (int) ($el->range_1_ceiling ?? 1000);
+            $row = array_change_key_case((array) $el, CASE_LOWER);
+            $ceiling = (int) ($row['range_1_ceiling'] ?? 1000);
             if ($ceiling < 1) {
                 $ceiling = 1000;
             }
-            $p1 = (float) ($el->price_1_to_1000 ?? $el->price ?? 0);
-            $p2 = (float) ($el->price_1001_plus ?? 0);
+            $p1 = (float) ($row['price_1_to_1000'] ?? $row['price'] ?? 0);
+            $p2 = (float) ($row['price_1001_plus'] ?? 0);
             return $qty <= $ceiling ? $p1 : $p2;
         }
-        return (float) ($el->price ?? 0);
+        $row = array_change_key_case((array) $el, CASE_LOWER);
+        return (float) ($row['price'] ?? 0);
     }
 
     /**
