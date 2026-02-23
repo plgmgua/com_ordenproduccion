@@ -209,6 +209,11 @@ class PrecotizacionModel extends ListModel
 
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
+        $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        $hasElementoCols = isset($columns['line_type']) && isset($columns['elemento_id']);
+        $productosModel = null;
+
         foreach ($rows as $row) {
             if (!empty($row->process_ids)) {
                 $row->process_ids_array = json_decode($row->process_ids, true);
@@ -225,6 +230,34 @@ class PrecotizacionModel extends ListModel
                 }
             } else {
                 $row->breakdown = [];
+            }
+            if ($hasElementoCols) {
+                $r = array_change_key_case((array) $row, CASE_LOWER);
+                $lineType = $r['line_type'] ?? 'pliego';
+                $elementoId = isset($r['elemento_id']) ? (int) $r['elemento_id'] : 0;
+                if ($lineType === 'elementos' && $elementoId > 0) {
+                    $qty = (int) ($r['quantity'] ?? 1);
+                    $storedTotal = (float) ($r['total'] ?? 0);
+                    if ($qty > 0 && $storedTotal <= 0) {
+                        if ($productosModel === null) {
+                            $productosModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                                ->getMVCFactory()->createModel('Productos', 'Site', ['ignore_request' => true]);
+                        }
+                        if ($productosModel->elementosTableExists()) {
+                            $unitPrice = $productosModel->getElementoUnitPrice($elementoId, $qty);
+                            $recalc = $qty * $unitPrice;
+                            if ($recalc > 0) {
+                                $row->total = $recalc;
+                                $row->price_per_sheet = $unitPrice;
+                                $db->updateObject(
+                                    '#__ordenproduccion_pre_cotizacion_line',
+                                    (object) ['id' => (int) $row->id, 'total' => $recalc, 'price_per_sheet' => $unitPrice],
+                                    ['id']
+                                );
+                            }
+                        }
+                    }
+                }
             }
         }
         return $rows;
