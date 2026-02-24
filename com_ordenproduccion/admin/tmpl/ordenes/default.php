@@ -87,9 +87,14 @@ if ($saveOrder && !empty($this->items)) {
                             $n = is_array($this->items) ? count($this->items) : 0;
                             if (is_array($this->items)) {
                                 foreach ($this->items as $i => $item) :
+                                $publishUp   = $item->publish_up ?? null;
+                                $publishDown = $item->publish_down ?? null;
+                                $checkedOut  = $item->checked_out ?? null;
+                                $editor      = $item->editor ?? '';
+                                $checkedOutTime = $item->checked_out_time ?? null;
                                 $canEdit    = $user->authorise('core.edit', 'com_ordenproduccion.orden.' . $item->id);
-                                $canCheckin = $user->authorise('core.manage', 'com_checkin') || $item->checked_out == $userId || is_null($item->checked_out);
-                                $canEditOwn = $user->authorise('core.edit.own', 'com_ordenproduccion.orden.' . $item->id) && $item->created_by == $userId;
+                                $canCheckin = $user->authorise('core.manage', 'com_checkin') || $checkedOut == $userId || $checkedOut === null || $checkedOut === 0;
+                                $canEditOwn = $user->authorise('core.edit.own', 'com_ordenproduccion.orden.' . $item->id) && ($item->created_by ?? 0) == $userId;
                                 $canChange  = $user->authorise('core.edit.state', 'com_ordenproduccion.orden.' . $item->id) && $canCheckin;
                                 ?>
                                 <tr class="row<?php echo $i % 2; ?>" data-draggable-group="0" data-item-id="<?php echo $item->id; ?>" data-parents="" data-level="0">
@@ -97,7 +102,7 @@ if ($saveOrder && !empty($this->items)) {
                                         <?php echo HTMLHelper::_('grid.id', $i, $item->id, false, 'cid', 'cb', $item->orden_de_trabajo); ?>
                                     </td>
                                     <td class="text-center">
-                                        <?php echo HTMLHelper::_('jgrid.published', $item->state, $i, 'ordenes.', $canChange, 'cb', $item->publish_up, $item->publish_down); ?>
+                                        <?php echo HTMLHelper::_('jgrid.published', $item->state, $i, 'ordenes.', $canChange, 'cb', $publishUp, $publishDown); ?>
                                     </td>
                                     <th scope="row" class="has-context">
                                         <div>
@@ -108,17 +113,17 @@ if ($saveOrder && !empty($this->items)) {
                                             <?php else : ?>
                                                 <?php echo $this->escape($item->orden_de_trabajo); ?>
                                             <?php endif; ?>
-                                            <?php if ($item->checked_out) : ?>
-                                                <?php echo HTMLHelper::_('jgrid.checkedout', $i, $item->editor, $item->checked_out_time, 'ordenes.', $canCheckin); ?>
+                                            <?php if ($checkedOut) : ?>
+                                                <?php echo HTMLHelper::_('jgrid.checkedout', $i, $editor, $checkedOutTime, 'ordenes.', $canCheckin); ?>
                                             <?php endif; ?>
                                         </div>
                                     </th>
                                     <td>
-                                        <?php echo $this->escape($item->nombre_del_cliente); ?>
+                                        <?php echo $this->escape(isset($item->nombre_del_cliente) ? $item->nombre_del_cliente : (isset($item->client_name) ? $item->client_name : '')); ?>
                                     </td>
                                     <td>
                                         <?php 
-                                        $description = $item->descripcion_de_trabajo;
+                                        $description = $item->descripcion_de_trabajo ?? '';
                                         if (strlen($description) > 50) {
                                             echo $this->escape(substr($description, 0, 50)) . '...';
                                         } else {
