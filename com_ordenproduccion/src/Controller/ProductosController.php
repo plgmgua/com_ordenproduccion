@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -437,8 +438,7 @@ class ProductosController extends BaseController
         $iva = max(0, min(100, $iva));
         $isr = max(0, min(100, $isr));
 
-        $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
-        $params = $component->getParams();
+        $params = ComponentHelper::getParams('com_ordenproduccion');
         $params->set('margen_ganancia', $margen);
         $params->set('iva', $iva);
         $params->set('isr', $isr);

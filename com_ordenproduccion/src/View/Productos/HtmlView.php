@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Productos;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -185,7 +186,7 @@ class HtmlView extends BaseHtmlView
 
         if ($this->section === 'parametros') {
             $this->setLayout('parametros');
-            $params = $app->bootComponent('com_ordenproduccion')->getParams();
+            $params = ComponentHelper::getParams('com_ordenproduccion');
             $this->margenGanancia = (float) $params->get('margen_ganancia', 0);
             $this->iva = (float) $params->get('iva', 0);
             $this->isr = (float) $params->get('isr', 0);
