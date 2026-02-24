@@ -9,10 +9,12 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Factory;
+use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 
 $l = function($key, $fallbackEn, $fallbackEs = null) {
     $t = Text::_($key);
@@ -130,7 +132,7 @@ $currency = $quotation->currency ?? 'Q';
                         $unit = $qty > 0 ? ($subtotal / $qty) : 0;
                     ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($preNum); ?></td>
+                            <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                             <td><?php echo (int) $qty; ?></td>
                             <td><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
                             <td class="text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
@@ -159,3 +161,53 @@ $currency = $quotation->currency ?? 'Q';
         </a>
     </div>
 </div>
+
+<?php if (!empty($items)) : ?>
+<!-- Modal: Pre-Cotización details (same as edit view) -->
+<div class="modal fade" id="precotizacionDetailModal" tabindex="-1" aria-labelledby="precotizacionDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="precotizacionDetailModalLabel"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="precotizacionDetailContent" class="overflow-auto" style="max-height: 70vh;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var precotizacionDetailBase = <?php echo json_encode(Uri::root()); ?>;
+    var precotizacionDetailToken = <?php echo json_encode(Session::getFormToken() . '=1'); ?>;
+    document.addEventListener('click', function(e) {
+        var link = e.target && e.target.closest && e.target.closest('.precotizacion-detail-link');
+        if (!link) return;
+        e.preventDefault();
+        var preId = link.getAttribute('data-pre-id');
+        var preNumber = link.getAttribute('data-pre-number') || ('PRE-' + preId);
+        if (!preId) return;
+        var modal = document.getElementById('precotizacionDetailModal');
+        var contentEl = document.getElementById('precotizacionDetailContent');
+        var titleEl = document.getElementById('precotizacionDetailModalLabel');
+        if (!modal || !contentEl) return;
+        if (titleEl) titleEl.textContent = preNumber;
+        contentEl.innerHTML = '<div class="p-3 text-muted text-center"><span class="spinner-border spinner-border-sm me-2"></span><?php echo addslashes($l('COM_ORDENPRODUCCION_LOADING', 'Loading...', 'Cargando...')); ?></div>';
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+            bsModal.show();
+        } else {
+            modal.classList.add('show');
+            modal.style.display = 'block';
+        }
+        var url = precotizacionDetailBase + 'index.php?option=com_ordenproduccion&task=ajax.getPrecotizacionDetails&format=raw&id=' + encodeURIComponent(preId) + '&' + precotizacionDetailToken;
+        fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+            contentEl.innerHTML = html || '<p class="p-3 text-muted"><?php echo addslashes($l('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND', 'Pre-quotation not found.', 'Pre-cotización no encontrada.')); ?></p>';
+        }).catch(function() {
+            contentEl.innerHTML = '<p class="p-3 text-danger"><?php echo addslashes($l('COM_ORDENPRODUCCION_ERROR_LOADING', 'Error loading.', 'Error al cargar.')); ?></p>';
+        });
+    });
+})();
+</script>
+<?php endif; ?>
