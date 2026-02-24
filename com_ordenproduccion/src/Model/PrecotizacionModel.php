@@ -103,7 +103,12 @@ class PrecotizacionModel extends ListModel
         $db    = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        $query->select('a.id, a.number, a.created_by, a.created, a.modified, a.state')
+        $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        if (is_array($tableCols) && array_key_exists('descripcion', array_change_key_case($tableCols, CASE_LOWER))) {
+            $cols[] = 'a.descripcion';
+        }
+        $query->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.state') . ' = 1');
 

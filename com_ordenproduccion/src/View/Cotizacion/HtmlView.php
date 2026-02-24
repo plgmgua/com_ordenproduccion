@@ -103,7 +103,6 @@ class HtmlView extends BaseHtmlView
 
         try {
             $quotationId = $input->getInt('id', 0);
-            $usedPreCotizacionIds = [];
 
             // Load existing quotation and items when editing
             if ($quotationId > 0) {
@@ -139,9 +138,6 @@ class HtmlView extends BaseHtmlView
                     $this->quotationItems = $db->loadObjectList() ?: [];
                     foreach ($this->quotationItems as $item) {
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-                        if ($preId > 0) {
-                            $usedPreCotizacionIds[] = $preId;
-                        }
                         // Ensure display number: from join/subquery or fallback PRE-{id}
                         $num = isset($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : '';
                         if ($num === '' && $preId > 0) {
@@ -162,7 +158,7 @@ class HtmlView extends BaseHtmlView
                 $this->salesAgent  = $input->getString('x_studio_agente_de_ventas', '');
             }
 
-            // Pre-Cotizaciones list for line selector (current user, with total per item; exclude already used when editing)
+            // Pre-Cotizaciones list for line selector: current user, not associated to any quotation, with number, total and description
             $component = $app->bootComponent('com_ordenproduccion');
             $precotModel = $component->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             if ($precotModel) {
@@ -170,11 +166,17 @@ class HtmlView extends BaseHtmlView
                 $items = $precotModel->getItems();
                 $list = [];
                 foreach ($items ?: [] as $item) {
-                    if (in_array((int) $item->id, $usedPreCotizacionIds, true)) {
+                    if ($precotModel->isAssociatedWithQuotation((int) $item->id)) {
                         continue;
                     }
                     $total = $precotModel->getTotalForPreCotizacion((int) $item->id);
-                    $list[] = (object) ['id' => (int) $item->id, 'number' => $item->number ?? ('PRE-' . $item->id), 'total' => $total];
+                    $desc = isset($item->descripcion) ? trim((string) $item->descripcion) : '';
+                    $list[] = (object) [
+                        'id'          => (int) $item->id,
+                        'number'      => $item->number ?? ('PRE-' . $item->id),
+                        'total'       => $total,
+                        'descripcion' => $desc,
+                    ];
                 }
                 $this->preCotizacionesList = $list;
             }

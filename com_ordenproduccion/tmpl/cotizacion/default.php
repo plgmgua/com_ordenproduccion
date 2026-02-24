@@ -172,21 +172,32 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
                     <select id="precotizacionSelect" class="form-select form-select-sm cotizacion-precotizacion-select">
                         <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
-                        <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
+                        <?php foreach ($this->preCotizacionesList ?? [] as $pre) :
+                            $desc = isset($pre->descripcion) ? trim((string) $pre->descripcion) : '';
+                            $label = $pre->number . ($desc !== '' ? ' — ' . $desc : '');
+                            if (mb_strlen($label) > 120) {
+                                $label = mb_substr($label, 0, 117) . '...';
+                            }
+                        ?>
                             <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
-                                <?php echo htmlspecialchars($pre->number); ?> — Q <?php echo number_format($pre->total, 2); ?>
+                                <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="cotizacion-add-line-row-second">
+                <div class="cotizacion-add-line-row-second d-flex flex-wrap align-items-end gap-2">
                     <div class="cotizacion-add-cantidad">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
-                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="1" required aria-required="true">
+                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="1" aria-label="Cantidad">
                     </div>
                     <div class="cotizacion-add-descripcion">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
-                        <textarea id="precotizacionDescription" class="form-control form-control-sm" rows="2" style="min-width: 200px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" required aria-required="true"></textarea>
+                        <textarea id="precotizacionDescription" class="form-control form-control-sm" rows="2" style="min-width: 200px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" aria-label="Descripción personalizada"></textarea>
+                    </div>
+                    <div class="cotizacion-add-btn align-self-end">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnAddPrecotizacionLine" title="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                            <i class="fas fa-plus"></i> <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -237,9 +248,6 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
 
         <!-- Form Actions -->
         <div class="form-actions">
-            <button type="button" class="btn btn-primary me-2" id="btnAddPrecotizacionLine">
-                <i class="fas fa-plus"></i> <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
-            </button>
             <button type="button" class="btn-cancel me-2" onclick="window.location.href='index.php?option=com_ordenproduccion&view=cotizaciones'">
                 <i class="fas fa-times"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_CANCEL', 'Cancel', 'Cancelar'); ?>
@@ -290,8 +298,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     function removeLine(btn) {
         var tr = btn.closest('tr');
         if (!tr) return;
-        var preId = tr.getAttribute('data-pre-id');
-        if (preId && selectEl) {
+        var preId = tr.getAttribute('data-pre-id') || '';
+        // Only restore option in dropdown when this row had a real pre-cotización (not legacy/manual line with id 0)
+        if (preId && preId !== '0' && selectEl) {
             var opt = selectEl.querySelector('option[value="' + escapeAttr(preId) + '"]');
             if (opt) opt.remove();
         }
