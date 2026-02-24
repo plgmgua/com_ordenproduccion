@@ -150,6 +150,12 @@ class HtmlView extends BaseHtmlView
                 }
             }
 
+            // Use read-only display layout when viewing by id (no layout=edit)
+            $layout = $input->get('layout', '', 'cmd');
+            if ($quotationId > 0 && $this->quotation && $layout !== 'edit') {
+                $this->setLayout('display');
+            }
+
             // Get client/contact data from URL when not editing (Odoo-style)
             if (!$this->quotation) {
                 $this->clientName   = $input->getString('contact_name', $input->getString('client_name', ''));
@@ -220,15 +226,20 @@ class HtmlView extends BaseHtmlView
             }
             
             // Set page title (fallback so we never show raw language key)
-            $editTitle = Text::_('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE');
-            $newTitle = Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE');
-            if (strpos($editTitle, 'COM_ORDENPRODUCCION_') === 0) {
-                $editTitle = 'Edit Quotation';
+            $layout = $input->get('layout', '', 'cmd');
+            if ($this->quotation && $layout !== 'edit') {
+                $this->document->setTitle(($this->quotation->quotation_number ?? 'COT-' . (int) $this->quotation->id));
+            } else {
+                $editTitle = Text::_('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE');
+                $newTitle = Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE');
+                if (strpos($editTitle, 'COM_ORDENPRODUCCION_') === 0) {
+                    $editTitle = 'Edit Quotation';
+                }
+                if (strpos($newTitle, 'COM_ORDENPRODUCCION_') === 0) {
+                    $newTitle = 'Create New Quotation';
+                }
+                $this->document->setTitle($this->quotation ? $editTitle : $newTitle);
             }
-            if (strpos($newTitle, 'COM_ORDENPRODUCCION_') === 0) {
-                $newTitle = 'Create New Quotation';
-            }
-            $this->document->setTitle($this->quotation ? $editTitle : $newTitle);
             
             // Bootstrap for pre-cotización details modal
             HTMLHelper::_('bootstrap.framework');

@@ -1,0 +1,161 @@
+<?php
+/**
+ * Read-only display of a single quotation (view).
+ *
+ * @package     com_ordenproduccion
+ * @copyright   (C) 2025 Grimpsa. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
+defined('_JEXEC') or die;
+
+use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Factory;
+
+$l = function($key, $fallbackEn, $fallbackEs = null) {
+    $t = Text::_($key);
+    if ($t === $key || (is_string($t) && strpos($t, 'COM_ORDENPRODUCCION_') === 0)) {
+        $lang = Factory::getApplication()->getLanguage()->getTag();
+        return (strpos($lang, 'es') !== false && $fallbackEs !== null) ? $fallbackEs : $fallbackEn;
+    }
+    return $t;
+};
+
+$quotation = $this->quotation ?? null;
+$items = $this->quotationItems ?? [];
+$quotationId = $quotation ? (int) $quotation->id : 0;
+if (!$quotation) {
+    echo '<p class="text-muted p-3">' . htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_NOT_FOUND', 'Quotation not found.', 'Cotización no encontrada.')) . '</p>';
+    return;
+}
+
+$totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
+$currency = $quotation->currency ?? 'Q';
+?>
+<div class="cotizacion-container cotizacion-display">
+    <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="mb-0">
+            <i class="fas fa-file-invoice"></i>
+            <?php echo htmlspecialchars($quotation->quotation_number ?? ('COT-' . $quotationId)); ?>
+        </h2>
+        <div class="d-flex gap-2">
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'); ?>" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i>
+                <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
+            </a>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . '&layout=edit'); ?>" class="btn btn-primary">
+                <i class="fas fa-edit"></i>
+                <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
+            </a>
+        </div>
+    </div>
+
+    <!-- Client Information -->
+    <div class="client-info-section mb-4">
+        <h4 class="section-title">
+            <i class="fas fa-user"></i>
+            <?php echo $l('COM_ORDENPRODUCCION_CLIENT_INFORMATION', 'Client Information', 'Información del cliente'); ?>
+        </h4>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th style="width: 25%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
+                    <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
+                    <th style="width: 35%;"><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?></th>
+                    <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Sales Agent', 'Agente de ventas'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><?php echo htmlspecialchars($quotation->client_name ?? ''); ?></td>
+                    <td><?php echo htmlspecialchars($quotation->client_nit ?? ''); ?></td>
+                    <td><?php echo htmlspecialchars($quotation->client_address ?? ''); ?></td>
+                    <td><?php echo htmlspecialchars($quotation->sales_agent ?? ''); ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="contact-info-section mb-4">
+        <h4 class="section-title">
+            <i class="fas fa-address-book"></i>
+            <?php echo $l('COM_ORDENPRODUCCION_CONTACT_INFORMATION', 'Contact Information', 'Información de contacto'); ?>
+        </h4>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th style="width: 50%;"><?php echo $l('COM_ORDENPRODUCCION_CONTACT_NAME', 'Contact Name', 'Nombre de contacto'); ?></th>
+                    <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_CONTACT_PHONE', 'Contact Phone', 'Teléfono de contacto'); ?></th>
+                    <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_QUOTE_DATE', 'Quotation Date', 'Fecha de cotización'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><?php echo htmlspecialchars($quotation->contact_name ?? ''); ?></td>
+                    <td><?php echo htmlspecialchars($quotation->contact_phone ?? ''); ?></td>
+                    <td><?php echo $quotation->quote_date ? HTMLHelper::_('date', $quotation->quote_date, 'Y-m-d') : '—'; ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Quotation Lines -->
+    <div class="items-table-section">
+        <h4 class="section-title">
+            <i class="fas fa-list"></i>
+            <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ITEMS', 'Quotation Details', 'Detalles de la cotización'); ?>
+        </h4>
+        <?php if (empty($items)) : ?>
+            <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
+        <?php else : ?>
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th style="width: 10%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
+                        <th style="width: 40%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th style="width: 15%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
+                        <th style="width: 15%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($items as $item) :
+                        $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                        $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
+                        $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
+                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
+                        $unit = $qty > 0 ? ($subtotal / $qty) : 0;
+                    ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($preNum); ?></td>
+                            <td><?php echo (int) $qty; ?></td>
+                            <td><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
+                            <td class="text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
+                            <td class="text-end"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr class="table-secondary fw-bold">
+                        <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
+                        <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                    </tr>
+                </tfoot>
+            </table>
+        <?php endif; ?>
+    </div>
+
+    <div class="mt-4 pt-3 border-top">
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'); ?>" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left"></i>
+            <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
+        </a>
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . '&layout=edit'); ?>" class="btn btn-primary">
+            <i class="fas fa-edit"></i>
+            <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
+        </a>
+    </div>
+</div>

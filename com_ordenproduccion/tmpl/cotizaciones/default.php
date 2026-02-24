@@ -85,7 +85,9 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                     <?php foreach ($this->quotations as $quotation): ?>
                     <tr>
                         <td class="quotation-number">
-                            <strong><?php echo htmlspecialchars($quotation->quotation_number); ?></strong>
+                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotation->id); ?>">
+                                <strong><?php echo htmlspecialchars($quotation->quotation_number); ?></strong>
+                            </a>
                         </td>
                         <td><?php echo htmlspecialchars($quotation->client_name); ?></td>
                         <td><?php echo htmlspecialchars($quotation->client_nit); ?></td>
@@ -99,23 +101,14 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                             </span>
                         </td>
                         <td class="actions">
-                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotation->id); ?>" 
-                               class="btn-action btn-view" 
-                               title="<?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?>">
-                                <i class="fas fa-eye"></i>
-                            </a>
                             <?php if ($hasVentasAccess): ?>
-                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotation->id . '&layout=edit'); ?>" 
-                               class="btn-action btn-edit" 
-                               title="<?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=quotation.delete&id=' . (int) $quotation->id . '&' . Session::getFormToken() . '=1'); ?>" 
-                               class="btn-action btn-delete" 
-                               title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"
-                               onclick="return confirm('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DELETE_CONFIRM', 'Delete this quotation? This cannot be undone.', '¿Eliminar esta cotización? No se puede deshacer.')); ?>');">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=quotation.delete', false); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DELETE_CONFIRM', 'Delete this quotation? This cannot be undone.', '¿Eliminar esta cotización? No se puede deshacer.')); ?>');">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="id" value="<?php echo (int) $quotation->id; ?>">
+                                <button type="submit" class="btn-action btn-delete" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
                             <?php endif; ?>
                         </td>
                     </tr>
