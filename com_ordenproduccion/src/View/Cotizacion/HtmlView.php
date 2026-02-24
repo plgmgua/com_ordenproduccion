@@ -121,7 +121,7 @@ class HtmlView extends BaseHtmlView
                     $this->clientAddress = $this->quotation->client_address ?? '';
                     $this->clientId     = isset($this->quotation->client_id) ? (string) $this->quotation->client_id : '';
                     $this->salesAgent   = $this->quotation->sales_agent ?? '';
-                    // Load items with pre_cotizacion number when present
+                    // Load items with pre_cotizacion number when present (subquery so number is always loaded when pre_cotizacion_id is set)
                     $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
                     $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
                     $hasPreId = isset($itemCols['pre_cotizacion_id']);
@@ -131,20 +131,21 @@ class HtmlView extends BaseHtmlView
                         ->where($db->quoteName('i.quotation_id') . ' = ' . (int) $quotationId)
                         ->order($db->quoteName('i.line_order') . ' ASC, ' . $db->quoteName('i.id') . ' ASC');
                     if ($hasPreId) {
-                        $query->select('p.number AS pre_cotizacion_number')
-                            ->leftJoin(
-                                $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p'),
-                                $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id')
-                            );
+                        $subq = '(SELECT ' . $db->quoteName('p.number') . ' FROM ' . $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p')
+                            . ' WHERE ' . $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id') . ' LIMIT 1)';
+                        $query->select($subq . ' AS ' . $db->quoteName('pre_cotizacion_number'));
                     }
                     $db->setQuery($query);
                     $this->quotationItems = $db->loadObjectList() ?: [];
                     foreach ($this->quotationItems as $item) {
-                        if (!empty($item->pre_cotizacion_id)) {
-                            $usedPreCotizacionIds[] = (int) $item->pre_cotizacion_id;
+                        $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                        if ($preId > 0) {
+                            $usedPreCotizacionIds[] = $preId;
                         }
-                        if (empty($item->pre_cotizacion_number) && !empty($item->pre_cotizacion_id)) {
-                            $item->pre_cotizacion_number = 'PRE-' . $item->pre_cotizacion_id;
+                        // Ensure display number: from join/subquery or fallback PRE-{id}
+                        $num = isset($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : '';
+                        if ($num === '' && $preId > 0) {
+                            $item->pre_cotizacion_number = 'PRE-' . $preId;
                         }
                     }
                 } else {
@@ -215,10 +216,16 @@ class HtmlView extends BaseHtmlView
                 return;
             }
             
-            // Set page title
-            $this->document->setTitle($this->quotation
-                ? Text::_('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE')
-                : Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE'));
+            // Set page title (fallback so we never show raw language key)
+            $editTitle = Text::_('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE');
+            $newTitle = Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE');
+            if (strpos($editTitle, 'COM_ORDENPRODUCCION_') === 0) {
+                $editTitle = 'Edit Quotation';
+            }
+            if (strpos($newTitle, 'COM_ORDENPRODUCCION_') === 0) {
+                $newTitle = 'Create New Quotation';
+            }
+            $this->document->setTitle($this->quotation ? $editTitle : $newTitle);
             
             // Load CSS
             $wa = $this->document->getWebAssetManager();

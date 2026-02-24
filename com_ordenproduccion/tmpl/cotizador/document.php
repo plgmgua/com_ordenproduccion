@@ -74,6 +74,45 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
 
     <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>
 
+    <?php
+    $associatedQuotations = $this->associatedQuotations ?? [];
+    if (!empty($associatedQuotations)) :
+        $labelAssociated = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION');
+        if (strpos($labelAssociated, 'COM_ORDENPRODUCCION_') === 0) {
+            $labelAssociated = 'Associated quotation(s)';
+        }
+    ?>
+    <div class="precotizacion-associated-quotations mb-3 p-3 bg-light rounded">
+        <strong><?php echo htmlspecialchars($labelAssociated); ?>:</strong>
+        <?php
+        $links = [];
+        foreach ($associatedQuotations as $q) {
+            $url = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $q->id);
+            $links[] = '<a href="' . htmlspecialchars($url) . '">' . htmlspecialchars($q->quotation_number ?? ('COT-' . $q->id)) . '</a>';
+        }
+        echo implode(', ', $links);
+        ?>
+    </div>
+    <?php endif; ?>
+
+    <?php
+    $labelDescripcion = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION');
+    if (strpos($labelDescripcion, 'COM_ORDENPRODUCCION_') === 0) {
+        $labelDescripcion = 'Descripción';
+    }
+    $descripcionValue = isset($item->descripcion) ? (string) $item->descripcion : '';
+    $saveDescripcionUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveDescripcion');
+    ?>
+    <div class="precotizacion-descripcion mb-4">
+        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="mb-2">
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <label for="precotizacion-descripcion" class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
+            <textarea id="precotizacion-descripcion" name="descripcion" class="form-control" rows="4" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
+            <button type="submit" class="btn btn-secondary mt-2"><?php echo Text::_('JSAVE'); ?></button>
+        </form>
+    </div>
+
     <div class="mb-3 d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
             <?php echo htmlspecialchars($labelCalculoFolios); ?>

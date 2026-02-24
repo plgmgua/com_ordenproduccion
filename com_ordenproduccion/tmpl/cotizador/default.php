@@ -42,20 +42,43 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                     <tr>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NUMBER'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CREATED'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION'); ?></th>
                         <th scope="col" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($items as $item) :
+                    <?php
+                    $associatedMap = $this->associatedQuotationNumbersByPreId ?? [];
+                    foreach ($items as $item) :
                         $docUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $item->id);
                         $deleteUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.delete&id=' . (int) $item->id . '&' . Session::getFormToken() . '=1');
                         $created = $item->created ? (new \DateTime($item->created))->format('d/m/Y H:i') : '-';
+                        $quotationNumbers = $associatedMap[(int) $item->id] ?? [];
                     ?>
                         <tr>
                             <td>
                                 <a href="<?php echo htmlspecialchars($docUrl); ?>"><?php echo htmlspecialchars($item->number ?? ''); ?></a>
                             </td>
                             <td><?php echo htmlspecialchars($created); ?></td>
+                            <td>
+                                <?php
+                                if (empty($quotationNumbers)) {
+                                    echo '<span class="text-muted">—</span>';
+                                } else {
+                                    $parts = [];
+                                    foreach ($quotationNumbers as $q) {
+                                        $qid = is_array($q) ? (int) $q['id'] : 0;
+                                        $qnum = is_array($q) ? ($q['quotation_number'] ?? '') : (string) $q;
+                                        if ($qid) {
+                                            $parts[] = '<a href="' . htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $qid)) . '">' . htmlspecialchars($qnum) . '</a>';
+                                        } else {
+                                            $parts[] = htmlspecialchars($qnum);
+                                        }
+                                    }
+                                    echo implode(', ', $parts);
+                                }
+                                ?>
+                            </td>
                             <td class="text-end">
                                 <a href="<?php echo htmlspecialchars($docUrl); ?>" class="btn btn-sm btn-outline-primary">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VIEW'); ?>

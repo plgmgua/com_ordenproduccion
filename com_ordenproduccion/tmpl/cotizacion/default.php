@@ -36,10 +36,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     <div class="cotizacion-header">
         <h2>
             <i class="fas fa-file-invoice"></i>
-            <?php echo $isEdit ? Text::_('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE') : Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE'); ?>
+            <?php echo $isEdit ? $l('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE', 'Edit Quotation', 'Editar cotización') : $l('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE', 'Create New Quotation', 'Crear nueva cotización'); ?>
         </h2>
         <p class="form-note">
-            <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_NOTE'); ?>
+            <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_FORM_NOTE', 'Fill in client information and quotation details.', 'Complete la información del cliente y los detalles de la cotización.'); ?>
         </p>
     </div>
 
@@ -53,16 +53,16 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         <div class="client-info-section">
             <h4 class="section-title">
                 <i class="fas fa-user"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_INFORMATION'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_CLIENT_INFORMATION', 'Client Information', 'Información del cliente'); ?>
             </h4>
             
             <table class="client-table">
                 <thead>
                     <tr>
-                        <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?></th>
-                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
-                        <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?></th>
-                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?></th>
+                        <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
+                        <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
+                        <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?></th>
+                        <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Sales Agent', 'Agente de ventas'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -82,7 +82,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    value="<?php echo htmlspecialchars($clientNamePrepop); ?>" 
                                    <?php if ($readonlyClientName) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    required 
-                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?>">
+                                   placeholder="<?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?>">
                         </td>
                         <td>
                             <input type="text" 
@@ -91,7 +91,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    value="<?php echo htmlspecialchars($clientNitPrepop); ?>" 
                                    <?php if ($readonlyClientNit) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    required 
-                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?>">
+                                   placeholder="<?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?>">
                         </td>
                         <td>
                             <input type="text" 
@@ -99,7 +99,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    name="client_address" 
                                    value="<?php echo htmlspecialchars($this->clientAddress ?? ''); ?>" 
                                    required 
-                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?>">
+                                   placeholder="<?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?>">
                         </td>
                         <td>
                             <input type="text" 
@@ -107,7 +107,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    name="sales_agent" 
                                    value="<?php echo htmlspecialchars($salesAgentPrepop); ?>" 
                                    <?php if ($readonlySalesAgent) : ?>readonly class="readonly-prepop"<?php endif; ?>
-                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?>">
+                                   placeholder="<?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Sales Agent', 'Agente de ventas'); ?>">
                         </td>
                     </tr>
                 </tbody>
@@ -118,15 +118,15 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         <div class="contact-info-section">
             <h4 class="section-title">
                 <i class="fas fa-address-book"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_INFORMATION'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_CONTACT_INFORMATION', 'Contact Information', 'Información de contacto'); ?>
             </h4>
             
             <table class="contact-table">
                 <thead>
                     <tr>
-                        <th style="width: 50%;"><?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_NAME'); ?></th>
-                        <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_PHONE'); ?></th>
-                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_DATE'); ?></th>
+                        <th style="width: 50%;"><?php echo $l('COM_ORDENPRODUCCION_CONTACT_NAME', 'Contact Name', 'Nombre de contacto'); ?></th>
+                        <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_CONTACT_PHONE', 'Contact Phone', 'Teléfono de contacto'); ?></th>
+                        <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_QUOTE_DATE', 'Quotation Date', 'Fecha de cotización'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -136,14 +136,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    id="contact_name" 
                                    name="contact_name" 
                                    value="<?php echo htmlspecialchars($isEdit ? ($this->quotation->contact_name ?? '') : ''); ?>"
-                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_NAME'); ?>">
+                                   placeholder="<?php echo $l('COM_ORDENPRODUCCION_CONTACT_NAME', 'Contact Name', 'Nombre de contacto'); ?>">
                         </td>
                         <td>
                             <input type="text" 
                                    id="contact_phone" 
                                    name="contact_phone" 
                                    value="<?php echo htmlspecialchars($isEdit ? ($this->quotation->contact_phone ?? '') : ''); ?>"
-                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_PHONE'); ?>">
+                                   placeholder="<?php echo $l('COM_ORDENPRODUCCION_CONTACT_PHONE', 'Contact Phone', 'Teléfono de contacto'); ?>">
                         </td>
                         <td>
                             <input type="date" 
@@ -161,7 +161,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         <div class="items-table-section">
             <h4 class="items-table-title">
                 <i class="fas fa-list"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_ITEMS'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ITEMS', 'Quotation Details', 'Detalles de la cotización'); ?>
             </h4>
             <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation, quantity and a custom description (required). Total is the sum of all line values.', 'Agregue líneas seleccionando una Pre-Cotización, cantidad y descripción personalizada (obligatoria). El total es la suma de todas las líneas.'); ?></p>
             <?php if (empty($this->preCotizacionesList)) : ?>
@@ -170,7 +170,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             <div class="cotizacion-add-line-block mb-2">
                 <div class="cotizacion-add-line-row-first">
                     <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
-                    <select id="precotizacionSelect" class="form-select form-select-sm" style="width: auto; max-width: 220px;">
+                    <select id="precotizacionSelect" class="form-select form-select-sm cotizacion-precotizacion-select">
                         <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
                         <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
                             <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
@@ -205,8 +205,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     $lineIndex = 0;
                     foreach (isset($this->quotationItems) ? $this->quotationItems : [] as $item) :
                         $lineIndex++;
-                        $preNum = isset($item->pre_cotizacion_number) ? $item->pre_cotizacion_number : (isset($item->pre_cotizacion_id) && $item->pre_cotizacion_id ? 'PRE-' . $item->pre_cotizacion_id : '-');
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                        $preNum = '-';
+                        if ($preId > 0) {
+                            $preNum = !empty($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : ('PRE-' . $preId);
+                        }
                         $unit = isset($item->valor_unitario) ? (float) $item->valor_unitario : 0;
                         $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
                         if ($qty < 1) $qty = 1;
@@ -218,7 +221,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($subtotal, 2, '.', ''); ?>" readonly></td>
-                        <td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo Text::_('COM_ORDENPRODUCCION_DELETE'); ?>"><i class="fas fa-trash"></i></button></td>
+                        <td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -239,11 +242,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             </button>
             <button type="button" class="btn-cancel me-2" onclick="window.location.href='index.php?option=com_ordenproduccion&view=cotizaciones'">
                 <i class="fas fa-times"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_CANCEL'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_CANCEL', 'Cancel', 'Cancelar'); ?>
             </button>
             <button type="submit" class="btn-submit">
                 <i class="fas fa-save"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_SAVE_QUOTATION'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_SAVE_QUOTATION', 'Save Quotation', 'Guardar cotización'); ?>
             </button>
         </div>
     </form>
@@ -346,12 +349,12 @@ function submitQuotationForm(event) {
     event.preventDefault();
     const tbody = document.getElementById('quotationItemsBody');
     if (!tbody || tbody.querySelectorAll('tr.quotation-item-row').length === 0) {
-        alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_ADD_AT_LEAST_ONE_LINE')); ?>');
+        alert('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_ADD_AT_LEAST_ONE_LINE', 'Please add at least one line.', 'Agregue al menos una línea.')); ?>');
         return;
     }
     const submitButton = event.target.querySelector('.btn-submit');
     submitButton.disabled = true;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PROCESSING')); ?>...';
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo addslashes($l('COM_ORDENPRODUCCION_PROCESSING', 'Processing', 'Procesando')); ?>...';
     
     const formData = new FormData(document.getElementById('quotationForm'));
     formData.set('<?php echo Session::getFormToken(); ?>', '1');
@@ -370,7 +373,7 @@ function submitQuotationForm(event) {
     })
     .then(function(data) {
         if (data.success) {
-            alert(data.message || ('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS')); ?>: ' + (data.quotation_number || '')));
+            alert(data.message || ('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS', 'Quotation saved successfully.', 'Cotización guardada correctamente.')); ?>: ' + (data.quotation_number || '')));
             window.location.href = 'index.php?option=com_ordenproduccion&view=cotizaciones';
         } else {
             throw new Error(data.message || 'Error saving quotation');
@@ -378,8 +381,8 @@ function submitQuotationForm(event) {
     })
     .catch(function(error) {
         submitButton.disabled = false;
-        submitButton.innerHTML = '<i class="fas fa-save"></i> <?php echo addslashes(Text::_('COM_ORDENPRODUCCION_SAVE_QUOTATION')); ?>';
-        alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_ERROR_CREATING_QUOTATION')); ?>: ' + error.message);
+        submitButton.innerHTML = '<i class="fas fa-save"></i> <?php echo addslashes($l('COM_ORDENPRODUCCION_SAVE_QUOTATION', 'Save Quotation', 'Guardar cotización')); ?>';
+        alert('<?php echo addslashes($l('COM_ORDENPRODUCCION_ERROR_CREATING_QUOTATION', 'Error saving quotation.', 'Error al guardar la cotización.')); ?>: ' + error.message);
         console.error('Error:', error);
     });
 }

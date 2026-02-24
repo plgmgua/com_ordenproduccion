@@ -147,8 +147,13 @@ class PrecotizacionModel extends ListModel
 
         $user = Factory::getUser();
         $db   = $this->getDatabase();
+        $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        if (is_array($tableCols) && array_key_exists('descripcion', array_change_key_case($tableCols, CASE_LOWER))) {
+            $cols[] = 'a.descripcion';
+        }
         $query = $db->getQuery(true)
-            ->select('a.id, a.number, a.created_by, a.created, a.modified, a.state')
+            ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.id') . ' = ' . $id)
             ->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);

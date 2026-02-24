@@ -63,6 +63,10 @@
     border: 1px solid #dee2e6;
     border-radius: 4px;
 }
+.cotizacion-precotizacion-select {
+    min-width: 320px;
+    max-width: 480px;
+}
 .cotizacion-add-line-row-first {
     margin-bottom: 8px;
 }

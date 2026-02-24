@@ -93,6 +93,8 @@ class HtmlView extends BaseHtmlView
                 return;
             }
             $this->lines = $precotModel->getLines($id);
+            // Quotations that use this pre-cotización (from quotation_items.pre_cotizacion_id)
+            $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
             $this->elementos = [];
             if ($productosModel->elementosTableExists()) {
                 $this->elementos = $productosModel->getElementos();
@@ -104,11 +106,106 @@ class HtmlView extends BaseHtmlView
             $this->items = $precotModel->getItems();
             $this->pagination = $precotModel->getPagination();
             $this->state = $precotModel->getState();
+            $ids = [];
+            foreach ($this->items as $it) {
+                $ids[] = (int) $it->id;
+            }
+            $this->associatedQuotationNumbersByPreId = $this->getAssociatedQuotationNumbersByPreCotizacionIds($ids);
             $this->setLayout('default');
             $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_TITLE'));
         }
 
         parent::display($tpl);
+    }
+
+    /**
+     * Get quotations that reference this pre-cotización (via quotation_items.pre_cotizacion_id).
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id
+     *
+     * @return  \stdClass[]  List of objects with id, quotation_number
+     *
+     * @since   3.74.0
+     */
+    protected function getQuotationsForPreCotizacion($preCotizacionId)
+    {
+        $db = Factory::getDbo();
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        if (!isset($itemCols['pre_cotizacion_id'])) {
+            return [];
+        }
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('q.id') . ', ' . $db->quoteName('q.quotation_number'))
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+                . ' AND ' . $db->quoteName('q.state') . ' = 1'
+            )
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+            ->order($db->quoteName('q.quotation_number'));
+        $db->setQuery($query);
+        $list = $db->loadObjectList();
+        return is_array($list) ? $list : [];
+    }
+
+    /**
+     * Get associated quotations per pre-cotización id (for list view).
+     *
+     * @param   int[]  $preCotizacionIds  Pre-cotización ids
+     *
+     * @return  array  [ pre_cotizacion_id => [ [ 'id' => int, 'quotation_number' => string ], ... ], ... ]
+     *
+     * @since   3.75.0
+     */
+    protected function getAssociatedQuotationNumbersByPreCotizacionIds(array $preCotizacionIds)
+    {
+        $db = Factory::getDbo();
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        if (!isset($itemCols['pre_cotizacion_id']) || empty($preCotizacionIds)) {
+            return [];
+        }
+        $ids = array_map('intval', $preCotizacionIds);
+        $ids = array_filter($ids, function ($id) {
+            return $id > 0;
+        });
+        if (empty($ids)) {
+            return [];
+        }
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('qi.pre_cotizacion_id') . ', ' . $db->quoteName('q.id', 'quotation_id') . ', ' . $db->quoteName('q.quotation_number'))
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+                . ' AND ' . $db->quoteName('q.state') . ' = 1'
+            )
+            ->whereIn($db->quoteName('qi.pre_cotizacion_id'), $ids)
+            ->order($db->quoteName('qi.pre_cotizacion_id') . ', ' . $db->quoteName('q.quotation_number'));
+        $db->setQuery($query);
+        $rows = $db->loadObjectList();
+        $map = [];
+        foreach ($ids as $id) {
+            $map[$id] = [];
+        }
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $pid = (int) $row->pre_cotizacion_id;
+            $qid = (int) $row->quotation_id;
+            $num = $row->quotation_number ?? ('COT-' . $qid);
+            $seen = false;
+            foreach ($map[$pid] as $existing) {
+                if ($existing['id'] === $qid) {
+                    $seen = true;
+                    break;
+                }
+            }
+            if (!$seen) {
+                $map[$pid][] = ['id' => $qid, 'quotation_number' => $num];
+            }
+        }
+        return $map;
     }
 
 }

@@ -373,4 +373,64 @@ class PrecotizacionController extends BaseController
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
         return true;
     }
+
+    /**
+     * Save the Descripcion (long text) of a Pre-Cotización. Only owner can save.
+     *
+     * @return  bool
+     * @since   3.75.0
+     */
+    public function saveDescripcion()
+    {
+        if (!Session::checkToken('request')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+            return false;
+        }
+
+        $id = (int) $this->input->get('id', 0);
+        $descripcion = $this->input->getString('descripcion', '');
+
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $item = $model->getItem($id);
+        if (!$item) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $db = Factory::getDbo();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['descripcion'])) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_DESCRIPCION_NOT_AVAILABLE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+            return false;
+        }
+
+        $obj = (object) [
+            'id' => $id,
+            'descripcion' => $descripcion,
+            'modified' => Factory::getDate()->toSql(),
+            'modified_by' => $user->id,
+        ];
+        $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
+
+        $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION_SAVED'));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+        return true;
+    }
 }

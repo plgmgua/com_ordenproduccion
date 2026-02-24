@@ -15,6 +15,16 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
 
+// Fallback for labels so we never show raw language keys
+$l = function($key, $fallbackEn, $fallbackEs = null) {
+    $t = Text::_($key);
+    if ($t === $key || (is_string($t) && strpos($t, 'COM_ORDENPRODUCCION_') === 0)) {
+        $lang = Factory::getApplication()->getLanguage()->getTag();
+        return (strpos($lang, 'es') !== false && $fallbackEs !== null) ? $fallbackEs : $fallbackEn;
+    }
+    return $t;
+};
+
 $user = Factory::getUser();
 $userGroups = $user->getAuthorisedGroups();
 $db = Factory::getDbo();
@@ -31,7 +41,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
     <div class="cotizaciones-header">
         <h2>
             <i class="fas fa-file-invoice-dollar"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATIONS_LIST_TITLE'); ?>
+            <?php echo $l('COM_ORDENPRODUCCION_QUOTATIONS_LIST_TITLE', 'Quotations List', 'Lista de cotizaciones'); ?>
         </h2>
         
         <?php if ($hasVentasAccess): ?>
@@ -39,7 +49,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion'); ?>" 
                class="btn-new-quotation">
                 <i class="fas fa-plus"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_NEW_QUOTATION', 'New Quotation', 'Nueva cotización'); ?>
             </a>
         </div>
         <?php endif; ?>
@@ -48,12 +58,12 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
     <?php if (empty($this->quotations)): ?>
         <div class="no-quotations">
             <i class="fas fa-inbox fa-3x"></i>
-            <p><?php echo Text::_('COM_ORDENPRODUCCION_NO_QUOTATIONS_FOUND'); ?></p>
+            <p><?php echo $l('COM_ORDENPRODUCCION_NO_QUOTATIONS_FOUND', 'No quotations found.', 'No se encontraron cotizaciones.'); ?></p>
             <?php if ($hasVentasAccess): ?>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion'); ?>" 
                class="btn-new-quotation">
                 <i class="fas fa-plus"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_FIRST_QUOTATION'); ?>
+                <?php echo $l('COM_ORDENPRODUCCION_CREATE_FIRST_QUOTATION', 'Create First Quotation', 'Crear primera cotización'); ?>
             </a>
             <?php endif; ?>
         </div>
@@ -62,13 +72,13 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
             <table class="quotations-table">
                 <thead>
                     <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_NUMBER'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_DATE'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL_AMOUNT'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NUMBER', 'Quotation Number', 'Número de cotización'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_QUOTE_DATE', 'Quotation Date', 'Fecha de cotización'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_TOTAL_AMOUNT', 'Total Amount', 'Monto total'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Status', 'Estado'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_ACTIONS', 'Actions', 'Acciones'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -91,19 +101,19 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                         <td class="actions">
                             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotation->id); ?>" 
                                class="btn-action btn-view" 
-                               title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW'); ?>">
+                               title="<?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?>">
                                 <i class="fas fa-eye"></i>
                             </a>
                             <?php if ($hasVentasAccess): ?>
                             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotation->id . '&layout=edit'); ?>" 
                                class="btn-action btn-edit" 
-                               title="<?php echo Text::_('COM_ORDENPRODUCCION_EDIT'); ?>">
+                               title="<?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=quotation.delete&id=' . (int) $quotation->id . '&' . Session::getFormToken() . '=1'); ?>" 
                                class="btn-action btn-delete" 
-                               title="<?php echo Text::_('COM_ORDENPRODUCCION_DELETE'); ?>"
-                               onclick="return confirm('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_DELETE_CONFIRM')); ?>');">
+                               title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"
+                               onclick="return confirm('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DELETE_CONFIRM', 'Delete this quotation? This cannot be undone.', '¿Eliminar esta cotización? No se puede deshacer.')); ?>');">
                                 <i class="fas fa-trash"></i>
                             </a>
                             <?php endif; ?>
