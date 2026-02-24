@@ -28,11 +28,15 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
 };
 ?>
 
+<?php
+$isEdit = !empty($this->quotation);
+$quotationId = $isEdit ? (int) $this->quotation->id : 0;
+?>
 <div class="cotizacion-container">
     <div class="cotizacion-header">
         <h2>
             <i class="fas fa-file-invoice"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE'); ?>
+            <?php echo $isEdit ? Text::_('COM_ORDENPRODUCCION_EDIT_QUOTATION_TITLE') : Text::_('COM_ORDENPRODUCCION_NEW_QUOTATION_TITLE'); ?>
         </h2>
         <p class="form-note">
             <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_FORM_NOTE'); ?>
@@ -40,6 +44,9 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
     </div>
 
     <form id="quotationForm" onsubmit="submitQuotationForm(event)">
+        <?php if ($quotationId) : ?>
+        <input type="hidden" name="quotation_id" id="quotation_id" value="<?php echo $quotationId; ?>">
+        <?php endif; ?>
         <input type="hidden" name="client_id" id="client_id" value="<?php echo htmlspecialchars($this->clientId ?? ''); ?>">
 
         <!-- Client Information Section -->
@@ -128,19 +135,21 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
                             <input type="text" 
                                    id="contact_name" 
                                    name="contact_name" 
+                                   value="<?php echo htmlspecialchars($isEdit ? ($this->quotation->contact_name ?? '') : ''); ?>"
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_NAME'); ?>">
                         </td>
                         <td>
                             <input type="text" 
                                    id="contact_phone" 
                                    name="contact_phone" 
+                                   value="<?php echo htmlspecialchars($isEdit ? ($this->quotation->contact_phone ?? '') : ''); ?>"
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CONTACT_PHONE'); ?>">
                         </td>
                         <td>
                             <input type="date" 
                                    id="quote_date" 
                                    name="quote_date" 
-                                   value="<?php echo $today; ?>" 
+                                   value="<?php echo $isEdit && !empty($this->quotation->quote_date) ? htmlspecialchars($this->quotation->quote_date) : $today; ?>" 
                                    required>
                         </td>
                     </tr>
@@ -192,7 +201,26 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">
-                    <!-- Lines added via JS -->
+                    <?php
+                    $lineIndex = 0;
+                    foreach (isset($this->quotationItems) ? $this->quotationItems : [] as $item) :
+                        $lineIndex++;
+                        $preNum = isset($item->pre_cotizacion_number) ? $item->pre_cotizacion_number : (isset($item->pre_cotizacion_id) && $item->pre_cotizacion_id ? 'PRE-' . $item->pre_cotizacion_id : '-');
+                        $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                        $unit = isset($item->valor_unitario) ? (float) $item->valor_unitario : 0;
+                        $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
+                        if ($qty < 1) $qty = 1;
+                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : ($unit * $qty);
+                        $desc = isset($item->descripcion) ? $item->descripcion : '';
+                    ?>
+                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($unit, 2, '.', ''); ?>">
+                        <td><?php echo htmlspecialchars($preNum); ?></td>
+                        <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
+                        <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
+                        <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($subtotal, 2, '.', ''); ?>" readonly></td>
+                        <td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo Text::_('COM_ORDENPRODUCCION_DELETE'); ?>"><i class="fas fa-trash"></i></button></td>
+                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr>
@@ -228,7 +256,7 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
     const cantidadEl = document.getElementById('precotizacionCantidad');
     const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
-    let lineIndex = 0;
+    let lineIndex = <?php echo isset($lineIndex) ? (int)$lineIndex : 0; ?>;
 
     function escapeAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -295,7 +323,8 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
                 '<td class="text-end">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><input type="number" step="0.01" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="' + value + '" readonly></td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);
-            tr.querySelector('.line-cantidad-input').addEventListener('input', function() { onRowCantidadChange(tr); });
+            var qtyInput = tr.querySelector('.line-cantidad-input');
+            if (qtyInput) qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
             if (descEl) descEl.value = '';
             if (cantidadEl) cantidadEl.value = '1';
             selectEl.selectedIndex = 0;
@@ -303,6 +332,12 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
             updateTotal();
         });
     }
+    // Bind cantidad change on existing rows (edit mode)
+    tbody.querySelectorAll('tr.quotation-item-row .line-cantidad-input').forEach(function(inp) {
+        var tr = inp.closest('tr');
+        if (tr) inp.addEventListener('input', function() { onRowCantidadChange(tr); });
+    });
+    updateTotal();
     window.removeQuotationLine = removeLine;
     window.updateQuotationTotal = updateTotal;
 })();
@@ -310,7 +345,7 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
 function submitQuotationForm(event) {
     event.preventDefault();
     const tbody = document.getElementById('quotationItemsBody');
-    if (!tbody || tbody.querySelectorAll('tr').length === 0) {
+    if (!tbody || tbody.querySelectorAll('tr.quotation-item-row').length === 0) {
         alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_ADD_AT_LEAST_ONE_LINE')); ?>');
         return;
     }
@@ -322,7 +357,10 @@ function submitQuotationForm(event) {
     formData.set('<?php echo Session::getFormToken(); ?>', '1');
     formData.set('total_amount', document.getElementById('totalAmount').value);
     
-    fetch('<?php echo Uri::root(); ?>index.php?option=com_ordenproduccion&task=ajax.createQuotation', {
+    const quotationId = document.getElementById('quotation_id');
+    const task = (quotationId && quotationId.value) ? 'ajax.updateQuotation' : 'ajax.createQuotation';
+    
+    fetch('<?php echo Uri::root(); ?>index.php?option=com_ordenproduccion&task=' + task, {
         method: 'POST',
         body: formData
     })
@@ -332,10 +370,10 @@ function submitQuotationForm(event) {
     })
     .then(function(data) {
         if (data.success) {
-            alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS')); ?>: ' + data.quotation_number);
+            alert(data.message || ('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS')); ?>: ' + (data.quotation_number || '')));
             window.location.href = 'index.php?option=com_ordenproduccion&view=cotizaciones';
         } else {
-            throw new Error(data.message || 'Error creating quotation');
+            throw new Error(data.message || 'Error saving quotation');
         }
     })
     .catch(function(error) {

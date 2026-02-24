@@ -474,6 +474,142 @@ class AjaxController extends BaseController
     }
 
     /**
+     * Update an existing quotation (header + replace all lines). Access: ventas group or quotation owner.
+     *
+     * @return  void
+     * @since   3.74.0
+     */
+    public function updateQuotation()
+    {
+        header('Content-Type: application/json');
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => 'Login required']);
+            exit;
+        }
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => 'Invalid token']);
+            exit;
+        }
+        $userGroups = $user->getAuthorisedGroups();
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)->select('id')->from($db->quoteName('#__usergroups'))->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
+        $db->setQuery($query);
+        $ventasGroupId = $db->loadResult();
+        $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid quotation']);
+            exit;
+        }
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . (int) $quotationId)
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        $quotation = $db->loadObject();
+        if (!$quotation) {
+            echo json_encode(['success' => false, 'message' => 'Quotation not found']);
+            exit;
+        }
+        if (!$hasVentasAccess && (int) $quotation->created_by !== (int) $user->id) {
+            echo json_encode(['success' => false, 'message' => 'Access denied']);
+            exit;
+        }
+        $input = $app->input;
+        $clientName = $input->getString('client_name', '');
+        $clientNit = $input->getString('client_nit', '');
+        $clientAddress = $input->getString('client_address', '');
+        $contactName = $input->getString('contact_name', '');
+        $contactPhone = $input->getString('contact_phone', '');
+        $quoteDate = $input->getString('quote_date', '');
+        $clientId = $input->getString('client_id', '');
+        $salesAgent = $input->getString('sales_agent', '');
+        $lines = $input->get('lines', [], 'array');
+        if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
+            echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+            exit;
+        }
+        $lineItems = [];
+        $totalAmount = 0;
+        foreach ($lines as $lineOrder => $line) {
+            $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
+            $value = isset($line['value']) ? (float) $line['value'] : 0;
+            $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 1;
+            if ($cantidad < 0.001) $cantidad = 1;
+            $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
+            if ($value >= 0 && ($preId > 0 || $desc !== '')) {
+                $lineItems[] = [
+                    'line_order' => $lineOrder,
+                    'cantidad' => $cantidad,
+                    'descripcion' => $desc !== '' ? $desc : ('PRE-' . $preId),
+                    'valor_unitario' => $cantidad > 0 ? $value / $cantidad : $value,
+                    'subtotal' => $value,
+                    'pre_cotizacion_id' => $preId > 0 ? $preId : null,
+                ];
+                $totalAmount += $value;
+            }
+        }
+        if (empty($lineItems)) {
+            echo json_encode(['success' => false, 'message' => 'Add at least one quotation line']);
+            exit;
+        }
+        $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $updateData = (object) [
+            'id' => $quotationId,
+            'client_name' => $clientName,
+            'client_nit' => $clientNit,
+            'client_address' => $clientAddress,
+            'contact_name' => $contactName,
+            'contact_phone' => $contactPhone,
+            'quote_date' => $quoteDate,
+            'total_amount' => $totalAmount,
+            'modified' => Factory::getDate()->toSql(),
+            'modified_by' => $user->id,
+        ];
+        if (isset($cols['client_id'])) $updateData->client_id = $clientId !== '' ? $clientId : null;
+        if (isset($cols['sales_agent'])) $updateData->sales_agent = $salesAgent !== '' ? $salesAgent : null;
+        try {
+            $db->updateObject('#__ordenproduccion_quotations', $updateData, 'id');
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_quotation_items'))
+                    ->where($db->quoteName('quotation_id') . ' = ' . (int) $quotationId)
+            )->execute();
+            $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+            $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+            $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
+            foreach ($lineItems as $item) {
+                $itemData = (object) [
+                    'quotation_id' => $quotationId,
+                    'cantidad' => $item['cantidad'],
+                    'descripcion' => $item['descripcion'],
+                    'valor_unitario' => $item['valor_unitario'],
+                    'subtotal' => $item['subtotal'],
+                    'line_order' => $item['line_order'],
+                    'created' => Factory::getDate()->toSql(),
+                ];
+                if ($hasPreCotizacionId && isset($item['pre_cotizacion_id']) && $item['pre_cotizacion_id'] > 0) {
+                    $itemData->pre_cotizacion_id = $item['pre_cotizacion_id'];
+                }
+                $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
+            }
+            echo json_encode([
+                'success' => true,
+                'message' => 'Quotation updated: ' . $quotation->quotation_number,
+                'quotation_number' => $quotation->quotation_number,
+                'quotation_id' => $quotationId,
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error updating quotation: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
      * Get payment info for a work order (AJAX)
      * Access: owner (sales agent) or Administracion group - same as valor a facturar
      *

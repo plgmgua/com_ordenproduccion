@@ -13,6 +13,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Session\Session;
 
 $user = Factory::getUser();
 $userGroups = $user->getAuthorisedGroups();
@@ -98,6 +99,12 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                                class="btn-action btn-edit" 
                                title="<?php echo Text::_('COM_ORDENPRODUCCION_EDIT'); ?>">
                                 <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=quotation.delete&id=' . (int) $quotation->id . '&' . Session::getFormToken() . '=1'); ?>" 
+                               class="btn-action btn-delete" 
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_DELETE'); ?>"
+                               onclick="return confirm('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_DELETE_CONFIRM')); ?>');">
+                                <i class="fas fa-trash"></i>
                             </a>
                             <?php endif; ?>
                         </td>

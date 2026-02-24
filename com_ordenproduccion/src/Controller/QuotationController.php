@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 /**
  * Quotation controller class for com_ordenproduccion
@@ -50,5 +51,59 @@ class QuotationController extends BaseController
         $input->set('layout', $layout);
         
         return parent::display($cachable, $urlparams);
+    }
+
+    /**
+     * Delete a quotation (soft-delete: state=0). Access: ventas group or quotation owner.
+     *
+     * @return  void
+     * @since   3.74.0
+     */
+    public function delete()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
+            return;
+        }
+        if (!Session::checkToken('request')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
+            return;
+        }
+        $id = $app->input->getInt('id', 0);
+        if ($id <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
+            return;
+        }
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id, created_by, quotation_number')
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . (int) $id);
+        $db->setQuery($query);
+        $row = $db->loadObject();
+        if (!$row) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
+            return;
+        }
+        $userGroups = $user->getAuthorisedGroups();
+        $query = $db->getQuery(true)->select('id')->from($db->quoteName('#__usergroups'))->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
+        $db->setQuery($query);
+        $ventasGroupId = $db->loadResult();
+        $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
+        if (!$hasVentasAccess && (int) $row->created_by !== (int) $user->id) {
+            $app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_DELETE_NOT_PERMITTED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
+            return;
+        }
+        $update = (object) ['id' => $id, 'state' => 0, 'modified' => Factory::getDate()->toSql(), 'modified_by' => $user->id];
+        $db->updateObject('#__ordenproduccion_quotations', $update, 'id');
+        $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_QUOTATION_DELETED', $row->quotation_number), 'success');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
     }
 }
