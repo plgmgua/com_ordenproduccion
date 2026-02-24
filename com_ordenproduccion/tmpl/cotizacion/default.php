@@ -158,9 +158,9 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
             <?php if (empty($this->preCotizacionesList)) : ?>
                 <p class="alert alert-info"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES', 'You have no Pre-Quotations yet. Create one from Pre-Cotizaciones first.', 'Aún no tiene Pre-Cotizaciones. Cree una en Pre-Cotizaciones primero.'); ?></p>
             <?php endif; ?>
-            <div class="mb-2">
+            <div class="mb-2 cotizacion-add-line-row">
                 <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
-                <select id="precotizacionSelect" class="form-select d-inline-block" style="width: auto;">
+                <select id="precotizacionSelect" class="form-select form-select-sm d-inline-block" style="width: auto; max-width: 220px;">
                     <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
                     <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
                         <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
@@ -168,27 +168,28 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <input type="text" id="precotizacionDescription" class="form-control d-inline-block ms-2" style="width: 280px;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Custom description (optional)', 'Descripción personalizada (opcional)'); ?>">
-                <button type="button" class="btn btn-primary ms-2" id="btnAddPrecotizacionLine">
-                    <i class="fas fa-plus"></i> <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
-                </button>
+                <label class="ms-3 me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></label>
+                <input type="number" id="precotizacionCantidad" class="form-control form-control-sm d-inline-block text-end" style="width: 70px;" min="1" step="1" value="1">
+                <label class="ms-2 me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Custom description (optional)', 'Descripción personalizada (opcional)'); ?></label>
+                <textarea id="precotizacionDescription" class="form-control form-control-sm d-inline-block align-middle" rows="2" style="width: 260px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Custom description (optional)', 'Descripción personalizada (opcional)'); ?>"></textarea>
             </div>
-            <table class="items-table table table-bordered" id="quotationItemsTable">
+            <table class="items-table table table-bordered table-sm" id="quotationItemsTable">
                 <thead>
                     <tr>
-                        <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th style="width: 45%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                        <th style="width: 20%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                        <th style="width: 15%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <th style="width: 16%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th style="width: 8%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
+                        <th style="width: 38%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">
-                    <!-- Lines added via JS: pre_cotizacion_id + description + value -->
+                    <!-- Lines added via JS -->
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="2" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
-                        <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 100px; background: #f8f9fa;"></td>
+                        <td colspan="3" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
+                        <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 90px; background: #f8f9fa;"></td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -197,7 +198,10 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
 
         <!-- Form Actions -->
         <div class="form-actions">
-            <button type="button" class="btn-cancel" onclick="window.location.href='index.php?option=com_ordenproduccion&view=cotizaciones'">
+            <button type="button" class="btn btn-primary me-2" id="btnAddPrecotizacionLine">
+                <i class="fas fa-plus"></i> <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+            </button>
+            <button type="button" class="btn-cancel me-2" onclick="window.location.href='index.php?option=com_ordenproduccion&view=cotizaciones'">
                 <i class="fas fa-times"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_CANCEL'); ?>
             </button>
@@ -211,45 +215,78 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
 
 <script>
 (function() {
-    const token = '<?php echo Session::getFormToken(); ?>';
     const selectEl = document.getElementById('precotizacionSelect');
     const descEl = document.getElementById('precotizacionDescription');
+    const cantidadEl = document.getElementById('precotizacionCantidad');
     const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
     let lineIndex = 0;
 
+    function escapeAttr(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     function updateTotal() {
-        let total = 0;
-        tbody.querySelectorAll('tr').forEach(function(tr) {
-            const val = parseFloat(tr.querySelector('input[name*="[value]"]').value) || 0;
-            total += val;
+        var total = 0;
+        tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
+            var v = tr.querySelector('input[name*="[value]"]');
+            if (v) total += parseFloat(v.value) || 0;
         });
-        document.getElementById('totalAmount').value = total.toFixed(2);
+        var totalInp = document.getElementById('totalAmount');
+        if (totalInp) totalInp.value = total.toFixed(2);
+    }
+
+    function onRowCantidadChange(row) {
+        var qtyInp = row.querySelector('input[name*="[cantidad]"]');
+        var valueInp = row.querySelector('input[name*="[value]"]');
+        var unitTotal = parseFloat(row.getAttribute('data-unit') || 0);
+        if (qtyInp && valueInp && unitTotal >= 0) {
+            var q = parseInt(qtyInp.value, 10) || 1;
+            if (q < 1) { q = 1; qtyInp.value = 1; }
+            valueInp.value = (q * unitTotal).toFixed(2);
+            updateTotal();
+        }
     }
 
     function removeLine(btn) {
-        btn.closest('tr').remove();
+        var tr = btn.closest('tr');
+        if (!tr) return;
+        var preId = tr.getAttribute('data-pre-id');
+        if (preId && selectEl) {
+            var opt = selectEl.querySelector('option[value="' + escapeAttr(preId) + '"]');
+            if (opt) opt.remove();
+        }
+        tr.remove();
         updateTotal();
     }
 
     if (btnAdd && selectEl) {
         btnAdd.addEventListener('click', function() {
-            const opt = selectEl.options[selectEl.selectedIndex];
+            var opt = selectEl.options[selectEl.selectedIndex];
             if (!opt || !opt.value) return;
-            const preId = opt.value;
-            const total = opt.getAttribute('data-total') || '0';
-            const number = opt.getAttribute('data-number') || ('PRE-' + preId);
-            const desc = (descEl && descEl.value) ? descEl.value.trim() : number;
+            var preId = opt.value;
+            var unitTotal = parseFloat(opt.getAttribute('data-total') || '0');
+            var number = opt.getAttribute('data-number') || ('PRE-' + preId);
+            var qty = parseInt(cantidadEl && cantidadEl.value ? cantidadEl.value : 1, 10) || 1;
+            if (qty < 1) qty = 1;
+            var desc = (descEl && descEl.value) ? String(descEl.value).trim() : number;
+            var value = (qty * unitTotal).toFixed(2);
             lineIndex++;
-            const tr = document.createElement('tr');
+            var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
-            tr.innerHTML = '<td>' + number + '</td>' +
-                '<td><input type="text" name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" value="' + (desc.replace(/"/g, '&quot;').replace(/'/g, '&#39;')) + '" placeholder="Custom description"></td>' +
-                '<td class="text-end">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + preId + '"><input type="number" step="0.01" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="' + total + '" readonly></td>' +
+            tr.setAttribute('data-pre-id', preId);
+            tr.setAttribute('data-unit', unitTotal);
+            tr.innerHTML = '<td>' + escapeAttr(number) + '</td>' +
+                '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +
+                '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
+                '<td class="text-end">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><input type="number" step="0.01" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="' + value + '" readonly></td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);
+            tr.querySelector('.line-cantidad-input').addEventListener('input', function() { onRowCantidadChange(tr); });
             if (descEl) descEl.value = '';
+            if (cantidadEl) cantidadEl.value = '1';
             selectEl.selectedIndex = 0;
+            opt.remove();
             updateTotal();
         });
     }

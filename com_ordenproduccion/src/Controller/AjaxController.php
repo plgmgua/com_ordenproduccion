@@ -355,18 +355,22 @@ class AjaxController extends BaseController
             $totalAmount = 0;
             $lineItems = [];
             
-            // New format: lines[] with pre_cotizacion_id, descripcion, value
+            // New format: lines[] with pre_cotizacion_id, cantidad, descripcion, value
             if (!empty($lines)) {
                 foreach ($lines as $lineOrder => $line) {
                     $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
                     $value = isset($line['value']) ? (float) $line['value'] : 0;
+                    $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 1;
+                    if ($cantidad < 0.001) {
+                        $cantidad = 1;
+                    }
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
                         $lineItems[] = [
                             'line_order' => $lineOrder,
-                            'cantidad' => 1,
+                            'cantidad' => $cantidad,
                             'descripcion' => $desc !== '' ? $desc : 'PRE-' . $preId,
-                            'valor_unitario' => $value,
+                            'valor_unitario' => $cantidad > 0 ? $value / $cantidad : $value,
                             'subtotal' => $value,
                             'pre_cotizacion_id' => $preId,
                         ];
