@@ -421,7 +421,11 @@ class OrdenesModel extends ListModel
                 } else {
                     $item->fecha_de_entrega_formatted = '';
                 }
-                $item->created_formatted = Factory::getDate($item->created)->format('d/m/Y H:i');
+                if (!empty($item->created)) {
+                    $item->created_formatted = Factory::getDate($item->created)->format('d/m/Y H:i');
+                } else {
+                    $item->created_formatted = '';
+                }
             }
         }
 
