@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Cotizador;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -109,6 +110,11 @@ class HtmlView extends BaseHtmlView
                     $this->precotizacionLocked = !empty($this->associatedQuotations);
                 }
             }
+            $params = ComponentHelper::getParams('com_ordenproduccion');
+            $this->paramMargen = (float) $params->get('margen_ganancia', 0);
+            $this->paramIva = (float) $params->get('iva', 0);
+            $this->paramIsr = (float) $params->get('isr', 0);
+            $this->paramComision = (float) $params->get('comision_venta', 0);
             if ($layout === 'details') {
                 $this->setLayout('details');
             } else {

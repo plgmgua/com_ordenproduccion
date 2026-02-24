@@ -28,19 +28,31 @@ $elementosById = [];
 foreach ($this->elementos ?? [] as $el) {
     $elementosById[(int) $el->id] = $el;
 }
-$linesTotal = 0;
+$linesSubtotal = 0;
 if (!empty($lines)) {
     foreach ($lines as $l) {
-        $linesTotal += (float) ($l->total ?? 0);
+        $lineType = isset($l->line_type) ? (string) $l->line_type : 'pliego';
+        if ($lineType !== 'envio') {
+            $linesSubtotal += (float) ($l->total ?? 0);
+        }
     }
 }
+$paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
+$paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
+$paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
+$paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
+$margenAmount = $linesSubtotal * ($paramMargen / 100);
+$ivaAmount = $linesSubtotal * ($paramIva / 100);
+$isrAmount = $linesSubtotal * ($paramIsr / 100);
+$comisionAmount = $linesSubtotal * ($paramComision / 100);
+$linesTotal = $linesSubtotal + $margenAmount + $ivaAmount - $isrAmount + $comisionAmount;
 ?>
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'); ?></p>
     <?php elseif (empty($lines)) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
-        <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q <?php echo number_format(0, 2); ?></p>
+        <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?>:</strong> Q 0.00 &rarr; <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q 0.00</p>
     <?php else : ?>
         <div class="table-responsive">
             <table class="table table-bordered table-sm">
@@ -113,6 +125,34 @@ if (!empty($lines)) {
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
+                    </tr>
+                    <?php if ($paramMargen != 0) : ?>
+                    <tr>
+                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($paramIva != 0) : ?>
+                    <tr>
+                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($paramIsr != 0) : ?>
+                    <tr>
+                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                        <td class="text-end">- Q <?php echo number_format($isrAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($paramComision != 0) : ?>
+                    <tr>
+                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_COMISION_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($comisionAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesTotal, 2); ?></td>
