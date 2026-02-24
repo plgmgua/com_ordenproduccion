@@ -123,6 +123,70 @@ if ($applyFix) {
     $recheck = file_exists($manifestPath) ? file_get_contents($manifestPath) : '';
     $linkOnDisk = $recheck && preg_match('/<menu\s+[^>]*link=/', $recheck);
     $fixMessages[] = 'Manifest on disk now has menu link: ' . ($linkOnDisk ? 'Yes' : 'No – fix may not have written; check permissions.');
+
+    // Fix: ensure #__menu has an administrator row for this component (Joomla may build the Components list from this table)
+    try {
+        $q = $db->getQuery(true)
+            ->select('extension_id')
+            ->from($db->quoteName('#__extensions'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote($component))
+            ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
+        $db->setQuery($q);
+        $extId = (int) $db->loadResult();
+        $q = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__menu'))
+            ->where($db->quoteName('client_id') . ' = 1')
+            ->where($db->quoteName('component_id') . ' = ' . $extId);
+        $db->setQuery($q);
+        $existingMenuId = (int) $db->loadResult();
+        if ($extId > 0 && $existingMenuId === 0) {
+            $q = $db->getQuery(true)
+                ->select('id, lft, rgt')
+                ->from($db->quoteName('#__menu'))
+                ->where($db->quoteName('client_id') . ' = 1')
+                ->where('(' . $db->quoteName('alias') . ' = ' . $db->quote('components') . ' OR ' . $db->quoteName('title') . ' = ' . $db->quote('Components') . ')');
+            $db->setQuery($q);
+            $componentsParent = $db->loadObject();
+            if ($componentsParent) {
+                $parentId = (int) $componentsParent->id;
+                $parentRgt = (int) $componentsParent->rgt;
+                $db->setQuery('UPDATE ' . $db->quoteName('#__menu') . ' SET ' . $db->quoteName('rgt') . ' = ' . $db->quoteName('rgt') . ' + 2 WHERE client_id = 1 AND rgt >= ' . $parentRgt)->execute();
+                $db->setQuery('UPDATE ' . $db->quoteName('#__menu') . ' SET ' . $db->quoteName('lft') . ' = ' . $db->quoteName('lft') . ' + 2 WHERE client_id = 1 AND lft > ' . $parentRgt)->execute();
+                $ins = $db->getQuery(true)
+                    ->insert($db->quoteName('#__menu'))
+                    ->columns([
+                        $db->quoteName('menutype'), $db->quoteName('title'), $db->quoteName('alias'), $db->quoteName('path'),
+                        $db->quoteName('link'), $db->quoteName('type'), $db->quoteName('published'), $db->quoteName('parent_id'),
+                        $db->quoteName('component_id'), $db->quoteName('client_id'), $db->quoteName('language'),
+                        $db->quoteName('lft'), $db->quoteName('rgt'), $db->quoteName('level'), $db->quoteName('access'),
+                        $db->quoteName('img'), $db->quoteName('params'),
+                    ])
+                    ->values(
+                        $db->quote('main') . ',' .
+                        $db->quote('COM_ORDENPRODUCCION') . ',' .
+                        $db->quote('com-ordenproduccion') . ',' .
+                        $db->quote('com-ordenproduccion') . ',' .
+                        $db->quote('index.php?option=com_ordenproduccion&view=dashboard') . ',' .
+                        $db->quote('component') . ',1,' .
+                        $parentId . ',' .
+                        $extId . ',1,' .
+                        $db->quote('*') . ',' .
+                        $parentRgt . ',' . ($parentRgt + 1) . ',2,1,' .
+                        $db->quote('class:cog') . ',' .
+                        $db->quote('{}')
+                    );
+                $db->setQuery($ins)->execute();
+                $fixMessages[] = 'Inserted #__menu row for administrator (Components dropdown).';
+            } else {
+                $fixMessages[] = 'Could not find "Components" parent in #__menu; skipped menu row insert.';
+            }
+        } elseif ($existingMenuId > 0) {
+            $fixMessages[] = '#__menu row for this component already exists (id ' . $existingMenuId . ').';
+        }
+    } catch (\Exception $e) {
+        $fixMessages[] = '#__menu fix failed: ' . $e->getMessage();
+    }
 }
 
 ?>
@@ -361,9 +425,34 @@ if ($applyFix) {
         </div>
     </div>
 
-    <?php // ---- 7. Summary and fix ---- ?>
+    <?php
+    // ---- 8. #__menu (administrator) ----
+    $q = $db->getQuery(true)->select('extension_id')->from($db->quoteName('#__extensions'))
+        ->where($db->quoteName('element') . ' = ' . $db->quote($component))->where($db->quoteName('type') . ' = ' . $db->quote('component'));
+    $db->setQuery($q);
+    $extIdMenu = (int) $db->loadResult();
+    $q = $db->getQuery(true)->select('id, title, link, published')
+        ->from($db->quoteName('#__menu'))
+        ->where($db->quoteName('client_id') . ' = 1')
+        ->where($db->quoteName('component_id') . ' = ' . $extIdMenu);
+    $db->setQuery($q);
+    $menuRow = $db->loadObject();
+    $hasMenuRow = (bool) $menuRow;
+    ?>
     <div class="section">
-        <h2>7. Summary</h2>
+        <h2>8. #__menu (administrator)</h2>
+        <p class="detail">Joomla may build the Components dropdown from rows in <code>#__menu</code> where <code>client_id = 1</code>. If no row exists for this component, the item will not appear.</p>
+        <div class="row">
+            <span class="status <?php echo $hasMenuRow ? 'ok' : 'fail'; ?>"><?php echo $hasMenuRow ? '✓' : '✗'; ?></span>
+            <span class="label">Menu row exists</span>
+            <span class="value"><?php echo $hasMenuRow ? 'Yes (id ' . (int) $menuRow->id . ', title: ' . htmlspecialchars($menuRow->title ?? '') . ')' : 'No – run Apply fix to insert one'; ?></span>
+        </div>
+        <?php if (!$hasMenuRow) $allOk = false; ?>
+    </div>
+
+    <?php // ---- Summary and fix ---- ?>
+    <div class="section">
+        <h2>Summary</h2>
         <p>
             <?php if ($allOk): ?>
             <span class="status ok">✓</span> All critical checks passed. If the menu still does not appear: clear cache (System → Clear Cache), hard-refresh the backend, or log out and back in.
@@ -379,6 +468,7 @@ if ($applyFix) {
         <ol>
             <li>Patch <code>com_ordenproduccion.xml</code>: add <code>link="option=com_ordenproduccion&amp;view=dashboard"</code> to &lt;menu&gt; and <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> to admin &lt;files&gt; (if missing).</li>
             <li>Update <code>#__extensions.manifest_cache</code> so the cached manifest includes the menu link.</li>
+            <li>If there is no row in <code>#__menu</code> for this component (client_id=1), insert one under the "Components" parent so the item appears in the dropdown.</li>
         </ol>
         <p><a href="?fix=1" class="btn">Apply fix now</a></p>
         <p><strong>After applying:</strong> Reload this page without <code>?fix=1</code>, then go to <strong>System → Clear Cache</strong> and clear all. Check <strong>Components</strong> again.</p>
