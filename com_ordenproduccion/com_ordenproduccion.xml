@@ -26,15 +26,15 @@
     </media>
 
     <administration>
-        <menu link="option=com_ordenproduccion&amp;view=dashboard" img="class:cog">COM_ORDENPRODUCCION</menu>
+        <menu link="index.php?option=com_ordenproduccion&amp;view=dashboard" img="class:cog">COM_ORDENPRODUCCION</menu>
         <submenu>
-            <menu link="option=com_ordenproduccion&amp;view=dashboard">COM_ORDENPRODUCCION_MENU_DASHBOARD</menu>
-            <menu link="option=com_ordenproduccion&amp;view=ordenes">COM_ORDENPRODUCCION_MENU_ORDERS</menu>
-            <menu link="option=com_ordenproduccion&amp;view=technicians">COM_ORDENPRODUCCION_MENU_TECHNICIANS</menu>
-            <menu link="option=com_ordenproduccion&amp;view=webhook">COM_ORDENPRODUCCION_MENU_WEBHOOK</menu>
-            <menu link="option=com_ordenproduccion&amp;view=debug">COM_ORDENPRODUCCION_MENU_DEBUG</menu>
-            <menu link="option=com_ordenproduccion&amp;view=settings">COM_ORDENPRODUCCION_MENU_SETTINGS</menu>
-            <menu link="option=com_ordenproduccion&amp;view=testing">COM_ORDENPRODUCCION_MENU_TESTING</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=dashboard">COM_ORDENPRODUCCION_MENU_DASHBOARD</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=ordenes">COM_ORDENPRODUCCION_MENU_ORDERS</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=technicians">COM_ORDENPRODUCCION_MENU_TECHNICIANS</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=webhook">COM_ORDENPRODUCCION_MENU_WEBHOOK</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=debug">COM_ORDENPRODUCCION_MENU_DEBUG</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=settings">COM_ORDENPRODUCCION_MENU_SETTINGS</menu>
+            <menu link="index.php?option=com_ordenproduccion&amp;view=testing">COM_ORDENPRODUCCION_MENU_TESTING</menu>
         </submenu>
         <files folder="admin">
             <filename>services/provider.php</filename>
