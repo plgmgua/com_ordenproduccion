@@ -416,14 +416,22 @@ class OrdenesModel extends ListModel
                     // Table or columns missing
                 }
 
-                if (!empty($item->fecha_de_entrega)) {
-                    $item->fecha_de_entrega_formatted = Factory::getDate($item->fecha_de_entrega)->format('d/m/Y');
-                } else {
+                try {
+                    if (!empty($item->fecha_de_entrega) && $item->fecha_de_entrega !== '0000-00-00' && $item->fecha_de_entrega !== '0000-00-00 00:00:00') {
+                        $item->fecha_de_entrega_formatted = Factory::getDate($item->fecha_de_entrega)->format('d/m/Y');
+                    } else {
+                        $item->fecha_de_entrega_formatted = '';
+                    }
+                } catch (\Throwable $e) {
                     $item->fecha_de_entrega_formatted = '';
                 }
-                if (!empty($item->created)) {
-                    $item->created_formatted = Factory::getDate($item->created)->format('d/m/Y H:i');
-                } else {
+                try {
+                    if (!empty($item->created) && $item->created !== '0000-00-00' && $item->created !== '0000-00-00 00:00:00') {
+                        $item->created_formatted = Factory::getDate($item->created)->format('d/m/Y H:i');
+                    } else {
+                        $item->created_formatted = '';
+                    }
+                } catch (\Throwable $e) {
                     $item->created_formatted = '';
                 }
             }
