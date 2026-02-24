@@ -111,6 +111,10 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($this->isPrecotizacionLocked($preCotizacionId, $format)) {
+            return false;
+        }
+
         $breakdown = $app->input->get('calculation_breakdown', '', 'raw');
         if (is_string($breakdown) && $breakdown !== '') {
             $decoded = json_decode($breakdown, true);
@@ -190,6 +194,10 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
+            return false;
+        }
+
         $breakdown = $app->input->get('calculation_breakdown', '', 'raw');
         if (is_string($breakdown) && $breakdown !== '') {
             $decoded = json_decode($breakdown, true);
@@ -251,9 +259,16 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+
         $model = $this->getModel('Precotizacion', 'Site');
         if (!$model->delete($id)) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_DELETE'), 'error');
+            $msg = $model->isAssociatedWithQuotation($id)
+                ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE')
+                : Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_DELETE');
+            $this->setMessage($msg, 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
             return false;
         }
@@ -287,6 +302,10 @@ class PrecotizacionController extends BaseController
 
         $lineId = (int) $this->input->get('line_id', 0);
         $preCotizacionId = (int) $this->input->get('id', 0);
+
+        if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
+            return false;
+        }
 
         $model = $this->getModel('Precotizacion', 'Site');
         if (!$model->deleteLine($lineId)) {
@@ -334,6 +353,10 @@ class PrecotizacionController extends BaseController
         if ($preCotizacionId < 1 || $elementoId < 1 || $quantity < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
             return false;
         }
 
@@ -412,6 +435,10 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+
         $db = Factory::getDbo();
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
@@ -431,6 +458,38 @@ class PrecotizacionController extends BaseController
 
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION_SAVED'));
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+        return true;
+    }
+
+    /**
+     * If this pre-cotización is associated with a quotation, set error message, redirect (or JSON), and return true.
+     * Caller should return false when this returns true.
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id
+     * @param   string  $format           'json' for AJAX JSON response, 'html' for redirect
+     * @return  bool    true if locked (caller should return false)
+     * @since   3.75.0
+     */
+    private function isPrecotizacionLocked($preCotizacionId, $format = 'html')
+    {
+        $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->isAssociatedWithQuotation($preCotizacionId)) {
+            return false;
+        }
+        $msg = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY');
+        if (strpos($msg, 'COM_ORDENPRODUCCION_') === 0) {
+            $msg = 'This pre-quote is linked to a quotation and cannot be modified.';
+        }
+        if ($format === 'json' || Factory::getApplication()->input->getBool('ajax')) {
+            Factory::getApplication()->setHeader('Content-Type', 'application/json', true);
+            echo json_encode(['success' => false, 'message' => $msg]);
+            Factory::getApplication()->close();
+        }
+        $this->setMessage($msg, 'error');
+        $redirect = $preCotizacionId > 0
+            ? 'index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId
+            : 'index.php?option=com_ordenproduccion&view=cotizador';
+        $this->setRedirect(Route::_($redirect, false));
         return true;
     }
 }

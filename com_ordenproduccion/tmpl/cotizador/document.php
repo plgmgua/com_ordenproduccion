@@ -28,6 +28,7 @@ if (!$item) {
 }
 
 $preCotizacionId = (int) $item->id;
+$precotizacionLocked = !empty($this->precotizacionLocked);
 $paperNames = [];
 $sizeNames = [];
 foreach ($this->pliegoPaperTypes ?? [] as $p) {
@@ -95,6 +96,15 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
     </div>
     <?php endif; ?>
 
+    <?php if ($precotizacionLocked) :
+        $msgLocked = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY');
+        if (strpos($msgLocked, 'COM_ORDENPRODUCCION_') === 0) {
+            $msgLocked = 'This pre-quote is linked to a quotation and cannot be modified.';
+        }
+    ?>
+    <div class="alert alert-info mb-3"><?php echo htmlspecialchars($msgLocked); ?></div>
+    <?php endif; ?>
+
     <?php
     $labelDescripcion = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION');
     if (strpos($labelDescripcion, 'COM_ORDENPRODUCCION_') === 0) {
@@ -104,15 +114,20 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
     $saveDescripcionUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveDescripcion');
     ?>
     <div class="precotizacion-descripcion mb-4">
+        <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
+        <?php if ($precotizacionLocked) : ?>
+            <div class="form-control-plaintext bg-light p-3 rounded"><?php echo $descripcionValue !== '' ? nl2br(htmlspecialchars($descripcionValue)) : '<span class="text-muted">—</span>'; ?></div>
+        <?php else : ?>
         <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="mb-2">
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <label for="precotizacion-descripcion" class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
             <textarea id="precotizacion-descripcion" name="descripcion" class="form-control" rows="4" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
             <button type="submit" class="btn btn-secondary mt-2"><?php echo Text::_('JSAVE'); ?></button>
         </form>
+        <?php endif; ?>
     </div>
 
+    <?php if (!$precotizacionLocked) : ?>
     <div class="mb-3 d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
             <?php echo htmlspecialchars($labelCalculoFolios); ?>
@@ -121,6 +136,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
             <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
     </div>
+    <?php endif; ?>
 
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINES'); ?></h2>
 
@@ -173,18 +189,22 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                             <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
-                                <?php if (!$isElemento) : ?>
-                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
-                                    <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
-                                </button>
+                                <?php if ($precotizacionLocked) : ?>
+                                    —
+                                <?php else : ?>
+                                    <?php if (!$isElemento) : ?>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
+                                        <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
+                                        <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
+                                    </button>
+                                    <?php endif; ?>
+                                    <form action="<?php echo Route::_($deleteLineUrl); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
+                                    </form>
                                 <?php endif; ?>
-                                <form action="<?php echo Route::_($deleteLineUrl); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
-                                    <?php echo HTMLHelper::_('form.token'); ?>
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
-                                </form>
                             </td>
                         </tr>
                         <?php if (!$isElemento) : ?>

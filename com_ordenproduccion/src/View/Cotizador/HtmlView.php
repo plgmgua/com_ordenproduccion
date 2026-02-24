@@ -95,6 +95,7 @@ class HtmlView extends BaseHtmlView
             $this->lines = $precotModel->getLines($id);
             // Quotations that use this pre-cotización (from quotation_items.pre_cotizacion_id)
             $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
+            $this->precotizacionLocked = !empty($this->associatedQuotations);
             $this->elementos = [];
             if ($productosModel->elementosTableExists()) {
                 $this->elementos = $productosModel->getElementos();

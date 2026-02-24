@@ -185,6 +185,35 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Check if this pre-cotización is used in any quotation (quotation_items.pre_cotizacion_id).
+     * When true, the pre-cotización must not be modified or deleted.
+     *
+     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @return  bool
+     * @since   3.75.0
+     */
+    public function isAssociatedWithQuotation($preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['pre_cotizacion_id'])) {
+            return false;
+        }
+        $query = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->setLimit(1);
+        $db->setQuery($query);
+        return (bool) $db->loadResult();
+    }
+
+    /**
      * Get total amount for a Pre-Cotización (sum of all line totals).
      *
      * @param   int  $preCotizacionId  Pre-Cotización id.
@@ -507,6 +536,10 @@ class PrecotizacionModel extends ListModel
 
         $item = $this->getItem($id);
         if (!$item) {
+            return false;
+        }
+
+        if ($this->isAssociatedWithQuotation($id)) {
             return false;
         }
 

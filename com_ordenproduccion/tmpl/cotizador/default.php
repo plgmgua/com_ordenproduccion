@@ -83,10 +83,12 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                                 <a href="<?php echo htmlspecialchars($docUrl); ?>" class="btn btn-sm btn-outline-primary">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VIEW'); ?>
                                 </a>
+                                <?php if (empty($quotationNumbers)) : ?>
                                 <a href="<?php echo htmlspecialchars($deleteUrl); ?>" class="btn btn-sm btn-outline-danger"
                                    onclick="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE')); ?>');">
                                     <?php echo Text::_('JACTION_DELETE'); ?>
                                 </a>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
