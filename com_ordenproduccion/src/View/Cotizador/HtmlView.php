@@ -79,29 +79,42 @@ class HtmlView extends BaseHtmlView
 
         $mvcFactory = $app->bootComponent('com_ordenproduccion')->getMVCFactory();
 
-        if ($layout === 'document' && $id > 0) {
-            HTMLHelper::_('bootstrap.framework');
-            $wa = $this->document->getWebAssetManager();
-            if ($wa->assetExists('script', 'bootstrap.modal')) {
-                $wa->useScript('bootstrap.modal');
+        if (($layout === 'document' || $layout === 'details') && $id > 0) {
+            if ($layout === 'document') {
+                HTMLHelper::_('bootstrap.framework');
+                $wa = $this->document->getWebAssetManager();
+                if ($wa->assetExists('script', 'bootstrap.modal')) {
+                    $wa->useScript('bootstrap.modal');
+                }
             }
             $precotModel = $mvcFactory->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             $this->item  = $precotModel->getItem($id);
             if (!$this->item) {
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
-                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
-                return;
+                if ($layout === 'document') {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+                    return;
+                }
+                $this->item = null;
+                $this->lines = [];
+                $this->elementos = [];
+            } else {
+                $this->lines = $precotModel->getLines($id);
+                $this->elementos = [];
+                if ($productosModel->elementosTableExists()) {
+                    $this->elementos = $productosModel->getElementos();
+                }
+                if ($layout === 'document') {
+                    $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
+                    $this->precotizacionLocked = !empty($this->associatedQuotations);
+                }
             }
-            $this->lines = $precotModel->getLines($id);
-            // Quotations that use this pre-cotización (from quotation_items.pre_cotizacion_id)
-            $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
-            $this->precotizacionLocked = !empty($this->associatedQuotations);
-            $this->elementos = [];
-            if ($productosModel->elementosTableExists()) {
-                $this->elementos = $productosModel->getElementos();
+            if ($layout === 'details') {
+                $this->setLayout('details');
+            } else {
+                $this->setLayout('document');
+                $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE') . ' ' . $this->item->number);
             }
-            $this->setLayout('document');
-            $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE') . ' ' . $this->item->number);
         } else {
             $precotModel = $mvcFactory->createModel('Precotizacion', 'Site');
             $this->items = $precotModel->getItems();

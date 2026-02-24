@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Cotizacion;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
@@ -229,8 +230,13 @@ class HtmlView extends BaseHtmlView
             }
             $this->document->setTitle($this->quotation ? $editTitle : $newTitle);
             
-            // Load CSS
+            // Bootstrap for pre-cotización details modal
+            HTMLHelper::_('bootstrap.framework');
             $wa = $this->document->getWebAssetManager();
+            if ($wa->assetExists('script', 'bootstrap.modal')) {
+                $wa->useScript('bootstrap.modal');
+            }
+            // Load CSS
             $wa->registerAndUseStyle(
                 'com_ordenproduccion.cotizacion',
                 'media/com_ordenproduccion/css/cotizacion.css',

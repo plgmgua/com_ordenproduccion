@@ -230,7 +230,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     ?>
                     <?php $unitPriceDisplay = $qty > 0 ? ($subtotal / $qty) : 0; ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($unit, 2, '.', ''); ?>">
-                        <td><?php echo htmlspecialchars($preNum); ?></td>
+                        <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
@@ -264,6 +264,21 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             </button>
         </div>
     </form>
+</div>
+
+<!-- Modal: Pre-Cotización details -->
+<div class="modal fade" id="precotizacionDetailModal" tabindex="-1" aria-labelledby="precotizacionDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="precotizacionDetailModalLabel"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="precotizacionDetailIframe" style="width:100%; height: 70vh; border: 0;" title="<?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?>"></iframe>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -365,7 +380,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             tr.setAttribute('data-pre-id', preId);
             tr.setAttribute('data-unit', unitTotal);
             var unitPrice = (qty > 0 && parseFloat(value) > 0) ? (parseFloat(value) / qty).toFixed(4) : '0.0000';
-            tr.innerHTML = '<td>' + escapeAttr(number) + '</td>' +
+            var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
+            tr.innerHTML = '<td>' + firstCell + '</td>' +
                 '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
@@ -391,6 +407,30 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     window.removeQuotationLine = removeLine;
     window.saveQuotationLine = saveLine;
     window.updateQuotationTotal = updateTotal;
+
+    var precotizacionDetailBase = <?php echo json_encode(Uri::root()); ?>;
+    document.addEventListener('click', function(e) {
+        var link = e.target && e.target.closest && e.target.closest('.precotizacion-detail-link');
+        if (!link) return;
+        e.preventDefault();
+        var preId = link.getAttribute('data-pre-id');
+        var preNumber = link.getAttribute('data-pre-number') || ('PRE-' + preId);
+        if (!preId) return;
+        var modal = document.getElementById('precotizacionDetailModal');
+        var iframe = document.getElementById('precotizacionDetailIframe');
+        var titleEl = document.getElementById('precotizacionDetailModalLabel');
+        if (modal && iframe) {
+            if (titleEl) titleEl.textContent = preNumber;
+            iframe.src = precotizacionDetailBase + 'index.php?option=com_ordenproduccion&view=cotizador&layout=details&id=' + encodeURIComponent(preId) + '&tmpl=component';
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+                bsModal.show();
+            } else {
+                modal.classList.add('show');
+                modal.style.display = 'block';
+            }
+        }
+    });
 })();
 
 function submitQuotationForm(event) {
