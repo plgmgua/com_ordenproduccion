@@ -1,23 +1,19 @@
 <?php
 /**
- * Comprehensive Troubleshooting & Validation Script for com_ordenproduccion
- * Validates component functionality, especially bank dropdown population.
- * Run directly from Joomla root: /troubleshooting.php
- * If run from admin (or after Discover), Joomla may already be loaded – we avoid redefining constants.
+ * Backend Menu Diagnostic & Fix – com_ordenproduccion
+ *
+ * In-depth validation for why "Work Orders" may not appear in Administrator → Components.
+ * Run from Joomla root: https://yoursite.com/troubleshooting.php
+ * Optional: ?fix=1 to apply automatic fixes (manifest file + DB manifest_cache).
  */
 
-// Bootstrap Joomla only if not already loaded (avoids "Constant _JEXEC already defined" when included from admin)
+// Bootstrap Joomla only if not already loaded
 if (!class_exists('Joomla\CMS\Factory')) {
     if (!defined('_JEXEC')) {
         define('_JEXEC', 1);
     }
     if (!defined('JPATH_ROOT')) {
-        $possibleRoots = [
-            __DIR__,
-            dirname(__DIR__),
-            dirname(dirname(__DIR__)),
-            '/var/www/grimpsa_webserver',
-        ];
+        $possibleRoots = [__DIR__, dirname(__DIR__), dirname(dirname(__DIR__)), '/var/www/grimpsa_webserver'];
         foreach ($possibleRoots as $path) {
             if (file_exists($path . '/includes/defines.php')) {
                 define('JPATH_ROOT', $path);
@@ -25,7 +21,7 @@ if (!class_exists('Joomla\CMS\Factory')) {
             }
         }
         if (!defined('JPATH_ROOT')) {
-            die("ERROR: Cannot find Joomla root directory. Please set JPATH_ROOT manually.");
+            die("ERROR: Cannot find Joomla root. Set JPATH_ROOT or run from Joomla root.");
         }
     }
     require_once JPATH_ROOT . '/includes/defines.php';
@@ -33,1433 +29,352 @@ if (!class_exists('Joomla\CMS\Factory')) {
 }
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\Language\Text;
 
 $app = Factory::getApplication('site');
 $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
-// CSS styling
-echo "<!DOCTYPE html>
-<html><head>
-<meta charset='UTF-8'>
-<title>Troubleshooting - com_ordenproduccion (Banks, Payment Proof &amp; Backend Menu)</title>
-<style>
-body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    margin: 20px; 
-    background: #f5f5f5; 
-    font-size: 13px; 
-    line-height: 1.6;
-}
-.container { 
-    max-width: 1200px; 
-    margin: 0 auto; 
-    background: white; 
-    padding: 20px; 
-    border-radius: 8px; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-h1 { color: #333; border-bottom: 3px solid #0073aa; padding-bottom: 10px; }
-h2 { color: #0073aa; margin-top: 30px; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-h3 { color: #555; margin-top: 20px; }
-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    margin: 15px 0; 
-    background: white;
-    border: 1px solid #ddd;
-}
-th { 
-    background: #0073aa; 
-    color: white; 
-    padding: 10px; 
-    text-align: left; 
-    font-size: 12px; 
-    border: 1px solid #005177;
-}
-td { 
-    padding: 8px 10px; 
-    border: 1px solid #ddd; 
-    font-size: 12px; 
-    vertical-align: top;
-}
-.ok { background: #d4edda; color: #155724; }
-.error { background: #f8d7da; color: #721c24; font-weight: bold; }
-.warning { background: #fff3cd; color: #856404; }
-.info { background: #d1ecf1; color: #0c5460; }
-.nodata { background: #e2e3e5; color: #666; }
-code { 
-    background: #f4f4f4; 
-    padding: 2px 6px; 
-    border-radius: 3px; 
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-}
-pre { 
-    background: #f4f4f4; 
-    padding: 10px; 
-    border-radius: 4px; 
-    overflow-x: auto;
-    border: 1px solid #ddd;
-    font-size: 11px;
-}
-.summary { 
-    background: #f0f0f0; 
-    padding: 15px; 
-    margin: 15px 0; 
-    border-radius: 4px;
-    border-left: 4px solid #0073aa;
-}
-.test-section {
-    margin: 20px 0;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: #fafafa;
-}
-.status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: bold;
-    margin-left: 10px;
-}
-.badge-ok { background: #28a745; color: white; }
-.badge-error { background: #dc3545; color: white; }
-.badge-warning { background: #ffc107; color: #000; }
-</style>
-</head><body>
-<div class='container'>";
+$component = 'com_ordenproduccion';
+$adminBase = JPATH_ADMINISTRATOR . '/components/' . $component;
+$manifestPath = $adminBase . '/com_ordenproduccion.xml';
+$accessPath = $adminBase . '/access.xml';
 
-echo "<h1>🔍 com_ordenproduccion Troubleshooting</h1>";
-echo "<div class='summary'>";
-echo "<strong>Timestamp:</strong> " . date('Y-m-d H:i:s') . "<br>";
-echo "<strong>Joomla Root:</strong> " . JPATH_ROOT . "<br>";
-echo "<strong>Component:</strong> com_ordenproduccion<br>";
-echo "<strong>Quick links:</strong> <a href='#payment-diag'>💳 Payment Proof 1054 Error Diagnostics</a> | <a href='#productos-calc'>📦 Productos &amp; Calculations</a> | <a href='#backend-menu'>🔧 Backend Menu Item</a><br>";
-echo "</div>";
+$applyFix = isset($_GET['fix']) && $_GET['fix'] === '1';
+$allOk = true;
 
-$testResults = [];
-$totalTests = 0;
-$passedTests = 0;
+// ---- Apply fix if requested ----
+if ($applyFix) {
+    $fixMessages = [];
+    $manifestContent = file_exists($manifestPath) ? file_get_contents($manifestPath) : '';
 
-// ============================================
-// TEST 1: Database Table Exists
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>Test 1: Database Table Validation</h2>";
-
-$totalTests++;
-$tableName = '#__ordenproduccion_banks';
-$tableExists = false;
-
-try {
-    // Try to query the table directly - this will fail if table doesn't exist
-    $query = $db->getQuery(true)
-        ->select('COUNT(*)')
-        ->from($db->quoteName($tableName));
-    
-    $db->setQuery($query);
-    $count = $db->loadResult();
-    
-    // If we got here without exception, table exists
-    $tableExists = true;
-    echo "<p class='ok'>✅ Table <code>{$tableName}</code> exists in database</p>";
-    echo "<p class='info'>Table contains <strong>{$count}</strong> total record(s)</p>";
-    $passedTests++;
-    $testResults['table_exists'] = true;
-    
-    // Get table structure by fetching a sample record
-    try {
-        $query = $db->getQuery(true)
-            ->select('*')
-            ->from($db->quoteName($tableName));
-        $query->setLimit(1, 0);
-        $db->setQuery($query);
-        $sample = $db->loadObject();
-        
-        if ($sample) {
-            echo "<p class='info'>✅ Table structure validated - sample record retrieved successfully</p>";
-            
-            // Show column names
-            $columns = array_keys((array) $sample);
-            echo "<p class='info'>Table columns: <code>" . implode('</code>, <code>', $columns) . "</code></p>";
-        } else {
-            echo "<p class='warning'>⚠️ Table exists but is empty</p>";
+    if ($manifestContent !== '') {
+        $modified = false;
+        if (!preg_match('/<menu\s+[^>]*link=/', $manifestContent)) {
+            $manifestContent = preg_replace(
+                '/<menu\s+([^>]*)>/',
+                '<menu link="option=com_ordenproduccion&amp;view=dashboard" $1>',
+                $manifestContent,
+                1
+            );
+            $modified = true;
         }
-    } catch (\Exception $e2) {
-        echo "<p class='warning'>⚠️ Could not retrieve sample record: " . htmlspecialchars($e2->getMessage()) . "</p>";
-    }
-    
-} catch (\Exception $e) {
-    // Table doesn't exist or other error
-    $errorMsg = $e->getMessage();
-    if (stripos($errorMsg, "doesn't exist") !== false || 
-        stripos($errorMsg, "unknown table") !== false ||
-        stripos($errorMsg, "table") !== false && stripos($errorMsg, "exist") !== false) {
-        echo "<p class='error'>❌ Table <code>{$tableName}</code> does NOT exist in database</p>";
-        echo "<p class='warning'>Action required: Run SQL migration script to create table</p>";
-        echo "<p class='info'>Expected table name: <code>" . str_replace('#__', $db->getPrefix(), $tableName) . "</code></p>";
-    } else {
-        echo "<p class='error'>❌ Error checking table: " . htmlspecialchars($errorMsg) . "</p>";
-    }
-    $testResults['table_exists'] = false;
-}
-
-echo "</div>";
-
-// ============================================
-// TEST 2: Bank Data in Database
-// ============================================
-if ($tableExists) {
-    echo "<div class='test-section'>";
-    echo "<h2>Test 2: Bank Data Validation</h2>";
-    
-    $totalTests++;
-    try {
-        $query = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($db->quoteName($tableName))
-            ->where($db->quoteName('state') . ' = 1');
-        
-        $db->setQuery($query);
-        $activeBanksCount = (int) $db->loadResult();
-        
-        $query = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($db->quoteName($tableName));
-        
-        $db->setQuery($query);
-        $totalBanksCount = (int) $db->loadResult();
-        
-        echo "<table>";
-        echo "<tr><th>Metric</th><th>Value</th><th>Status</th></tr>";
-        echo "<tr class='" . ($totalBanksCount > 0 ? 'ok' : 'error') . "'>";
-        echo "<td>Total Banks in Database</td>";
-        echo "<td><strong>{$totalBanksCount}</strong></td>";
-        echo "<td>" . ($totalBanksCount > 0 ? "✅ OK" : "❌ No banks found") . "</td>";
-        echo "</tr>";
-        echo "<tr class='" . ($activeBanksCount > 0 ? 'ok' : 'error') . "'>";
-        echo "<td>Active Banks (state=1)</td>";
-        echo "<td><strong>{$activeBanksCount}</strong></td>";
-        echo "<td>" . ($activeBanksCount > 0 ? "✅ OK" : "❌ No active banks") . "</td>";
-        echo "</tr>";
-        echo "</table>";
-        
-        // Check for default bank
-        $query = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($db->quoteName($tableName))
-            ->where($db->quoteName('is_default') . ' = 1')
-            ->where($db->quoteName('state') . ' = 1');
-        
-        $db->setQuery($query);
-        $defaultBankCount = (int) $db->loadResult();
-        
-        echo "<p class='" . ($defaultBankCount == 1 ? 'ok' : 'warning') . "'>";
-        echo ($defaultBankCount == 1 ? "✅" : "⚠️") . " Default bank: <strong>{$defaultBankCount}</strong> ";
-        if ($defaultBankCount == 0) {
-            echo "(No default bank set)";
-        } elseif ($defaultBankCount > 1) {
-            echo "(Multiple default banks - should be only 1)";
-        } else {
-            // Get default bank code
-            $query = $db->getQuery(true)
-                ->select('code, name, name_es, name_en')
-                ->from($db->quoteName($tableName))
-                ->where($db->quoteName('is_default') . ' = 1')
-                ->where($db->quoteName('state') . ' = 1');
-            $query->setLimit(1, 0);
-            $db->setQuery($query);
-            $defaultBank = $db->loadObject();
-            if ($defaultBank) {
-                echo "(Code: <code>{$defaultBank->code}</code>, Name: " . 
-                     htmlspecialchars($defaultBank->name_es ?: $defaultBank->name ?: $defaultBank->code) . ")";
-            }
+        if (strpos($manifestContent, 'access.xml') === false && preg_match('/<files\s+folder="admin"/', $manifestContent)) {
+            $manifestContent = preg_replace(
+                '/(<files\s+folder="admin"[^>]*>\s*<filename>)([^<]+)(<\/filename>)/s',
+                '$1$2$3' . "\n            " . '<filename>access.xml</filename>',
+                $manifestContent,
+                1
+            );
+            $modified = true;
         }
-        echo "</p>";
-        
-        if ($activeBanksCount > 0) {
-            $passedTests++;
-            $testResults['bank_data'] = true;
-            
-            // Show sample banks
-            $query = $db->getQuery(true)
-                ->select('id, code, name, name_es, name_en, ordering, is_default, state')
-                ->from($db->quoteName($tableName))
-                ->where($db->quoteName('state') . ' = 1')
-                ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
-            $query->setLimit(10, 0);
-            $db->setQuery($query);
-            $banks = $db->loadObjectList();
-            
-            if (!empty($banks)) {
-                echo "<h3>Sample Banks (first 10 by ordering):</h3>";
-                echo "<table>";
-                echo "<tr><th>ID</th><th>Code</th><th>Name</th><th>Name (ES)</th><th>Ordering</th><th>Default</th><th>State</th></tr>";
-                foreach ($banks as $bank) {
-                    $rowClass = $bank->is_default ? 'warning' : 'ok';
-                    echo "<tr class='{$rowClass}'>";
-                    echo "<td>{$bank->id}</td>";
-                    echo "<td><code>{$bank->code}</code></td>";
-                    echo "<td>" . htmlspecialchars($bank->name ?: '-') . "</td>";
-                    echo "<td>" . htmlspecialchars($bank->name_es ?: '-') . "</td>";
-                    echo "<td>{$bank->ordering}</td>";
-                    echo "<td>" . ($bank->is_default ? '✅ Yes' : 'No') . "</td>";
-                    echo "<td>{$bank->state}</td>";
-                    echo "</tr>";
-                }
-                echo "</table>";
-            }
-        } else {
-            $testResults['bank_data'] = false;
+        if ($modified && @file_put_contents($manifestPath, $manifestContent) !== false) {
+            $fixMessages[] = 'Manifest file updated (menu link + access.xml in files).';
+        } elseif ($modified) {
+            $fixMessages[] = 'Manifest content was patched but could not be written (check file permissions).';
         }
-    } catch (\Exception $e) {
-        echo "<p class='error'>❌ Error querying bank data: " . htmlspecialchars($e->getMessage()) . "</p>";
-        $testResults['bank_data'] = false;
-    }
-    
-    echo "</div>";
-}
 
-// ============================================
-// TEST 3: BankModel Class Loading
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>Test 3: BankModel Class Validation</h2>";
-
-$totalTests++;
-$bankModelLoaded = false;
-
-try {
-    $component = $app->bootComponent('com_ordenproduccion');
-    echo "<p class='ok'>✅ Component booted successfully</p>";
-    
-    $mvcFactory = $component->getMVCFactory();
-    echo "<p class='ok'>✅ MVC Factory available</p>";
-    
-    $bankModel = $mvcFactory->createModel('Bank', 'Site', ['ignore_request' => true]);
-    
-    if ($bankModel) {
-        echo "<p class='ok'>✅ BankModel created successfully</p>";
-        $bankModelLoaded = true;
-        $passedTests++;
-        $testResults['bank_model_loaded'] = true;
-        
-        // Check methods
-        $requiredMethods = ['getBanks', 'getBankOptions', 'getDefaultBankCode'];
-        echo "<h3>Required Methods Check:</h3>";
-        echo "<table>";
-        echo "<tr><th>Method</th><th>Status</th></tr>";
-        foreach ($requiredMethods as $method) {
-            $exists = method_exists($bankModel, $method);
-            $rowClass = $exists ? 'ok' : 'error';
-            echo "<tr class='{$rowClass}'>";
-            echo "<td><code>BankModel::{$method}()</code></td>";
-            echo "<td>" . ($exists ? "✅ EXISTS" : "❌ MISSING") . "</td>";
-            echo "</tr>";
-            if (!$exists) {
-                $bankModelLoaded = false;
-            }
-        }
-        echo "</table>";
-        
-    } else {
-        echo "<p class='error'>❌ BankModel could not be created</p>";
-        $testResults['bank_model_loaded'] = false;
-    }
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error loading BankModel: " . htmlspecialchars($e->getMessage()) . "</p>";
-    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-    $testResults['bank_model_loaded'] = false;
-}
-
-echo "</div>";
-
-// ============================================
-// TEST 4: BankModel::getBankOptions() Functionality
-// ============================================
-if ($bankModelLoaded && isset($bankModel)) {
-    echo "<div class='test-section'>";
-    echo "<h2>Test 4: BankModel::getBankOptions() Validation</h2>";
-    
-    $totalTests++;
-    try {
-        $bankOptions = $bankModel->getBankOptions();
-        
-        if (is_array($bankOptions)) {
-            $optionsCount = count($bankOptions);
-            echo "<p class='" . ($optionsCount > 0 ? 'ok' : 'warning') . "'>";
-            echo ($optionsCount > 0 ? "✅" : "⚠️") . " getBankOptions() returned <strong>{$optionsCount}</strong> options";
-            echo "</p>";
-            
-            if ($optionsCount > 0) {
-                $passedTests++;
-                $testResults['bank_options'] = true;
-                
-                echo "<h3>Bank Options Array:</h3>";
-                echo "<table>";
-                echo "<tr><th>Code (Key)</th><th>Name (Value)</th></tr>";
-                $count = 0;
-                foreach ($bankOptions as $code => $name) {
-                    $count++;
-                    if ($count <= 20) { // Show first 20
-                        echo "<tr class='ok'>";
-                        echo "<td><code>" . htmlspecialchars($code) . "</code></td>";
-                        echo "<td>" . htmlspecialchars($name) . "</td>";
-                        echo "</tr>";
-                    }
-                }
-                if ($count > 20) {
-                    echo "<tr><td colspan='2' class='info'>... and " . ($count - 20) . " more banks</td></tr>";
-                }
-                echo "</table>";
-                
-                // Check for empty codes or names
-                $invalidOptions = [];
-                foreach ($bankOptions as $code => $name) {
-                    if (empty($code) || empty($name)) {
-                        $invalidOptions[] = ['code' => $code, 'name' => $name];
-                    }
-                }
-                
-                if (!empty($invalidOptions)) {
-                    echo "<p class='warning'>⚠️ Found " . count($invalidOptions) . " options with empty code or name:</p>";
-                    echo "<pre>" . print_r($invalidOptions, true) . "</pre>";
-                }
-            } else {
-                echo "<p class='error'>❌ getBankOptions() returned empty array - dropdown will be empty!</p>";
-                $testResults['bank_options'] = false;
-            }
-        } else {
-            echo "<p class='error'>❌ getBankOptions() did not return an array. Got: " . gettype($bankOptions) . "</p>";
-            $testResults['bank_options'] = false;
-        }
-    } catch (\Exception $e) {
-        echo "<p class='error'>❌ Error calling getBankOptions(): " . htmlspecialchars($e->getMessage()) . "</p>";
-        echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-        $testResults['bank_options'] = false;
-    }
-    
-    echo "</div>";
-}
-
-// ============================================
-// TEST 5: BankModel::getDefaultBankCode() Functionality
-// ============================================
-if ($bankModelLoaded && isset($bankModel) && method_exists($bankModel, 'getDefaultBankCode')) {
-    echo "<div class='test-section'>";
-    echo "<h2>Test 5: Default Bank Code Validation</h2>";
-    
-    $totalTests++;
-    try {
-        $defaultBankCode = $bankModel->getDefaultBankCode();
-        
-        if (!empty($defaultBankCode)) {
-            echo "<p class='ok'>✅ Default bank code: <code>{$defaultBankCode}</code></p>";
-            $passedTests++;
-            $testResults['default_bank_code'] = true;
-            
-            // Verify it exists in options
-            if (isset($bankOptions) && isset($bankOptions[$defaultBankCode])) {
-                echo "<p class='ok'>✅ Default bank code exists in options: " . 
-                     htmlspecialchars($bankOptions[$defaultBankCode]) . "</p>";
-            } else {
-                echo "<p class='warning'>⚠️ Default bank code not found in options array</p>";
-            }
-        } else {
-            echo "<p class='warning'>⚠️ No default bank code set (getDefaultBankCode() returned null/empty)</p>";
-            echo "<p class='info'>This is OK - dropdown will show 'Select Bank' option first</p>";
-            $testResults['default_bank_code'] = null; // Not an error, just informational
-        }
-    } catch (\Exception $e) {
-        echo "<p class='error'>❌ Error calling getDefaultBankCode(): " . htmlspecialchars($e->getMessage()) . "</p>";
-        $testResults['default_bank_code'] = false;
-    }
-    
-    echo "</div>";
-}
-
-// ============================================
-// TEST 6: PaymentProofModel Integration
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>Test 6: PaymentProofModel Integration</h2>";
-
-$totalTests++;
-$paymentProofModelLoaded = false;
-
-try {
-    $paymentProofModel = $mvcFactory->createModel('PaymentProof', 'Site', ['ignore_request' => true]);
-    
-    if ($paymentProofModel) {
-        echo "<p class='ok'>✅ PaymentProofModel created successfully</p>";
-        $paymentProofModelLoaded = true;
-        
-        if (method_exists($paymentProofModel, 'getBankOptions')) {
-            echo "<p class='ok'>✅ PaymentProofModel::getBankOptions() method exists</p>";
-            
-            try {
-                $paymentProofOptions = $paymentProofModel->getBankOptions();
-                $paymentOptionsCount = is_array($paymentProofOptions) ? count($paymentProofOptions) : 0;
-                
-                echo "<p class='" . ($paymentOptionsCount > 0 ? 'ok' : 'warning') . "'>";
-                echo ($paymentOptionsCount > 0 ? "✅" : "⚠️") . 
-                     " PaymentProofModel::getBankOptions() returned <strong>{$paymentOptionsCount}</strong> options";
-                echo "</p>";
-                
-                if ($paymentOptionsCount > 0) {
-                    $passedTests++;
-                    $testResults['payment_proof_model'] = true;
-                    
-                    // Compare with BankModel results
-                    if (isset($bankOptions)) {
-                        $diff1 = array_diff_key($bankOptions, $paymentProofOptions);
-                        $diff2 = array_diff_key($paymentProofOptions, $bankOptions);
-                        
-                        if (empty($diff1) && empty($diff2)) {
-                            echo "<p class='ok'>✅ PaymentProofModel options match BankModel options perfectly</p>";
-                        } else {
-                            echo "<p class='warning'>⚠️ Options mismatch detected:</p>";
-                            if (!empty($diff1)) {
-                                echo "<p>In BankModel but not in PaymentProofModel: " . implode(', ', array_keys($diff1)) . "</p>";
-                            }
-                            if (!empty($diff2)) {
-                                echo "<p>In PaymentProofModel but not in BankModel: " . implode(', ', array_keys($diff2)) . "</p>";
-                            }
-                        }
-                    }
-                } else {
-                    $testResults['payment_proof_model'] = false;
-                }
-            } catch (\Exception $e) {
-                echo "<p class='error'>❌ Error calling PaymentProofModel::getBankOptions(): " . 
-                     htmlspecialchars($e->getMessage()) . "</p>";
-                $testResults['payment_proof_model'] = false;
-            }
-        } else {
-            echo "<p class='error'>❌ PaymentProofModel::getBankOptions() method does not exist</p>";
-            $testResults['payment_proof_model'] = false;
-        }
-    } else {
-        echo "<p class='error'>❌ PaymentProofModel could not be created</p>";
-        $testResults['payment_proof_model'] = false;
-    }
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error loading PaymentProofModel: " . htmlspecialchars($e->getMessage()) . "</p>";
-    $testResults['payment_proof_model'] = false;
-}
-
-echo "</div>";
-
-// ============================================
-// TEST 7: View Integration
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>Test 7: PaymentProof View Integration</h2>";
-
-$totalTests++;
-$viewLoaded = false;
-
-try {
-    // Try both PaymentProof and Paymentproof (case sensitivity matters in some systems)
-    try {
-        $view = $mvcFactory->createView('PaymentProof', 'Site');
-        echo "<p class='ok'>✅ PaymentProof View created successfully (with capital P)</p>";
-    } catch (\Exception $e1) {
+        // Update manifest_cache in #__extensions so cached data includes menu link
         try {
-            $view = $mvcFactory->createView('Paymentproof', 'Site');
-            echo "<p class='ok'>✅ Paymentproof View created successfully (with lowercase p)</p>";
-        } catch (\Exception $e2) {
-            throw new \Exception("Failed with both cases. PaymentProof: " . $e1->getMessage() . "; Paymentproof: " . $e2->getMessage());
-        }
-    }
-    
-    if ($view) {
-        echo "<p class='ok'>✅ PaymentProof View created successfully</p>";
-        $viewLoaded = true;
-        
-        $viewMethods = ['getBankOptions', 'getDefaultBankCode'];
-        echo "<h3>View Methods Check:</h3>";
-        echo "<table>";
-        echo "<tr><th>Method</th><th>Status</th></tr>";
-        $allMethodsExist = true;
-        foreach ($viewMethods as $method) {
-            $exists = method_exists($view, $method);
-            $rowClass = $exists ? 'ok' : 'warning';
-            echo "<tr class='{$rowClass}'>";
-            echo "<td><code>HtmlView::{$method}()</code></td>";
-            echo "<td>" . ($exists ? "✅ EXISTS" : "⚠️ MISSING (may use model directly)") . "</td>";
-            echo "</tr>";
-            if (!$exists && $method == 'getDefaultBankCode') {
-                $allMethodsExist = false; // This is more critical
+            $xml = @new \SimpleXMLElement($manifestContent);
+            $q = $db->getQuery(true)
+                ->select('manifest_cache')
+                ->from($db->quoteName('#__extensions'))
+                ->where($db->quoteName('element') . ' = ' . $db->quote($component))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
+            $db->setQuery($q);
+            $existing = $db->loadResult();
+            $cache = $existing ? json_decode($existing, true) : [];
+            if (!is_array($cache)) {
+                $cache = [];
             }
-        }
-        echo "</table>";
-        
-        if ($allMethodsExist) {
-            $passedTests++;
-            $testResults['view_integration'] = true;
-            
-            // Test getBankOptions if available
-            if (method_exists($view, 'getBankOptions')) {
-                try {
-                    $viewOptions = $view->getBankOptions();
-                    $viewOptionsCount = is_array($viewOptions) ? count($viewOptions) : 0;
-                    echo "<p class='" . ($viewOptionsCount > 0 ? 'ok' : 'warning') . "'>";
-                    echo "View::getBankOptions() returned <strong>{$viewOptionsCount}</strong> options";
-                    echo "</p>";
-                } catch (\Exception $e) {
-                    echo "<p class='error'>❌ Error calling View::getBankOptions(): " . 
-                         htmlspecialchars($e->getMessage()) . "</p>";
-                }
+            if (!isset($cache['administration'])) {
+                $cache['administration'] = [];
             }
-        } else {
-            $testResults['view_integration'] = false;
-        }
-    } else {
-        echo "<p class='error'>❌ PaymentProof View could not be created</p>";
-        $testResults['view_integration'] = false;
-    }
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error loading PaymentProof View: " . htmlspecialchars($e->getMessage()) . "</p>";
-    $testResults['view_integration'] = false;
-}
-
-echo "</div>";
-
-// ============================================
-// TEST 8: Template File Check
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>Test 8: Template File Validation</h2>";
-
-$totalTests++;
-$templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/paymentproof/default.php';
-$templateExists = file_exists($templatePath);
-
-echo "<table>";
-echo "<tr><th>Check</th><th>Result</th></tr>";
-echo "<tr class='" . ($templateExists ? 'ok' : 'error') . "'>";
-echo "<td>Template file exists</td>";
-echo "<td>" . ($templateExists ? "✅ <code>default.php</code> found" : "❌ Template file not found") . "</td>";
-echo "</tr>";
-
-if ($templateExists) {
-    $passedTests++;
-    $testResults['template_file'] = true;
-    
-    // Check for key code in template
-    $templateContent = file_get_contents($templatePath);
-    $hasGetBankOptions = (strpos($templateContent, 'getBankOptions') !== false);
-    $hasGetDefaultBankCode = (strpos($templateContent, 'getDefaultBankCode') !== false);
-    $hasBankSelect = (strpos($templateContent, '<select') !== false && strpos($templateContent, 'bank') !== false);
-    
-    echo "<tr class='" . ($hasGetBankOptions ? 'ok' : 'warning') . "'>";
-    echo "<td>Uses getBankOptions()</td>";
-    echo "<td>" . ($hasGetBankOptions ? "✅ Found" : "⚠️ Not found") . "</td>";
-    echo "</tr>";
-    
-    echo "<tr class='" . ($hasGetDefaultBankCode ? 'ok' : 'warning') . "'>";
-    echo "<td>Uses getDefaultBankCode()</td>";
-    echo "<td>" . ($hasGetDefaultBankCode ? "✅ Found" : "⚠️ Not found (may use method_exists check)") . "</td>";
-    echo "</tr>";
-    
-    echo "<tr class='" . ($hasBankSelect ? 'ok' : 'warning') . "'>";
-    echo "<td>Contains bank dropdown</td>";
-    echo "<td>" . ($hasBankSelect ? "✅ Found" : "⚠️ Not found") . "</td>";
-    echo "</tr>";
-} else {
-    $testResults['template_file'] = false;
-}
-
-echo "</table>";
-echo "</div>";
-
-// ============================================
-// TEST 9: Live Dropdown Rendering
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>Test 9: Live Dropdown Rendering (HTML Output)</h2>";
-
-$totalTests++;
-
-try {
-    // Get bank options using BankModel (most reliable method)
-    $testBankOptions = [];
-    $testDefaultBankCode = null;
-    
-    if (isset($bankModel) && $bankModelLoaded) {
-        try {
-            $testBankOptions = $bankModel->getBankOptions();
-            $testDefaultBankCode = $bankModel->getDefaultBankCode();
+            if (!isset($cache['administration']['menu'])) {
+                $cache['administration']['menu'] = [];
+            }
+            $cache['administration']['menu']['link'] = 'option=com_ordenproduccion&view=dashboard';
+            $cache['administration']['menu']['img'] = 'class:cog';
+            $cache['administration']['menu']['text'] = (string) $xml->name;
+            $cache['version'] = (string) $xml->version;
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__extensions'))
+                    ->set($db->quoteName('manifest_cache') . ' = ' . $db->quote(json_encode($cache)))
+                    ->where($db->quoteName('element') . ' = ' . $db->quote($component))
+                    ->where($db->quoteName('type') . ' = ' . $db->quote('component'))
+            )->execute();
+            $fixMessages[] = 'Extension manifest_cache updated in database (menu link merged).';
         } catch (\Exception $e) {
-            echo "<p class='error'>❌ Error getting bank options: " . htmlspecialchars($e->getMessage()) . "</p>";
+            $fixMessages[] = 'Could not update manifest_cache: ' . $e->getMessage();
         }
     } else {
-        echo "<p class='warning'>⚠️ BankModel not available - cannot render dropdown</p>";
-        $testResults['dropdown_rendering'] = false;
+        $fixMessages[] = 'Manifest file not found; cannot patch.';
     }
-    
-    if (!empty($testBankOptions)) {
-        echo "<p class='ok'>✅ Successfully retrieved " . count($testBankOptions) . " bank options for dropdown rendering</p>";
-        
-        if (!empty($testDefaultBankCode)) {
-            echo "<p class='ok'>✅ Default bank code: <code>{$testDefaultBankCode}</code></p>";
-        } else {
-            echo "<p class='info'>ℹ️ No default bank code set</p>";
-        }
-        
-        // Determine selected bank (simulate new form - use default if available)
-        $selectedBankCode = $testDefaultBankCode;
-        $isReadOnly = false; // Simulate new form scenario
-        $existingPayment = null;
-        
-        // Show "Select Bank" option logic
-        $showSelectOption = true;
-        if ($selectedBankCode && isset($testBankOptions[$selectedBankCode])) {
-            // If we have a valid selected bank, don't show "Select Bank" option
-            $showSelectOption = false;
-        } elseif ($isReadOnly && !$selectedBankCode) {
-            $showSelectOption = true;
-        } elseif (!$isReadOnly && !$testDefaultBankCode) {
-            $showSelectOption = true;
-        } else {
-            $showSelectOption = false;
-        }
-        
-        echo "<h3>Rendered Dropdown HTML:</h3>";
-        echo "<p class='info'>This is exactly how the dropdown will appear in the payment proof form</p>";
-        
-        // Render the dropdown
-        echo "<div style='max-width: 500px; margin: 20px 0; padding: 20px; background: #f9f9f9; border: 2px solid #0073aa; border-radius: 4px;'>";
-        echo "<label for='test_bank_dropdown' style='display: block; margin-bottom: 8px; font-weight: bold;'>";
-        echo "Bank: <span style='color: red;'>*</span>";
-        echo "</label>";
-        echo "<select name='bank' id='test_bank_dropdown' class='form-control' style='width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px;'>";
-        
-        // Add "Select Bank" option if needed
-        if ($showSelectOption) {
-            $isSelectSelected = !$selectedBankCode;
-            echo "<option value=''" . ($isSelectSelected ? ' selected="selected"' : '') . ">";
-            echo "Seleccionar Banco";
-            echo "</option>";
-        }
-        
-        // Render bank options
-        foreach ($testBankOptions as $code => $name) {
-            $isSelected = ($selectedBankCode && $code === $selectedBankCode);
-            $displayText = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-            $codeEscaped = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
-            
-            echo "<option value='{$codeEscaped}'" . ($isSelected ? ' selected="selected"' : '') . ">";
-            echo $displayText;
-            if ($isSelected) {
-                echo " (SELECTED - Default Bank)";
-            }
-            echo "</option>";
-        }
-        
-        echo "</select>";
-        echo "</div>";
-        
-        // Show dropdown state summary
-        echo "<h3>Dropdown State Summary:</h3>";
-        echo "<table>";
-        echo "<tr><th>Property</th><th>Value</th></tr>";
-        echo "<tr class='info'><td>Total Options</td><td><strong>" . count($testBankOptions) . "</strong></td></tr>";
-        echo "<tr class='info'><td>Show 'Select Bank' Option</td><td>" . ($showSelectOption ? '✅ Yes' : '❌ No (default pre-selected)') . "</td></tr>";
-        echo "<tr class='info'><td>Default Bank Code</td><td><code>" . ($testDefaultBankCode ?: 'None') . "</code></td></tr>";
-        echo "<tr class='" . ($selectedBankCode ? 'ok' : 'warning') . "'><td>Selected Bank Code</td><td><code>" . ($selectedBankCode ?: 'None') . "</code></td></tr>";
-        
-        if ($selectedBankCode) {
-            $selectedBankName = $testBankOptions[$selectedBankCode] ?? 'Not found in options';
-            echo "<tr class='" . (isset($testBankOptions[$selectedBankCode]) ? 'ok' : 'error') . "'><td>Selected Bank Name</td><td>" . htmlspecialchars($selectedBankName) . "</td></tr>";
-        }
-        
-        echo "</table>";
-        
-        // Show rendered HTML code
-        echo "<h3>Generated HTML Code:</h3>";
-        echo "<p class='info'>Copy this HTML to see exactly what is being generated</p>";
-        echo "<pre style='max-height: 300px; overflow-y: auto; background: #f4f4f4; padding: 15px; border: 1px solid #ddd;'>";
-        echo htmlspecialchars('<select name="bank" id="bank" class="form-control" required>' . "\n");
-        if ($showSelectOption) {
-            $isSelectSelected = !$selectedBankCode;
-            echo htmlspecialchars('  <option value=""' . ($isSelectSelected ? ' selected="selected"' : '') . '>Seleccionar Banco</option>' . "\n");
-        }
-        foreach ($testBankOptions as $code => $name) {
-            $isSelected = ($selectedBankCode && $code === $selectedBankCode);
-            $displayText = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-            $codeEscaped = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
-            echo htmlspecialchars('  <option value="' . $codeEscaped . '"' . ($isSelected ? ' selected="selected"' : '') . '>' . $displayText . '</option>' . "\n");
-        }
-        echo htmlspecialchars('</select>');
-        echo "</pre>";
-        
-        // Test JavaScript interaction
-        echo "<h3>Interactive Test:</h3>";
-        echo "<p class='info'>Try changing the dropdown above and see the JavaScript output below:</p>";
-        echo "<div id='dropdown_test_output' style='background: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 50px; margin-top: 10px;'>";
-        echo "<em>Change the dropdown to see the selected value here...</em>";
-        echo "</div>";
-        echo "<script>";
-        echo "document.getElementById('test_bank_dropdown').addEventListener('change', function(e) {";
-        echo "  var output = document.getElementById('dropdown_test_output');";
-        echo "  var selectedOption = this.options[this.selectedIndex];";
-        echo "  var value = this.value;";
-        echo "  var text = selectedOption.text;";
-        echo "  output.innerHTML = '<strong>Selected Value:</strong> <code>' + (value || '(empty)') + '</code><br>';";
-        echo "  output.innerHTML += '<strong>Selected Text:</strong> ' + text + '<br>';";
-        echo "  output.innerHTML += '<strong>Is Default Bank:</strong> ' + (value === '" . ($testDefaultBankCode ?: '') . "' ? 'Yes ✅' : 'No');";
-        echo "});";
-        echo "</script>";
-        
-        $passedTests++;
-        $testResults['dropdown_rendering'] = true;
-        
+
+    if (file_exists($accessPath)) {
+        $fixMessages[] = 'access.xml is present on disk.';
     } else {
-        echo "<p class='error'>❌ Cannot render dropdown - no bank options available</p>";
-        $testResults['dropdown_rendering'] = false;
+        $fixMessages[] = 'access.xml missing in ' . $adminBase . ' – copy from repo admin/access.xml.';
     }
-    
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error rendering dropdown: " . htmlspecialchars($e->getMessage()) . "</p>";
-    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-    $testResults['dropdown_rendering'] = false;
 }
 
-echo "</div>";
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Check: Backend menu item missing – com_ordenproduccion</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f0f0f0; font-size: 14px; line-height: 1.5; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+        h1 { margin: 0 0 8px; color: #1a1a1a; font-size: 1.5rem; }
+        .subtitle { color: #666; margin-bottom: 20px; }
+        .fix-box { background: #e8f5e9; border: 1px solid #81c784; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; }
+        .fix-box ul { margin: 0; padding-left: 20px; }
+        .fix-box li { margin: 4px 0; }
+        .section { margin: 24px 0; padding: 16px; border: 1px solid #e0e0e0; border-radius: 6px; background: #fafafa; }
+        .section h2 { margin: 0 0 12px; font-size: 1.1rem; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+        .row { display: flex; align-items: flex-start; gap: 12px; margin: 8px 0; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .row:last-child { border-bottom: 0; }
+        .status { flex-shrink: 0; width: 28px; text-align: center; font-weight: bold; }
+        .ok { color: #2e7d32; }
+        .fail { color: #c62828; }
+        .warn { color: #f57c00; }
+        .label { font-weight: 600; min-width: 180px; color: #444; }
+        .value { color: #333; word-break: break-all; }
+        .detail { font-size: 12px; color: #666; margin-top: 4px; }
+        .actions { margin-top: 24px; padding: 16px; background: #fff3e0; border-radius: 6px; border: 1px solid #ffb74d; }
+        .actions h3 { margin: 0 0 10px; color: #e65100; }
+        .actions ol { margin: 0; padding-left: 20px; }
+        .actions li { margin: 6px 0; }
+        .btn { display: inline-block; margin-top: 12px; padding: 10px 20px; background: #1976d2; color: #fff; text-decoration: none; border-radius: 4px; font-weight: 600; }
+        .btn:hover { background: #1565c0; }
+        code { background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Check: Backend menu item missing</h1>
+    <p class="subtitle">com_ordenproduccion – why "Work Orders" does not appear in Administrator → Components</p>
+    <p><strong>Time:</strong> <?php echo date('Y-m-d H:i:s'); ?> &nbsp;|&nbsp; <strong>JPATH_ROOT:</strong> <code><?php echo htmlspecialchars(JPATH_ROOT); ?></code></p>
 
-// ============================================
-// PAYMENT PROOF SCHEMA DIAGNOSTICS (1054 payment_proof_id error)
-// ============================================
-echo "<div class='test-section' id='payment-diag'>";
-echo "<h2>💳 Payment Proof Schema Diagnostics (1054 Unknown column 'payment_proof_id')</h2>";
-echo "<p class='info'>This section diagnoses the <code>1054 Unknown column 'payment_proof_id' in 'where clause'</code> error on the payment registration page.</p>";
+    <?php if ($applyFix && !empty($fixMessages)): ?>
+    <div class="fix-box">
+        <strong>Fix applied</strong>
+        <ul>
+            <?php foreach ($fixMessages as $m): ?>
+            <li><?php echo htmlspecialchars($m); ?></li>
+            <?php endforeach; ?>
+        </ul>
+        <p>Next: <a href="?">Reload this page</a> (without ?fix=1), then in backend go to <strong>System → Clear Cache</strong> and clear all. Open <strong>Components</strong> again.</p>
+    </div>
+    <?php endif; ?>
 
-$prefix = $db->getPrefix();
-$ordenesTable = $prefix . 'ordenproduccion_ordenes';
-$paymentOrdersTable = $prefix . 'ordenproduccion_payment_orders';
-$paymentProofsTable = $prefix . 'ordenproduccion_payment_proofs';
-
-$hasPaymentProofId = false;
-$hasPaymentValue = false;
-
-// 1. Check ordenes table columns
-echo "<h3>1. Ordenes Table Schema</h3>";
-try {
-    $db->setQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($ordenesTable) . " ORDER BY ORDINAL_POSITION");
-    $ordenesCols = $db->loadColumn() ?: [];
-    $hasPaymentProofId = in_array('payment_proof_id', $ordenesCols);
-    $hasPaymentValue = in_array('payment_value', $ordenesCols);
-    
-    echo "<table><tr><th>Column</th><th>Exists in ordenes</th><th>Status</th></tr>";
-    echo "<tr class='" . ($hasPaymentProofId ? 'warning' : 'ok') . "'><td>payment_proof_id</td><td>" . ($hasPaymentProofId ? 'YES' : 'NO') . "</td><td>";
-    echo $hasPaymentProofId ? "⚠️ OLD schema - 3.54.0 migration should remove it" : "✅ Removed (post-migration)";
-    echo "</td></tr>";
-    echo "<tr class='" . ($hasPaymentValue ? 'warning' : 'ok') . "'><td>payment_value</td><td>" . ($hasPaymentValue ? 'YES' : 'NO') . "</td><td>";
-    echo $hasPaymentValue ? "⚠️ OLD schema" : "✅ Removed (post-migration)";
-    echo "</td></tr></table>";
-    echo "<p class='info'>All ordenes columns: <code>" . implode('</code>, <code>', $ordenesCols) . "</code></p>";
-} catch (\Exception $e) {
-    echo "<p class='error'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// 2. Check payment_orders table existence
-echo "<h3>2. Payment Orders Junction Table</h3>";
-$paymentOrdersExists = false;
-try {
-    $db->setQuery("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($paymentOrdersTable));
-    $paymentOrdersExists = (int) $db->loadResult() > 0;
-    echo "<p class='" . ($paymentOrdersExists ? 'ok' : 'error') . "'>" . ($paymentOrdersExists ? "✅" : "❌") . " Table <code>{$paymentOrdersTable}</code> " . ($paymentOrdersExists ? "exists" : "does NOT exist") . "</p>";
-    if ($paymentOrdersExists) {
-        $db->setQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($paymentOrdersTable));
-        $poCols = $db->loadColumn() ?: [];
-        echo "<p class='info'>Columns: <code>" . implode('</code>, <code>', $poCols) . "</code></p>";
-    }
-} catch (\Exception $e) {
-    echo "<p class='error'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// 3. getTableList output (used by hasPaymentOrdersTable)
-echo "<h3>3. getTableList() Output (Table Existence Check)</h3>";
-try {
-    $tables = $db->getTableList();
-    $matches = array_filter($tables, function($t) use ($paymentOrdersTable) {
-        return strcasecmp($t, $paymentOrdersTable) === 0 || stripos($t, 'ordenproduccion_payment_orders') !== false;
-    });
-    echo "<p class='info'>Looking for: <code>{$paymentOrdersTable}</code></p>";
-    echo "<p class='info'>Matches in getTableList: " . (empty($matches) ? "NONE" : implode(', ', $matches)) . "</p>";
-    echo "<p class='info'>Sample of table list (first 20): <code>" . implode('</code>, <code>', array_slice($tables, 0, 20)) . "</code></p>";
-} catch (\Exception $e) {
-    echo "<p class='error'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// 4. Test queries that could trigger the error
-echo "<h3>4. Query Tests (Simulate Payment Proof Page Load)</h3>";
-
-// Test A: getPaymentProofsByOrderId equivalent (junction table)
-echo "<h4>Test A: Junction table query (payment_orders + payment_proofs)</h4>";
-try {
-    $orderId = 6025;
+    <?php
+    // ---- 1. Extension record ----
     $q = $db->getQuery(true)
-        ->select('pp.id, pp.document_number, po.amount_applied')
-        ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
-        ->innerJoin($db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id')
-        ->where('po.order_id = ' . (int) $orderId);
-    $db->setQuery($q);
-    $rows = $db->loadObjectList();
-    echo "<p class='ok'>✅ Junction query OK - returned " . count($rows) . " row(s)</p>";
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Junction query FAILED: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// Test B: Query that would use ordenes.payment_proof_id (WRONG - this causes the error)
-echo "<h4>Test B: Query using ordenes.payment_proof_id (should fail if column removed)</h4>";
-try {
-    $q = $db->getQuery(true)
-        ->select('o.id, o.payment_proof_id, o.payment_value')
-        ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
-        ->where('o.id = 6025');
-    $db->setQuery($q);
-    $row = $db->loadObject();
-    echo "<p class='warning'>⚠️ Query succeeded - ordenes still has payment_proof_id/payment_value columns</p>";
-} catch (\Exception $e) {
-    $err = $e->getMessage();
-    echo "<p class='" . (strpos($err, 'payment_proof_id') !== false ? 'error' : 'warning') . "'>";
-    echo (strpos($err, 'payment_proof_id') !== false ? "❌ FOUND ERROR: " : "Error: ") . htmlspecialchars($err) . "</p>";
-}
-
-// Test C: Legacy payment_proofs-only query
-echo "<h4>Test C: Legacy query (payment_proofs.order_id only)</h4>";
-try {
-    $q = $db->getQuery(true)
-        ->select('pp.id, pp.document_number, pp.payment_amount')
-        ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
-        ->where('pp.order_id = 6025')->where('pp.state = 1');
-    $db->setQuery($q);
-    $rows = $db->loadObjectList();
-    echo "<p class='ok'>✅ Legacy query OK - returned " . count($rows) . " row(s)</p>";
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Legacy query FAILED: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// Test D: getOrdersWithRemainingBalanceFromClient-style query (ordenes only + subquery)
-echo "<h4>Test D: View getOrdersWithRemainingBalance (ordenes + subquery, no JOIN to payment_orders)</h4>";
-try {
-    $subquery = '(SELECT COALESCE(SUM(pp2.payment_amount), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
-        ' WHERE pp2.order_id = o.id AND pp2.state = 1)';
-    $q = $db->getQuery(true)
-        ->select(['o.id', 'o.order_number', 'o.invoice_value', $subquery . ' AS total_paid'])
-        ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
-        ->where('o.state = 1')->where('o.id = 6025');
-    $db->setQuery($q);
-    $row = $db->loadObject();
-    echo "<p class='ok'>✅ View query (legacy subquery) OK</p>";
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ View query FAILED: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
-
-// 5. Deployed files check
-echo "<h3>5. Deployed Component Files</h3>";
-$sitePath = JPATH_ROOT . '/components/com_ordenproduccion';
-$filesToCheck = [
-    'src/Model/PaymentproofModel.php',
-    'src/View/Paymentproof/HtmlView.php',
-    'tmpl/paymentproof/default.php',
-];
-echo "<table><tr><th>File</th><th>Exists</th><th>hasPaymentOrdersTable</th><th>Last Modified</th></tr>";
-foreach ($filesToCheck as $relPath) {
-    $fullPath = $sitePath . '/' . $relPath;
-    $exists = file_exists($fullPath);
-    $hasCheck = false;
-    if ($exists && (strpos($relPath, 'Model') !== false || strpos($relPath, 'View') !== false)) {
-        $content = @file_get_contents($fullPath);
-        $hasCheck = $content && (strpos($content, 'hasPaymentOrdersTable') !== false);
-    }
-    $mtime = $exists ? date('Y-m-d H:i:s', filemtime($fullPath)) : '-';
-    echo "<tr class='" . ($exists ? 'ok' : 'nodata') . "'>";
-    echo "<td><code>{$relPath}</code></td>";
-    echo "<td>" . ($exists ? '✅' : '❌') . "</td>";
-    echo "<td>" . ($hasCheck ? '✅' : (strpos($relPath, 'tmpl') !== false ? '-' : ($exists ? '❌' : '-'))) . "</td>";
-    echo "<td>{$mtime}</td></tr>";
-}
-echo "</table>";
-
-// 6. Recommended actions
-echo "<h3>6. Recommended Actions</h3>";
-$recommendations = [];
-if ($hasPaymentProofId) {
-    $recommendations[] = "ordenes has payment_proof_id - Run 3.54.0 migration to create payment_orders and drop old columns";
-}
-if (!$paymentOrdersExists) {
-    $recommendations[] = "payment_orders table missing - Run admin/sql/updates/mysql/3.54.0.sql manually";
-}
-if (!$hasPaymentProofId && !$paymentOrdersExists) {
-    $recommendations[] = "Schema inconsistent: ordenes has no payment_proof_id but payment_orders doesn't exist. Run full 3.54.0 migration.";
-}
-if (empty($recommendations)) {
-    echo "<p class='ok'>✅ Schema appears consistent. If error persists, check for cached/old PHP files or plugins querying ordenes.payment_proof_id.</p>";
-} else {
-    echo "<ul>";
-    foreach ($recommendations as $r) {
-        echo "<li class='warning'>" . htmlspecialchars($r) . "</li>";
-    }
-    echo "</ul>";
-}
-
-echo "</div>";
-
-// ============================================
-// PRODUCTOS & CALCULATIONS (Elementos, Pre-Cotización)
-// ============================================
-echo "<div class='test-section' id='productos-calc'>";
-echo "<h2>📦 Productos &amp; Calculations (Elementos &amp; Pre-Cotización)</h2>";
-echo "<p class='info'>Validates Elementos table, range columns, unit price calculation, and Pre-Cotización lines with total 0.</p>";
-
-$productosOk = true;
-try {
-    $component = $app->bootComponent('com_ordenproduccion');
-    $mvcFactory = $component->getMVCFactory();
-    $productosModel = $mvcFactory->createModel('Productos', 'Site', ['ignore_request' => true]);
-    if (!$productosModel) {
-        echo "<p class='error'>❌ ProductosModel could not be created.</p>";
-        $productosOk = false;
-    } else {
-        echo "<p class='ok'>✅ ProductosModel loaded</p>";
-
-        $elemTableExists = $productosModel->elementosTableExists();
-        echo "<p class='" . ($elemTableExists ? 'ok' : 'error') . "'>" . ($elemTableExists ? "✅" : "❌") . " Elementos table exists</p>";
-        if (!$elemTableExists) {
-            $productosOk = false;
-        }
-
-        if ($elemTableExists) {
-            $prefix = $db->getPrefix();
-            $tbl = $prefix . 'ordenproduccion_elementos';
-            $cols = $db->getTableColumns($tbl, false);
-            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
-            $hasRange = isset($cols['range_1_ceiling']) && isset($cols['price_1_to_1000']) && isset($cols['price_1001_plus']);
-            echo "<p class='" . ($hasRange ? 'ok' : 'warning') . "'>" . ($hasRange ? "✅" : "⚠️") . " Range columns (range_1_ceiling, price_1_to_1000, price_1001_plus): " . ($hasRange ? "present" : "missing – run 3.72.0_elementos_ranges.sql") . "</p>";
-            if (!$hasRange) {
-                $productosOk = false;
-            }
-
-            $elementos = $productosModel->getElementos();
-            echo "<h3>Elementos (" . count($elementos) . " rows)</h3>";
-            echo "<p class='info'><strong>Precio rango 1/2</strong> = raw DB (<code>price_1_to_1000</code>, <code>price_1001_plus</code>). ";
-            echo "The admin list uses a fallback: when a range price is 0 it shows the legacy <code>price</code> column so both columns can show a value. So if you see a price in the admin for \"Precio rango 1\" but 0 here, the stored range-1 value is 0 and the admin is showing legacy <code>price</code>.</p>";
-            if (empty($elementos)) {
-                echo "<p class='nodata'>No elementos. Add some in Productos → Elementos.</p>";
-            } else {
-                echo "<table>";
-                echo "<tr><th>#</th><th>Nombre</th><th>Tamaño</th><th>Rango 1 hasta</th><th>Precio rango 1 (DB)</th><th>Precio rango 2 (DB)</th><th>Legacy price (DB)</th><th>Unit price (qty=15)</th><th>Unit price (qty=5000)</th><th>Status</th></tr>";
-                foreach ($elementos as $el) {
-                    $r = array_change_key_case((array) $el, CASE_LOWER);
-                    $id = (int) ($r['id'] ?? 0);
-                    $name = htmlspecialchars($r['name'] ?? '');
-                    $size = htmlspecialchars($r['size'] ?? '—');
-                    $ceiling = (int) ($r['range_1_ceiling'] ?? 1000);
-                    $p1Raw = (float) ($r['price_1_to_1000'] ?? 0);
-                    $p2Raw = (float) ($r['price_1001_plus'] ?? 0);
-                    $legacy = (float) ($r['price'] ?? 0);
-                    $unit15 = $id > 0 ? $productosModel->getElementoUnitPrice($id, 15) : 0;
-                    $unit5000 = $id > 0 ? $productosModel->getElementoUnitPrice($id, 5000) : 0;
-                    $bothZero = ($p1Raw <= 0 && $p2Raw <= 0);
-                    $rowClass = $bothZero ? 'error' : 'ok';
-                    $status = $bothZero ? '⚠️ Both range prices 0 in DB' : 'OK';
-                    echo "<tr class='{$rowClass}'>";
-                    echo "<td>{$id}</td><td>{$name}</td><td>{$size}</td><td>{$ceiling}</td>";
-                    echo "<td>Q " . number_format($p1Raw, 2) . "</td><td>Q " . number_format($p2Raw, 2) . "</td><td>Q " . number_format($legacy, 2) . "</td>";
-                    echo "<td>Q " . number_format($unit15, 2) . "</td><td>Q " . number_format($unit5000, 2) . "</td>";
-                    echo "<td>{$status}</td></tr>";
-                }
-                echo "</table>";
-            }
-
-            $lineTbl = $prefix . 'ordenproduccion_pre_cotizacion_line';
-            $tables = $db->getTableList();
-            $lineTableExists = false;
-            foreach ($tables as $t) {
-                if (strcasecmp($t, $lineTbl) === 0) {
-                    $lineTableExists = true;
-                    break;
-                }
-            }
-            if ($lineTableExists) {
-                $lineCols = $db->getTableColumns($lineTbl, false);
-                $lineCols = is_array($lineCols) ? array_change_key_case($lineCols, CASE_LOWER) : [];
-                $hasLineType = isset($lineCols['line_type']) && isset($lineCols['elemento_id']);
-            } else {
-                $hasLineType = false;
-            }
-            if ($lineTableExists && $hasLineType) {
-                $q = $db->getQuery(true)
-                    ->select('l.id, l.pre_cotizacion_id, l.quantity, l.total, l.line_type, l.elemento_id')
-                    ->from($db->quoteName($lineTbl, 'l'))
-                    ->where($db->quoteName('l.line_type') . ' = ' . $db->quote('elementos'))
-                    ->where($db->quoteName('l.total') . ' <= 0');
-                $db->setQuery($q);
-                $zeroLines = $db->loadObjectList() ?: [];
-                if (!empty($zeroLines)) {
-                    echo "<h3>Pre-Cotización lines (elementos) with total ≤ 0</h3>";
-                    echo "<p class='info'>" . count($zeroLines) . " line(s) have stored total ≤ 0. Below: expected unit price and total from current elemento prices. If expected total is 0, the line is correct (elemento has no price for that qty range).</p>";
-                    echo "<table>";
-                    echo "<tr><th>Line ID</th><th>Pre-Cotiz. ID</th><th>Elemento</th><th>Qty</th><th>Stored total</th><th>Expected unit</th><th>Expected total</th><th>Note</th></tr>";
-                    foreach ($zeroLines as $ln) {
-                        $eid = (int) ($ln->elemento_id ?? 0);
-                        $qty = (int) $ln->quantity;
-                        $stored = (float) $ln->total;
-                        $unit = $eid > 0 ? $productosModel->getElementoUnitPrice($eid, $qty) : 0.0;
-                        $expectedTotal = $qty * $unit;
-                        $el = $eid > 0 ? $productosModel->getElemento($eid) : null;
-                        $elName = $el ? htmlspecialchars(($el->name ?? '') . ' / ' . ($el->size ?? '')) : '—';
-                        $match = (abs($stored - $expectedTotal) < 0.01);
-                        $note = $match ? 'Correct (expected 0)' : 'Should recalc → Q ' . number_format($expectedTotal, 2);
-                        $rowClass = $match ? 'ok' : 'warning';
-                        echo "<tr class='{$rowClass}'>";
-                        echo "<td>{$ln->id}</td><td>{$ln->pre_cotizacion_id}</td><td>{$elName}</td><td>{$qty}</td>";
-                        echo "<td>Q " . number_format($stored, 2) . "</td><td>Q " . number_format($unit, 2) . "</td><td>Q " . number_format($expectedTotal, 2) . "</td>";
-                        echo "<td>{$note}</td></tr>";
-                    }
-                    echo "</table>";
-                } else {
-                    echo "<p class='ok'>✅ No Pre-Cotización elemento lines with total ≤ 0</p>";
-                }
-            }
-        }
-    }
-} catch (\Throwable $e) {
-    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-    $productosOk = false;
-}
-$testResults['productos_calculations'] = $productosOk;
-echo "</div>";
-
-// ============================================
-// BACKEND MENU ITEM (Components dropdown)
-// ============================================
-echo "<div class='test-section' id='backend-menu'>";
-echo "<h2>🔧 Backend Menu Item (Components → Work Orders)</h2>";
-echo "<p class='info'>Diagnoses why the com_ordenproduccion menu item may not appear in the administrator <strong>Components</strong> dropdown.</p>";
-
-echo "<div class='summary' style='margin: 15px 0; border-left-color: #dc3545;'>";
-echo "<strong>If the item disappeared after using <em>Discover</em>:</strong> Discover installs/reinstalls extensions from the filesystem and can overwrite the component manifest with an older or different version (without the menu link). Use the fix below or re-copy <code>com_ordenproduccion.xml</code> and <code>access.xml</code> from your repo to <code>administrator/components/com_ordenproduccion/</code>, then clear cache.";
-echo "</div>";
-
-// Optional one-click fix: patch the installed manifest so the menu has link= and access.xml is in files
-$fixRequested = isset($_GET['fix_backend_menu']) && $_GET['fix_backend_menu'] === '1';
-$adminManifestPathForFix = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/com_ordenproduccion.xml';
-if ($fixRequested && file_exists($adminManifestPathForFix)) {
-    $manifestContent = file_get_contents($adminManifestPathForFix);
-    $modified = false;
-    // Ensure <menu has link= (add if missing)
-    if (!preg_match('/<menu\s+[^>]*link=/', $manifestContent)) {
-        $newContent = preg_replace(
-            '/<menu\s+([^>]*)>/',
-            '<menu link="option=com_ordenproduccion&amp;view=dashboard" $1>',
-            $manifestContent,
-            1
-        );
-        if ($newContent !== null && $newContent !== $manifestContent) {
-            $manifestContent = $newContent;
-            $modified = true;
-        }
-    }
-    // Ensure access.xml is in admin files (add after first <filename> in admin section)
-    if (strpos($manifestContent, 'access.xml') === false && preg_match('/<files\s+folder="admin">/', $manifestContent)) {
-        $newContent = preg_replace(
-            '/(<files\s+folder="admin">\s*<filename>)([^<]+)(<\/filename>)/',
-            '$1$2$3' . "\n            " . '<filename>access.xml</filename>',
-            $manifestContent,
-            1
-        );
-        if ($newContent !== null && $newContent !== $manifestContent) {
-            $manifestContent = $newContent;
-            $modified = true;
-        }
-    }
-    if ($modified) {
-        if (@file_put_contents($adminManifestPathForFix, $manifestContent) !== false) {
-            echo "<p class='ok'><strong>✅ Manifest patched.</strong> Reload this page (without ?fix_backend_menu=1), then clear admin cache (System → Clear Cache) and check the Components menu.</p>";
-        } else {
-            echo "<p class='error'>❌ Could not write manifest. Check file permissions on administrator/components/com_ordenproduccion/com_ordenproduccion.xml</p>";
-        }
-    } else {
-        echo "<p class='info'>Manifest already has menu link and access.xml, or patch failed. See checks below.</p>";
-    }
-}
-
-echo "<div class='summary' style='margin: 15px 0; border-left-color: #856404;'>";
-echo "<strong>If everything else works and only the Components menu item is missing:</strong><br>";
-echo "1. Ensure the <strong>manifest</strong> on the server has <code>link=\"option=com_ordenproduccion&amp;view=dashboard\"</code> in the &lt;menu&gt; tag and <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> in admin &lt;files&gt; (see checks 2–3 below).<br>";
-echo "2. Copy the latest <code>com_ordenproduccion.xml</code> and <code>access.xml</code> from your repo to <code>administrator/components/com_ordenproduccion/</code>, or <a href='?fix_backend_menu=1#backend-menu'>apply the fix now</a> to patch the manifest in place.<br>";
-echo "3. <strong>Clear admin cache</strong> (System → Clear Cache) and ensure your user has <strong>Manage</strong> permission for the component (System → Manage → Permissions).<br>";
-echo "</div>";
-
-$prefix = $db->getPrefix();
-$menuOk = true;
-
-// 1. Extension record
-echo "<h3>1. Extension record (#__extensions)</h3>";
-try {
-    $q = $db->getQuery(true)
-        ->select('extension_id, name, element, type, enabled, manifest_cache')
+        ->select('extension_id, element, type, enabled, manifest_cache')
         ->from($db->quoteName('#__extensions'))
-        ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'))
+        ->where($db->quoteName('element') . ' = ' . $db->quote($component))
         ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
     $db->setQuery($q);
     $ext = $db->loadObject();
-    if (!$ext) {
-        echo "<p class='error'>❌ No extension record found for com_ordenproduccion. Component may not be installed.</p>";
-        $menuOk = false;
-    } else {
-        echo "<table><tr><th>Property</th><th>Value</th><th>Status</th></tr>";
-        echo "<tr class='ok'><td>Extension ID</td><td>" . (int) $ext->extension_id . "</td><td>✅</td></tr>";
-        echo "<tr class='ok'><td>Element</td><td><code>" . htmlspecialchars($ext->element ?? '') . "</code></td><td>✅</td></tr>";
-        $enabled = !empty($ext->enabled);
-        echo "<tr class='" . ($enabled ? 'ok' : 'error') . "'><td>Enabled</td><td>" . ($enabled ? 'Yes' : 'No') . "</td><td>" . ($enabled ? "✅" : "❌ Disabled – enable the component") . "</td></tr>";
-        if (!$enabled) {
-            $menuOk = false;
+    ?>
+    <div class="section">
+        <h2>1. Extension record (#__extensions)</h2>
+        <?php if (!$ext): ?>
+        <div class="row"><span class="status fail">✗</span><span class="label">Component</span><span class="value">Not found. Component may not be installed.</span></div>
+        <?php $allOk = false; ?>
+        <?php else: ?>
+        <div class="row"><span class="status ok">✓</span><span class="label">Extension ID</span><span class="value"><?php echo (int) $ext->extension_id; ?></span></div>
+        <div class="row"><span class="status ok">✓</span><span class="label">Element</span><span class="value"><code><?php echo htmlspecialchars($ext->element); ?></code></span></div>
+        <div class="row">
+            <span class="status <?php echo $ext->enabled ? 'ok' : 'fail'; ?>"><?php echo $ext->enabled ? '✓' : '✗'; ?></span>
+            <span class="label">Enabled</span>
+            <span class="value"><?php echo $ext->enabled ? 'Yes' : 'No – enable the component'; ?></span>
+        </div>
+        <?php
+        $cache = $ext->manifest_cache ? json_decode($ext->manifest_cache, true) : null;
+        $ver = is_array($cache) && isset($cache['version']) ? $cache['version'] : '—';
+        $adminCache = is_array($cache) && isset($cache['administration']) ? $cache['administration'] : null;
+        $menuInCache = is_array($adminCache) && isset($adminCache['menu']) && !empty($adminCache['menu']['link']);
+        ?>
+        <div class="row"><span class="label">Version (manifest_cache)</span><span class="value"><?php echo htmlspecialchars($ver); ?></span></div>
+        <div class="row">
+            <span class="status <?php echo $menuInCache ? 'ok' : 'warn'; ?>"><?php echo $menuInCache ? '✓' : '!'; ?></span>
+            <span class="label">Menu link in manifest_cache</span>
+            <span class="value"><?php echo $menuInCache ? 'Yes' : 'No – menu may not appear until cache has link'; ?></span>
+        </div>
+        <?php if (!$ext->enabled) $allOk = false; ?>
+        <?php endif; ?>
+    </div>
+
+    <?php
+    // ---- 2. Manifest file on disk ----
+    $manifestExists = file_exists($manifestPath);
+    $manifestContent = $manifestExists ? file_get_contents($manifestPath) : '';
+    $hasMenuTag = $manifestContent && strpos($manifestContent, '<menu') !== false;
+    $hasMenuLink = $manifestContent && preg_match('/<menu\s+[^>]*link=/', $manifestContent);
+    $hasAccessInFiles = $manifestContent && strpos($manifestContent, 'access.xml') !== false && preg_match('/<files\s+folder="admin"[^>]*>.*?access\.xml/s', $manifestContent);
+    ?>
+    <div class="section">
+        <h2>2. Manifest file (administrator)</h2>
+        <div class="row">
+            <span class="status <?php echo $manifestExists ? 'ok' : 'fail'; ?>"><?php echo $manifestExists ? '✓' : '✗'; ?></span>
+            <span class="label">File exists</span>
+            <span class="value"><code><?php echo htmlspecialchars($manifestPath); ?></code></span>
+        </div>
+        <?php if (!$manifestExists) $allOk = false; ?>
+        <?php if ($manifestContent !== ''): ?>
+        <div class="row">
+            <span class="status <?php echo $hasMenuTag ? 'ok' : 'fail'; ?>"><?php echo $hasMenuTag ? '✓' : '✗'; ?></span>
+            <span class="label">&lt;menu&gt; tag</span>
+            <span class="value"><?php echo $hasMenuTag ? 'Present' : 'Missing'; ?></span>
+        </div>
+        <div class="row">
+            <span class="status <?php echo $hasMenuLink ? 'ok' : 'fail'; ?>"><?php echo $hasMenuLink ? '✓' : '✗'; ?></span>
+            <span class="label">Menu has <code>link=</code></span>
+            <span class="value"><?php echo $hasMenuLink ? 'Yes' : 'No – Joomla needs link="option=com_ordenproduccion&amp;view=dashboard"'; ?></span>
+        </div>
+        <div class="row">
+            <span class="status <?php echo $hasAccessInFiles ? 'ok' : 'fail'; ?>"><?php echo $hasAccessInFiles ? '✓' : '✗'; ?></span>
+            <span class="label"><code>access.xml</code> in admin &lt;files&gt;</span>
+            <span class="value"><?php echo $hasAccessInFiles ? 'Yes' : 'No – add &lt;filename&gt;access.xml&lt;/filename&gt;'; ?></span>
+        </div>
+        <?php if (!$hasMenuLink || !$hasAccessInFiles) $allOk = false; ?>
+        <?php if (!$hasMenuLink && $manifestContent): ?>
+        <?php
+        $menuLine = '';
+        if (preg_match('/<menu[^>]*>/', $manifestContent, $m)) {
+            $menuLine = preg_replace('/\s+/', ' ', trim($m[0]));
         }
-        $manifestCache = isset($ext->manifest_cache) ? json_decode($ext->manifest_cache, true) : null;
-        $version = is_array($manifestCache) && isset($manifestCache['version']) ? $manifestCache['version'] : '—';
-        echo "<tr class='info'><td>Version (cached)</td><td><code>" . htmlspecialchars($version) . "</code></td><td>From manifest_cache</td></tr>";
-        echo "</table>";
-    }
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-    $menuOk = false;
-}
+        ?>
+        <div class="detail">Current &lt;menu&gt; line: <code><?php echo htmlspecialchars($menuLine); ?></code></div>
+        <?php endif; ?>
+        <?php endif; ?>
+    </div>
 
-// 2. Manifest file on disk (administrator)
-echo "<h3>2. Manifest file (administrator)</h3>";
-$adminManifestPath = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/com_ordenproduccion.xml';
-$manifestExists = file_exists($adminManifestPath);
-$hasMenuLink = false;
-$hasAccessXml = false;
-echo "<p class='" . ($manifestExists ? 'ok' : 'error') . "'>" . ($manifestExists ? "✅" : "❌") . " Manifest path: <code>" . htmlspecialchars($adminManifestPath) . "</code></p>";
-if (!$manifestExists) {
-    $menuOk = false;
-} else {
-    $manifestContent = file_get_contents($adminManifestPath);
-    $hasMenuLink = (strpos($manifestContent, 'link=') !== false && preg_match('/<menu\s[^>]*link=/', $manifestContent));
-    $hasAccessXml = (strpos($manifestContent, 'access.xml') !== false);
-    $hasMenuTag = (strpos($manifestContent, '<menu') !== false);
-    echo "<table><tr><th>Check</th><th>Result</th><th>Status</th></tr>";
-    echo "<tr class='" . ($hasMenuTag ? 'ok' : 'error') . "'><td>&lt;menu&gt; tag present</td><td>" . ($hasMenuTag ? 'Yes' : 'No') . "</td><td>" . ($hasMenuTag ? "✅" : "❌") . "</td></tr>";
-    echo "<tr class='" . ($hasMenuLink ? 'ok' : 'warning') . "'><td>Menu has explicit <code>link=</code></td><td>" . ($hasMenuLink ? 'Yes' : 'No') . "</td><td>" . ($hasMenuLink ? "✅" : "⚠️ Add link=\"option=com_ordenproduccion&amp;view=dashboard\" so the item appears") . "</td></tr>";
-    echo "<tr class='" . ($hasAccessXml ? 'ok' : 'warning') . "'><td><code>access.xml</code> in admin files</td><td>" . ($hasAccessXml ? 'Yes' : 'No') . "</td><td>" . ($hasAccessXml ? "✅" : "⚠️ Add &lt;filename&gt;access.xml&lt;/filename&gt; so permissions are installed") . "</td></tr>";
-    echo "</table>";
-    if (!$hasMenuLink || !$hasAccessXml) {
-        $menuOk = false;
-    }
-}
+    <?php
+    // ---- 3. access.xml ----
+    $accessExists = file_exists($accessPath);
+    $accessContent = $accessExists ? file_get_contents($accessPath) : '';
+    $accessHasManage = $accessContent && strpos($accessContent, 'core.manage') !== false;
+    ?>
+    <div class="section">
+        <h2>3. access.xml</h2>
+        <div class="row">
+            <span class="status <?php echo $accessExists ? 'ok' : 'fail'; ?>"><?php echo $accessExists ? '✓' : '✗'; ?></span>
+            <span class="label">File exists</span>
+            <span class="value"><code><?php echo htmlspecialchars($accessPath); ?></code></span>
+        </div>
+        <?php if (!$accessExists) $allOk = false; ?>
+        <?php if ($accessExists): ?>
+        <div class="row">
+            <span class="status <?php echo $accessHasManage ? 'ok' : 'warn'; ?>"><?php echo $accessHasManage ? '✓' : '!'; ?></span>
+            <span class="label">Defines core.manage</span>
+            <span class="value"><?php echo $accessHasManage ? 'Yes' : 'No'; ?></span>
+        </div>
+        <?php endif; ?>
+    </div>
 
-// 3. access.xml in admin folder
-echo "<h3>3. access.xml in admin folder</h3>";
-$accessPath = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/access.xml';
-$accessExists = file_exists($accessPath);
-echo "<p class='" . ($accessExists ? 'ok' : 'error') . "'>" . ($accessExists ? "✅" : "❌") . " <code>access.xml</code> " . ($accessExists ? "exists" : "missing") . "</p>";
-if (!$accessExists) {
-    $menuOk = false;
-} else {
-    $accessContent = file_get_contents($accessPath);
-    $hasCoreManage = (strpos($accessContent, 'core.manage') !== false);
-    echo "<p class='" . ($hasCoreManage ? 'ok' : 'warning') . "'>" . ($hasCoreManage ? "✅" : "⚠️") . " Defines <code>core.manage</code>: " . ($hasCoreManage ? "Yes" : "No") . "</p>";
-}
-
-// 4. Admin language (menu label)
-echo "<h3>4. Admin language (menu label)</h3>";
-$adminLangPaths = [
-    JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.sys.ini',
-    JPATH_ADMINISTRATOR . '/language/en-GB/en-GB.com_ordenproduccion.sys.ini',
-];
-$langFound = false;
-foreach ($adminLangPaths as $p) {
-    if (file_exists($p)) {
-        $ini = @parse_ini_file($p, false, INI_SCANNER_RAW);
-        $label = isset($ini['COM_ORDENPRODUCCION']) ? $ini['COM_ORDENPRODUCCION'] : '';
-        $resolved = ($label !== '' && strpos($label, 'COM_ORDENPRODUCCION') !== 0);
-        echo "<p class='info'>✅ <code>" . htmlspecialchars(basename(dirname($p)) . '/' . basename($p)) . "</code>: COM_ORDENPRODUCCION = " . htmlspecialchars($label ?: '(empty or key only)') . "</p>";
-        if ($resolved) {
-            $langFound = true;
+    <?php
+    // ---- 4. Admin language (menu label) ----
+    $sysIniPaths = [
+        $adminBase . '/language/en-GB/com_ordenproduccion.sys.ini',
+        JPATH_ADMINISTRATOR . '/language/en-GB/en-GB.com_ordenproduccion.sys.ini',
+    ];
+    $labelResolved = false;
+    foreach ($sysIniPaths as $p) {
+        if (file_exists($p)) {
+            $ini = @parse_ini_file($p, false, INI_SCANNER_RAW);
+            if (!empty($ini['COM_ORDENPRODUCCION']) && strpos($ini['COM_ORDENPRODUCCION'], 'COM_ORDENPRODUCCION') !== 0) {
+                $labelResolved = true;
+                break;
+            }
         }
     }
-}
-if (!$langFound) {
-    echo "<p class='warning'>⚠️ Menu may show as raw <code>COM_ORDENPRODUCCION</code> if admin sys.ini is missing or not loaded. Check admin/language/ and install language files.</p>";
-}
+    ?>
+    <div class="section">
+        <h2>4. Admin language (menu label)</h2>
+        <div class="row">
+            <span class="status <?php echo $labelResolved ? 'ok' : 'warn'; ?>"><?php echo $labelResolved ? '✓' : '!'; ?></span>
+            <span class="label">COM_ORDENPRODUCCION resolved</span>
+            <span class="value"><?php echo $labelResolved ? 'Yes (menu will show translated label)' : 'May show raw key – check admin language .sys.ini'; ?></span>
+        </div>
+    </div>
 
-// 5. Dashboard view (target of menu link)
-echo "<h3>5. Dashboard view (menu target)</h3>";
-$dashboardPaths = [
-    JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/View/Dashboard/HtmlView.php',
-    JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/Controller/DisplayController.php',
-];
-$dashboardOk = true;
-foreach ($dashboardPaths as $p) {
-    $exists = file_exists($p);
-    $name = basename(dirname($p)) . '/' . basename($p);
-    echo "<p class='" . ($exists ? 'ok' : 'error') . "'>" . ($exists ? "✅" : "❌") . " <code>{$name}</code></p>";
-    if (!$exists) {
-        $dashboardOk = false;
-    }
-}
-if (!$dashboardOk) {
-    $menuOk = false;
-}
+    <?php
+    // ---- 5. Dashboard (menu target) ----
+    $dashboardView = file_exists($adminBase . '/src/View/Dashboard/HtmlView.php');
+    $displayController = file_exists($adminBase . '/src/Controller/DisplayController.php');
+    $dashboardOk = $dashboardView && $displayController;
+    ?>
+    <div class="section">
+        <h2>5. Dashboard (menu target)</h2>
+        <div class="row">
+            <span class="status <?php echo $dashboardView ? 'ok' : 'fail'; ?>"><?php echo $dashboardView ? '✓' : '✗'; ?></span>
+            <span class="label">View/Dashboard/HtmlView.php</span>
+            <span class="value"><?php echo $dashboardView ? 'Exists' : 'Missing'; ?></span>
+        </div>
+        <div class="row">
+            <span class="status <?php echo $displayController ? 'ok' : 'fail'; ?>"><?php echo $displayController ? '✓' : '✗'; ?></span>
+            <span class="label">Controller/DisplayController.php</span>
+            <span class="value"><?php echo $displayController ? 'Exists' : 'Missing'; ?></span>
+        </div>
+        <?php if (!$dashboardOk) $allOk = false; ?>
+    </div>
 
-// 6. Asset / permissions (core.manage)
-echo "<h3>6. Component asset and core.manage</h3>";
-try {
+    <?php
+    // ---- 6. Asset and core.manage ----
     $q = $db->getQuery(true)
         ->select('id, name, rules')
         ->from($db->quoteName('#__assets'))
-        ->where($db->quoteName('name') . ' = ' . $db->quote('com_ordenproduccion'));
+        ->where($db->quoteName('name') . ' = ' . $db->quote($component));
     $db->setQuery($q);
     $asset = $db->loadObject();
-    if (!$asset) {
-        echo "<p class='warning'>⚠️ No asset row for <code>com_ordenproduccion</code>. Menu may be hidden for non–Super Users. Reinstall or update the component so access.xml is applied.</p>";
-        $menuOk = false;
-    } else {
-        $rules = json_decode($asset->rules ?? '{}', true);
-        $hasManage = isset($rules['core.manage']);
-        echo "<p class='info'>Asset ID: " . (int) $asset->id . ", name: <code>" . htmlspecialchars($asset->name ?? '') . "</code></p>";
-        echo "<p class='" . ($hasManage ? 'ok' : 'warning') . "'>" . ($hasManage ? "✅" : "⚠️") . " <code>core.manage</code> rule " . ($hasManage ? "present in rules" : "missing – check Permissions") . "</p>";
-        if (!$hasManage && !empty($rules)) {
-            echo "<p class='info'>Existing action keys: <code>" . implode('</code>, <code>', array_keys($rules)) . "</code></p>";
-        }
-    }
-} catch (\Exception $e) {
-    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-}
+    $hasAsset = (bool) $asset;
+    $rules = $asset && $asset->rules ? json_decode($asset->rules, true) : [];
+    $hasManage = is_array($rules) && isset($rules['core.manage']);
+    ?>
+    <div class="section">
+        <h2>6. Component asset and permissions</h2>
+        <div class="row">
+            <span class="status <?php echo $hasAsset ? 'ok' : 'fail'; ?>"><?php echo $hasAsset ? '✓' : '✗'; ?></span>
+            <span class="label">Asset row</span>
+            <span class="value"><?php echo $hasAsset ? 'ID ' . (int) $asset->id : 'Missing – menu can be hidden'; ?></span>
+        </div>
+        <?php if (!$hasAsset) $allOk = false; ?>
+        <div class="row">
+            <span class="status <?php echo $hasManage ? 'ok' : 'warn'; ?>"><?php echo $hasManage ? '✓' : '!'; ?></span>
+            <span class="label">core.manage in rules</span>
+            <span class="value"><?php echo $hasManage ? 'Present' : 'Check Permissions for your group'; ?></span>
+        </div>
+    </div>
 
-// 7. Recommended actions
-echo "<h3>7. Recommended actions</h3>";
-$actions = [];
-if (!$manifestExists) {
-    $actions[] = "Deploy the component so <code>com_ordenproduccion.xml</code> exists under administrator/components/com_ordenproduccion/.";
-}
-if ($manifestExists && (!$hasMenuLink || !$hasAccessXml)) {
-    $actions[] = "Update manifest: add <code>link=\"option=com_ordenproduccion&amp;view=dashboard\"</code> to the &lt;menu&gt; tag and ensure <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> is in admin &lt;files&gt;. Then reinstall/update the component.";
-}
-if (!$accessExists) {
-    $actions[] = "Copy <code>access.xml</code> to administrator/components/com_ordenproduccion/ and reinstall/update the component.";
-}
-if (!$dashboardOk) {
-    $actions[] = "Ensure Dashboard View and DisplayController exist in the admin component.";
-}
-$actions[] = "Clear admin cache (System → Clear Cache) and reload the Components menu.";
-$actions[] = "In System → Manage → Permissions, ensure your user group has <strong>Access Administration Interface</strong> and <strong>Manage</strong> for the Work Orders component.";
-if (empty($actions)) {
-    echo "<p class='ok'>✅ All checks passed. If the menu still does not appear, clear cache and verify user permissions.</p>";
-} else {
-    echo "<ul>";
-    foreach ($actions as $a) {
-        echo "<li class='warning'>" . $a . "</li>";
-    }
-    echo "</ul>";
-}
+    <?php // ---- 7. Summary and fix ---- ?>
+    <div class="section">
+        <h2>7. Summary</h2>
+        <p>
+            <?php if ($allOk): ?>
+            <span class="status ok">✓</span> All critical checks passed. If the menu still does not appear: clear cache (System → Clear Cache), hard-refresh the backend, or log out and back in.
+            <?php else: ?>
+            <span class="status fail">✗</span> Some checks failed. Use the <strong>Apply fix</strong> button below to patch the manifest and update the extension cache, then clear admin cache.
+            <?php endif; ?>
+        </p>
+    </div>
 
-$testResults['backend_menu_item'] = $menuOk;
-echo "</div>";
-
-// ============================================
-// FINAL SUMMARY
-// ============================================
-echo "<div class='test-section'>";
-echo "<h2>📊 Final Summary</h2>";
-
-$criticalTests = [
-    'table_exists' => 'Database table exists',
-    'bank_data' => 'Bank data in database',
-    'bank_model_loaded' => 'BankModel loads successfully',
-    'bank_options' => 'Bank options populated',
-    'payment_proof_model' => 'PaymentProofModel integration',
-];
-
-$criticalPassed = 0;
-foreach ($criticalTests as $test => $label) {
-    if (isset($testResults[$test]) && $testResults[$test]) {
-        $criticalPassed++;
-    }
-}
-
-echo "<table>";
-echo "<tr><th>Test</th><th>Status</th></tr>";
-
-foreach ($criticalTests as $test => $label) {
-    $status = isset($testResults[$test]) ? $testResults[$test] : false;
-    $rowClass = $status ? 'ok' : 'error';
-    $icon = $status ? '✅' : '❌';
-    echo "<tr class='{$rowClass}'>";
-    echo "<td>{$label}</td>";
-    echo "<td>{$icon} " . ($status ? 'PASS' : 'FAIL') . "</td>";
-    echo "</tr>";
-}
-
-// Additional tests
-$additionalTests = [
-    'default_bank_code' => 'Default bank code available',
-    'view_integration' => 'View integration working',
-    'template_file' => 'Template file exists',
-    'dropdown_rendering' => 'Dropdown HTML rendering',
-    'productos_calculations' => 'Productos & calculations (elementos, ranges, unit price)',
-    'backend_menu_item' => 'Backend menu item (Components dropdown)',
-];
-
-foreach ($additionalTests as $test => $label) {
-    $status = isset($testResults[$test]);
-    if ($status) {
-        $value = $testResults[$test];
-        if ($value === null) {
-            $rowClass = 'info';
-            $icon = 'ℹ️';
-            $text = 'INFO (optional)';
-        } else {
-            $rowClass = $value ? 'ok' : 'warning';
-            $icon = $value ? '✅' : '⚠️';
-            $text = $value ? 'PASS' : 'WARNING';
-        }
-        echo "<tr class='{$rowClass}'>";
-        echo "<td>{$label}</td>";
-        echo "<td>{$icon} {$text}</td>";
-        echo "</tr>";
-    }
-}
-
-echo "</table>";
-
-echo "<div class='summary' style='margin-top: 20px;'>";
-echo "<h3>Test Results: {$criticalPassed} / " . count($criticalTests) . " Critical Tests Passed</h3>";
-echo "<p><strong>Total Tests:</strong> {$passedTests} / {$totalTests} passed</p>";
-
-if ($criticalPassed == count($criticalTests)) {
-    echo "<p class='ok' style='padding: 10px; border-radius: 4px;'><strong>✅ SUCCESS:</strong> Bank dropdown should be working correctly!</p>";
-    echo "<p class='info'>All critical tests passed. The dropdown should populate with banks from the database.</p>";
-} else {
-    echo "<p class='error' style='padding: 10px; border-radius: 4px;'><strong>❌ ISSUES DETECTED:</strong> Some critical tests failed.</p>";
-    echo "<p class='warning'>Please review the failed tests above and take corrective action:</p>";
-    echo "<ul>";
-    if (!$testResults['table_exists'] ?? false) {
-        echo "<li>Run the SQL migration script to create the banks table</li>";
-    }
-    if (!$testResults['bank_data'] ?? false) {
-        echo "<li>Add banks to the database via Component > Administracion > Herramientas > Bancos</li>";
-    }
-    if (!$testResults['bank_model_loaded'] ?? false) {
-        echo "<li>Check that BankModel.php file exists and is properly deployed</li>";
-    }
-    if (!$testResults['bank_options'] ?? false) {
-        echo "<li>Verify BankModel::getBankOptions() is returning data correctly</li>";
-    }
-    echo "</ul>";
-}
-echo "</div>";
-
-echo "</div>"; // End summary section
-
-echo "</div></body></html>";
+    <div class="actions">
+        <h3>Apply fix</h3>
+        <p>This will:</p>
+        <ol>
+            <li>Patch <code>com_ordenproduccion.xml</code>: add <code>link="option=com_ordenproduccion&amp;view=dashboard"</code> to &lt;menu&gt; and <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> to admin &lt;files&gt; (if missing).</li>
+            <li>Update <code>#__extensions.manifest_cache</code> so the cached manifest includes the menu link.</li>
+        </ol>
+        <p><a href="?fix=1" class="btn">Apply fix now</a></p>
+        <p><strong>After applying:</strong> Reload this page without <code>?fix=1</code>, then go to <strong>System → Clear Cache</strong> and clear all. Check <strong>Components</strong> again.</p>
+    </div>
+</div>
+</body>
+</html>
