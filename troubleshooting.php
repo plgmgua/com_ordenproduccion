@@ -67,9 +67,11 @@ if ($applyFix) {
             $modified = true;
         }
         if ($modified && @file_put_contents($manifestPath, $manifestContent) !== false) {
-            $fixMessages[] = 'Manifest file updated (menu link + access.xml in files).';
+            $fixMessages[] = 'Manifest file updated on disk (menu link + access.xml in files).';
         } elseif ($modified) {
-            $fixMessages[] = 'Manifest content was patched but could not be written (check file permissions).';
+            $fixMessages[] = 'Manifest content was patched but could not be written (check file permissions for ' . $manifestPath . ').';
+        } elseif ($manifestContent !== '' && preg_match('/<menu\s+[^>]*link=/', $manifestContent)) {
+            $fixMessages[] = 'Manifest file already had menu link; no change written.';
         }
 
         // Update manifest_cache in #__extensions so cached data includes menu link
@@ -116,6 +118,11 @@ if ($applyFix) {
     } else {
         $fixMessages[] = 'access.xml missing in ' . $adminBase . ' – copy from repo admin/access.xml.';
     }
+
+    // Post-fix: confirm what is on disk (Joomla reads the file)
+    $recheck = file_exists($manifestPath) ? file_get_contents($manifestPath) : '';
+    $linkOnDisk = $recheck && preg_match('/<menu\s+[^>]*link=/', $recheck);
+    $fixMessages[] = 'Manifest on disk now has menu link: ' . ($linkOnDisk ? 'Yes' : 'No – fix may not have written; check permissions.');
 }
 
 ?>
@@ -169,6 +176,7 @@ if ($applyFix) {
             <?php endforeach; ?>
         </ul>
         <p>Next: <a href="?">Reload this page</a> (without ?fix=1), then in backend go to <strong>System → Clear Cache</strong> and clear all. Open <strong>Components</strong> again.</p>
+        <p><strong>If the menu item still does not appear:</strong> See the "If still no menu item" section at the bottom of this page.</p>
     </div>
     <?php endif; ?>
 
@@ -374,6 +382,16 @@ if ($applyFix) {
         </ol>
         <p><a href="?fix=1" class="btn">Apply fix now</a></p>
         <p><strong>After applying:</strong> Reload this page without <code>?fix=1</code>, then go to <strong>System → Clear Cache</strong> and clear all. Check <strong>Components</strong> again.</p>
+    </div>
+
+    <div class="section" style="border-color: #c62828; background: #ffebee;">
+        <h2>If still no menu item</h2>
+        <ol style="margin: 0; padding-left: 20px;">
+            <li><strong>Is "Cotizaciones" in the list?</strong> Click it. If it opens the Work Orders dashboard, that is this component under a different label (language override or alias).</li>
+            <li><strong>Manifest file on disk:</strong> Reload this page <em>without</em> <code>?fix=1</code>. In section 2, if "Menu has <code>link=</code>" is ✗, the manifest file was not written (e.g. permissions). Copy <code>com_ordenproduccion.xml</code> from your repo to <code>administrator/components/com_ordenproduccion/</code> via SSH/FTP, or run: <code>chown www-data:www-data</code> (or your web user) on that file and try Apply fix again.</li>
+            <li><strong>Reinstall from repo:</strong> Replace the whole <code>administrator/components/com_ordenproduccion/</code> folder with the version from your repo (with the correct manifest and access.xml), then in backend use <strong>System → Manage → Extensions</strong>, find Work Orders, and use <strong>Update</strong> or reinstall the component. Then clear cache again.</li>
+            <li><strong>Debug:</strong> In <strong>System → Configuration → System</strong>, set Debug System to Yes, then open the Components menu and check the error log for PHP notices or errors when building the menu.</li>
+        </ol>
     </div>
 </div>
 </body>
