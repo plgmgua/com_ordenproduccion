@@ -612,6 +612,52 @@ class AjaxController extends BaseController
     }
 
     /**
+     * Get pre-cotización details HTML for popup (no document chrome / no debug bar).
+     *
+     * @return  void
+     * @since   3.76.0
+     */
+    public function getPrecotizacionDetails()
+    {
+        header('Content-Type: text/html; charset=utf-8');
+
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            echo '<p class="text-muted p-3">' . htmlspecialchars(\Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')) . '</p>';
+            exit;
+        }
+
+        if (!Session::checkToken('request')) {
+            echo '<p class="text-danger p-3">' . htmlspecialchars(\Joomla\CMS\Language\Text::_('JINVALID_TOKEN')) . '</p>';
+            exit;
+        }
+
+        $id = (int) $app->input->get('id', 0);
+        if ($id < 1) {
+            echo '<p class="text-muted p-3">' . htmlspecialchars(\Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')) . '</p>';
+            exit;
+        }
+
+        $app->input->set('id', $id);
+        $app->input->set('layout', 'details');
+
+        ob_start();
+        try {
+            $view = $this->getView('Cotizador', 'html');
+            $view->display();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            echo '<p class="text-danger p-3">' . htmlspecialchars($e->getMessage()) . '</p>';
+            exit;
+        }
+        $html = ob_get_clean();
+        echo $html;
+        exit;
+    }
+
+    /**
      * Get payment info for a work order (AJAX)
      * Access: owner (sales agent) or Administracion group - same as valor a facturar
      *

@@ -72,6 +72,44 @@ if (!empty($lines)) {
                             <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                         </tr>
+                        <?php if (!$isElemento) :
+                            $breakdown = $line->breakdown ?? [];
+                        ?>
+                        <tr class="line-detail-row">
+                            <td colspan="5" class="p-0 bg-light align-top">
+                                <div class="p-2">
+                                    <table class="table table-sm table-bordered mb-0" style="max-width: 600px;">
+                                        <thead>
+                                            <tr>
+                                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
+                                                <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
+                                                <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($breakdown as $row) :
+                                                $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
+                                                $detail = isset($row['detail']) ? htmlspecialchars($row['detail']) : '';
+                                                $subtotal = isset($row['subtotal']) ? number_format((float) $row['subtotal'], 2) : '0.00';
+                                            ?>
+                                                <tr>
+                                                    <td><?php echo $label; ?></td>
+                                                    <td class="text-end"><?php echo $detail; ?></td>
+                                                    <td class="text-end">Q <?php echo $subtotal; ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-secondary fw-bold">
+                                                <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
+                                                <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>

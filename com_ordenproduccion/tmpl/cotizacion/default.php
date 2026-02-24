@@ -275,7 +275,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
-                <iframe id="precotizacionDetailIframe" style="width:100%; height: 70vh; border: 0;" title="<?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?>"></iframe>
+                <div id="precotizacionDetailContent" class="overflow-auto" style="max-height: 70vh;"></div>
             </div>
         </div>
     </div>
@@ -409,6 +409,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     window.updateQuotationTotal = updateTotal;
 
     var precotizacionDetailBase = <?php echo json_encode(Uri::root()); ?>;
+    var precotizacionDetailToken = <?php echo json_encode(Session::getFormToken() . '=1'); ?>;
     document.addEventListener('click', function(e) {
         var link = e.target && e.target.closest && e.target.closest('.precotizacion-detail-link');
         if (!link) return;
@@ -417,19 +418,24 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         var preNumber = link.getAttribute('data-pre-number') || ('PRE-' + preId);
         if (!preId) return;
         var modal = document.getElementById('precotizacionDetailModal');
-        var iframe = document.getElementById('precotizacionDetailIframe');
+        var contentEl = document.getElementById('precotizacionDetailContent');
         var titleEl = document.getElementById('precotizacionDetailModalLabel');
-        if (modal && iframe) {
-            if (titleEl) titleEl.textContent = preNumber;
-            iframe.src = precotizacionDetailBase + 'index.php?option=com_ordenproduccion&view=cotizador&layout=details&id=' + encodeURIComponent(preId) + '&tmpl=component';
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var bsModal = bootstrap.Modal.getOrCreateInstance(modal);
-                bsModal.show();
-            } else {
-                modal.classList.add('show');
-                modal.style.display = 'block';
-            }
+        if (!modal || !contentEl) return;
+        if (titleEl) titleEl.textContent = preNumber;
+        contentEl.innerHTML = '<div class="p-3 text-muted text-center"><span class="spinner-border spinner-border-sm me-2"></span><?php echo addslashes($l('COM_ORDENPRODUCCION_LOADING', 'Loading...', 'Cargando...')); ?></div>';
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+            bsModal.show();
+        } else {
+            modal.classList.add('show');
+            modal.style.display = 'block';
         }
+        var url = precotizacionDetailBase + 'index.php?option=com_ordenproduccion&task=ajax.getPrecotizacionDetails&format=raw&id=' + encodeURIComponent(preId) + '&' + precotizacionDetailToken;
+        fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+            contentEl.innerHTML = html || '<p class="p-3 text-muted"><?php echo addslashes($l('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND', 'Pre-quotation not found.', 'Pre-cotización no encontrada.')); ?></p>';
+        }).catch(function() {
+            contentEl.innerHTML = '<p class="p-3 text-danger"><?php echo addslashes($l('COM_ORDENPRODUCCION_ERROR_LOADING', 'Error loading.', 'Error al cargar.')); ?></p>';
+        });
     });
 })();
 
