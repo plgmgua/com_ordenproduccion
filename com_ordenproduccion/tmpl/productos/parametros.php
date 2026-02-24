@@ -28,6 +28,7 @@ $l = function ($key, $fallback) {
 $margen = isset($this->margenGanancia) ? (float) $this->margenGanancia : 0;
 $iva = isset($this->iva) ? (float) $this->iva : 0;
 $isr = isset($this->isr) ? (float) $this->isr : 0;
+$comisionVenta = isset($this->comisionVenta) ? (float) $this->comisionVenta : 0;
 ?>
 <div class="com-ordenproduccion-productos">
     <div class="container-fluid">
@@ -82,6 +83,14 @@ $isr = isset($this->isr) ? (float) $this->isr : 0;
                             <input type="number" name="isr" id="param_isr"
                                    class="form-control" min="0" max="100" step="0.01"
                                    value="<?php echo htmlspecialchars((string) $isr, ENT_QUOTES, 'UTF-8'); ?>" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="param_comision_venta" class="form-label">
+                                <?php echo $l('COM_ORDENPRODUCCION_PARAM_COMISION_VENTA', 'Comisión de venta'); ?> (%)
+                            </label>
+                            <input type="number" name="comision_venta" id="param_comision_venta"
+                                   class="form-control" min="0" max="100" step="0.01"
+                                   value="<?php echo htmlspecialchars((string) $comisionVenta, ENT_QUOTES, 'UTF-8'); ?>" />
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <?php echo Text::_('JSAVE'); ?>

@@ -102,6 +102,16 @@
                     max="100"
                     step="0.01"
                 />
+                <field
+                    name="comision_venta"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_PARAM_COMISION_VENTA"
+                    description="COM_ORDENPRODUCCION_PARAM_COMISION_VENTA_DESC"
+                    default="0"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                />
             </fieldset>
         </fields>
     </config>

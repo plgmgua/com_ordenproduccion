@@ -435,14 +435,17 @@ class ProductosController extends BaseController
         $margen = (float) $input->post->get('margen_ganancia', 0, 'raw');
         $iva = (float) $input->post->get('iva', 0, 'raw');
         $isr = (float) $input->post->get('isr', 0, 'raw');
+        $comisionVenta = (float) $input->post->get('comision_venta', 0, 'raw');
         $margen = max(0, min(100, $margen));
         $iva = max(0, min(100, $iva));
         $isr = max(0, min(100, $isr));
+        $comisionVenta = max(0, min(100, $comisionVenta));
 
         $params = ComponentHelper::getParams('com_ordenproduccion');
         $params->set('margen_ganancia', $margen);
         $params->set('iva', $iva);
         $params->set('isr', $isr);
+        $params->set('comision_venta', $comisionVenta);
 
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
         $table = new TableExtension($db);

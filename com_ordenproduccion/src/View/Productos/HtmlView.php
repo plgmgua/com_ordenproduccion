@@ -161,6 +161,14 @@ class HtmlView extends BaseHtmlView
     protected $isr = 0;
 
     /**
+     * Comisión de venta % (for section=parametros)
+     *
+     * @var    float
+     * @since  3.77.0
+     */
+    protected $comisionVenta = 0;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -190,6 +198,7 @@ class HtmlView extends BaseHtmlView
             $this->margenGanancia = (float) $params->get('margen_ganancia', 0);
             $this->iva = (float) $params->get('iva', 0);
             $this->isr = (float) $params->get('isr', 0);
+            $this->comisionVenta = (float) $params->get('comision_venta', 0);
             $this->_prepareDocument();
             parent::display($tpl);
             return;
