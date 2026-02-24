@@ -206,9 +206,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <tr>
                         <th class="col-precotizacion"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
                         <th style="width: 8%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
-                        <th style="width: 40%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                        <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                        <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <th style="width: 35%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
+                        <th style="width: 14%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th style="width: 14%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">
@@ -227,18 +228,23 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         $subtotal = isset($item->subtotal) ? (float) $item->subtotal : ($unit * $qty);
                         $desc = isset($item->descripcion) ? $item->descripcion : '';
                     ?>
+                    <?php $unitPriceDisplay = $qty > 0 ? ($subtotal / $qty) : 0; ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($unit, 2, '.', ''); ?>">
                         <td><?php echo htmlspecialchars($preNum); ?></td>
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
+                        <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 2); ?></span></td>
                         <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($subtotal, 2, '.', ''); ?>" readonly></td>
-                        <td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="3" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
+                        <td colspan="4" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 90px; background: #f8f9fa;"></td>
                         <td></td>
                     </tr>
@@ -283,6 +289,16 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (totalInp) totalInp.value = total.toFixed(2);
     }
 
+    function updateUnitPriceDisplay(row) {
+        var qtyInp = row.querySelector('input[name*="[cantidad]"]');
+        var valueInp = row.querySelector('input[name*="[value]"]');
+        var span = row.querySelector('.line-precio-unidad');
+        if (!span || !qtyInp || !valueInp) return;
+        var q = parseFloat(qtyInp.value, 10) || 1;
+        var sub = parseFloat(valueInp.value, 10) || 0;
+        span.textContent = q > 0 ? (sub / q).toFixed(2) : '0.00';
+    }
+
     function onRowCantidadChange(row) {
         var qtyInp = row.querySelector('input[name*="[cantidad]"]');
         var valueInp = row.querySelector('input[name*="[value]"]');
@@ -291,7 +307,26 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var q = parseInt(qtyInp.value, 10) || 1;
             if (q < 1) { q = 1; qtyInp.value = 1; }
             valueInp.value = (q * unitTotal).toFixed(2);
+            updateUnitPriceDisplay(row);
             updateTotal();
+        }
+    }
+
+    function saveLine(btn) {
+        var tr = btn.closest('tr');
+        if (!tr) return;
+        onRowCantidadChange(tr);
+        var saveBtn = tr.querySelector('.btn-save-line');
+        if (saveBtn) {
+            var origHtml = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+            saveBtn.classList.add('btn-success');
+            saveBtn.classList.remove('btn-outline-primary');
+            setTimeout(function() {
+                saveBtn.innerHTML = origHtml;
+                saveBtn.classList.remove('btn-success');
+                saveBtn.classList.add('btn-outline-primary');
+            }, 800);
         }
     }
 
@@ -329,11 +364,13 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             tr.className = 'quotation-item-row';
             tr.setAttribute('data-pre-id', preId);
             tr.setAttribute('data-unit', unitTotal);
+            var unitPrice = (qty > 0 && parseFloat(value) > 0) ? (parseFloat(value) / qty).toFixed(2) : '0.00';
             tr.innerHTML = '<td>' + escapeAttr(number) + '</td>' +
                 '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
+                '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><input type="number" step="0.01" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="' + value + '" readonly></td>' +
-                '<td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
+                '<td><button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)"><i class="fas fa-save"></i></button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);
             var qtyInput = tr.querySelector('.line-cantidad-input');
             if (qtyInput) qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
@@ -350,7 +387,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (tr) inp.addEventListener('input', function() { onRowCantidadChange(tr); });
     });
     updateTotal();
+    tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) { updateUnitPriceDisplay(tr); });
     window.removeQuotationLine = removeLine;
+    window.saveQuotationLine = saveLine;
     window.updateQuotationTotal = updateTotal;
 })();
 
