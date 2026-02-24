@@ -222,14 +222,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         if ($preId > 0) {
                             $preNum = !empty($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : ('PRE-' . $preId);
                         }
-                        $unit = isset($item->valor_unitario) ? (float) $item->valor_unitario : 0;
                         $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
                         if ($qty < 1) $qty = 1;
-                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : ($unit * $qty);
+                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
+                        $unit = $qty > 0 && $subtotal > 0 ? ($subtotal / $qty) : 0;
                         $desc = isset($item->descripcion) ? $item->descripcion : '';
                     ?>
-                    <?php $unitPriceDisplay = $qty > 0 ? ($subtotal / $qty) : 0; ?>
-                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($unit, 2, '.', ''); ?>">
+                    <?php $unitPriceDisplay = $qty > 0 && $subtotal > 0 ? ($subtotal / $qty) : 0; ?>
+                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotal, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
@@ -321,7 +321,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (qtyInp && valueInp && unitTotal >= 0) {
             var q = parseInt(qtyInp.value, 10) || 1;
             if (q < 1) { q = 1; qtyInp.value = 1; }
-            valueInp.value = (q * unitTotal).toFixed(2);
+            valueInp.value = unitTotal.toFixed(2);
             updateUnitPriceDisplay(row);
             updateTotal();
         }
@@ -373,13 +373,13 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var preId = opt.value;
             var unitTotal = parseFloat(opt.getAttribute('data-total') || '0');
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
-            var value = (qty * unitTotal).toFixed(2);
+            var value = unitTotal.toFixed(2);
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
             tr.setAttribute('data-pre-id', preId);
             tr.setAttribute('data-unit', unitTotal);
-            var unitPrice = (qty > 0 && parseFloat(value) > 0) ? (parseFloat(value) / qty).toFixed(4) : '0.0000';
+            var unitPrice = (qty > 0 && unitTotal > 0) ? (unitTotal / qty).toFixed(4) : '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
                 '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +

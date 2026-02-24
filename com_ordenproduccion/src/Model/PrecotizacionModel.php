@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
 
@@ -219,7 +220,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get total amount for a Pre-Cotización (sum of all line totals).
+     * Get total amount for a Pre-Cotización: subtotal (lines excluding envio) + params (Margen, IVA, ISR, Comisión).
      *
      * @param   int  $preCotizacionId  Pre-Cotización id.
      * @return  float
@@ -228,11 +229,20 @@ class PrecotizacionModel extends ListModel
     public function getTotalForPreCotizacion($preCotizacionId)
     {
         $lines = $this->getLines((int) $preCotizacionId);
-        $total = 0.0;
+        $subtotal = 0.0;
         foreach ($lines as $line) {
-            $total += (float) ($line->total ?? 0);
+            $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+            if ($lineType !== 'envio') {
+                $subtotal += (float) ($line->total ?? 0);
+            }
         }
-        return $total;
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $margen = (float) $params->get('margen_ganancia', 0);
+        $iva = (float) $params->get('iva', 0);
+        $isr = (float) $params->get('isr', 0);
+        $comision = (float) $params->get('comision_venta', 0);
+        $total = $subtotal + $subtotal * ($margen + $iva + $isr + $comision) / 100;
+        return round($total, 2);
     }
 
     /**
