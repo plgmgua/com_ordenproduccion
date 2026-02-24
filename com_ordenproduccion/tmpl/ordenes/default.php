@@ -210,14 +210,15 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-file-invoice fa-sm" aria-hidden="true"></i>
                                                 </a>
                                                 <?php endif; ?>
-                                                <!-- Payment Proof -->
-                                                <?php $paymentProofUrl = 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id; ?>
+                                                <!-- Registrar comprobante de Pago - Available to everyone (Ventas, Produccion, Administracion) so sales can register payments for their own orders -->
+                                                <?php if ($this->canRegisterPaymentProof()) : ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id); ?>"
                                                    class="btn btn-sm btn-outline-success"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>"
                                                    aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>">
                                                     <i class="fas fa-credit-card fa-sm" aria-hidden="true"></i>
                                                 </a>
+                                                <?php endif; ?>
                                                 <?php if ($this->canSeeInvoiceValue($item)) : ?>
                                                 <!-- Payment Info Popup -->
                                                 <button type="button" class="btn btn-sm btn-outline-info"

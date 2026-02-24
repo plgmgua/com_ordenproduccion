@@ -13,6 +13,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 class PaymentproofController extends BaseController
 {
@@ -111,6 +112,27 @@ class PaymentproofController extends BaseController
 
             if (empty($validatedOrders)) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_NO_VALID_ORDERS'));
+            }
+
+            // Ensure user can register payment for each order (sales: own orders only; administracion/produccion: all)
+            $orderModel = $this->app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Orden', 'Site');
+            foreach ($validatedOrders as $orderData) {
+                $orderId = (int) ($orderData['order_id'] ?? 0);
+                if ($orderId <= 0) {
+                    continue;
+                }
+                try {
+                    $order = $orderModel->getItem($orderId);
+                } catch (\Exception $e) {
+                    $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+                    $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+                    return false;
+                }
+                if (!$order) {
+                    $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+                    $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+                    return false;
+                }
             }
 
             // Handle file upload

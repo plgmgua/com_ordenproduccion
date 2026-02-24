@@ -223,4 +223,15 @@ class AccessHelper
     {
         return self::isInVentasGroup() || self::isInProduccionGroup() || self::isInAdministracionGroup();
     }
+
+    /**
+     * Check if user can register a payment proof (comprobante de pago).
+     * Available to everyone with order access so sales can register payments for their own work orders.
+     *
+     * @return  boolean
+     */
+    public static function canRegisterPaymentProof()
+    {
+        return self::hasOrderAccess();
+    }
 }

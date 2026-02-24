@@ -263,6 +263,17 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Check if user can register payment proof (comprobante de pago).
+     * True for everyone with order access so sales can register payments for their own work orders.
+     *
+     * @return  boolean
+     */
+    public function canRegisterPaymentProof()
+    {
+        return AccessHelper::canRegisterPaymentProof();
+    }
+
+    /**
      * Translate status value to human-readable text
      *
      * @param   string  $status  The status value
