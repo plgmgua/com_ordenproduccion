@@ -12,10 +12,23 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 $app = Factory::getApplication();
 $input = $app->input;
-$activeTab = $input->get('tab', 'workorders', 'string');
+
+// Ventas: can access Resumen, Estadísticas, Reportes, Estado de cuenta (own data only)
+// Administracion/Admon: can access all tabs and see all data
+$isVentas = AccessHelper::isInVentasGroup();
+$isAdministracionOrAdmon = AccessHelper::isInAdministracionOrAdmonGroup();
+$canSeeVentasTabs = $isVentas || $isAdministracionOrAdmon;
+$canSeeAdminTabs = $isAdministracionOrAdmon;
+
+// Default tab: Ventas see resumen; Admin can use requested or resumen
+$activeTab = $input->get('tab', 'resumen', 'string');
+if (!$canSeeAdminTabs && in_array($activeTab, ['workorders', 'invoices', 'herramientas'], true)) {
+    $activeTab = 'resumen';
+}
 
 // Ensure language is loaded for tabs
 $lang = $app->getLanguage();
@@ -72,61 +85,62 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 </style>
 
 <div class="admin-tabs">
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen'); ?>" 
+    <?php if ($canSeeVentasTabs) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen'); ?>"
        class="admin-tab <?php echo $activeTab === 'resumen' ? 'active' : ''; ?>">
         <i class="fas fa-chart-bar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_RESUMEN'); ?>
     </a>
-    
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=workorders'); ?>" 
+    <?php endif; ?>
+
+    <?php if ($canSeeAdminTabs) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=workorders'); ?>"
        class="admin-tab <?php echo $activeTab === 'workorders' ? 'active' : ''; ?>">
         <i class="fas fa-clipboard-list"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_WORK_ORDERS'); ?>
     </a>
-    
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" 
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>"
        class="admin-tab <?php echo $activeTab === 'invoices' ? 'active' : ''; ?>">
         <i class="fas fa-file-invoice-dollar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_INVOICES'); ?>
     </a>
-    
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=statistics'); ?>" 
+    <?php endif; ?>
+
+    <?php if ($canSeeVentasTabs) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=statistics'); ?>"
        class="admin-tab <?php echo $activeTab === 'statistics' ? 'active' : ''; ?>">
         <i class="fas fa-chart-line"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_STATISTICS'); ?>
     </a>
-    
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes'); ?>" 
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes'); ?>"
        class="admin-tab <?php echo $activeTab === 'reportes' ? 'active' : ''; ?>">
         <i class="fas fa-file-alt"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_REPORTES'); ?>
     </a>
-    
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes'); ?>" 
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes'); ?>"
        class="admin-tab <?php echo $activeTab === 'clientes' ? 'active' : ''; ?>">
         <i class="fas fa-users"></i>
-        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_CLIENTES'); ?>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_ESTADO_DE_CUENTA'); ?>
     </a>
-    
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas'); ?>" 
+    <?php endif; ?>
+
+    <?php if ($canSeeAdminTabs) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas'); ?>"
        class="admin-tab <?php echo $activeTab === 'herramientas' ? 'active' : ''; ?>">
         <i class="fas fa-tools"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_HERRAMIENTAS'); ?>
     </a>
+    <?php endif; ?>
 </div>
 
 <div class="tab-content">
-    <!-- DEBUG: Active tab: <?php echo $activeTab; ?> -->
     <?php if ($activeTab === 'resumen'): ?>
         <?php echo $this->loadTemplate('resumen'); ?>
     <?php elseif ($activeTab === 'workorders'): ?>
-        <?php 
-        // Pass variables to the included template
+        <?php
         $workOrders = $this->workOrders ?? [];
         $pagination = $this->workOrdersPagination ?? null;
         $state = $this->state ?? null;
-        
-        // Direct include - bypass loadTemplate completely
         $templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/administracion/default_workorders.php';
         if (file_exists($templatePath)) {
             include $templatePath;
@@ -145,7 +159,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     <?php elseif ($activeTab === 'herramientas'): ?>
         <?php echo $this->loadTemplate('herramientas'); ?>
     <?php else: ?>
-        <!-- DEBUG: No matching tab found for: <?php echo $activeTab; ?> -->
+        <?php echo $this->loadTemplate('resumen'); ?>
     <?php endif; ?>
 </div>
-

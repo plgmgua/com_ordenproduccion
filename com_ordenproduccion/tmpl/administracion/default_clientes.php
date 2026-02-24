@@ -182,7 +182,7 @@ function safeEscape($value, $default = '')
     <div class="clientes-header">
         <h2 class="clientes-title">
             <i class="fas fa-users"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_TAB_CLIENTES'); ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_TAB_ESTADO_DE_CUENTA'); ?>
         </h2>
         <p class="text-muted mb-0">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DESC'); ?>

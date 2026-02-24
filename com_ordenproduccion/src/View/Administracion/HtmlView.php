@@ -14,6 +14,8 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Administracion Dashboard View
@@ -267,29 +269,38 @@ class HtmlView extends BaseHtmlView
 
         // Get active tab - default to resumen for better UX
         $activeTab = $input->get('tab', 'resumen', 'string');
-        
+
+        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: workorders, invoices, herramientas
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['workorders', 'invoices', 'herramientas'], true)) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        // Sales agent filter: Ventas see only their data; Administracion/Admon see all (null = no filter)
+        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+
         // Get active subtab for herramientas tab - default to banks
         $activeSubTab = $input->get('subtab', 'banks', 'string');
         $this->activeSubTab = $activeSubTab;
 
-        // Get statistics model and data
+        // Get statistics model and data (filtered by sales agent when Ventas)
         $statsModel = $this->getModel('Administracion');
-        $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear);
+        $this->stats = $statsModel->getStatistics($this->currentMonth, $this->currentYear, $salesAgentFilter);
 
         // Load activity statistics if resumen tab is active
         if ($activeTab === 'resumen') {
             try {
                 // Get selected period from request, default to 'week'
                 $selectedPeriod = $input->get('period', 'week', 'string'); // week, month, year
-                $this->activityStats = $statsModel->getActivityStatistics($selectedPeriod);
-                // Get activity statistics grouped by sales agent
-                $this->activityStatsByAgent = $statsModel->getActivityStatisticsByAgent($selectedPeriod);
+                $this->activityStats = $statsModel->getActivityStatistics($selectedPeriod, $salesAgentFilter);
+                // Get activity statistics grouped by sales agent (filtered to one agent when Ventas)
+                $this->activityStatsByAgent = $statsModel->getActivityStatisticsByAgent($selectedPeriod, $salesAgentFilter);
                 // Get status changes grouped by sales agent
-                $this->statusChangesByAgent = $statsModel->getStatusChangesByAgent($selectedPeriod);
+                $this->statusChangesByAgent = $statsModel->getStatusChangesByAgent($selectedPeriod, $salesAgentFilter);
                 // Get payment proofs grouped by sales agent
-                $this->paymentProofsByAgent = $statsModel->getPaymentProofsByAgent($selectedPeriod);
+                $this->paymentProofsByAgent = $statsModel->getPaymentProofsByAgent($selectedPeriod, $salesAgentFilter);
                 // Get shipping slips grouped by sales agent
-                $this->shippingSlipsByAgent = $statsModel->getShippingSlipsByAgent($selectedPeriod);
+                $this->shippingSlipsByAgent = $statsModel->getShippingSlipsByAgent($selectedPeriod, $salesAgentFilter);
                 // Store selected period for template
                 $this->selectedPeriod = $selectedPeriod;
             } catch (\Exception $e) {
@@ -413,14 +424,14 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        // Load clientes tab data: all clients with sum of valor a facturar
+        // Load clientes tab data: all clients with sum of valor a facturar (filtered by sales agent when Ventas)
         if ($activeTab === 'clientes') {
             try {
                 $statsModel = $this->getModel('Administracion');
                 $clientesOrdering = $input->getString('filter_clientes_ordering', 'name');
                 $clientesDirection = $input->getString('filter_clientes_direction', 'asc');
                 $clientesHideZero = (bool) $input->getInt('filter_clientes_hide_zero', 0);
-                $this->clients = $statsModel->getClientsWithTotals($clientesOrdering, $clientesDirection, $clientesHideZero);
+                $this->clients = $statsModel->getClientsWithTotals($clientesOrdering, $clientesDirection, $clientesHideZero, $salesAgentFilter);
                 $this->clientesOrdering = $clientesOrdering;
                 $this->clientesDirection = $clientesDirection;
                 $this->clientesHideZero = $clientesHideZero;
@@ -435,16 +446,17 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        // Load reportes tab data: work orders by date/client/NIT/sales agent (client/NIT suggestions via AJAX)
+        // Load reportes tab data: work orders by date/client/NIT/sales agent (Ventas: only own data)
         if ($activeTab === 'reportes') {
             try {
                 $statsModel = $this->getModel('Administracion');
-                $this->reportSalesAgents = $statsModel->getReportSalesAgents();
+                $this->reportSalesAgents = $statsModel->getReportSalesAgents($salesAgentFilter);
                 $this->reportDateFrom = $input->getString('filter_report_date_from', '');
                 $this->reportDateTo = $input->getString('filter_report_date_to', '');
                 $this->reportClient = $input->getString('filter_report_client', '');
                 $this->reportNit = $input->getString('filter_report_nit', '');
-                $this->reportSalesAgent = $input->getString('filter_report_sales_agent', '');
+                // Ventas: force filter to own agent; Administracion: use request filter
+                $this->reportSalesAgent = $salesAgentFilter !== null ? $salesAgentFilter : $input->getString('filter_report_sales_agent', '');
                 $this->reportWorkOrders = $statsModel->getReportWorkOrders(
                     $this->reportDateFrom,
                     $this->reportDateTo,

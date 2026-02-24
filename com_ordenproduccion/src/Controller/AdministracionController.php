@@ -17,6 +17,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Administracion controller (reportes export).
@@ -48,6 +49,11 @@ class AdministracionController extends BaseController
         $client = $app->input->getString('filter_report_client', '');
         $nit = $app->input->getString('filter_report_nit', '');
         $salesAgent = $app->input->getString('filter_report_sales_agent', '');
+        // Ventas: only export own data
+        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        if ($salesAgentFilter !== null) {
+            $salesAgent = $salesAgentFilter;
+        }
 
         try {
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');

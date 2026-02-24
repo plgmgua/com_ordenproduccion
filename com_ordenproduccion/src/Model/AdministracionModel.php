@@ -24,28 +24,28 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Get dashboard statistics
      *
-     * @param   int  $month  Month number (1-12)
-     * @param   int  $year   Year (e.g., 2025)
+     * @param   int     $month        Month number (1-12)
+     * @param   int     $year         Year (e.g., 2025)
+     * @param   string  $salesAgent   Optional sales agent filter (Ventas: own data only)
      *
      * @return  object  Statistics data
      *
      * @since   3.1.0
      */
-    public function getStatistics($month, $year)
+    public function getStatistics($month, $year, $salesAgent = null)
     {
         $db = Factory::getDbo();
         $stats = new \stdClass();
+        $salesAgentFilter = ($salesAgent !== null && $salesAgent !== '') ? $salesAgent : null;
 
         // Handle "All Year" case (month = 0) vs specific month
         if ($month == 0) {
-            // All Year: from January 1st to December 31st
             $startDate = $year . '-01-01';
             $endDate = $year . '-12-31';
         } else {
-            // Specific month: first day to last day of month
             $monthStr = str_pad($month, 2, '0', STR_PAD_LEFT);
             $startDate = $year . '-' . $monthStr . '-01';
-            $endDate = date('Y-m-t', strtotime($startDate)); // Last day of month
+            $endDate = date('Y-m-t', strtotime($startDate));
         }
 
         // 1. Total work orders in selected month
@@ -55,6 +55,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('state') . ' = 1')
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'));
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $stats->totalOrders = $db->loadResult() ?: 0;
 
@@ -65,6 +68,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('state') . ' = 1')
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'));
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $stats->totalInvoiceValue = $db->loadResult() ?: 0;
 
@@ -87,6 +93,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('invoice_value') . ' > 0')
             ->order($db->quoteName('invoice_value') . ' DESC')
             ->setLimit(10);
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $stats->topOrders = $db->loadObjectList() ?: [];
 
@@ -101,6 +110,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
             ->group($db->quoteName('status'));
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $stats->ordersByStatus = $db->loadObjectList() ?: [];
 
@@ -121,8 +133,11 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
             ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
-            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
-            ->group($db->quoteName('sales_agent'))
+            ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''));
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
+        $query->group($db->quoteName('sales_agent'))
             ->order('total_sales DESC');
         $db->setQuery($query);
         $salesAgents = $db->loadObjectList() ?: [];
@@ -154,10 +169,10 @@ class AdministracionModel extends BaseDatabaseModel
 
         // 7. Sales Agents Annual Trend Data (yearly view only)
         $currentYear = (int) $year;
-        $stats->agentTrend = $this->getAgentAnnualTrend($currentYear);
+        $stats->agentTrend = $this->getAgentAnnualTrend($currentYear, $salesAgentFilter);
         
         // 8. Top 10 Clients Annual Trend Data (yearly view only)
-        $stats->clientTrend = $this->getClientAnnualTrend($currentYear);
+        $stats->clientTrend = $this->getClientAnnualTrend($currentYear, $salesAgentFilter);
 
         return $stats;
     }
@@ -188,11 +203,13 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Get distinct sales agent names for report filter dropdown
      *
+     * @param   string|null  $salesAgentFilter  When set (Ventas), return only this agent
+     *
      * @return  array  List of sales agent names
      *
      * @since   3.6.0
      */
-    public function getReportSalesAgents()
+    public function getReportSalesAgents($salesAgentFilter = null)
     {
         $db = Factory::getDbo();
         $query = $db->getQuery(true)
@@ -204,6 +221,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
             ->group($db->quoteName('sales_agent'))
             ->order($db->quoteName('sales_agent') . ' ASC');
+        if ($salesAgentFilter !== null && $salesAgentFilter !== '') {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $rows = $db->loadColumn() ?: [];
         return array_values($rows);
@@ -262,18 +282,19 @@ class AdministracionModel extends BaseDatabaseModel
      * Get all clients from work orders with Saldo (balance) using Jan 1 2026 accounting cutover.
      * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
      *
-     * @param   string   $ordering        Sort column: name, compras, saldo
-     * @param   string   $direction       Sort direction: asc, desc
-     * @param   boolean  $hideZeroSaldo   Hide clients with Saldo = 0
+     * @param   string    $ordering        Sort column: name, compras, saldo
+     * @param   string    $direction       Sort direction: asc, desc
+     * @param   boolean   $hideZeroSaldo   Hide clients with Saldo = 0
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
      *
      * @return  array  List of objects with client_name, nit, order_count, compras, saldo, etc.
      *
      * @since   3.54.0
      * @since   3.56.0  Added Saldo, opening balance, payments from Jan 1 2026
      */
-    public function getClientsWithTotals($ordering = 'name', $direction = 'asc', $hideZeroSaldo = false)
+    public function getClientsWithTotals($ordering = 'name', $direction = 'asc', $hideZeroSaldo = false, $salesAgent = null)
     {
-        $clients = $this->buildClientsWithBalances();
+        $clients = $this->buildClientsWithBalances($salesAgent);
         $this->syncClientBalances($clients);
 
         if ($hideZeroSaldo) {
@@ -307,10 +328,11 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Build clients list with calculated balances (used internally and for sync).
      *
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
      * @return  array
      * @since   3.57.0
      */
-    protected function buildClientsWithBalances()
+    protected function buildClientsWithBalances($salesAgent = null)
     {
         $db = Factory::getDbo();
         $this->ensureClientOpeningBalanceTableExists($db);
@@ -333,6 +355,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
             ->group([$clientCol, $nitCol])
             ->order($clientCol . ' ASC, ' . $nitCol . ' ASC');
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
 
         $db->setQuery($query);
         $clients = $db->loadObjectList() ?: [];
@@ -1211,22 +1236,23 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.52.8
      */
-    protected function getAgentAnnualTrend($year)
+    protected function getAgentAnnualTrend($year, $salesAgent = null)
     {
         $db = Factory::getDbo();
         
-        // Always show monthly data for selected year
         $labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         
-        // Get all agents for this year
         $query = $db->getQuery(true)
             ->select('DISTINCT ' . $db->quoteName('sales_agent'))
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1')
-            ->where('YEAR(' . $db->quoteName('created') . ') = ' . $year)
+            ->where('YEAR(' . $db->quoteName('created') . ') = ' . (int) $year)
             ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
             ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->order($db->quoteName('sales_agent'));
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
         
@@ -1279,14 +1305,12 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.52.11
      */
-    protected function getClientAnnualTrend($year)
+    protected function getClientAnnualTrend($year, $salesAgent = null)
     {
         $db = Factory::getDbo();
         
-        // Always show monthly data for selected year
         $labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         
-        // Get top 10 clients for this year
         $query = $db->getQuery(true)
             ->select([
                 $db->quoteName('client_name'),
@@ -1294,12 +1318,15 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1')
-            ->where('YEAR(' . $db->quoteName('created') . ') = ' . $year)
+            ->where('YEAR(' . $db->quoteName('created') . ') = ' . (int) $year)
             ->where($db->quoteName('client_name') . ' IS NOT NULL')
             ->where($db->quoteName('client_name') . ' != ' . $db->quote(''))
             ->group($db->quoteName('client_name'))
             ->order('total_value DESC')
             ->setLimit(10);
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
         $db->setQuery($query);
         $topClients = $db->loadObjectList('client_name') ?: [];
         
@@ -1346,37 +1373,26 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Get activity statistics for daily, weekly, and monthly views
      *
-     * @param   string  $period  Period to get stats for: 'day', 'week', or 'month'
+     * @param   string       $period      Period to get stats for: 'day', 'week', or 'month'
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own data only)
      *
      * @return  object  Activity statistics data
      *
      * @since   3.6.0
      */
-    public function getActivityStatistics($period = 'week')
+    public function getActivityStatistics($period = 'week', $salesAgent = null)
     {
-        $db = Factory::getDbo();
-        $stats = new \stdClass();
-
-        // Get this week's date range (Monday to Sunday)
         $weekStart = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
         $weekEnd = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
-
-        // Get this month's date range
         $monthStart = date('Y-m-01') . ' 00:00:00';
         $monthEnd = date('Y-m-t') . ' 23:59:59';
-
-        // Get this year's date range
         $yearStart = date('Y-01-01') . ' 00:00:00';
         $yearEnd = date('Y-12-31') . ' 23:59:59';
 
-        // Weekly statistics
-        $stats->weekly = $this->getActivityStatsForPeriod($weekStart, $weekEnd);
-
-        // Monthly statistics
-        $stats->monthly = $this->getActivityStatsForPeriod($monthStart, $monthEnd);
-
-        // Yearly statistics
-        $stats->yearly = $this->getActivityStatsForPeriod($yearStart, $yearEnd);
+        $stats = new \stdClass();
+        $stats->weekly = $this->getActivityStatsForPeriod($weekStart, $weekEnd, $salesAgent);
+        $stats->monthly = $this->getActivityStatsForPeriod($monthStart, $monthEnd, $salesAgent);
+        $stats->yearly = $this->getActivityStatsForPeriod($yearStart, $yearEnd, $salesAgent);
 
         return $stats;
     }
@@ -1384,15 +1400,15 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Get activity statistics grouped by sales agent for a period
      *
-     * @param   string  $period  Period to get stats for: 'day', 'week', or 'month'
+     * @param   string       $period      Period to get stats for: 'day', 'week', or 'month'
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: only this agent)
      *
      * @return  array  Activity statistics grouped by sales agent
      *
      * @since   3.6.0
      */
-    public function getActivityStatisticsByAgent($period = 'week')
+    public function getActivityStatisticsByAgent($period = 'week', $salesAgent = null)
     {
-        // Determine date range based on period
         switch ($period) {
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
@@ -1409,7 +1425,7 @@ class AdministracionModel extends BaseDatabaseModel
                 break;
         }
 
-        return $this->getActivityStatsByAgentForPeriod($startDate, $endDate);
+        return $this->getActivityStatsByAgentForPeriod($startDate, $endDate, $salesAgent);
     }
 
     /**
@@ -1467,6 +1483,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
             ->where($db->quoteName('invoice_value') . ' IS NOT NULL')
             ->where($db->quoteName('invoice_value') . ' > 0');
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $stats->moneyGenerated = (float) ($db->loadResult() ?: 0);
 
@@ -1563,19 +1582,19 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Get activity statistics grouped by sales agent for a specific date range
      *
-     * @param   string  $startDate  Start date (Y-m-d H:i:s)
-     * @param   string  $endDate    End date (Y-m-d H:i:s)
+     * @param   string       $startDate   Start date (Y-m-d H:i:s)
+     * @param   string       $endDate     End date (Y-m-d H:i:s)
+     * @param   string|null  $salesAgent  Optional sales agent filter (only this agent)
      *
      * @return  array  Activity statistics grouped by sales agent
      *
      * @since   3.6.0
      */
-    protected function getActivityStatsByAgentForPeriod($startDate, $endDate)
+    protected function getActivityStatsByAgentForPeriod($startDate, $endDate, $salesAgent = null)
     {
         $db = Factory::getDbo();
         $agentsStats = [];
 
-        // Get all sales agents who have orders in this period
         $query = $db->getQuery(true)
             ->select('DISTINCT ' . $db->quoteName('sales_agent'))
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
@@ -1586,6 +1605,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
             ->order($db->quoteName('sales_agent') . ' ASC');
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
@@ -1762,9 +1784,8 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getStatusChangesByAgent($period = 'week')
+    public function getStatusChangesByAgent($period = 'week', $salesAgent = null)
     {
-        // Determine date range based on period
         switch ($period) {
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
@@ -1781,7 +1802,7 @@ class AdministracionModel extends BaseDatabaseModel
                 break;
         }
 
-        return $this->getStatusChangesByAgentForPeriod($startDate, $endDate);
+        return $this->getStatusChangesByAgentForPeriod($startDate, $endDate, $salesAgent);
     }
 
     /**
@@ -1794,12 +1815,11 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    protected function getStatusChangesByAgentForPeriod($startDate, $endDate)
+    protected function getStatusChangesByAgentForPeriod($startDate, $endDate, $salesAgent = null)
     {
         $db = Factory::getDbo();
         $agentsStats = [];
 
-        // Get all sales agents who have status changes in this period
         $query = $db->getQuery(true)
             ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
             ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
@@ -1812,6 +1832,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
             ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
@@ -1920,9 +1943,8 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getPaymentProofsByAgent($period = 'week')
+    public function getPaymentProofsByAgent($period = 'week', $salesAgent = null)
     {
-        // Determine date range based on period
         switch ($period) {
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
@@ -1939,7 +1961,7 @@ class AdministracionModel extends BaseDatabaseModel
                 break;
         }
 
-        return $this->getPaymentProofsByAgentForPeriod($startDate, $endDate);
+        return $this->getPaymentProofsByAgentForPeriod($startDate, $endDate, $salesAgent);
     }
 
     /**
@@ -1952,12 +1974,11 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    protected function getPaymentProofsByAgentForPeriod($startDate, $endDate)
+    protected function getPaymentProofsByAgentForPeriod($startDate, $endDate, $salesAgent = null)
     {
         $db = Factory::getDbo();
         $agentsStats = [];
 
-        // Get all sales agents who have payment proofs in this period
         $query = $db->getQuery(true)
             ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
             ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
@@ -1969,6 +1990,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
             ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
@@ -2076,9 +2100,8 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getShippingSlipsByAgent($period = 'week')
+    public function getShippingSlipsByAgent($period = 'week', $salesAgent = null)
     {
-        // Determine date range based on period
         switch ($period) {
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
@@ -2095,7 +2118,7 @@ class AdministracionModel extends BaseDatabaseModel
                 break;
         }
 
-        return $this->getShippingSlipsByAgentForPeriod($startDate, $endDate);
+        return $this->getShippingSlipsByAgentForPeriod($startDate, $endDate, $salesAgent);
     }
 
     /**
@@ -2108,12 +2131,11 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    protected function getShippingSlipsByAgentForPeriod($startDate, $endDate)
+    protected function getShippingSlipsByAgentForPeriod($startDate, $endDate, $salesAgent = null)
     {
         $db = Factory::getDbo();
         $agentsStats = [];
 
-        // Get all sales agents who have shipping slips in this period
         $query = $db->getQuery(true)
             ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
             ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
@@ -2128,6 +2150,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
             ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 

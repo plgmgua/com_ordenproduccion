@@ -85,6 +85,16 @@ class AccessHelper
      */
     public static function isInAdministracionGroup()
     {
+        return self::isInAdministracionOrAdmonGroup();
+    }
+
+    /**
+     * Check if user is in Administracion or Admon group (admin-only tabs: work orders, invoices, tools)
+     *
+     * @return  boolean
+     */
+    public static function isInAdministracionOrAdmonGroup()
+    {
         $user = Factory::getUser();
         $userGroups = $user->getAuthorisedGroups();
         
@@ -93,17 +103,16 @@ class AccessHelper
             return true;
         }
         
-        // Also check by name for safety
         $db = Factory::getDbo();
         $query = $db->getQuery(true)
             ->select('id, title')
             ->from('#__usergroups')
-            ->where('id IN (' . implode(',', $userGroups) . ')');
+            ->where('id IN (' . implode(',', array_map('intval', $userGroups)) . ')');
         $db->setQuery($query);
-        $groups = $db->loadObjectList();
+        $groups = $db->loadObjectList() ?: [];
         
         foreach ($groups as $group) {
-            if ($group->title === 'Administracion') {
+            if ($group->title === 'Administracion' || $group->title === 'Admon') {
                 return true;
             }
         }
