@@ -17,6 +17,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Table\Extension as TableExtension;
 
 /**
  * Productos controller – add/edit pliego sizes, paper types, lamination types, processes.
@@ -443,7 +444,8 @@ class ProductosController extends BaseController
         $params->set('iva', $iva);
         $params->set('isr', $isr);
 
-        $table = Factory::getTable('Extension');
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $table = new TableExtension($db);
         $table->load(['element' => 'com_ordenproduccion', 'type' => 'component']);
         $table->params = $params->toString();
         if (!$table->store()) {
