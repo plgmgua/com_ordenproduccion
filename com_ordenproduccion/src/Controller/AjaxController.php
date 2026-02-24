@@ -313,19 +313,35 @@ class AjaxController extends BaseController
             
             $input = $app->input;
             
-            // Get form data
+            // Get form data (contact_name → client_name, contact_vat → client_nit, x_studio_agente_de_ventas → sales_agent)
             $clientName = $input->getString('client_name', '');
             $clientNit = $input->getString('client_nit', '');
             $clientAddress = $input->getString('client_address', '');
             $contactName = $input->getString('contact_name', '');
             $contactPhone = $input->getString('contact_phone', '');
             $quoteDate = $input->getString('quote_date', '');
+            $clientId = $input->getString('client_id', '');
+            $salesAgent = $input->getString('sales_agent', '');
+            $lines = $input->get('lines', [], 'array');
             $items = $input->get('items', [], 'array');
             
             // Validate required fields
             if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
                 echo json_encode(['success' => false, 'message' => 'Missing required fields']);
                 exit;
+            }
+            // When using lines (pre-cotización), at least one line required
+            if (!empty($lines)) {
+                $validLines = 0;
+                foreach ($lines as $line) {
+                    if (!empty($line['pre_cotizacion_id']) && isset($line['value'])) {
+                        $validLines++;
+                    }
+                }
+                if ($validLines === 0) {
+                    echo json_encode(['success' => false, 'message' => 'Add at least one Pre-Cotización line']);
+                    exit;
+                }
             }
 
             // Generate autonumeric quotation number
@@ -336,29 +352,56 @@ class AjaxController extends BaseController
             $nextId = $db->loadResult() ?: 1;
             $quotationNumber = 'COT-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
             
-            // Calculate total amount from items
             $totalAmount = 0;
             $lineItems = [];
             
-            foreach ($items as $lineOrder => $item) {
-                if (!empty($item['cantidad']) && !empty($item['valor_unitario'])) {
-                    $cantidad = floatval($item['cantidad']);
-                    $valorUnitario = floatval($item['valor_unitario']);
-                    $subtotal = $cantidad * $valorUnitario;
-                    
-                    $lineItems[] = [
-                        'line_order' => $lineOrder,
-                        'cantidad' => $cantidad,
-                        'descripcion' => $item['descripcion'] ?? '',
-                        'valor_unitario' => $valorUnitario,
-                        'subtotal' => $subtotal
-                    ];
-                    
-                    $totalAmount += $subtotal;
+            // New format: lines[] with pre_cotizacion_id, descripcion, value
+            if (!empty($lines)) {
+                foreach ($lines as $lineOrder => $line) {
+                    $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
+                    $value = isset($line['value']) ? (float) $line['value'] : 0;
+                    $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
+                    if ($preId > 0 && $value >= 0) {
+                        $lineItems[] = [
+                            'line_order' => $lineOrder,
+                            'cantidad' => 1,
+                            'descripcion' => $desc !== '' ? $desc : 'PRE-' . $preId,
+                            'valor_unitario' => $value,
+                            'subtotal' => $value,
+                            'pre_cotizacion_id' => $preId,
+                        ];
+                        $totalAmount += $value;
+                    }
+                }
+            } else {
+                // Legacy format: items[] with cantidad, descripcion, valor_unitario, subtotal
+                foreach ($items as $lineOrder => $item) {
+                    if (!empty($item['cantidad']) && !empty($item['valor_unitario'])) {
+                        $cantidad = (float) $item['cantidad'];
+                        $valorUnitario = (float) $item['valor_unitario'];
+                        $subtotal = $cantidad * $valorUnitario;
+                        $lineItems[] = [
+                            'line_order' => $lineOrder,
+                            'cantidad' => $cantidad,
+                            'descripcion' => $item['descripcion'] ?? '',
+                            'valor_unitario' => $valorUnitario,
+                            'subtotal' => $subtotal,
+                            'pre_cotizacion_id' => null,
+                        ];
+                        $totalAmount += $subtotal;
+                    }
                 }
             }
 
-            // Prepare quotation header data
+            if (empty($lineItems)) {
+                echo json_encode(['success' => false, 'message' => 'Add at least one quotation line']);
+                exit;
+            }
+
+            $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $hasClientId = isset($cols['client_id']);
+            $hasSalesAgent = isset($cols['sales_agent']);
             $quotationData = (object) [
                 'quotation_number' => $quotationNumber,
                 'client_name' => $clientName,
@@ -377,14 +420,22 @@ class AjaxController extends BaseController
                 'created_by' => $user->id,
                 'version' => '3.52.0'
             ];
+            if ($hasClientId) {
+                $quotationData->client_id = $clientId !== '' ? $clientId : null;
+            }
+            if ($hasSalesAgent) {
+                $quotationData->sales_agent = $salesAgent !== '' ? $salesAgent : null;
+            }
 
-            // Save quotation header to database
             $result = $db->insertObject('#__ordenproduccion_quotations', $quotationData, 'id');
+
+            $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+            $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+            $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
 
             if ($result) {
                 $quotationId = $quotationData->id;
                 
-                // Save quotation items
                 foreach ($lineItems as $item) {
                     $itemData = (object) [
                         'quotation_id' => $quotationId,
@@ -395,7 +446,9 @@ class AjaxController extends BaseController
                         'line_order' => $item['line_order'],
                         'created' => Factory::getDate()->toSql()
                     ];
-                    
+                    if ($hasPreCotizacionId && isset($item['pre_cotizacion_id']) && $item['pre_cotizacion_id'] > 0) {
+                        $itemData->pre_cotizacion_id = $item['pre_cotizacion_id'];
+                    }
                     $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
                 }
                 

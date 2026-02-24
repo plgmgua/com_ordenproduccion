@@ -180,6 +180,23 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Get total amount for a Pre-Cotización (sum of all line totals).
+     *
+     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @return  float
+     * @since   3.74.0
+     */
+    public function getTotalForPreCotizacion($preCotizacionId)
+    {
+        $lines = $this->getLines((int) $preCotizacionId);
+        $total = 0.0;
+        foreach ($lines as $line) {
+            $total += (float) ($line->total ?? 0);
+        }
+        return $total;
+    }
+
+    /**
      * Get lines for a Pre-Cotización (only if document is owned by current user).
      *
      * @param   int  $preCotizacionId  Pre-Cotización id.

@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Router\Route;
 
 /**
  * View for creating new quotations
@@ -23,7 +24,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 class HtmlView extends BaseHtmlView
 {
     /**
-     * Client name from URL
+     * Client/contact name from URL (contact_name → Nombre del Cliente)
      *
      * @var    string
      * @since  3.52.0
@@ -31,7 +32,7 @@ class HtmlView extends BaseHtmlView
     protected $clientName = '';
 
     /**
-     * Client NIT from URL
+     * Client NIT from URL (contact_vat → NIT)
      *
      * @var    string
      * @since  3.52.0
@@ -45,6 +46,30 @@ class HtmlView extends BaseHtmlView
      * @since  3.52.0
      */
     protected $clientAddress = '';
+
+    /**
+     * Client id from URL (client_id)
+     *
+     * @var    string
+     * @since  3.74.0
+     */
+    protected $clientId = '';
+
+    /**
+     * Sales agent from URL (x_studio_agente_de_ventas → Agente de Ventas)
+     *
+     * @var    string
+     * @since  3.74.0
+     */
+    protected $salesAgent = '';
+
+    /**
+     * List of user's Pre-Cotizaciones with id, number, total for line selector
+     *
+     * @var    \stdClass[]
+     * @since  3.74.0
+     */
+    protected $preCotizacionesList = [];
 
     /**
      * Display the view
@@ -61,16 +86,39 @@ class HtmlView extends BaseHtmlView
         $input = $app->input;
 
         try {
-            // Get client data from URL parameters
-            $this->clientName = $input->getString('client_name', '');
-            $this->clientNit = $input->getString('nit', '');
+            // Get client/contact data from URL parameters (Odoo-style: contact_name, contact_vat, x_studio_agente_de_ventas, client_id)
+            $this->clientName   = $input->getString('contact_name', $input->getString('client_name', ''));
+            $this->clientNit   = $input->getString('contact_vat', $input->getString('nit', ''));
             $this->clientAddress = $input->getString('address', '');
+            $this->clientId    = $input->getString('client_id', '');
+            $this->salesAgent  = $input->getString('x_studio_agente_de_ventas', '');
+
+            // Pre-Cotizaciones list for line selector (current user, with total per item)
+            $component = $app->bootComponent('com_ordenproduccion');
+            $precotModel = $component->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            if ($precotModel) {
+                $precotModel->setState('list.limit', 500);
+                $items = $precotModel->getItems();
+                $list = [];
+                foreach ($items ?: [] as $item) {
+                    $total = $precotModel->getTotalForPreCotizacion((int) $item->id);
+                    $list[] = (object) ['id' => (int) $item->id, 'number' => $item->number ?? ('PRE-' . $item->id), 'total' => $total];
+                }
+                $this->preCotizacionesList = $list;
+            }
             
             // Check if user has permission (ventas group)
             $user = Factory::getUser();
             if ($user->guest) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
-                $app->redirect('index.php?option=com_users&view=login');
+                $returnUrl = 'index.php?option=com_ordenproduccion&view=cotizacion'
+                    . '&client_id=' . urlencode($input->getString('client_id', ''))
+                    . '&contact_name=' . urlencode($input->getString('contact_name', $input->getString('client_name', '')))
+                    . '&contact_vat=' . urlencode($input->getString('contact_vat', $input->getString('nit', '')))
+                    . '&x_studio_agente_de_ventas=' . urlencode($input->getString('x_studio_agente_de_ventas', ''))
+                    . ($input->getString('address', '') !== '' ? '&address=' . urlencode($input->getString('address')) : '');
+                $return = urlencode(base64_encode($returnUrl));
+                $app->redirect(Route::_('index.php?option=com_users&view=login&return=' . $return, false));
                 return;
             }
             

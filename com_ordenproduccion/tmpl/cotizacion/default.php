@@ -31,7 +31,8 @@ $today = Factory::getDate()->format('Y-m-d');
     </div>
 
     <form id="quotationForm" onsubmit="submitQuotationForm(event)">
-        
+        <input type="hidden" name="client_id" id="client_id" value="<?php echo htmlspecialchars($this->clientId ?? ''); ?>">
+
         <!-- Client Information Section -->
         <div class="client-info-section">
             <h4 class="section-title">
@@ -44,7 +45,8 @@ $today = Factory::getDate()->format('Y-m-d');
                     <tr>
                         <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?></th>
                         <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
-                        <th style="width: 50%;"><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?></th>
+                        <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?></th>
+                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,6 +74,13 @@ $today = Factory::getDate()->format('Y-m-d');
                                    value="<?php echo htmlspecialchars($this->clientAddress); ?>" 
                                    required 
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?>">
+                        </td>
+                        <td>
+                            <input type="text" 
+                                   id="sales_agent" 
+                                   name="sales_agent" 
+                                   value="<?php echo htmlspecialchars($this->salesAgent ?? ''); ?>" 
+                                   placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?>">
                         </td>
                     </tr>
                 </tbody>
@@ -119,36 +128,48 @@ $today = Factory::getDate()->format('Y-m-d');
             </table>
         </div>
 
-        <!-- Quotation Items Section -->
+        <!-- Quotation Lines: Pre-Cotizaciones + custom description -->
         <div class="items-table-section">
             <h4 class="items-table-title">
                 <i class="fas fa-list"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_ITEMS'); ?>
             </h4>
-            <table class="items-table" id="quotationItemsTable">
+            <p class="form-note"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE'); ?></p>
+            <?php if (empty($this->preCotizacionesList)) : ?>
+                <p class="alert alert-info"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES'); ?></p>
+            <?php endif; ?>
+            <div class="mb-2">
+                <label class="me-2"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT'); ?></label>
+                <select id="precotizacionSelect" class="form-select d-inline-block" style="width: auto;">
+                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION'); ?></option>
+                    <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
+                        <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
+                            <?php echo htmlspecialchars($pre->number); ?> — Q <?php echo number_format($pre->total, 2); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <input type="text" id="precotizacionDescription" class="form-control d-inline-block ms-2" style="width: 280px;" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER'); ?>">
+                <button type="button" class="btn btn-primary ms-2" id="btnAddPrecotizacionLine">
+                    <i class="fas fa-plus"></i> <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE'); ?>
+                </button>
+            </div>
+            <table class="items-table table table-bordered" id="quotationItemsTable">
                 <thead>
                     <tr>
-                        <th style="width: 15%;"><?php echo Text::_('COM_ORDENPRODUCCION_CANTIDAD'); ?></th>
-                        <th style="width: 40%;"><?php echo Text::_('COM_ORDENPRODUCCION_DESCRIPCION'); ?></th>
-                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_VALOR_UNITARIO'); ?></th>
-                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_SUBTOTAL'); ?></th>
-                        <th style="width: 5%;"><?php echo Text::_('COM_ORDENPRODUCCION_ACTION'); ?></th>
+                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION'); ?></th>
+                        <th style="width: 45%;"><?php echo Text::_('COM_ORDENPRODUCCION_DESCRIPCION'); ?></th>
+                        <th style="width: 20%;" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_SUBTOTAL'); ?></th>
+                        <th style="width: 15%;"><?php echo Text::_('COM_ORDENPRODUCCION_ACTION'); ?></th>
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">
-                    <tr class="quotation-item-row">
-                        <td><input type="number" name="items[1][cantidad]" class="cantidad-input" placeholder="1" min="1" step="1" oninput="calculateSubtotal(this)" required></td>
-                        <td><input type="text" name="items[1][descripcion]" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ITEM_DESCRIPTION'); ?>" required></td>
-                        <td><input type="number" name="items[1][valor_unitario]" class="valor-unitario-input" placeholder="0.00" min="0" step="0.01" oninput="calculateSubtotal(this)" required></td>
-                        <td><input type="number" name="items[1][subtotal]" class="subtotal-input" placeholder="0.00" readonly></td>
-                        <td><button type="button" class="btn-delete-row" onclick="deleteRow(this)" style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;"><i class="fas fa-trash"></i></button></td>
-                    </tr>
+                    <!-- Lines added via JS: pre_cotizacion_id + description + value -->
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="3" style="text-align: right; font-weight: bold; padding: 10px;"><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</td>
-                        <td><input type="number" id="totalAmount" name="total_amount" placeholder="0.00" readonly style="font-weight: bold; background: #f8f9fa;"></td>
-                        <td><button type="button" class="btn-add-row" onclick="addRow()" style="background: #28a745; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;"><i class="fas fa-plus"></i></button></td>
+                        <td colspan="2" class="text-end fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</td>
+                        <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 100px; background: #f8f9fa;"></td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
@@ -169,115 +190,88 @@ $today = Factory::getDate()->format('Y-m-d');
 </div>
 
 <script>
-let rowCounter = 1; // Keep track of row numbers
-
-function addRow() {
-    rowCounter++;
+(function() {
+    const token = '<?php echo Session::getFormToken(); ?>';
+    const selectEl = document.getElementById('precotizacionSelect');
+    const descEl = document.getElementById('precotizacionDescription');
+    const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
-    const newRow = document.createElement('tr');
-    newRow.className = 'quotation-item-row';
-    newRow.innerHTML = `
-        <td><input type="number" name="items[${rowCounter}][cantidad]" class="cantidad-input" placeholder="1" min="1" step="1" oninput="calculateSubtotal(this)" required></td>
-        <td><input type="text" name="items[${rowCounter}][descripcion]" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ITEM_DESCRIPTION'); ?>" required></td>
-        <td><input type="number" name="items[${rowCounter}][valor_unitario]" class="valor-unitario-input" placeholder="0.00" min="0" step="0.01" oninput="calculateSubtotal(this)" required></td>
-        <td><input type="number" name="items[${rowCounter}][subtotal]" class="subtotal-input" placeholder="0.00" readonly></td>
-        <td><button type="button" class="btn-delete-row" onclick="deleteRow(this)" style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;"><i class="fas fa-trash"></i></button></td>
-    `;
-    tbody.appendChild(newRow);
-}
+    let lineIndex = 0;
 
-function deleteRow(button) {
-    const row = button.closest('tr');
-    row.remove();
-    calculateTotal();
-}
+    function updateTotal() {
+        let total = 0;
+        tbody.querySelectorAll('tr').forEach(function(tr) {
+            const val = parseFloat(tr.querySelector('input[name*="[value]"]').value) || 0;
+            total += val;
+        });
+        document.getElementById('totalAmount').value = total.toFixed(2);
+    }
 
-function calculateSubtotal(input) {
-    const row = input.closest('tr');
-    const cantidad = parseFloat(row.querySelector('.cantidad-input').value) || 0;
-    const valorUnitario = parseFloat(row.querySelector('.valor-unitario-input').value) || 0;
-    const subtotal = cantidad * valorUnitario;
+    function removeLine(btn) {
+        btn.closest('tr').remove();
+        updateTotal();
+    }
 
-    const subtotalInput = row.querySelector('.subtotal-input');
-    subtotalInput.value = subtotal.toFixed(2);
-
-    calculateTotal();
-}
-
-function calculateTotal() {
-    const subtotalInputs = document.querySelectorAll('.subtotal-input');
-    let total = 0;
-
-    subtotalInputs.forEach(input => {
-        const value = parseFloat(input.value) || 0;
-        total += value;
-    });
-
-    const totalInput = document.getElementById('totalAmount');
-    totalInput.value = total.toFixed(2);
-}
+    if (btnAdd && selectEl) {
+        btnAdd.addEventListener('click', function() {
+            const opt = selectEl.options[selectEl.selectedIndex];
+            if (!opt || !opt.value) return;
+            const preId = opt.value;
+            const total = opt.getAttribute('data-total') || '0';
+            const number = opt.getAttribute('data-number') || ('PRE-' + preId);
+            const desc = (descEl && descEl.value) ? descEl.value.trim() : number;
+            lineIndex++;
+            const tr = document.createElement('tr');
+            tr.className = 'quotation-item-row';
+            tr.innerHTML = '<td>' + number + '</td>' +
+                '<td><input type="text" name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" value="' + (desc.replace(/"/g, '&quot;').replace(/'/g, '&#39;')) + '" placeholder="Custom description"></td>' +
+                '<td class="text-end">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + preId + '"><input type="number" step="0.01" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="' + total + '" readonly></td>' +
+                '<td><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
+            tbody.appendChild(tr);
+            if (descEl) descEl.value = '';
+            selectEl.selectedIndex = 0;
+            updateTotal();
+        });
+    }
+    window.removeQuotationLine = removeLine;
+    window.updateQuotationTotal = updateTotal;
+})();
 
 function submitQuotationForm(event) {
     event.preventDefault();
-    
+    const tbody = document.getElementById('quotationItemsBody');
+    if (!tbody || tbody.querySelectorAll('tr').length === 0) {
+        alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_ADD_AT_LEAST_ONE_LINE')); ?>');
+        return;
+    }
     const submitButton = event.target.querySelector('.btn-submit');
-    const originalText = submitButton.innerHTML;
-    
-    // Disable button and show loading
     submitButton.disabled = true;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROCESSING'); ?>...';
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PROCESSING')); ?>...';
     
-    // Get form data
-    const formData = new FormData();
-    formData.append('<?php echo Session::getFormToken(); ?>', '1');  // CSRF token
-    formData.append('client_name', document.getElementById('client_name').value);
-    formData.append('client_nit', document.getElementById('client_nit').value);
-    formData.append('client_address', document.getElementById('client_address').value);
-    formData.append('contact_name', document.getElementById('contact_name').value);
-    formData.append('contact_phone', document.getElementById('contact_phone').value);
-    formData.append('quote_date', document.getElementById('quote_date').value);
+    const formData = new FormData(document.getElementById('quotationForm'));
+    formData.set('<?php echo Session::getFormToken(); ?>', '1');
+    formData.set('total_amount', document.getElementById('totalAmount').value);
     
-    // Get quotation items data
-    const rows = document.querySelectorAll('.quotation-item-row');
-    rows.forEach((row, index) => {
-        const cantidad = row.querySelector('.cantidad-input').value;
-        const descripcion = row.querySelector('input[name*="[descripcion]"]').value;
-        const valorUnitario = row.querySelector('.valor-unitario-input').value;
-        const subtotal = row.querySelector('.subtotal-input').value;
-        
-        if (cantidad && valorUnitario) {
-            formData.append(`items[${index + 1}][cantidad]`, cantidad);
-            formData.append(`items[${index + 1}][descripcion]`, descripcion);
-            formData.append(`items[${index + 1}][valor_unitario]`, valorUnitario);
-            formData.append(`items[${index + 1}][subtotal]`, subtotal);
-        }
-    });
-    
-    // Submit to AJAX endpoint (following working pattern)
     fetch('<?php echo Uri::root(); ?>index.php?option=com_ordenproduccion&task=ajax.createQuotation', {
         method: 'POST',
         body: formData
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Server error: ' + response.status);
-        }
+    .then(function(response) {
+        if (!response.ok) throw new Error('Server error: ' + response.status);
         return response.json();
     })
-    .then(data => {
+    .then(function(data) {
         if (data.success) {
-            // Success - show message and redirect
-            alert('<?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS'); ?>: ' + data.quotation_number);
+            alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS')); ?>: ' + data.quotation_number);
             window.location.href = 'index.php?option=com_ordenproduccion&view=cotizaciones';
         } else {
             throw new Error(data.message || 'Error creating quotation');
         }
     })
-    .catch(error => {
-        // Error - re-enable button and show error
+    .catch(function(error) {
         submitButton.disabled = false;
-        submitButton.innerHTML = originalText;
-        alert('<?php echo Text::_('COM_ORDENPRODUCCION_ERROR_CREATING_QUOTATION'); ?>: ' + error.message);
+        submitButton.innerHTML = '<i class="fas fa-save"></i> <?php echo addslashes(Text::_('COM_ORDENPRODUCCION_SAVE_QUOTATION')); ?>';
+        alert('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_ERROR_CREATING_QUOTATION')); ?>: ' + error.message);
         console.error('Error:', error);
     });
 }
