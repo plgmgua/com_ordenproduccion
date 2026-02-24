@@ -56,6 +56,40 @@
     color: #007cba;
 }
 
+/* Add-line block: dropdown first, then Cantidad + Descripción below */
+.cotizacion-add-line-block {
+    padding: 8px 10px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+.cotizacion-add-line-row-first {
+    margin-bottom: 8px;
+}
+.cotizacion-add-line-row-second {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px 24px;
+}
+.cotizacion-add-cantidad label,
+.cotizacion-add-descripcion label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+.cotizacion-add-descripcion {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Pre-cotización column narrower in items table */
+.items-table th.col-precotizacion,
+.items-table td:first-child {
+    width: 10%;
+    max-width: 120px;
+}
+
 /* Tables */
 .client-table,
 .contact-table,

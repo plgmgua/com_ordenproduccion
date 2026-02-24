@@ -154,31 +154,39 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
                 <i class="fas fa-list"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_ITEMS'); ?>
             </h4>
-            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation and an optional custom description. Total is the sum of all line values.', 'Agregue líneas seleccionando una Pre-Cotización y opcionalmente una descripción. El total es la suma de todas las líneas.'); ?></p>
+            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation, quantity and a custom description (required). Total is the sum of all line values.', 'Agregue líneas seleccionando una Pre-Cotización, cantidad y descripción personalizada (obligatoria). El total es la suma de todas las líneas.'); ?></p>
             <?php if (empty($this->preCotizacionesList)) : ?>
                 <p class="alert alert-info"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES', 'You have no Pre-Quotations yet. Create one from Pre-Cotizaciones first.', 'Aún no tiene Pre-Cotizaciones. Cree una en Pre-Cotizaciones primero.'); ?></p>
             <?php endif; ?>
-            <div class="mb-2 cotizacion-add-line-row">
-                <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
-                <select id="precotizacionSelect" class="form-select form-select-sm d-inline-block" style="width: auto; max-width: 220px;">
-                    <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
-                    <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
-                        <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
-                            <?php echo htmlspecialchars($pre->number); ?> — Q <?php echo number_format($pre->total, 2); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <label class="ms-3 me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></label>
-                <input type="number" id="precotizacionCantidad" class="form-control form-control-sm d-inline-block text-end" style="width: 70px;" min="1" step="1" value="1">
-                <label class="ms-2 me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Custom description (optional)', 'Descripción personalizada (opcional)'); ?></label>
-                <textarea id="precotizacionDescription" class="form-control form-control-sm d-inline-block align-middle" rows="2" style="width: 260px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Custom description (optional)', 'Descripción personalizada (opcional)'); ?>"></textarea>
+            <div class="cotizacion-add-line-block mb-2">
+                <div class="cotizacion-add-line-row-first">
+                    <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
+                    <select id="precotizacionSelect" class="form-select form-select-sm" style="width: auto; max-width: 220px;">
+                        <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
+                        <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
+                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
+                                <?php echo htmlspecialchars($pre->number); ?> — Q <?php echo number_format($pre->total, 2); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="cotizacion-add-line-row-second">
+                    <div class="cotizacion-add-cantidad">
+                        <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
+                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="1" required aria-required="true">
+                    </div>
+                    <div class="cotizacion-add-descripcion">
+                        <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
+                        <textarea id="precotizacionDescription" class="form-control form-control-sm" rows="2" style="min-width: 200px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" required aria-required="true"></textarea>
+                    </div>
+                </div>
             </div>
             <table class="items-table table table-bordered table-sm" id="quotationItemsTable">
                 <thead>
                     <tr>
-                        <th style="width: 16%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th class="col-precotizacion"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
                         <th style="width: 8%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
-                        <th style="width: 38%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th style="width: 40%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                     </tr>
@@ -264,12 +272,17 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
         btnAdd.addEventListener('click', function() {
             var opt = selectEl.options[selectEl.selectedIndex];
             if (!opt || !opt.value) return;
+            var qty = parseInt(cantidadEl && cantidadEl.value ? cantidadEl.value : 1, 10) || 1;
+            if (qty < 1) qty = 1;
+            var desc = (descEl && descEl.value) ? String(descEl.value).trim() : '';
+            if (!desc) {
+                alert('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DESCRIPTION_REQUIRED', 'Custom description is required.', 'La descripción personalizada es obligatoria.')); ?>');
+                if (descEl) descEl.focus();
+                return;
+            }
             var preId = opt.value;
             var unitTotal = parseFloat(opt.getAttribute('data-total') || '0');
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
-            var qty = parseInt(cantidadEl && cantidadEl.value ? cantidadEl.value : 1, 10) || 1;
-            if (qty < 1) qty = 1;
-            var desc = (descEl && descEl.value) ? String(descEl.value).trim() : number;
             var value = (qty * unitTotal).toFixed(2);
             lineIndex++;
             var tr = document.createElement('tr');
