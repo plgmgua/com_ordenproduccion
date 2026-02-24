@@ -377,32 +377,50 @@ class OrdenesModel extends ListModel
             $db = $this->getDbo();
             
             foreach ($items as $item) {
-                // Get technician assignments
-                $query = $db->getQuery(true)
-                    ->select('technician_name')
-                    ->from($db->quoteName('#__ordenproduccion_technicians'))
-                    ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($item->orden_de_trabajo))
-                    ->where($db->quoteName('state') . ' = 1');
-                
-                $db->setQuery($query);
-                $technicians = $db->loadColumn();
-                $item->technicians = $technicians ? implode(', ', $technicians) : '';
+                $item->technicians = '';
+                $item->notes_count = 0;
 
-                // Get production notes count
-                $query = $db->getQuery(true)
-                    ->select('COUNT(*)')
-                    ->from($db->quoteName('#__ordenproduccion_production_notes'))
-                    ->where($db->quoteName('numero_de_orden') . ' = ' . $db->quote($item->orden_de_trabajo))
-                    ->where($db->quoteName('state') . ' = 1');
-                
-                $db->setQuery($query);
-                $item->notes_count = (int) $db->loadResult();
-
-                // Format dates
-                if ($item->fecha_de_entrega) {
-                    $item->fecha_de_entrega_formatted = Factory::getDate($item->fecha_de_entrega)->format('d/m/Y');
+                try {
+                    $techCols = $db->getTableColumns('#__ordenproduccion_technicians', false);
+                    $techColNames = is_array($techCols) ? array_keys($techCols) : [];
+                    $techNameCol = in_array('technician_name', $techColNames, true) ? 'technician_name' : (in_array('person_name', $techColNames, true) ? 'person_name' : null);
+                    $techOrderCol = in_array('numero_de_orden', $techColNames, true) ? 'numero_de_orden' : (in_array('orden_de_trabajo', $techColNames, true) ? 'orden_de_trabajo' : null);
+                    if ($techNameCol !== null && $techOrderCol !== null) {
+                        $query = $db->getQuery(true)
+                            ->select($db->quoteName($techNameCol))
+                            ->from($db->quoteName('#__ordenproduccion_technicians'))
+                            ->where($db->quoteName($techOrderCol) . ' = ' . $db->quote($item->orden_de_trabajo))
+                            ->where($db->quoteName('state') . ' = 1');
+                        $db->setQuery($query);
+                        $technicians = $db->loadColumn();
+                        $item->technicians = $technicians ? implode(', ', $technicians) : '';
+                    }
+                } catch (\Throwable $e) {
+                    // Table or columns missing
                 }
-                
+
+                try {
+                    $notesCols = $db->getTableColumns('#__ordenproduccion_production_notes', false);
+                    $notesColNames = is_array($notesCols) ? array_keys($notesCols) : [];
+                    $notesOrderCol = in_array('numero_de_orden', $notesColNames, true) ? 'numero_de_orden' : (in_array('orden_de_trabajo', $notesColNames, true) ? 'orden_de_trabajo' : null);
+                    if ($notesOrderCol !== null) {
+                        $query = $db->getQuery(true)
+                            ->select('COUNT(*)')
+                            ->from($db->quoteName('#__ordenproduccion_production_notes'))
+                            ->where($db->quoteName($notesOrderCol) . ' = ' . $db->quote($item->orden_de_trabajo))
+                            ->where($db->quoteName('state') . ' = 1');
+                        $db->setQuery($query);
+                        $item->notes_count = (int) $db->loadResult();
+                    }
+                } catch (\Throwable $e) {
+                    // Table or columns missing
+                }
+
+                if (!empty($item->fecha_de_entrega)) {
+                    $item->fecha_de_entrega_formatted = Factory::getDate($item->fecha_de_entrega)->format('d/m/Y');
+                } else {
+                    $item->fecha_de_entrega_formatted = '';
+                }
                 $item->created_formatted = Factory::getDate($item->created)->format('d/m/Y H:i');
             }
         }
