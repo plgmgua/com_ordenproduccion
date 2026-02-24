@@ -30,6 +30,9 @@ class OrdenesModel extends ListModel
 
     /** @var string|null Cached order-number column name for #__ordenproduccion_info */
     protected $infoOrderColumn;
+
+    /** @var string[]|null Cached column list for #__ordenproduccion_ordenes */
+    protected $ordenesColumnNames;
     /**
      * Constructor
      *
@@ -201,6 +204,38 @@ class OrdenesModel extends ListModel
     }
 
     /**
+     * Get column names for #__ordenproduccion_ordenes (cached).
+     *
+     * @return  string[]
+     * @since   1.0.0
+     */
+    protected function getOrdenesColumnNames()
+    {
+        if ($this->ordenesColumnNames !== null) {
+            return $this->ordenesColumnNames;
+        }
+        try {
+            $db = $this->getDbo();
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $this->ordenesColumnNames = is_array($cols) ? array_keys($cols) : [];
+        } catch (\Throwable $e) {
+            $this->ordenesColumnNames = [];
+        }
+        return $this->ordenesColumnNames;
+    }
+
+    /**
+     * Check if a column exists on #__ordenproduccion_ordenes.
+     *
+     * @param   string  $name  Column name
+     * @return  bool
+     */
+    protected function ordenesHasColumn($name)
+    {
+        return in_array($name, $this->getOrdenesColumnNames(), true);
+    }
+
+    /**
      * Build an SQL query to load the list data.
      *
      * @return  \Joomla\Database\DatabaseQuery
@@ -217,13 +252,25 @@ class OrdenesModel extends ListModel
         $select = [
             $db->quoteName('o.id'),
             $db->quoteName('o.orden_de_trabajo'),
-            $db->quoteName('o.fecha_de_entrega'),
-            $db->quoteName('o.agente_de_ventas'),
-            $db->quoteName('o.descripcion_de_trabajo'),
             $db->quoteName('o.created'),
             $db->quoteName('o.created_by'),
             $db->quoteName('o.state'),
         ];
+        if ($this->ordenesHasColumn('fecha_de_entrega')) {
+            $select[] = $db->quoteName('o.fecha_de_entrega');
+        } else {
+            $select[] = $db->quote('NULL') . ' AS ' . $db->quoteName('fecha_de_entrega');
+        }
+        if ($this->ordenesHasColumn('agente_de_ventas')) {
+            $select[] = $db->quoteName('o.agente_de_ventas');
+        } else {
+            $select[] = $db->quote('') . ' AS ' . $db->quoteName('agente_de_ventas');
+        }
+        if ($this->ordenesHasColumn('descripcion_de_trabajo')) {
+            $select[] = $db->quoteName('o.descripcion_de_trabajo');
+        } else {
+            $select[] = $db->quote('') . ' AS ' . $db->quoteName('descripcion_de_trabajo');
+        }
         if ($clientCol !== '') {
             $select[] = $db->quoteName('o.' . $clientCol, 'nombre_del_cliente');
         } else {
@@ -265,7 +312,9 @@ class OrdenesModel extends ListModel
                 if ($clientCol !== '') {
                     $conds[] = $db->quoteName('o.' . $clientCol) . ' LIKE ' . $search;
                 }
-                $conds[] = $db->quoteName('o.descripcion_de_trabajo') . ' LIKE ' . $search;
+                if ($this->ordenesHasColumn('descripcion_de_trabajo')) {
+                    $conds[] = $db->quoteName('o.descripcion_de_trabajo') . ' LIKE ' . $search;
+                }
                 $query->where('(' . implode(' OR ', $conds) . ')');
             }
         }
@@ -298,6 +347,10 @@ class OrdenesModel extends ListModel
         // Normalize client column sort (template may use a.* or o.*)
         if (in_array($orderCol, ['a.nombre_del_cliente', 'o.nombre_del_cliente', 'a.client_name', 'o.client_name'], true)) {
             $orderCol = $clientCol !== '' ? 'o.' . $clientCol : 'o.orden_de_trabajo';
+        }
+        // If ordering by a column that doesn't exist, use o.created
+        if (preg_match('/^o\.(\w+)$/', $orderCol, $m) && !$this->ordenesHasColumn($m[1])) {
+            $orderCol = 'o.created';
         }
         $query->order($db->escape($orderCol) . ' ' . $db->escape($orderDirn));
 
