@@ -217,7 +217,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                                         <thead>
                                             <tr>
                                                 <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
-                                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
+                                                <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
                                             </tr>
                                         </thead>
@@ -231,7 +231,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                                             ?>
                                                 <tr>
                                                     <td><?php echo $label; ?></td>
-                                                    <td><?php echo $detail; ?></td>
+                                                    <td class="text-end"><?php echo $detail; ?></td>
                                                     <td class="text-end">Q <?php echo $subtotal; ?></td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -380,7 +380,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                             <strong><?php echo Text::_('COM_ORDENPRODUCCION_CALC_DETAIL'); ?></strong>
                             <div class="table-responsive mt-1">
                                 <table class="table table-sm table-bordered mb-1" id="pliego_modal_calc_table">
-                                    <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th><th class="text-end" style="min-width:6em;"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
+                                    <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th><th class="text-end" style="min-width:6em;"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
                                     <tbody id="pliego_modal_calc_body"></tbody>
                                     <tfoot><tr class="table-secondary fw-bold"><td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td><td class="text-end" id="pliego_modal_calc_total_cell">—</td></tr></tfoot>
                                 </table>
@@ -478,7 +478,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
             return;
         }
         calcBody.innerHTML = rows.map(function(row) {
-            return '<tr><td>' + escapeHtml(row.label) + '</td><td>' + escapeHtml(row.detail) + '</td><td class="text-end">Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
+            return '<tr><td>' + escapeHtml(row.label) + '</td><td class="text-end">' + escapeHtml(row.detail) + '</td><td class="text-end">Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
         }).join('');
         calcTotalCell.textContent = totalVal != null ? 'Q ' + Number(totalVal).toFixed(2) : '—';
         calcDetail.style.display = 'block';
