@@ -18,10 +18,18 @@ use Joomla\CMS\Pagination\Pagination;
 /**
  * Ordenes model for com_ordenproduccion
  *
+ * Supports both schema variants: nombre_del_cliente/client_name on ordenes,
+ * numero_de_orden (or orden_de_trabajo) on info table.
+ *
  * @since  1.0.0
  */
 class OrdenesModel extends ListModel
 {
+    /** @var string|null Cached client column name for #__ordenproduccion_ordenes */
+    protected $ordenesClientColumn;
+
+    /** @var string|null Cached order-number column name for #__ordenproduccion_info */
+    protected $infoOrderColumn;
     /**
      * Constructor
      *
@@ -36,6 +44,7 @@ class OrdenesModel extends ListModel
                 'id', 'o.id',
                 'orden_de_trabajo', 'o.orden_de_trabajo',
                 'nombre_del_cliente', 'o.nombre_del_cliente',
+                'client_name', 'o.client_name',
                 'fecha_de_entrega', 'o.fecha_de_entrega',
                 'created', 'o.created',
                 'created_by', 'o.created_by',
@@ -121,6 +130,78 @@ class OrdenesModel extends ListModel
     }
 
     /**
+     * Get the client name column for #__ordenproduccion_ordenes (supports client_name and nombre_del_cliente).
+     *
+     * @return  string
+     * @since   1.0.0
+     */
+    protected function getOrdenesClientColumn()
+    {
+        if ($this->ordenesClientColumn !== null) {
+            return $this->ordenesClientColumn;
+        }
+        try {
+            $db = $this->getDbo();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_ordenes';
+            $db->setQuery(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " .
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($tableName) . " " .
+                "AND COLUMN_NAME IN ('client_name', 'nombre_del_cliente')"
+            );
+            $cols = $db->loadColumn() ?: [];
+            if (in_array('nombre_del_cliente', $cols)) {
+                $this->ordenesClientColumn = 'nombre_del_cliente';
+                return $this->ordenesClientColumn;
+            }
+            if (in_array('client_name', $cols)) {
+                $this->ordenesClientColumn = 'client_name';
+                return $this->ordenesClientColumn;
+            }
+        } catch (\Throwable $e) {
+            // fallback
+        }
+        $this->ordenesClientColumn = 'nombre_del_cliente';
+        return $this->ordenesClientColumn;
+    }
+
+    /**
+     * Get the order-number column for #__ordenproduccion_info (supports numero_de_orden and orden_de_trabajo).
+     *
+     * @return  string
+     * @since   1.0.0
+     */
+    protected function getInfoOrderColumn()
+    {
+        if ($this->infoOrderColumn !== null) {
+            return $this->infoOrderColumn;
+        }
+        try {
+            $db = $this->getDbo();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_info';
+            $db->setQuery(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " .
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($tableName) . " " .
+                "AND COLUMN_NAME IN ('numero_de_orden', 'orden_de_trabajo')"
+            );
+            $cols = $db->loadColumn() ?: [];
+            if (in_array('numero_de_orden', $cols)) {
+                $this->infoOrderColumn = 'numero_de_orden';
+                return $this->infoOrderColumn;
+            }
+            if (in_array('orden_de_trabajo', $cols)) {
+                $this->infoOrderColumn = 'orden_de_trabajo';
+                return $this->infoOrderColumn;
+            }
+        } catch (\Throwable $e) {
+            // fallback
+        }
+        $this->infoOrderColumn = 'numero_de_orden';
+        return $this->infoOrderColumn;
+    }
+
+    /**
      * Build an SQL query to load the list data.
      *
      * @return  \Joomla\Database\DatabaseQuery
@@ -131,12 +212,14 @@ class OrdenesModel extends ListModel
     {
         $db = $this->getDbo();
         $query = $db->getQuery(true);
+        $clientCol = $this->getOrdenesClientColumn();
+        $infoOrderCol = $this->getInfoOrderColumn();
 
-        // Select the required fields from the table
+        // Select the required fields from the table (client column as nombre_del_cliente for templates)
         $query->select([
             $db->quoteName('o.id'),
             $db->quoteName('o.orden_de_trabajo'),
-            $db->quoteName('o.nombre_del_cliente'),
+            $db->quoteName('o.' . $clientCol, 'nombre_del_cliente'),
             $db->quoteName('o.fecha_de_entrega'),
             $db->quoteName('o.agente_de_ventas'),
             $db->quoteName('o.descripcion_de_trabajo'),
@@ -152,14 +235,14 @@ class OrdenesModel extends ListModel
         // Join with status information
         $query->leftJoin(
             $db->quoteName('#__ordenproduccion_info', 'i') . ' ON ' .
-            $db->quoteName('i.numero_de_orden') . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
+            $db->quoteName('i.' . $infoOrderCol) . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
             $db->quoteName('i.tipo_de_campo') . ' = ' . $db->quote('estado')
         );
 
         // Join with type information
         $query->leftJoin(
             $db->quoteName('#__ordenproduccion_info', 't') . ' ON ' .
-            $db->quoteName('t.numero_de_orden') . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
+            $db->quoteName('t.' . $infoOrderCol) . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
             $db->quoteName('t.tipo_de_campo') . ' = ' . $db->quote('tipo')
         );
 
@@ -173,8 +256,8 @@ class OrdenesModel extends ListModel
                 $query->where($db->quoteName('o.id') . ' = ' . (int) substr($search, 3));
             } else {
                 $search = $db->quote('%' . $db->escape($search, true) . '%');
-                $query->where('(' . $db->quoteName('o.orden_de_trabajo') . ' LIKE ' . $search . 
-                             ' OR ' . $db->quoteName('o.nombre_del_cliente') . ' LIKE ' . $search . 
+                $query->where('(' . $db->quoteName('o.orden_de_trabajo') . ' LIKE ' . $search .
+                             ' OR ' . $db->quoteName('o.' . $clientCol) . ' LIKE ' . $search .
                              ' OR ' . $db->quoteName('o.descripcion_de_trabajo') . ' LIKE ' . $search . ')');
             }
         }
@@ -205,6 +288,10 @@ class OrdenesModel extends ListModel
         // Add the list ordering clause
         $orderCol = $this->state->get('list.ordering', 'o.created');
         $orderDirn = $this->state->get('list.direction', 'desc');
+        // Normalize client column sort (template may use a.* or o.*)
+        if (in_array($orderCol, ['a.nombre_del_cliente', 'o.nombre_del_cliente', 'a.client_name', 'o.client_name'], true)) {
+            $orderCol = 'o.' . $clientCol;
+        }
         $query->order($db->escape($orderCol) . ' ' . $db->escape($orderDirn));
 
         return $query;

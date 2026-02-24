@@ -75,6 +75,43 @@ if ($extId > 0) {
     $menuRows = $db->loadObjectList() ?: [];
 }
 
+// All admin menu rows whose link contains com_ordenproduccion (catches bad rows with wrong component_id)
+$allOrdenMenuRows = [];
+$q = $db->getQuery(true)->select('id, title, link, published, component_id')
+    ->from($db->quoteName('#__menu'))
+    ->where($db->quoteName('client_id') . ' = 1')
+    ->where($db->quoteName('link') . ' LIKE ' . $db->quote('%com_ordenproduccion%'))
+    ->order($db->quoteName('id'));
+$db->setQuery($q);
+$allOrdenMenuRows = $db->loadObjectList() ?: [];
+$badMenuRows = array_filter($allOrdenMenuRows, function ($r) {
+    return isset($r->title) && $r->title === 'COM_ORDENPRODUCCION_MENU';
+});
+
+// Optional fix: remove bad #__menu rows
+$fixApplied = false;
+$fixMessages = [];
+if (isset($_GET['fix']) && $_GET['fix'] === '1') {
+    try {
+        $q = $db->getQuery(true)
+            ->delete($db->quoteName('#__menu'))
+            ->where($db->quoteName('client_id') . ' = 1')
+            ->where($db->quoteName('title') . ' = ' . $db->quote('COM_ORDENPRODUCCION_MENU'))
+            ->where($db->quoteName('link') . ' LIKE ' . $db->quote('%com_ordenproduccion%'));
+        $db->setQuery($q);
+        $db->execute();
+        $n = $db->getAffectedRows();
+        $fixApplied = true;
+        if ($n > 0) {
+            $fixMessages[] = "Removed $n row(s) with title COM_ORDENPRODUCCION_MENU.";
+        } else {
+            $fixMessages[] = 'No rows with title COM_ORDENPRODUCCION_MENU found to remove.';
+        }
+    } catch (\Exception $e) {
+        $fixMessages[] = 'Error: ' . $e->getMessage();
+    }
+}
+
 // Language file locations checked
 $sysIniPaths = [
     'Component (admin)' => $adminBase . '/language/en-GB/com_ordenproduccion.sys.ini',
@@ -112,6 +149,8 @@ foreach ($sysIniPaths as $label => $p) {
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
         th { font-weight: 600; color: #444; }
+        .btn { display: inline-block; margin-top: 8px; padding: 10px 20px; background: #1976d2; color: #fff; text-decoration: none; border-radius: 4px; font-weight: 600; }
+        .btn:hover { background: #1565c0; }
     </style>
 </head>
 <body>
@@ -119,6 +158,18 @@ foreach ($sysIniPaths as $label => $p) {
     <h1>Menu labels diagnostic</h1>
     <p class="subtitle">com_ordenproduccion – validate backend menu labels (Administrator → Components)</p>
     <p><strong>Time:</strong> <?php echo date('Y-m-d H:i:s'); ?> &nbsp;|&nbsp; <strong>JPATH_ROOT:</strong> <code><?php echo htmlspecialchars(JPATH_ROOT); ?></code></p>
+
+    <?php if ($fixApplied && !empty($fixMessages)): ?>
+    <div class="section" style="border-color: #2e7d32; background: #e8f5e9;">
+        <h2>Fix applied</h2>
+        <ul style="margin: 0; padding-left: 20px;">
+            <?php foreach ($fixMessages as $m): ?>
+            <li><?php echo htmlspecialchars($m); ?></li>
+            <?php endforeach; ?>
+        </ul>
+        <p class="detail">Reload this page without <code>?fix=1</code>, then in the backend go to <strong>System → Clear Cache</strong> and open <strong>Components</strong> again.</p>
+    </div>
+    <?php endif; ?>
 
     <div class="section">
         <h2>1. Language files (.sys.ini)</h2>
@@ -181,6 +232,49 @@ foreach ($sysIniPaths as $label => $p) {
         </table>
         <?php endif; ?>
     </div>
+
+    <div class="section">
+        <h2>4. All admin menu rows (link contains com_ordenproduccion)</h2>
+        <p class="detail">Every row that might appear under Components for this component. Rows with title <code>COM_ORDENPRODUCCION_MENU</code> (no suffix) show as raw keys in the sidebar. If you see more rows here than in section 3, the extra ones may have a different <code>component_id</code>.</p>
+        <?php if (empty($allOrdenMenuRows)): ?>
+        <div class="row">
+            <span class="label">Rows</span>
+            <span class="value">None.</span>
+        </div>
+        <?php else: ?>
+        <?php if (count($badMenuRows) > 0): ?>
+        <div class="row">
+            <span class="status warn">!</span>
+            <span class="label">Bad rows (title = COM_ORDENPRODUCCION_MENU)</span>
+            <span class="value"><?php echo count($badMenuRows); ?> — use <strong>Remove bad rows</strong> below.</span>
+        </div>
+        <?php endif; ?>
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Title (key)</th><th>Link</th><th>Published</th><th>component_id</th></tr>
+            </thead>
+            <tbody>
+                <?php foreach ($allOrdenMenuRows as $r): ?>
+                <tr<?php echo (isset($r->title) && $r->title === 'COM_ORDENPRODUCCION_MENU') ? ' style="background: #fff3e0;"' : ''; ?>>
+                    <td><?php echo (int) $r->id; ?></td>
+                    <td><code><?php echo htmlspecialchars($r->title ?? ''); ?></code></td>
+                    <td><?php echo htmlspecialchars($r->link ?? ''); ?></td>
+                    <td><?php echo (int) $r->published ? 'Yes' : 'No'; ?></td>
+                    <td><?php echo isset($r->component_id) ? (int) $r->component_id : '—'; ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+
+    <?php if (count($badMenuRows) > 0): ?>
+    <div class="section" style="border-color: #f57c00; background: #fff8e1;">
+        <h2>Remove bad menu rows</h2>
+        <p>Delete all admin menu rows with title <code>COM_ORDENPRODUCCION_MENU</code> and link containing <code>com_ordenproduccion</code>. This will not remove rows with correct keys (e.g. COM_ORDENPRODUCCION_MENU_DASHBOARD).</p>
+        <p><a href="?fix=1" class="btn">Remove bad rows now</a></p>
+    </div>
+    <?php endif; ?>
 </div>
 </body>
 </html>
