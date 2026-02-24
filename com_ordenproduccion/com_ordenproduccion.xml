@@ -72,6 +72,36 @@
                     min="1"
                     max="365"
                 />
+                <field
+                    name="margen_ganancia"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA"
+                    description="COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA_DESC"
+                    default="0"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                />
+                <field
+                    name="iva"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_PARAM_IVA"
+                    description="COM_ORDENPRODUCCION_PARAM_IVA_DESC"
+                    default="0"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                />
+                <field
+                    name="isr"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_PARAM_ISR"
+                    description="COM_ORDENPRODUCCION_PARAM_ISR_DESC"
+                    default="0"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                />
             </fieldset>
         </fields>
     </config>

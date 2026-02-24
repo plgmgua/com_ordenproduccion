@@ -20,6 +20,7 @@ $activeTab = $this->activeTab ?? 'sizes';
 $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 $basePliegos = $baseUrl . '&section=pliegos';
 $baseElementos = $baseUrl . '&section=elementos';
+$baseParametros = $baseUrl . '&section=parametros';
 
 // Fallback to human-friendly labels when language file is not loaded (e.g. after deploy)
 $l = function ($key, $fallback) {
@@ -29,7 +30,7 @@ $l = function ($key, $fallback) {
 ?>
 <div class="com-ordenproduccion-productos">
     <div class="container-fluid">
-        <h1 class="page-title"><?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TITLE', 'Productos'); ?></h1>
+        <h1 class="page-title"><?php echo $l('COM_ORDENPRODUCCION_ADMIN_IMPRENTA_TITLE', 'Administración de Imprenta'); ?></h1>
 
         <ul class="nav nav-tabs mb-3">
             <li class="nav-item">
@@ -42,6 +43,12 @@ $l = function ($key, $fallback) {
                 <a class="nav-link <?php echo $section === 'elementos' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseElementos); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ELEMENTOS', 'Elementos'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $section === 'parametros' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseParametros); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_PARAMETROS', 'Parámetros'); ?>
                 </a>
             </li>
         </ul>

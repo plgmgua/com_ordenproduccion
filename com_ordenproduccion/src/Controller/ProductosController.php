@@ -411,4 +411,63 @@ class ProductosController extends BaseController
         Factory::getApplication()->enqueueMessage($msg, $type);
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=elementos', false));
     }
+
+    /**
+     * Save parametros (margen_ganancia, iva, isr) to component params. Redirects to section=parametros.
+     *
+     * @return  void
+     * @since   3.77.0
+     */
+    public function saveParametros()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectParametros(Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectParametros(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $margen = (float) $input->post->get('margen_ganancia', 0, 'raw');
+        $iva = (float) $input->post->get('iva', 0, 'raw');
+        $isr = (float) $input->post->get('isr', 0, 'raw');
+        $margen = max(0, min(100, $margen));
+        $iva = max(0, min(100, $iva));
+        $isr = max(0, min(100, $isr));
+
+        $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+        $params = $component->getParams();
+        $params->set('margen_ganancia', $margen);
+        $params->set('iva', $iva);
+        $params->set('isr', $isr);
+
+        $table = Factory::getTable('Extension');
+        $table->load(['element' => 'com_ordenproduccion', 'type' => 'component']);
+        $table->params = $params->toString();
+        if (!$table->store()) {
+            $this->setRedirectParametros(Text::_('JLIB_APPLICATION_ERROR_SAVE_FAILED'), 'error');
+            return;
+        }
+        $msg = Text::_('COM_ORDENPRODUCCION_PARAMETROS_SAVED');
+        if ($msg === 'COM_ORDENPRODUCCION_PARAMETROS_SAVED') {
+            $msg = 'Parámetros guardados correctamente.';
+        }
+        $this->setRedirectParametros($msg, 'success');
+    }
+
+    /**
+     * Redirect to Productos section=parametros.
+     *
+     * @param   string  $msg   Message text
+     * @param   string  $type  Message type
+     * @return  void
+     * @since   3.77.0
+     */
+    private function setRedirectParametros($msg, $type = 'notice')
+    {
+        Factory::getApplication()->enqueueMessage($msg, $type);
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=parametros', false));
+    }
 }

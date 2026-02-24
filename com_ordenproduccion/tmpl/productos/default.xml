@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="Productos">
+    <layout title="COM_ORDENPRODUCCION_ADMIN_IMPRENTA_TITLE">
         <message><![CDATA[Tamaños de pliego, tipos de papel, laminación y procesos adicionales para cotización.]]></message>
     </layout>
     <fields name="request">

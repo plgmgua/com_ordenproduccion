@@ -136,6 +136,30 @@ class HtmlView extends BaseHtmlView
     protected $elementosTableExists = false;
 
     /**
+     * Margen de ganancia % (for section=parametros)
+     *
+     * @var    float
+     * @since  3.77.0
+     */
+    protected $margenGanancia = 0;
+
+    /**
+     * IVA % (for section=parametros)
+     *
+     * @var    float
+     * @since  3.77.0
+     */
+    protected $iva = 0;
+
+    /**
+     * ISR % (for section=parametros)
+     *
+     * @var    float
+     * @since  3.77.0
+     */
+    protected $isr = 0;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -154,10 +178,21 @@ class HtmlView extends BaseHtmlView
 
         $input = $app->input;
         $this->section = $input->get('section', 'pliegos', 'cmd');
-        if (!in_array($this->section, ['pliegos', 'elementos'], true)) {
+        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros'], true)) {
             $this->section = 'pliegos';
         }
         $this->activeTab = $input->get('tab', 'sizes', 'cmd');
+
+        if ($this->section === 'parametros') {
+            $this->setLayout('parametros');
+            $params = $app->bootComponent('com_ordenproduccion')->getParams();
+            $this->margenGanancia = (float) $params->get('margen_ganancia', 0);
+            $this->iva = (float) $params->get('iva', 0);
+            $this->isr = (float) $params->get('isr', 0);
+            $this->_prepareDocument();
+            parent::display($tpl);
+            return;
+        }
 
         $model = $this->getModel('Productos');
         $this->tablesExist = $model->tablesExist();
@@ -202,9 +237,9 @@ class HtmlView extends BaseHtmlView
      */
     protected function _prepareDocument()
     {
-        $title = Text::_('COM_ORDENPRODUCCION_PRODUCTOS_TITLE');
-        if ($title === 'COM_ORDENPRODUCCION_PRODUCTOS_TITLE') {
-            $title = 'Productos';
+        $title = Text::_('COM_ORDENPRODUCCION_ADMIN_IMPRENTA_TITLE');
+        if ($title === 'COM_ORDENPRODUCCION_ADMIN_IMPRENTA_TITLE') {
+            $title = 'Administración de Imprenta';
         }
         $this->document->setTitle($title);
     }
