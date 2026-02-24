@@ -58,7 +58,8 @@ class Dispatcher extends ComponentDispatcher
             return;
         }
 
-        if (strpos($view, 'cotizacion') === 0 && $view !== 'cotizacion') {
+        // Only normalize malformed view names (e.g. "cotizacionclient_id7"), not the list view "cotizaciones"
+        if (strpos($view, 'cotizacion') === 0 && $view !== 'cotizacion' && $view !== 'cotizaciones') {
             $this->input->set('view', 'cotizacion');
         }
     }
