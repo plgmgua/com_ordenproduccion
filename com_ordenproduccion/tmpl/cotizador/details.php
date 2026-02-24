@@ -45,7 +45,7 @@ $margenAmount = $linesSubtotal * ($paramMargen / 100);
 $ivaAmount = $linesSubtotal * ($paramIva / 100);
 $isrAmount = $linesSubtotal * ($paramIsr / 100);
 $comisionAmount = $linesSubtotal * ($paramComision / 100);
-$linesTotal = $linesSubtotal + $margenAmount + $ivaAmount - $isrAmount + $comisionAmount;
+$linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
 ?>
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
@@ -144,7 +144,7 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount - $isrAmount + $comisi
                     <?php if ($paramIsr != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
-                        <td class="text-end">- Q <?php echo number_format($isrAmount, 2); ?></td>
+                        <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($paramComision != 0) : ?>
