@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -51,7 +52,7 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                     $associatedMap = $this->associatedQuotationNumbersByPreId ?? [];
                     foreach ($items as $item) :
                         $docUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $item->id);
-                        $deleteUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.delete&id=' . (int) $item->id . '&' . Session::getFormToken() . '=1');
+                        $deleteAction = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.delete', false);
                         $created = $item->created ? (new \DateTime($item->created))->format('d/m/Y H:i') : '-';
                         $quotationNumbers = $associatedMap[(int) $item->id] ?? [];
                     ?>
@@ -84,10 +85,11 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                                     <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VIEW'); ?>
                                 </a>
                                 <?php if (empty($quotationNumbers)) : ?>
-                                <a href="<?php echo htmlspecialchars($deleteUrl); ?>" class="btn btn-sm btn-outline-danger"
-                                   onclick="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE')); ?>');">
-                                    <?php echo Text::_('JACTION_DELETE'); ?>
-                                </a>
+                                <form action="<?php echo htmlspecialchars($deleteAction); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE')); ?>');">
+                                    <?php echo HTMLHelper::_('form.token'); ?>
+                                    <input type="hidden" name="id" value="<?php echo (int) $item->id; ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
+                                </form>
                                 <?php endif; ?>
                             </td>
                         </tr>

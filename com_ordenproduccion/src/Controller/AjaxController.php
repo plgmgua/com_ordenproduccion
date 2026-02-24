@@ -366,11 +366,12 @@ class AjaxController extends BaseController
                     }
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
+                        $valorUnitario = $cantidad > 0 ? round($value / $cantidad, 4) : (float) $value;
                         $lineItems[] = [
                             'line_order' => $lineOrder,
                             'cantidad' => $cantidad,
                             'descripcion' => $desc !== '' ? $desc : 'PRE-' . $preId,
-                            'valor_unitario' => $cantidad > 0 ? $value / $cantidad : $value,
+                            'valor_unitario' => $valorUnitario,
                             'subtotal' => $value,
                             'pre_cotizacion_id' => $preId,
                         ];
@@ -382,7 +383,7 @@ class AjaxController extends BaseController
                 foreach ($items as $lineOrder => $item) {
                     if (!empty($item['cantidad']) && !empty($item['valor_unitario'])) {
                         $cantidad = (float) $item['cantidad'];
-                        $valorUnitario = (float) $item['valor_unitario'];
+                        $valorUnitario = round((float) $item['valor_unitario'], 4);
                         $subtotal = $cantidad * $valorUnitario;
                         $lineItems[] = [
                             'line_order' => $lineOrder,
@@ -541,11 +542,12 @@ class AjaxController extends BaseController
             if ($cantidad < 0.001) $cantidad = 1;
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
+                $valorUnitario = $cantidad > 0 ? round($value / $cantidad, 4) : (float) $value;
                 $lineItems[] = [
                     'line_order' => $lineOrder,
                     'cantidad' => $cantidad,
                     'descripcion' => $desc !== '' ? $desc : ('PRE-' . $preId),
-                    'valor_unitario' => $cantidad > 0 ? $value / $cantidad : $value,
+                    'valor_unitario' => $valorUnitario,
                     'subtotal' => $value,
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
                 ];
