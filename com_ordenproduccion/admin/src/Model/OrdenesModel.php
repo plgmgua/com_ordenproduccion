@@ -131,8 +131,9 @@ class OrdenesModel extends ListModel
 
     /**
      * Get the client name column for #__ordenproduccion_ordenes (supports client_name and nombre_del_cliente).
+     * Returns null if neither column exists (caller should not select/search by client).
      *
-     * @return  string
+     * @return  string|null
      * @since   1.0.0
      */
     protected function getOrdenesClientColumn()
@@ -142,33 +143,33 @@ class OrdenesModel extends ListModel
         }
         try {
             $db = $this->getDbo();
-            $prefix = $db->getPrefix();
-            $tableName = $prefix . 'ordenproduccion_ordenes';
-            $db->setQuery(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " .
-                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($tableName) . " " .
-                "AND COLUMN_NAME IN ('client_name', 'nombre_del_cliente')"
-            );
-            $cols = $db->loadColumn() ?: [];
-            if (in_array('nombre_del_cliente', $cols)) {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (!is_array($cols)) {
+                $this->ordenesClientColumn = '';
+                return $this->ordenesClientColumn;
+            }
+            $colNames = array_keys($cols);
+            if (in_array('nombre_del_cliente', $colNames)) {
                 $this->ordenesClientColumn = 'nombre_del_cliente';
                 return $this->ordenesClientColumn;
             }
-            if (in_array('client_name', $cols)) {
+            if (in_array('client_name', $colNames)) {
                 $this->ordenesClientColumn = 'client_name';
                 return $this->ordenesClientColumn;
             }
+            // Mark as no client column so we don't query again; use empty string to mean "skip"
+            $this->ordenesClientColumn = '';
         } catch (\Throwable $e) {
-            // fallback
+            $this->ordenesClientColumn = '';
         }
-        $this->ordenesClientColumn = 'nombre_del_cliente';
         return $this->ordenesClientColumn;
     }
 
     /**
      * Get the order-number column for #__ordenproduccion_info (supports numero_de_orden and orden_de_trabajo).
+     * Returns null if neither exists (caller should skip info joins).
      *
-     * @return  string
+     * @return  string|null
      * @since   1.0.0
      */
     protected function getInfoOrderColumn()
@@ -178,26 +179,24 @@ class OrdenesModel extends ListModel
         }
         try {
             $db = $this->getDbo();
-            $prefix = $db->getPrefix();
-            $tableName = $prefix . 'ordenproduccion_info';
-            $db->setQuery(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " .
-                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $db->quote($tableName) . " " .
-                "AND COLUMN_NAME IN ('numero_de_orden', 'orden_de_trabajo')"
-            );
-            $cols = $db->loadColumn() ?: [];
-            if (in_array('numero_de_orden', $cols)) {
+            $cols = $db->getTableColumns('#__ordenproduccion_info', false);
+            if (!is_array($cols)) {
+                $this->infoOrderColumn = '';
+                return $this->infoOrderColumn;
+            }
+            $colNames = array_keys($cols);
+            if (in_array('numero_de_orden', $colNames)) {
                 $this->infoOrderColumn = 'numero_de_orden';
                 return $this->infoOrderColumn;
             }
-            if (in_array('orden_de_trabajo', $cols)) {
+            if (in_array('orden_de_trabajo', $colNames)) {
                 $this->infoOrderColumn = 'orden_de_trabajo';
                 return $this->infoOrderColumn;
             }
+            $this->infoOrderColumn = '';
         } catch (\Throwable $e) {
-            // fallback
+            $this->infoOrderColumn = '';
         }
-        $this->infoOrderColumn = 'numero_de_orden';
         return $this->infoOrderColumn;
     }
 
@@ -215,63 +214,71 @@ class OrdenesModel extends ListModel
         $clientCol = $this->getOrdenesClientColumn();
         $infoOrderCol = $this->getInfoOrderColumn();
 
-        // Select the required fields from the table (client column as nombre_del_cliente for templates)
-        $query->select([
+        $select = [
             $db->quoteName('o.id'),
             $db->quoteName('o.orden_de_trabajo'),
-            $db->quoteName('o.' . $clientCol, 'nombre_del_cliente'),
             $db->quoteName('o.fecha_de_entrega'),
             $db->quoteName('o.agente_de_ventas'),
             $db->quoteName('o.descripcion_de_trabajo'),
             $db->quoteName('o.created'),
             $db->quoteName('o.created_by'),
             $db->quoteName('o.state'),
-            $db->quoteName('i.valor', 'status'),
-            $db->quoteName('t.valor', 'type')
-        ]);
+        ];
+        if ($clientCol !== '') {
+            $select[] = $db->quoteName('o.' . $clientCol, 'nombre_del_cliente');
+        } else {
+            $select[] = $db->quote('') . ' AS ' . $db->quoteName('nombre_del_cliente');
+        }
+        if ($infoOrderCol !== '') {
+            $select[] = $db->quoteName('i.valor', 'status');
+            $select[] = $db->quoteName('t.valor', 'type');
+        } else {
+            $select[] = $db->quote('NULL') . ' AS ' . $db->quoteName('status');
+            $select[] = $db->quote('NULL') . ' AS ' . $db->quoteName('type');
+        }
+        $query->select($select);
 
         $query->from($db->quoteName('#__ordenproduccion_ordenes', 'o'));
 
-        // Join with status information
-        $query->leftJoin(
-            $db->quoteName('#__ordenproduccion_info', 'i') . ' ON ' .
-            $db->quoteName('i.' . $infoOrderCol) . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
-            $db->quoteName('i.tipo_de_campo') . ' = ' . $db->quote('estado')
-        );
+        if ($infoOrderCol !== '') {
+            $query->leftJoin(
+                $db->quoteName('#__ordenproduccion_info', 'i') . ' ON ' .
+                $db->quoteName('i.' . $infoOrderCol) . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
+                $db->quoteName('i.tipo_de_campo') . ' = ' . $db->quote('estado')
+            );
+            $query->leftJoin(
+                $db->quoteName('#__ordenproduccion_info', 't') . ' ON ' .
+                $db->quoteName('t.' . $infoOrderCol) . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
+                $db->quoteName('t.tipo_de_campo') . ' = ' . $db->quote('tipo')
+            );
+        }
 
-        // Join with type information
-        $query->leftJoin(
-            $db->quoteName('#__ordenproduccion_info', 't') . ' ON ' .
-            $db->quoteName('t.' . $infoOrderCol) . ' = ' . $db->quoteName('o.orden_de_trabajo') . ' AND ' .
-            $db->quoteName('t.tipo_de_campo') . ' = ' . $db->quote('tipo')
-        );
-
-        // Filter by published state
         $query->where($db->quoteName('o.state') . ' = 1');
 
-        // Filter by search in title
         $search = $this->getState('filter.search');
         if (!empty($search)) {
             if (stripos($search, 'id:') === 0) {
                 $query->where($db->quoteName('o.id') . ' = ' . (int) substr($search, 3));
             } else {
                 $search = $db->quote('%' . $db->escape($search, true) . '%');
-                $query->where('(' . $db->quoteName('o.orden_de_trabajo') . ' LIKE ' . $search .
-                             ' OR ' . $db->quoteName('o.' . $clientCol) . ' LIKE ' . $search .
-                             ' OR ' . $db->quoteName('o.descripcion_de_trabajo') . ' LIKE ' . $search . ')');
+                $conds = [$db->quoteName('o.orden_de_trabajo') . ' LIKE ' . $search];
+                if ($clientCol !== '') {
+                    $conds[] = $db->quoteName('o.' . $clientCol) . ' LIKE ' . $search;
+                }
+                $conds[] = $db->quoteName('o.descripcion_de_trabajo') . ' LIKE ' . $search;
+                $query->where('(' . implode(' OR ', $conds) . ')');
             }
         }
 
-        // Filter by status
-        $status = $this->getState('filter.status');
-        if (!empty($status)) {
-            $query->where($db->quoteName('i.valor') . ' = ' . $db->quote($status));
-        }
-
-        // Filter by type
-        $type = $this->getState('filter.type');
-        if (!empty($type)) {
-            $query->where($db->quoteName('t.valor') . ' = ' . $db->quote($type));
+        if ($infoOrderCol !== '') {
+            $status = $this->getState('filter.status');
+            if (!empty($status)) {
+                $query->where($db->quoteName('i.valor') . ' = ' . $db->quote($status));
+            }
+            $type = $this->getState('filter.type');
+            if (!empty($type)) {
+                $query->where($db->quoteName('t.valor') . ' = ' . $db->quote($type));
+            }
         }
 
         // Filter by date range
@@ -290,7 +297,7 @@ class OrdenesModel extends ListModel
         $orderDirn = $this->state->get('list.direction', 'desc');
         // Normalize client column sort (template may use a.* or o.*)
         if (in_array($orderCol, ['a.nombre_del_cliente', 'o.nombre_del_cliente', 'a.client_name', 'o.client_name'], true)) {
-            $orderCol = 'o.' . $clientCol;
+            $orderCol = $clientCol !== '' ? 'o.' . $clientCol : 'o.orden_de_trabajo';
         }
         $query->order($db->escape($orderCol) . ' ' . $db->escape($orderDirn));
 
