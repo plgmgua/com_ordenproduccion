@@ -137,12 +137,18 @@ class HtmlView extends BaseHtmlView
                     }
                     $db->setQuery($query);
                     $this->quotationItems = $db->loadObjectList() ?: [];
+                    $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                        ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
                     foreach ($this->quotationItems as $item) {
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-                        // Ensure display number: from join/subquery or fallback PRE-{id}
                         $num = isset($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : '';
                         if ($num === '' && $preId > 0) {
                             $item->pre_cotizacion_number = 'PRE-' . $preId;
+                        }
+                        if ($preId > 0 && $precotModel) {
+                            $item->pre_cotizacion_total = $precotModel->getTotalForPreCotizacion($preId);
+                        } else {
+                            $item->pre_cotizacion_total = null;
                         }
                     }
                 } else {

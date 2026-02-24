@@ -224,17 +224,22 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         }
                         $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
                         if ($qty < 1) $qty = 1;
-                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                        $unit = $qty > 0 && $subtotal > 0 ? ($subtotal / $qty) : 0;
+                        $preTotal = isset($item->pre_cotizacion_total) ? (float) $item->pre_cotizacion_total : null;
+                        if ($preId > 0 && $preTotal !== null) {
+                            $lineTotal = $preTotal;
+                            $unitPriceDisplay = $qty > 0 ? ($lineTotal / $qty) : 0;
+                        } else {
+                            $lineTotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
+                            $unitPriceDisplay = $qty > 0 && $lineTotal > 0 ? ($lineTotal / $qty) : 0;
+                        }
                         $desc = isset($item->descripcion) ? $item->descripcion : '';
                     ?>
-                    <?php $unitPriceDisplay = $qty > 0 && $subtotal > 0 ? ($subtotal / $qty) : 0; ?>
-                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotal, 2, '.', ''); ?>">
+                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($lineTotal, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
-                        <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($subtotal, 2, '.', ''); ?>" readonly></td>
+                        <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" readonly></td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button>
