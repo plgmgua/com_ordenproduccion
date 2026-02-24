@@ -278,6 +278,7 @@ class PrecotizacionModel extends ListModel
         $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
         $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
         $hasElementoCols = isset($columns['line_type']) && isset($columns['elemento_id']);
+        $hasEnvioCols = isset($columns['line_type']) && isset($columns['envio_id']);
         $productosModel = null;
 
         foreach ($rows as $row) {
@@ -323,6 +324,23 @@ class PrecotizacionModel extends ListModel
                                 $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $updateLine, 'id');
                             }
                         }
+                    }
+                }
+            }
+            if ($hasEnvioCols) {
+                $r = array_change_key_case((array) $row, CASE_LOWER);
+                $lineType = $r['line_type'] ?? 'pliego';
+                if ($lineType === 'envio' && !empty($r['envio_id'])) {
+                    $envioId = (int) $r['envio_id'];
+                    if ($productosModel === null) {
+                        $productosModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                            ->getMVCFactory()->createModel('Productos', 'Site', ['ignore_request' => true]);
+                    }
+                    if ($productosModel->enviosTableExists()) {
+                        $envio = $productosModel->getEnvio($envioId);
+                        $row->envio_name = $envio ? $envio->name : '';
+                    } else {
+                        $row->envio_name = '';
                     }
                 }
             }
@@ -495,25 +513,46 @@ class PrecotizacionModel extends ListModel
 
         $lineType = (isset($data['line_type']) && $data['line_type'] === 'elementos') ? 'elementos' : 'pliego';
         $elementoId = $lineType === 'elementos' ? (int) ($data['elemento_id'] ?? 0) : null;
+        if (isset($data['line_type']) && $data['line_type'] === 'envio') {
+            $lineType = 'envio';
+            $elementoId = null;
+        }
 
+        $totalLine = (float) ($data['total'] ?? 0);
+        if ($lineType === 'envio') {
+            $envioId = (int) ($data['envio_id'] ?? 0);
+            if ($envioId > 0) {
+                $productosModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                    ->getMVCFactory()->createModel('Productos', 'Site', ['ignore_request' => true]);
+                $envio = $productosModel->enviosTableExists() ? $productosModel->getEnvio($envioId) : null;
+                if ($envio) {
+                    $tipoEnvio = isset($envio->tipo) ? (string) $envio->tipo : 'fixed';
+                    if ($tipoEnvio === 'custom') {
+                        $totalLine = (float) ($data['envio_valor'] ?? 0);
+                    } else {
+                        $totalLine = (float) ($envio->valor ?? 0);
+                    }
+                }
+            }
+        }
         $processIds = isset($data['process_ids']) && is_array($data['process_ids'])
             ? json_encode(array_values(array_map('intval', $data['process_ids'])))
             : '[]';
-        $breakdown = isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown'])
+        $breakdown = $lineType !== 'envio' && isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown'])
             ? json_encode($data['calculation_breakdown'])
             : null;
 
         $line = (object) [
             'pre_cotizacion_id'       => $preCotizacionId,
-            'quantity'               => (int) ($data['quantity'] ?? 1),
+            'quantity'               => $lineType === 'envio' ? 1 : (int) ($data['quantity'] ?? 1),
             'paper_type_id'          => $lineType === 'pliego' ? (int) ($data['paper_type_id'] ?? 0) : 0,
             'size_id'                => $lineType === 'pliego' ? (int) ($data['size_id'] ?? 0) : 0,
             'tiro_retiro'            => $lineType === 'pliego' ? (($data['tiro_retiro'] ?? 'tiro') === 'retiro' ? 'retiro' : 'tiro') : 'tiro',
             'lamination_type_id'     => $lineType === 'pliego' && isset($data['lamination_type_id']) ? (int) $data['lamination_type_id'] : null,
             'lamination_tiro_retiro' => $lineType === 'pliego' && isset($data['lamination_tiro_retiro']) && $data['lamination_tiro_retiro'] === 'retiro' ? 'retiro' : 'tiro',
             'process_ids'            => $lineType === 'pliego' ? $processIds : '[]',
-            'price_per_sheet'        => (float) ($data['price_per_sheet'] ?? 0),
-            'total'                  => (float) ($data['total'] ?? 0),
+            'price_per_sheet'        => $lineType === 'envio' ? $totalLine : (float) ($data['price_per_sheet'] ?? 0),
+            'total'                  => $totalLine,
             'calculation_breakdown'  => $breakdown,
             'ordering'               => $ordering,
         ];
@@ -523,6 +562,10 @@ class PrecotizacionModel extends ListModel
         if (isset($columns['line_type'])) {
             $line->line_type = $lineType;
             $line->elemento_id = $elementoId > 0 ? $elementoId : null;
+        }
+        if (isset($columns['envio_id']) && $lineType === 'envio') {
+            $line->envio_id = (int) ($data['envio_id'] ?? 0) ?: null;
+            $line->envio_valor = isset($data['envio_valor']) ? (float) $data['envio_valor'] : null;
         }
 
         try {

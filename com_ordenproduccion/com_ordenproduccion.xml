@@ -26,9 +26,10 @@
     </media>
 
     <administration>
-        <menu img="class:ordenproduccion-icon">COM_ORDENPRODUCCION</menu>
+        <menu link="option=com_ordenproduccion&amp;view=dashboard" img="class:cog">COM_ORDENPRODUCCION</menu>
         <files folder="admin">
             <filename>services/provider.php</filename>
+            <filename>access.xml</filename>
             <folder>forms</folder>
             <folder>src</folder>
             <folder>tmpl</folder>

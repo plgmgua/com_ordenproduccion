@@ -99,11 +99,16 @@ class HtmlView extends BaseHtmlView
                 $this->item = null;
                 $this->lines = [];
                 $this->elementos = [];
+                $this->envios = [];
             } else {
                 $this->lines = $precotModel->getLines($id);
                 $this->elementos = [];
                 if ($productosModel->elementosTableExists()) {
                     $this->elementos = $productosModel->getElementos();
+                }
+                $this->envios = [];
+                if ($productosModel->enviosTableExists()) {
+                    $this->envios = $productosModel->getEnvios();
                 }
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);

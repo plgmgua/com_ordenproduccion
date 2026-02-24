@@ -1,38 +1,36 @@
 <?php
 /**
  * Comprehensive Troubleshooting & Validation Script for com_ordenproduccion
- * Validates component functionality, especially bank dropdown population
+ * Validates component functionality, especially bank dropdown population.
+ * Run directly from Joomla root: /troubleshooting.php
+ * If run from admin (or after Discover), Joomla may already be loaded – we avoid redefining constants.
  */
 
-// Define _JEXEC if not already defined (may be defined by Joomla framework)
-if (!defined('_JEXEC')) {
-    define('_JEXEC', 1);
-}
-
-// Detect JPATH_ROOT automatically
-if (!defined('JPATH_ROOT')) {
-    // Try multiple common locations
-    $possibleRoots = [
-        __DIR__,                      // Same directory
-        dirname(__DIR__),             // Parent directory
-        dirname(dirname(__DIR__)),    // Grandparent directory
-        '/var/www/grimpsa_webserver', // Common production path
-    ];
-    
-    foreach ($possibleRoots as $path) {
-        if (file_exists($path . '/includes/defines.php')) {
-            define('JPATH_ROOT', $path);
-            break;
+// Bootstrap Joomla only if not already loaded (avoids "Constant _JEXEC already defined" when included from admin)
+if (!class_exists('Joomla\CMS\Factory')) {
+    if (!defined('_JEXEC')) {
+        define('_JEXEC', 1);
+    }
+    if (!defined('JPATH_ROOT')) {
+        $possibleRoots = [
+            __DIR__,
+            dirname(__DIR__),
+            dirname(dirname(__DIR__)),
+            '/var/www/grimpsa_webserver',
+        ];
+        foreach ($possibleRoots as $path) {
+            if (file_exists($path . '/includes/defines.php')) {
+                define('JPATH_ROOT', $path);
+                break;
+            }
+        }
+        if (!defined('JPATH_ROOT')) {
+            die("ERROR: Cannot find Joomla root directory. Please set JPATH_ROOT manually.");
         }
     }
-    
-    if (!defined('JPATH_ROOT')) {
-        die("ERROR: Cannot find Joomla root directory. Please set JPATH_ROOT manually.");
-    }
+    require_once JPATH_ROOT . '/includes/defines.php';
+    require_once JPATH_ROOT . '/includes/framework.php';
 }
-
-require_once JPATH_ROOT . '/includes/defines.php';
-require_once JPATH_ROOT . '/includes/framework.php';
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -44,7 +42,7 @@ $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 echo "<!DOCTYPE html>
 <html><head>
 <meta charset='UTF-8'>
-<title>Troubleshooting - com_ordenproduccion (Banks & Payment Proof)</title>
+<title>Troubleshooting - com_ordenproduccion (Banks, Payment Proof &amp; Backend Menu)</title>
 <style>
 body { 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -139,7 +137,7 @@ echo "<div class='summary'>";
 echo "<strong>Timestamp:</strong> " . date('Y-m-d H:i:s') . "<br>";
 echo "<strong>Joomla Root:</strong> " . JPATH_ROOT . "<br>";
 echo "<strong>Component:</strong> com_ordenproduccion<br>";
-echo "<strong>Quick links:</strong> <a href='#payment-diag'>💳 Payment Proof 1054 Error Diagnostics</a> | <a href='#productos-calc'>📦 Productos &amp; Calculations</a><br>";
+echo "<strong>Quick links:</strong> <a href='#payment-diag'>💳 Payment Proof 1054 Error Diagnostics</a> | <a href='#productos-calc'>📦 Productos &amp; Calculations</a> | <a href='#backend-menu'>🔧 Backend Menu Item</a><br>";
 echo "</div>";
 
 $testResults = [];
@@ -1141,6 +1139,235 @@ $testResults['productos_calculations'] = $productosOk;
 echo "</div>";
 
 // ============================================
+// BACKEND MENU ITEM (Components dropdown)
+// ============================================
+echo "<div class='test-section' id='backend-menu'>";
+echo "<h2>🔧 Backend Menu Item (Components → Work Orders)</h2>";
+echo "<p class='info'>Diagnoses why the com_ordenproduccion menu item may not appear in the administrator <strong>Components</strong> dropdown.</p>";
+
+echo "<div class='summary' style='margin: 15px 0; border-left-color: #dc3545;'>";
+echo "<strong>If the item disappeared after using <em>Discover</em>:</strong> Discover installs/reinstalls extensions from the filesystem and can overwrite the component manifest with an older or different version (without the menu link). Use the fix below or re-copy <code>com_ordenproduccion.xml</code> and <code>access.xml</code> from your repo to <code>administrator/components/com_ordenproduccion/</code>, then clear cache.";
+echo "</div>";
+
+// Optional one-click fix: patch the installed manifest so the menu has link= and access.xml is in files
+$fixRequested = isset($_GET['fix_backend_menu']) && $_GET['fix_backend_menu'] === '1';
+$adminManifestPathForFix = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/com_ordenproduccion.xml';
+if ($fixRequested && file_exists($adminManifestPathForFix)) {
+    $manifestContent = file_get_contents($adminManifestPathForFix);
+    $modified = false;
+    // Ensure <menu has link= (add if missing)
+    if (!preg_match('/<menu\s+[^>]*link=/', $manifestContent)) {
+        $newContent = preg_replace(
+            '/<menu\s+([^>]*)>/',
+            '<menu link="option=com_ordenproduccion&amp;view=dashboard" $1>',
+            $manifestContent,
+            1
+        );
+        if ($newContent !== null && $newContent !== $manifestContent) {
+            $manifestContent = $newContent;
+            $modified = true;
+        }
+    }
+    // Ensure access.xml is in admin files (add after first <filename> in admin section)
+    if (strpos($manifestContent, 'access.xml') === false && preg_match('/<files\s+folder="admin">/', $manifestContent)) {
+        $newContent = preg_replace(
+            '/(<files\s+folder="admin">\s*<filename>)([^<]+)(<\/filename>)/',
+            '$1$2$3' . "\n            " . '<filename>access.xml</filename>',
+            $manifestContent,
+            1
+        );
+        if ($newContent !== null && $newContent !== $manifestContent) {
+            $manifestContent = $newContent;
+            $modified = true;
+        }
+    }
+    if ($modified) {
+        if (@file_put_contents($adminManifestPathForFix, $manifestContent) !== false) {
+            echo "<p class='ok'><strong>✅ Manifest patched.</strong> Reload this page (without ?fix_backend_menu=1), then clear admin cache (System → Clear Cache) and check the Components menu.</p>";
+        } else {
+            echo "<p class='error'>❌ Could not write manifest. Check file permissions on administrator/components/com_ordenproduccion/com_ordenproduccion.xml</p>";
+        }
+    } else {
+        echo "<p class='info'>Manifest already has menu link and access.xml, or patch failed. See checks below.</p>";
+    }
+}
+
+echo "<div class='summary' style='margin: 15px 0; border-left-color: #856404;'>";
+echo "<strong>If everything else works and only the Components menu item is missing:</strong><br>";
+echo "1. Ensure the <strong>manifest</strong> on the server has <code>link=\"option=com_ordenproduccion&amp;view=dashboard\"</code> in the &lt;menu&gt; tag and <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> in admin &lt;files&gt; (see checks 2–3 below).<br>";
+echo "2. Copy the latest <code>com_ordenproduccion.xml</code> and <code>access.xml</code> from your repo to <code>administrator/components/com_ordenproduccion/</code>, or <a href='?fix_backend_menu=1#backend-menu'>apply the fix now</a> to patch the manifest in place.<br>";
+echo "3. <strong>Clear admin cache</strong> (System → Clear Cache) and ensure your user has <strong>Manage</strong> permission for the component (System → Manage → Permissions).<br>";
+echo "</div>";
+
+$prefix = $db->getPrefix();
+$menuOk = true;
+
+// 1. Extension record
+echo "<h3>1. Extension record (#__extensions)</h3>";
+try {
+    $q = $db->getQuery(true)
+        ->select('extension_id, name, element, type, enabled, manifest_cache')
+        ->from($db->quoteName('#__extensions'))
+        ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'))
+        ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
+    $db->setQuery($q);
+    $ext = $db->loadObject();
+    if (!$ext) {
+        echo "<p class='error'>❌ No extension record found for com_ordenproduccion. Component may not be installed.</p>";
+        $menuOk = false;
+    } else {
+        echo "<table><tr><th>Property</th><th>Value</th><th>Status</th></tr>";
+        echo "<tr class='ok'><td>Extension ID</td><td>" . (int) $ext->extension_id . "</td><td>✅</td></tr>";
+        echo "<tr class='ok'><td>Element</td><td><code>" . htmlspecialchars($ext->element ?? '') . "</code></td><td>✅</td></tr>";
+        $enabled = !empty($ext->enabled);
+        echo "<tr class='" . ($enabled ? 'ok' : 'error') . "'><td>Enabled</td><td>" . ($enabled ? 'Yes' : 'No') . "</td><td>" . ($enabled ? "✅" : "❌ Disabled – enable the component") . "</td></tr>";
+        if (!$enabled) {
+            $menuOk = false;
+        }
+        $manifestCache = isset($ext->manifest_cache) ? json_decode($ext->manifest_cache, true) : null;
+        $version = is_array($manifestCache) && isset($manifestCache['version']) ? $manifestCache['version'] : '—';
+        echo "<tr class='info'><td>Version (cached)</td><td><code>" . htmlspecialchars($version) . "</code></td><td>From manifest_cache</td></tr>";
+        echo "</table>";
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+    $menuOk = false;
+}
+
+// 2. Manifest file on disk (administrator)
+echo "<h3>2. Manifest file (administrator)</h3>";
+$adminManifestPath = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/com_ordenproduccion.xml';
+$manifestExists = file_exists($adminManifestPath);
+$hasMenuLink = false;
+$hasAccessXml = false;
+echo "<p class='" . ($manifestExists ? 'ok' : 'error') . "'>" . ($manifestExists ? "✅" : "❌") . " Manifest path: <code>" . htmlspecialchars($adminManifestPath) . "</code></p>";
+if (!$manifestExists) {
+    $menuOk = false;
+} else {
+    $manifestContent = file_get_contents($adminManifestPath);
+    $hasMenuLink = (strpos($manifestContent, 'link=') !== false && preg_match('/<menu\s[^>]*link=/', $manifestContent));
+    $hasAccessXml = (strpos($manifestContent, 'access.xml') !== false);
+    $hasMenuTag = (strpos($manifestContent, '<menu') !== false);
+    echo "<table><tr><th>Check</th><th>Result</th><th>Status</th></tr>";
+    echo "<tr class='" . ($hasMenuTag ? 'ok' : 'error') . "'><td>&lt;menu&gt; tag present</td><td>" . ($hasMenuTag ? 'Yes' : 'No') . "</td><td>" . ($hasMenuTag ? "✅" : "❌") . "</td></tr>";
+    echo "<tr class='" . ($hasMenuLink ? 'ok' : 'warning') . "'><td>Menu has explicit <code>link=</code></td><td>" . ($hasMenuLink ? 'Yes' : 'No') . "</td><td>" . ($hasMenuLink ? "✅" : "⚠️ Add link=\"option=com_ordenproduccion&amp;view=dashboard\" so the item appears") . "</td></tr>";
+    echo "<tr class='" . ($hasAccessXml ? 'ok' : 'warning') . "'><td><code>access.xml</code> in admin files</td><td>" . ($hasAccessXml ? 'Yes' : 'No') . "</td><td>" . ($hasAccessXml ? "✅" : "⚠️ Add &lt;filename&gt;access.xml&lt;/filename&gt; so permissions are installed") . "</td></tr>";
+    echo "</table>";
+    if (!$hasMenuLink || !$hasAccessXml) {
+        $menuOk = false;
+    }
+}
+
+// 3. access.xml in admin folder
+echo "<h3>3. access.xml in admin folder</h3>";
+$accessPath = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/access.xml';
+$accessExists = file_exists($accessPath);
+echo "<p class='" . ($accessExists ? 'ok' : 'error') . "'>" . ($accessExists ? "✅" : "❌") . " <code>access.xml</code> " . ($accessExists ? "exists" : "missing") . "</p>";
+if (!$accessExists) {
+    $menuOk = false;
+} else {
+    $accessContent = file_get_contents($accessPath);
+    $hasCoreManage = (strpos($accessContent, 'core.manage') !== false);
+    echo "<p class='" . ($hasCoreManage ? 'ok' : 'warning') . "'>" . ($hasCoreManage ? "✅" : "⚠️") . " Defines <code>core.manage</code>: " . ($hasCoreManage ? "Yes" : "No") . "</p>";
+}
+
+// 4. Admin language (menu label)
+echo "<h3>4. Admin language (menu label)</h3>";
+$adminLangPaths = [
+    JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/language/en-GB/com_ordenproduccion.sys.ini',
+    JPATH_ADMINISTRATOR . '/language/en-GB/en-GB.com_ordenproduccion.sys.ini',
+];
+$langFound = false;
+foreach ($adminLangPaths as $p) {
+    if (file_exists($p)) {
+        $ini = @parse_ini_file($p, false, INI_SCANNER_RAW);
+        $label = isset($ini['COM_ORDENPRODUCCION']) ? $ini['COM_ORDENPRODUCCION'] : '';
+        $resolved = ($label !== '' && strpos($label, 'COM_ORDENPRODUCCION') !== 0);
+        echo "<p class='info'>✅ <code>" . htmlspecialchars(basename(dirname($p)) . '/' . basename($p)) . "</code>: COM_ORDENPRODUCCION = " . htmlspecialchars($label ?: '(empty or key only)') . "</p>";
+        if ($resolved) {
+            $langFound = true;
+        }
+    }
+}
+if (!$langFound) {
+    echo "<p class='warning'>⚠️ Menu may show as raw <code>COM_ORDENPRODUCCION</code> if admin sys.ini is missing or not loaded. Check admin/language/ and install language files.</p>";
+}
+
+// 5. Dashboard view (target of menu link)
+echo "<h3>5. Dashboard view (menu target)</h3>";
+$dashboardPaths = [
+    JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/View/Dashboard/HtmlView.php',
+    JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/Controller/DisplayController.php',
+];
+$dashboardOk = true;
+foreach ($dashboardPaths as $p) {
+    $exists = file_exists($p);
+    $name = basename(dirname($p)) . '/' . basename($p);
+    echo "<p class='" . ($exists ? 'ok' : 'error') . "'>" . ($exists ? "✅" : "❌") . " <code>{$name}</code></p>";
+    if (!$exists) {
+        $dashboardOk = false;
+    }
+}
+if (!$dashboardOk) {
+    $menuOk = false;
+}
+
+// 6. Asset / permissions (core.manage)
+echo "<h3>6. Component asset and core.manage</h3>";
+try {
+    $q = $db->getQuery(true)
+        ->select('id, name, rules')
+        ->from($db->quoteName('#__assets'))
+        ->where($db->quoteName('name') . ' = ' . $db->quote('com_ordenproduccion'));
+    $db->setQuery($q);
+    $asset = $db->loadObject();
+    if (!$asset) {
+        echo "<p class='warning'>⚠️ No asset row for <code>com_ordenproduccion</code>. Menu may be hidden for non–Super Users. Reinstall or update the component so access.xml is applied.</p>";
+        $menuOk = false;
+    } else {
+        $rules = json_decode($asset->rules ?? '{}', true);
+        $hasManage = isset($rules['core.manage']);
+        echo "<p class='info'>Asset ID: " . (int) $asset->id . ", name: <code>" . htmlspecialchars($asset->name ?? '') . "</code></p>";
+        echo "<p class='" . ($hasManage ? 'ok' : 'warning') . "'>" . ($hasManage ? "✅" : "⚠️") . " <code>core.manage</code> rule " . ($hasManage ? "present in rules" : "missing – check Permissions") . "</p>";
+        if (!$hasManage && !empty($rules)) {
+            echo "<p class='info'>Existing action keys: <code>" . implode('</code>, <code>', array_keys($rules)) . "</code></p>";
+        }
+    }
+} catch (\Exception $e) {
+    echo "<p class='error'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// 7. Recommended actions
+echo "<h3>7. Recommended actions</h3>";
+$actions = [];
+if (!$manifestExists) {
+    $actions[] = "Deploy the component so <code>com_ordenproduccion.xml</code> exists under administrator/components/com_ordenproduccion/.";
+}
+if ($manifestExists && (!$hasMenuLink || !$hasAccessXml)) {
+    $actions[] = "Update manifest: add <code>link=\"option=com_ordenproduccion&amp;view=dashboard\"</code> to the &lt;menu&gt; tag and ensure <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> is in admin &lt;files&gt;. Then reinstall/update the component.";
+}
+if (!$accessExists) {
+    $actions[] = "Copy <code>access.xml</code> to administrator/components/com_ordenproduccion/ and reinstall/update the component.";
+}
+if (!$dashboardOk) {
+    $actions[] = "Ensure Dashboard View and DisplayController exist in the admin component.";
+}
+$actions[] = "Clear admin cache (System → Clear Cache) and reload the Components menu.";
+$actions[] = "In System → Manage → Permissions, ensure your user group has <strong>Access Administration Interface</strong> and <strong>Manage</strong> for the Work Orders component.";
+if (empty($actions)) {
+    echo "<p class='ok'>✅ All checks passed. If the menu still does not appear, clear cache and verify user permissions.</p>";
+} else {
+    echo "<ul>";
+    foreach ($actions as $a) {
+        echo "<li class='warning'>" . $a . "</li>";
+    }
+    echo "</ul>";
+}
+
+$testResults['backend_menu_item'] = $menuOk;
+echo "</div>";
+
+// ============================================
 // FINAL SUMMARY
 // ============================================
 echo "<div class='test-section'>";
@@ -1181,6 +1408,7 @@ $additionalTests = [
     'template_file' => 'Template file exists',
     'dropdown_rendering' => 'Dropdown HTML rendering',
     'productos_calculations' => 'Productos & calculations (elementos, ranges, unit price)',
+    'backend_menu_item' => 'Backend menu item (Components dropdown)',
 ];
 
 foreach ($additionalTests as $test => $label) {

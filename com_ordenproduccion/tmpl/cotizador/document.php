@@ -80,6 +80,11 @@ $labelOtrosElementos = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENT
 if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS' || $labelOtrosElementos === 'Other elements') {
     $labelOtrosElementos = 'Otros Elementos';
 }
+$labelAnadirEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO');
+if ($labelAnadirEnvio === 'COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO') {
+    $labelAnadirEnvio = 'Añadir envío';
+}
+$envios = $this->envios ?? [];
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document container py-4">
@@ -149,6 +154,11 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
             <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
+        <?php if (!empty($envios)) : ?>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#envioLineModal">
+            <?php echo htmlspecialchars($labelAnadirEnvio); ?>
+        </button>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 
@@ -173,8 +183,19 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                 <tbody>
                     <?php foreach ($lines as $line) :
                         $deleteLineUrl = 'index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . (int) $line->id . '&id=' . $preCotizacionId;
-                        $isElemento = isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
-                        if ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
+                        $isEnvio = isset($line->line_type) && $line->line_type === 'envio';
+                        $isElemento = !$isEnvio && isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
+                        if ($isEnvio) {
+                            $paperName = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_LABEL');
+                            if (strpos($paperName, 'COM_ORDENPRODUCCION_') === 0) {
+                                $paperName = 'Envío';
+                            }
+                            $envioName = isset($line->envio_name) ? (string) $line->envio_name : '';
+                            if ($envioName !== '') {
+                                $paperName .= ': ' . $envioName;
+                            }
+                            $sizeName = '—';
+                        } elseif ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
                             $el = $elementosById[(int) $line->elemento_id];
                             $paperName = $el->name ?? '';
                             $sizeName = $el->size ?? '—';
@@ -182,7 +203,7 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                             $paperName = $paperNames[$line->paper_type_id ?? 0] ?? ('ID ' . (int) $line->paper_type_id);
                             $sizeName = $sizeNames[$line->size_id ?? 0] ?? ('ID ' . (int) $line->size_id);
                         }
-                        $lineJson = htmlspecialchars(json_encode([
+                        $lineJson = $isEnvio ? '' : htmlspecialchars(json_encode([
                             'id' => (int) $line->id,
                             'quantity' => (int) $line->quantity,
                             'paper_type_id' => (int) $line->paper_type_id,
@@ -195,21 +216,21 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                             'total' => (float) $line->total,
                             'breakdown' => $line->breakdown ?? [],
                         ]), ENT_QUOTES, 'UTF-8');
-                    ?>
+                        ?>
                         <tr class="line-data-row">
                             <td><?php echo (int) $line->quantity; ?></td>
-                            <td><?php echo $isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName); ?></td>
+                            <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
-                            <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
+                            <td><?php echo $isEnvio ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
-                                <?php if (!$isElemento) : ?>
+                                <?php if (!$isElemento && !$isEnvio) : ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
                                     <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
                                 </button>
                                 <?php endif; ?>
                                 <?php if (!$precotizacionLocked) : ?>
-                                    <?php if (!$isElemento) : ?>
+                                    <?php if (!$isElemento && !$isEnvio) : ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                     </button>
@@ -218,12 +239,12 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
                                     </form>
-                                <?php elseif ($isElemento) : ?>
+                                <?php elseif ($isElemento || $isEnvio) : ?>
                                     —
                                 <?php endif; ?>
                             </td>
                         </tr>
-                        <?php if (!$isElemento) : ?>
+                        <?php if (!$isElemento && !$isEnvio) : ?>
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
                             <td colspan="6" class="p-0 bg-light align-top">
                                 <div class="p-2">
@@ -479,6 +500,65 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
         </div>
     </div>
 </div>
+
+<?php if (!empty($envios)) : ?>
+<!-- Modal: Añadir envío -->
+<div class="modal fade" id="envioLineModal" tabindex="-1" aria-labelledby="envioLineModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="envioLineModalLabel"><?php echo htmlspecialchars($labelAnadirEnvio); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addLineEnvio'); ?>" method="post" id="envio-line-form">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo $preCotizacionId; ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="envio_modal_envio_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_METHOD'); ?></label>
+                        <select name="envio_id" id="envio_modal_envio_id" class="form-select" required data-envios="<?php echo htmlspecialchars(json_encode(array_map(function($e) { return ['id' => (int)$e->id, 'tipo' => isset($e->tipo) ? (string)$e->tipo : 'fixed', 'valor' => (float)($e->valor ?? 0)]; }, $envios))); ?>">
+                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT_ENVIO'); ?></option>
+                            <?php foreach ($envios as $e) : ?>
+                                <option value="<?php echo (int) $e->id; ?>" data-tipo="<?php echo htmlspecialchars(isset($e->tipo) ? $e->tipo : 'fixed'); ?>"><?php echo htmlspecialchars($e->name ?? ''); ?> (<?php echo (isset($e->tipo) && $e->tipo === 'custom') ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_CUSTOM') : 'Q ' . number_format((float)($e->valor ?? 0), 2); ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="envio_modal_custom_wrap" style="display:none;">
+                        <label for="envio_modal_valor" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_VALOR'); ?></label>
+                        <input type="number" name="envio_valor" id="envio_modal_valor" class="form-control" min="0" step="0.01" value="">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_ENVIO_LINE'); ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var sel = document.getElementById('envio_modal_envio_id');
+    var wrap = document.getElementById('envio_modal_custom_wrap');
+    var enviosData = sel && sel.getAttribute('data-envios') ? JSON.parse(sel.getAttribute('data-envios')) : [];
+    function toggleCustom() {
+        var opt = sel && sel.options[sel.selectedIndex];
+        var isCustom = opt && opt.getAttribute('data-tipo') === 'custom';
+        if (wrap) wrap.style.display = isCustom ? 'block' : 'none';
+        if (!isCustom && document.getElementById('envio_modal_valor')) document.getElementById('envio_modal_valor').removeAttribute('required');
+        else if (isCustom && document.getElementById('envio_modal_valor')) document.getElementById('envio_modal_valor').setAttribute('required', 'required');
+    }
+    if (sel) sel.addEventListener('change', toggleCustom);
+    if (document.getElementById('envioLineModal')) {
+        document.getElementById('envioLineModal').addEventListener('show.bs.modal', function() {
+            if (sel) sel.selectedIndex = 0;
+            if (document.getElementById('envio_modal_valor')) document.getElementById('envio_modal_valor').value = '';
+            toggleCustom();
+        });
+    }
+})();
+</script>
+<?php endif; ?>
 
 <?php if ($tablesExist) : ?>
 <script>

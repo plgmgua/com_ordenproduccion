@@ -398,6 +398,75 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Add an Envío (shipping) line to a Pre-Cotización. Only owner can add.
+     *
+     * @return  bool
+     * @since   3.78.0
+     */
+    public function addLineEnvio()
+    {
+        $app = Factory::getApplication();
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+            return false;
+        }
+
+        $preCotizacionId = (int) $app->input->post->get('id', 0) ?: (int) $app->input->post->get('pre_cotizacion_id', 0);
+        $envioId = (int) $app->input->post->get('envio_id', 0);
+        $envioValor = $app->input->post->get('envio_valor', null, 'raw');
+
+        if ($preCotizacionId < 1 || $envioId < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
+            return false;
+        }
+
+        $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Productos', 'Site', ['ignore_request' => true]);
+        if (!$productosModel->enviosTableExists()) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_ADD_LINE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+        $envio = $productosModel->getEnvio($envioId);
+        if (!$envio) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        $tipoEnvio = isset($envio->tipo) ? (string) $envio->tipo : 'fixed';
+        $data = [
+            'line_type'   => 'envio',
+            'envio_id'    => $envioId,
+            'envio_valor' => $tipoEnvio === 'custom' ? (float) $envioValor : null,
+        ];
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $lineId = $model->addLine($preCotizacionId, $data);
+
+        if ($lineId === false) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_ADD_LINE'), 'error');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_ADDED'));
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+        return true;
+    }
+
+    /**
      * Save the Descripcion (long text) of a Pre-Cotización. Only owner can save.
      *
      * @return  bool
