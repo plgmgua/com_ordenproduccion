@@ -189,13 +189,13 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                             <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
-                                <?php if ($precotizacionLocked) : ?>
-                                    —
-                                <?php else : ?>
+                                <?php if (!$isElemento) : ?>
+                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
+                                    <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
+                                </button>
+                                <?php endif; ?>
+                                <?php if (!$precotizacionLocked) : ?>
                                     <?php if (!$isElemento) : ?>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
-                                        <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
-                                    </button>
                                     <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                     </button>
@@ -204,6 +204,8 @@ if ($labelOtrosElementos === 'COM_ORDENPRODUCCION_PRE_COTIZACION_OTROS_ELEMENTOS
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
                                     </form>
+                                <?php elseif ($isElemento) : ?>
+                                    —
                                 <?php endif; ?>
                             </td>
                         </tr>
