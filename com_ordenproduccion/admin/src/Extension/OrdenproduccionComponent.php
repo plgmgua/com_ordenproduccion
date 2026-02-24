@@ -35,6 +35,54 @@ class OrdenproduccionComponent extends MVCComponent implements BootableExtension
     {
         // Set the MVC factory
         $this->setMVCFactory($container->get(MVCFactoryInterface::class));
+
+        // Ensure admin menu labels show on first load: copy .sys.ini to system language folder
+        // if not already there (e.g. after manual file update without re-running install script).
+        $this->ensureAdminLanguageInSystemFolder();
+    }
+
+    /**
+     * Copy component admin language files to administrator/language/xx-XX/ so the admin
+     * menu and submenu show translated labels (e.g. "Dashboard") before the component is opened.
+     * Runs once per request if any target file is missing.
+     *
+     * @return  void
+     *
+     * @since   3.70.0
+     */
+    protected function ensureAdminLanguageInSystemFolder()
+    {
+        $app = Factory::getApplication();
+        if (!$app->isClient('administrator')) {
+            return;
+        }
+
+        $compLang = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/language';
+        $sysLang = JPATH_ADMINISTRATOR . '/language';
+        if (!is_dir($compLang)) {
+            return;
+        }
+
+        $dirs = array_filter(glob($compLang . '/*', GLOB_ONLYDIR) ?: []);
+        foreach ($dirs as $dir) {
+            $tag = basename($dir);
+            $destSys = $sysLang . '/' . $tag . '/' . $tag . '.com_ordenproduccion.sys.ini';
+            if (is_file($destSys)) {
+                continue;
+            }
+            $destDir = $sysLang . '/' . $tag;
+            if (!is_dir($destDir)) {
+                @mkdir($destDir, 0755, true);
+            }
+            foreach (['com_ordenproduccion.sys.ini', 'com_ordenproduccion.ini'] as $base) {
+                $src = $dir . '/' . $base;
+                if (!is_file($src)) {
+                    continue;
+                }
+                $dest = $destDir . '/' . $tag . '.' . $base;
+                @copy($src, $dest);
+            }
+        }
     }
 
     /**

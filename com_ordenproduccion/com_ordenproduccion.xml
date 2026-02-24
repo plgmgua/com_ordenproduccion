@@ -9,6 +9,7 @@
     <authorUrl>https://grimpsa.com</authorUrl>
     <version>3.70.0-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
+    <scriptfile>script.php</scriptfile>
 
     <namespace path="src">Grimpsa\Component\Ordenproduccion</namespace>
 

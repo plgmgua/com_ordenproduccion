@@ -187,6 +187,30 @@ if ($applyFix) {
     } catch (\Exception $e) {
         $fixMessages[] = '#__menu fix failed: ' . $e->getMessage();
     }
+
+    // Fix: remove duplicate/bad #__menu rows that show as "COM_ORDENPRODUCCION_MENU" (wrong title)
+    try {
+        $q = $db->getQuery(true)->select('extension_id')->from($db->quoteName('#__extensions'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote($component))
+            ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
+        $db->setQuery($q);
+        $extId2 = (int) $db->loadResult();
+        if ($extId2 > 0) {
+            $q = $db->getQuery(true)
+                ->delete($db->quoteName('#__menu'))
+                ->where($db->quoteName('client_id') . ' = 1')
+                ->where($db->quoteName('component_id') . ' = ' . $extId2)
+                ->where($db->quoteName('title') . ' = ' . $db->quote('COM_ORDENPRODUCCION_MENU'));
+            $db->setQuery($q);
+            $deleted = $db->execute();
+            $count = $deleted ? $db->getAffectedRows() : 0;
+            if ($count > 0) {
+                $fixMessages[] = 'Removed ' . $count . ' bad #__menu row(s) with title COM_ORDENPRODUCCION_MENU (raw key).';
+            }
+        }
+    } catch (\Exception $e) {
+        $fixMessages[] = 'Cleanup of bad menu rows failed: ' . $e->getMessage();
+    }
 }
 
 ?>
@@ -436,17 +460,32 @@ if ($applyFix) {
         ->where($db->quoteName('client_id') . ' = 1')
         ->where($db->quoteName('component_id') . ' = ' . $extIdMenu);
     $db->setQuery($q);
-    $menuRow = $db->loadObject();
+    $menuRows = $db->loadObjectList();
+    $menuRow = $menuRows[0] ?? null;
     $hasMenuRow = (bool) $menuRow;
+    $menuRowCount = count($menuRows);
+    $badMenuCount = 0;
+    foreach ($menuRows as $r) {
+        if (isset($r->title) && $r->title === 'COM_ORDENPRODUCCION_MENU') {
+            $badMenuCount++;
+        }
+    }
     ?>
     <div class="section">
         <h2>8. #__menu (administrator)</h2>
-        <p class="detail">Joomla may build the Components dropdown from rows in <code>#__menu</code> where <code>client_id = 1</code>. If no row exists for this component, the item will not appear.</p>
+        <p class="detail">Joomla may build the Components dropdown from rows in <code>#__menu</code> where <code>client_id = 1</code>. If no row exists for this component, the item will not appear. Duplicate rows with title <code>COM_ORDENPRODUCCION_MENU</code> show as raw keys in the sidebar.</p>
         <div class="row">
             <span class="status <?php echo $hasMenuRow ? 'ok' : 'fail'; ?>"><?php echo $hasMenuRow ? '✓' : '✗'; ?></span>
             <span class="label">Menu row exists</span>
             <span class="value"><?php echo $hasMenuRow ? 'Yes (id ' . (int) $menuRow->id . ', title: ' . htmlspecialchars($menuRow->title ?? '') . ')' : 'No – run Apply fix to insert one'; ?></span>
         </div>
+        <?php if ($menuRowCount > 1): ?>
+        <div class="row">
+            <span class="status warn">!</span>
+            <span class="label">Total rows for this component</span>
+            <span class="value"><?php echo $menuRowCount; ?> (<?php echo $badMenuCount; ?> with raw title COM_ORDENPRODUCCION_MENU – run Apply fix to remove them)</span>
+        </div>
+        <?php endif; ?>
         <?php if (!$hasMenuRow) $allOk = false; ?>
     </div>
 
@@ -469,6 +508,7 @@ if ($applyFix) {
             <li>Patch <code>com_ordenproduccion.xml</code>: add <code>link="option=com_ordenproduccion&amp;view=dashboard"</code> to &lt;menu&gt; and <code>&lt;filename&gt;access.xml&lt;/filename&gt;</code> to admin &lt;files&gt; (if missing).</li>
             <li>Update <code>#__extensions.manifest_cache</code> so the cached manifest includes the menu link.</li>
             <li>If there is no row in <code>#__menu</code> for this component (client_id=1), insert one under the "Components" parent so the item appears in the dropdown.</li>
+            <li>Remove any <code>#__menu</code> rows with title <code>COM_ORDENPRODUCCION_MENU</code> (raw key that causes duplicate/untranslated sidebar entries).</li>
         </ol>
         <p><a href="?fix=1" class="btn">Apply fix now</a></p>
         <p><strong>After applying:</strong> Reload this page without <code>?fix=1</code>, then go to <strong>System → Clear Cache</strong> and clear all. Check <strong>Components</strong> again.</p>
