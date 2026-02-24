@@ -233,7 +233,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <td><?php echo htmlspecialchars($preNum); ?></td>
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
-                        <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 2); ?></span></td>
+                        <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($subtotal, 2, '.', ''); ?>" readonly></td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
@@ -296,7 +296,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (!span || !qtyInp || !valueInp) return;
         var q = parseFloat(qtyInp.value, 10) || 1;
         var sub = parseFloat(valueInp.value, 10) || 0;
-        span.textContent = q > 0 ? (sub / q).toFixed(2) : '0.00';
+        span.textContent = q > 0 ? (sub / q).toFixed(4) : '0.0000';
     }
 
     function onRowCantidadChange(row) {
@@ -364,7 +364,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             tr.className = 'quotation-item-row';
             tr.setAttribute('data-pre-id', preId);
             tr.setAttribute('data-unit', unitTotal);
-            var unitPrice = (qty > 0 && parseFloat(value) > 0) ? (parseFloat(value) / qty).toFixed(2) : '0.00';
+            var unitPrice = (qty > 0 && parseFloat(value) > 0) ? (parseFloat(value) / qty).toFixed(4) : '0.0000';
             tr.innerHTML = '<td>' + escapeAttr(number) + '</td>' +
                 '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
