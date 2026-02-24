@@ -17,6 +17,15 @@ use Joomla\CMS\Factory;
 
 // Get today's date for default quote_date
 $today = Factory::getDate()->format('Y-m-d');
+// Fallback for labels so we never show raw language keys
+$l = function($key, $fallbackEn, $fallbackEs = null) {
+    $t = Text::_($key);
+    if ($t === $key || (is_string($t) && strpos($t, 'COM_ORDENPRODUCCION_') === 0)) {
+        $lang = Factory::getApplication()->getLanguage()->getTag();
+        return (strpos($lang, 'es') !== false && $fallbackEs !== null) ? $fallbackEs : $fallbackEn;
+    }
+    return $t;
+};
 ?>
 
 <div class="cotizacion-container">
@@ -51,11 +60,20 @@ $today = Factory::getDate()->format('Y-m-d');
                 </thead>
                 <tbody>
                     <tr>
+                        <?php
+                        $clientNamePrepop = (string) ($this->clientName ?? '');
+                        $clientNitPrepop  = (string) ($this->clientNit ?? '');
+                        $salesAgentPrepop = (string) ($this->salesAgent ?? '');
+                        $readonlyClientName = $clientNamePrepop !== '';
+                        $readonlyClientNit  = $clientNitPrepop !== '';
+                        $readonlySalesAgent = $salesAgentPrepop !== '';
+                        ?>
                         <td>
                             <input type="text" 
                                    id="client_name" 
                                    name="client_name" 
-                                   value="<?php echo htmlspecialchars($this->clientName); ?>" 
+                                   value="<?php echo htmlspecialchars($clientNamePrepop); ?>" 
+                                   <?php if ($readonlyClientName) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    required 
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENT_NAME'); ?>">
                         </td>
@@ -63,7 +81,8 @@ $today = Factory::getDate()->format('Y-m-d');
                             <input type="text" 
                                    id="client_nit" 
                                    name="client_nit" 
-                                   value="<?php echo htmlspecialchars($this->clientNit); ?>" 
+                                   value="<?php echo htmlspecialchars($clientNitPrepop); ?>" 
+                                   <?php if ($readonlyClientNit) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    required 
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?>">
                         </td>
@@ -71,7 +90,7 @@ $today = Factory::getDate()->format('Y-m-d');
                             <input type="text" 
                                    id="client_address" 
                                    name="client_address" 
-                                   value="<?php echo htmlspecialchars($this->clientAddress); ?>" 
+                                   value="<?php echo htmlspecialchars($this->clientAddress ?? ''); ?>" 
                                    required 
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?>">
                         </td>
@@ -79,7 +98,8 @@ $today = Factory::getDate()->format('Y-m-d');
                             <input type="text" 
                                    id="sales_agent" 
                                    name="sales_agent" 
-                                   value="<?php echo htmlspecialchars($this->salesAgent ?? ''); ?>" 
+                                   value="<?php echo htmlspecialchars($salesAgentPrepop); ?>" 
+                                   <?php if ($readonlySalesAgent) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?>">
                         </td>
                     </tr>
@@ -134,32 +154,32 @@ $today = Factory::getDate()->format('Y-m-d');
                 <i class="fas fa-list"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_ITEMS'); ?>
             </h4>
-            <p class="form-note"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE'); ?></p>
+            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation and an optional custom description. Total is the sum of all line values.', 'Agregue líneas seleccionando una Pre-Cotización y opcionalmente una descripción. El total es la suma de todas las líneas.'); ?></p>
             <?php if (empty($this->preCotizacionesList)) : ?>
-                <p class="alert alert-info"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES'); ?></p>
+                <p class="alert alert-info"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES', 'You have no Pre-Quotations yet. Create one from Pre-Cotizaciones first.', 'Aún no tiene Pre-Cotizaciones. Cree una en Pre-Cotizaciones primero.'); ?></p>
             <?php endif; ?>
             <div class="mb-2">
-                <label class="me-2"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT'); ?></label>
+                <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
                 <select id="precotizacionSelect" class="form-select d-inline-block" style="width: auto;">
-                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION'); ?></option>
+                    <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
                     <?php foreach ($this->preCotizacionesList ?? [] as $pre) : ?>
                         <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
                             <?php echo htmlspecialchars($pre->number); ?> — Q <?php echo number_format($pre->total, 2); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <input type="text" id="precotizacionDescription" class="form-control d-inline-block ms-2" style="width: 280px;" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER'); ?>">
+                <input type="text" id="precotizacionDescription" class="form-control d-inline-block ms-2" style="width: 280px;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Custom description (optional)', 'Descripción personalizada (opcional)'); ?>">
                 <button type="button" class="btn btn-primary ms-2" id="btnAddPrecotizacionLine">
-                    <i class="fas fa-plus"></i> <?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE'); ?>
+                    <i class="fas fa-plus"></i> <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
                 </button>
             </div>
             <table class="items-table table table-bordered" id="quotationItemsTable">
                 <thead>
                     <tr>
-                        <th style="width: 20%;"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION'); ?></th>
-                        <th style="width: 45%;"><?php echo Text::_('COM_ORDENPRODUCCION_DESCRIPCION'); ?></th>
-                        <th style="width: 20%;" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_SUBTOTAL'); ?></th>
-                        <th style="width: 15%;"><?php echo Text::_('COM_ORDENPRODUCCION_ACTION'); ?></th>
+                        <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th style="width: 45%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th style="width: 20%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th style="width: 15%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">
@@ -167,7 +187,7 @@ $today = Factory::getDate()->format('Y-m-d');
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="2" class="text-end fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_TOTAL'); ?>:</td>
+                        <td colspan="2" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 100px; background: #f8f9fa;"></td>
                         <td></td>
                     </tr>

@@ -252,4 +252,11 @@
     100% { transform: rotate(360deg); }
 }
 
+/* Prepopulated fields from URL (read-only) */
+input.readonly-prepop,
+input[readonly].readonly-prepop {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+}
+
 
