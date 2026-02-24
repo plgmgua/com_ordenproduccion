@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ENVIOS">
+        <message><![CDATA[Tipos de envío: precio fijo o precio personalizado (monto al añadir a pre-cotización).]]></message>
+    </layout>
+</metadata>

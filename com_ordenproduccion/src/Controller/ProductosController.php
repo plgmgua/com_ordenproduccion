@@ -475,4 +475,94 @@ class ProductosController extends BaseController
         Factory::getApplication()->enqueueMessage($msg, $type);
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=parametros', false));
     }
+
+    /**
+     * Save envio (fixed: name + valor; custom: name only). Redirects to section=envios.
+     *
+     * @return  void
+     * @since   3.77.0
+     */
+    public function saveEnvio()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectEnvios(Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectEnvios(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $data = [
+            'id' => $input->post->getInt('id', 0),
+            'name' => $input->post->getString('name', ''),
+            'tipo' => $input->post->getString('tipo', 'fixed'),
+            'valor' => $input->post->getString('valor', ''),
+            'ordering' => $input->post->getInt('ordering', 0),
+        ];
+        if ($data['tipo'] === 'fixed' && $data['valor'] !== '') {
+            $data['valor'] = (float) $data['valor'];
+        } else {
+            $data['valor'] = null;
+        }
+        $model = $this->getModel('Productos', 'Site');
+        $id = $model->saveEnvio($data);
+        if ($id === false) {
+            $this->setRedirectEnvios($model->getError() ?: 'Error saving envio.', 'error');
+            return;
+        }
+        $msg = $data['id'] ? Text::_('COM_ORDENPRODUCCION_ENVIO_SAVED') : Text::_('COM_ORDENPRODUCCION_ENVIO_ADDED');
+        if ($msg === 'COM_ORDENPRODUCCION_ENVIO_SAVED') {
+            $msg = 'Envío guardado correctamente.';
+        }
+        if ($msg === 'COM_ORDENPRODUCCION_ENVIO_ADDED') {
+            $msg = 'Envío agregado correctamente.';
+        }
+        $this->setRedirectEnvios($msg, 'success');
+    }
+
+    /**
+     * Delete envio (fixed only). Redirects to section=envios.
+     *
+     * @return  void
+     * @since   3.77.0
+     */
+    public function deleteEnvio()
+    {
+        if (!Session::checkToken('request')) {
+            $this->setRedirectEnvios(Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectEnvios(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $id = Factory::getApplication()->input->getInt('id', 0);
+        if ($id < 1) {
+            $this->setRedirectEnvios(Text::_('COM_ORDENPRODUCCION_ENVIO_ERROR_INVALID'), 'error');
+            return;
+        }
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->deleteEnvio($id)) {
+            $this->setRedirectEnvios($model->getError() ?: Text::_('COM_ORDENPRODUCCION_ENVIO_ERROR_DELETE'), 'error');
+            return;
+        }
+        $this->setRedirectEnvios(Text::_('COM_ORDENPRODUCCION_ENVIO_DELETED'), 'success');
+    }
+
+    /**
+     * Redirect to Productos section=envios.
+     *
+     * @param   string  $msg   Message text
+     * @param   string  $type  Message type
+     * @return  void
+     * @since   3.77.0
+     */
+    private function setRedirectEnvios($msg, $type = 'notice')
+    {
+        Factory::getApplication()->enqueueMessage($msg, $type);
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=envios', false));
+    }
 }

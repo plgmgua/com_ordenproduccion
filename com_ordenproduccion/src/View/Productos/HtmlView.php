@@ -169,6 +169,30 @@ class HtmlView extends BaseHtmlView
     protected $comisionVenta = 0;
 
     /**
+     * Whether envios table exists (for section=envios)
+     *
+     * @var    bool
+     * @since  3.77.0
+     */
+    protected $enviosTableExists = false;
+
+    /**
+     * Envios list (for section=envios)
+     *
+     * @var    array
+     * @since  3.77.0
+     */
+    protected $envios = [];
+
+    /**
+     * Single envio for edit form (for section=envios)
+     *
+     * @var    \stdClass|null
+     * @since  3.77.0
+     */
+    protected $envio = null;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -187,10 +211,22 @@ class HtmlView extends BaseHtmlView
 
         $input = $app->input;
         $this->section = $input->get('section', 'pliegos', 'cmd');
-        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros'], true)) {
+        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios'], true)) {
             $this->section = 'pliegos';
         }
         $this->activeTab = $input->get('tab', 'sizes', 'cmd');
+
+        if ($this->section === 'envios') {
+            $this->setLayout('envios');
+            $model = $this->getModel('Productos');
+            $this->enviosTableExists = $model->enviosTableExists();
+            $this->envios = $model->getEnvios();
+            $editId = $input->getInt('edit_id', 0);
+            $this->envio = $editId > 0 ? $model->getEnvio($editId) : null;
+            $this->_prepareDocument();
+            parent::display($tpl);
+            return;
+        }
 
         if ($this->section === 'parametros') {
             $this->setLayout('parametros');

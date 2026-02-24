@@ -21,6 +21,7 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 $basePliegos = $baseUrl . '&section=pliegos';
 $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
+$baseEnvios = $baseUrl . '&section=envios';
 
 // Fallback to human-friendly labels when language file is not loaded (e.g. after deploy)
 $l = function ($key, $fallback) {
@@ -49,6 +50,12 @@ $l = function ($key, $fallback) {
                 <a class="nav-link <?php echo $section === 'parametros' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseParametros); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_PARAMETROS', 'Parámetros'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $section === 'envios' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseEnvios); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ENVIOS', 'Envíos'); ?>
                 </a>
             </li>
         </ul>

@@ -19,6 +19,7 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 $basePliegos = $baseUrl . '&section=pliegos';
 $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
+$baseEnvios = $baseUrl . '&section=envios';
 
 $l = function ($key, $fallback) {
     $t = Text::_($key);
@@ -48,6 +49,11 @@ $comisionVenta = isset($this->comisionVenta) ? (float) $this->comisionVenta : 0;
             <li class="nav-item">
                 <a class="nav-link active" href="<?php echo Route::_($baseParametros); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_PARAMETROS', 'Parámetros'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?php echo Route::_($baseEnvios); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ENVIOS', 'Envíos'); ?>
                 </a>
             </li>
         </ul>

@@ -1022,4 +1022,190 @@ class ProductosModel extends BaseDatabaseModel
             return false;
         }
     }
+
+    /**
+     * Check if envios table exists
+     *
+     * @return  bool
+     * @since   3.77.0
+     */
+    public function enviosTableExists()
+    {
+        $db = $this->getDatabase();
+        $tables = $db->getTableList();
+        $prefix = $db->getPrefix();
+        $needle = $prefix . 'ordenproduccion_envios';
+        foreach ($tables as $name) {
+            if (strcasecmp($name, $needle) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get all envios (shipment types: fixed + custom)
+     *
+     * @return  array
+     * @since   3.77.0
+     */
+    public function getEnvios()
+    {
+        if (!$this->enviosTableExists()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_envios'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, id ASC');
+        $db->setQuery($query);
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Get one envio by id
+     *
+     * @param   int  $id  Envio id
+     * @return  \stdClass|null
+     * @since   3.77.0
+     */
+    public function getEnvio($id)
+    {
+        $id = (int) $id;
+        if ($id < 1 || !$this->enviosTableExists()) {
+            return null;
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_envios'))
+            ->where($db->quoteName('id') . ' = ' . $id);
+        $db->setQuery($query);
+        return $db->loadObject() ?: null;
+    }
+
+    /**
+     * Count envios by tipo (for enforcing single custom)
+     *
+     * @param   string  $tipo  fixed or custom
+     * @param   int     $excludeId  Optional id to exclude (when updating)
+     * @return  int
+     * @since   3.77.0
+     */
+    public function countEnviosByTipo($tipo, $excludeId = 0)
+    {
+        if (!$this->enviosTableExists()) {
+            return 0;
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_envios'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('tipo') . ' = ' . $db->quote($tipo));
+        if ($excludeId > 0) {
+            $query->where($db->quoteName('id') . ' != ' . $excludeId);
+        }
+        $db->setQuery($query);
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * Save envio (create or update). Fixed: name + valor; custom: name only (one allowed).
+     *
+     * @param   array  $data  name, tipo (fixed|custom), valor (required for fixed), id (optional)
+     * @return  int|false  Id on success
+     * @since   3.77.0
+     */
+    public function saveEnvio(array $data)
+    {
+        if (!$this->enviosTableExists()) {
+            $this->setError('Envíos table not installed.');
+            return false;
+        }
+        $db = $this->getDatabase();
+        $user = Factory::getUser();
+        $userId = (int) $user->id;
+        $now = Factory::getDate()->toSql();
+        $id = (int) ($data['id'] ?? 0);
+        $tipo = strtolower(trim($data['tipo'] ?? 'fixed'));
+        if (!in_array($tipo, ['fixed', 'custom'], true)) {
+            $tipo = 'fixed';
+        }
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            $this->setError('Name is required.');
+            return false;
+        }
+        $valor = null;
+        if ($tipo === 'fixed') {
+            $valor = isset($data['valor']) ? (float) $data['valor'] : 0;
+        }
+        if ($tipo === 'custom') {
+            $customCount = $this->countEnviosByTipo('custom', $id);
+            if ($customCount >= 1) {
+                $this->setError('Only one custom price shipment is allowed.');
+                return false;
+            }
+        }
+        $ordering = (int) ($data['ordering'] ?? 0);
+        $obj = (object) [
+            'name' => $name,
+            'tipo' => $tipo,
+            'valor' => $valor,
+            'ordering' => $ordering,
+            'state' => 1,
+            'modified' => $now,
+            'modified_by' => $userId,
+        ];
+        if ($id > 0) {
+            $obj->id = $id;
+            try {
+                $db->updateObject('#__ordenproduccion_envios', $obj, 'id');
+                return $id;
+            } catch (\Exception $e) {
+                $this->setError($e->getMessage());
+                return false;
+            }
+        }
+        $obj->created = $now;
+        $obj->created_by = $userId;
+        try {
+            $db->insertObject('#__ordenproduccion_envios', $obj, 'id');
+            return (int) $obj->id;
+        } catch (\Exception $e) {
+            $this->setError($e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Delete envio (soft delete). Only fixed tipo can be deleted; custom cannot.
+     *
+     * @param   int  $id  Envio id
+     * @return  bool
+     * @since   3.77.0
+     */
+    public function deleteEnvio($id)
+    {
+        $id = (int) $id;
+        if ($id < 1 || !$this->enviosTableExists()) {
+            return false;
+        }
+        $envio = $this->getEnvio($id);
+        if (!$envio || (isset($envio->tipo) && $envio->tipo === 'custom')) {
+            $this->setError('Custom shipment cannot be deleted.');
+            return false;
+        }
+        $db = $this->getDatabase();
+        $obj = (object) ['id' => $id, 'state' => 0];
+        try {
+            $db->updateObject('#__ordenproduccion_envios', $obj, 'id');
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
 }
