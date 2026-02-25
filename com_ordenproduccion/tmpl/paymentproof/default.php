@@ -94,7 +94,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
-                                    <th><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
                                     <th style="width: 100px;"><?php echo htmlspecialchars($this->labelAttachment ?? 'Ver'); ?></th>
                                 </tr>
                             </thead>
@@ -102,7 +101,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <?php
                                 $proofModel = $this->getModel();
                                 $totalMonto = 0.0;
-                                $totalValorAplicar = 0.0;
                                 foreach ($existingPayments as $proof):
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
@@ -117,7 +115,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
-                                    <td><?php echo $line === reset($lines) ? 'Q ' . number_format((float)($proof->amount_applied ?? 0), 2) : ''; ?></td>
                                     <td><?php
                                         if ($line === reset($lines)) {
                                             $fileInfo = $this->getPaymentProofFileInfo($proof);
@@ -135,7 +132,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                                 <?php endforeach;
                                         $totalMonto += $proofMonto;
-                                        $totalValorAplicar += (float)($proof->amount_applied ?? 0);
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr>
@@ -145,14 +141,12 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <thead class="table-light">
                                                 <tr>
                                                     <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
-                                                    <th class="small"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php foreach ($proofOrders as $po) : ?>
                                                 <tr>
                                                     <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
-                                                    <td class="small">Q <?php echo number_format((float)($po->amount_applied ?? 0), 2); ?></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -192,14 +186,12 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <thead class="table-light">
                                                 <tr>
                                                     <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
-                                                    <th class="small"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php foreach ($proofOrders as $po) : ?>
                                                 <tr>
                                                     <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
-                                                    <td class="small">Q <?php echo number_format((float)($po->amount_applied ?? 0), 2); ?></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -216,7 +208,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td></td>
                                     <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
                                     <td>Q <?php echo number_format($totalMonto, 2); ?></td>
-                                    <td>Q <?php echo number_format($totalValorAplicar, 2); ?></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -252,7 +243,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         <th class="small"><?php echo htmlspecialchars($this->labelClientName ?? 'Nombre del Cliente'); ?></th>
                                         <th class="small"><?php echo htmlspecialchars($this->labelOrderValue ?? 'Valor de Orden'); ?></th>
                                         <th class="small"><?php echo htmlspecialchars($this->labelRequestDate ?? 'Fecha de Solicitud'); ?></th>
-                                        <th class="small"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -262,7 +252,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         <td class="small"><?php echo htmlspecialchars($po->client_name ?? '—'); ?></td>
                                         <td class="small"><?php echo $this->formatCurrency($po->invoice_value ?? 0); ?></td>
                                         <td class="small"><?php echo $this->formatDate($po->request_date ?? ''); ?></td>
-                                        <td class="small">Q <?php echo number_format((float)($po->amount_applied ?? 0), 2); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
