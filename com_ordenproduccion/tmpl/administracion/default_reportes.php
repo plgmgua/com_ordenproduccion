@@ -481,8 +481,6 @@ function safeEscape($value, $default = '')
             $to = min($reportLimitStart + $reportLimit, $reportTotal);
             ?>
             <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SHOWING'); ?>: <?php echo $from; ?>–<?php echo $to; ?> <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_OF'); ?> <?php echo $reportTotal; ?>
-            &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TOTAL_VALUE'); ?>: <?php echo number_format($reportTotalValue, 2); ?>
         </div>
         <?php if ($reportPagination && $reportTotal > $reportLimit) : ?>
         <div class="reportes-pagination"><?php echo $reportPagination->getListFooter(); ?></div>
