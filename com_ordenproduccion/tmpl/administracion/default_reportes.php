@@ -84,9 +84,8 @@ function safeEscape($value, $default = '')
     border-radius: 8px;
     margin-bottom: 20px;
     display: flex;
-    gap: 20px;
-    align-items: flex-end;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .reportes-filters-row {
@@ -94,7 +93,6 @@ function safeEscape($value, $default = '')
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 20px;
-    width: 100%;
 }
 
 .reportes-filters label {
@@ -199,15 +197,18 @@ function safeEscape($value, $default = '')
     background: #005a8b;
 }
 
-/* Actions row: font size + export (always visible, inside filter card) */
 #com-op-reportes .reportes-actions-row {
     display: flex;
     align-items: center;
     gap: 20px;
     flex-wrap: wrap;
-    padding: 14px 0 0;
-    margin-top: 8px;
-    border-top: 1px solid #dee2e6;
+}
+
+#com-op-reportes .reportes-buttons-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 #com-op-reportes .reportes-toolbar-label {
@@ -368,10 +369,6 @@ function safeEscape($value, $default = '')
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <button type="submit" class="filter-btn">
-                    <i class="fas fa-search"></i>
-                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
-                </button>
             </div>
             <div class="reportes-actions-row">
                 <label class="reportes-client-wrap">
@@ -391,6 +388,12 @@ function safeEscape($value, $default = '')
                     <button type="button" class="reportes-font-btn active" data-size="medium" aria-pressed="true"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_MEDIUM'); ?></button>
                     <button type="button" class="reportes-font-btn" data-size="large" aria-pressed="false"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_LARGE'); ?></button>
                 </div>
+            </div>
+            <div class="reportes-buttons-row">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-search"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
+                </button>
                 <a href="<?php echo $exportReportUrl; ?>" class="reportes-export-btn" target="_blank" rel="noopener">
                     <i class="fas fa-file-excel"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_EXCEL'); ?>
