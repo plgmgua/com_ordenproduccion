@@ -357,17 +357,6 @@ function safeEscape($value, $default = '')
                            aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" />
                     <ul id="reportes-nit-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" hidden></ul>
                 </label>
-                <label class="reportes-client-wrap">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>
-                    <input type="text" 
-                           name="filter_report_client" 
-                           id="filter_report_client" 
-                           value="<?php echo safeEscape($reportClient); ?>" 
-                           autocomplete="off"
-                           placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?>"
-                           aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" />
-                    <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
-                </label>
                 <label>
                     <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SALES_AGENT'); ?>
                     <select name="filter_report_sales_agent">
@@ -385,6 +374,17 @@ function safeEscape($value, $default = '')
                 </button>
             </div>
             <div class="reportes-actions-row">
+                <label class="reportes-client-wrap">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>
+                    <input type="text" 
+                           name="filter_report_client" 
+                           id="filter_report_client" 
+                           value="<?php echo safeEscape($reportClient); ?>" 
+                           autocomplete="off"
+                           placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?>"
+                           aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" />
+                    <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
+                </label>
                 <span class="reportes-toolbar-label"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SIZE'); ?></span>
                 <div class="reportes-font-controls">
                     <button type="button" class="reportes-font-btn" data-size="small" aria-pressed="false"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?></button>
