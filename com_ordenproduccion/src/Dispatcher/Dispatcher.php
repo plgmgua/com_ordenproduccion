@@ -5,6 +5,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Dispatcher;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Dispatcher\ComponentDispatcher;
+use Joomla\CMS\Factory;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 
 /**
  * Component dispatcher class for com_ordenproduccion
@@ -23,6 +26,16 @@ class Dispatcher extends ComponentDispatcher
     public function dispatch()
     {
         $this->normalizeCotizacionViewQuery();
+
+        // Require login for all frontend component pages; redirect guests to Joomla login with return URL
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app = Factory::getApplication();
+            $returnUrl = Uri::getInstance()->toString();
+            $return = urlencode(base64_encode($returnUrl));
+            $app->redirect(Route::_('index.php?option=com_users&view=login&return=' . $return, false));
+            return;
+        }
 
         parent::dispatch();
     }
