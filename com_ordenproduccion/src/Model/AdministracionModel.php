@@ -261,18 +261,84 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $limit = 0, $offset = 0)
     {
         $db = Factory::getDbo();
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent);
+        $query->select([
+            $db->quoteName('orden_de_trabajo'),
+            $db->quoteName('work_description'),
+            $db->quoteName('invoice_value'),
+            $db->quoteName('client_name'),
+            $db->quoteName('request_date'),
+            $db->quoteName('delivery_date'),
+        ])->order($db->quoteName('orden_de_trabajo') . ' ASC');
+        if ((int) $limit > 0) {
+            $db->setQuery($query, (int) $offset, (int) $limit);
+        } else {
+            $db->setQuery($query);
+        }
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Get total count of work orders for the report (same filters as getReportWorkOrders).
+     *
+     * @param   string  $dateFrom    Date from (Y-m-d)
+     * @param   string  $dateTo      Date to (Y-m-d)
+     * @param   string  $clientName  Optional client name filter
+     * @param   string  $nit         Optional NIT filter
+     * @param   string  $salesAgent  Optional sales agent filter
+     *
+     * @return  int
+     * @since   3.78.0
+     */
+    public function getReportWorkOrdersTotal($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    {
+        $db = Factory::getDbo();
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent);
+        $query->select('COUNT(*)');
+        $db->setQuery($query);
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * Get total invoice value for the report (same filters as getReportWorkOrders).
+     *
+     * @param   string  $dateFrom    Date from (Y-m-d)
+     * @param   string  $dateTo      Date to (Y-m-d)
+     * @param   string  $clientName  Optional client name filter
+     * @param   string  $nit         Optional NIT filter
+     * @param   string  $salesAgent  Optional sales agent filter
+     *
+     * @return  float
+     * @since   3.78.0
+     */
+    public function getReportWorkOrdersTotalValue($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    {
+        $db = Factory::getDbo();
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent);
+        $query->select('COALESCE(SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(15,2))), 0)');
+        $db->setQuery($query);
+        return (float) $db->loadResult();
+    }
+
+    /**
+     * Build base query for report work orders (FROM + WHERE only).
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   string  $dateFrom
+     * @param   string  $dateTo
+     * @param   string  $clientName
+     * @param   string  $nit
+     * @param   string  $salesAgent
+     *
+     * @return  \Joomla\Database\DatabaseQuery
+     * @since   3.78.0
+     */
+    protected function buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    {
         $query = $db->getQuery(true)
-            ->select([
-                $db->quoteName('orden_de_trabajo'),
-                $db->quoteName('work_description'),
-                $db->quoteName('invoice_value'),
-                $db->quoteName('client_name'),
-                $db->quoteName('request_date'),
-                $db->quoteName('delivery_date'),
-            ])
             ->from($db->quoteName('#__ordenproduccion_ordenes'))
             ->where($db->quoteName('state') . ' = 1');
 
@@ -292,9 +358,7 @@ class AdministracionModel extends BaseDatabaseModel
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
 
-        $query->order($db->quoteName('orden_de_trabajo') . ' ASC');
-        $db->setQuery($query);
-        return $db->loadObjectList() ?: [];
+        return $query;
     }
 
     /**

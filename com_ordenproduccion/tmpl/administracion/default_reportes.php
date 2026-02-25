@@ -26,6 +26,11 @@ $reportClient = $this->reportClient ?? '';
 $reportNit = $this->reportNit ?? '';
 $reportSalesAgent = $this->reportSalesAgent ?? '';
 $reportSalesAgents = $this->reportSalesAgents ?? [];
+$reportPagination = $this->reportPagination ?? null;
+$reportTotal = (int) ($this->reportTotal ?? 0);
+$reportTotalValue = (float) ($this->reportTotalValue ?? 0);
+$reportLimit = max(5, min(100, (int) ($this->reportLimit ?? 20)));
+$reportLimitStart = max(0, (int) ($this->reportLimitStart ?? 0));
 
 $tokenParam = Session::getFormToken() . '=1';
 $suggestClientsUrl = Route::_(
@@ -322,6 +327,42 @@ function safeEscape($value, $default = '')
     font-size: 12px;
     color: #004085;
 }
+
+#com-op-reportes .reportes-pagination {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#com-op-reportes .reportes-pagination-link,
+#com-op-reportes .reportes-pagination-page {
+    padding: 6px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: #fff;
+    color: #495057;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+#com-op-reportes .reportes-pagination-link:hover,
+#com-op-reportes .reportes-pagination-page:hover {
+    background: #e9ecef;
+}
+
+#com-op-reportes .reportes-pagination-current {
+    background: #667eea;
+    color: #fff;
+    border-color: #667eea;
+    cursor: default;
+}
+
+#com-op-reportes .reportes-pagination-pages {
+    display: flex;
+    gap: 4px;
+}
 </style>
 
 <div id="com-op-reportes" class="reportes-section">
@@ -337,6 +378,7 @@ function safeEscape($value, $default = '')
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="reportes" />
+        <input type="hidden" name="report_limit" value="<?php echo (int) $reportLimit; ?>" />
         <div class="reportes-filters">
             <div class="reportes-filters-row">
                 <label>
@@ -417,10 +459,8 @@ function safeEscape($value, $default = '')
             </thead>
             <tbody>
                 <?php
-                $totalValue = 0;
                 foreach ($reportWorkOrders as $row) :
                     $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
-                    $totalValue += $invoiceVal;
                     $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
                     $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
                 ?>
@@ -436,10 +476,17 @@ function safeEscape($value, $default = '')
             </tbody>
         </table>
         <div class="reportes-summary">
-            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TOTAL_ORDERS'); ?>: <?php echo count($reportWorkOrders); ?>
+            <?php
+            $from = $reportTotal === 0 ? 0 : $reportLimitStart + 1;
+            $to = min($reportLimitStart + $reportLimit, $reportTotal);
+            ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SHOWING'); ?>: <?php echo $from; ?>–<?php echo $to; ?> <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_OF'); ?> <?php echo $reportTotal; ?>
             &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TOTAL_VALUE'); ?>: <?php echo number_format($totalValue, 2); ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TOTAL_VALUE'); ?>: <?php echo number_format($reportTotalValue, 2); ?>
         </div>
+        <?php if ($reportPagination && $reportTotal > $reportLimit) : ?>
+        <div class="reportes-pagination"><?php echo $reportPagination->getListFooter(); ?></div>
+        <?php endif; ?>
         </div>
     <?php else : ?>
         <div class="reportes-empty">
