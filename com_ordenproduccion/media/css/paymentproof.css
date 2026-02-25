@@ -84,6 +84,44 @@
     min-width: 12rem;
 }
 
+/* Thumbnails in Pagos Existentes (click to open in viewer below) */
+.com-ordenproduccion-paymentproof .payment-proof-thumb-wrap {
+    display: inline-block;
+    cursor: pointer;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.com-ordenproduccion-paymentproof .payment-proof-thumb-wrap:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+.com-ordenproduccion-paymentproof .payment-proof-thumb {
+    display: block;
+    max-width: 64px;
+    max-height: 64px;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+    vertical-align: middle;
+}
+.com-ordenproduccion-paymentproof .payment-proof-thumb-pdf {
+    width: 64px;
+    height: 64px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    color: #dc3545;
+    font-size: 0.75rem;
+}
+.com-ordenproduccion-paymentproof .payment-proof-thumb-pdf i {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
 .com-ordenproduccion-paymentproof .form-text {
     font-size: 12px;
     color: #6c757d;

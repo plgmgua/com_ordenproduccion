@@ -121,7 +121,11 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             if ($fileInfo) {
                                                 $url = htmlspecialchars($fileInfo['url'], ENT_QUOTES, 'UTF-8');
                                                 $type = $fileInfo['type'];
-                                                echo '<button type="button" class="btn btn-sm btn-outline-primary view-payment-attachment" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-' . ($type === 'pdf' ? 'file-pdf' : 'image') . '"></i> Ver</button>';
+                                                if ($type === 'image') {
+                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
+                                                } else {
+                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                                }
                                             } else {
                                                 echo '<span class="text-muted">—</span>';
                                             }
@@ -159,7 +163,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <?php
                                     else:
                                         $totalMonto += (float)($proof->payment_amount ?? 0);
-                                        $totalValorAplicar += (float)($proof->amount_applied ?? 0);
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
@@ -167,13 +170,16 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
-                                    <td>Q <?php echo number_format((float)($proof->amount_applied ?? 0), 2); ?></td>
                                     <td><?php
                                         $fileInfo = $this->getPaymentProofFileInfo($proof);
                                         if ($fileInfo) {
                                             $url = htmlspecialchars($fileInfo['url'], ENT_QUOTES, 'UTF-8');
                                             $type = $fileInfo['type'];
-                                            echo '<button type="button" class="btn btn-sm btn-outline-primary view-payment-attachment" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-' . ($type === 'pdf' ? 'file-pdf' : 'image') . '"></i> Ver</button>';
+                                            if ($type === 'image') {
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
+                                            } else {
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                            }
                                         } else {
                                             echo '<span class="text-muted">—</span>';
                                         }
@@ -270,7 +276,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             <div id="payment-proof-viewer-pdf-wrap" style="display: none;">
                                 <iframe id="payment-proof-viewer-iframe" src="" title="PDF" style="width: 100%; height: 70vh; border: 0;"></iframe>
                             </div>
-                            <div id="payment-proof-viewer-empty" class="text-muted small">No hay comprobante para mostrar. Use Ver en la tabla para seleccionar uno.</div>
+                            <div id="payment-proof-viewer-empty" class="text-muted small">No hay comprobante para mostrar. Haga clic en una miniatura de la tabla para ver el documento.</div>
                         </div>
                     </div>
                 </div>
