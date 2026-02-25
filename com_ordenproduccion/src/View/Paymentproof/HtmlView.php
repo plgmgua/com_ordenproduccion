@@ -34,6 +34,10 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        // Load component language so labels and placeholders translate
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
         $this->orderId = $app->input->getInt('order_id', 0);
         if (empty($this->orderId)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_ORDER_ID'), 'error');
@@ -102,6 +106,9 @@ class HtmlView extends BaseHtmlView
         $this->labelDelete = $t('JDELETE', 'Eliminar');
         $this->labelErrorInvalidFileType = $t('COM_ORDENPRODUCCION_ERROR_INVALID_FILE_TYPE', 'Tipo de archivo inválido. Solo se permiten JPG, PNG y PDF.');
         $this->labelErrorFileTooLarge = $t('COM_ORDENPRODUCCION_ERROR_FILE_TOO_LARGE', 'Archivo demasiado grande. Máximo 5MB.');
+        $this->labelPaymentAddAnotherHelp = $t('COM_ORDENPRODUCCION_PAYMENT_ADD_ANOTHER_HELP', 'Puede registrar otro comprobante (ej. abono o anticipo).');
+        $this->labelSelectPaymentType = $t('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Seleccionar tipo de pago');
+        $this->labelDocumentNumberPlaceholder = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'ej. Número de cheque, referencia');
 
         parent::display($tpl);
     }

@@ -334,7 +334,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                 <?php if (!empty($existingPayments)) : ?>
                 <div class="alert alert-info mb-3" role="alert">
                     <i class="fas fa-info-circle"></i>
-                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_ADD_ANOTHER_HELP') ?: 'Puede registrar otro comprobante (ej. abono o anticipo).'); ?>
+                    <?php echo htmlspecialchars($this->labelPaymentAddAnotherHelp ?? 'Puede registrar otro comprobante (ej. abono o anticipo).'); ?>
                 </div>
                 <?php endif; ?>
                 <div class="card">
@@ -389,7 +389,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                         </select>
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'e.g. Check #, reference', 'ej. Número de cheque, referencia')); ?>" maxlength="255" required>
+                                                        <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque, referencia'); ?>" maxlength="255" required>
                                                     </td>
                                                     <td>
                                                         <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>

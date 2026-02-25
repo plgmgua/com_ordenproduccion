@@ -218,6 +218,25 @@ function displayYesNoBadge($value) {
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_VALOR_FACTURA'); ?>:</strong></td>
                                     <td><?php echo $this->formatCurrency($item->invoice_value); ?></td>
                                 </tr>
+                                <?php
+                                $proofs = $this->paymentProofs ?? [];
+                                if (!empty($proofs)) :
+                                    $proofLinks = [];
+                                    $baseUrl = $this->paymentProofViewUrl ?? '';
+                                    foreach ($proofs as $p) {
+                                        $id = (int)($p->id ?? 0);
+                                        if ($id > 0) {
+                                            $url = $baseUrl . '#proof-' . $id;
+                                            $proofLinks[] = '<a href="' . htmlspecialchars($url) . '">#' . $id . '</a>';
+                                        }
+                                    }
+                                    $proofsHtml = !empty($proofLinks) ? implode(', ', $proofLinks) : '';
+                                ?>
+                                <tr>
+                                    <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PAYMENT_PROOF_IDS'); ?>:</strong></td>
+                                    <td><?php echo $proofsHtml; ?></td>
+                                </tr>
+                                <?php endif; ?>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PAYMENT_INFO'); ?>:</strong></td>
                                     <td>

@@ -20,24 +20,28 @@
         const content = document.getElementById('paymentInfoContent');
         const errorDiv = document.getElementById('paymentInfoError');
 
-        if (!modal || !body) return;
+        if (!modal || !body || !loader || !content) return;
 
-        body.innerHTML = '';
+        // Do not clear body.innerHTML - that removes loader/content/error divs and leaves modal empty
         loader.style.display = 'block';
         content.style.display = 'none';
-        if (errorDiv) errorDiv.style.display = 'none';
+        content.innerHTML = '';
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+        }
 
-        const url = baseUrl + '&order_id=' + orderId + '&' + token + '=1';
+        const url = (baseUrl || '') + '&order_id=' + orderId + '&' + (token || '') + '=1';
         fetch(url)
             .then(r => r.json())
             .then(data => {
                 loader.style.display = 'none';
-                if (data.success) {
-                    content.style.display = 'block';
+                if (data && data.success) {
                     content.innerHTML = renderPaymentInfo(data, orderId);
+                    content.style.display = 'block';
                 } else {
                     if (errorDiv) {
-                        errorDiv.textContent = data.message || 'Error loading payment info';
+                        errorDiv.textContent = (data && data.message) ? data.message : 'Error loading payment info';
                         errorDiv.style.display = 'block';
                     }
                 }

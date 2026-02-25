@@ -110,6 +110,21 @@ class HtmlView extends BaseHtmlView
             $model = $this->getModel();
             $this->historialEntries = $model->getHistorialEntries($this->item->id ?? null);
 
+            // Payment proofs for this order (only when user can see payment info)
+            $this->paymentProofs = [];
+            $this->paymentProofViewUrl = '';
+            if (AccessHelper::canSeeValorFactura($this->item->sales_agent ?? '')) {
+                try {
+                    $proofModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Paymentproof', 'Site');
+                    if ($proofModel && method_exists($proofModel, 'getPaymentProofsByOrderId')) {
+                        $this->paymentProofs = $proofModel->getPaymentProofsByOrderId((int) ($this->item->id ?? 0));
+                    }
+                    $this->paymentProofViewUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) ($this->item->id ?? 0));
+                } catch (\Throwable $e) {
+                    $this->paymentProofs = [];
+                }
+            }
+
             // Check for errors.
             if (count($errors = $this->get('Errors'))) {
                 $app->enqueueMessage(implode("\n", $errors), 'error');

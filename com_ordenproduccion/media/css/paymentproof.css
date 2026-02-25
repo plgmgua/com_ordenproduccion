@@ -75,6 +75,15 @@
     outline: 0;
 }
 
+/* Ensure payment type select and document placeholder show full label text */
+#payment-lines-table .payment-line-type,
+#payment-lines-table select.payment-line-type {
+    min-width: 11rem;
+}
+#payment-lines-table input[name*="document_number"] {
+    min-width: 12rem;
+}
+
 .com-ordenproduccion-paymentproof .form-text {
     font-size: 12px;
     color: #6c757d;
