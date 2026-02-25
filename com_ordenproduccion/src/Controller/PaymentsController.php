@@ -64,7 +64,7 @@ class PaymentsController extends BaseController
             return;
         }
 
-        $cols = ['ID', 'Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
+        $cols = ['Nº Pago', 'Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
 
         $rows = [];
         foreach ($items as $item) {
