@@ -109,6 +109,7 @@ class HtmlView extends BaseHtmlView
         $this->labelPaymentAddAnotherHelp = $t('COM_ORDENPRODUCCION_PAYMENT_ADD_ANOTHER_HELP', 'Puede registrar otro comprobante (ej. abono o anticipo).');
         $this->labelSelectPaymentType = $t('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Seleccionar tipo de pago');
         $this->labelDocumentNumberPlaceholder = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'ej. Número de cheque, referencia');
+        $this->labelPaymentProofId = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_ID', 'ID');
 
         parent::display($tpl);
     }

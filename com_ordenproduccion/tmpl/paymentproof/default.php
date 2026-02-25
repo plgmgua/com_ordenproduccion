@@ -90,6 +90,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         <table class="table table-sm">
                             <thead>
                                 <tr>
+                                    <th><?php echo htmlspecialchars($this->labelPaymentProofId ?? 'ID'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
@@ -112,6 +113,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             $proofMonto += (float)($line->amount ?? 0);
                                 ?>
                                 <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; $isFirstLine = false; } ?>>
+                                    <td><?php echo $line === reset($lines) ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
@@ -167,6 +169,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
+                                    <td>PA-<?php echo str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT); ?></td>
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
@@ -210,6 +213,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             </tbody>
                             <tfoot>
                                 <tr class="table-info fw-bold">
+                                    <td></td>
                                     <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
                                     <td>Q <?php echo number_format($totalMonto, 2); ?></td>
                                     <td>Q <?php echo number_format($totalValorAplicar, 2); ?></td>
