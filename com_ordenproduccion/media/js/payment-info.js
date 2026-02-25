@@ -34,7 +34,7 @@
                 loader.style.display = 'none';
                 if (data.success) {
                     content.style.display = 'block';
-                    content.innerHTML = renderPaymentInfo(data);
+                    content.innerHTML = renderPaymentInfo(data, orderId);
                 } else {
                     if (errorDiv) {
                         errorDiv.textContent = data.message || 'Error loading payment info';
@@ -54,7 +54,7 @@
         bsModal.show();
     };
 
-    function renderPaymentInfo(data) {
+    function renderPaymentInfo(data, orderId) {
         let html = '<div class="payment-info-summary mb-4">';
         html += '<table class="table table-sm"><tbody>';
         html += '<tr><th>Valor a facturar:</th><td>Q ' + formatNum(data.invoice_value) + '</td></tr>';
@@ -63,14 +63,21 @@
         html += '</tbody></table></div>';
 
         if (data.payment_proofs && data.payment_proofs.length > 0) {
+            const proofBaseUrl = (typeof window.paymentProofBaseUrl !== 'undefined') ? window.paymentProofBaseUrl : (window.location.pathname.replace(/\/[^/]*$/, '') + '/index.php?option=com_ordenproduccion&view=paymentproof&order_id=');
             html += '<h6>Comprobantes de pago</h6>';
             html += '<table class="table table-sm table-bordered"><thead><tr>';
-            html += '<th>Documento</th><th>Tipo</th><th>Monto doc.</th><th>Aplicado</th><th>Archivo</th></tr></thead><tbody>';
+            html += '<th>ID</th><th>Documento</th><th>Tipo</th><th>Monto doc.</th><th>Aplicado</th><th>Archivo</th></tr></thead><tbody>';
             data.payment_proofs.forEach(function(p) {
                 const typeLabel = paymentTypeLabels[p.payment_type] || p.payment_type;
                 const fileUrl = p.file_path ? (p.file_path.startsWith('http') ? p.file_path : (window.location.origin + '/' + p.file_path.replace(/^\//, ''))) : '';
                 const fileLink = fileUrl ? '<a href="' + escapeHtml(fileUrl) + '" target="_blank"><i class="fas fa-file-pdf"></i></a>' : '-';
+                const proofId = (p.id != null && p.id !== '') ? parseInt(p.id, 10) : 0;
+                const proofUrl = (proofId > 0 && orderId) ? (proofBaseUrl + orderId + '#proof-' + proofId) : (proofBaseUrl + (orderId || ''));
+                const proofLink = proofId > 0 && orderId
+                    ? '<a href="' + escapeHtml(proofUrl) + '">#' + proofId + '</a>'
+                    : ('#' + (proofId || ''));
                 html += '<tr>';
+                html += '<td>' + proofLink + '</td>';
                 html += '<td>' + escapeHtml(p.document_number || '') + '</td>';
                 html += '<td>' + escapeHtml(typeLabel) + '</td>';
                 html += '<td>Q ' + formatNum(p.payment_amount) + '</td>';

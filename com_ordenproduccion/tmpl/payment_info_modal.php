@@ -11,6 +11,7 @@ use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 
 $baseUrl = Uri::base() . 'index.php?option=com_ordenproduccion&task=ajax.getOrderPayments&format=raw';
+$paymentProofBaseUrl = Uri::base() . 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=';
 $token = Session::getFormToken();
 ?>
 <!-- Payment Info Modal -->
@@ -36,7 +37,8 @@ $token = Session::getFormToken();
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    window.paymentInfoBaseUrl = '<?php echo $baseUrl; ?>';
-    window.paymentInfoToken = '<?php echo $token; ?>';
+    window.paymentInfoBaseUrl = <?php echo json_encode($baseUrl); ?>;
+    window.paymentProofBaseUrl = <?php echo json_encode($paymentProofBaseUrl); ?>;
+    window.paymentInfoToken = <?php echo json_encode($token); ?>;
 });
 </script>

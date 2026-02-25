@@ -107,10 +107,11 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
                                     if (!empty($lines)):
                                         $proofMonto = 0.0;
+                                        $isFirstLine = true;
                                         foreach ($lines as $line):
                                             $proofMonto += (float)($line->amount ?? 0);
                                 ?>
-                                <tr>
+                                <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; $isFirstLine = false; } ?>>
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
@@ -165,7 +166,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $totalValorAplicar += (float)($proof->amount_applied ?? 0);
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
-                                <tr>
+                                <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
@@ -327,10 +328,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         </script>
         <?php endif; ?>
 
-        <!-- Payment Proof Form (only when no existing payments) -->
-        <?php if (empty($existingPayments)) : ?>
+        <!-- Payment Proof Form: always shown so users can add installments or advances -->
         <div class="row">
             <div class="col-12">
+                <?php if (!empty($existingPayments)) : ?>
+                <div class="alert alert-info mb-3" role="alert">
+                    <i class="fas fa-info-circle"></i>
+                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_ADD_ANOTHER_HELP') ?: 'Puede registrar otro comprobante (ej. abono o anticipo).'); ?>
+                </div>
+                <?php endif; ?>
                 <div class="card">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
@@ -619,4 +625,3 @@ window.validateFile = function(input) {
     updateLinesTotal();
 })();
 </script>
-<?php endif; ?>
