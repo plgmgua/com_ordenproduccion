@@ -74,31 +74,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
             </div>
         </div>
 
-        <!-- Order Information (single line, above payment proof) -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header py-2">
-                        <h5 class="card-title mb-0 small">
-                            <i class="fas fa-info-circle"></i>
-                            <?php echo htmlspecialchars($this->labelOrderInformation ?? 'Información de la Orden'); ?>
-                        </h5>
-                    </div>
-                    <div class="card-body py-2">
-                        <p class="mb-0 small">
-                            <strong><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?>:</strong> <?php echo htmlspecialchars($order->order_number ?? $order->orden_de_trabajo ?? 'N/A'); ?>
-                            &nbsp;&bull;&nbsp;
-                            <strong><?php echo htmlspecialchars($this->labelClientName ?? 'Nombre del Cliente'); ?>:</strong> <?php echo htmlspecialchars($order->client_name ?? 'N/A'); ?>
-                            &nbsp;&bull;&nbsp;
-                            <strong><?php echo htmlspecialchars($this->labelOrderValue ?? 'Valor de Orden'); ?>:</strong> <?php echo $this->formatCurrency($order->invoice_value ?? 0); ?>
-                            &nbsp;&bull;&nbsp;
-                            <strong><?php echo htmlspecialchars($this->labelRequestDate ?? 'Fecha de Solicitud'); ?>:</strong> <?php echo $this->formatDate($order->request_date ?? ''); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Existing Payments Info (can add more - many-to-many) -->
         <?php if (!empty($existingPayments)): ?>
         <div class="row mb-4">
@@ -241,6 +216,43 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                             </tfoot>
                         </table>
+                        <!-- Información de la Orden: subtable of orders associated to payment(s), above the viewer -->
+                        <?php
+                        $orderInfoRows = [];
+                        foreach ($existingPayments as $proof) {
+                            $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
+                            foreach ($proofOrders as $po) {
+                                $orderInfoRows[] = $po;
+                            }
+                        }
+                        ?>
+                        <?php if (!empty($orderInfoRows)) : ?>
+                        <div class="mt-3">
+                            <h6 class="small mb-2"><i class="fas fa-info-circle"></i> <?php echo htmlspecialchars($this->labelOrderInformation ?? 'Información de la Orden'); ?></h6>
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
+                                        <th class="small"><?php echo htmlspecialchars($this->labelClientName ?? 'Nombre del Cliente'); ?></th>
+                                        <th class="small"><?php echo htmlspecialchars($this->labelOrderValue ?? 'Valor de Orden'); ?></th>
+                                        <th class="small"><?php echo htmlspecialchars($this->labelRequestDate ?? 'Fecha de Solicitud'); ?></th>
+                                        <th class="small"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($orderInfoRows as $po) : ?>
+                                    <tr>
+                                        <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($po->client_name ?? '—'); ?></td>
+                                        <td class="small"><?php echo $this->formatCurrency($po->invoice_value ?? 0); ?></td>
+                                        <td class="small"><?php echo $this->formatDate($po->request_date ?? ''); ?></td>
+                                        <td class="small">Q <?php echo number_format((float)($po->amount_applied ?? 0), 2); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endif; ?>
                         <!-- Viewer: image or PDF below table -->
                         <div id="payment-proof-viewer" class="mt-3 border rounded p-3 bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-2">

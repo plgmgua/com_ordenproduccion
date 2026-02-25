@@ -607,7 +607,9 @@ class PaymentproofModel extends ItemModel
                     'po.order_id',
                     'po.amount_applied',
                     'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
-                    'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name'
+                    'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name',
+                    'COALESCE(o.valor_a_facturar, 0) AS invoice_value',
+                    'o.fecha_de_solicitud AS request_date'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
                 ->innerJoin(
