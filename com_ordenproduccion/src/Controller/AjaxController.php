@@ -677,7 +677,7 @@ class AjaxController extends BaseController
             exit;
         }
         
-        if (!Session::checkToken()) {
+        if (!Session::checkToken('get')) {
             echo json_encode(['success' => false, 'message' => 'Invalid token']);
             exit;
         }
