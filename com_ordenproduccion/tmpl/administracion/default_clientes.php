@@ -300,6 +300,7 @@ function safeEscape($value, $default = '')
                         foreach ($clients as $idx => $client) :
                             $orderCount = (int) ($client->order_count ?? 0);
                             $saldo = (float) ($client->saldo ?? 0);
+                            $saldoDisplay = -1 * $saldo;
                             $compras = (float) ($client->compras ?? 0);
                             $cn = $client->client_name ?? '';
                             $nit = $client->nit ?? '';
@@ -316,7 +317,7 @@ function safeEscape($value, $default = '')
                                 <td class="col-nit"><?php echo safeEscape($nit ?: '—'); ?></td>
                                 <td class="col-order-count"><?php echo $orderCount; ?></td>
                                 <td class="col-compras">Q.<?php echo number_format($compras, 2); ?></td>
-                                <td class="col-saldo">Q.<?php echo number_format($saldo, 2); ?></td>
+                                <td class="col-saldo">Q.<?php echo number_format($saldoDisplay, 2); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

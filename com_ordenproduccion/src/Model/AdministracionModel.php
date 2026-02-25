@@ -502,7 +502,8 @@ class AdministracionModel extends BaseDatabaseModel
             $c->display_pagado = $initialPaid > 0 ? $initialPaid : $invoiceOctDec2025;
             $c->paid_from_jan2026 = $paidFromJan;
             $c->compras = $compras;
-            $c->saldo = max(0, round($totalInvoiced - $initialPaid - $paidFromJan, 2));
+            // Accounting convention: positive = client owes, negative = client has credit (advance). Display as -1 * saldo (unpaid = negative, in favor = positive).
+            $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
 
@@ -525,7 +526,7 @@ class AdministracionModel extends BaseDatabaseModel
         foreach ($clients as $c) {
             $clientName = trim($c->client_name ?? '');
             $nit = trim($c->nit ?? '');
-            $saldo = max(0, round((float) ($c->saldo ?? 0), 2));
+            $saldo = round((float) ($c->saldo ?? 0), 2);
             if ($clientName === '') {
                 continue;
             }

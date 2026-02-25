@@ -63,7 +63,7 @@
         html += '<table class="table table-sm"><tbody>';
         html += '<tr><th>Valor a facturar:</th><td>Q ' + formatNum(data.invoice_value) + '</td></tr>';
         html += '<tr><th>Total pagado:</th><td>Q ' + formatNum(data.total_paid) + '</td></tr>';
-        html += '<tr><th>Saldo pendiente:</th><td>Q ' + formatNum(data.remaining_balance) + '</td></tr>';
+        html += '<tr><th>Saldo pendiente:</th><td>Q ' + formatNum(-(parseFloat(data.remaining_balance) || 0)) + '</td></tr>';
         html += '</tbody></table></div>';
 
         if (data.payment_proofs && data.payment_proofs.length > 0) {

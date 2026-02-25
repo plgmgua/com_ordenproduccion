@@ -718,7 +718,7 @@ class AjaxController extends BaseController
             'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? '',
             'invoice_value' => $invoiceValue,
             'total_paid' => $totalPaid,
-            'remaining_balance' => max(0, $remainingBalance),
+            'remaining_balance' => $remainingBalance,
             'payment_proofs' => $paymentProofs
         ]);
         exit;
