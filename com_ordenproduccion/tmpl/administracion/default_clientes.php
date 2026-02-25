@@ -124,15 +124,6 @@ function safeEscape($value, $default = '')
     font-weight: 600;
 }
 
-.clientes-summary {
-    margin-top: 20px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    font-weight: 600;
-    color: #495057;
-}
-
 .clientes-empty {
     padding: 40px;
     text-align: center;
@@ -218,9 +209,6 @@ function safeEscape($value, $default = '')
             <i class="fas fa-users"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_TAB_ESTADO_DE_CUENTA'); ?>
         </h2>
-        <p class="text-muted mb-0">
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DESC'); ?>
-        </p>
         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes'); ?>" class="clientes-filters-form mb-3">
             <input type="hidden" name="option" value="com_ordenproduccion" />
             <input type="hidden" name="view" value="administracion" />
@@ -334,19 +322,6 @@ function safeEscape($value, $default = '')
                     </tbody>
                 </table>
             </div>
-        <div class="clientes-summary">
-            <?php
-            $from = $clientesTotal === 0 ? 0 : $clientesLimitStart + 1;
-            $to = min($clientesLimitStart + $clientesLimit, $clientesTotal);
-            ?>
-            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SHOWING'); ?>: <?php echo $from; ?>–<?php echo $to; ?> <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_OF'); ?> <?php echo $clientesTotal; ?>
-            &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_ORDERS'); ?>: <?php echo $clientesTotalOrders; ?>
-            &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_COMPRAS'); ?>: Q.<?php echo number_format($clientesTotalCompras, 2); ?>
-            &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_SALDO'); ?>: Q.<?php echo number_format($clientesTotalSaldo, 2); ?>
-        </div>
         <?php if ($clientesPagination && $clientesTotal > $clientesLimit) : ?>
         <div class="clientes-pagination mt-2"><?php echo $clientesPagination->getListFooter(); ?></div>
         <?php endif; ?>
