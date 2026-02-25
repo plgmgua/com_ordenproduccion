@@ -48,6 +48,25 @@ class AdministracionModel extends BaseDatabaseModel
             $endDate = date('Y-m-t', strtotime($startDate));
         }
 
+        // Ventas: only show statistics from Jan 1, 2025 onward
+        if ($salesAgentFilter !== null) {
+            $ventasMinDate = '2025-01-01';
+            if ($startDate < $ventasMinDate) {
+                $startDate = $ventasMinDate;
+            }
+            if ($startDate > $endDate) {
+                $stats->totalOrders = 0;
+                $stats->totalInvoiceValue = 0;
+                $stats->topOrders = [];
+                $stats->ordersByStatus = [];
+                $stats->averageInvoiceValue = 0;
+                $stats->salesAgentsWithClients = [];
+                $stats->agentTrend = $this->getAgentAnnualTrend((int) $year, $salesAgentFilter);
+                $stats->clientTrend = $this->getClientAnnualTrend((int) $year, $salesAgentFilter);
+                return $stats;
+            }
+        }
+
         // 1. Total work orders in selected month
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
@@ -1431,17 +1450,25 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Get activity statistics for a specific date range
      *
-     * @param   string  $startDate  Start date (Y-m-d H:i:s)
-     * @param   string  $endDate    End date (Y-m-d H:i:s)
+     * @param   string       $startDate   Start date (Y-m-d H:i:s)
+     * @param   string       $endDate     End date (Y-m-d H:i:s)
+     * @param   string|null  $salesAgent  Optional sales agent filter
      *
      * @return  object  Activity statistics for the period
      *
      * @since   3.6.0
      */
-    protected function getActivityStatsForPeriod($startDate, $endDate)
+    protected function getActivityStatsForPeriod($startDate, $endDate, $salesAgent = null)
     {
         $db = Factory::getDbo();
         $stats = new \stdClass();
+        $salesAgentFilter = null;
+        if (func_num_args() >= 3) {
+            $arg = func_get_arg(2);
+            if ($arg !== null && $arg !== '') {
+                $salesAgentFilter = $arg;
+            }
+        }
 
         // 1. Work orders created
         $query = $db->getQuery(true)
@@ -1450,6 +1477,9 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('state') . ' = 1')
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate));
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
         $db->setQuery($query);
         $stats->workOrdersCreated = (int) $db->loadResult();
 

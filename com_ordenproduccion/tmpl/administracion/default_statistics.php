@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 $stats = $this->stats;
 $currentMonth = $this->currentMonth;
 $currentYear = $this->currentYear;
+$statisticsMinYear = isset($this->statisticsMinYear) ? (int) $this->statisticsMinYear : 2020;
 
 // Month names in Spanish
 $monthNames = [
@@ -578,7 +579,7 @@ $monthNames = [
                 </select>
                 
                 <select name="year" id="year-select">
-                    <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
+                    <?php for ($y = date('Y'); $y >= $statisticsMinYear; $y--): ?>
                         <option value="<?php echo $y; ?>" <?php echo $y == $currentYear ? 'selected' : ''; ?>>
                             <?php echo $y; ?>
                         </option>
@@ -705,7 +706,7 @@ $monthNames = [
                     <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SELECT_YEAR'); ?>:
                 </label>
                 <select id="agent-year-select" onchange="updateAgentChart()">
-                    <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
+                    <?php for ($y = date('Y'); $y >= $statisticsMinYear; $y--): ?>
                         <option value="<?php echo $y; ?>" <?php echo $y == $currentYear ? 'selected' : ''; ?>>
                             <?php echo $y; ?>
                         </option>
@@ -750,7 +751,7 @@ $monthNames = [
                     <?php echo Text::_('COM_ORDENPRODUCCION_ADMINISTRACION_SELECT_YEAR'); ?>:
                 </label>
                 <select id="client-year-select" onchange="updateClientChart()">
-                    <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
+                    <?php for ($y = date('Y'); $y >= $statisticsMinYear; $y--): ?>
                         <option value="<?php echo $y; ?>" <?php echo $y == $currentYear ? 'selected' : ''; ?>>
                             <?php echo $y; ?>
                         </option>
