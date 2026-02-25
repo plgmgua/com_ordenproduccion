@@ -459,6 +459,12 @@ class HtmlView extends BaseHtmlView
                 $this->reportSalesAgents = $statsModel->getReportSalesAgents($salesAgentFilter);
                 $this->reportDateFrom = $input->getString('filter_report_date_from', '');
                 $this->reportDateTo = $input->getString('filter_report_date_to', '');
+                // Default to current month when no dates provided
+                if ($this->reportDateFrom === '' || $this->reportDateTo === '') {
+                    $now = Factory::getDate();
+                    $this->reportDateFrom = $this->reportDateFrom !== '' ? $this->reportDateFrom : $now->format('Y-m-01');
+                    $this->reportDateTo = $this->reportDateTo !== '' ? $this->reportDateTo : $now->format('Y-m-t');
+                }
                 $this->reportClient = $input->getString('filter_report_client', '');
                 $this->reportNit = $input->getString('filter_report_nit', '');
                 // Ventas: force filter to own agent; Administracion: use request filter
