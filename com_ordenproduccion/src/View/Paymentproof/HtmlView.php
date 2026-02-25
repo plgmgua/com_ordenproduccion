@@ -12,6 +12,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 
 class HtmlView extends BaseHtmlView
 {
@@ -56,7 +57,8 @@ class HtmlView extends BaseHtmlView
         }
 
         // Get existing payments for display (no longer blocks adding more - many-to-many)
-        $this->existingPayments = $this->getExistingPayments();
+        // Merge duplicate documents (same document_number for this order) into one row with summed amounts
+        $this->existingPayments = $this->mergePaymentsByDocumentNumber($this->getExistingPayments());
 
         // Get component params
         $this->params = $app->getParams('com_ordenproduccion');
@@ -79,6 +81,7 @@ class HtmlView extends BaseHtmlView
         $this->labelPaymentType = $t('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Tipo de Pago');
         $this->labelPaymentAmount = $t('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Monto del Pago');
         $this->labelValueToApply = $t('COM_ORDENPRODUCCION_VALUE_TO_APPLY', 'Valor a Aplicar');
+        $this->labelAttachment = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_ATTACHMENT', 'Comprobante adjunto');
         $this->labelOrderInformation = $t('COM_ORDENPRODUCCION_ORDER_INFORMATION', 'Información de la Orden');
         $this->labelPaymentProofTitle = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_TITLE', 'Registro de Comprobante de Pago');
         $this->labelBackToOrder = $t('COM_ORDENPRODUCCION_BACK_TO_ORDER', 'Volver a la Orden');
@@ -114,6 +117,64 @@ class HtmlView extends BaseHtmlView
             return $model->getPaymentProofsByOrderId($this->orderId);
         }
         return [];
+    }
+
+    /**
+     * Merge payment proofs that share the same document_number (duplicate rows in DB) into one display row per document.
+     *
+     * @param   array  $proofs  Raw list from getPaymentProofsByOrderId
+     *
+     * @return  array  List with one entry per document_number, amounts summed; each has _merged = true if any merge happened
+     */
+    protected function mergePaymentsByDocumentNumber(array $proofs)
+    {
+        if (empty($proofs)) {
+            return [];
+        }
+        $byDoc = [];
+        foreach ($proofs as $p) {
+            $doc = trim((string) ($p->document_number ?? ''));
+            $key = $doc !== '' ? $doc : 'proof_' . ($p->id ?? uniqid());
+            if (!isset($byDoc[$key])) {
+                $byDoc[$key] = clone $p;
+                $byDoc[$key]->_merged = false;
+            } else {
+                $byDoc[$key]->payment_amount = (float) ($byDoc[$key]->payment_amount ?? 0) + (float) ($p->payment_amount ?? 0);
+                $byDoc[$key]->amount_applied = (float) ($byDoc[$key]->amount_applied ?? 0) + (float) ($p->amount_applied ?? 0);
+                $byDoc[$key]->_merged = true;
+            }
+        }
+        return array_values($byDoc);
+    }
+
+    /**
+     * Get file info for displaying an attached payment proof (image or PDF).
+     *
+     * @param   object  $proof  Payment proof object with file_path
+     *
+     * @return  array|null  ['url' => string, 'type' => 'image'|'pdf'] or null if no file
+     */
+    public function getPaymentProofFileInfo($proof)
+    {
+        $path = trim((string) ($proof->file_path ?? ''));
+        if ($path === '') {
+            return null;
+        }
+        $fullPath = JPATH_ROOT . '/' . ltrim($path, '/');
+        if (!is_file($fullPath)) {
+            return null;
+        }
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true);
+        $isPdf = ($ext === 'pdf');
+        if (!$isImage && !$isPdf) {
+            return null;
+        }
+        $url = Uri::root() . ltrim($path, '/');
+        return [
+            'url'  => $url,
+            'type' => $isImage ? 'image' : 'pdf',
+        ];
     }
 
     protected function _prepareDocument()

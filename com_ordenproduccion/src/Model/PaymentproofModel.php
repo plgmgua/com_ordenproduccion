@@ -361,7 +361,27 @@ class PaymentproofModel extends ItemModel
                 ->order('pp.' . $db->quoteName('created') . ' DESC');
 
             $db->setQuery($query);
-            return $db->loadObjectList();
+            $rows = $db->loadObjectList();
+            // Deduplicate by payment proof id (same proof can appear multiple times if payment_orders has duplicate rows)
+            $byId = [];
+            foreach ($rows as $row) {
+                $id = (int) ($row->id ?? 0);
+                if ($id <= 0) {
+                    continue;
+                }
+                if (!isset($byId[$id])) {
+                    $byId[$id] = clone $row;
+                } else {
+                    $byId[$id]->amount_applied = (float) ($byId[$id]->amount_applied ?? 0) + (float) ($row->amount_applied ?? 0);
+                }
+            }
+            $result = array_values($byId);
+            usort($result, function ($a, $b) {
+                $t1 = strtotime($a->created ?? '');
+                $t2 = strtotime($b->created ?? '');
+                return $t2 - $t1;
+            });
+            return $result;
             
         } catch (\Throwable $e) {
             $this->setError($e->getMessage());

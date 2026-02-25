@@ -99,19 +99,44 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             <tbody>
                                 <?php
                                 $proofModel = $this->getModel();
+                                $totalMonto = 0.0;
+                                $totalValorAplicar = 0.0;
                                 foreach ($existingPayments as $proof):
-                                    $lines = method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
+                                    $isMerged = !empty($proof->_merged);
+                                    $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
                                     if (!empty($lines)):
+                                        $proofMonto = 0.0;
                                         foreach ($lines as $line):
+                                            $proofMonto += (float)($line->amount ?? 0);
                                 ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td><?php echo $line === reset($lines) ? 'Q ' . number_format((float)($proof->amount_applied ?? 0), 2) : ''; ?></td>
+                                    <td><?php
+                                        if ($line === reset($lines)) {
+                                            $fileInfo = $this->getPaymentProofFileInfo($proof);
+                                            if ($fileInfo) {
+                                                if ($fileInfo['type'] === 'image') {
+                                                    echo '<a href="' . htmlspecialchars($fileInfo['url']) . '" target="_blank" rel="noopener"><img src="' . htmlspecialchars($fileInfo['url']) . '" alt="" class="img-thumbnail" style="max-height: 60px; max-width: 100px; object-fit: contain;"></a>';
+                                                } else {
+                                                    echo '<a href="' . htmlspecialchars($fileInfo['url']) . '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf"></i> Ver PDF</a>';
+                                                }
+                                            } else {
+                                                echo '<span class="text-muted">—</span>';
+                                            }
+                                        } else {
+                                            echo '';
+                                        }
+                                    ?></td>
                                 </tr>
                                 <?php endforeach;
+                                        $totalMonto += $proofMonto;
+                                        $totalValorAplicar += (float)($proof->amount_applied ?? 0);
                                     else:
+                                        $totalMonto += (float)($proof->payment_amount ?? 0);
+                                        $totalValorAplicar += (float)($proof->amount_applied ?? 0);
                                 ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
@@ -121,6 +146,14 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                                 <?php endif; endforeach; ?>
                             </tbody>
+                            <tfoot>
+                                <tr class="table-info fw-bold">
+                                    <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
+                                    <td>Q <?php echo number_format($totalMonto, 2); ?></td>
+                                    <td>Q <?php echo number_format($totalValorAplicar, 2); ?></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
