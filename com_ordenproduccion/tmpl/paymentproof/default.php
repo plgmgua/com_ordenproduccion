@@ -94,6 +94,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
+                                    <th style="width: 100px;"><?php echo htmlspecialchars($this->labelAttachment ?? 'Ver'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -118,11 +119,9 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         if ($line === reset($lines)) {
                                             $fileInfo = $this->getPaymentProofFileInfo($proof);
                                             if ($fileInfo) {
-                                                if ($fileInfo['type'] === 'image') {
-                                                    echo '<a href="' . htmlspecialchars($fileInfo['url']) . '" target="_blank" rel="noopener"><img src="' . htmlspecialchars($fileInfo['url']) . '" alt="" class="img-thumbnail" style="max-height: 60px; max-width: 100px; object-fit: contain;"></a>';
-                                                } else {
-                                                    echo '<a href="' . htmlspecialchars($fileInfo['url']) . '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf"></i> Ver PDF</a>';
-                                                }
+                                                $url = htmlspecialchars($fileInfo['url'], ENT_QUOTES, 'UTF-8');
+                                                $type = $fileInfo['type'];
+                                                echo '<button type="button" class="btn btn-sm btn-outline-primary view-payment-attachment" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-' . ($type === 'pdf' ? 'file-pdf' : 'image') . '"></i> Ver</button>';
                                             } else {
                                                 echo '<span class="text-muted">—</span>';
                                             }
@@ -155,10 +154,55 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                             </tfoot>
                         </table>
+                        <!-- Viewer: image or PDF below table -->
+                        <div id="payment-proof-viewer" class="mt-3 border rounded p-3 bg-light" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="small">Comprobante adjunto</strong>
+                                <button type="button" class="btn btn-sm btn-outline-secondary close-payment-viewer" aria-label="Cerrar">&times;</button>
+                            </div>
+                            <div id="payment-proof-viewer-image-wrap" style="display: none;">
+                                <img id="payment-proof-viewer-img" src="" alt="" class="img-fluid" style="max-height: 70vh; object-fit: contain;">
+                            </div>
+                            <div id="payment-proof-viewer-pdf-wrap" style="display: none;">
+                                <iframe id="payment-proof-viewer-iframe" src="" title="PDF" style="width: 100%; height: 70vh; border: 0;"></iframe>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+        <script>
+        (function() {
+            var viewer = document.getElementById('payment-proof-viewer');
+            var imgWrap = document.getElementById('payment-proof-viewer-image-wrap');
+            var imgEl = document.getElementById('payment-proof-viewer-img');
+            var pdfWrap = document.getElementById('payment-proof-viewer-pdf-wrap');
+            var iframe = document.getElementById('payment-proof-viewer-iframe');
+            var closeBtn = document.querySelector('.close-payment-viewer');
+            document.querySelectorAll('.view-payment-attachment').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var url = this.getAttribute('data-url');
+                    var type = this.getAttribute('data-type');
+                    if (!url) return;
+                    imgWrap.style.display = 'none';
+                    pdfWrap.style.display = 'none';
+                    if (type === 'image') {
+                        imgEl.src = url;
+                        imgWrap.style.display = 'block';
+                    } else if (type === 'pdf') {
+                        iframe.src = url;
+                        pdfWrap.style.display = 'block';
+                    }
+                    viewer.style.display = 'block';
+                });
+            });
+            if (closeBtn) closeBtn.addEventListener('click', function() {
+                viewer.style.display = 'none';
+                imgEl.src = '';
+                iframe.src = '';
+            });
+        })();
+        </script>
         <?php endif; ?>
 
         <!-- Order Information -->

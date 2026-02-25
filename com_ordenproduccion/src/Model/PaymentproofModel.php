@@ -147,6 +147,16 @@ class PaymentproofModel extends ItemModel
                 $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
                 return false;
             }
+            // Reject if any line has a duplicate combination of payment_type + bank + document_number
+            foreach ($paymentLines as $line) {
+                $type = trim((string) ($line['payment_type'] ?? ''));
+                $bank = trim((string) ($line['bank'] ?? ''));
+                $doc = trim((string) ($line['document_number'] ?? ''));
+                if ($type !== '' && $doc !== '' && $this->documentCombinationExists($type, $bank, $doc)) {
+                    $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DOCUMENT_ALREADY_EXISTS'));
+                    return false;
+                }
+            }
             $paymentAmount = 0;
             foreach ($paymentLines as $line) {
                 $paymentAmount += (float) ($line['amount'] ?? 0);
@@ -329,6 +339,56 @@ class PaymentproofModel extends ItemModel
             }
         }
         return $lines;
+    }
+
+    /**
+     * Check if the combination (payment_type, bank, document_number) already exists in payment_proofs or payment_proof_lines.
+     *
+     * @param   string  $paymentType    Payment type (e.g. transferencia, cheque)
+     * @param   string  $bank           Bank code/name (can be empty)
+     * @param   string  $documentNumber Document number (e.g. cheque number, reference)
+     *
+     * @return  bool  True if a record with this combination already exists
+     */
+    protected function documentCombinationExists($paymentType, $bank, $documentNumber)
+    {
+        $db = $this->getDatabase();
+        $type = trim($paymentType);
+        $bankVal = trim($bank);
+        $doc = trim($documentNumber);
+        if ($type === '' || $doc === '') {
+            return false;
+        }
+        $bankNorm = $bankVal === '' ? '' : $bankVal;
+        // Check payment_proofs (legacy/single-line proofs)
+        $q = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+            ->where($db->quoteName('payment_type') . ' = ' . $db->quote($type))
+            ->where($db->quoteName('document_number') . ' = ' . $db->quote($doc))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('(COALESCE(' . $db->quoteName('bank') . ', \'\') = ' . $db->quote($bankNorm) . ')');
+        $db->setQuery($q);
+        if ($db->loadResult()) {
+            return true;
+        }
+        // Check payment_proof_lines (multi-line proofs)
+        if ($this->hasPaymentProofLinesTable()) {
+            $q2 = $db->getQuery(true)
+                ->select('1')
+                ->from($db->quoteName('#__ordenproduccion_payment_proof_lines', 'ppl'))
+                ->innerJoin(
+                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = ppl.payment_proof_id AND pp.state = 1'
+                )
+                ->where('ppl.' . $db->quoteName('payment_type') . ' = ' . $db->quote($type))
+                ->where('ppl.' . $db->quoteName('document_number') . ' = ' . $db->quote($doc))
+                ->where('(COALESCE(ppl.' . $db->quoteName('bank') . ', \'\') = ' . $db->quote($bankNorm) . ')');
+            $db->setQuery($q2);
+            if ($db->loadResult()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
