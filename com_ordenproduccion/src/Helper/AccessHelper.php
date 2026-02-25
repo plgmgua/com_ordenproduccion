@@ -142,9 +142,10 @@ class AccessHelper
     }
 
     /**
-     * Check if user can see valor_factura field
+     * Check if user can see valor_factura (Valor a Facturar) for a given order.
+     * Administracion: see all. Produccion: only own (sales_agent = current user). Ventas: only own.
      *
-     * @param   string  $salesAgent  The sales agent name from the order
+     * @param   string|null  $salesAgent  The sales agent name from the order
      * @return  boolean
      */
     public static function canSeeValorFactura($salesAgent = null)
@@ -156,19 +157,19 @@ class AccessHelper
             return true;
         }
         
-        // If user is in Produccion group only, cannot see valor_factura
+        // Produccion only: can see all work orders but Valor a Facturar only for their own (sales_agent = current user)
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
-            return false;
+            if ($salesAgent === null || $salesAgent === '') {
+                return false;
+            }
+            return $salesAgent === $user->name;
         }
         
-        // If user is in Ventas group (alone or with Produccion), can see valor_factura only for their own orders
+        // Ventas (alone or with Produccion): can see valor_factura only for their own orders
         if (self::isInVentasGroup()) {
-            // If no sales agent provided, assume it's their own order
             if ($salesAgent === null) {
                 return true;
             }
-            
-            // Check if the sales agent matches the user's name
             return $salesAgent === $user->name;
         }
         
@@ -232,7 +233,7 @@ class AccessHelper
         }
         
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
-            return 'Produccion only: Can see all orders, but valor_factura is hidden';
+            return 'Produccion only: Can see all orders; Valor a Facturar only for own orders';
         }
         
         return 'No access: Cannot see orders';
