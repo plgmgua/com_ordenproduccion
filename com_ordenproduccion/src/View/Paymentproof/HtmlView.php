@@ -84,7 +84,7 @@ class HtmlView extends BaseHtmlView
         $this->labelAttachment = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_ATTACHMENT', 'Comprobante adjunto');
         $this->labelOrderInformation = $t('COM_ORDENPRODUCCION_ORDER_INFORMATION', 'Información de la Orden');
         $this->labelPaymentProofTitle = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_TITLE', 'Registro de Comprobante de Pago');
-        $this->labelBackToOrder = $t('COM_ORDENPRODUCCION_BACK_TO_ORDER', 'Volver a la Orden');
+        $this->labelBackToOrder = $t('COM_ORDENPRODUCCION_BACK_TO_PAYMENTS', 'Volver a Control de Pagos');
         $fmt = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_FOR_ORDER');
         $this->labelPaymentProofForOrder = (strpos($fmt, 'COM_ORDENPRODUCCION') === 0) ? 'Comprobante de Pago para Orden %s' : $fmt;
         $this->labelOrderNumber = $t('COM_ORDENPRODUCCION_ORDER_NUMBER', 'Orden #');
@@ -235,9 +235,14 @@ class HtmlView extends BaseHtmlView
         return htmlspecialchars($type ?? '');
     }
 
+    /**
+     * Route back to the payment proofs list (Control de Pagos).
+     *
+     * @return  string
+     */
     public function getBackToOrderRoute()
     {
-        return Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $this->orderId);
+        return Route::_('index.php?option=com_ordenproduccion&view=payments');
     }
 
     public function getPaymentTypeOptions()

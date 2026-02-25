@@ -133,15 +133,77 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <?php endforeach;
                                         $totalMonto += $proofMonto;
                                         $totalValorAplicar += (float)($proof->amount_applied ?? 0);
+                                        $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
+                                ?>
+                                <tr>
+                                    <td colspan="5" class="p-2 pt-0">
+                                        <?php if (!empty($proofOrders)) : ?>
+                                        <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
+                                                    <th class="small"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($proofOrders as $po) : ?>
+                                                <tr>
+                                                    <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
+                                                    <td class="small">Q <?php echo number_format((float)($po->amount_applied ?? 0), 2); ?></td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                        <?php else : ?>
+                                        <span class="text-muted small">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php
                                     else:
                                         $totalMonto += (float)($proof->payment_amount ?? 0);
                                         $totalValorAplicar += (float)($proof->amount_applied ?? 0);
+                                        $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->amount_applied ?? 0), 2); ?></td>
+                                    <td><?php
+                                        $fileInfo = $this->getPaymentProofFileInfo($proof);
+                                        if ($fileInfo) {
+                                            $url = htmlspecialchars($fileInfo['url'], ENT_QUOTES, 'UTF-8');
+                                            $type = $fileInfo['type'];
+                                            echo '<button type="button" class="btn btn-sm btn-outline-primary view-payment-attachment" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-' . ($type === 'pdf' ? 'file-pdf' : 'image') . '"></i> Ver</button>';
+                                        } else {
+                                            echo '<span class="text-muted">—</span>';
+                                        }
+                                    ?></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="p-2 pt-0">
+                                        <?php if (!empty($proofOrders)) : ?>
+                                        <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
+                                                    <th class="small"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($proofOrders as $po) : ?>
+                                                <tr>
+                                                    <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
+                                                    <td class="small">Q <?php echo number_format((float)($po->amount_applied ?? 0), 2); ?></td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                        <?php else : ?>
+                                        <span class="text-muted small">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                                 <?php endif; endforeach; ?>
                             </tbody>
@@ -155,7 +217,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             </tfoot>
                         </table>
                         <!-- Viewer: image or PDF below table -->
-                        <div id="payment-proof-viewer" class="mt-3 border rounded p-3 bg-light" style="display: none;">
+                        <div id="payment-proof-viewer" class="mt-3 border rounded p-3 bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <strong class="small">Comprobante adjunto</strong>
                                 <button type="button" class="btn btn-sm btn-outline-secondary close-payment-viewer" aria-label="Cerrar">&times;</button>
@@ -166,6 +228,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             <div id="payment-proof-viewer-pdf-wrap" style="display: none;">
                                 <iframe id="payment-proof-viewer-iframe" src="" title="PDF" style="width: 100%; height: 70vh; border: 0;"></iframe>
                             </div>
+                            <div id="payment-proof-viewer-empty" class="text-muted small">No hay comprobante para mostrar. Use Ver en la tabla para seleccionar uno.</div>
                         </div>
                     </div>
                 </div>
@@ -178,29 +241,40 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
             var imgEl = document.getElementById('payment-proof-viewer-img');
             var pdfWrap = document.getElementById('payment-proof-viewer-pdf-wrap');
             var iframe = document.getElementById('payment-proof-viewer-iframe');
+            var emptyMsg = document.getElementById('payment-proof-viewer-empty');
             var closeBtn = document.querySelector('.close-payment-viewer');
-            document.querySelectorAll('.view-payment-attachment').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var url = this.getAttribute('data-url');
-                    var type = this.getAttribute('data-type');
-                    if (!url) return;
-                    imgWrap.style.display = 'none';
-                    pdfWrap.style.display = 'none';
-                    if (type === 'image') {
-                        imgEl.src = url;
-                        imgWrap.style.display = 'block';
-                    } else if (type === 'pdf') {
-                        iframe.src = url;
-                        pdfWrap.style.display = 'block';
-                    }
-                    viewer.style.display = 'block';
-                });
-            });
-            if (closeBtn) closeBtn.addEventListener('click', function() {
-                viewer.style.display = 'none';
+            var buttons = document.querySelectorAll('.view-payment-attachment');
+            function showInViewer(url, type) {
+                if (!url) return;
+                emptyMsg.style.display = 'none';
+                imgWrap.style.display = 'none';
+                pdfWrap.style.display = 'none';
+                if (type === 'image') {
+                    imgEl.src = url;
+                    imgWrap.style.display = 'block';
+                } else if (type === 'pdf') {
+                    iframe.src = url;
+                    pdfWrap.style.display = 'block';
+                }
+            }
+            function clearViewer() {
                 imgEl.src = '';
                 iframe.src = '';
+                imgWrap.style.display = 'none';
+                pdfWrap.style.display = 'none';
+                emptyMsg.style.display = 'block';
+            }
+            buttons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    showInViewer(this.getAttribute('data-url'), this.getAttribute('data-type'));
+                });
             });
+            if (buttons.length) {
+                showInViewer(buttons[0].getAttribute('data-url'), buttons[0].getAttribute('data-type'));
+            } else {
+                emptyMsg.style.display = 'block';
+            }
+            if (closeBtn) closeBtn.addEventListener('click', clearViewer);
         })();
         </script>
         <?php endif; ?>
