@@ -74,6 +74,31 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
             </div>
         </div>
 
+        <!-- Order Information (single line, above payment proof) -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <h5 class="card-title mb-0 small">
+                            <i class="fas fa-info-circle"></i>
+                            <?php echo htmlspecialchars($this->labelOrderInformation ?? 'Información de la Orden'); ?>
+                        </h5>
+                    </div>
+                    <div class="card-body py-2">
+                        <p class="mb-0 small">
+                            <strong><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?>:</strong> <?php echo htmlspecialchars($order->order_number ?? $order->orden_de_trabajo ?? 'N/A'); ?>
+                            &nbsp;&bull;&nbsp;
+                            <strong><?php echo htmlspecialchars($this->labelClientName ?? 'Nombre del Cliente'); ?>:</strong> <?php echo htmlspecialchars($order->client_name ?? 'N/A'); ?>
+                            &nbsp;&bull;&nbsp;
+                            <strong><?php echo htmlspecialchars($this->labelOrderValue ?? 'Valor de Orden'); ?>:</strong> <?php echo $this->formatCurrency($order->invoice_value ?? 0); ?>
+                            &nbsp;&bull;&nbsp;
+                            <strong><?php echo htmlspecialchars($this->labelRequestDate ?? 'Fecha de Solicitud'); ?>:</strong> <?php echo $this->formatDate($order->request_date ?? ''); ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Existing Payments Info (can add more - many-to-many) -->
         <?php if (!empty($existingPayments)): ?>
         <div class="row mb-4">
@@ -278,40 +303,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         })();
         </script>
         <?php endif; ?>
-
-        <!-- Order Information -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-info-circle"></i>
-                            <?php echo htmlspecialchars($this->labelOrderInformation ?? 'Información de la Orden'); ?>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?>:</strong>
-                                <?php echo htmlspecialchars($order->order_number ?? $order->orden_de_trabajo ?? 'N/A'); ?>
-                            </div>
-                            <div class="col-md-6">
-                                <strong><?php echo htmlspecialchars($this->labelClientName ?? 'Nombre del Cliente'); ?>:</strong>
-                                <?php echo htmlspecialchars($order->client_name ?? 'N/A'); ?>
-                            </div>
-                            <div class="col-md-6">
-                                <strong><?php echo htmlspecialchars($this->labelInvoiceValue ?? 'Valor de Factura'); ?>:</strong>
-                                <?php echo $this->formatCurrency($order->invoice_value ?? 0); ?>
-                            </div>
-                            <div class="col-md-6">
-                                <strong><?php echo htmlspecialchars($this->labelRequestDate ?? 'Fecha de Solicitud'); ?>:</strong>
-                                <?php echo $this->formatDate($order->request_date ?? ''); ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Payment Proof Form (only when no existing payments) -->
         <?php if (empty($existingPayments)) : ?>

@@ -90,6 +90,7 @@ class HtmlView extends BaseHtmlView
         $this->labelOrderNumber = $t('COM_ORDENPRODUCCION_ORDER_NUMBER', 'Orden #');
         $this->labelClientName = $t('COM_ORDENPRODUCCION_CLIENT_NAME', 'Nombre del Cliente');
         $this->labelInvoiceValue = $t('COM_ORDENPRODUCCION_INVOICE_VALUE', 'Valor de Factura');
+        $this->labelOrderValue = $t('COM_ORDENPRODUCCION_ORDER_VALUE', 'Valor de Orden');
         $this->labelRequestDate = $t('COM_ORDENPRODUCCION_REQUEST_DATE', 'Fecha de Solicitud');
         $this->labelPaymentProofRegistration = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION', 'Registro de Comprobante de Pago');
         $this->labelTotal = $t('COM_ORDENPRODUCCION_TOTAL', 'Total');
