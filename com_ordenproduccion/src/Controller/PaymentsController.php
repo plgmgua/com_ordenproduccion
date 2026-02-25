@@ -64,12 +64,14 @@ class PaymentsController extends BaseController
             return;
         }
 
-        $cols = ['Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
+        $cols = ['ID', 'Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
 
         $rows = [];
         foreach ($items as $item) {
+            $paymentId = 'PA-' . str_pad((int) ($item->id ?? 0), 6, '0', STR_PAD_LEFT);
             $created = !empty($item->created) ? Factory::getDate($item->created)->format('Y-m-d H:i') : '';
             $rows[] = [
+                $paymentId,
                 $created,
                 $item->client_name ?? '',
                 $item->order_number ?? $item->orden_de_trabajo ?? '',

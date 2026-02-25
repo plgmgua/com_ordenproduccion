@@ -127,6 +127,7 @@ use Joomla\CMS\Session\Session;
                         <table class="table table-sm table-striped table-hover">
                             <thead class="table-dark">
                                 <tr>
+                                    <th scope="col" class="small"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ID'); ?></th>
                                     <th scope="col" class="small">Fecha</th>
                                     <th scope="col" class="small">Cliente</th>
                                     <th scope="col" class="small">Orden</th>
@@ -145,6 +146,7 @@ use Joomla\CMS\Session\Session;
                             <tbody>
                                 <?php foreach ($this->items as $item) : ?>
                                     <tr>
+                                        <td class="small">PA-<?php echo str_pad((int) ($item->id ?? 0), 6, '0', STR_PAD_LEFT); ?></td>
                                         <td class="small"><?php echo $this->formatDate($item->created); ?></td>
                                         <td class="small"><?php echo htmlspecialchars($item->client_name ?? '-'); ?></td>
                                         <td class="small">
