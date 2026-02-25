@@ -281,6 +281,26 @@ class HtmlView extends BaseHtmlView
     protected $reportSalesAgents = [];
 
     /**
+     * Clientes tab: sales agent filter, client name filter, NIT filter
+     *
+     * @var    string
+     * @since  3.79.0
+     */
+    protected $clientesSalesAgent = '';
+    protected $clientesClientName = '';
+    protected $clientesNit = '';
+    protected $clientesLimit = 20;
+    protected $clientesLimitStart = 0;
+    protected $clientesTotal = 0;
+    protected $clientesTotalSaldo = 0.0;
+    protected $clientesTotalCompras = 0.0;
+    protected $clientesTotalOrders = 0;
+    protected $clientesPagination = null;
+    protected $clientesSalesAgents = [];
+    /** Whether to show the sales agent filter dropdown (false when Ventas: only own data) */
+    protected $clientesShowSalesAgentFilter = true;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -477,10 +497,53 @@ class HtmlView extends BaseHtmlView
                 $clientesOrdering = $input->getString('filter_clientes_ordering', 'name');
                 $clientesDirection = $input->getString('filter_clientes_direction', 'asc');
                 $clientesHideZero = (bool) $input->getInt('filter_clientes_hide_zero', 0);
-                $this->clients = $statsModel->getClientsWithTotals($clientesOrdering, $clientesDirection, $clientesHideZero, $salesAgentFilter);
+                $this->clientesSalesAgent = $salesAgentFilter !== null ? $salesAgentFilter : $input->getString('filter_clientes_sales_agent', '');
+                $this->clientesClientName = $input->getString('filter_clientes_client', '');
+                $this->clientesNit = $input->getString('filter_clientes_nit', '');
+                $this->clientesLimit = max(5, min(100, (int) $input->getInt('clientes_limit', 20)));
+                $this->clientesLimitStart = max(0, (int) $input->getInt('clientes_limitstart', 0));
+                $this->clientesSalesAgents = $statsModel->getReportSalesAgents(null);
+                $fullList = $statsModel->getClientsWithTotals(
+                    $clientesOrdering,
+                    $clientesDirection,
+                    $clientesHideZero,
+                    $this->clientesSalesAgent !== '' ? $this->clientesSalesAgent : null,
+                    $this->clientesClientName,
+                    $this->clientesNit,
+                    0,
+                    0
+                );
+                $this->clientesTotal = count($fullList);
+                $this->clientesTotalSaldo = 0.0;
+                $this->clientesTotalCompras = 0.0;
+                $this->clientesTotalOrders = 0;
+                foreach ($fullList as $c) {
+                    $this->clientesTotalSaldo += (float) ($c->saldo ?? 0);
+                    $this->clientesTotalCompras += (float) ($c->compras ?? 0);
+                    $this->clientesTotalOrders += (int) ($c->order_count ?? 0);
+                }
+                $this->clients = array_slice($fullList, $this->clientesLimitStart, $this->clientesLimit);
                 $this->clientesOrdering = $clientesOrdering;
                 $this->clientesDirection = $clientesDirection;
                 $this->clientesHideZero = $clientesHideZero;
+                $this->clientesPagination = new \Joomla\CMS\Pagination\Pagination(
+                    $this->clientesTotal,
+                    $this->clientesLimitStart,
+                    $this->clientesLimit,
+                    'clientes_'
+                );
+                $this->clientesPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                $this->clientesPagination->setAdditionalUrlParam('view', 'administracion');
+                $this->clientesPagination->setAdditionalUrlParam('tab', 'clientes');
+                $this->clientesPagination->setAdditionalUrlParam('filter_clientes_ordering', $clientesOrdering);
+                $this->clientesPagination->setAdditionalUrlParam('filter_clientes_direction', $clientesDirection);
+                if ($clientesHideZero) {
+                    $this->clientesPagination->setAdditionalUrlParam('filter_clientes_hide_zero', '1');
+                }
+                $this->clientesPagination->setAdditionalUrlParam('filter_clientes_sales_agent', $this->clientesSalesAgent);
+                $this->clientesPagination->setAdditionalUrlParam('filter_clientes_client', $this->clientesClientName);
+                $this->clientesPagination->setAdditionalUrlParam('filter_clientes_nit', $this->clientesNit);
+                $this->clientesShowSalesAgentFilter = ($salesAgentFilter === null);
                 $user = Factory::getUser();
                 $this->canMergeClients = $user && $user->authorise('core.admin');
                 $this->canInitializeOpeningBalances = $user && $user->authorise('core.admin');

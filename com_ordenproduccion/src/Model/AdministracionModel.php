@@ -362,20 +362,22 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get all clients from work orders with Saldo (balance) using Jan 1 2026 accounting cutover.
+     * Get clients with totals (and optional filters / pagination).
      * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
      *
-     * @param   string    $ordering        Sort column: name, compras, saldo
-     * @param   string    $direction       Sort direction: asc, desc
-     * @param   boolean   $hideZeroSaldo   Hide clients with Saldo = 0
-     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
-     *
-     * @return  array  List of objects with client_name, nit, order_count, compras, saldo, etc.
-     *
+     * @param   string   $ordering         Sort column: name, compras, saldo
+     * @param   string   $direction        Sort direction: asc, desc
+     * @param   boolean  $hideZeroSaldo    Hide clients with Saldo = 0
+     * @param   string|null  $salesAgent   Optional sales agent filter
+     * @param   string   $clientNameFilter Optional client name substring filter (case-insensitive)
+     * @param   string   $nitFilter        Optional NIT substring filter (case-insensitive)
+     * @param   int      $limit            Page size (0 = return all)
+     * @param   int      $offset           Offset for pagination
+     * @return  array
      * @since   3.54.0
-     * @since   3.56.0  Added Saldo, opening balance, payments from Jan 1 2026
+     * @since   3.79.0  Added clientNameFilter, nitFilter, limit, offset
      */
-    public function getClientsWithTotals($ordering = 'name', $direction = 'asc', $hideZeroSaldo = false, $salesAgent = null)
+    public function getClientsWithTotals($ordering = 'name', $direction = 'asc', $hideZeroSaldo = false, $salesAgent = null, $clientNameFilter = '', $nitFilter = '', $limit = 0, $offset = 0)
     {
         $clients = $this->buildClientsWithBalances($salesAgent);
         $this->syncClientBalances($clients);
@@ -383,6 +385,21 @@ class AdministracionModel extends BaseDatabaseModel
         if ($hideZeroSaldo) {
             $clients = array_filter($clients, function ($c) {
                 return (float) ($c->saldo ?? 0) > 0;
+            });
+            $clients = array_values($clients);
+        }
+
+        if ($clientNameFilter !== '') {
+            $needle = mb_strtolower(trim($clientNameFilter));
+            $clients = array_filter($clients, function ($c) use ($needle) {
+                return $needle === '' || mb_strpos(mb_strtolower((string) ($c->client_name ?? '')), $needle) !== false;
+            });
+            $clients = array_values($clients);
+        }
+        if ($nitFilter !== '') {
+            $needle = mb_strtolower(trim($nitFilter));
+            $clients = array_filter($clients, function ($c) use ($needle) {
+                return $needle === '' || mb_strpos(mb_strtolower((string) ($c->nit ?? '')), $needle) !== false;
             });
             $clients = array_values($clients);
         }
@@ -405,7 +422,30 @@ class AdministracionModel extends BaseDatabaseModel
             return $dir * strcasecmp($na, $nb);
         });
 
+        if ((int) $limit > 0) {
+            return array_slice($clients, (int) $offset, (int) $limit);
+        }
+
         return $clients;
+    }
+
+    /**
+     * Get total count of clients after filters (for clientes pagination).
+     * Uses same filters as getClientsWithTotals but returns count only.
+     *
+     * @param   string       $ordering         Sort column (unused for count)
+     * @param   string       $direction       Sort direction (unused for count)
+     * @param   boolean      $hideZeroSaldo   Hide clients with Saldo = 0
+     * @param   string|null  $salesAgent      Optional sales agent filter
+     * @param   string       $clientNameFilter Optional client name substring filter
+     * @param   string       $nitFilter       Optional NIT substring filter
+     * @return  int
+     * @since   3.79.0
+     */
+    public function getClientsWithTotalsCount($ordering = 'name', $direction = 'asc', $hideZeroSaldo = false, $salesAgent = null, $clientNameFilter = '', $nitFilter = '')
+    {
+        $clients = $this->getClientsWithTotals($ordering, $direction, $hideZeroSaldo, $salesAgent, $clientNameFilter, $nitFilter, 0, 0);
+        return count($clients);
     }
 
     /**

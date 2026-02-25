@@ -20,15 +20,30 @@ $canInitialize = !empty($this->canInitializeOpeningBalances);
 $clientesOrdering = $this->clientesOrdering ?? 'name';
 $clientesDirection = $this->clientesDirection ?? 'asc';
 $clientesHideZero = !empty($this->clientesHideZero);
+$clientesSalesAgent = $this->clientesSalesAgent ?? '';
+$clientesClientName = $this->clientesClientName ?? '';
+$clientesNit = $this->clientesNit ?? '';
+$clientesSalesAgents = $this->clientesSalesAgents ?? [];
+$clientesPagination = $this->clientesPagination ?? null;
+$clientesTotal = (int) ($this->clientesTotal ?? 0);
+$clientesLimit = max(5, min(100, (int) ($this->clientesLimit ?? 20)));
+$clientesLimitStart = max(0, (int) ($this->clientesLimitStart ?? 0));
+$clientesTotalSaldo = (float) ($this->clientesTotalSaldo ?? 0);
+$clientesTotalCompras = (float) ($this->clientesTotalCompras ?? 0);
+$clientesTotalOrders = (int) ($this->clientesTotalOrders ?? 0);
+$showClientesSalesAgentFilter = !empty($this->clientesShowSalesAgentFilter);
 
-function clientesSortUrl($col, $currentOrdering, $currentDirection, $currentHideZero) {
+function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit) {
+    $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
+    if ($clientesHideZero) $params['filter_clientes_hide_zero'] = 1;
+    if ($clientesSalesAgent !== '') $params['filter_clientes_sales_agent'] = $clientesSalesAgent;
+    if ($clientesClientName !== '') $params['filter_clientes_client'] = $clientesClientName;
+    if ($clientesNit !== '') $params['filter_clientes_nit'] = $clientesNit;
+    return $params;
+}
+function clientesSortUrl($col, $currentOrdering, $currentDirection, $currentHideZero, $clientesSalesAgent = '', $clientesClientName = '', $clientesNit = '', $clientesLimit = 20) {
     $dir = ($col === $currentOrdering && $currentDirection === 'asc') ? 'desc' : 'asc';
-    $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes'];
-    $params['filter_clientes_ordering'] = $col;
-    $params['filter_clientes_direction'] = $dir;
-    if ($currentHideZero) {
-        $params['filter_clientes_hide_zero'] = 1;
-    }
+    $params = clientesBaseParams($col, $dir, $currentHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit);
     return \Joomla\CMS\Router\Route::_('index.php?' . http_build_query($params));
 }
 
@@ -134,6 +149,25 @@ function safeEscape($value, $default = '')
     text-align: center;
 }
 
+.clientes-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.clientes-filter-item .form-control,
+.clientes-filter-item .form-select {
+    font-size: 14px;
+}
+
+.clientes-pagination {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 #mergeModal .merge-target-option {
     cursor: pointer;
     padding: 12px 16px;
@@ -187,19 +221,52 @@ function safeEscape($value, $default = '')
         <p class="text-muted mb-0">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DESC'); ?>
         </p>
-        <div class="clientes-filter-bar mb-3 d-flex flex-wrap align-items-center gap-3">
-            <?php
-            $baseParams = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection];
-            $hideZeroUrl = Route::_('index.php?' . http_build_query($baseParams + ['filter_clientes_hide_zero' => 1]));
-            $showAllUrl = Route::_('index.php?' . http_build_query($baseParams));
-            ?>
-            <a href="<?php echo $clientesHideZero ? $showAllUrl : $hideZeroUrl; ?>"
-               class="btn btn-sm <?php echo $clientesHideZero ? 'btn-primary' : 'btn-outline-secondary'; ?>"
-               title="<?php echo $clientesHideZero ? Text::_('COM_ORDENPRODUCCION_CLIENTES_SHOW_ALL_TIP') : Text::_('COM_ORDENPRODUCCION_CLIENTES_HIDE_ZERO_TIP'); ?>">
-                <i class="fas fa-filter"></i>
-                <?php echo $clientesHideZero ? Text::_('COM_ORDENPRODUCCION_CLIENTES_SHOW_ALL') : Text::_('COM_ORDENPRODUCCION_CLIENTES_HIDE_ZERO'); ?>
-            </a>
-        </div>
+        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes'); ?>" class="clientes-filters-form mb-3">
+            <input type="hidden" name="option" value="com_ordenproduccion" />
+            <input type="hidden" name="view" value="administracion" />
+            <input type="hidden" name="tab" value="clientes" />
+            <input type="hidden" name="filter_clientes_ordering" value="<?php echo safeEscape($clientesOrdering); ?>" />
+            <input type="hidden" name="filter_clientes_direction" value="<?php echo safeEscape($clientesDirection); ?>" />
+            <input type="hidden" name="clientes_limit" value="<?php echo (int) $clientesLimit; ?>" />
+            <?php if ($clientesHideZero) : ?><input type="hidden" name="filter_clientes_hide_zero" value="1" /><?php endif; ?>
+            <div class="clientes-filter-bar d-flex flex-wrap align-items-end gap-3">
+                <?php if ($showClientesSalesAgentFilter) : ?>
+                <label class="clientes-filter-item">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_SALES_AGENT'); ?>
+                    <select name="filter_clientes_sales_agent" class="form-select form-select-sm" style="min-width: 180px;">
+                        <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS'); ?></option>
+                        <?php foreach ($clientesSalesAgents as $agent) : ?>
+                            <option value="<?php echo safeEscape($agent); ?>" <?php echo $clientesSalesAgent === $agent ? 'selected="selected"' : ''; ?>><?php echo safeEscape($agent); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <?php endif; ?>
+                <label class="clientes-filter-item">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_CLIENT'); ?>
+                    <input type="text" name="filter_clientes_client" class="form-control form-control-sm" value="<?php echo safeEscape($clientesClientName); ?>" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_CLIENT_PLACEHOLDER'); ?>" style="min-width: 200px;" />
+                </label>
+                <label class="clientes-filter-item">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_NIT'); ?>
+                    <input type="text" name="filter_clientes_nit" class="form-control form-control-sm" value="<?php echo safeEscape($clientesNit); ?>" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_NIT_PLACEHOLDER'); ?>" style="min-width: 140px;" />
+                </label>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-search"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_BTN'); ?>
+                </button>
+                <?php
+                $baseParams = clientesBaseParams($clientesOrdering, $clientesDirection, false, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit);
+                $hideZeroUrl = Route::_('index.php?' . http_build_query($baseParams + ['filter_clientes_hide_zero' => 1]));
+                $showAllParams = clientesBaseParams($clientesOrdering, $clientesDirection, false, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit);
+                $showAllUrl = Route::_('index.php?' . http_build_query($showAllParams));
+                ?>
+                <a href="<?php echo $clientesHideZero ? $showAllUrl : $hideZeroUrl; ?>"
+                   class="btn btn-sm <?php echo $clientesHideZero ? 'btn-primary' : 'btn-outline-secondary'; ?>"
+                   title="<?php echo $clientesHideZero ? Text::_('COM_ORDENPRODUCCION_CLIENTES_SHOW_ALL_TIP') : Text::_('COM_ORDENPRODUCCION_CLIENTES_HIDE_ZERO_TIP'); ?>">
+                    <i class="fas fa-filter"></i>
+                    <?php echo $clientesHideZero ? Text::_('COM_ORDENPRODUCCION_CLIENTES_SHOW_ALL') : Text::_('COM_ORDENPRODUCCION_CLIENTES_HIDE_ZERO'); ?>
+                </a>
+            </div>
+        </form>
         <?php if (($canMerge || $canInitialize) && !empty($clients)) : ?>
         <div class="clientes-merge-actions mt-3 d-flex flex-wrap gap-2">
             <?php if ($canMerge) : ?>
@@ -233,25 +300,19 @@ function safeEscape($value, $default = '')
                             <?php if ($canMerge) : ?>
                             <th class="col-select"><input type="checkbox" id="select-all-clients" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SELECT_ALL'); ?>"></th>
                             <?php endif; ?>
-                            <th class="col-client-name"><a href="<?php echo clientesSortUrl('name', $clientesOrdering, $clientesDirection, $clientesHideZero); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'name' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?><?php if ($clientesOrdering === 'name') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
+                            <th class="col-client-name"><a href="<?php echo clientesSortUrl('name', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'name' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?><?php if ($clientesOrdering === 'name') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
                             <th class="col-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_NIT'); ?></th>
                             <th class="col-order-count"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_ORDER_COUNT'); ?></th>
-                            <th class="col-compras"><a href="<?php echo clientesSortUrl('compras', $clientesOrdering, $clientesDirection, $clientesHideZero); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'compras' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_COMPRAS'); ?><?php if ($clientesOrdering === 'compras') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
-                            <th class="col-saldo"><a href="<?php echo clientesSortUrl('saldo', $clientesOrdering, $clientesDirection, $clientesHideZero); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'saldo' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_SALDO'); ?><?php if ($clientesOrdering === 'saldo') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
+                            <th class="col-compras"><a href="<?php echo clientesSortUrl('compras', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'compras' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_COMPRAS'); ?><?php if ($clientesOrdering === 'compras') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
+                            <th class="col-saldo"><a href="<?php echo clientesSortUrl('saldo', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'saldo' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_SALDO'); ?><?php if ($clientesOrdering === 'saldo') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
-                        $totalSaldo = 0;
-                        $totalOrders = 0;
-                        $totalCompras = 0;
                         foreach ($clients as $idx => $client) :
                             $orderCount = (int) ($client->order_count ?? 0);
                             $saldo = (float) ($client->saldo ?? 0);
                             $compras = (float) ($client->compras ?? 0);
-                            $totalSaldo += $saldo;
-                            $totalOrders += $orderCount;
-                            $totalCompras += $compras;
                             $cn = $client->client_name ?? '';
                             $nit = $client->nit ?? '';
                         ?>
@@ -274,14 +335,21 @@ function safeEscape($value, $default = '')
                 </table>
             </div>
         <div class="clientes-summary">
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_CLIENTS'); ?>: <?php echo count($clients); ?>
+            <?php
+            $from = $clientesTotal === 0 ? 0 : $clientesLimitStart + 1;
+            $to = min($clientesLimitStart + $clientesLimit, $clientesTotal);
+            ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SHOWING'); ?>: <?php echo $from; ?>–<?php echo $to; ?> <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_OF'); ?> <?php echo $clientesTotal; ?>
             &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_ORDERS'); ?>: <?php echo $totalOrders; ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_ORDERS'); ?>: <?php echo $clientesTotalOrders; ?>
             &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_COMPRAS'); ?>: Q.<?php echo number_format($totalCompras, 2); ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_COMPRAS'); ?>: Q.<?php echo number_format($clientesTotalCompras, 2); ?>
             &nbsp;|&nbsp;
-            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_SALDO'); ?>: Q.<?php echo number_format($totalSaldo, 2); ?>
+            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_TOTAL_SALDO'); ?>: Q.<?php echo number_format($clientesTotalSaldo, 2); ?>
         </div>
+        <?php if ($clientesPagination && $clientesTotal > $clientesLimit) : ?>
+        <div class="clientes-pagination mt-2"><?php echo $clientesPagination->getListFooter(); ?></div>
+        <?php endif; ?>
     <?php else : ?>
         <div class="clientes-empty">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_NO_CLIENTS'); ?>
