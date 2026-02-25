@@ -278,10 +278,10 @@ class HtmlView extends BaseHtmlView
 
         // Sales agent filter: Ventas see only their data; Administracion/Admon see all (null = no filter)
         $salesAgentFilter = AccessHelper::getSalesAgentFilter();
-        // Ventas: statistics tab only from Jan 1, 2025 (year dropdown minimum; clamp so UI matches data)
-        $this->statisticsMinYear = $salesAgentFilter !== null ? 2025 : 2020;
-        if ($salesAgentFilter !== null && $this->currentYear < 2025) {
-            $this->currentYear = 2025;
+        // Ventas: statistics tab only from Jan 1, 2026 (year dropdown minimum; clamp so UI matches data)
+        $this->statisticsMinYear = $salesAgentFilter !== null ? 2026 : 2020;
+        if ($salesAgentFilter !== null && $this->currentYear < 2026) {
+            $this->currentYear = 2026;
             $this->currentMonth = 0; // All year
         }
 

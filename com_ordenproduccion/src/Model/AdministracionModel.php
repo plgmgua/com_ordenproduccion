@@ -48,9 +48,9 @@ class AdministracionModel extends BaseDatabaseModel
             $endDate = date('Y-m-t', strtotime($startDate));
         }
 
-        // Ventas: only show statistics from Jan 1, 2025 onward
+        // Ventas: only show statistics from Jan 1, 2026 onward
         if ($salesAgentFilter !== null) {
-            $ventasMinDate = '2025-01-01';
+            $ventasMinDate = '2026-01-01';
             if ($startDate < $ventasMinDate) {
                 $startDate = $ventasMinDate;
             }
