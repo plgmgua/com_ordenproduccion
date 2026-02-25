@@ -162,7 +162,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
             </div>
         </div>
 
-        <!-- Payment Proof Form -->
+        <!-- Payment Proof Form (only when no existing payments) -->
+        <?php if (empty($existingPayments)) : ?>
         <div class="row">
             <div class="col-12">
                 <div class="card">
@@ -319,7 +320,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </div>
                             </div>
 
-                            <?php if (empty($existingPayments)) : ?>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -338,7 +338,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </div>
                                 </div>
                             </div>
-                            <?php endif; ?>
 
                             <!-- Hidden field with orders-with-remaining-balance data for JavaScript -->
                             <script type="application/json" id="unpaid-orders-data">
@@ -455,3 +454,4 @@ window.validateFile = function(input) {
     updateLinesTotal();
 })();
 </script>
+<?php endif; ?>
