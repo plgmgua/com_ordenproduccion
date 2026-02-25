@@ -28,8 +28,12 @@ class Dispatcher extends ComponentDispatcher
         $this->normalizeCotizacionViewQuery();
 
         // Require login for all frontend component pages; redirect guests to Joomla login with return URL
+        // Exception: webhook endpoints (test, process, health) are public for external/system access
+        $task = $this->input->getCmd('task', '');
+        $isWebhookTask = in_array($task, ['webhook.test', 'webhook.process', 'webhook.health'], true);
+
         $user = Factory::getUser();
-        if ($user->guest) {
+        if ($user->guest && !$isWebhookTask) {
             $app = Factory::getApplication();
             $returnUrl = Uri::getInstance()->toString();
             $return = urlencode(base64_encode($returnUrl));
