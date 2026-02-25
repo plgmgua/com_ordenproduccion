@@ -84,9 +84,17 @@ function safeEscape($value, $default = '')
     border-radius: 8px;
     margin-bottom: 20px;
     display: flex;
-    gap: 15px;
+    gap: 20px;
     align-items: flex-end;
     flex-wrap: wrap;
+}
+
+.reportes-filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 20px;
+    width: 100%;
 }
 
 .reportes-filters label {
@@ -162,13 +170,6 @@ function safeEscape($value, $default = '')
     padding: 12px;
     color: #6c757d;
     font-size: 13px;
-}
-
-.reportes-client-hint,
-.reportes-nit-hint {
-    font-size: 12px;
-    color: #6c757d;
-    margin-top: 2px;
 }
 
 .reportes-nit-wrap {
@@ -336,53 +337,53 @@ function safeEscape($value, $default = '')
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="reportes" />
         <div class="reportes-filters">
-            <label>
-                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_FROM'); ?>
-                <input type="date" name="filter_report_date_from" value="<?php echo safeEscape($reportDateFrom); ?>" />
-            </label>
-            <label>
-                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_TO'); ?>
-                <input type="date" name="filter_report_date_to" value="<?php echo safeEscape($reportDateTo); ?>" />
-            </label>
-            <label class="reportes-client-wrap">
-                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>
-                <input type="text" 
-                       name="filter_report_client" 
-                       id="filter_report_client" 
-                       value="<?php echo safeEscape($reportClient); ?>" 
-                       autocomplete="off"
-                       placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?>"
-                       aria-describedby="reportes-client-hint" />
-                <span id="reportes-client-hint" class="reportes-client-hint"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT_HINT'); ?></span>
-                <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
-            </label>
-            <label class="reportes-nit-wrap">
-                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>
-                <input type="text" 
-                       name="filter_report_nit" 
-                       id="filter_report_nit" 
-                       value="<?php echo safeEscape($reportNit); ?>" 
-                       autocomplete="off"
-                       placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_NITS'); ?>"
-                       aria-describedby="reportes-nit-hint" />
-                <span id="reportes-nit-hint" class="reportes-nit-hint"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT_HINT'); ?></span>
-                <ul id="reportes-nit-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" hidden></ul>
-            </label>
-            <label>
-                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SALES_AGENT'); ?>
-                <select name="filter_report_sales_agent">
-                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS'); ?></option>
-                    <?php foreach ($reportSalesAgents as $agent) : ?>
-                        <option value="<?php echo safeEscape($agent); ?>" <?php echo $reportSalesAgent === $agent ? 'selected="selected"' : ''; ?>>
-                            <?php echo safeEscape($agent); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <button type="submit" class="filter-btn">
-                <i class="fas fa-search"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
-            </button>
+            <div class="reportes-filters-row">
+                <label>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_FROM'); ?>
+                    <input type="date" name="filter_report_date_from" value="<?php echo safeEscape($reportDateFrom); ?>" />
+                </label>
+                <label>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_TO'); ?>
+                    <input type="date" name="filter_report_date_to" value="<?php echo safeEscape($reportDateTo); ?>" />
+                </label>
+                <label class="reportes-nit-wrap">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>
+                    <input type="text" 
+                           name="filter_report_nit" 
+                           id="filter_report_nit" 
+                           value="<?php echo safeEscape($reportNit); ?>" 
+                           autocomplete="off"
+                           placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_NITS'); ?>"
+                           aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" />
+                    <ul id="reportes-nit-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NIT'); ?>" hidden></ul>
+                </label>
+                <label class="reportes-client-wrap">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>
+                    <input type="text" 
+                           name="filter_report_client" 
+                           id="filter_report_client" 
+                           value="<?php echo safeEscape($reportClient); ?>" 
+                           autocomplete="off"
+                           placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?>"
+                           aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" />
+                    <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
+                </label>
+                <label>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SALES_AGENT'); ?>
+                    <select name="filter_report_sales_agent">
+                        <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS'); ?></option>
+                        <?php foreach ($reportSalesAgents as $agent) : ?>
+                            <option value="<?php echo safeEscape($agent); ?>" <?php echo $reportSalesAgent === $agent ? 'selected="selected"' : ''; ?>>
+                                <?php echo safeEscape($agent); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-search"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
+                </button>
+            </div>
             <div class="reportes-actions-row">
                 <span class="reportes-toolbar-label"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SIZE'); ?></span>
                 <div class="reportes-font-controls">
