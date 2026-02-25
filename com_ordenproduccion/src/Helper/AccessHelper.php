@@ -198,6 +198,21 @@ class AccessHelper
     }
 
     /**
+     * Get the sales agent filter for the Administracion view only.
+     * Only members of Administracion (or Admon) see everyone's data; all others see only their own records.
+     *
+     * @return  string|null  Null = see all (Administracion/Admon only), otherwise current user's name
+     */
+    public static function getSalesAgentFilterForAdministracionView()
+    {
+        if (self::isInAdministracionOrAdmonGroup()) {
+            return null;
+        }
+        $user = Factory::getUser();
+        return $user->name;
+    }
+
+    /**
      * Get user's access level description
      *
      * @return  string

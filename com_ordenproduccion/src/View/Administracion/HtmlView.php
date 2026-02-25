@@ -336,8 +336,8 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        // Sales agent filter: Ventas see only their data; Administracion/Admon see all (null = no filter)
-        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        // Sales agent filter: only Administracion/Admon see all; everyone else sees only their own records
+        $salesAgentFilter = AccessHelper::getSalesAgentFilterForAdministracionView();
         // Ventas: statistics tab only from Jan 1, 2026 (year dropdown minimum; clamp so UI matches data)
         $this->statisticsMinYear = $salesAgentFilter !== null ? 2026 : 2020;
         if ($salesAgentFilter !== null && $this->currentYear < 2026) {
@@ -412,6 +412,10 @@ class HtmlView extends BaseHtmlView
             try {
                 $invoicesModel = $this->getModel('Invoices');
                 if ($invoicesModel) {
+                    // Non-Administracion: restrict to current user's invoices
+                    if ($salesAgentFilter !== null) {
+                        $invoicesModel->setState('filter.sales_agent', $salesAgentFilter);
+                    }
                     $this->invoices = $invoicesModel->getItems();
                     $this->invoicesPagination = $invoicesModel->getPagination();
                     $this->state = $invoicesModel->getState();
@@ -425,7 +429,7 @@ class HtmlView extends BaseHtmlView
         // Load work orders data if workorders tab is active
         if ($activeTab === 'workorders') {
             try {
-                // Get work orders directly from database (bypass user group filtering for admin view)
+                // Get work orders from database; non-Administracion users see only their own (by sales_agent)
                 $db = Factory::getDbo();
                 $query = $db->getQuery(true);
                 
@@ -440,6 +444,11 @@ class HtmlView extends BaseHtmlView
                 
                 // Only show published orders
                 $query->where($db->quoteName('state') . ' = 1');
+                
+                // Non-Administracion: restrict to current user's records by sales_agent
+                if ($salesAgentFilter !== null) {
+                    $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+                }
                 
                 // Apply search filter if provided
                 $search = $input->getString('filter_search', '');
@@ -502,7 +511,7 @@ class HtmlView extends BaseHtmlView
                 $this->clientesNit = $input->getString('filter_clientes_nit', '');
                 $this->clientesLimit = max(5, min(100, (int) $input->getInt('clientes_limit', 20)));
                 $this->clientesLimitStart = max(0, (int) $input->getInt('clientes_limitstart', 0));
-                $this->clientesSalesAgents = $statsModel->getReportSalesAgents(null);
+                $this->clientesSalesAgents = $statsModel->getReportSalesAgents($salesAgentFilter);
                 $fullList = $statsModel->getClientsWithTotals(
                     $clientesOrdering,
                     $clientesDirection,
