@@ -319,6 +319,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </div>
                             </div>
 
+                            <?php if (empty($existingPayments)) : ?>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -337,6 +338,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </div>
                                 </div>
                             </div>
+                            <?php endif; ?>
 
                             <!-- Hidden field with orders-with-remaining-balance data for JavaScript -->
                             <script type="application/json" id="unpaid-orders-data">
