@@ -132,6 +132,12 @@ class PaymentproofModel extends ItemModel
      */
     public function save($data)
     {
+        // Once saved, payment proofs cannot be modified—only deleted (from Control de Pagos).
+        if (!empty($data['id']) && (int) $data['id'] > 0) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_CANNOT_EDIT'));
+            return false;
+        }
+
         try {
             $db = $this->getDatabase();
 

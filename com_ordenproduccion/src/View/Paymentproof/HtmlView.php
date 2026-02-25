@@ -74,6 +74,7 @@ class HtmlView extends BaseHtmlView
             return ($v !== $key) ? $v : $fallback;
         };
         $this->labelExistingPayments = $t('COM_ORDENPRODUCCION_EXISTING_PAYMENTS', 'Pagos Existentes para Esta Orden');
+        $this->labelPaymentProofNoEdit = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_NO_EDIT', 'Los comprobantes guardados no se pueden modificar, solo eliminar (desde Control de Pagos).');
         $this->labelDocumentNumber = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Número de Documento');
         $this->labelPaymentType = $t('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Tipo de Pago');
         $this->labelPaymentAmount = $t('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Monto del Pago');
