@@ -225,6 +225,17 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 $orderInfoRows[] = $po;
                             }
                         }
+                        // When no rows from payment_orders (e.g. legacy proof), show current order so the table is never missing
+                        if (empty($orderInfoRows) && !empty($order)) {
+                            $orderInfoRows[] = (object) [
+                                'order_id' => $orderId,
+                                'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? 'N/A',
+                                'client_name' => $order->client_name ?? $order->nombre_del_cliente ?? '—',
+                                'invoice_value' => $order->invoice_value ?? $order->valor_a_facturar ?? 0,
+                                'request_date' => $order->request_date ?? $order->fecha_de_solicitud ?? null,
+                                'amount_applied' => !empty($existingPayments) ? (float)($existingPayments[0]->amount_applied ?? 0) : 0,
+                            ];
+                        }
                         ?>
                         <?php if (!empty($orderInfoRows)) : ?>
                         <div class="mt-3">

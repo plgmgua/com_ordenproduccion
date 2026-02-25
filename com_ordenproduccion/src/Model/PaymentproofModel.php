@@ -343,12 +343,13 @@ class PaymentproofModel extends ItemModel
 
     /**
      * Check if the combination (payment_type, bank, document_number) already exists in payment_proofs or payment_proof_lines.
+     * Only considers non-deleted records (state = 1); deleted payment proofs are ignored so the same document can be reused.
      *
      * @param   string  $paymentType    Payment type (e.g. transferencia, cheque)
      * @param   string  $bank           Bank code/name (can be empty)
      * @param   string  $documentNumber Document number (e.g. cheque number, reference)
      *
-     * @return  bool  True if a record with this combination already exists
+     * @return  bool  True if a record with this combination already exists (active proofs only)
      */
     protected function documentCombinationExists($paymentType, $bank, $documentNumber)
     {
@@ -360,7 +361,7 @@ class PaymentproofModel extends ItemModel
             return false;
         }
         $bankNorm = $bankVal === '' ? '' : $bankVal;
-        // Check payment_proofs (legacy/single-line proofs)
+        // Check payment_proofs (legacy/single-line proofs) – only state = 1 (exclude deleted)
         $q = $db->getQuery(true)
             ->select('1')
             ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
@@ -372,7 +373,7 @@ class PaymentproofModel extends ItemModel
         if ($db->loadResult()) {
             return true;
         }
-        // Check payment_proof_lines (multi-line proofs)
+        // Check payment_proof_lines (multi-line proofs) – only proofs with state = 1 (exclude deleted)
         if ($this->hasPaymentProofLinesTable()) {
             $q2 = $db->getQuery(true)
                 ->select('1')
