@@ -369,18 +369,24 @@ class AdministracionController extends BaseController
                 '#__ordenproduccion_pre_cotizacion',
             ];
 
-            foreach ($tables as $tableName) {
-                $fullName = $db->replacePrefix($tableName);
-                if ($fullName === null || $fullName === '') {
-                    continue;
-                }
-                if (!in_array(strtolower($fullName), $tableList, true)) {
-                    continue;
-                }
-                $db->truncateTable($fullName);
-            }
+            // Disable foreign key checks so truncate can run (quotation_items references quotations)
+            $db->setQuery('SET FOREIGN_KEY_CHECKS = 0')->execute();
 
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_SUCCESS'), 'success');
+            try {
+                foreach ($tables as $tableName) {
+                    $fullName = $db->replacePrefix($tableName);
+                    if ($fullName === null || $fullName === '') {
+                        continue;
+                    }
+                    if (!in_array(strtolower($fullName), $tableList, true)) {
+                        continue;
+                    }
+                    $db->truncateTable($fullName);
+                }
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_SUCCESS'), 'success');
+            } finally {
+                $db->setQuery('SET FOREIGN_KEY_CHECKS = 1')->execute();
+            }
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_ERROR') . ': ' . $e->getMessage(), 'error');
         }
