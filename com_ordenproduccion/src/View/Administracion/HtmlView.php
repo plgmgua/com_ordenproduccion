@@ -330,8 +330,8 @@ class HtmlView extends BaseHtmlView
         // Get active tab - default to resumen for better UX
         $activeTab = $input->get('tab', 'resumen', 'string');
 
-        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: workorders, invoices, herramientas
-        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['workorders', 'invoices', 'herramientas'], true)) {
+        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: workorders, invoices, herramientas, ajustes
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['workorders', 'invoices', 'herramientas', 'ajustes'], true)) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
@@ -345,8 +345,8 @@ class HtmlView extends BaseHtmlView
             $this->currentMonth = 0; // All year
         }
 
-        // Get active subtab for herramientas tab - default to banks
-        $activeSubTab = $input->get('subtab', 'banks', 'string');
+        // Get active subtab: for herramientas default banks, for ajustes default cotizaciones
+        $activeSubTab = $input->get('subtab', ($activeTab === 'ajustes' ? 'cotizaciones' : 'banks'), 'string');
         $this->activeSubTab = $activeSubTab;
 
         // Get statistics model and data (filtered by sales agent when Ventas)

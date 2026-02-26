@@ -322,4 +322,69 @@ class AdministracionController extends BaseController
 
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes', false));
     }
+
+    /**
+     * Reset all pre-cotizaciones and cotizaciones records (delete all, start numbering from 1).
+     * Administracion only. Requires POST with token and confirm=1.
+     *
+     * @return  void
+     */
+    public function resetCotizacionesPrecotizaciones()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones', false));
+            return;
+        }
+
+        if ($app->input->post->getInt('confirm', 0) !== 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_RESET_CONFIRM_REQUIRED'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones', false));
+            return;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $tableList = array_map('strtolower', $db->getTableList());
+
+            $tables = [
+                '#__ordenproduccion_quotation_items',
+                '#__ordenproduccion_quotations',
+                '#__ordenproduccion_pre_cotizacion_line',
+                '#__ordenproduccion_pre_cotizacion',
+            ];
+
+            foreach ($tables as $tableName) {
+                $fullName = $db->replacePrefix($tableName);
+                if ($fullName === null || $fullName === '') {
+                    continue;
+                }
+                if (!in_array(strtolower($fullName), $tableList, true)) {
+                    continue;
+                }
+                $db->truncateTable($fullName);
+            }
+
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_SUCCESS'), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones', false));
+    }
 }

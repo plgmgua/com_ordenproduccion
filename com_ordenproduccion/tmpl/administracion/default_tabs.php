@@ -130,6 +130,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-tools"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_HERRAMIENTAS'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones'); ?>"
+       class="admin-tab <?php echo $activeTab === 'ajustes' ? 'active' : ''; ?>">
+        <i class="fas fa-cog"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_AJUSTES'); ?>
+    </a>
     <?php endif; ?>
 </div>
 
@@ -158,6 +163,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('clientes'); ?>
     <?php elseif ($activeTab === 'herramientas'): ?>
         <?php echo $this->loadTemplate('herramientas'); ?>
+    <?php elseif ($activeTab === 'ajustes'): ?>
+        <?php echo $this->loadTemplate('ajustes'); ?>
     <?php else: ?>
         <?php echo $this->loadTemplate('resumen'); ?>
     <?php endif; ?>
