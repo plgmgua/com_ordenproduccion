@@ -61,14 +61,14 @@ if (!empty($lines)) {
         }
     }
 }
-$linesTotal = $linesSubtotal;
+$facturar = !empty($item->facturar);
 $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
 $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
 $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
 $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
 $margenAmount = $linesSubtotal * ($paramMargen / 100);
-$ivaAmount = $linesSubtotal * ($paramIva / 100);
-$isrAmount = $linesSubtotal * ($paramIsr / 100);
+$ivaAmount = $facturar ? 0 : ($linesSubtotal * ($paramIva / 100));
+$isrAmount = $facturar ? 0 : ($linesSubtotal * ($paramIsr / 100));
 $comisionAmount = $linesSubtotal * ($paramComision / 100);
 $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
@@ -123,6 +123,33 @@ $envios = $this->envios ?? [];
     ?>
     <div class="alert alert-info mb-3"><?php echo htmlspecialchars($msgLocked); ?></div>
     <?php endif; ?>
+
+    <?php
+    $labelFacturar = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR');
+    if (strpos($labelFacturar, 'COM_ORDENPRODUCCION_') === 0) {
+        $labelFacturar = 'Facturar';
+    }
+    $facturarChecked = !empty($item->facturar);
+    $saveFacturarUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveFacturar');
+    ?>
+    <div class="precotizacion-facturar mb-3">
+        <?php if ($precotizacionLocked) : ?>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>
+                <label class="form-check-label" for="precotizacion-facturar-display"><?php echo htmlspecialchars($labelFacturar); ?></label>
+            </div>
+        <?php else : ?>
+        <form action="<?php echo htmlspecialchars($saveFacturarUrl); ?>" method="post" class="d-inline" id="form-facturar">
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" name="facturar" id="precotizacion-facturar" value="1" <?php echo $facturarChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
+                <label class="form-check-label" for="precotizacion-facturar"><?php echo htmlspecialchars($labelFacturar); ?></label>
+            </div>
+        </form>
+        <?php endif; ?>
+        <p class="form-text text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_DESC'); ?></p>
+    </div>
 
     <?php
     $labelDescripcion = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION');
@@ -297,14 +324,14 @@ $envios = $this->envios ?? [];
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($paramIva != 0) : ?>
+                    <?php if (!$facturar && $paramIva != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($paramIsr != 0) : ?>
+                    <?php if (!$facturar && $paramIsr != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>

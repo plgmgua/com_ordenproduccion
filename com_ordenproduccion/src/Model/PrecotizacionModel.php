@@ -155,8 +155,12 @@ class PrecotizacionModel extends ListModel
         $db   = $this->getDatabase();
         $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-        if (is_array($tableCols) && array_key_exists('descripcion', array_change_key_case($tableCols, CASE_LOWER))) {
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (isset($tableCols['descripcion'])) {
             $cols[] = 'a.descripcion';
+        }
+        if (isset($tableCols['facturar'])) {
+            $cols[] = 'a.facturar';
         }
         $query = $db->getQuery(true)
             ->select($cols)
@@ -166,6 +170,9 @@ class PrecotizacionModel extends ListModel
 
         $db->setQuery($query);
         $item = $db->loadObject();
+        if ($item && !isset($item->facturar)) {
+            $item->facturar = 0;
+        }
         return $item ?: null;
     }
 
@@ -221,6 +228,7 @@ class PrecotizacionModel extends ListModel
 
     /**
      * Get total amount for a Pre-Cotización: subtotal (lines excluding envio) + params (Margen, IVA, ISR, Comisión).
+     * When facturar=1, IVA and ISR are excluded from the calculation.
      *
      * @param   int  $preCotizacionId  Pre-Cotización id.
      * @return  float
@@ -241,7 +249,13 @@ class PrecotizacionModel extends ListModel
         $iva = (float) $params->get('iva', 0);
         $isr = (float) $params->get('isr', 0);
         $comision = (float) $params->get('comision_venta', 0);
-        $total = $subtotal + $subtotal * ($margen + $iva + $isr + $comision) / 100;
+        $item = $this->getItem((int) $preCotizacionId);
+        $facturar = $item && !empty($item->facturar);
+        if ($facturar) {
+            $total = $subtotal + $subtotal * ($margen + $comision) / 100;
+        } else {
+            $total = $subtotal + $subtotal * ($margen + $iva + $isr + $comision) / 100;
+        }
         return round($total, 2);
     }
 

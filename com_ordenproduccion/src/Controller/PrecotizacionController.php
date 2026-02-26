@@ -531,6 +531,71 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Save the Facturar flag (1 = exclude IVA/ISR from totals). Only owner can save.
+     *
+     * @return  bool
+     * @since   3.79.0
+     */
+    public function saveFacturar()
+    {
+        if (!Session::checkToken('request')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+            return false;
+        }
+
+        $id = (int) $this->input->get('id', 0);
+        $facturar = (int) $this->input->get('facturar', 0);
+        $facturar = $facturar ? 1 : 0;
+
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $item = $model->getItem($id);
+        if (!$item) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+
+        $db = Factory::getDbo();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['facturar'])) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_FACTURAR_NOT_AVAILABLE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+            return false;
+        }
+
+        $obj = (object) [
+            'id' => $id,
+            'facturar' => $facturar,
+            'modified' => Factory::getDate()->toSql(),
+            'modified_by' => $user->id,
+        ];
+        $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
+
+        $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_SAVED'));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+        return true;
+    }
+
+    /**
      * If this pre-cotización is associated with a quotation, set error message, redirect (or JSON), and return true.
      * Caller should return false when this returns true.
      *
