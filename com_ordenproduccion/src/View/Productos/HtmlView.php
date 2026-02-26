@@ -289,5 +289,7 @@ class HtmlView extends BaseHtmlView
             $title = 'Administración de Imprenta';
         }
         $this->document->setTitle($title);
+        // Load Bootstrap so modal (Ajustes > Cotizaciones reset) works
+        \Joomla\CMS\HTML\HTMLHelper::_('bootstrap.framework');
     }
 }
