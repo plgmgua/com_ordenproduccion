@@ -414,6 +414,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             </div>
 
                             <input type="hidden" name="payment_amount" id="payment_amount" value="">
+                            <input type="hidden" name="payment_mismatch_note" id="payment_mismatch_note" value="">
+                            <input type="hidden" name="payment_mismatch_difference" id="payment_mismatch_difference" value="">
 
                             <!-- Dynamic Orders Table -->
                             <div class="row">
@@ -624,3 +626,28 @@ window.validateFile = function(input) {
     updateLinesTotal();
 })();
 </script>
+
+<!-- Modal: totals mismatch warning -->
+<div class="modal fade" id="payment-mismatch-modal" tabindex="-1" aria-labelledby="payment-mismatch-modal-label" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header alert-warning">
+                <h5 class="modal-title" id="payment-mismatch-modal-label">
+                    <?php echo htmlspecialchars($this->labelMismatchTitle ?? 'Los totales no coinciden'); ?>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars($this->labelMismatchCancel ?? 'Cancelar'); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3"><?php echo htmlspecialchars($this->labelMismatchMessage ?? 'El total de Líneas de Pago no coincide con el total de Órdenes a aplicar. ¿Desea guardar de todos modos?'); ?></p>
+                <p class="mb-2"><strong><?php echo htmlspecialchars($this->labelMismatchDifference ?? 'Diferencia'); ?>:</strong> <span id="payment-mismatch-difference-text">Q. 0.00</span></p>
+                <label for="payment-mismatch-note-ta" class="form-label"><?php echo htmlspecialchars($this->labelMismatchNotePlaceholder ?? 'Nota (opcional)'); ?></label>
+                <textarea class="form-control" id="payment-mismatch-note-ta" rows="4" placeholder="<?php echo htmlspecialchars($this->labelMismatchNotePlaceholder ?? 'Indique el motivo o nota...'); ?>"></textarea>
+                <p class="small text-muted mt-2 mb-0"><?php echo htmlspecialchars($this->labelMismatchNoteHelp ?? 'Esta nota se enviará por correo al grupo Administración.'); ?></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars($this->labelMismatchCancel ?? 'Cancelar'); ?></button>
+                <button type="button" class="btn btn-primary" id="payment-mismatch-proceed-btn"><?php echo htmlspecialchars($this->labelProceedSave ?? 'Sí, guardar'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>

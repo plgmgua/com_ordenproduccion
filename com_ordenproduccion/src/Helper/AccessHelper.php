@@ -121,6 +121,39 @@ class AccessHelper
     }
 
     /**
+     * Get email addresses of all users in the Administracion (or Admon) group.
+     * Used to notify administration when a payment proof is saved with a totals mismatch.
+     *
+     * @return  string[]  Array of unique email addresses
+     */
+    public static function getAdministracionGroupEmails()
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('g.id'))
+            ->from($db->quoteName('#__usergroups', 'g'))
+            ->where($db->quoteName('g.title') . ' IN (' . $db->quote('Administracion') . ',' . $db->quote('Admon') . ')');
+        $db->setQuery($query);
+        $groupIds = $db->loadColumn() ?: [];
+        if (empty($groupIds)) {
+            return [];
+        }
+        $groupIds = array_map('intval', $groupIds);
+        $subQuery = $db->getQuery(true)
+            ->select($db->quoteName('user_id'))
+            ->from($db->quoteName('#__user_usergroup_map'))
+            ->where($db->quoteName('group_id') . ' IN (' . implode(',', $groupIds) . ')');
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('email'))
+            ->from($db->quoteName('#__users'))
+            ->where($db->quoteName('id') . ' IN (' . (string) $subQuery . ')')
+            ->where($db->quoteName('email') . ' != ' . $db->quote(''));
+        $db->setQuery($query);
+        $emails = $db->loadColumn() ?: [];
+        return array_values(array_unique(array_filter($emails)));
+    }
+
+    /**
      * Check if user is in both Ventas and Produccion groups
      *
      * @return  boolean

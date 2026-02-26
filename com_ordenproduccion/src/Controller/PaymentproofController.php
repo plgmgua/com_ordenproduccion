@@ -9,6 +9,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -145,6 +146,9 @@ class PaymentproofController extends BaseController
 
             $model = $this->getModel('Paymentproof');
             
+            $mismatchNote = trim((string) $this->input->getString('payment_mismatch_note', ''));
+            $mismatchDifference = $this->input->getString('payment_mismatch_difference', '');
+
             $data = [
                 'order_id' => $validatedOrders[0]['order_id'],
                 'payment_amount' => array_sum(array_column($validatedLines, 'amount')),
@@ -163,6 +167,16 @@ class PaymentproofController extends BaseController
                     : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_SUCCESS');
                     
                 $this->app->enqueueMessage($message, 'success');
+
+                if ($mismatchNote !== '' || $mismatchDifference !== '') {
+                    $this->sendMismatchNotificationToAdministracion(
+                        $validatedOrders,
+                        array_sum(array_column($validatedLines, 'amount')),
+                        $mismatchDifference,
+                        $mismatchNote,
+                        $user
+                    );
+                }
             } else {
                 $errors = $model->getErrors();
                 $errorMessage = !empty($errors) ? implode('<br>', $errors) : Text::_('COM_ORDENPRODUCCION_ERROR_SAVING_PAYMENT_PROOF');
@@ -218,6 +232,76 @@ class PaymentproofController extends BaseController
         
         // Return relative path for database storage
         return 'media/com_ordenproduccion/payment_proofs/' . $uniqueFileName;
+    }
+
+    /**
+     * Send email to Administracion group when payment proof was saved with a totals mismatch.
+     *
+     * @param   array    $validatedOrders   Orders with amounts applied
+     * @param   float    $paymentLinesTotal Total of payment lines
+     * @param   string   $mismatchDifference  Difference amount (e.g. "10.50" or "-5.00")
+     * @param   string   $mismatchNote      User note
+     * @param   \Joomla\CMS\User\User  $user  Current user who saved
+     * @return  void
+     */
+    private function sendMismatchNotificationToAdministracion($validatedOrders, $paymentLinesTotal, $mismatchDifference, $mismatchNote, $user)
+    {
+        $emails = AccessHelper::getAdministracionGroupEmails();
+        if (empty($emails)) {
+            return;
+        }
+
+        $ordersTotal = 0.0;
+        foreach ($validatedOrders as $o) {
+            $ordersTotal += (float) ($o['value'] ?? 0);
+        }
+
+        $diffNum = is_numeric($mismatchDifference) ? (float) $mismatchDifference : null;
+        $diffStr = $diffNum !== null ? ('Q. ' . ($diffNum >= 0 ? '' : '-') . number_format(abs($diffNum), 2)) : $mismatchDifference;
+
+        $subject = Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_EMAIL_SUBJECT');
+        if (strpos($subject, 'COM_ORDENPRODUCCION') === 0) {
+            $subject = 'Comprobante de pago: totales no coinciden';
+        }
+
+        $body = Text::sprintf(
+            'COM_ORDENPRODUCCION_PAYMENT_MISMATCH_EMAIL_BODY',
+            $user->name,
+            $user->email,
+            number_format($paymentLinesTotal, 2),
+            number_format($ordersTotal, 2),
+            $diffStr,
+            $mismatchNote !== '' ? $mismatchNote : '—'
+        );
+        if (strpos($body, 'COM_ORDENPRODUCCION') === 0) {
+            $body = sprintf(
+                "Un usuario registró un comprobante de pago con totales que no coinciden.\n\n"
+                . "Usuario: %s (%s)\n"
+                . "Total Líneas de Pago: Q. %s\n"
+                . "Total Órdenes a aplicar: Q. %s\n"
+                . "Diferencia: %s\n\n"
+                . "Nota del usuario:\n%s",
+                $user->name,
+                $user->email,
+                number_format($paymentLinesTotal, 2),
+                number_format($ordersTotal, 2),
+                $diffStr,
+                $mismatchNote !== '' ? $mismatchNote : '—'
+            );
+        }
+
+        try {
+            $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
+            $mailer->setSubject($subject);
+            $mailer->setBody($body);
+            $mailer->isHtml(false);
+            foreach ($emails as $email) {
+                $mailer->addRecipient($email);
+            }
+            $mailer->send();
+        } catch (\Exception $e) {
+            // Log but do not block; payment was already saved
+        }
     }
 
     /**

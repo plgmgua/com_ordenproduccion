@@ -213,14 +213,79 @@ document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('payment-proof-form');
         if (!form) return;
 
+        const mismatchModalEl = document.getElementById('payment-mismatch-modal');
+        const mismatchModal = mismatchModalEl && typeof bootstrap !== 'undefined' ? new bootstrap.Modal(mismatchModalEl, { backdrop: 'static' }) : null;
+        const mismatchDifferenceText = document.getElementById('payment-mismatch-difference-text');
+        const mismatchNoteTa = document.getElementById('payment-mismatch-note-ta');
+        const mismatchNoteHidden = document.getElementById('payment_mismatch_note');
+        const mismatchDiffHidden = document.getElementById('payment_mismatch_difference');
+        const proceedBtn = document.getElementById('payment-mismatch-proceed-btn');
+
+        function getLinesTotal() {
+            let sum = 0;
+            document.querySelectorAll('.payment-line-amount').forEach(function(inp) {
+                sum += parseFloat(inp.value) || 0;
+            });
+            return sum;
+        }
+
+        function getOrdersTotal() {
+            let sum = 0;
+            document.querySelectorAll('.payment-value-input').forEach(function(inp) {
+                sum += parseFloat(inp.value) || 0;
+            });
+            return sum;
+        }
+
+        function submitFormWithMismatch() {
+            if (mismatchNoteTa && mismatchNoteHidden) {
+                mismatchNoteHidden.value = (mismatchNoteTa.value || '').trim();
+            }
+            if (mismatchDiffHidden && form._pendingMismatchDiff != null) {
+                mismatchDiffHidden.value = String(form._pendingMismatchDiff);
+            }
+            form._mismatchConfirmed = true;
+            if (mismatchModal) mismatchModal.hide();
+            form.submit();
+        }
+
+        if (proceedBtn) {
+            proceedBtn.addEventListener('click', function() {
+                submitFormWithMismatch();
+            });
+        }
+
         form.addEventListener('submit', function(e) {
+            if (form._mismatchConfirmed) {
+                return;
+            }
             if (!validateForm()) {
                 e.preventDefault();
                 return false;
             }
-            
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
+
+            const linesTotal = getLinesTotal();
+            const ordersTotal = getOrdersTotal();
+            const difference = Math.abs(linesTotal - ordersTotal);
+
+            if (difference >= 0.01 && mismatchModal && mismatchDifferenceText) {
+                e.preventDefault();
+                form._pendingMismatchDiff = (linesTotal - ordersTotal);
+                const diffStr = (form._pendingMismatchDiff >= 0 ? 'Q. ' : '-Q. ') + Math.abs(form._pendingMismatchDiff).toFixed(2);
+                mismatchDifferenceText.textContent = diffStr;
+                if (mismatchNoteTa) {
+                    mismatchNoteTa.value = '';
+                }
+                if (mismatchNoteHidden) mismatchNoteHidden.value = '';
+                if (mismatchDiffHidden) mismatchDiffHidden.value = '';
+                mismatchModal.show();
+                setTimeout(function() {
+                    if (mismatchNoteTa) mismatchNoteTa.focus();
+                }, 300);
+                return false;
+            }
+
+            var submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.classList.add('loading');
                 submitBtn.disabled = true;

@@ -107,6 +107,13 @@ class HtmlView extends BaseHtmlView
         $this->labelErrorInvalidFileType = $t('COM_ORDENPRODUCCION_ERROR_INVALID_FILE_TYPE', 'Tipo de archivo inválido. Solo se permiten JPG, PNG y PDF.');
         $this->labelErrorFileTooLarge = $t('COM_ORDENPRODUCCION_ERROR_FILE_TOO_LARGE', 'Archivo demasiado grande. Máximo 5MB.');
         $this->labelPaymentAddAnotherHelp = $t('COM_ORDENPRODUCCION_PAYMENT_ADD_ANOTHER_HELP', 'Puede registrar otro comprobante (ej. abono o anticipo).');
+        $this->labelMismatchTitle = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TITLE', 'Los totales no coinciden');
+        $this->labelMismatchMessage = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_MESSAGE', 'El total de Líneas de Pago no coincide con el total de Órdenes a aplicar. ¿Desea guardar de todos modos?');
+        $this->labelMismatchDifference = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_DIFFERENCE', 'Diferencia');
+        $this->labelMismatchNotePlaceholder = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_NOTE_PLACEHOLDER', 'Indique el motivo o nota para este comprobante (se enviará por correo a Administración).');
+        $this->labelMismatchNoteHelp = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_NOTE_HELP', 'Esta nota se enviará por correo al grupo Administración.');
+        $this->labelProceedSave = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_PROCEED', 'Sí, guardar');
+        $this->labelMismatchCancel = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_CANCEL', 'Cancelar');
         $this->labelSelectPaymentType = $t('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Seleccionar tipo de pago');
         $this->labelDocumentNumberPlaceholder = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'ej. Número de cheque, referencia');
         $this->labelPaymentProofId = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_ID', 'ID');
