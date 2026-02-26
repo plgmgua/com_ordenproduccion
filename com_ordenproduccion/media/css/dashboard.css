@@ -48,19 +48,19 @@
     backdrop-filter: blur(10px);
 }
 
-/* Statistics Cards */
+/* Statistics Cards - compact size */
 .stat-card {
     border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
     overflow: hidden;
     position: relative;
 }
 
 .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
 .stat-card::before {
@@ -69,7 +69,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 3px;
     background: linear-gradient(90deg, var(--card-color), var(--card-color-light));
 }
 
@@ -109,48 +109,54 @@
 }
 
 .stat-card .card-body {
-    padding: 1.5rem;
+    padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .stat-icon {
-    width: 60px;
-    height: 60px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--card-color), var(--card-color-light));
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     flex-shrink: 0;
 }
 
 .stat-content {
     flex: 1;
+    min-width: 0;
 }
 
 .stat-number {
-    font-size: 2.5rem;
+    font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
     color: var(--card-color);
-    line-height: 1;
+    line-height: 1.2;
 }
 
 .stat-label {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: #6c757d;
-    margin: 0.5rem 0 0 0;
+    margin: 0.2rem 0 0 0;
     font-weight: 500;
 }
 
 .stat-card .card-footer {
     background: rgba(0, 0, 0, 0.02);
     border-top: 1px solid rgba(0, 0, 0, 0.05);
-    padding: 1rem 1.5rem;
+    padding: 0.5rem 1rem;
+}
+
+.stat-card .card-footer .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
 }
 
 /* Cards */
@@ -337,13 +343,13 @@
     }
     
     .stat-number {
-        font-size: 2rem;
+        font-size: 1.35rem;
     }
     
     .stat-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.2rem;
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
     }
     
     .card-header {
@@ -374,16 +380,17 @@
         flex-direction: column;
         text-align: center;
         gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
     }
     
     .stat-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
+        width: 34px;
+        height: 34px;
+        font-size: 0.9rem;
     }
     
     .stat-number {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
     }
 }
 

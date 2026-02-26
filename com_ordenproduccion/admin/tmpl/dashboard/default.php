@@ -42,8 +42,8 @@ use Joomla\CMS\Uri\Uri;
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
+    <div class="row mb-3">
+        <div class="col-lg-3 col-md-6 mb-2">
             <div class="card stat-card stat-card-primary">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -56,13 +56,13 @@ use Joomla\CMS\Uri\Uri;
                 </div>
                 <div class="card-footer">
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-sm btn-primary">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_ALL'); ?>
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_ALL', 'View All'); ?>
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-2">
             <div class="card stat-card stat-card-warning">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -74,14 +74,14 @@ use Joomla\CMS\Uri\Uri;
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter[status]=nueva'); ?>" class="btn btn-sm btn-warning">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PENDING'); ?>
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_status=nueva'); ?>" class="btn btn-sm btn-warning">
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_PENDING', 'View Pending'); ?>
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-2">
             <div class="card stat-card stat-card-info">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -93,14 +93,14 @@ use Joomla\CMS\Uri\Uri;
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter[status]=terminada'); ?>" class="btn btn-sm btn-info">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COMPLETED'); ?>
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_status=terminada'); ?>" class="btn btn-sm btn-info">
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_COMPLETED', 'View Completed'); ?>
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-2">
             <div class="card stat-card stat-card-success">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -113,7 +113,7 @@ use Joomla\CMS\Uri\Uri;
                 </div>
                 <div class="card-footer">
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=technicians'); ?>" class="btn btn-sm btn-success">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_TECHNICIANS'); ?>
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_TECHNICIANS', 'View Technicians'); ?>
                     </a>
                 </div>
             </div>
@@ -122,7 +122,7 @@ use Joomla\CMS\Uri\Uri;
 
     <!-- Additional Statistics -->
     <div class="row mb-4">
-        <div class="col-lg-4 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-2">
             <div class="card stat-card stat-card-danger">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -135,13 +135,13 @@ use Joomla\CMS\Uri\Uri;
                 </div>
                 <div class="card-footer">
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_due=overdue'); ?>" class="btn btn-sm btn-danger">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_OVERDUE'); ?>
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_OVERDUE', 'View Overdue'); ?>
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-2">
             <div class="card stat-card stat-card-secondary">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -154,13 +154,13 @@ use Joomla\CMS\Uri\Uri;
                 </div>
                 <div class="card-footer">
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_due=due_today'); ?>" class="btn btn-sm btn-secondary">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_DUE_TODAY'); ?>
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_DUE_TODAY', 'View Due Today'); ?>
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-2">
             <div class="card stat-card stat-card-dark">
                 <div class="card-body">
                     <div class="stat-icon">
@@ -173,7 +173,7 @@ use Joomla\CMS\Uri\Uri;
                 </div>
                 <div class="card-footer">
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_status=en_proceso'); ?>" class="btn btn-sm btn-dark">
-                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_IN_PROCESS'); ?>
+                        <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_IN_PROCESS', 'View In Process'); ?>
                     </a>
                 </div>
             </div>
@@ -192,7 +192,7 @@ use Joomla\CMS\Uri\Uri;
                     </h5>
                     <div class="card-tools">
                         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-sm btn-primary">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_ALL'); ?>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_ALL', 'View All'); ?>
                         </a>
                     </div>
                 </div>

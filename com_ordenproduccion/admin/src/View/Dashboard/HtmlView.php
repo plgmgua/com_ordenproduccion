@@ -199,6 +199,22 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Get a human-friendly button label (translation or fallback so the raw key is never shown).
+     *
+     * @param   string  $key       Language key (e.g. COM_ORDENPRODUCCION_VIEW_PENDING)
+     * @param   string  $fallback  Fallback text if the key is not translated
+     *
+     * @return  string
+     *
+     * @since   1.0.0
+     */
+    protected function getButtonLabel($key, $fallback)
+    {
+        $t = Text::_($key);
+        return ($t === $key || $t === '') ? $fallback : $t;
+    }
+
+    /**
      * Get status color class
      *
      * @param   string  $status  The status
