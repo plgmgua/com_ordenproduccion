@@ -22,6 +22,7 @@ $basePliegos = $baseUrl . '&section=pliegos';
 $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
 $baseEnvios = $baseUrl . '&section=envios';
+$baseAjustes = $baseUrl . '&section=ajustes&tab=cotizaciones';
 
 // Fallback to human-friendly labels when language file is not loaded (e.g. after deploy)
 $l = function ($key, $fallback) {
@@ -58,9 +59,76 @@ $l = function ($key, $fallback) {
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ENVIOS', 'Envíos'); ?>
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $section === 'ajustes' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseAjustes); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_TAB_AJUSTES', 'Ajustes'); ?>
+                </a>
+            </li>
         </ul>
 
-        <?php if ($section === 'elementos') : ?>
+        <?php if ($section === 'ajustes') : ?>
+            <?php
+            $ajustesTab = $this->activeTab ?? 'cotizaciones';
+            ?>
+            <ul class="nav nav-pills mb-3">
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $ajustesTab === 'cotizaciones' ? 'active' : ''; ?>"
+                       href="<?php echo Route::_($baseUrl . '&section=ajustes&tab=cotizaciones'); ?>">
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_COTIZACIONES', 'Cotizaciones'); ?>
+                    </a>
+                </li>
+            </ul>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-file-invoice"></i>
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_COTIZACIONES_TITLE', 'Reiniciar pre-cotizaciones y cotizaciones'); ?>
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_COTIZACIONES_DESC', 'Elimina todos los registros de pre-cotizaciones y cotizaciones para volver a numerar desde 1. Esta acción no se puede deshacer.'); ?>
+                    </p>
+                    <p>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#reset-cotizaciones-modal-productos">
+                            <i class="fas fa-trash-alt"></i>
+                            <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_BTN', 'Reiniciar pre-cotizaciones y cotizaciones'); ?>
+                        </button>
+                    </p>
+                </div>
+            </div>
+            <div class="modal fade" id="reset-cotizaciones-modal-productos" tabindex="-1" aria-labelledby="reset-cotizaciones-modal-productos-label" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title" id="reset-cotizaciones-modal-productos-label">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_CONFIRM_TITLE', '¿Eliminar todos los registros?'); ?>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo $l('JCLOSE', 'Cerrar'); ?>"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-0">
+                                <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_CONFIRM_MSG', 'Se eliminarán todos los registros de pre-cotizaciones y de cotizaciones. La numeración volverá a comenzar desde 1. Esta acción no se puede deshacer. ¿Continuar?'); ?>
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancelar'); ?></button>
+                            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.resetCotizacionesPrecotizaciones'); ?>" method="post" class="d-inline">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="confirm" value="1" />
+                                <input type="hidden" name="return_url" value="<?php echo htmlspecialchars(Route::_($baseUrl . '&section=ajustes&tab=cotizaciones', false)); ?>" />
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-trash-alt"></i>
+                                    <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_RESET_COTIZACIONES_CONFIRM_BTN', 'Sí, eliminar todo'); ?>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php elseif ($section === 'elementos') : ?>
             <?php if (empty($this->elementosTableExists)) : ?>
                 <div class="alert alert-warning">
                     <?php echo $l('COM_ORDENPRODUCCION_ELEMENTOS_TABLE_MISSING', 'La tabla de elementos no está instalada. Ejecute el script 3.71.0_elementos.sql'); ?>

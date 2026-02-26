@@ -211,10 +211,11 @@ class HtmlView extends BaseHtmlView
 
         $input = $app->input;
         $this->section = $input->get('section', 'pliegos', 'cmd');
-        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios'], true)) {
+        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios', 'ajustes'], true)) {
             $this->section = 'pliegos';
         }
-        $this->activeTab = $input->get('tab', 'sizes', 'cmd');
+        $defaultTab = ($this->section === 'ajustes') ? 'cotizaciones' : 'sizes';
+        $this->activeTab = $input->get('tab', $defaultTab, 'cmd');
 
         if ($this->section === 'envios') {
             $this->setLayout('envios');
