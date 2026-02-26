@@ -90,6 +90,9 @@ class OrdenesModel extends ListModel
         $dateTo = $app->getUserStateFromRequest($this->context . '.filter.date_to', 'filter_date_to', '', 'string');
         $this->setState('filter.date_to', $dateTo);
 
+        $due = $app->getUserStateFromRequest($this->context . '.filter.due', 'filter_due', '', 'string');
+        $this->setState('filter.due', $due);
+
         // Load the parameters
         $params = \Joomla\CMS\Component\ComponentHelper::getParams('com_ordenproduccion');
         $this->setState('params', $params);
@@ -126,6 +129,7 @@ class OrdenesModel extends ListModel
         $id .= ':' . $this->getState('filter.type');
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
+        $id .= ':' . $this->getState('filter.due');
         $id .= ':' . $this->getState('list.ordering');
         $id .= ':' . $this->getState('list.direction');
 
@@ -339,6 +343,19 @@ class OrdenesModel extends ListModel
         $dateTo = $this->getState('filter.date_to');
         if (!empty($dateTo)) {
             $query->where($db->quoteName('o.created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
+        }
+
+        $due = $this->getState('filter.due');
+        if (!empty($due)) {
+            $deliveryCol = $this->ordenesHasColumn('fecha_de_entrega') ? 'fecha_de_entrega' : ($this->ordenesHasColumn('delivery_date') ? 'delivery_date' : null);
+            if ($deliveryCol !== null) {
+                $today = Factory::getDate()->format('Y-m-d');
+                if ($due === 'overdue') {
+                    $query->where($db->quoteName('o.' . $deliveryCol) . ' < ' . $db->quote($today));
+                } elseif ($due === 'due_today') {
+                    $query->where($db->quoteName('o.' . $deliveryCol) . ' = ' . $db->quote($today));
+                }
+            }
         }
 
         // Add the list ordering clause

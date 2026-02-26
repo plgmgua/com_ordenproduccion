@@ -133,6 +133,11 @@ use Joomla\CMS\Uri\Uri;
                         <p class="stat-label"><?php echo Text::_('COM_ORDENPRODUCCION_OVERDUE_ORDERS'); ?></p>
                     </div>
                 </div>
+                <div class="card-footer">
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_due=overdue'); ?>" class="btn btn-sm btn-danger">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_OVERDUE'); ?>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -147,6 +152,11 @@ use Joomla\CMS\Uri\Uri;
                         <p class="stat-label"><?php echo Text::_('COM_ORDENPRODUCCION_ORDERS_DUE_TODAY'); ?></p>
                     </div>
                 </div>
+                <div class="card-footer">
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_due=due_today'); ?>" class="btn btn-sm btn-secondary">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_DUE_TODAY'); ?>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -160,6 +170,11 @@ use Joomla\CMS\Uri\Uri;
                         <h3 class="stat-number"><?php echo $this->formatNumber($this->statistics['in_process_orders']); ?></h3>
                         <p class="stat-label"><?php echo Text::_('COM_ORDENPRODUCCION_IN_PROCESS_ORDERS'); ?></p>
                     </div>
+                </div>
+                <div class="card-footer">
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_status=en_proceso'); ?>" class="btn btn-sm btn-dark">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_VIEW_IN_PROCESS'); ?>
+                    </a>
                 </div>
             </div>
         </div>
@@ -197,19 +212,25 @@ use Joomla\CMS\Uri\Uri;
                                 </thead>
                                 <tbody>
                                     <?php foreach ($this->recentOrders as $order): ?>
+                                        <?php
+                                        $orderNumber = $order->orden_de_trabajo ?? $order->order_number ?? '';
+                                        $clientName = $order->nombre_del_cliente ?? $order->client_name ?? '';
+                                        $deliveryDate = $order->fecha_de_entrega ?? $order->delivery_date ?? null;
+                                        $status = $order->status ?? $order->valor ?? '';
+                                        ?>
                                         <tr>
                                             <td>
-                                                <strong><?php echo htmlspecialchars($order->orden_de_trabajo); ?></strong>
+                                                <strong><?php echo htmlspecialchars($orderNumber); ?></strong>
                                             </td>
-                                            <td><?php echo htmlspecialchars($order->nombre_del_cliente); ?></td>
+                                            <td><?php echo htmlspecialchars($clientName); ?></td>
                                             <td>
-                                                <span class="badge bg-<?php echo $this->getStatusColor($order->status); ?>">
-                                                    <?php echo $this->getStatusText($order->status); ?>
+                                                <span class="badge bg-<?php echo $this->getStatusColor($status); ?>">
+                                                    <?php echo $this->getStatusText($status); ?>
                                                 </span>
                                             </td>
                                             <td>
-                                                <?php if ($order->fecha_de_entrega): ?>
-                                                    <?php echo Factory::getDate($order->fecha_de_entrega)->format('d/m/Y'); ?>
+                                                <?php if ($deliveryDate): ?>
+                                                    <?php echo Factory::getDate($deliveryDate)->format('d/m/Y'); ?>
                                                 <?php else: ?>
                                                     <span class="text-muted">-</span>
                                                 <?php endif; ?>
