@@ -2456,6 +2456,8 @@ class AdministracionModel extends BaseDatabaseModel
             'cotizacion_pdf_pie_pagina',
             'cotizacion_pdf_encabezado_x',
             'cotizacion_pdf_encabezado_y',
+            'cotizacion_pdf_table_x',
+            'cotizacion_pdf_table_y',
             'cotizacion_pdf_terminos_x',
             'cotizacion_pdf_terminos_y',
             'cotizacion_pdf_pie_x',
@@ -2480,6 +2482,8 @@ class AdministracionModel extends BaseDatabaseModel
             'pie_pagina' => isset($rows['cotizacion_pdf_pie_pagina']) ? $rows['cotizacion_pdf_pie_pagina']->setting_value : '',
             'encabezado_x' => $getFloat('cotizacion_pdf_encabezado_x', 15),
             'encabezado_y' => $getFloat('cotizacion_pdf_encabezado_y', 15),
+            'table_x' => $getFloat('cotizacion_pdf_table_x', 0),
+            'table_y' => $getFloat('cotizacion_pdf_table_y', 0),
             'terminos_x' => $getFloat('cotizacion_pdf_terminos_x', 0),
             'terminos_y' => $getFloat('cotizacion_pdf_terminos_y', 0),
             'pie_x' => $getFloat('cotizacion_pdf_pie_x', 0),
@@ -2505,6 +2509,8 @@ class AdministracionModel extends BaseDatabaseModel
             'pie_pagina' => 'cotizacion_pdf_pie_pagina',
             'encabezado_x' => 'cotizacion_pdf_encabezado_x',
             'encabezado_y' => 'cotizacion_pdf_encabezado_y',
+            'table_x' => 'cotizacion_pdf_table_x',
+            'table_y' => 'cotizacion_pdf_table_y',
             'terminos_x' => 'cotizacion_pdf_terminos_x',
             'terminos_y' => 'cotizacion_pdf_terminos_y',
             'pie_x' => 'cotizacion_pdf_pie_x',
@@ -2512,7 +2518,7 @@ class AdministracionModel extends BaseDatabaseModel
         ];
         foreach ($map as $inputKey => $settingKey) {
             $value = isset($data[$inputKey]) ? $data[$inputKey] : '';
-            if (in_array($inputKey, ['encabezado_x', 'encabezado_y', 'terminos_x', 'terminos_y', 'pie_x', 'pie_y'], true)) {
+            if (in_array($inputKey, ['encabezado_x', 'encabezado_y', 'table_x', 'table_y', 'terminos_x', 'terminos_y', 'pie_x', 'pie_y'], true)) {
                 $value = (string) (float) $value;
             } else {
                 $value = is_string($value) ? $value : '';

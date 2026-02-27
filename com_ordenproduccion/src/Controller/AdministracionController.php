@@ -436,6 +436,8 @@ class AdministracionController extends BaseController
             'pie_pagina' => isset($jform['pie_pagina']) ? (string) $jform['pie_pagina'] : '',
             'encabezado_x' => isset($jform['encabezado_x']) ? (float) $jform['encabezado_x'] : 15,
             'encabezado_y' => isset($jform['encabezado_y']) ? (float) $jform['encabezado_y'] : 15,
+            'table_x' => isset($jform['table_x']) ? (float) $jform['table_x'] : 0,
+            'table_y' => isset($jform['table_y']) ? (float) $jform['table_y'] : 0,
             'terminos_x' => isset($jform['terminos_x']) ? (float) $jform['terminos_x'] : 0,
             'terminos_y' => isset($jform['terminos_y']) ? (float) $jform['terminos_y'] : 0,
             'pie_x' => isset($jform['pie_x']) ? (float) $jform['pie_x'] : 0,

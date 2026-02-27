@@ -268,13 +268,14 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * Parse encabezado HTML into blocks with alignment (preserve WYSIWYG layout: right/left/center).
+     * Parse HTML into blocks with alignment (preserve WYSIWYG: left/right/center and line breaks).
+     * Used for encabezado, términos and pie. Block text preserves \n for MultiCell.
      *
-     * @param   string    $html             Encabezado HTML (placeholders already replaced)
+     * @param   string    $html             HTML content (placeholders already replaced)
      * @param   callable  $fixSpanishChars  Function to normalize characters for FPDF
      * @return  array  List of [ 'text' => string, 'align' => 'L'|'R'|'C' ]
      */
-    private function parseEncabezadoBlocks($html, callable $fixSpanishChars)
+    private function parseHtmlBlocks($html, callable $fixSpanishChars)
     {
         $blocks = [];
         $html = trim((string) $html);
@@ -301,8 +302,10 @@ class CotizacionController extends BaseController
                 || preg_match('/<\s*(?:p|div)[^>]*\s+class\s*=\s*["\'][^"\']*text-center/i', $chunk)) {
                 $align = 'C';
             }
+            // Preserve line breaks: only collapse spaces/tabs on same line, not \n
             $text = strip_tags($chunk);
-            $text = preg_replace('/[ \t]+/', ' ', trim($text));
+            $text = preg_replace('/[ \t]+/', ' ', $text);
+            $text = trim($text);
             if ($text !== '') {
                 $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align];
             }
@@ -311,7 +314,8 @@ class CotizacionController extends BaseController
         // If no blocks found (e.g. no </p>/</div>), treat whole content as one left-aligned block
         if (empty($blocks)) {
             $text = strip_tags($html);
-            $text = preg_replace('/[ \t]+/', ' ', trim($text));
+            $text = preg_replace('/[ \t]+/', ' ', $text);
+            $text = trim($text);
             if ($text !== '') {
                 $blocks[] = ['text' => $fixSpanishChars($text), 'align' => 'L'];
             }
@@ -359,19 +363,14 @@ class CotizacionController extends BaseController
             return strtr($text, $replacements);
         };
 
-        $htmlToText = function ($html) use ($fixSpanishChars) {
-            $text = strip_tags(preg_replace('/<br\s*\/?>/i', "\n", $html));
-            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $text = preg_replace('/[ \t]+/', ' ', trim($text));
-            return $fixSpanishChars($text);
-        };
-
-        $encabezadoBlocks = $this->parseEncabezadoBlocks($encabezadoHtml, $fixSpanishChars);
-        $terminos   = $htmlToText($terminosHtml);
-        $pie        = $htmlToText($pieHtml);
+        $encabezadoBlocks = $this->parseHtmlBlocks($encabezadoHtml, $fixSpanishChars);
+        $terminosBlocks   = $this->parseHtmlBlocks($terminosHtml, $fixSpanishChars);
+        $pieBlocks        = $this->parseHtmlBlocks($pieHtml, $fixSpanishChars);
 
         $encX = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
         $encY = isset($pdfSettings['encabezado_y']) ? (float) $pdfSettings['encabezado_y'] : 15;
+        $tableX = isset($pdfSettings['table_x']) ? (float) $pdfSettings['table_x'] : 0;
+        $tableY = isset($pdfSettings['table_y']) ? (float) $pdfSettings['table_y'] : 0;
         $termX = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
         $termY = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
         $pieX = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
@@ -414,16 +413,19 @@ class CotizacionController extends BaseController
             $pdf->SetFont('Arial', '', 10);
         }
 
-        // Info line: Cliente | Contacto | NIT | Fecha | Agente
+        // Info line: Cliente, Contacto, NIT, Fecha, Agente (no vertical bar)
         $clientName = $fixSpanishChars($quotation->client_name ?? '');
         $contactName = $fixSpanishChars($quotation->contact_name ?? '');
         $clientNit = $fixSpanishChars($quotation->client_nit ?? '');
         $salesAgent = $fixSpanishChars($quotation->sales_agent ?? '');
-        $infoLine = "Cliente: $clientName  |  Contacto: $contactName  |  NIT: $clientNit  |  Fecha: $fechaFormatted  |  Agente: $salesAgent";
+        $infoLine = "Cliente: $clientName   Contacto: $contactName   NIT: $clientNit   Fecha: $fechaFormatted   Agente: $salesAgent";
         $pdf->MultiCell(0, 6, $infoLine, 0, 'L');
         $pdf->Ln(6);
 
-        // Table: Cantidad, Descripción, Precio unit., Subtotal
+        // Table: position (X,Y mm) then Cantidad, Descripción, Precio unit., Subtotal
+        if ($tableY > 0 || $tableX > 0) {
+            $pdf->SetXY($tableX > 0 ? $tableX : 15, $tableY > 0 ? $tableY : $pdf->GetY());
+        }
         $colCant = 18;
         $colDesc = 95;
         $colUnit = 35;
@@ -457,25 +459,71 @@ class CotizacionController extends BaseController
         $pdf->SetFont('Arial', '', 10);
         $pdf->Ln(6);
 
-        // Términos y condiciones
-        if ($terminos !== '') {
+        // Términos y condiciones: block-by-block with WYSIWYG alignment and line breaks
+        if (!empty($terminosBlocks)) {
             if ($termY > 0 || $termX > 0) {
                 $pdf->SetXY($termX > 0 ? $termX : 15, $termY > 0 ? $termY : $pdf->GetY());
             }
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(0, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
             $pdf->SetFont('Arial', '', 9);
-            $pdf->MultiCell(0, 5, $terminos, 0, 'L');
+            $pageW = $pdf->GetPageWidth();
+            $marginR = 15;
+            foreach ($terminosBlocks as $block) {
+                if (trim($block['text']) === '') {
+                    $pdf->Ln(3);
+                    continue;
+                }
+                $align = $block['align'];
+                $text = $block['text'];
+                if ($align === 'R') {
+                    foreach (explode("\n", $text) as $line) {
+                        $line = trim($line);
+                        if ($line === '') {
+                            continue;
+                        }
+                        $w = $pdf->GetStringWidth($line);
+                        $pdf->SetX($pageW - $marginR - $w);
+                        $pdf->Cell($w, 5, $line, 0, 1, 'L');
+                    }
+                } else {
+                    $pdf->MultiCell(0, 5, $text, 0, $align);
+                }
+                $pdf->Ln(3);
+            }
             $pdf->Ln(4);
         }
 
-        // Pie de página
-        if ($pie !== '') {
+        // Pie de página: block-by-block with WYSIWYG alignment and line breaks
+        if (!empty($pieBlocks)) {
             if ($pieY > 0 || $pieX > 0) {
                 $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
             }
             $pdf->SetFont('Arial', '', 9);
-            $pdf->MultiCell(0, 5, $pie, 0, 'L');
+            $pageW = $pdf->GetPageWidth();
+            $marginR = 15;
+            foreach ($pieBlocks as $block) {
+                if (trim($block['text']) === '') {
+                    $pdf->Ln(3);
+                    continue;
+                }
+                $align = $block['align'];
+                $text = $block['text'];
+                if ($align === 'R') {
+                    foreach (explode("\n", $text) as $line) {
+                        $line = trim($line);
+                        if ($line === '') {
+                            continue;
+                        }
+                        $w = $pdf->GetStringWidth($line);
+                        $pdf->SetX($pageW - $marginR - $w);
+                        $pdf->Cell($w, 5, $line, 0, 1, 'L');
+                    }
+                } else {
+                    $pdf->MultiCell(0, 5, $text, 0, $align);
+                }
+                $pdf->Ln(3);
+            }
         }
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';

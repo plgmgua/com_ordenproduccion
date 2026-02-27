@@ -26,12 +26,14 @@ $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/compone
 
 $settings = isset($this->cotizacionPdfSettings) && is_array($this->cotizacionPdfSettings)
     ? $this->cotizacionPdfSettings
-    : ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => '', 'encabezado_x' => 15, 'encabezado_y' => 15, 'terminos_x' => 0, 'terminos_y' => 0, 'pie_x' => 0, 'pie_y' => 0];
+    : ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => '', 'encabezado_x' => 15, 'encabezado_y' => 15, 'table_x' => 0, 'table_y' => 0, 'terminos_x' => 0, 'terminos_y' => 0, 'pie_x' => 0, 'pie_y' => 0];
 $encabezado = isset($settings['encabezado']) ? $settings['encabezado'] : '';
 $terminos = isset($settings['terminos_condiciones']) ? $settings['terminos_condiciones'] : '';
 $pie = isset($settings['pie_pagina']) ? $settings['pie_pagina'] : '';
 $encabezado_x = isset($settings['encabezado_x']) ? (float) $settings['encabezado_x'] : 15;
 $encabezado_y = isset($settings['encabezado_y']) ? (float) $settings['encabezado_y'] : 15;
+$table_x = isset($settings['table_x']) ? (float) $settings['table_x'] : 0;
+$table_y = isset($settings['table_y']) ? (float) $settings['table_y'] : 0;
 $terminos_x = isset($settings['terminos_x']) ? (float) $settings['terminos_x'] : 0;
 $terminos_y = isset($settings['terminos_y']) ? (float) $settings['terminos_y'] : 0;
 $pie_x = isset($settings['pie_x']) ? (float) $settings['pie_x'] : 0;
@@ -99,6 +101,20 @@ $editorButtons = true;
                 <?php else: ?>
                     <textarea name="jform[encabezado]" id="jform_encabezado" class="form-control" rows="<?php echo (int) $editorRows; ?>" cols="<?php echo (int) $editorCols; ?>"><?php echo htmlspecialchars($encabezado, ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <?php endif; ?>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_TABLE_POS'); ?></label>
+                <div class="row g-2">
+                    <div class="col-auto">
+                        <label for="jform_table_x" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_X'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[table_x]" id="jform_table_x" class="form-control form-control-sm" style="width:5rem;" value="<?php echo htmlspecialchars($table_x, ENT_QUOTES, 'UTF-8'); ?>" title="<?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_0_FLOW'); ?>" />
+                    </div>
+                    <div class="col-auto">
+                        <label for="jform_table_y" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_Y'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[table_y]" id="jform_table_y" class="form-control form-control-sm" style="width:5rem;" value="<?php echo htmlspecialchars($table_y, ENT_QUOTES, 'UTF-8'); ?>" title="<?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_0_FLOW'); ?>" />
+                    </div>
+                </div>
             </div>
 
             <div class="mb-4">
