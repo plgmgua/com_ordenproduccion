@@ -477,6 +477,55 @@ class ProductosController extends BaseController
     }
 
     /**
+     * Save click dimensions (ancho, alto in inches) to component params.
+     *
+     * @return  void
+     * @since   3.79.0
+     */
+    public function saveClicks()
+    {
+        if (!Session::checkToken('post')) {
+            Factory::getApplication()->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=clicks', false));
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            Factory::getApplication()->enqueueMessage(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=clicks', false));
+            return;
+        }
+
+        $input = Factory::getApplication()->input;
+        $ancho = (float) $input->post->get('click_ancho', 0, 'raw');
+        $alto  = (float) $input->post->get('click_alto',  0, 'raw');
+        $ancho = max(0, $ancho);
+        $alto  = max(0, $alto);
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $params->set('click_ancho', $ancho);
+        $params->set('click_alto', $alto);
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $table = new TableExtension($db);
+        $table->load(['element' => 'com_ordenproduccion', 'type' => 'component']);
+        $table->params = $params->toString();
+        if (!$table->store()) {
+            Factory::getApplication()->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_SAVE_FAILED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=clicks', false));
+            return;
+        }
+
+        $msg = Text::_('COM_ORDENPRODUCCION_CLICKS_SAVED');
+        if ($msg === 'COM_ORDENPRODUCCION_CLICKS_SAVED') {
+            $msg = 'Tamaño del click guardado correctamente.';
+        }
+        Factory::getApplication()->enqueueMessage($msg, 'success');
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=clicks', false));
+    }
+
+    /**
      * Save envio (fixed: name + valor; custom: name only). Redirects to section=envios.
      *
      * @return  void

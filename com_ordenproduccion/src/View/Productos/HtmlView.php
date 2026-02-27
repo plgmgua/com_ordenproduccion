@@ -177,6 +177,22 @@ class HtmlView extends BaseHtmlView
     protected $enviosTableExists = false;
 
     /**
+     * Click width in inches (for section=ajustes, tab=clicks)
+     *
+     * @var    float
+     * @since  3.79.0
+     */
+    protected $clickAncho = 0.0;
+
+    /**
+     * Click height in inches (for section=ajustes, tab=clicks)
+     *
+     * @var    float
+     * @since  3.79.0
+     */
+    protected $clickAlto = 0.0;
+
+    /**
      * Cotización PDF template settings (for section=ajustes, tab=ajustes_cotizacion)
      *
      * @var    array
@@ -296,6 +312,12 @@ class HtmlView extends BaseHtmlView
                 $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
             }
             $this->returnUrlAjustesCotizacion = Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=ajustes_cotizacion', false);
+        }
+
+        if ($this->section === 'ajustes' && $this->activeTab === 'clicks') {
+            $params = ComponentHelper::getParams('com_ordenproduccion');
+            $this->clickAncho = (float) $params->get('click_ancho', 0);
+            $this->clickAlto  = (float) $params->get('click_alto', 0);
         }
 
         $this->_prepareDocument();

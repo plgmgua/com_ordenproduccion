@@ -84,8 +84,58 @@ $l = function ($key, $fallback) {
                         <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_AJUSTES_COTIZACION', 'Ajustes de Cotización'); ?>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $ajustesTab === 'clicks' ? 'active' : ''; ?>"
+                       href="<?php echo Route::_($baseUrl . '&section=ajustes&tab=clicks'); ?>">
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_CLICKS', 'Clicks'); ?>
+                    </a>
+                </li>
             </ul>
-            <?php if ($ajustesTab === 'ajustes_cotizacion') : ?>
+            <?php if ($ajustesTab === 'clicks') : ?>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-mouse-pointer"></i>
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_TITLE', 'Tamaño del Click'); ?>
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_DESC', 'Define el tamaño de la unidad "click" en pulgadas (ancho y alto).'); ?>
+                    </p>
+                    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveClicks'); ?>"
+                          method="post" name="clicksForm" id="clicksForm">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <div class="row g-3 mb-4">
+                            <div class="col-auto">
+                                <label for="click_ancho" class="form-label fw-semibold">
+                                    <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_ANCHO', 'Ancho'); ?>
+                                    <small class="text-muted">(<?php echo $l('COM_ORDENPRODUCCION_UNIT_INCHES', 'pulgadas'); ?>)</small>
+                                </label>
+                                <input type="number" name="click_ancho" id="click_ancho"
+                                       class="form-control" min="0" step="0.0001"
+                                       value="<?php echo htmlspecialchars((string) ($this->clickAncho ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
+                                       placeholder="0.0000" style="width: 140px;">
+                            </div>
+                            <div class="col-auto">
+                                <label for="click_alto" class="form-label fw-semibold">
+                                    <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_ALTO', 'Alto'); ?>
+                                    <small class="text-muted">(<?php echo $l('COM_ORDENPRODUCCION_UNIT_INCHES', 'pulgadas'); ?>)</small>
+                                </label>
+                                <input type="number" name="click_alto" id="click_alto"
+                                       class="form-control" min="0" step="0.0001"
+                                       value="<?php echo htmlspecialchars((string) ($this->clickAlto ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
+                                       placeholder="0.0000" style="width: 140px;">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            <?php echo Text::_('JSAVE'); ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <?php elseif ($ajustesTab === 'ajustes_cotizacion') : ?>
                 <?php include __DIR__ . '/../administracion/default_ajustes_ajustes_cotizacion.php'; ?>
             <?php else : ?>
             <div class="card">
