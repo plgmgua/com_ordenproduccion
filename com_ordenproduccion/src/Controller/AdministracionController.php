@@ -398,4 +398,52 @@ class AdministracionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones', false));
         }
     }
+
+    /**
+     * Save Ajustes de Cotización PDF template (Encabezado, Términos y Condiciones, Pie de página).
+     * Administracion only. Requires POST with token.
+     *
+     * @return  void
+     * @since   3.78.0
+     */
+    public function saveAjustesCotizacionPdf()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion', false));
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $data = [
+            'encabezado' => isset($jform['encabezado']) ? (string) $jform['encabezado'] : '',
+            'terminos_condiciones' => isset($jform['terminos_condiciones']) ? (string) $jform['terminos_condiciones'] : '',
+            'pie_pagina' => isset($jform['pie_pagina']) ? (string) $jform['pie_pagina'] : '',
+        ];
+
+        try {
+            $model = $this->getModel('Administracion');
+            $model->saveCotizacionPdfSettings($data);
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_SAVED'), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion', false));
+    }
 }

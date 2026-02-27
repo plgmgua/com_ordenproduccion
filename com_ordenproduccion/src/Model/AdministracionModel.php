@@ -2439,5 +2439,93 @@ class AdministracionModel extends BaseDatabaseModel
 
         return $agentsStats;
     }
+
+    /**
+     * Get cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página).
+     * Stored in #__ordenproduccion_config.
+     *
+     * @return  array  Keys: encabezado, terminos_condiciones, pie_pagina
+     * @since   3.78.0
+     */
+    public function getCotizacionPdfSettings()
+    {
+        $db = Factory::getDbo();
+        $keys = [
+            'cotizacion_pdf_encabezado',
+            'cotizacion_pdf_terminos_condiciones',
+            'cotizacion_pdf_pie_pagina',
+        ];
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['setting_key', 'setting_value']))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->whereIn($db->quoteName('setting_key'), array_map([$db, 'quote'], $keys));
+        $db->setQuery($query);
+        $rows = $db->loadObjectList('setting_key') ?: [];
+        return [
+            'encabezado' => isset($rows['cotizacion_pdf_encabezado']) ? $rows['cotizacion_pdf_encabezado']->setting_value : '',
+            'terminos_condiciones' => isset($rows['cotizacion_pdf_terminos_condiciones']) ? $rows['cotizacion_pdf_terminos_condiciones']->setting_value : '',
+            'pie_pagina' => isset($rows['cotizacion_pdf_pie_pagina']) ? $rows['cotizacion_pdf_pie_pagina']->setting_value : '',
+        ];
+    }
+
+    /**
+     * Save cotización PDF template settings to #__ordenproduccion_config.
+     *
+     * @param   array  $data  Keys: encabezado, terminos_condiciones, pie_pagina (raw HTML allowed)
+     * @return  bool
+     * @since   3.78.0
+     */
+    public function saveCotizacionPdfSettings(array $data)
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $map = [
+            'encabezado' => 'cotizacion_pdf_encabezado',
+            'terminos_condiciones' => 'cotizacion_pdf_terminos_condiciones',
+            'pie_pagina' => 'cotizacion_pdf_pie_pagina',
+        ];
+        foreach ($map as $inputKey => $settingKey) {
+            $value = isset($data[$inputKey]) ? $data[$inputKey] : '';
+            $value = is_string($value) ? $value : '';
+            $query = $db->getQuery(true)
+                ->select('id')
+                ->from($db->quoteName('#__ordenproduccion_config'))
+                ->where($db->quoteName('setting_key') . ' = ' . $db->quote($settingKey));
+            $db->setQuery($query);
+            $id = $db->loadResult();
+            if ($id) {
+                $query = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_config'))
+                    ->set($db->quoteName('setting_value') . ' = ' . $db->quote($value))
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                    ->where($db->quoteName('id') . ' = ' . (int) $id);
+                $db->setQuery($query);
+                $db->execute();
+            } else {
+                $query = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_config'))
+                    ->columns([
+                        $db->quoteName('setting_key'),
+                        $db->quoteName('setting_value'),
+                        $db->quoteName('state'),
+                        $db->quoteName('created_by'),
+                        $db->quoteName('modified'),
+                        $db->quoteName('modified_by'),
+                    ])
+                    ->values(
+                        $db->quote($settingKey) . ',' .
+                        $db->quote($value) . ',1,' .
+                        (int) $user->id . ',' .
+                        $db->quote($now) . ',' .
+                        (int) $user->id
+                    );
+                $db->setQuery($query);
+                $db->execute();
+            }
+        }
+        return true;
+    }
 }
 

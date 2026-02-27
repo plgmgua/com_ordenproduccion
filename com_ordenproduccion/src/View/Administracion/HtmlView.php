@@ -301,6 +301,14 @@ class HtmlView extends BaseHtmlView
     protected $clientesShowSalesAgentFilter = true;
 
     /**
+     * Cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página) for Ajustes > Ajustes de Cotización
+     *
+     * @var    array
+     * @since  3.78.0
+     */
+    protected $cotizacionPdfSettings = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -666,6 +674,15 @@ class HtmlView extends BaseHtmlView
             }
         } else {
             $this->paymentTypes = [];
+        }
+
+        // Load cotización PDF settings if ajustes tab and Ajustes de Cotización subtab
+        if ($activeTab === 'ajustes' && $activeSubTab === 'ajustes_cotizacion') {
+            try {
+                $this->cotizacionPdfSettings = $statsModel->getCotizacionPdfSettings();
+            } catch (\Exception $e) {
+                $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
+            }
         }
 
         // Final safeguard: Ensure banks is always an array before parent::display()
