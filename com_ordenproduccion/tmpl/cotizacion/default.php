@@ -184,7 +184,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                 $label = mb_substr($label, 0, 117) . '...';
                             }
                         ?>
-                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>">
+                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>">
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
@@ -299,6 +299,19 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
     let lineIndex = <?php echo isset($lineIndex) ? (int)$lineIndex : 0; ?>;
+
+    // Auto-fill description when a pre-cotización is selected
+    if (selectEl && descEl) {
+        selectEl.addEventListener('change', function() {
+            var opt = selectEl.options[selectEl.selectedIndex];
+            if (opt && opt.value) {
+                var preDesc = opt.getAttribute('data-descripcion') || '';
+                descEl.value = preDesc;
+            } else {
+                descEl.value = '';
+            }
+        });
+    }
 
     function escapeAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
