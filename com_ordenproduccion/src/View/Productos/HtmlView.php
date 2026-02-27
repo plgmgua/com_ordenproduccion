@@ -290,7 +290,7 @@ class HtmlView extends BaseHtmlView
 
         if ($this->section === 'ajustes' && $this->activeTab === 'ajustes_cotizacion') {
             try {
-                $admModel = $this->getModel('Administracion');
+                $admModel = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
                 $this->cotizacionPdfSettings = $admModel->getCotizacionPdfSettings();
             } catch (\Exception $e) {
                 $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
