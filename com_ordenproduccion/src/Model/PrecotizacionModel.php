@@ -228,7 +228,7 @@ class PrecotizacionModel extends ListModel
 
     /**
      * Get total amount for a Pre-Cotización: subtotal (lines excluding envio) + params (Margen, IVA, ISR, Comisión).
-     * When facturar=1, IVA and ISR are excluded from the calculation.
+     * When facturar=1, IVA and ISR are included; when 0, they are excluded.
      *
      * @param   int  $preCotizacionId  Pre-Cotización id.
      * @return  float
@@ -252,9 +252,9 @@ class PrecotizacionModel extends ListModel
         $item = $this->getItem((int) $preCotizacionId);
         $facturar = $item && !empty($item->facturar);
         if ($facturar) {
-            $total = $subtotal + $subtotal * ($margen + $comision) / 100;
-        } else {
             $total = $subtotal + $subtotal * ($margen + $iva + $isr + $comision) / 100;
+        } else {
+            $total = $subtotal + $subtotal * ($margen + $comision) / 100;
         }
         return round($total, 2);
     }

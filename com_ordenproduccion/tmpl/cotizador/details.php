@@ -43,8 +43,8 @@ $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
 $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
 $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
 $margenAmount = $linesSubtotal * ($paramMargen / 100);
-$ivaAmount = $facturar ? 0 : ($linesSubtotal * ($paramIva / 100));
-$isrAmount = $facturar ? 0 : ($linesSubtotal * ($paramIsr / 100));
+$ivaAmount = $facturar ? ($linesSubtotal * ($paramIva / 100)) : 0;
+$isrAmount = $facturar ? ($linesSubtotal * ($paramIsr / 100)) : 0;
 $comisionAmount = $linesSubtotal * ($paramComision / 100);
 $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
 ?>
@@ -136,13 +136,13 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisi
                         <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if (!$facturar && $paramIva != 0) : ?>
+                    <?php if ($facturar && $paramIva != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if (!$facturar && $paramIsr != 0) : ?>
+                    <?php if ($facturar && $paramIsr != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>

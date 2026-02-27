@@ -67,8 +67,8 @@ $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
 $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
 $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
 $margenAmount = $linesSubtotal * ($paramMargen / 100);
-$ivaAmount = $facturar ? 0 : ($linesSubtotal * ($paramIva / 100));
-$isrAmount = $facturar ? 0 : ($linesSubtotal * ($paramIsr / 100));
+$ivaAmount = $facturar ? ($linesSubtotal * ($paramIva / 100)) : 0;
+$isrAmount = $facturar ? ($linesSubtotal * ($paramIsr / 100)) : 0;
 $comisionAmount = $linesSubtotal * ($paramComision / 100);
 $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
@@ -131,27 +131,6 @@ $envios = $this->envios ?? [];
     }
     $facturarChecked = !empty($item->facturar);
     $saveFacturarUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveFacturar');
-    ?>
-    <div class="precotizacion-facturar mb-3">
-        <?php if ($precotizacionLocked) : ?>
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>
-                <label class="form-check-label" for="precotizacion-facturar-display"><?php echo htmlspecialchars($labelFacturar); ?></label>
-            </div>
-        <?php else : ?>
-        <form action="<?php echo htmlspecialchars($saveFacturarUrl); ?>" method="post" class="d-inline" id="form-facturar">
-            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-            <?php echo HTMLHelper::_('form.token'); ?>
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" name="facturar" id="precotizacion-facturar" value="1" <?php echo $facturarChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
-                <label class="form-check-label" for="precotizacion-facturar"><?php echo htmlspecialchars($labelFacturar); ?></label>
-            </div>
-        </form>
-        <?php endif; ?>
-        <p class="form-text text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_DESC'); ?></p>
-    </div>
-
-    <?php
     $labelDescripcion = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION');
     if (strpos($labelDescripcion, 'COM_ORDENPRODUCCION_') === 0) {
         $labelDescripcion = 'Descripción';
@@ -162,19 +141,19 @@ $envios = $this->envios ?? [];
     <div class="precotizacion-descripcion mb-4">
         <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
         <?php if ($precotizacionLocked) : ?>
-            <div class="form-control-plaintext bg-light p-3 rounded"><?php echo $descripcionValue !== '' ? nl2br(htmlspecialchars($descripcionValue)) : '<span class="text-muted">—</span>'; ?></div>
+            <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
         <?php else : ?>
-        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="mb-2">
+        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex gap-2 align-items-center mb-0">
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <textarea id="precotizacion-descripcion" name="descripcion" class="form-control" rows="4" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
-            <button type="submit" class="btn btn-secondary mt-2"><?php echo Text::_('JSAVE'); ?></button>
+            <input type="text" id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" value="<?php echo htmlspecialchars($descripcionValue); ?>">
+            <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
         </form>
         <?php endif; ?>
     </div>
 
-    <?php if (!$precotizacionLocked) : ?>
-    <div class="mb-3 d-flex flex-wrap gap-2">
+    <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+        <?php if (!$precotizacionLocked) : ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
             <?php echo htmlspecialchars($labelCalculoFolios); ?>
         </button>
@@ -186,8 +165,25 @@ $envios = $this->envios ?? [];
             <?php echo htmlspecialchars($labelAnadirEnvio); ?>
         </button>
         <?php endif; ?>
+        <?php endif; ?>
+        <div class="ms-auto">
+            <?php if ($precotizacionLocked) : ?>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>
+                    <label class="form-check-label" for="precotizacion-facturar-display"><?php echo htmlspecialchars($labelFacturar); ?></label>
+                </div>
+            <?php else : ?>
+            <form action="<?php echo htmlspecialchars($saveFacturarUrl); ?>" method="post" class="d-inline" id="form-facturar">
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="facturar" id="precotizacion-facturar" value="1" <?php echo $facturarChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
+                    <label class="form-check-label" for="precotizacion-facturar"><?php echo htmlspecialchars($labelFacturar); ?></label>
+                </div>
+            </form>
+            <?php endif; ?>
+        </div>
     </div>
-    <?php endif; ?>
 
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINES'); ?></h2>
 
@@ -324,14 +320,14 @@ $envios = $this->envios ?? [];
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if (!$facturar && $paramIva != 0) : ?>
+                    <?php if ($facturar && $paramIva != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if (!$facturar && $paramIsr != 0) : ?>
+                    <?php if ($facturar && $paramIsr != 0) : ?>
                     <tr>
                         <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
