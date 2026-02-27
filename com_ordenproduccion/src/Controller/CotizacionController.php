@@ -228,9 +228,18 @@ class CotizacionController extends BaseController
         $numeroCotizacion = $quotation->quotation_number ?? ('COT-' . $quotationId);
         $salesAgentName = trim((string) ($quotation->sales_agent ?? ''));
         $quoteDate = isset($quotation->quote_date) && $quotation->quote_date ? $quotation->quote_date : null;
-        $fechaFormatted = $quoteDate ? \Joomla\CMS\HTML\HTMLHelper::_('date', $quoteDate, 'Y-m-d') : '';
-        if ($fechaFormatted === '' && $quoteDate) {
-            $fechaFormatted = date('Y-m-d', strtotime($quoteDate));
+        $fechaFormatted = '';
+        if ($quoteDate) {
+            $ts = strtotime($quoteDate);
+            if ($ts !== false) {
+                $meses = [
+                    1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo',
+                    4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+                    7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre',
+                    10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+                ];
+                $fechaFormatted = (int) date('d', $ts) . ' de ' . $meses[(int) date('n', $ts)] . ' de ' . date('Y', $ts);
+            }
         }
         $context = [
             'numero_cotizacion' => $numeroCotizacion,
