@@ -78,7 +78,16 @@ $l = function ($key, $fallback) {
                         <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_COTIZACIONES', 'Cotizaciones'); ?>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $ajustesTab === 'ajustes_cotizacion' ? 'active' : ''; ?>"
+                       href="<?php echo Route::_($baseUrl . '&section=ajustes&tab=ajustes_cotizacion'); ?>">
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_AJUSTES_COTIZACION', 'Ajustes de Cotización'); ?>
+                    </a>
+                </li>
             </ul>
+            <?php if ($ajustesTab === 'ajustes_cotizacion') : ?>
+                <?php include __DIR__ . '/../administracion/default_ajustes_ajustes_cotizacion.php'; ?>
+            <?php else : ?>
             <div class="card">
                 <div class="card-header">
                     <h2 class="card-title mb-0">
@@ -128,6 +137,7 @@ $l = function ($key, $fallback) {
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         <?php elseif ($section === 'elementos') : ?>
             <?php if (empty($this->elementosTableExists)) : ?>
                 <div class="alert alert-warning">

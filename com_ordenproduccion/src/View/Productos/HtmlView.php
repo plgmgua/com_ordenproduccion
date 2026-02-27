@@ -177,6 +177,22 @@ class HtmlView extends BaseHtmlView
     protected $enviosTableExists = false;
 
     /**
+     * Cotización PDF template settings (for section=ajustes, tab=ajustes_cotizacion)
+     *
+     * @var    array
+     * @since  3.78.0
+     */
+    protected $cotizacionPdfSettings = [];
+
+    /**
+     * Return URL after saving Ajustes de Cotización (e.g. from Productos view)
+     *
+     * @var    string
+     * @since  3.78.0
+     */
+    protected $returnUrlAjustesCotizacion = '';
+
+    /**
      * Envios list (for section=envios)
      *
      * @var    array
@@ -270,6 +286,16 @@ class HtmlView extends BaseHtmlView
             }
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING'), 'warning');
+        }
+
+        if ($this->section === 'ajustes' && $this->activeTab === 'ajustes_cotizacion') {
+            try {
+                $admModel = $this->getModel('Administracion');
+                $this->cotizacionPdfSettings = $admModel->getCotizacionPdfSettings();
+            } catch (\Exception $e) {
+                $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
+            }
+            $this->returnUrlAjustesCotizacion = Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=ajustes_cotizacion', false);
         }
 
         $this->_prepareDocument();

@@ -51,6 +51,9 @@ $editorButtons = true;
 
         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.saveAjustesCotizacionPdf'); ?>" method="post" name="adminForm" id="ajustes-cotizacion-pdf-form" class="form-validate">
             <?php echo HTMLHelper::_('form.token'); ?>
+            <?php if (!empty($this->returnUrlAjustesCotizacion)): ?>
+                <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($this->returnUrlAjustesCotizacion, ENT_QUOTES, 'UTF-8'); ?>" />
+            <?php endif; ?>
 
             <div class="mb-4">
                 <label for="jform_encabezado" class="form-label fw-bold">

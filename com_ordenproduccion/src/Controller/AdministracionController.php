@@ -444,6 +444,11 @@ class AdministracionController extends BaseController
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
         }
 
-        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion', false));
+        $returnUrl = $app->input->post->getString('return_url', '');
+        if ($returnUrl !== '' && strpos($returnUrl, 'option=com_ordenproduccion') !== false) {
+            $app->redirect($returnUrl);
+        } else {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion', false));
+        }
     }
 }
