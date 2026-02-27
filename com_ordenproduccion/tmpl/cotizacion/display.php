@@ -47,9 +47,13 @@ $currency = $quotation->currency ?? 'Q';
                 <i class="fas fa-arrow-left"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
             </a>
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId); ?>" class="btn btn-success" target="_blank">
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId); ?>" class="btn btn-success" target="_blank" title="<?php echo $l('COM_ORDENPRODUCCION_VIEW_PDF', 'View PDF', 'Ver PDF'); ?>">
                 <i class="fas fa-file-pdf"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_GENERATE_PDF', 'Generate PDF', 'Generar PDF'); ?>
+            </a>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId . '&download=1'); ?>" class="btn btn-outline-success" target="_blank" title="<?php echo $l('COM_ORDENPRODUCCION_DOWNLOAD_PDF', 'Download PDF', 'Descargar PDF'); ?>">
+                <i class="fas fa-download"></i>
+                <?php echo $l('COM_ORDENPRODUCCION_DOWNLOAD_PDF', 'Download PDF', 'Descargar PDF'); ?>
             </a>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . '&layout=edit'); ?>" class="btn btn-primary">
                 <i class="fas fa-edit"></i>
@@ -162,6 +166,10 @@ $currency = $quotation->currency ?? 'Q';
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId); ?>" class="btn btn-success me-2" target="_blank">
             <i class="fas fa-file-pdf"></i>
             <?php echo $l('COM_ORDENPRODUCCION_GENERATE_PDF', 'Generate PDF', 'Generar PDF'); ?>
+        </a>
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId . '&download=1'); ?>" class="btn btn-outline-success me-2" target="_blank">
+            <i class="fas fa-download"></i>
+            <?php echo $l('COM_ORDENPRODUCCION_DOWNLOAD_PDF', 'Download PDF', 'Descargar PDF'); ?>
         </a>
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . '&layout=edit'); ?>" class="btn btn-primary">
             <i class="fas fa-edit"></i>

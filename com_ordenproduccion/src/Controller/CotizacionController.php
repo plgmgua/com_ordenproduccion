@@ -257,21 +257,30 @@ class CotizacionController extends BaseController
 
         $bodyRows = '';
         foreach ($items as $item) {
-            $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-            $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
             $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
             $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
             $unit = $qty > 0 ? ($subtotal / $qty) : 0;
             $desc = htmlspecialchars($item->descripcion ?? '', ENT_QUOTES, 'UTF-8');
-            $bodyRows .= '<tr><td>' . htmlspecialchars($preNum, ENT_QUOTES, 'UTF-8') . '</td><td>' . $qty . '</td><td>' . $desc . '</td><td class="text-end">' . $currency . ' ' . number_format($unit, 4) . '</td><td class="text-end">' . $currency . ' ' . number_format($subtotal, 2) . '</td></tr>';
+            $bodyRows .= '<tr><td>' . $qty . '</td><td>' . $desc . '</td><td class="text-end">' . $currency . ' ' . number_format($unit, 4) . '</td><td class="text-end">' . $currency . ' ' . number_format($subtotal, 2) . '</td></tr>';
         }
         $body = '<div class="cotizacion-pdf-body">';
-        $body .= '<table class="table table-bordered" style="width:100%; border-collapse:collapse;"><thead><tr><th>Pre-Cot.</th><th>Cantidad</th><th>Descripción</th><th class="text-end">Precio unit.</th><th class="text-end">Subtotal</th></tr></thead><tbody>' . $bodyRows . '</tbody>';
-        $body .= '<tfoot><tr class="fw-bold"><td colspan="4" class="text-end">Total:</td><td class="text-end">' . $currency . ' ' . number_format($totalAmount, 2) . '</td></tr></tfoot></table>';
+        $body .= '<table class="table table-bordered" style="width:100%; border-collapse:collapse;"><thead><tr><th>Cantidad</th><th>Descripción</th><th class="text-end">Precio unit.</th><th class="text-end">Subtotal</th></tr></thead><tbody>' . $bodyRows . '</tbody>';
+        $body .= '<tfoot><tr class="fw-bold"><td colspan="3" class="text-end">Total:</td><td class="text-end">' . $currency . ' ' . number_format($totalAmount, 2) . '</td></tr></tfoot></table>';
         $body .= '</div>';
 
         $fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($numeroCotizacion, ENT_QUOTES, 'UTF-8') . '</title>';
-        $fullHtml .= '<style>body{font-family:DejaVu Sans,sans-serif;font-size:11px;margin:20px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #333;padding:6px;} .text-end{text-align:right;} .pdf-header,.pdf-footer,.pdf-terminos{margin:15px 0;} .pdf-info{margin:10px 0;}</style></head><body>';
+        $fullHtml .= '<style>';
+        $fullHtml .= 'body{font-family:DejaVu Sans,sans-serif;font-size:11px;margin:20px;}';
+        $fullHtml .= 'table{width:100%;border-collapse:collapse;} th,td{border:1px solid #333;padding:6px;} .text-end{text-align:right;}';
+        $fullHtml .= '.pdf-header,.pdf-footer,.pdf-terminos{margin:15px 0;} .pdf-info{margin:10px 0;}';
+        $fullHtml .= '.pdf-header p,.pdf-terminos p,.pdf-footer p{margin:0.5em 0;} .pdf-header ul,.pdf-terminos ul,.pdf-footer ul{margin:0.5em 0;padding-left:1.5em;}';
+        $fullHtml .= '.pdf-header ol,.pdf-terminos ol,.pdf-footer ol{margin:0.5em 0;padding-left:1.5em;}';
+        $fullHtml .= '.pdf-header img,.pdf-terminos img,.pdf-footer img{max-width:100%;height:auto;}';
+        $fullHtml .= '.pdf-header strong,.pdf-terminos strong,.pdf-footer strong{font-weight:bold;}';
+        $fullHtml .= '.pdf-header h1,.pdf-header h2,.pdf-header h3,.pdf-header h4,.pdf-terminos h1,.pdf-terminos h2,.pdf-footer h1,.pdf-footer h2{margin:0.4em 0;font-weight:bold;}';
+        $fullHtml .= '.pdf-header,.pdf-terminos,.pdf-footer{line-height:1.4;}';
+        $fullHtml .= '.pdf-header *,.pdf-terminos *,.pdf-footer *{box-sizing:border-box;}';
+        $fullHtml .= '</style></head><body>';
         $fullHtml .= '<div class="pdf-header">' . $encabezado . '</div>';
         $fullHtml .= '<div class="pdf-info"><strong>Cliente:</strong> ' . htmlspecialchars($quotation->client_name ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Contacto:</strong> ' . htmlspecialchars($quotation->contact_name ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>NIT:</strong> ' . htmlspecialchars($quotation->client_nit ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Fecha:</strong> ' . htmlspecialchars($fechaFormatted, ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Agente:</strong> ' . htmlspecialchars($quotation->sales_agent ?? '', ENT_QUOTES, 'UTF-8') . '</div>';
         $fullHtml .= $body;
@@ -282,12 +291,18 @@ class CotizacionController extends BaseController
         if (class_exists(\Dompdf\Dompdf::class)) {
             try {
                 $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => true]);
-                $dompdf->loadHtml($fullHtml);
-                $dompdf->setPaper('A4', 'portrait');
+                $options = $dompdf->getOptions();
+                if (method_exists($options, 'set')) {
+                    $basePath = rtrim(\Joomla\CMS\Uri\Uri::root(), '/');
+                    $options->set('baseUri', $basePath . '/');
+                }
+                $dompdf->loadHtml($fullHtml, 'UTF-8');
+                $dompdf->setPaper('letter', 'portrait');
                 $dompdf->render();
                 $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
                 $app->setHeader('Content-Type', 'application/pdf', true);
-                $app->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"', true);
+                $forceDownload = (int) $app->input->get('download', 0) === 1;
+                $app->setHeader('Content-Disposition', ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $filename . '"', true);
                 $app->sendHeaders();
                 echo $dompdf->output();
                 $app->close();
