@@ -689,20 +689,22 @@ class CotizacionController extends BaseController
         $pdf->SetMargins(15, 15, 15);
         $pdf->SetAutoPageBreak(true, 15);
 
+        // FPDF uses Latin-1 (ISO-8859-1) internally. Spanish characters (á, é, í, ó, ú, ñ, ü…)
+        // exist in Latin-1, so we simply re-encode from UTF-8 instead of stripping them.
+        // iconv with //TRANSLIT preserves Latin-1 characters exactly and transliterates any
+        // characters that fall outside Latin-1 (e.g. emoji) to their nearest ASCII equivalent.
         $fixSpanishChars = function ($text) {
             if (empty($text)) {
                 return $text;
             }
-            $replacements = [
-                'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
-                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
-                'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c',
-                'Å' => 'A', 'å' => 'a', 'Æ' => 'AE', 'æ' => 'ae', 'Ø' => 'O', 'ø' => 'o',
-                'º' => '', 'ª' => '', '°' => '', '´' => "'", '`' => "'",
-            ];
-            $text = strtr($text, $replacements);
-            // Strip UTF-8 non-breaking space (0xC2 0xA0) that FPDF renders as "Â "
-            return str_replace("\xc2\xa0", ' ', $text);
+            // Replace UTF-8 non-breaking space before encoding (avoids "Â " artefact)
+            $text = str_replace("\xc2\xa0", ' ', $text);
+            // Convert UTF-8 → ISO-8859-1 so FPDF renders ñ, á, é, í, ó, ú, ü correctly
+            if (function_exists('iconv')) {
+                $converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
+                return ($converted !== false) ? $converted : $text;
+            }
+            return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
         };
 
         $encabezadoBlocks = $this->parseHtmlBlocks($encabezadoHtml, $fixSpanishChars);
