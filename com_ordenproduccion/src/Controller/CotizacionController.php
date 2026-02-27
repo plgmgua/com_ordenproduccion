@@ -317,16 +317,106 @@ class CotizacionController extends BaseController
             $html
         );
 
-        // Step 3: Replace <br> with newline
+        // Step 3: Extract <table> blocks into placeholders so cells survive strip_tags.
+        // Each placeholder encodes rows→cells (images, text, alignment, colspan, style) as base64 JSON.
+        $html = preg_replace_callback(
+            '/<\s*table[^>]*>(.*?)<\s*\/\s*table\s*>/is',
+            function ($m) use ($fixSpanishChars) {
+                $rows = [];
+                preg_match_all('/<\s*tr[^>]*>(.*?)<\s*\/\s*tr\s*>/is', $m[1], $trMatches);
+                foreach ($trMatches[1] as $trContent) {
+                    $cells = [];
+                    preg_match_all('/<\s*t[dh][^>]*>(.*?)<\s*\/\s*t[dh]\s*>/is', $trContent, $tdMatches, PREG_SET_ORDER);
+                    foreach ($tdMatches as $tdMatch) {
+                        $cellTag     = $tdMatch[0];
+                        $cellContent = $tdMatch[1];
+
+                        $cellAlign = 'L';
+                        if (preg_match('/style\s*=\s*["\'][^"\']*text-align\s*:\s*right/i', $cellTag)) {
+                            $cellAlign = 'R';
+                        } elseif (preg_match('/style\s*=\s*["\'][^"\']*text-align\s*:\s*center/i', $cellTag)) {
+                            $cellAlign = 'C';
+                        }
+
+                        $colspan = 1;
+                        if (preg_match('/colspan\s*=\s*["\']?(\d+)["\']?/i', $cellTag, $csm)) {
+                            $colspan = max(1, (int) $csm[1]);
+                        }
+
+                        $cellImages = [];
+                        if (preg_match_all('/<img[^>]+>/i', $cellContent, $imgMatches)) {
+                            foreach ($imgMatches[0] as $imgTag) {
+                                if (preg_match('/src\s*=\s*["\']([^"\']+)["\']/', $imgTag, $srcM)) {
+                                    $iw = 0; $ih = 0;
+                                    if (preg_match('/width\s*=\s*["\']?(\d+)["\']?/i', $imgTag, $wm)) {
+                                        $iw = (int) $wm[1];
+                                    }
+                                    if (preg_match('/height\s*=\s*["\']?(\d+)["\']?/i', $imgTag, $hm)) {
+                                        $ih = (int) $hm[1];
+                                    }
+                                    $cellImages[] = ['src' => $srcM[1], 'width' => $iw, 'height' => $ih];
+                                }
+                            }
+                        }
+
+                        $cellStyle = '';
+                        if (preg_match('/<(b|strong)\b/i', $cellContent)) {
+                            $cellStyle .= 'B';
+                        }
+                        if (preg_match('/<(i|em)\b/i', $cellContent)) {
+                            $cellStyle .= 'I';
+                        }
+
+                        $cellText = preg_replace('/<br\s*\/?>/i', "\n", $cellContent);
+                        $cellText = strip_tags($cellText);
+                        $cellText = $fixSpanishChars(trim(preg_replace('/[ \t]+/', ' ', $cellText)));
+
+                        $cells[] = [
+                            'text'    => $cellText,
+                            'align'   => $cellAlign,
+                            'style'   => $cellStyle,
+                            'images'  => $cellImages,
+                            'colspan' => $colspan,
+                        ];
+                    }
+                    if (!empty($cells)) {
+                        $rows[] = $cells;
+                    }
+                }
+                if (!empty($rows)) {
+                    return '<__TABLEBLOCK__>' . base64_encode(json_encode($rows)) . '</__TABLEBLOCK__>';
+                }
+                return '';
+            },
+            $html
+        );
+
+        // Step 4: Replace <br> with newline
         $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
 
-        // Step 4: Split by paragraph/div closing tags only (ul/ol/li already handled)
+        // Step 5: Split by paragraph/div closing tags only (ul/ol/li/table already handled)
         $chunks = preg_split('/<\s*\/\s*(?:p|div)\s*>/i', $html);
 
         foreach ($chunks as $chunk) {
             $chunk = trim($chunk);
             if ($chunk === '') {
                 continue;
+            }
+
+            // Handle table blocks inside this chunk
+            if (strpos($chunk, '<__TABLEBLOCK__>') !== false) {
+                preg_match_all('/<__TABLEBLOCK__>(.*?)<\/__TABLEBLOCK__>/s', $chunk, $tbMatches);
+                foreach ($tbMatches[1] as $encoded) {
+                    $rows = json_decode(base64_decode($encoded), true);
+                    if (!empty($rows)) {
+                        $blocks[] = ['type' => 'table', 'rows' => $rows, 'text' => '', 'align' => 'L', 'list' => false, 'style' => ''];
+                    }
+                }
+                // Process any remaining text in the same chunk (outside the table placeholder)
+                $chunk = trim(preg_replace('/<__TABLEBLOCK__>.*?<\/__TABLEBLOCK__>/s', '', $chunk));
+                if ($chunk === '') {
+                    continue;
+                }
             }
 
             // Detect alignment from inline style or class
@@ -346,6 +436,22 @@ class CotizacionController extends BaseController
             }
             if (preg_match('/<(i|em)\b/i', $chunk)) {
                 $fontStyle .= 'I';
+            }
+
+            // Extract standalone <img> tags before strip_tags removes them
+            if (preg_match_all('/<img[^>]+>/i', $chunk, $imgMatches)) {
+                foreach ($imgMatches[0] as $imgTag) {
+                    if (preg_match('/src\s*=\s*["\']([^"\']+)["\']/', $imgTag, $srcM)) {
+                        $iw = 0; $ih = 0;
+                        if (preg_match('/width\s*=\s*["\']?(\d+)["\']?/i', $imgTag, $wm)) {
+                            $iw = (int) $wm[1];
+                        }
+                        if (preg_match('/height\s*=\s*["\']?(\d+)["\']?/i', $imgTag, $hm)) {
+                            $ih = (int) $hm[1];
+                        }
+                        $blocks[] = ['type' => 'image', 'src' => $srcM[1], 'width' => $iw, 'height' => $ih, 'text' => '', 'align' => $align, 'list' => false, 'style' => ''];
+                    }
+                }
             }
 
             $isList = (strpos($chunk, '<__LISTBLOCK__>') !== false);
@@ -376,7 +482,7 @@ class CotizacionController extends BaseController
             $text = trim(implode("\n", array_map('trim', explode("\n", $text))));
 
             if ($text !== '') {
-                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList, 'style' => $fontStyle];
+                $blocks[] = ['type' => 'text', 'text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList, 'style' => $fontStyle];
             }
         }
 
@@ -386,11 +492,141 @@ class CotizacionController extends BaseController
             $text = strip_tags($text);
             $text = trim(preg_replace('/[ \t]+/', ' ', $text));
             if ($text !== '') {
-                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => 'L', 'list' => false];
+                $blocks[] = ['type' => 'text', 'text' => $fixSpanishChars($text), 'align' => 'L', 'list' => false, 'style' => ''];
             }
         }
 
         return $blocks;
+    }
+
+    /**
+     * Resolve an image src (relative URL or root-relative) to an absolute filesystem path.
+     *
+     * @param   string  $src  Image src attribute value
+     * @return  string|null   Absolute path or null if not resolvable
+     */
+    private function resolveImagePath($src)
+    {
+        if (empty($src)) {
+            return null;
+        }
+        // Skip data URIs and external URLs
+        if (strpos($src, 'data:') === 0 || preg_match('/^https?:\/\//i', $src) || strpos($src, '//') === 0) {
+            return null;
+        }
+        $src  = ltrim($src, '/');
+        $src  = preg_replace('/\?.*$/', '', $src); // strip query string
+        $path = JPATH_ROOT . '/' . $src;
+        return file_exists($path) ? $path : null;
+    }
+
+    /**
+     * Render a list of parsed HTML blocks to an FPDF instance.
+     *
+     * @param   \FPDF    $pdf      FPDF instance
+     * @param   array    $blocks   Block list from parseHtmlBlocks()
+     * @param   float    $lineH    Line height in mm
+     * @param   int      $fontSize Font size in pt
+     * @param   float    $pageW    Page width in mm
+     * @param   float    $marginR  Right margin in mm
+     * @param   float    $marginL  Left margin in mm
+     * @param   float    $gap      Spacing added after each non-list text block (mm)
+     * @return  void
+     */
+    private function renderPdfBlocks($pdf, $blocks, $lineH, $fontSize, $pageW, $marginR, $marginL = 15, $gap = 4)
+    {
+        foreach ($blocks as $block) {
+            $type = $block['type'] ?? 'text';
+
+            // ── Image block ──────────────────────────────────────────────────
+            if ($type === 'image') {
+                $imgPath = $this->resolveImagePath($block['src'] ?? '');
+                if ($imgPath) {
+                    $imgWpx  = (int) ($block['width'] ?? 0);
+                    $imgWmm  = $imgWpx > 0 ? min($imgWpx * 0.2646, $pageW - $marginL - $marginR) : 50;
+                    $imgHpx  = (int) ($block['height'] ?? 0);
+                    $imgHmm  = $imgHpx > 0 ? $imgHpx * 0.2646 : ($imgWmm * 0.5);
+                    $pdf->Image($imgPath, $pdf->GetX(), $pdf->GetY(), $imgWmm);
+                    $pdf->SetY($pdf->GetY() + $imgHmm + 2);
+                }
+                continue;
+            }
+
+            // ── Table block ───────────────────────────────────────────────────
+            if ($type === 'table') {
+                $tableW = $pageW - $marginL - $marginR;
+                foreach ($block['rows'] as $row) {
+                    $numCols = count($row);
+                    if ($numCols === 0) {
+                        continue;
+                    }
+                    $colW  = $tableW / $numCols;
+                    $rowY  = $pdf->GetY();
+                    $maxH  = $lineH;
+                    $curX  = $marginL;
+
+                    foreach ($row as $cell) {
+                        $cw       = $colW * max(1, (int) ($cell['colspan'] ?? 1));
+                        $cellY    = $rowY;
+
+                        // Render images in this cell
+                        foreach ($cell['images'] ?? [] as $img) {
+                            $imgPath = $this->resolveImagePath($img['src'] ?? '');
+                            if ($imgPath) {
+                                $imgWpx = (int) ($img['width'] ?? 0);
+                                $imgWmm = $imgWpx > 0 ? min($imgWpx * 0.2646, $cw - 2) : min(50, $cw - 2);
+                                $imgHpx = (int) ($img['height'] ?? 0);
+                                $imgHmm = $imgHpx > 0 ? $imgHpx * 0.2646 : ($imgWmm * 0.5);
+                                $pdf->Image($imgPath, $curX + 1, $cellY + 1, $imgWmm);
+                                $maxH = max($maxH, $imgHmm + 3);
+                            }
+                        }
+
+                        // Render text in this cell
+                        $cellText = $cell['text'] ?? '';
+                        if ($cellText !== '') {
+                            $pdf->SetFont('Arial', $cell['style'] ?? '', $fontSize);
+                            $pdf->SetXY($curX, $cellY);
+                            $pdf->MultiCell($cw, $lineH, $cellText, 0, $cell['align'] ?? 'L');
+                            $textH = $pdf->GetY() - $cellY;
+                            $maxH  = max($maxH, $textH);
+                        }
+
+                        $curX += $cw;
+                    }
+
+                    $pdf->SetXY($marginL, $rowY + $maxH);
+                }
+                $pdf->Ln(2);
+                continue;
+            }
+
+            // ── Text block ────────────────────────────────────────────────────
+            if (trim($block['text'] ?? '') === '') {
+                $pdf->Ln($gap);
+                continue;
+            }
+
+            $align  = $block['align'];
+            $text   = $block['text'];
+            $isList = !empty($block['list']);
+            $pdf->SetFont('Arial', $block['style'] ?? '', $fontSize);
+
+            if ($align === 'R') {
+                foreach (explode("\n", $text) as $line) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+                    $w = $pdf->GetStringWidth($line);
+                    $pdf->SetX($pageW - $marginR - $w);
+                    $pdf->Cell($w, $lineH, $line, 0, 1, 'L');
+                }
+            } else {
+                $pdf->MultiCell(0, $lineH, $text, 0, $align);
+            }
+            $pdf->Ln($isList ? 1 : $gap);
+        }
     }
 
     /**
@@ -450,37 +686,11 @@ class CotizacionController extends BaseController
         $pdf->SetFont('Arial', '', 10);
 
         // Encabezado: position (X,Y mm) then render block-by-block
+        $pageW   = $pdf->GetPageWidth();
+        $marginR = 15;
         if (!empty($encabezadoBlocks)) {
             $pdf->SetXY($encX, $encY);
-            $lineH = 6;
-            $marginR = 15;
-            $pageW = $pdf->GetPageWidth();
-
-            foreach ($encabezadoBlocks as $i => $block) {
-                if (trim($block['text']) === '') {
-                    $pdf->Ln(4);
-                    continue;
-                }
-                $align = $block['align'];
-                $text = $block['text'];
-                $isList = !empty($block['list']);
-                $pdf->SetFont('Arial', $block['style'] ?? '', 11);
-
-                if ($align === 'R') {
-                    foreach (explode("\n", $text) as $line) {
-                        $line = trim($line);
-                        if ($line === '') {
-                            continue;
-                        }
-                        $w = $pdf->GetStringWidth($line);
-                        $pdf->SetX($pageW - $marginR - $w);
-                        $pdf->Cell($w, $lineH, $line, 0, 1, 'L');
-                    }
-                } else {
-                    $pdf->MultiCell(0, $lineH, $text, 0, $align);
-                }
-                $pdf->Ln($isList ? 1 : 4);
-            }
+            $this->renderPdfBlocks($pdf, $encabezadoBlocks, 6, 11, $pageW, $marginR, 15, 4);
             $pdf->SetFont('Arial', '', 10);
         }
 
@@ -536,75 +746,23 @@ class CotizacionController extends BaseController
         $pdf->SetFont('Arial', '', 10);
         $pdf->Ln(6);
 
-        // Términos y condiciones: block-by-block with WYSIWYG alignment and line breaks
+        // Términos y condiciones
         if (!empty($terminosBlocks)) {
             if ($termY > 0 || $termX > 0) {
                 $pdf->SetXY($termX > 0 ? $termX : 15, $termY > 0 ? $termY : $pdf->GetY());
             }
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(0, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
-            $pdf->SetFont('Arial', '', 9);
-            $pageW = $pdf->GetPageWidth();
-            $marginR = 15;
-            foreach ($terminosBlocks as $block) {
-                if (trim($block['text']) === '') {
-                    $pdf->Ln(3);
-                    continue;
-                }
-                $align = $block['align'];
-                $text = $block['text'];
-                $isList = !empty($block['list']);
-                $pdf->SetFont('Arial', $block['style'] ?? '', 9);
-                if ($align === 'R') {
-                    foreach (explode("\n", $text) as $line) {
-                        $line = trim($line);
-                        if ($line === '') {
-                            continue;
-                        }
-                        $w = $pdf->GetStringWidth($line);
-                        $pdf->SetX($pageW - $marginR - $w);
-                        $pdf->Cell($w, 5, $line, 0, 1, 'L');
-                    }
-                } else {
-                    $pdf->MultiCell(0, 5, $text, 0, $align);
-                }
-                $pdf->Ln($isList ? 1 : 3);
-            }
+            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3);
             $pdf->Ln(4);
         }
 
-        // Pie de página: block-by-block with WYSIWYG alignment and line breaks
+        // Pie de página
         if (!empty($pieBlocks)) {
             if ($pieY > 0 || $pieX > 0) {
                 $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
             }
-            $pdf->SetFont('Arial', '', 9);
-            $pageW = $pdf->GetPageWidth();
-            $marginR = 15;
-            foreach ($pieBlocks as $block) {
-                if (trim($block['text']) === '') {
-                    $pdf->Ln(3);
-                    continue;
-                }
-                $align = $block['align'];
-                $text = $block['text'];
-                $isList = !empty($block['list']);
-                $pdf->SetFont('Arial', $block['style'] ?? '', 9);
-                if ($align === 'R') {
-                    foreach (explode("\n", $text) as $line) {
-                        $line = trim($line);
-                        if ($line === '') {
-                            continue;
-                        }
-                        $w = $pdf->GetStringWidth($line);
-                        $pdf->SetX($pageW - $marginR - $w);
-                        $pdf->Cell($w, 5, $line, 0, 1, 'L');
-                    }
-                } else {
-                    $pdf->MultiCell(0, 5, $text, 0, $align);
-                }
-                $pdf->Ln($isList ? 1 : 3);
-            }
+            $this->renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3);
         }
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
