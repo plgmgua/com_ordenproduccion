@@ -284,6 +284,8 @@ class CotizacionController extends BaseController
         }
 
         $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // Strip UTF-8 non-breaking space (0xC2 0xA0) which FPDF renders as "Â "
+        $html = str_replace("\xc2\xa0", ' ', $html);
 
         // Step 1: Replace each complete <ol>...</ol> with a single <__LISTBLOCK__> placeholder.
         // We do this BEFORE any splitting so all items stay together as one block.
@@ -418,7 +420,9 @@ class CotizacionController extends BaseController
                 'Å' => 'A', 'å' => 'a', 'Æ' => 'AE', 'æ' => 'ae', 'Ø' => 'O', 'ø' => 'o',
                 'º' => '', 'ª' => '', '°' => '', '´' => "'", '`' => "'",
             ];
-            return strtr($text, $replacements);
+            $text = strtr($text, $replacements);
+            // Strip UTF-8 non-breaking space (0xC2 0xA0) that FPDF renders as "Â "
+            return str_replace("\xc2\xa0", ' ', $text);
         };
 
         $encabezadoBlocks = $this->parseHtmlBlocks($encabezadoHtml, $fixSpanishChars);
@@ -471,14 +475,7 @@ class CotizacionController extends BaseController
             $pdf->SetFont('Arial', '', 10);
         }
 
-        // Info line: Cliente, Contacto, NIT, Fecha, Agente (no vertical bar)
-        $clientName = $fixSpanishChars($quotation->client_name ?? '');
-        $contactName = $fixSpanishChars($quotation->contact_name ?? '');
-        $clientNit = $fixSpanishChars($quotation->client_nit ?? '');
-        $salesAgent = $fixSpanishChars($quotation->sales_agent ?? '');
-        $infoLine = "Cliente: $clientName   Contacto: $contactName   NIT: $clientNit   Fecha: $fechaFormatted   Agente: $salesAgent";
-        $pdf->MultiCell(0, 6, $infoLine, 0, 'L');
-        $pdf->Ln(6);
+        $pdf->Ln(4);
 
         // Table: position (X,Y mm) then Cantidad, Descripción, Precio unit., Subtotal
         if ($tableY > 0 || $tableX > 0) {
@@ -498,17 +495,30 @@ class CotizacionController extends BaseController
         $pdf->SetFont('Arial', '', 9);
 
         foreach ($items as $item) {
-            $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
+            $qty      = isset($item->cantidad) ? (int) $item->cantidad : 1;
             $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-            $unit = $qty > 0 ? ($subtotal / $qty) : 0;
-            $desc = $fixSpanishChars($item->descripcion ?? '');
-            if (strlen($desc) > 70) {
-                $desc = substr($desc, 0, 67) . '...';
-            }
-            $pdf->Cell($colCant, $lineH, (string) $qty, 1, 0, 'L');
-            $pdf->Cell($colDesc, $lineH, $desc, 1, 0, 'L');
-            $pdf->Cell($colUnit, $lineH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R');
-            $pdf->Cell($colSub, $lineH, $currency . ' ' . number_format($subtotal, 2), 1, 1, 'R');
+            $unit     = $qty > 0 ? ($subtotal / $qty) : 0;
+            $desc     = $fixSpanishChars($item->descripcion ?? '');
+
+            $rowX = $pdf->GetX();
+            $rowY = $pdf->GetY();
+
+            // Draw description first (MultiCell wraps and advances Y)
+            $pdf->SetXY($rowX + $colCant, $rowY);
+            $pdf->MultiCell($colDesc, $lineH, $desc, 1, 'L');
+            $newY   = $pdf->GetY();
+            $rowH   = max($lineH, $newY - $rowY);
+
+            // Draw Cantidad with full row height over the already-drawn description
+            $pdf->SetXY($rowX, $rowY);
+            $pdf->Cell($colCant, $rowH, (string) $qty, 1, 0, 'C');
+
+            // Skip description column (already drawn), draw price and subtotal
+            $pdf->SetXY($rowX + $colCant + $colDesc, $rowY);
+            $pdf->Cell($colUnit, $rowH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R');
+            $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($subtotal, 2), 1, 1, 'R');
+
+            $pdf->SetXY($rowX, $newY);
         }
 
         $pdf->SetFont('Arial', 'B', 10);
