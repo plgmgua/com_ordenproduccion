@@ -327,18 +327,19 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                                         <tbody>
                                             <?php
                                             $breakdown = $line->breakdown ?? [];
-                                            $subColspan = $showClicksColumn ? 2 : 0;
-                                            foreach ($breakdown as $row) :
+                                            foreach ($breakdown as $bIdx => $row) :
                                                 $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
                                                 $detail = isset($row['detail']) ? htmlspecialchars($row['detail']) : '';
                                                 $subtotal = isset($row['subtotal']) ? number_format((float) $row['subtotal'], 2) : '0.00';
+                                                $isFirstRow = ($bIdx === 0);
                                             ?>
                                                 <tr>
                                                     <td><?php echo $label; ?></td>
                                                     <td class="text-end"><?php echo $detail; ?></td>
                                                     <td class="text-end">Q <?php echo $subtotal; ?></td>
                                                     <?php if ($showClicksColumn) : ?>
-                                                    <td></td><td></td>
+                                                    <td class="text-end"><?php echo $isFirstRow && $lineClicks !== null ? $lineClicks : ''; ?></td>
+                                                    <td class="text-end"><?php echo $isFirstRow && $lineCostoClicks !== null ? 'Q ' . number_format($lineCostoClicks, 2) : ''; ?></td>
                                                     <?php endif; ?>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -348,8 +349,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                                                 <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
                                                 <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                                                 <?php if ($showClicksColumn) : ?>
-                                                <td class="text-end"><?php echo $lineClicks !== null ? $lineClicks : '—'; ?></td>
-                                                <td class="text-end"><?php echo $lineCostoClicks !== null ? 'Q ' . number_format($lineCostoClicks, 2) : '—'; ?></td>
+                                                <td></td><td></td>
                                                 <?php endif; ?>
                                             </tr>
                                         </tfoot>
