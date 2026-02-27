@@ -94,10 +94,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?>">
                         </td>
                         <td>
+                            <?php $addressValue = ($this->clientAddress ?? '') !== '' ? $this->clientAddress : 'Ciudad'; ?>
                             <input type="text" 
                                    id="client_address" 
                                    name="client_address" 
-                                   value="<?php echo htmlspecialchars($this->clientAddress ?? ''); ?>" 
+                                   value="<?php echo htmlspecialchars($addressValue); ?>" 
                                    required 
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?>">
                         </td>
@@ -132,17 +133,19 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <tbody>
                     <tr>
                         <td>
+                            <?php $contactNameValue = $isEdit ? ($this->quotation->contact_name ?? '') : ($this->contactPersonName ?? ''); ?>
                             <input type="text" 
                                    id="contact_name" 
                                    name="contact_name" 
-                                   value="<?php echo htmlspecialchars($isEdit ? ($this->quotation->contact_name ?? '') : ''); ?>"
+                                   value="<?php echo htmlspecialchars($contactNameValue); ?>"
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_CONTACT_NAME', 'Contact Name', 'Nombre de contacto'); ?>">
                         </td>
                         <td>
+                            <?php $contactPhoneValue = $isEdit ? ($this->quotation->contact_phone ?? '') : ($this->contactPersonPhone ?? ''); ?>
                             <input type="text" 
                                    id="contact_phone" 
                                    name="contact_phone" 
-                                   value="<?php echo htmlspecialchars($isEdit ? ($this->quotation->contact_phone ?? '') : ''); ?>"
+                                   value="<?php echo htmlspecialchars($contactPhoneValue); ?>"
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_CONTACT_PHONE', 'Contact Phone', 'Teléfono de contacto'); ?>">
                         </td>
                         <td>

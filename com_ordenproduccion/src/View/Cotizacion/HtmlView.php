@@ -65,6 +65,22 @@ class HtmlView extends BaseHtmlView
     protected $salesAgent = '';
 
     /**
+     * Contact person name from URL (contact_person_name)
+     *
+     * @var    string
+     * @since  3.75.0
+     */
+    protected $contactPersonName = '';
+
+    /**
+     * Contact person phone from URL (contact_person_phone)
+     *
+     * @var    string
+     * @since  3.75.0
+     */
+    protected $contactPersonPhone = '';
+
+    /**
      * List of user's Pre-Cotizaciones with id, number, total for line selector
      *
      * @var    \stdClass[]
@@ -164,11 +180,13 @@ class HtmlView extends BaseHtmlView
 
             // Get client/contact data from URL when not editing (Odoo-style)
             if (!$this->quotation) {
-                $this->clientName   = $input->getString('contact_name', $input->getString('client_name', ''));
-                $this->clientNit   = $input->getString('contact_vat', $input->getString('nit', ''));
-                $this->clientAddress = $input->getString('address', '');
-                $this->clientId    = $input->getString('client_id', '');
-                $this->salesAgent  = $input->getString('x_studio_agente_de_ventas', '');
+                $this->clientName        = $input->getString('contact_name', $input->getString('client_name', ''));
+                $this->clientNit         = $input->getString('contact_vat', $input->getString('nit', ''));
+                $this->clientAddress     = $input->getString('address', '');
+                $this->clientId          = $input->getString('client_id', '');
+                $this->salesAgent        = $input->getString('x_studio_agente_de_ventas', '');
+                $this->contactPersonName  = $input->getString('contact_person_name', '');
+                $this->contactPersonPhone = $input->getString('contact_person_phone', '');
             }
 
             // Pre-Cotizaciones list for line selector: current user, not associated to any quotation, with number, total and description
@@ -203,7 +221,9 @@ class HtmlView extends BaseHtmlView
                     . '&contact_name=' . urlencode($input->getString('contact_name', $input->getString('client_name', '')))
                     . '&contact_vat=' . urlencode($input->getString('contact_vat', $input->getString('nit', '')))
                     . '&x_studio_agente_de_ventas=' . urlencode($input->getString('x_studio_agente_de_ventas', ''))
-                    . ($input->getString('address', '') !== '' ? '&address=' . urlencode($input->getString('address')) : '');
+                    . ($input->getString('address', '') !== '' ? '&address=' . urlencode($input->getString('address')) : '')
+                    . ($input->getString('contact_person_name', '') !== '' ? '&contact_person_name=' . urlencode($input->getString('contact_person_name')) : '')
+                    . ($input->getString('contact_person_phone', '') !== '' ? '&contact_person_phone=' . urlencode($input->getString('contact_person_phone')) : '');
                 $return = urlencode(base64_encode($returnUrl));
                 $app->redirect(Route::_('index.php?option=com_users&view=login&return=' . $return, false));
                 return;
