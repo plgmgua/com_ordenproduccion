@@ -18,6 +18,10 @@ $app = Factory::getApplication();
 HTMLHelper::_('behavior.core');
 HTMLHelper::_('form.csrf');
 
+// Ensure component language is loaded so labels translate (e.g. when included from Productos view)
+$app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+$app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
+
 $settings = isset($this->cotizacionPdfSettings) && is_array($this->cotizacionPdfSettings)
     ? $this->cotizacionPdfSettings
     : ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
