@@ -283,35 +283,72 @@ class CotizacionController extends BaseController
             return $blocks;
         }
 
-        // Normalize: replace <br> with newline for later block text
-        $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
         $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-        // Split by block elements: </p>, </div> (and optional opening tags we skip)
-        $chunks = preg_split('/<\s*\/\s*(?:p|div)\s*>/i', $html);
+        // Convert <li> items to lines prefixed with a bullet "* " before any other processing.
+        // Handles <ul> and <ol> (ordered lists get numbered).
+        $html = preg_replace_callback(
+            '/<\s*ol[^>]*>(.*?)<\s*\/\s*ol\s*>/is',
+            function ($m) {
+                $idx = 1;
+                return preg_replace_callback(
+                    '/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is',
+                    function ($li) use (&$idx) {
+                        return '<__li_num__>' . ($idx++) . '. ' . strip_tags($li[1]) . '</__li_num__>';
+                    },
+                    $m[1]
+                );
+            },
+            $html
+        );
+        $html = preg_replace_callback(
+            '/<\s*ul[^>]*>(.*?)<\s*\/\s*ul\s*>/is',
+            function ($m) {
+                return preg_replace_callback(
+                    '/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is',
+                    function ($li) {
+                        return '<__li__>' . strip_tags($li[1]) . '</__li__>';
+                    },
+                    $m[1]
+                );
+            },
+            $html
+        );
+        // Replace our temporary markers with "* item\n"
+        $html = preg_replace('/<__li__>(.*?)<\/__li__>/s', '* $1' . "\n", $html);
+        $html = preg_replace('/<__li_num__>(.*?)<\/__li_num__>/s', '$1' . "\n", $html);
+
+        // Replace <br> with newline
+        $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
+
+        // Split by block-level closing tags: </p>, </div>, </ul>, </ol>
+        $chunks = preg_split('/<\s*\/\s*(?:p|div|ul|ol|li)\s*>/i', $html);
         foreach ($chunks as $chunk) {
             $chunk = trim($chunk);
             if ($chunk === '') {
                 continue;
             }
             $align = 'L';
-            if (preg_match('/<\s*(?:p|div)[^>]*\s+style\s*=\s*["\'][^"\']*text-align\s*:\s*right/i', $chunk)
-                || preg_match('/<\s*(?:p|div)[^>]*\s+class\s*=\s*["\'][^"\']*text-right/i', $chunk)) {
+            if (preg_match('/style\s*=\s*["\'][^"\']*text-align\s*:\s*right/i', $chunk)
+                || preg_match('/class\s*=\s*["\'][^"\']*text-right/i', $chunk)) {
                 $align = 'R';
-            } elseif (preg_match('/<\s*(?:p|div)[^>]*\s+style\s*=\s*["\'][^"\']*text-align\s*:\s*center/i', $chunk)
-                || preg_match('/<\s*(?:p|div)[^>]*\s+class\s*=\s*["\'][^"\']*text-center/i', $chunk)) {
+            } elseif (preg_match('/style\s*=\s*["\'][^"\']*text-align\s*:\s*center/i', $chunk)
+                || preg_match('/class\s*=\s*["\'][^"\']*text-center/i', $chunk)) {
                 $align = 'C';
             }
-            // Preserve line breaks: only collapse spaces/tabs on same line, not \n
+            // Strip remaining HTML tags but keep the newlines already inserted
             $text = strip_tags($chunk);
+            // Collapse horizontal whitespace only (preserve \n)
             $text = preg_replace('/[ \t]+/', ' ', $text);
-            $text = trim($text);
+            // Trim each line individually
+            $lines = array_map('trim', explode("\n", $text));
+            $text = trim(implode("\n", $lines));
             if ($text !== '') {
                 $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align];
             }
         }
 
-        // If no blocks found (e.g. no </p>/</div>), treat whole content as one left-aligned block
+        // Fallback: whole content as one left-aligned block
         if (empty($blocks)) {
             $text = strip_tags($html);
             $text = preg_replace('/[ \t]+/', ' ', $text);
