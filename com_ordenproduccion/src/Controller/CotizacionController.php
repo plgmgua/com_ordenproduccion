@@ -535,6 +535,12 @@ class CotizacionController extends BaseController
      */
     private function renderPdfBlocks($pdf, $blocks, $lineH, $fontSize, $pageW, $marginR, $marginL = 15, $gap = 4)
     {
+        // Track whether real content has been rendered yet so we never add
+        // vertical spacing (Ln) for empty paragraphs that appear BEFORE the
+        // first actual image/table/text block. TinyMCE often emits leading
+        // <p>&nbsp;</p> elements that would otherwise push the header down.
+        $contentStarted = false;
+
         foreach ($blocks as $block) {
             $type = $block['type'] ?? 'text';
 
@@ -542,6 +548,7 @@ class CotizacionController extends BaseController
             if ($type === 'image') {
                 $imgPath = $this->resolveImagePath($block['src'] ?? '');
                 if ($imgPath) {
+                    $contentStarted = true;
                     $imgWpx  = (int) ($block['width'] ?? 0);
                     $imgWmm  = $imgWpx > 0 ? min($imgWpx * 0.2646, $pageW - $marginL - $marginR) : 50;
                     $imgHpx  = (int) ($block['height'] ?? 0);
@@ -554,6 +561,7 @@ class CotizacionController extends BaseController
 
             // ── Table block ───────────────────────────────────────────────────
             if ($type === 'table') {
+                $contentStarted = true;
                 $tableW = $pageW - $marginL - $marginR;
                 foreach ($block['rows'] as $row) {
                     $numCols = count($row);
@@ -603,9 +611,15 @@ class CotizacionController extends BaseController
 
             // ── Text block ────────────────────────────────────────────────────
             if (trim($block['text'] ?? '') === '') {
-                $pdf->Ln($gap);
+                // Skip spacing for leading empty blocks (before any content).
+                // Only add a blank line gap once real content has started.
+                if ($contentStarted) {
+                    $pdf->Ln($gap);
+                }
                 continue;
             }
+
+            $contentStarted = true;
 
             $align  = $block['align'];
             $text   = $block['text'];
