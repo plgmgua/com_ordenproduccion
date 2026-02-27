@@ -431,6 +431,10 @@ class AdministracionController extends BaseController
 
         $jform = $app->input->post->get('jform', [], 'array');
         $data = [
+            'logo_path'  => isset($jform['logo_path'])  ? trim((string) $jform['logo_path'])  : '',
+            'logo_x'     => isset($jform['logo_x'])     ? (float) $jform['logo_x']     : 15,
+            'logo_y'     => isset($jform['logo_y'])     ? (float) $jform['logo_y']     : 15,
+            'logo_width' => isset($jform['logo_width']) ? (float) $jform['logo_width'] : 50,
             'encabezado' => isset($jform['encabezado']) ? (string) $jform['encabezado'] : '',
             'terminos_condiciones' => isset($jform['terminos_condiciones']) ? (string) $jform['terminos_condiciones'] : '',
             'pie_pagina' => isset($jform['pie_pagina']) ? (string) $jform['pie_pagina'] : '',
