@@ -111,7 +111,14 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisi
                             <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <?php if ($showClicksColumn) :
-                                $lineClicks = !$isElemento ? $calcClicks($sizeName, (int) $line->quantity) : null;
+                                if (!$isElemento) {
+                                    $lineClicks = $calcClicks($sizeName, (int) $line->quantity);
+                                    if ($lineClicks !== null && ($line->tiro_retiro ?? '') === 'retiro') {
+                                        $lineClicks *= 2;
+                                    }
+                                } else {
+                                    $lineClicks = null;
+                                }
                             ?>
                             <td class="text-end"><?php echo $lineClicks !== null ? $lineClicks : '—'; ?></td>
                             <?php endif; ?>

@@ -282,6 +282,9 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                             <?php if ($showClicksColumn) :
                                 if (!$isElemento && !$isEnvio) {
                                     $lineClicks = $calcClicks($sizeName, (int) $line->quantity);
+                                    if ($lineClicks !== null && ($line->tiro_retiro ?? '') === 'retiro') {
+                                        $lineClicks *= 2;
+                                    }
                                 } else {
                                     $lineClicks = null;
                                 }
