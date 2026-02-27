@@ -262,13 +262,35 @@ class SettingsModel extends BaseModel
                 
                 // Get the next number
                 $nextNumber = (int) $settings->next_order_number;
+
+                // Build order number from format and skip any numbers already used in
+                // the orders table (handles counter-out-of-sync and historical imports).
+                $buildOrderNumber = function ($n) use ($settings) {
+                    $num = str_replace('PREFIX', $settings->order_prefix, $settings->order_format);
+                    return str_replace('NUMBER', str_pad($n, 6, '0', STR_PAD_LEFT), $num);
+                };
+
+                $orderNumber = $buildOrderNumber($nextNumber);
+
+                // Check for collision and advance until we find an unused number
+                $maxAttempts = 1000;
+                $attempts    = 0;
+                while ($attempts < $maxAttempts) {
+                    $existsQuery = $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('order_number') . ' = ' . $db->quote($orderNumber));
+                    $db->setQuery($existsQuery);
+                    if ((int) $db->loadResult() === 0) {
+                        break; // Number is free — use it
+                    }
+                    // Number already exists — skip ahead
+                    $nextNumber++;
+                    $orderNumber = $buildOrderNumber($nextNumber);
+                    $attempts++;
+                }
                 
-                // Generate the order number based on format
-                $orderNumber = $settings->order_format;
-                $orderNumber = str_replace('PREFIX', $settings->order_prefix, $orderNumber);
-                $orderNumber = str_replace('NUMBER', str_pad($nextNumber, 6, '0', STR_PAD_LEFT), $orderNumber);
-                
-                // Increment the next order number
+                // Persist counter as the chosen number + 1
                 $updateQuery = $db->getQuery(true)
                     ->update($db->quoteName('#__ordenproduccion_settings'))
                     ->set($db->quoteName('next_order_number') . ' = ' . (int) ($nextNumber + 1))
@@ -423,6 +445,40 @@ class SettingsModel extends BaseModel
             
         } catch (\Exception $e) {
             return false;
+        }
+    }
+
+    /**
+     * Resync the next_order_number counter to MAX(numeric part of order_number) + 1.
+     * Call this whenever historical data is imported or if a duplicate-key error appears.
+     *
+     * @return  int  The new counter value, or 0 on failure
+     *
+     * @since   1.0.0
+     */
+    public function resyncOrderCounter()
+    {
+        try {
+            $db = Factory::getDbo();
+
+            // Extract the numeric suffix from order_number values in the format 'PREFIX-NNNNNN'
+            $query = "SELECT MAX(CAST(SUBSTRING_INDEX(order_number, '-', -1) AS UNSIGNED)) "
+                   . "FROM " . $db->quoteName('#__ordenproduccion_ordenes');
+            $db->setQuery($query);
+            $maxNum = (int) $db->loadResult();
+
+            $newCounter = max($maxNum + 1, 1000); // never go below 1000
+
+            $updateQuery = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_settings'))
+                ->set($db->quoteName('next_order_number') . ' = ' . $newCounter)
+                ->where($db->quoteName('id') . ' = 1');
+            $db->setQuery($updateQuery);
+            $db->execute();
+
+            return $newCounter;
+        } catch (\Exception $e) {
+            return 0;
         }
     }
 
