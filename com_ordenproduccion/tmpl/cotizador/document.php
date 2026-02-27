@@ -87,8 +87,9 @@ if ($labelAnadirEnvio === 'COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO') {
 $envios = $this->envios ?? [];
 
 // Clicks calculation
-$clickAncho = isset($this->clickAncho) ? (float) $this->clickAncho : 0.0;
-$clickAlto  = isset($this->clickAlto)  ? (float) $this->clickAlto  : 0.0;
+$clickAncho  = isset($this->clickAncho)  ? (float) $this->clickAncho  : 0.0;
+$clickAlto   = isset($this->clickAlto)   ? (float) $this->clickAlto   : 0.0;
+$clickPrecio = isset($this->clickPrecio) ? (float) $this->clickPrecio : 0.0;
 $showClicksColumn = $clickAncho > 0 && $clickAlto > 0;
 
 /**
@@ -229,10 +230,11 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COL_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_SIZE'); ?></th>
                         <th>Tiro/Retiro</th>
-                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
                         <?php if ($showClicksColumn) : ?>
                         <th class="text-end">Clicks</th>
+                        <th class="text-end">Costo Clicks</th>
                         <?php endif; ?>
+                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
                 </thead>
@@ -278,19 +280,22 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                             <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
                             <td><?php echo $isEnvio ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
-                            <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <?php if ($showClicksColumn) :
                                 if (!$isElemento && !$isEnvio) {
                                     $lineClicks = $calcClicks($sizeName, (int) $line->quantity);
                                     if ($lineClicks !== null && ($line->tiro_retiro ?? '') === 'retiro') {
                                         $lineClicks *= 2;
                                     }
+                                    $lineCostoClicks = ($lineClicks !== null && $clickPrecio > 0) ? $lineClicks * $clickPrecio : null;
                                 } else {
                                     $lineClicks = null;
+                                    $lineCostoClicks = null;
                                 }
                             ?>
                             <td class="text-end"><?php echo $lineClicks !== null ? $lineClicks : '—'; ?></td>
+                            <td class="text-end"><?php echo $lineCostoClicks !== null ? 'Q ' . number_format($lineCostoClicks, 2) : '—'; ?></td>
                             <?php endif; ?>
+                            <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
                                 <?php if (!$isElemento && !$isEnvio) : ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
@@ -314,7 +319,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         </tr>
                         <?php if (!$isElemento && !$isEnvio) : ?>
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
-                            <td colspan="<?php echo $showClicksColumn ? 7 : 6; ?>" class="p-0 bg-light align-top">
+                            <td colspan="<?php echo $showClicksColumn ? 8 : 6; ?>" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <table class="table table-sm table-bordered mb-0" style="max-width: 600px;">
                                         <thead>
@@ -353,7 +358,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <?php $tfootLabelSpan = $showClicksColumn ? 5 : 4; ?>
+                    <?php $tfootLabelSpan = $showClicksColumn ? 6 : 4; ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>

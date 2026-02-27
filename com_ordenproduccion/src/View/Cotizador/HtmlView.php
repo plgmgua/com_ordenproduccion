@@ -122,6 +122,7 @@ class HtmlView extends BaseHtmlView
             $this->paramComision = (float) $params->get('comision_venta', 0);
             $this->clickAncho    = (float) $params->get('click_ancho', 0);
             $this->clickAlto     = (float) $params->get('click_alto', 0);
+            $this->clickPrecio   = (float) $params->get('click_precio', 0);
             if ($layout === 'details') {
                 $this->setLayout('details');
             } else {
