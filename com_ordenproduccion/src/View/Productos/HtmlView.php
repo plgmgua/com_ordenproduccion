@@ -193,6 +193,14 @@ class HtmlView extends BaseHtmlView
     protected $clickAlto = 0.0;
 
     /**
+     * Click unit price (for section=ajustes, tab=clicks)
+     *
+     * @var    float
+     * @since  3.79.0
+     */
+    protected $clickPrecio = 0.0;
+
+    /**
      * Cotización PDF template settings (for section=ajustes, tab=ajustes_cotizacion)
      *
      * @var    array
@@ -316,8 +324,9 @@ class HtmlView extends BaseHtmlView
 
         if ($this->section === 'ajustes' && $this->activeTab === 'clicks') {
             $params = ComponentHelper::getParams('com_ordenproduccion');
-            $this->clickAncho = (float) $params->get('click_ancho', 0);
-            $this->clickAlto  = (float) $params->get('click_alto', 0);
+            $this->clickAncho  = (float) $params->get('click_ancho', 0);
+            $this->clickAlto   = (float) $params->get('click_alto', 0);
+            $this->clickPrecio = (float) $params->get('click_precio', 0);
         }
 
         $this->_prepareDocument();

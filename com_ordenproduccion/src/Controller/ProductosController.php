@@ -497,15 +497,18 @@ class ProductosController extends BaseController
             return;
         }
 
-        $input = Factory::getApplication()->input;
-        $ancho = (float) $input->post->get('click_ancho', 0, 'raw');
-        $alto  = (float) $input->post->get('click_alto',  0, 'raw');
-        $ancho = max(0, $ancho);
-        $alto  = max(0, $alto);
+        $input  = Factory::getApplication()->input;
+        $ancho  = (float) $input->post->get('click_ancho',  0, 'raw');
+        $alto   = (float) $input->post->get('click_alto',   0, 'raw');
+        $precio = (float) $input->post->get('click_precio', 0, 'raw');
+        $ancho  = max(0, $ancho);
+        $alto   = max(0, $alto);
+        $precio = max(0, $precio);
 
         $params = ComponentHelper::getParams('com_ordenproduccion');
-        $params->set('click_ancho', $ancho);
-        $params->set('click_alto', $alto);
+        $params->set('click_ancho',  $ancho);
+        $params->set('click_alto',   $alto);
+        $params->set('click_precio', $precio);
 
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
         $table = new TableExtension($db);

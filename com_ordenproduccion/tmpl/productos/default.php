@@ -101,7 +101,7 @@ $l = function ($key, $fallback) {
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-4">
-                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_DESC', 'Define el tamaño de la unidad "click" en pulgadas (ancho y alto).'); ?>
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_DESC', 'Define el tamaño y precio de la unidad "click" en pulgadas (ancho y alto).'); ?>
                     </p>
                     <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveClicks'); ?>"
                           method="post" name="clicksForm" id="clicksForm">
@@ -125,6 +125,16 @@ $l = function ($key, $fallback) {
                                 <input type="number" name="click_alto" id="click_alto"
                                        class="form-control" min="0" step="0.0001"
                                        value="<?php echo htmlspecialchars((string) ($this->clickAlto ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
+                                       placeholder="0.0000" style="width: 140px;">
+                            </div>
+                            <div class="col-auto">
+                                <label for="click_precio" class="form-label fw-semibold">
+                                    <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_CLICKS_PRECIO', 'Precio'); ?>
+                                    <small class="text-muted">(Q)</small>
+                                </label>
+                                <input type="number" name="click_precio" id="click_precio"
+                                       class="form-control" min="0" step="0.0001"
+                                       value="<?php echo htmlspecialchars((string) ($this->clickPrecio ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
                                        placeholder="0.0000" style="width: 140px;">
                             </div>
                         </div>
