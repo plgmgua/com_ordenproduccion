@@ -138,6 +138,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    id="contact_name" 
                                    name="contact_name" 
                                    value="<?php echo htmlspecialchars($contactNameValue); ?>"
+                                   readonly class="readonly-prepop"
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_CONTACT_NAME', 'Contact Name', 'Nombre de contacto'); ?>">
                         </td>
                         <td>
@@ -146,6 +147,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    id="contact_phone" 
                                    name="contact_phone" 
                                    value="<?php echo htmlspecialchars($contactPhoneValue); ?>"
+                                   readonly class="readonly-prepop"
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_CONTACT_PHONE', 'Contact Phone', 'Teléfono de contacto'); ?>">
                         </td>
                         <td>
