@@ -230,10 +230,6 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COL_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_SIZE'); ?></th>
                         <th>Tiro/Retiro</th>
-                        <?php if ($showClicksColumn) : ?>
-                        <th class="text-end">Clicks</th>
-                        <th class="text-end">Costo Clicks</th>
-                        <?php endif; ?>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
@@ -274,27 +270,22 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                             'total' => (float) $line->total,
                             'breakdown' => $line->breakdown ?? [],
                         ]), ENT_QUOTES, 'UTF-8');
+                        // Compute clicks for this folio line (used in the detail sub-table)
+                        $lineClicks = null;
+                        $lineCostoClicks = null;
+                        if ($showClicksColumn && !$isElemento && !$isEnvio) {
+                            $lineClicks = $calcClicks($sizeName, (int) $line->quantity);
+                            if ($lineClicks !== null && ($line->tiro_retiro ?? '') === 'retiro') {
+                                $lineClicks *= 2;
+                            }
+                            $lineCostoClicks = ($lineClicks !== null && $clickPrecio > 0) ? $lineClicks * $clickPrecio : null;
+                        }
                         ?>
                         <tr class="line-data-row">
                             <td><?php echo (int) $line->quantity; ?></td>
                             <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
                             <td><?php echo $isEnvio ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
-                            <?php if ($showClicksColumn) :
-                                if (!$isElemento && !$isEnvio) {
-                                    $lineClicks = $calcClicks($sizeName, (int) $line->quantity);
-                                    if ($lineClicks !== null && ($line->tiro_retiro ?? '') === 'retiro') {
-                                        $lineClicks *= 2;
-                                    }
-                                    $lineCostoClicks = ($lineClicks !== null && $clickPrecio > 0) ? $lineClicks * $clickPrecio : null;
-                                } else {
-                                    $lineClicks = null;
-                                    $lineCostoClicks = null;
-                                }
-                            ?>
-                            <td class="text-end"><?php echo $lineClicks !== null ? $lineClicks : '—'; ?></td>
-                            <td class="text-end"><?php echo $lineCostoClicks !== null ? 'Q ' . number_format($lineCostoClicks, 2) : '—'; ?></td>
-                            <?php endif; ?>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
                                 <?php if (!$isElemento && !$isEnvio) : ?>
@@ -319,19 +310,24 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         </tr>
                         <?php if (!$isElemento && !$isEnvio) : ?>
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
-                            <td colspan="<?php echo $showClicksColumn ? 8 : 6; ?>" class="p-0 bg-light align-top">
+                            <td colspan="6" class="p-0 bg-light align-top">
                                 <div class="p-2">
-                                    <table class="table table-sm table-bordered mb-0" style="max-width: 600px;">
+                                    <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
                                         <thead>
                                             <tr>
                                                 <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
+                                                <?php if ($showClicksColumn) : ?>
+                                                <th class="text-end">Clicks</th>
+                                                <th class="text-end">Costo Clicks</th>
+                                                <?php endif; ?>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php
                                             $breakdown = $line->breakdown ?? [];
+                                            $subColspan = $showClicksColumn ? 2 : 0;
                                             foreach ($breakdown as $row) :
                                                 $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
                                                 $detail = isset($row['detail']) ? htmlspecialchars($row['detail']) : '';
@@ -341,6 +337,9 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                                                     <td><?php echo $label; ?></td>
                                                     <td class="text-end"><?php echo $detail; ?></td>
                                                     <td class="text-end">Q <?php echo $subtotal; ?></td>
+                                                    <?php if ($showClicksColumn) : ?>
+                                                    <td></td><td></td>
+                                                    <?php endif; ?>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -348,6 +347,10 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                                             <tr class="table-secondary fw-bold">
                                                 <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
                                                 <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                                                <?php if ($showClicksColumn) : ?>
+                                                <td class="text-end"><?php echo $lineClicks !== null ? $lineClicks : '—'; ?></td>
+                                                <td class="text-end"><?php echo $lineCostoClicks !== null ? 'Q ' . number_format($lineCostoClicks, 2) : '—'; ?></td>
+                                                <?php endif; ?>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -358,7 +361,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <?php $tfootLabelSpan = $showClicksColumn ? 6 : 4; ?>
+                    <?php $tfootLabelSpan = 4; ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
