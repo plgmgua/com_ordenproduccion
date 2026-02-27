@@ -37,6 +37,29 @@ if (!empty($lines)) {
         }
     }
 }
+$clickAncho = isset($this->clickAncho) ? (float) $this->clickAncho : 0.0;
+$clickAlto  = isset($this->clickAlto)  ? (float) $this->clickAlto  : 0.0;
+$showClicksColumn = $clickAncho > 0 && $clickAlto > 0;
+$calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
+    if ($clickAncho <= 0 || $clickAlto <= 0 || empty($sizeName)) {
+        return null;
+    }
+    $parts = preg_split('/[xX×]/', trim($sizeName));
+    if (count($parts) < 2) {
+        return null;
+    }
+    $pw = (float) $parts[0];
+    $ph = (float) $parts[1];
+    if ($pw <= 0 || $ph <= 0) {
+        return null;
+    }
+    $ratio = ($pw / $clickAncho) * ($ph / $clickAlto);
+    if ($ratio <= 0) {
+        return null;
+    }
+    return (int) $quantity * (int) ceil($ratio);
+};
+
 $facturar = !empty($item->facturar);
 $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
 $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
@@ -64,6 +87,9 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisi
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_SIZE'); ?></th>
                         <th>Tiro/Retiro</th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
+                        <?php if ($showClicksColumn) : ?>
+                        <th class="text-end">Clicks</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,6 +110,11 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisi
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
                             <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                            <?php if ($showClicksColumn) :
+                                $lineClicks = !$isElemento ? $calcClicks($sizeName, (int) $line->quantity) : null;
+                            ?>
+                            <td class="text-end"><?php echo $lineClicks !== null ? $lineClicks : '—'; ?></td>
+                            <?php endif; ?>
                         </tr>
                         <?php if (!$isElemento) :
                             $breakdown = $line->breakdown ?? [];
@@ -126,36 +157,37 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisi
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
+                    <?php $tfootLabelSpan = $showClicksColumn ? 5 : 4; ?>
                     <tr>
-                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
                     </tr>
                     <?php if ($paramMargen != 0) : ?>
                     <tr>
-                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($facturar && $paramIva != 0) : ?>
                     <tr>
-                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($facturar && $paramIsr != 0) : ?>
                     <tr>
-                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($paramComision != 0) : ?>
                     <tr>
-                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_COMISION_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_COMISION_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($comisionAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <tr class="table-secondary fw-bold">
-                        <td colspan="4" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesTotal, 2); ?></td>
                     </tr>
                 </tfoot>

@@ -116,10 +116,12 @@ class HtmlView extends BaseHtmlView
                 }
             }
             $params = ComponentHelper::getParams('com_ordenproduccion');
-            $this->paramMargen = (float) $params->get('margen_ganancia', 0);
-            $this->paramIva = (float) $params->get('iva', 0);
-            $this->paramIsr = (float) $params->get('isr', 0);
+            $this->paramMargen   = (float) $params->get('margen_ganancia', 0);
+            $this->paramIva      = (float) $params->get('iva', 0);
+            $this->paramIsr      = (float) $params->get('isr', 0);
             $this->paramComision = (float) $params->get('comision_venta', 0);
+            $this->clickAncho    = (float) $params->get('click_ancho', 0);
+            $this->clickAlto     = (float) $params->get('click_alto', 0);
             if ($layout === 'details') {
                 $this->setLayout('details');
             } else {
