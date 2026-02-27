@@ -14,6 +14,8 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+
 $app = Factory::getApplication();
 HTMLHelper::_('behavior.core');
 HTMLHelper::_('form.csrf');
@@ -52,6 +54,19 @@ $editorButtons = true;
         <p class="text-muted mb-4">
             <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_DESC'); ?>
         </p>
+
+        <div class="alert alert-info mb-4">
+            <h3 class="alert-heading h6 mb-2">
+                <i class="fas fa-code"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_VARS_HEADING'); ?>
+            </h3>
+            <p class="mb-2 small"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_VARS_DESC'); ?></p>
+            <ul class="list-unstyled mb-0 small">
+                <?php foreach (CotizacionPdfHelper::getPlaceholdersForUi() as $placeholder => $labelKey): ?>
+                    <li><code><?php echo htmlspecialchars($placeholder, ENT_QUOTES, 'UTF-8'); ?></code> — <?php echo Text::_($labelKey); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
 
         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.saveAjustesCotizacionPdf'); ?>" method="post" name="adminForm" id="ajustes-cotizacion-pdf-form" class="form-validate">
             <?php echo HTMLHelper::_('form.token'); ?>
