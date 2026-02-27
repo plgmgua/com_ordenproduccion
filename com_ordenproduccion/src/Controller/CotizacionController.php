@@ -339,6 +339,15 @@ class CotizacionController extends BaseController
                 $align = 'C';
             }
 
+            // Detect font style (bold / italic) from HTML tags in this chunk
+            $fontStyle = '';
+            if (preg_match('/<(b|strong)\b/i', $chunk)) {
+                $fontStyle .= 'B';
+            }
+            if (preg_match('/<(i|em)\b/i', $chunk)) {
+                $fontStyle .= 'I';
+            }
+
             $isList = (strpos($chunk, '<__LISTBLOCK__>') !== false);
 
             if ($isList) {
@@ -367,7 +376,7 @@ class CotizacionController extends BaseController
             $text = trim(implode("\n", array_map('trim', explode("\n", $text))));
 
             if ($text !== '') {
-                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList];
+                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList, 'style' => $fontStyle];
             }
         }
 
@@ -455,7 +464,7 @@ class CotizacionController extends BaseController
                 $align = $block['align'];
                 $text = $block['text'];
                 $isList = !empty($block['list']);
-                $pdf->SetFont('Arial', 'B', 11);
+                $pdf->SetFont('Arial', $block['style'] ?? '', 11);
 
                 if ($align === 'R') {
                     foreach (explode("\n", $text) as $line) {
@@ -545,6 +554,7 @@ class CotizacionController extends BaseController
                 $align = $block['align'];
                 $text = $block['text'];
                 $isList = !empty($block['list']);
+                $pdf->SetFont('Arial', $block['style'] ?? '', 9);
                 if ($align === 'R') {
                     foreach (explode("\n", $text) as $line) {
                         $line = trim($line);
@@ -579,6 +589,7 @@ class CotizacionController extends BaseController
                 $align = $block['align'];
                 $text = $block['text'];
                 $isList = !empty($block['list']);
+                $pdf->SetFont('Arial', $block['style'] ?? '', 9);
                 if ($align === 'R') {
                     foreach (explode("\n", $text) as $line) {
                         $line = trim($line);
