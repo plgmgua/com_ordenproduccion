@@ -315,8 +315,23 @@ class CotizacionController extends BaseController
             $html
         );
         // Replace our temporary markers with "* item\n"
-        $html = preg_replace('/<__li__>(.*?)<\/__li__>/s', '* $1' . "\n", $html);
-        $html = preg_replace('/<__li_num__>(.*?)<\/__li_num__>/s', '$1' . "\n", $html);
+        // Collect list items into a single block with a __LIST__ marker so they stay together
+        $html = preg_replace_callback('/((?:<__li__>.*?<\/__li__>)+)/s', function ($m) {
+            $lines = [];
+            preg_match_all('/<__li__>(.*?)<\/__li__>/s', $m[1], $ms);
+            foreach ($ms[1] as $item) {
+                $lines[] = '* ' . trim($item);
+            }
+            return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
+        }, $html);
+        $html = preg_replace_callback('/((?:<__li_num__>.*?<\/__li_num__>)+)/s', function ($m) {
+            $lines = [];
+            preg_match_all('/<__li_num__>(.*?)<\/__li_num__>/s', $m[1], $ms);
+            foreach ($ms[1] as $item) {
+                $lines[] = trim($item);
+            }
+            return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
+        }, $html);
 
         // Replace <br> with newline
         $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
@@ -336,25 +351,31 @@ class CotizacionController extends BaseController
                 || preg_match('/class\s*=\s*["\'][^"\']*text-center/i', $chunk)) {
                 $align = 'C';
             }
-            // Strip remaining HTML tags but keep the newlines already inserted
-            $text = strip_tags($chunk);
+            // Detect pre-built list blocks (all bullets merged into one)
+            $isList = (strpos($chunk, '<__LISTBLOCK__>') !== false);
+            if ($isList) {
+                preg_match('/<__LISTBLOCK__>(.*?)<\/__LISTBLOCK__>/s', $chunk, $lm);
+                $text = isset($lm[1]) ? trim($lm[1]) : '';
+            } else {
+                $text = strip_tags($chunk);
+            }
             // Collapse horizontal whitespace only (preserve \n)
             $text = preg_replace('/[ \t]+/', ' ', $text);
-            // Trim each line individually
             $lines = array_map('trim', explode("\n", $text));
             $text = trim(implode("\n", $lines));
             if ($text !== '') {
-                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align];
+                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList];
             }
         }
 
         // Fallback: whole content as one left-aligned block
         if (empty($blocks)) {
-            $text = strip_tags($html);
+            $text = preg_replace('/<__LISTBLOCK__>(.*?)<\/__LISTBLOCK__>/s', '$1', $html);
+            $text = strip_tags($text);
             $text = preg_replace('/[ \t]+/', ' ', $text);
             $text = trim($text);
             if ($text !== '') {
-                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => 'L'];
+                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => 'L', 'list' => false];
             }
         }
 
@@ -429,11 +450,11 @@ class CotizacionController extends BaseController
                 }
                 $align = $block['align'];
                 $text = $block['text'];
+                $isList = !empty($block['list']);
                 $pdf->SetFont('Arial', 'B', 11);
 
                 if ($align === 'R') {
-                    $lines = explode("\n", $text);
-                    foreach ($lines as $line) {
+                    foreach (explode("\n", $text) as $line) {
                         $line = trim($line);
                         if ($line === '') {
                             continue;
@@ -445,7 +466,7 @@ class CotizacionController extends BaseController
                 } else {
                     $pdf->MultiCell(0, $lineH, $text, 0, $align);
                 }
-                $pdf->Ln(4);
+                $pdf->Ln($isList ? 1 : 4);
             }
             $pdf->SetFont('Arial', '', 10);
         }
@@ -513,6 +534,7 @@ class CotizacionController extends BaseController
                 }
                 $align = $block['align'];
                 $text = $block['text'];
+                $isList = !empty($block['list']);
                 if ($align === 'R') {
                     foreach (explode("\n", $text) as $line) {
                         $line = trim($line);
@@ -526,7 +548,7 @@ class CotizacionController extends BaseController
                 } else {
                     $pdf->MultiCell(0, 5, $text, 0, $align);
                 }
-                $pdf->Ln(3);
+                $pdf->Ln($isList ? 1 : 3);
             }
             $pdf->Ln(4);
         }
@@ -546,6 +568,7 @@ class CotizacionController extends BaseController
                 }
                 $align = $block['align'];
                 $text = $block['text'];
+                $isList = !empty($block['list']);
                 if ($align === 'R') {
                     foreach (explode("\n", $text) as $line) {
                         $line = trim($line);
@@ -559,7 +582,7 @@ class CotizacionController extends BaseController
                 } else {
                     $pdf->MultiCell(0, 5, $text, 0, $align);
                 }
-                $pdf->Ln(3);
+                $pdf->Ln($isList ? 1 : 3);
             }
         }
 
