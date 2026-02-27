@@ -46,7 +46,11 @@ $pie_y = isset($settings['pie_y']) ? (float) $settings['pie_y'] : 0;
 // Build preview URL for the current logo path
 $logo_preview_url = '';
 if (!empty($logo_path)) {
-    $logo_preview_url = \Joomla\CMS\Uri\Uri::root() . ltrim($logo_path, '/');
+    if (preg_match('/^https?:\/\//i', $logo_path) || strpos($logo_path, '//') === 0) {
+        $logo_preview_url = $logo_path; // already a full URL
+    } else {
+        $logo_preview_url = \Joomla\CMS\Uri\Uri::root() . ltrim($logo_path, '/');
+    }
 }
 
 try {

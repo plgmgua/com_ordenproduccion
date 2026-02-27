@@ -510,9 +510,21 @@ class CotizacionController extends BaseController
         if (empty($src)) {
             return null;
         }
-        // Skip data URIs and external URLs
-        if (strpos($src, 'data:') === 0 || preg_match('/^https?:\/\//i', $src) || strpos($src, '//') === 0) {
+        // Skip data URIs
+        if (strpos($src, 'data:') === 0) {
             return null;
+        }
+        // Full HTTP/HTTPS URL: try to strip the site base URL and resolve locally
+        if (preg_match('/^https?:\/\//i', $src) || strpos($src, '//') === 0) {
+            $siteRoot = rtrim(\Joomla\CMS\Uri\Uri::root(), '/');
+            // Normalise protocol-relative URLs
+            $normalised = preg_replace('/^\/\//', 'https://', $src);
+            if (stripos($normalised, $siteRoot) === 0) {
+                // Convert to relative path
+                $src = ltrim(substr($normalised, strlen($siteRoot)), '/');
+            } else {
+                return null; // External domain — cannot resolve to filesystem
+            }
         }
         $src  = ltrim($src, '/');
         $src  = preg_replace('/\?.*$/', '', $src); // strip query string
