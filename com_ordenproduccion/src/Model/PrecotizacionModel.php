@@ -480,6 +480,10 @@ class PrecotizacionModel extends ListModel
             'created_by' => (int) $user->id,
             'state'      => 1,
         ];
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        if (is_array($tableCols) && array_key_exists('facturar', array_change_key_case($tableCols, CASE_LOWER))) {
+            $data->facturar = 1;
+        }
 
         try {
             $db->insertObject('#__ordenproduccion_pre_cotizacion', $data, 'id');
