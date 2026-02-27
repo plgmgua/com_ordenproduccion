@@ -688,6 +688,10 @@ class CotizacionController extends BaseController
         $terminosBlocks   = $this->parseHtmlBlocks($terminosHtml, $fixSpanishChars);
         $pieBlocks        = $this->parseHtmlBlocks($pieHtml, $fixSpanishChars);
 
+        $logoPath  = isset($pdfSettings['logo_path'])  ? trim($pdfSettings['logo_path'])  : '';
+        $logoX     = isset($pdfSettings['logo_x'])     ? (float) $pdfSettings['logo_x']     : 15;
+        $logoY     = isset($pdfSettings['logo_y'])     ? (float) $pdfSettings['logo_y']     : 15;
+        $logoWidth = isset($pdfSettings['logo_width']) ? (float) $pdfSettings['logo_width'] : 50;
         $encX = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
         $encY = isset($pdfSettings['encabezado_y']) ? (float) $pdfSettings['encabezado_y'] : 15;
         $tableX = isset($pdfSettings['table_x']) ? (float) $pdfSettings['table_x'] : 0;
@@ -698,10 +702,18 @@ class CotizacionController extends BaseController
         $pieY = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
 
         $pdf->SetFont('Arial', '', 10);
-
-        // Encabezado: position (X,Y mm) then render block-by-block
         $pageW   = $pdf->GetPageWidth();
         $marginR = 15;
+
+        // ── Logo (rendered at its own absolute coordinates, independent of encabezado) ──
+        if (!empty($logoPath)) {
+            $resolvedLogo = $this->resolveImagePath($logoPath);
+            if ($resolvedLogo) {
+                $pdf->Image($resolvedLogo, $logoX, $logoY, $logoWidth);
+            }
+        }
+
+        // Encabezado: position (X,Y mm) then render block-by-block
         if (!empty($encabezadoBlocks)) {
             $pdf->SetXY($encX, $encY);
             $this->renderPdfBlocks($pdf, $encabezadoBlocks, 6, 11, $pageW, $marginR, 15, 4);

@@ -2444,13 +2444,17 @@ class AdministracionModel extends BaseDatabaseModel
      * Get cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página + positions).
      * Stored in #__ordenproduccion_config.
      *
-     * @return  array  Keys: encabezado, terminos_condiciones, pie_pagina, encabezado_x, encabezado_y, terminos_x, terminos_y, pie_x, pie_y
+     * @return  array  Keys: logo_path, logo_x, logo_y, logo_width, encabezado, terminos_condiciones, pie_pagina, encabezado_x, encabezado_y, terminos_x, terminos_y, pie_x, pie_y
      * @since   3.78.0
      */
     public function getCotizacionPdfSettings()
     {
         $db = Factory::getDbo();
         $keys = [
+            'cotizacion_pdf_logo_path',
+            'cotizacion_pdf_logo_x',
+            'cotizacion_pdf_logo_y',
+            'cotizacion_pdf_logo_width',
             'cotizacion_pdf_encabezado',
             'cotizacion_pdf_terminos_condiciones',
             'cotizacion_pdf_pie_pagina',
@@ -2477,6 +2481,10 @@ class AdministracionModel extends BaseDatabaseModel
             return $v;
         };
         return [
+            'logo_path'  => isset($rows['cotizacion_pdf_logo_path']) ? $rows['cotizacion_pdf_logo_path']->setting_value : '',
+            'logo_x'     => $getFloat('cotizacion_pdf_logo_x', 15),
+            'logo_y'     => $getFloat('cotizacion_pdf_logo_y', 15),
+            'logo_width' => $getFloat('cotizacion_pdf_logo_width', 50),
             'encabezado' => isset($rows['cotizacion_pdf_encabezado']) ? $rows['cotizacion_pdf_encabezado']->setting_value : '',
             'terminos_condiciones' => isset($rows['cotizacion_pdf_terminos_condiciones']) ? $rows['cotizacion_pdf_terminos_condiciones']->setting_value : '',
             'pie_pagina' => isset($rows['cotizacion_pdf_pie_pagina']) ? $rows['cotizacion_pdf_pie_pagina']->setting_value : '',
@@ -2494,7 +2502,7 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Save cotización PDF template settings to #__ordenproduccion_config.
      *
-     * @param   array  $data  Keys: encabezado, terminos_condiciones, pie_pagina (raw HTML allowed)
+     * @param   array  $data  Keys: logo_path, logo_x, logo_y, logo_width, encabezado, terminos_condiciones, pie_pagina (raw HTML allowed)
      * @return  bool
      * @since   3.78.0
      */
@@ -2504,6 +2512,10 @@ class AdministracionModel extends BaseDatabaseModel
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
         $map = [
+            'logo_path'  => 'cotizacion_pdf_logo_path',
+            'logo_x'     => 'cotizacion_pdf_logo_x',
+            'logo_y'     => 'cotizacion_pdf_logo_y',
+            'logo_width' => 'cotizacion_pdf_logo_width',
             'encabezado' => 'cotizacion_pdf_encabezado',
             'terminos_condiciones' => 'cotizacion_pdf_terminos_condiciones',
             'pie_pagina' => 'cotizacion_pdf_pie_pagina',
@@ -2518,7 +2530,7 @@ class AdministracionModel extends BaseDatabaseModel
         ];
         foreach ($map as $inputKey => $settingKey) {
             $value = isset($data[$inputKey]) ? $data[$inputKey] : '';
-            if (in_array($inputKey, ['encabezado_x', 'encabezado_y', 'table_x', 'table_y', 'terminos_x', 'terminos_y', 'pie_x', 'pie_y'], true)) {
+            if (in_array($inputKey, ['logo_x', 'logo_y', 'logo_width', 'encabezado_x', 'encabezado_y', 'table_x', 'table_y', 'terminos_x', 'terminos_y', 'pie_x', 'pie_y'], true)) {
                 $value = (string) (float) $value;
             } else {
                 $value = is_string($value) ? $value : '';

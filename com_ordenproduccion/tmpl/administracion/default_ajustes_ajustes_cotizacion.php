@@ -26,7 +26,11 @@ $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/compone
 
 $settings = isset($this->cotizacionPdfSettings) && is_array($this->cotizacionPdfSettings)
     ? $this->cotizacionPdfSettings
-    : ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => '', 'encabezado_x' => 15, 'encabezado_y' => 15, 'table_x' => 0, 'table_y' => 0, 'terminos_x' => 0, 'terminos_y' => 0, 'pie_x' => 0, 'pie_y' => 0];
+    : ['logo_path' => '', 'logo_x' => 15, 'logo_y' => 15, 'logo_width' => 50, 'encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => '', 'encabezado_x' => 15, 'encabezado_y' => 15, 'table_x' => 0, 'table_y' => 0, 'terminos_x' => 0, 'terminos_y' => 0, 'pie_x' => 0, 'pie_y' => 0];
+$logo_path  = isset($settings['logo_path'])  ? $settings['logo_path']  : '';
+$logo_x     = isset($settings['logo_x'])     ? (float) $settings['logo_x']     : 15;
+$logo_y     = isset($settings['logo_y'])     ? (float) $settings['logo_y']     : 15;
+$logo_width = isset($settings['logo_width']) ? (float) $settings['logo_width'] : 50;
 $encabezado = isset($settings['encabezado']) ? $settings['encabezado'] : '';
 $terminos = isset($settings['terminos_condiciones']) ? $settings['terminos_condiciones'] : '';
 $pie = isset($settings['pie_pagina']) ? $settings['pie_pagina'] : '';
@@ -38,6 +42,12 @@ $terminos_x = isset($settings['terminos_x']) ? (float) $settings['terminos_x'] :
 $terminos_y = isset($settings['terminos_y']) ? (float) $settings['terminos_y'] : 0;
 $pie_x = isset($settings['pie_x']) ? (float) $settings['pie_x'] : 0;
 $pie_y = isset($settings['pie_y']) ? (float) $settings['pie_y'] : 0;
+
+// Build preview URL for the current logo path
+$logo_preview_url = '';
+if (!empty($logo_path)) {
+    $logo_preview_url = \Joomla\CMS\Uri\Uri::root() . ltrim($logo_path, '/');
+}
 
 try {
     $editorName = $app->get('editor', 'tinymce');
@@ -82,6 +92,63 @@ $editorButtons = true;
                 <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($this->returnUrlAjustesCotizacion, ENT_QUOTES, 'UTF-8'); ?>" />
             <?php endif; ?>
 
+            <!-- ── Logo ──────────────────────────────────────────────────────── -->
+            <div class="mb-4 p-3 border rounded bg-light">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-image me-1"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_LOGO'); ?>
+                </label>
+                <p class="text-muted small mb-2">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_LOGO_DESC'); ?>
+                </p>
+
+                <div class="mb-2">
+                    <label for="jform_logo_path" class="form-label small mb-1">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_LOGO_PATH'); ?>
+                    </label>
+                    <input type="text"
+                           name="jform[logo_path]"
+                           id="jform_logo_path"
+                           class="form-control"
+                           value="<?php echo htmlspecialchars($logo_path, ENT_QUOTES, 'UTF-8'); ?>"
+                           placeholder="images/mi-logo.png" />
+                    <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_LOGO_PATH_HINT'); ?></div>
+                </div>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-auto">
+                        <label for="jform_logo_x" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_X'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[logo_x]" id="jform_logo_x"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars($logo_x, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_MM'); ?>" />
+                    </div>
+                    <div class="col-auto">
+                        <label for="jform_logo_y" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_Y'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[logo_y]" id="jform_logo_y"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars($logo_y, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_MM'); ?>" />
+                    </div>
+                    <div class="col-auto">
+                        <label for="jform_logo_width" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_LOGO_WIDTH'); ?></label>
+                        <input type="number" step="0.1" min="1" name="jform[logo_width]" id="jform_logo_width"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars($logo_width, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_MM'); ?>" />
+                    </div>
+                </div>
+
+                <?php if (!empty($logo_preview_url)): ?>
+                <div class="mt-2">
+                    <p class="small mb-1 text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_LOGO_PREVIEW'); ?></p>
+                    <img src="<?php echo htmlspecialchars($logo_preview_url, ENT_QUOTES, 'UTF-8'); ?>"
+                         alt="Logo preview" style="max-height:80px; max-width:200px; border:1px solid #dee2e6; padding:4px; background:#fff;" />
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- ── Encabezado ─────────────────────────────────────────────────── -->
             <div class="mb-4">
                 <label for="jform_encabezado" class="form-label fw-bold">
                     <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_ENCABEZADO'); ?>
