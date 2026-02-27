@@ -2441,10 +2441,10 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página).
+     * Get cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página + positions).
      * Stored in #__ordenproduccion_config.
      *
-     * @return  array  Keys: encabezado, terminos_condiciones, pie_pagina
+     * @return  array  Keys: encabezado, terminos_condiciones, pie_pagina, encabezado_x, encabezado_y, terminos_x, terminos_y, pie_x, pie_y
      * @since   3.78.0
      */
     public function getCotizacionPdfSettings()
@@ -2454,6 +2454,12 @@ class AdministracionModel extends BaseDatabaseModel
             'cotizacion_pdf_encabezado',
             'cotizacion_pdf_terminos_condiciones',
             'cotizacion_pdf_pie_pagina',
+            'cotizacion_pdf_encabezado_x',
+            'cotizacion_pdf_encabezado_y',
+            'cotizacion_pdf_terminos_x',
+            'cotizacion_pdf_terminos_y',
+            'cotizacion_pdf_pie_x',
+            'cotizacion_pdf_pie_y',
         ];
         $query = $db->getQuery(true)
             ->select($db->quoteName(['setting_key', 'setting_value']))
@@ -2461,10 +2467,23 @@ class AdministracionModel extends BaseDatabaseModel
             ->whereIn($db->quoteName('setting_key'), array_map([$db, 'quote'], $keys));
         $db->setQuery($query);
         $rows = $db->loadObjectList('setting_key') ?: [];
+        $getFloat = function ($key, $default) use ($rows) {
+            if (!isset($rows[$key]) || $rows[$key]->setting_value === '') {
+                return $default;
+            }
+            $v = (float) $rows[$key]->setting_value;
+            return $v;
+        };
         return [
             'encabezado' => isset($rows['cotizacion_pdf_encabezado']) ? $rows['cotizacion_pdf_encabezado']->setting_value : '',
             'terminos_condiciones' => isset($rows['cotizacion_pdf_terminos_condiciones']) ? $rows['cotizacion_pdf_terminos_condiciones']->setting_value : '',
             'pie_pagina' => isset($rows['cotizacion_pdf_pie_pagina']) ? $rows['cotizacion_pdf_pie_pagina']->setting_value : '',
+            'encabezado_x' => $getFloat('cotizacion_pdf_encabezado_x', 15),
+            'encabezado_y' => $getFloat('cotizacion_pdf_encabezado_y', 15),
+            'terminos_x' => $getFloat('cotizacion_pdf_terminos_x', 0),
+            'terminos_y' => $getFloat('cotizacion_pdf_terminos_y', 0),
+            'pie_x' => $getFloat('cotizacion_pdf_pie_x', 0),
+            'pie_y' => $getFloat('cotizacion_pdf_pie_y', 0),
         ];
     }
 
@@ -2484,10 +2503,20 @@ class AdministracionModel extends BaseDatabaseModel
             'encabezado' => 'cotizacion_pdf_encabezado',
             'terminos_condiciones' => 'cotizacion_pdf_terminos_condiciones',
             'pie_pagina' => 'cotizacion_pdf_pie_pagina',
+            'encabezado_x' => 'cotizacion_pdf_encabezado_x',
+            'encabezado_y' => 'cotizacion_pdf_encabezado_y',
+            'terminos_x' => 'cotizacion_pdf_terminos_x',
+            'terminos_y' => 'cotizacion_pdf_terminos_y',
+            'pie_x' => 'cotizacion_pdf_pie_x',
+            'pie_y' => 'cotizacion_pdf_pie_y',
         ];
         foreach ($map as $inputKey => $settingKey) {
             $value = isset($data[$inputKey]) ? $data[$inputKey] : '';
-            $value = is_string($value) ? $value : '';
+            if (in_array($inputKey, ['encabezado_x', 'encabezado_y', 'terminos_x', 'terminos_y', 'pie_x', 'pie_y'], true)) {
+                $value = (string) (float) $value;
+            } else {
+                $value = is_string($value) ? $value : '';
+            }
             $query = $db->getQuery(true)
                 ->select('id')
                 ->from($db->quoteName('#__ordenproduccion_config'))

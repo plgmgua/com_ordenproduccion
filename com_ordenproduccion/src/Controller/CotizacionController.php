@@ -258,12 +258,66 @@ class CotizacionController extends BaseController
                 $fechaFormatted,
                 $currency,
                 $totalAmount,
-                (int) $app->input->get('download', 0) === 1
+                (int) $app->input->get('download', 0) === 1,
+                $pdfSettings
             );
         } catch (\Throwable $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_PDF_GENERATION') . ': ' . $e->getMessage(), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
         }
+    }
+
+    /**
+     * Parse encabezado HTML into blocks with alignment (preserve WYSIWYG layout: right/left/center).
+     *
+     * @param   string    $html             Encabezado HTML (placeholders already replaced)
+     * @param   callable  $fixSpanishChars  Function to normalize characters for FPDF
+     * @return  array  List of [ 'text' => string, 'align' => 'L'|'R'|'C' ]
+     */
+    private function parseEncabezadoBlocks($html, callable $fixSpanishChars)
+    {
+        $blocks = [];
+        $html = trim((string) $html);
+        if ($html === '') {
+            return $blocks;
+        }
+
+        // Normalize: replace <br> with newline for later block text
+        $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
+        $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Split by block elements: </p>, </div> (and optional opening tags we skip)
+        $chunks = preg_split('/<\s*\/\s*(?:p|div)\s*>/i', $html);
+        foreach ($chunks as $chunk) {
+            $chunk = trim($chunk);
+            if ($chunk === '') {
+                continue;
+            }
+            $align = 'L';
+            if (preg_match('/<\s*(?:p|div)[^>]*\s+style\s*=\s*["\'][^"\']*text-align\s*:\s*right/i', $chunk)
+                || preg_match('/<\s*(?:p|div)[^>]*\s+class\s*=\s*["\'][^"\']*text-right/i', $chunk)) {
+                $align = 'R';
+            } elseif (preg_match('/<\s*(?:p|div)[^>]*\s+style\s*=\s*["\'][^"\']*text-align\s*:\s*center/i', $chunk)
+                || preg_match('/<\s*(?:p|div)[^>]*\s+class\s*=\s*["\'][^"\']*text-center/i', $chunk)) {
+                $align = 'C';
+            }
+            $text = strip_tags($chunk);
+            $text = preg_replace('/[ \t]+/', ' ', trim($text));
+            if ($text !== '') {
+                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align];
+            }
+        }
+
+        // If no blocks found (e.g. no </p>/</div>), treat whole content as one left-aligned block
+        if (empty($blocks)) {
+            $text = strip_tags($html);
+            $text = preg_replace('/[ \t]+/', ' ', trim($text));
+            if ($text !== '') {
+                $blocks[] = ['text' => $fixSpanishChars($text), 'align' => 'L'];
+            }
+        }
+
+        return $blocks;
     }
 
     /**
@@ -279,9 +333,10 @@ class CotizacionController extends BaseController
      * @param   string   $currency         Currency symbol
      * @param   float    $totalAmount      Total amount
      * @param   bool     $forceDownload    True to force download (D), false for inline (I)
+     * @param   array    $pdfSettings      Optional. Keys encabezado_x, encabezado_y, terminos_x, terminos_y, pie_x, pie_y (mm). 0 = flow after content.
      * @return  void
      */
-    private function generateCotizacionPdf($quotation, $items, $encabezadoHtml, $terminosHtml, $pieHtml, $numeroCotizacion, $fechaFormatted, $currency, $totalAmount, $forceDownload = false)
+    private function generateCotizacionPdf($quotation, $items, $encabezadoHtml, $terminosHtml, $pieHtml, $numeroCotizacion, $fechaFormatted, $currency, $totalAmount, $forceDownload = false, array $pdfSettings = [])
     {
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
 
@@ -298,6 +353,8 @@ class CotizacionController extends BaseController
                 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
                 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
                 'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c',
+                'Å' => 'A', 'å' => 'a', 'Æ' => 'AE', 'æ' => 'ae', 'Ø' => 'O', 'ø' => 'o',
+                'º' => '', 'ª' => '', '°' => '', '´' => "'", '`' => "'",
             ];
             return strtr($text, $replacements);
         };
@@ -309,17 +366,51 @@ class CotizacionController extends BaseController
             return $fixSpanishChars($text);
         };
 
-        $encabezado = $htmlToText($encabezadoHtml);
+        $encabezadoBlocks = $this->parseEncabezadoBlocks($encabezadoHtml, $fixSpanishChars);
         $terminos   = $htmlToText($terminosHtml);
         $pie        = $htmlToText($pieHtml);
 
+        $encX = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
+        $encY = isset($pdfSettings['encabezado_y']) ? (float) $pdfSettings['encabezado_y'] : 15;
+        $termX = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
+        $termY = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
+        $pieX = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
+        $pieY = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
+
         $pdf->SetFont('Arial', '', 10);
 
-        // Encabezado
-        if ($encabezado !== '') {
-            $pdf->SetFont('Arial', 'B', 11);
-            $pdf->MultiCell(0, 6, $encabezado, 0, 'L');
-            $pdf->Ln(4);
+        // Encabezado: position (X,Y mm) then render block-by-block
+        if (!empty($encabezadoBlocks)) {
+            $pdf->SetXY($encX, $encY);
+            $lineH = 6;
+            $marginR = 15;
+            $pageW = $pdf->GetPageWidth();
+
+            foreach ($encabezadoBlocks as $i => $block) {
+                if (trim($block['text']) === '') {
+                    $pdf->Ln(4);
+                    continue;
+                }
+                $align = $block['align'];
+                $text = $block['text'];
+                $pdf->SetFont('Arial', 'B', 11);
+
+                if ($align === 'R') {
+                    $lines = explode("\n", $text);
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if ($line === '') {
+                            continue;
+                        }
+                        $w = $pdf->GetStringWidth($line);
+                        $pdf->SetX($pageW - $marginR - $w);
+                        $pdf->Cell($w, $lineH, $line, 0, 1, 'L');
+                    }
+                } else {
+                    $pdf->MultiCell(0, $lineH, $text, 0, $align);
+                }
+                $pdf->Ln(4);
+            }
             $pdf->SetFont('Arial', '', 10);
         }
 
@@ -368,6 +459,9 @@ class CotizacionController extends BaseController
 
         // Términos y condiciones
         if ($terminos !== '') {
+            if ($termY > 0 || $termX > 0) {
+                $pdf->SetXY($termX > 0 ? $termX : 15, $termY > 0 ? $termY : $pdf->GetY());
+            }
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(0, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
             $pdf->SetFont('Arial', '', 9);
@@ -377,6 +471,9 @@ class CotizacionController extends BaseController
 
         // Pie de página
         if ($pie !== '') {
+            if ($pieY > 0 || $pieX > 0) {
+                $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
+            }
             $pdf->SetFont('Arial', '', 9);
             $pdf->MultiCell(0, 5, $pie, 0, 'L');
         }
