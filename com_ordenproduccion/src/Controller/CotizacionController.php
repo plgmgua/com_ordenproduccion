@@ -162,7 +162,7 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * Generate and download quotation as PDF (or HTML when Dompdf not available).
+     * Generate and output quotation as PDF using FPDF (same method as orden de trabajo / envio).
      *
      * @return  void
      * @since   3.78.0
@@ -213,19 +213,11 @@ class CotizacionController extends BaseController
             return;
         }
 
-        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
-        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
-        $hasPreId = isset($itemCols['pre_cotizacion_id']);
         $query = $db->getQuery(true)
             ->select('i.*')
             ->from($db->quoteName('#__ordenproduccion_quotation_items', 'i'))
             ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
             ->order($db->quoteName('i.line_order') . ' ASC, ' . $db->quoteName('i.id') . ' ASC');
-        if ($hasPreId) {
-            $subq = '(SELECT ' . $db->quoteName('p.number') . ' FROM ' . $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p')
-                . ' WHERE ' . $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id') . ' LIMIT 1)';
-            $query->select($subq . ' AS ' . $db->quoteName('pre_cotizacion_number'));
-        }
         $db->setQuery($query);
         $items = $db->loadObjectList() ?: [];
 
@@ -248,77 +240,150 @@ class CotizacionController extends BaseController
             'sales_agent_name'   => $salesAgentName !== '' ? $salesAgentName : null,
             'user'               => $user,
         ];
-        $encabezado = CotizacionPdfHelper::replacePlaceholders($pdfSettings['encabezado'] ?? '', $context);
-        $terminos   = CotizacionPdfHelper::replacePlaceholders($pdfSettings['terminos_condiciones'] ?? '', $context);
-        $pie        = CotizacionPdfHelper::replacePlaceholders($pdfSettings['pie_pagina'] ?? '', $context);
+        $encabezadoHtml = CotizacionPdfHelper::replacePlaceholders($pdfSettings['encabezado'] ?? '', $context);
+        $terminosHtml   = CotizacionPdfHelper::replacePlaceholders($pdfSettings['terminos_condiciones'] ?? '', $context);
+        $pieHtml        = CotizacionPdfHelper::replacePlaceholders($pdfSettings['pie_pagina'] ?? '', $context);
 
         $currency = $quotation->currency ?? 'Q';
         $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 
-        $bodyRows = '';
+        try {
+            $this->generateCotizacionPdf(
+                $quotation,
+                $items,
+                $encabezadoHtml,
+                $terminosHtml,
+                $pieHtml,
+                $numeroCotizacion,
+                $fechaFormatted,
+                $currency,
+                $totalAmount,
+                (int) $app->input->get('download', 0) === 1
+            );
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_PDF_GENERATION') . ': ' . $e->getMessage(), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+        }
+    }
+
+    /**
+     * Generate cotización PDF with FPDF (same pattern as OrdenController work order / envio).
+     *
+     * @param   object   $quotation       Quotation row
+     * @param   array    $items           Quotation items
+     * @param   string   $encabezadoHtml   Header content (HTML, will be stripped for FPDF)
+     * @param   string   $terminosHtml     Terms content (HTML)
+     * @param   string   $pieHtml          Footer content (HTML)
+     * @param   string   $numeroCotizacion Quotation number
+     * @param   string   $fechaFormatted   Formatted date
+     * @param   string   $currency         Currency symbol
+     * @param   float    $totalAmount      Total amount
+     * @param   bool     $forceDownload    True to force download (D), false for inline (I)
+     * @return  void
+     */
+    private function generateCotizacionPdf($quotation, $items, $encabezadoHtml, $terminosHtml, $pieHtml, $numeroCotizacion, $fechaFormatted, $currency, $totalAmount, $forceDownload = false)
+    {
+        require_once JPATH_ROOT . '/fpdf/fpdf.php';
+
+        $pdf = new \FPDF('P', 'mm', [215.9, 279.4]); // 8.5" x 11" Letter
+        $pdf->AddPage();
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+
+        $fixSpanishChars = function ($text) {
+            if (empty($text)) {
+                return $text;
+            }
+            $replacements = [
+                'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
+                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
+                'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c',
+            ];
+            return strtr($text, $replacements);
+        };
+
+        $htmlToText = function ($html) use ($fixSpanishChars) {
+            $text = strip_tags(preg_replace('/<br\s*\/?>/i', "\n", $html));
+            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $text = preg_replace('/[ \t]+/', ' ', trim($text));
+            return $fixSpanishChars($text);
+        };
+
+        $encabezado = $htmlToText($encabezadoHtml);
+        $terminos   = $htmlToText($terminosHtml);
+        $pie        = $htmlToText($pieHtml);
+
+        $pdf->SetFont('Arial', '', 10);
+
+        // Encabezado
+        if ($encabezado !== '') {
+            $pdf->SetFont('Arial', 'B', 11);
+            $pdf->MultiCell(0, 6, $encabezado, 0, 'L');
+            $pdf->Ln(4);
+            $pdf->SetFont('Arial', '', 10);
+        }
+
+        // Info line: Cliente | Contacto | NIT | Fecha | Agente
+        $clientName = $fixSpanishChars($quotation->client_name ?? '');
+        $contactName = $fixSpanishChars($quotation->contact_name ?? '');
+        $clientNit = $fixSpanishChars($quotation->client_nit ?? '');
+        $salesAgent = $fixSpanishChars($quotation->sales_agent ?? '');
+        $infoLine = "Cliente: $clientName  |  Contacto: $contactName  |  NIT: $clientNit  |  Fecha: $fechaFormatted  |  Agente: $salesAgent";
+        $pdf->MultiCell(0, 6, $infoLine, 0, 'L');
+        $pdf->Ln(6);
+
+        // Table: Cantidad, Descripción, Precio unit., Subtotal
+        $colCant = 18;
+        $colDesc = 95;
+        $colUnit = 35;
+        $colSub  = 35;
+        $lineH  = 6;
+
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($colCant, $lineH, 'Cantidad', 1, 0, 'L');
+        $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L');
+        $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R');
+        $pdf->Cell($colSub, $lineH, 'Subtotal', 1, 1, 'R');
+        $pdf->SetFont('Arial', '', 9);
+
         foreach ($items as $item) {
             $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
             $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
             $unit = $qty > 0 ? ($subtotal / $qty) : 0;
-            $desc = htmlspecialchars($item->descripcion ?? '', ENT_QUOTES, 'UTF-8');
-            $bodyRows .= '<tr><td>' . $qty . '</td><td>' . $desc . '</td><td class="text-end">' . $currency . ' ' . number_format($unit, 4) . '</td><td class="text-end">' . $currency . ' ' . number_format($subtotal, 2) . '</td></tr>';
-        }
-        $body = '<div class="cotizacion-pdf-body">';
-        $body .= '<table class="table table-bordered" style="width:100%; border-collapse:collapse;"><thead><tr><th>Cantidad</th><th>Descripción</th><th class="text-end">Precio unit.</th><th class="text-end">Subtotal</th></tr></thead><tbody>' . $bodyRows . '</tbody>';
-        $body .= '<tfoot><tr class="fw-bold"><td colspan="3" class="text-end">Total:</td><td class="text-end">' . $currency . ' ' . number_format($totalAmount, 2) . '</td></tr></tfoot></table>';
-        $body .= '</div>';
-
-        $fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($numeroCotizacion, ENT_QUOTES, 'UTF-8') . '</title>';
-        $fullHtml .= '<style>';
-        $fullHtml .= 'body{font-family:DejaVu Sans,sans-serif;font-size:11px;margin:20px;}';
-        $fullHtml .= 'table{width:100%;border-collapse:collapse;} th,td{border:1px solid #333;padding:6px;} .text-end{text-align:right;}';
-        $fullHtml .= '.pdf-header,.pdf-footer,.pdf-terminos{margin:15px 0;} .pdf-info{margin:10px 0;}';
-        $fullHtml .= '.pdf-header p,.pdf-terminos p,.pdf-footer p{margin:0.5em 0;} .pdf-header ul,.pdf-terminos ul,.pdf-footer ul{margin:0.5em 0;padding-left:1.5em;}';
-        $fullHtml .= '.pdf-header ol,.pdf-terminos ol,.pdf-footer ol{margin:0.5em 0;padding-left:1.5em;}';
-        $fullHtml .= '.pdf-header img,.pdf-terminos img,.pdf-footer img{max-width:100%;height:auto;}';
-        $fullHtml .= '.pdf-header strong,.pdf-terminos strong,.pdf-footer strong{font-weight:bold;}';
-        $fullHtml .= '.pdf-header h1,.pdf-header h2,.pdf-header h3,.pdf-header h4,.pdf-terminos h1,.pdf-terminos h2,.pdf-footer h1,.pdf-footer h2{margin:0.4em 0;font-weight:bold;}';
-        $fullHtml .= '.pdf-header,.pdf-terminos,.pdf-footer{line-height:1.4;}';
-        $fullHtml .= '.pdf-header *,.pdf-terminos *,.pdf-footer *{box-sizing:border-box;}';
-        $fullHtml .= '</style></head><body>';
-        $fullHtml .= '<div class="pdf-header">' . $encabezado . '</div>';
-        $fullHtml .= '<div class="pdf-info"><strong>Cliente:</strong> ' . htmlspecialchars($quotation->client_name ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Contacto:</strong> ' . htmlspecialchars($quotation->contact_name ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>NIT:</strong> ' . htmlspecialchars($quotation->client_nit ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Fecha:</strong> ' . htmlspecialchars($fechaFormatted, ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Agente:</strong> ' . htmlspecialchars($quotation->sales_agent ?? '', ENT_QUOTES, 'UTF-8') . '</div>';
-        $fullHtml .= $body;
-        $fullHtml .= '<div class="pdf-terminos">' . $terminos . '</div>';
-        $fullHtml .= '<div class="pdf-footer">' . $pie . '</div>';
-        $fullHtml .= '</body></html>';
-
-        if (class_exists(\Dompdf\Dompdf::class)) {
-            try {
-                $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => true]);
-                $options = $dompdf->getOptions();
-                if (method_exists($options, 'set')) {
-                    $basePath = rtrim(\Joomla\CMS\Uri\Uri::root(), '/');
-                    $options->set('baseUri', $basePath . '/');
-                }
-                $dompdf->loadHtml($fullHtml, 'UTF-8');
-                $dompdf->setPaper('letter', 'portrait');
-                $dompdf->render();
-                $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
-                $app->setHeader('Content-Type', 'application/pdf', true);
-                $forceDownload = (int) $app->input->get('download', 0) === 1;
-                $app->setHeader('Content-Disposition', ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $filename . '"', true);
-                $app->sendHeaders();
-                echo $dompdf->output();
-                $app->close();
-            } catch (\Throwable $e) {
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_PDF_GENERATION') . ': ' . $e->getMessage(), 'error');
-                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $desc = $fixSpanishChars($item->descripcion ?? '');
+            if (strlen($desc) > 70) {
+                $desc = substr($desc, 0, 67) . '...';
             }
-            return;
+            $pdf->Cell($colCant, $lineH, (string) $qty, 1, 0, 'L');
+            $pdf->Cell($colDesc, $lineH, $desc, 1, 0, 'L');
+            $pdf->Cell($colUnit, $lineH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R');
+            $pdf->Cell($colSub, $lineH, $currency . ' ' . number_format($subtotal, 2), 1, 1, 'R');
         }
 
-        $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.html';
-        $app->setHeader('Content-Type', 'text/html; charset=UTF-8', true);
-        $app->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"', true);
-        $app->sendHeaders();
-        $note = '<p style="background:#fff3cd;padding:10px;margin-bottom:15px;">' . Text::_('COM_ORDENPRODUCCION_COTIZACION_PDF_PRINT_TO_PDF') . '</p>';
-        echo $note . $fullHtml;
-        $app->close();
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($colCant + $colDesc + $colUnit, $lineH, 'Total:', 1, 0, 'R');
+        $pdf->Cell($colSub, $lineH, $currency . ' ' . number_format($totalAmount, 2), 1, 1, 'R');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Ln(6);
+
+        // Términos y condiciones
+        if ($terminos !== '') {
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(0, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->MultiCell(0, 5, $terminos, 0, 'L');
+            $pdf->Ln(4);
+        }
+
+        // Pie de página
+        if ($pie !== '') {
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->MultiCell(0, 5, $pie, 0, 'L');
+        }
+
+        $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
+        $dest = $forceDownload ? 'D' : 'I';
+        $pdf->Output($dest, $filename);
+        exit;
     }
 }
