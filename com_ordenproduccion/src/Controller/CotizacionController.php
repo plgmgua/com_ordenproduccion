@@ -328,9 +328,11 @@ class CotizacionController extends BaseController
 
         // Step 3: Extract <table> blocks into placeholders so cells survive strip_tags.
         // Each placeholder encodes rows→cells (images, text, alignment, colspan, style) as base64 JSON.
+        // IMPORTANT: cell text is kept as UTF-8 here so json_encode works correctly.
+        // The Latin-1 conversion for FPDF is applied later at render time in renderPdfBlocks().
         $html = preg_replace_callback(
             '/<\s*table[^>]*>(.*?)<\s*\/\s*table\s*>/is',
-            function ($m) use ($fixSpanishChars) {
+            function ($m) {
                 $rows = [];
                 preg_match_all('/<\s*tr[^>]*>(.*?)<\s*\/\s*tr\s*>/is', $m[1], $trMatches);
                 foreach ($trMatches[1] as $trContent) {
@@ -378,7 +380,7 @@ class CotizacionController extends BaseController
 
                         $cellText = preg_replace('/<br\s*\/?>/i', "\n", $cellContent);
                         $cellText = strip_tags($cellText);
-                        $cellText = $fixSpanishChars(trim(preg_replace('/[ \t]+/', ' ', $cellText)));
+                        $cellText = trim(preg_replace('/[ \t]+/', ' ', $cellText));
 
                         $cells[] = [
                             'text'    => $cellText,
@@ -491,7 +493,8 @@ class CotizacionController extends BaseController
             $text = trim(implode("\n", array_map('trim', explode("\n", $text))));
 
             if ($text !== '') {
-                $blocks[] = ['type' => 'text', 'text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList, 'style' => $fontStyle];
+                // Keep UTF-8 here — Latin-1 conversion for FPDF happens in renderPdfBlocks()
+                $blocks[] = ['type' => 'text', 'text' => $text, 'align' => $align, 'list' => $isList, 'style' => $fontStyle];
             }
         }
 
@@ -501,7 +504,7 @@ class CotizacionController extends BaseController
             $text = strip_tags($text);
             $text = trim(preg_replace('/[ \t]+/', ' ', $text));
             if ($text !== '') {
-                $blocks[] = ['type' => 'text', 'text' => $fixSpanishChars($text), 'align' => 'L', 'list' => false, 'style' => ''];
+                $blocks[] = ['type' => 'text', 'text' => $text, 'align' => 'L', 'list' => false, 'style' => ''];
             }
         }
 
@@ -554,8 +557,11 @@ class CotizacionController extends BaseController
      * @param   float    $gap      Spacing added after each non-list text block (mm)
      * @return  void
      */
-    private function renderPdfBlocks($pdf, $blocks, $lineH, $fontSize, $pageW, $marginR, $marginL = 15, $gap = 4)
+    private function renderPdfBlocks($pdf, $blocks, $lineH, $fontSize, $pageW, $marginR, $marginL = 15, $gap = 4, callable $fixSpanishChars = null)
     {
+        // Apply Latin-1 conversion for FPDF; fall back to identity if not provided
+        $encode = $fixSpanishChars ?? static function ($t) { return $t; };
+
         // Track whether real content has been rendered yet so we never add
         // vertical spacing (Ln) for empty paragraphs that appear BEFORE the
         // first actual image/table/text block. TinyMCE often emits leading
@@ -611,8 +617,8 @@ class CotizacionController extends BaseController
                             }
                         }
 
-                        // Render text in this cell
-                        $cellText = $cell['text'] ?? '';
+                        // Render text in this cell (encode to Latin-1 for FPDF)
+                        $cellText = $encode($cell['text'] ?? '');
                         if ($cellText !== '') {
                             $pdf->SetFont('Arial', $cell['style'] ?? '', $fontSize);
                             $pdf->SetXY($curX, $cellY);
@@ -643,7 +649,7 @@ class CotizacionController extends BaseController
             $contentStarted = true;
 
             $align  = $block['align'];
-            $text   = $block['text'];
+            $text   = $encode($block['text']); // convert UTF-8 → Latin-1 for FPDF
             $isList = !empty($block['list']);
             $pdf->SetFont('Arial', $block['style'] ?? '', $fontSize);
 
@@ -739,7 +745,7 @@ class CotizacionController extends BaseController
         // Encabezado: position (X,Y mm) then render block-by-block
         if (!empty($encabezadoBlocks)) {
             $pdf->SetXY($encX, $encY);
-            $this->renderPdfBlocks($pdf, $encabezadoBlocks, 6, 11, $pageW, $marginR, 15, 4);
+            $this->renderPdfBlocks($pdf, $encabezadoBlocks, 6, 11, $pageW, $marginR, 15, 4, $fixSpanishChars);
             $pdf->SetFont('Arial', '', 10);
         }
 
@@ -802,7 +808,7 @@ class CotizacionController extends BaseController
             }
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(0, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
-            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3);
+            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
             $pdf->Ln(4);
         }
 
@@ -811,7 +817,7 @@ class CotizacionController extends BaseController
             if ($pieY > 0 || $pieX > 0) {
                 $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
             }
-            $this->renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3);
+            $this->renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
