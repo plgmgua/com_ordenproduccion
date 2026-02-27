@@ -18,20 +18,37 @@ use Joomla\CMS\User\User;
 /**
  * Placeholders supported in Ajustes de Cotización (PDF template).
  * Use these in Encabezado, Términos y Condiciones, Pie de página; they are replaced when generating the PDF.
+ * User profile fields use Joomla custom field names: numero-de-celular, puesto-laboral, departamento, telefono, agente-de-ventas.
  */
 class CotizacionPdfHelper
 {
     /** Placeholder: número de cotización */
     public const PLACEHOLDER_NUMERO_COTIZACION = '{NUMERO_COTIZACION}';
 
-    /** Placeholder: nombre del agente de ventas (usuario conectado o asignado) */
+    /** Placeholder: nombre del agente de ventas (usuario conectado o sales_agent_name en contexto) */
     public const PLACEHOLDER_AGENTE_VENTAS = '{AGENTE_VENTAS}';
 
-    /** Placeholder: número de celular (campo personalizado del perfil de usuario, nombre del campo: celular) */
+    /** Placeholder: campo perfil agente-de-ventas */
+    public const PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO = '{AGENTE_DE_VENTAS_CAMPO}';
+
+    /** Placeholder: número de celular (campo perfil numero-de-celular) */
     public const PLACEHOLDER_CELULAR = '{CELULAR}';
 
-    /** Placeholder: puesto (campo personalizado del perfil de usuario, nombre del campo: puesto) */
+    /** Placeholder: puesto laboral (campo perfil puesto-laboral) */
     public const PLACEHOLDER_PUESTO = '{PUESTO}';
+
+    /** Placeholder: departamento (campo perfil departamento) */
+    public const PLACEHOLDER_DEPARTAMENTO = '{DEPARTAMENTO}';
+
+    /** Placeholder: teléfono (campo perfil telefono) */
+    public const PLACEHOLDER_TELEFONO = '{TELEFONO}';
+
+    /** Joomla custom field names for user profile (Users: Fields). */
+    private const USER_FIELD_CELULAR = 'numero-de-celular';
+    private const USER_FIELD_PUESTO = 'puesto-laboral';
+    private const USER_FIELD_DEPARTAMENTO = 'departamento';
+    private const USER_FIELD_TELEFONO = 'telefono';
+    private const USER_FIELD_AGENTE_DE_VENTAS = 'agente-de-ventas';
 
     /**
      * Get placeholder keys and their language labels for the Ajustes UI.
@@ -41,10 +58,13 @@ class CotizacionPdfHelper
     public static function getPlaceholdersForUi()
     {
         return [
-            self::PLACEHOLDER_NUMERO_COTIZACION => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_NUMERO_COTIZACION',
-            self::PLACEHOLDER_AGENTE_VENTAS    => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_AGENTE_VENTAS',
-            self::PLACEHOLDER_CELULAR           => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_CELULAR',
-            self::PLACEHOLDER_PUESTO            => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_PUESTO',
+            self::PLACEHOLDER_NUMERO_COTIZACION   => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_NUMERO_COTIZACION',
+            self::PLACEHOLDER_AGENTE_VENTAS       => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_AGENTE_VENTAS',
+            self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_AGENTE_DE_VENTAS_CAMPO',
+            self::PLACEHOLDER_CELULAR             => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_CELULAR',
+            self::PLACEHOLDER_PUESTO              => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_PUESTO',
+            self::PLACEHOLDER_DEPARTAMENTO       => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_DEPARTAMENTO',
+            self::PLACEHOLDER_TELEFONO           => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_TELEFONO',
         ];
     }
 
@@ -63,14 +83,21 @@ class CotizacionPdfHelper
         $agenteVentas = isset($context['sales_agent_name']) && $context['sales_agent_name'] !== ''
             ? (string) $context['sales_agent_name']
             : ($user ? $user->get('name') : '');
-        $celular = $user ? self::getUserCustomField($user, 'celular') : '';
-        $puesto  = $user ? self::getUserCustomField($user, 'puesto') : '';
+
+        $agenteDeVentasCampo = $user ? self::getUserCustomField($user, self::USER_FIELD_AGENTE_DE_VENTAS) : '';
+        $celular     = $user ? self::getUserCustomField($user, self::USER_FIELD_CELULAR) : '';
+        $puesto      = $user ? self::getUserCustomField($user, self::USER_FIELD_PUESTO) : '';
+        $departamento = $user ? self::getUserCustomField($user, self::USER_FIELD_DEPARTAMENTO) : '';
+        $telefono    = $user ? self::getUserCustomField($user, self::USER_FIELD_TELEFONO) : '';
 
         $replacements = [
-            self::PLACEHOLDER_NUMERO_COTIZACION => $numeroCotizacion,
-            self::PLACEHOLDER_AGENTE_VENTAS    => $agenteVentas,
-            self::PLACEHOLDER_CELULAR           => $celular,
-            self::PLACEHOLDER_PUESTO            => $puesto,
+            self::PLACEHOLDER_NUMERO_COTIZACION   => $numeroCotizacion,
+            self::PLACEHOLDER_AGENTE_VENTAS       => $agenteVentas,
+            self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => $agenteDeVentasCampo,
+            self::PLACEHOLDER_CELULAR             => $celular,
+            self::PLACEHOLDER_PUESTO              => $puesto,
+            self::PLACEHOLDER_DEPARTAMENTO        => $departamento,
+            self::PLACEHOLDER_TELEFONO            => $telefono,
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), (string) $html);
@@ -100,10 +127,10 @@ class CotizacionPdfHelper
 
     /**
      * Get a custom user profile field value by field name (com_users.user custom fields).
-     * Field names in Joomla are the "name" of the field (e.g. celular, puesto).
+     * Use the field "name" as in Users: Fields (e.g. numero-de-celular, puesto-laboral).
      *
      * @param   User    $user
-     * @param   string  $fieldName  Field name (e.g. celular, puesto)
+     * @param   string  $fieldName  Field name (e.g. numero-de-celular, puesto-laboral)
      * @return  string
      */
     public static function getUserCustomField(User $user, $fieldName)
