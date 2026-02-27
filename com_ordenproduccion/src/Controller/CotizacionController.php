@@ -285,64 +285,49 @@ class CotizacionController extends BaseController
 
         $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-        // Convert <li> items to lines prefixed with a bullet "* " before any other processing.
-        // Handles <ul> and <ol> (ordered lists get numbered).
+        // Step 1: Replace each complete <ol>...</ol> with a single <__LISTBLOCK__> placeholder.
+        // We do this BEFORE any splitting so all items stay together as one block.
         $html = preg_replace_callback(
             '/<\s*ol[^>]*>(.*?)<\s*\/\s*ol\s*>/is',
             function ($m) {
                 $idx = 1;
-                return preg_replace_callback(
-                    '/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is',
-                    function ($li) use (&$idx) {
-                        return '<__li_num__>' . ($idx++) . '. ' . strip_tags($li[1]) . '</__li_num__>';
-                    },
-                    $m[1]
-                );
+                $lines = [];
+                preg_match_all('/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is', $m[1], $ms);
+                foreach ($ms[1] as $item) {
+                    $lines[] = ($idx++) . '. ' . trim(strip_tags($item));
+                }
+                return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
             },
             $html
         );
+
+        // Step 2: Same for <ul>...</ul>
         $html = preg_replace_callback(
             '/<\s*ul[^>]*>(.*?)<\s*\/\s*ul\s*>/is',
             function ($m) {
-                return preg_replace_callback(
-                    '/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is',
-                    function ($li) {
-                        return '<__li__>' . strip_tags($li[1]) . '</__li__>';
-                    },
-                    $m[1]
-                );
+                $lines = [];
+                preg_match_all('/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is', $m[1], $ms);
+                foreach ($ms[1] as $item) {
+                    $lines[] = '* ' . trim(strip_tags($item));
+                }
+                return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
             },
             $html
         );
-        // Replace our temporary markers with "* item\n"
-        // Collect list items into a single block with a __LIST__ marker so they stay together
-        $html = preg_replace_callback('/((?:<__li__>.*?<\/__li__>)+)/s', function ($m) {
-            $lines = [];
-            preg_match_all('/<__li__>(.*?)<\/__li__>/s', $m[1], $ms);
-            foreach ($ms[1] as $item) {
-                $lines[] = '* ' . trim($item);
-            }
-            return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
-        }, $html);
-        $html = preg_replace_callback('/((?:<__li_num__>.*?<\/__li_num__>)+)/s', function ($m) {
-            $lines = [];
-            preg_match_all('/<__li_num__>(.*?)<\/__li_num__>/s', $m[1], $ms);
-            foreach ($ms[1] as $item) {
-                $lines[] = trim($item);
-            }
-            return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
-        }, $html);
 
-        // Replace <br> with newline
+        // Step 3: Replace <br> with newline
         $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
 
-        // Split by block-level closing tags: </p>, </div>, </ul>, </ol>
-        $chunks = preg_split('/<\s*\/\s*(?:p|div|ul|ol|li)\s*>/i', $html);
+        // Step 4: Split by paragraph/div closing tags only (ul/ol/li already handled)
+        $chunks = preg_split('/<\s*\/\s*(?:p|div)\s*>/i', $html);
+
         foreach ($chunks as $chunk) {
             $chunk = trim($chunk);
             if ($chunk === '') {
                 continue;
             }
+
+            // Detect alignment from inline style or class
             $align = 'L';
             if (preg_match('/style\s*=\s*["\'][^"\']*text-align\s*:\s*right/i', $chunk)
                 || preg_match('/class\s*=\s*["\'][^"\']*text-right/i', $chunk)) {
@@ -351,18 +336,34 @@ class CotizacionController extends BaseController
                 || preg_match('/class\s*=\s*["\'][^"\']*text-center/i', $chunk)) {
                 $align = 'C';
             }
-            // Detect pre-built list blocks (all bullets merged into one)
+
             $isList = (strpos($chunk, '<__LISTBLOCK__>') !== false);
+
             if ($isList) {
-                preg_match('/<__LISTBLOCK__>(.*?)<\/__LISTBLOCK__>/s', $chunk, $lm);
-                $text = isset($lm[1]) ? trim($lm[1]) : '';
+                // Extract all list blocks in this chunk; there should only be one but handle multiples
+                $textParts = [];
+                $remaining = preg_replace_callback(
+                    '/<__LISTBLOCK__>(.*?)<\/__LISTBLOCK__>/s',
+                    function ($lm) use (&$textParts) {
+                        $textParts[] = trim($lm[1]);
+                        return '';
+                    },
+                    $chunk
+                );
+                // Include any non-list text in the same chunk (e.g. a label before the list)
+                $extra = trim(strip_tags($remaining));
+                if ($extra !== '') {
+                    array_unshift($textParts, $extra);
+                }
+                $text = implode("\n", $textParts);
             } else {
                 $text = strip_tags($chunk);
             }
-            // Collapse horizontal whitespace only (preserve \n)
+
+            // Collapse horizontal whitespace only; preserve newlines
             $text = preg_replace('/[ \t]+/', ' ', $text);
-            $lines = array_map('trim', explode("\n", $text));
-            $text = trim(implode("\n", $lines));
+            $text = trim(implode("\n", array_map('trim', explode("\n", $text))));
+
             if ($text !== '') {
                 $blocks[] = ['text' => $fixSpanishChars($text), 'align' => $align, 'list' => $isList];
             }
@@ -372,8 +373,7 @@ class CotizacionController extends BaseController
         if (empty($blocks)) {
             $text = preg_replace('/<__LISTBLOCK__>(.*?)<\/__LISTBLOCK__>/s', '$1', $html);
             $text = strip_tags($text);
-            $text = preg_replace('/[ \t]+/', ' ', $text);
-            $text = trim($text);
+            $text = trim(preg_replace('/[ \t]+/', ' ', $text));
             if ($text !== '') {
                 $blocks[] = ['text' => $fixSpanishChars($text), 'align' => 'L', 'list' => false];
             }
