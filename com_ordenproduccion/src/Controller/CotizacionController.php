@@ -14,7 +14,9 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 
 /**
  * Cotizacion controller (pliego quote calculation).
@@ -156,6 +158,152 @@ class CotizacionController extends BaseController
             'processes_total' => $processesTotal,
             'rows' => $rows,
         ]);
+        $app->close();
+    }
+
+    /**
+     * Generate and download quotation as PDF (or HTML when Dompdf not available).
+     *
+     * @return  void
+     * @since   3.78.0
+     */
+    public function downloadPdf()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        $quotationId = (int) $app->input->get('id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+
+        // Ventas group check (same as Cotizacion view)
+        $userGroups = $user->getAuthorisedGroups();
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
+        $db->setQuery($query);
+        $ventasGroupId = $db->loadResult();
+        if (!$ventasGroupId || !in_array($ventasGroupId, $userGroups, true)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_NO_PERMISSION'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . $quotationId)
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        $quotation = $db->loadObject();
+        if (!$quotation) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        $hasPreId = isset($itemCols['pre_cotizacion_id']);
+        $query = $db->getQuery(true)
+            ->select('i.*')
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'i'))
+            ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
+            ->order($db->quoteName('i.line_order') . ' ASC, ' . $db->quoteName('i.id') . ' ASC');
+        if ($hasPreId) {
+            $subq = '(SELECT ' . $db->quoteName('p.number') . ' FROM ' . $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p')
+                . ' WHERE ' . $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id') . ' LIMIT 1)';
+            $query->select($subq . ' AS ' . $db->quoteName('pre_cotizacion_number'));
+        }
+        $db->setQuery($query);
+        $items = $db->loadObjectList() ?: [];
+
+        $admModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+        $pdfSettings = $admModel->getCotizacionPdfSettings();
+
+        $numeroCotizacion = $quotation->quotation_number ?? ('COT-' . $quotationId);
+        $salesAgentName = trim((string) ($quotation->sales_agent ?? ''));
+        $quoteDate = isset($quotation->quote_date) && $quotation->quote_date ? $quotation->quote_date : null;
+        $fechaFormatted = $quoteDate ? \Joomla\CMS\HTML\HTMLHelper::_('date', $quoteDate, 'Y-m-d') : '';
+        if ($fechaFormatted === '' && $quoteDate) {
+            $fechaFormatted = date('Y-m-d', strtotime($quoteDate));
+        }
+        $context = [
+            'numero_cotizacion' => $numeroCotizacion,
+            'fecha'              => $fechaFormatted,
+            'cliente'            => trim((string) ($quotation->client_name ?? '')),
+            'contacto'           => trim((string) ($quotation->contact_name ?? '')),
+            'sales_agent_name'   => $salesAgentName !== '' ? $salesAgentName : null,
+            'user'               => $user,
+        ];
+        $encabezado = CotizacionPdfHelper::replacePlaceholders($pdfSettings['encabezado'] ?? '', $context);
+        $terminos   = CotizacionPdfHelper::replacePlaceholders($pdfSettings['terminos_condiciones'] ?? '', $context);
+        $pie        = CotizacionPdfHelper::replacePlaceholders($pdfSettings['pie_pagina'] ?? '', $context);
+
+        $currency = $quotation->currency ?? 'Q';
+        $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
+
+        $bodyRows = '';
+        foreach ($items as $item) {
+            $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+            $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
+            $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
+            $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
+            $unit = $qty > 0 ? ($subtotal / $qty) : 0;
+            $desc = htmlspecialchars($item->descripcion ?? '', ENT_QUOTES, 'UTF-8');
+            $bodyRows .= '<tr><td>' . htmlspecialchars($preNum, ENT_QUOTES, 'UTF-8') . '</td><td>' . $qty . '</td><td>' . $desc . '</td><td class="text-end">' . $currency . ' ' . number_format($unit, 4) . '</td><td class="text-end">' . $currency . ' ' . number_format($subtotal, 2) . '</td></tr>';
+        }
+        $body = '<div class="cotizacion-pdf-body">';
+        $body .= '<table class="table table-bordered" style="width:100%; border-collapse:collapse;"><thead><tr><th>Pre-Cot.</th><th>Cantidad</th><th>Descripción</th><th class="text-end">Precio unit.</th><th class="text-end">Subtotal</th></tr></thead><tbody>' . $bodyRows . '</tbody>';
+        $body .= '<tfoot><tr class="fw-bold"><td colspan="4" class="text-end">Total:</td><td class="text-end">' . $currency . ' ' . number_format($totalAmount, 2) . '</td></tr></tfoot></table>';
+        $body .= '</div>';
+
+        $fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($numeroCotizacion, ENT_QUOTES, 'UTF-8') . '</title>';
+        $fullHtml .= '<style>body{font-family:DejaVu Sans,sans-serif;font-size:11px;margin:20px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #333;padding:6px;} .text-end{text-align:right;} .pdf-header,.pdf-footer,.pdf-terminos{margin:15px 0;} .pdf-info{margin:10px 0;}</style></head><body>';
+        $fullHtml .= '<div class="pdf-header">' . $encabezado . '</div>';
+        $fullHtml .= '<div class="pdf-info"><strong>Cliente:</strong> ' . htmlspecialchars($quotation->client_name ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Contacto:</strong> ' . htmlspecialchars($quotation->contact_name ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>NIT:</strong> ' . htmlspecialchars($quotation->client_nit ?? '', ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Fecha:</strong> ' . htmlspecialchars($fechaFormatted, ENT_QUOTES, 'UTF-8') . ' &nbsp; | &nbsp; <strong>Agente:</strong> ' . htmlspecialchars($quotation->sales_agent ?? '', ENT_QUOTES, 'UTF-8') . '</div>';
+        $fullHtml .= $body;
+        $fullHtml .= '<div class="pdf-terminos">' . $terminos . '</div>';
+        $fullHtml .= '<div class="pdf-footer">' . $pie . '</div>';
+        $fullHtml .= '</body></html>';
+
+        if (class_exists(\Dompdf\Dompdf::class)) {
+            try {
+                $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => true]);
+                $dompdf->loadHtml($fullHtml);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
+                $app->setHeader('Content-Type', 'application/pdf', true);
+                $app->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"', true);
+                $app->sendHeaders();
+                echo $dompdf->output();
+                $app->close();
+            } catch (\Throwable $e) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_PDF_GENERATION') . ': ' . $e->getMessage(), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            }
+            return;
+        }
+
+        $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.html';
+        $app->setHeader('Content-Type', 'text/html; charset=UTF-8', true);
+        $app->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"', true);
+        $app->sendHeaders();
+        $note = '<p style="background:#fff3cd;padding:10px;margin-bottom:15px;">' . Text::_('COM_ORDENPRODUCCION_COTIZACION_PDF_PRINT_TO_PDF') . '</p>';
+        echo $note . $fullHtml;
         $app->close();
     }
 }

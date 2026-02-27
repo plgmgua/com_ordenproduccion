@@ -43,6 +43,15 @@ class CotizacionPdfHelper
     /** Placeholder: teléfono (campo perfil telefono) */
     public const PLACEHOLDER_TELEFONO = '{TELEFONO}';
 
+    /** Placeholder: fecha de la cotización (quote_date) */
+    public const PLACEHOLDER_FECHA = '{FECHA}';
+
+    /** Placeholder: nombre del cliente (desde la cotización) */
+    public const PLACEHOLDER_CLIENTE = '{CLIENTE}';
+
+    /** Placeholder: nombre del contacto (desde la cotización) */
+    public const PLACEHOLDER_CONTACTO = '{CONTACTO}';
+
     /** Joomla custom field names for user profile (Users: Fields). */
     private const USER_FIELD_CELULAR = 'numero-de-celular';
     private const USER_FIELD_PUESTO = 'puesto-laboral';
@@ -65,6 +74,9 @@ class CotizacionPdfHelper
             self::PLACEHOLDER_PUESTO              => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_PUESTO',
             self::PLACEHOLDER_DEPARTAMENTO       => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_DEPARTAMENTO',
             self::PLACEHOLDER_TELEFONO           => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_TELEFONO',
+            self::PLACEHOLDER_FECHA               => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_FECHA',
+            self::PLACEHOLDER_CLIENTE            => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_CLIENTE',
+            self::PLACEHOLDER_CONTACTO           => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_CONTACTO',
         ];
     }
 
@@ -73,12 +85,16 @@ class CotizacionPdfHelper
      *
      * @param   string       $html     Content (Encabezado, Términos o Pie) that may contain placeholders.
      * @param   array        $context  Optional. Keys: numero_cotizacion (string), user (User or int user id),
-     *                                 sales_agent_name (string, overrides user name when set).
+     *                                 sales_agent_name (string), fecha (string, cotización date),
+     *                                 cliente (string), contacto (string).
      * @return  string  Content with placeholders replaced.
      */
     public static function replacePlaceholders($html, array $context = [])
     {
         $numeroCotizacion = isset($context['numero_cotizacion']) ? (string) $context['numero_cotizacion'] : '';
+        $fecha = isset($context['fecha']) ? (string) $context['fecha'] : '';
+        $cliente = isset($context['cliente']) ? (string) $context['cliente'] : '';
+        $contacto = isset($context['contacto']) ? (string) $context['contacto'] : '';
         $user = self::resolveUser($context);
         $agenteVentas = isset($context['sales_agent_name']) && $context['sales_agent_name'] !== ''
             ? (string) $context['sales_agent_name']
@@ -92,6 +108,9 @@ class CotizacionPdfHelper
 
         $replacements = [
             self::PLACEHOLDER_NUMERO_COTIZACION   => $numeroCotizacion,
+            self::PLACEHOLDER_FECHA               => $fecha,
+            self::PLACEHOLDER_CLIENTE             => $cliente,
+            self::PLACEHOLDER_CONTACTO            => $contacto,
             self::PLACEHOLDER_AGENTE_VENTAS       => $agenteVentas,
             self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => $agenteDeVentasCampo,
             self::PLACEHOLDER_CELULAR             => $celular,
