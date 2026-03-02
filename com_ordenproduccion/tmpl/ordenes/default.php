@@ -229,8 +229,8 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-receipt fa-sm" aria-hidden="true"></i>
                                                 </button>
                                                 <?php endif; ?>
-                                                <!-- Solicitar Anulación - last button, super users only -->
-                                                <?php if ($canAnulacion) :
+                                                <!-- Solicitar Anulación - super users OR the order owner -->
+                                                <?php if ($canAnulacion || $this->isOrderOwner($item)) :
                                                     $isAnulada    = (strtolower((string) ($item->status ?? '')) === 'anulada');
                                                     $hasShipping  = !empty($item->shipping_count) && (int) $item->shipping_count > 0;
                                                     if ($isAnulada) : ?>
@@ -288,8 +288,17 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
             <?php endif; ?>
         <?php endif; ?>
 
+        <?php
+        // Modals need to exist if the button appears for ANY row (super user OR owner).
+        $anyCanAnulacion = $canAnulacion;
+        if (!$anyCanAnulacion) {
+            foreach ($this->items as $_item) {
+                if ($this->isOrderOwner($_item)) { $anyCanAnulacion = true; break; }
+            }
+        }
+        ?>
         <!-- Anulación Bloqueada Modal -->
-        <?php if ($canAnulacion) : ?>
+        <?php if ($anyCanAnulacion) : ?>
         <div class="modal fade" id="anulacionBloqueadaModal" tabindex="-1" aria-labelledby="anulacionBloqueadaModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -312,7 +321,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         <?php endif; ?>
 
         <!-- Anulación Ya Anulada Modal -->
-        <?php if ($canAnulacion) : ?>
+        <?php if ($anyCanAnulacion) : ?>
         <div class="modal fade" id="anulacionYaAnuladaModal" tabindex="-1" aria-labelledby="anulacionYaAnuladaModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">

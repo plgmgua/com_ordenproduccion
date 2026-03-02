@@ -301,6 +301,25 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Check whether the current user is the owner (sales agent) of a given order.
+     * Used together with canRequestAnulacion() so owners can also request anulacion.
+     *
+     * @param   object  $item  The order row from the list.
+     *
+     * @return  bool
+     *
+     * @since   3.71.0
+     */
+    public function isOrderOwner($item): bool
+    {
+        $salesAgent = trim((string) ($item->sales_agent ?? ''));
+        if ($salesAgent === '') {
+            return false;
+        }
+        return (trim($this->user->name) === $salesAgent);
+    }
+
+    /**
      * Translate status value to human-readable text
      *
      * @param   string  $status  The status value
