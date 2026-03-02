@@ -611,28 +611,6 @@ class PaymentsModel extends ListModel
     }
 
     /**
-     * Check if payment_proof_lines table exists (3.64.0+ schema)
-     *
-     * @return  boolean
-     */
-    protected function hasPaymentProofLinesTable(): bool
-    {
-        try {
-            $db     = $this->getDatabase();
-            $tables = $db->getTableList();
-            $target = $db->getPrefix() . 'ordenproduccion_payment_proof_lines';
-            foreach ($tables as $t) {
-                if (strcasecmp($t, $target) === 0) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (\Throwable $e) {
-            return false;
-        }
-    }
-
-    /**
      * Check if payment_proof_files table exists (3.65.0+ schema)
      *
      * @return  boolean
