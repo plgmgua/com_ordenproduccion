@@ -154,10 +154,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                     <th scope="col">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CLIENTE'); ?>
                                     </th>
-                                    <th scope="col">
-                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_SOLICITUD'); ?> /
-                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_ENTREGA'); ?>
-                                    </th>
+                                    <th scope="col">Fechas</th>
                                     <th scope="col">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_ESTADO'); ?>
                                     </th>
