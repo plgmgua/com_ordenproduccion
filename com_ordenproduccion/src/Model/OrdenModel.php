@@ -416,4 +416,100 @@ class OrdenModel extends ItemModel
         }
     }
 
+    /**
+     * Set a work order's status to "Anulada".
+     *
+     * Called by the webhook endpoint. Validates the order exists and is not
+     * already anulada, updates the status column and writes a historial entry.
+     *
+     * @param   string  $orderNumber  The ORD-XXXXXX identifier
+     * @param   string  $requestedBy  Full name of the requester (for the log)
+     * @param   int     $requesterId  User ID of the requester
+     * @param   string  $description  Optional description / reason
+     *
+     * @return  array{success: bool, message: string, order_id: int|null}
+     *
+     * @since   3.71.0
+     */
+    public function anularOrden(string $orderNumber, string $requestedBy = '', int $requesterId = 0, string $description = ''): array
+    {
+        $db = $this->getDatabase();
+
+        // --- 1. Find the order ---
+        try {
+            $query = $db->getQuery(true)
+                ->select(['id', 'status', 'client_name', 'order_number'])
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('order_number') . ' = ' . $db->quote(trim($orderNumber)))
+                ->where($db->quoteName('state') . ' = 1');
+            $db->setQuery($query);
+            $order = $db->loadObject();
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error al buscar la orden: ' . $e->getMessage(), 'order_id' => null];
+        }
+
+        if (!$order) {
+            return ['success' => false, 'message' => 'Orden no encontrada: ' . $orderNumber, 'order_id' => null];
+        }
+
+        // --- 2. Guard: already anulada ---
+        if (strtolower((string) $order->status) === 'anulada') {
+            return ['success' => false, 'message' => 'La orden ' . $orderNumber . ' ya fue anulada anteriormente.', 'order_id' => (int) $order->id];
+        }
+
+        // --- 3. Update status ---
+        try {
+            $updateQuery = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                ->set($db->quoteName('status') . ' = ' . $db->quote('Anulada'))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . $requesterId)
+                ->where($db->quoteName('id') . ' = ' . (int) $order->id);
+            $db->setQuery($updateQuery);
+            $db->execute();
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error al actualizar la orden: ' . $e->getMessage(), 'order_id' => (int) $order->id];
+        }
+
+        // --- 4. Historial entry ---
+        try {
+            $historialColumns = $db->getTableColumns('#__ordenproduccion_historial');
+            if (!empty($historialColumns)) {
+                $reason = $description ?: 'Anulación procesada vía sistema de aprobación.';
+                $meta   = json_encode(['requester' => $requestedBy, 'requester_id' => $requesterId, 'reason' => $reason], JSON_UNESCAPED_UNICODE);
+                $histQuery = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_historial'))
+                    ->set($db->quoteName('order_id') . ' = ' . (int) $order->id)
+                    ->set($db->quoteName('event_type') . ' = ' . $db->quote('anulacion'))
+                    ->set($db->quoteName('event_title') . ' = ' . $db->quote('Orden Anulada'))
+                    ->set($db->quoteName('event_description') . ' = ' . $db->quote('La orden fue marcada como Anulada. Solicitante: ' . $requestedBy))
+                    ->set($db->quoteName('metadata') . ' = ' . $db->quote($meta))
+                    ->set($db->quoteName('created_by') . ' = ' . $requesterId)
+                    ->set($db->quoteName('state') . ' = 1');
+                $db->setQuery($histQuery);
+                $db->execute();
+            }
+        } catch (\Exception $e) {
+            // Historial failure is non-fatal
+        }
+
+        // --- 5. Refresh client balances asynchronously (best-effort) ---
+        try {
+            $adminModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Administracion', 'Administrator');
+            if ($adminModel && method_exists($adminModel, 'refreshClientBalances')) {
+                $adminModel->refreshClientBalances();
+            }
+        } catch (\Exception $e) {
+            // Non-fatal
+        }
+
+        return [
+            'success'  => true,
+            'message'  => 'La orden ' . $orderNumber . ' fue marcada como Anulada exitosamente.',
+            'order_id' => (int) $order->id,
+        ];
+    }
+
 }

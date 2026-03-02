@@ -231,8 +231,17 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 <?php endif; ?>
                                                 <!-- Solicitar Anulación - last button, super users only -->
                                                 <?php if ($canAnulacion) :
-                                                    $hasShipping = !empty($item->shipping_count) && (int) $item->shipping_count > 0;
-                                                    if ($hasShipping) : ?>
+                                                    $isAnulada    = (strtolower((string) ($item->status ?? '')) === 'anulada');
+                                                    $hasShipping  = !empty($item->shipping_count) && (int) $item->shipping_count > 0;
+                                                    if ($isAnulada) : ?>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#anulacionYaAnuladaModal">
+                                                    <i class="fas fa-ban fa-sm" aria-hidden="true"></i>
+                                                </button>
+                                                    <?php elseif ($hasShipping) : ?>
                                                 <button type="button"
                                                         class="btn btn-sm btn-outline-secondary"
                                                         title="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>"
@@ -293,6 +302,29 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                     </div>
                     <div class="modal-body">
                         <p>Esta orden de trabajo tiene transacciones asociadas y no puede ser anulada, favor enviar su solicitud via correo a administracion.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCLOSE'); ?></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Anulación Ya Anulada Modal -->
+        <?php if ($canAnulacion) : ?>
+        <div class="modal fade" id="anulacionYaAnuladaModal" tabindex="-1" aria-labelledby="anulacionYaAnuladaModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="anulacionYaAnuladaModalLabel">
+                            <i class="fas fa-ban me-2" aria-hidden="true"></i>
+                            Orden Ya Anulada
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Esta orden de trabajo ya fue anulada anteriormente y no puede procesarse una nueva solicitud de anulación.</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCLOSE'); ?></button>

@@ -474,6 +474,7 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('status') . ' != ' . $db->quote('Anulada'))
             ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2025-10-01 00:00:00'))
             ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
             ->group([$clientCol, $nitCol])
@@ -733,6 +734,7 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('status') . ' != ' . $db->quote('Anulada'))
             ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
             ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')
             ->group(['o.client_name', 'o.nit']);
@@ -758,6 +760,7 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('status') . ' != ' . $db->quote('Anulada'))
             ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2025-10-01 00:00:00'))
             ->where('o.' . $db->quoteName('created') . ' <= ' . $db->quote('2025-12-31 23:59:59'))
             ->where('(o.' . $db->quoteName('client_name') . ' IS NOT NULL AND o.' . $db->quoteName('client_name') . ' != ' . $db->quote('') . ')')

@@ -1,0 +1,5 @@
+-- 3.71.0: Anulada order status
+-- No schema changes required.
+-- The "Anulada" status is stored in the existing `status` VARCHAR column of
+-- #__ordenproduccion_ordenes. It is set exclusively via the webhook endpoint
+-- (task=webhook.anulacion) and is excluded from all client-balance calculations.

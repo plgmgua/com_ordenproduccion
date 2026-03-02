@@ -243,6 +243,8 @@ class HtmlView extends BaseHtmlView
             case 'closed':
             case 'cerrada':
                 return 'badge-secondary';
+            case 'anulada':
+                return 'badge-danger';
             default:
                 return 'badge-light';
         }
@@ -329,7 +331,10 @@ class HtmlView extends BaseHtmlView
             'new' => 'COM_ORDENPRODUCCION_STATUS_NEW',
             'in process' => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
             'completed' => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
-            'closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED'
+            'closed' => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            // Anulada
+            'Anulada' => 'COM_ORDENPRODUCCION_STATUS_ANULADA',
+            'anulada' => 'COM_ORDENPRODUCCION_STATUS_ANULADA',
         ];
 
         if (isset($statusMap[$status])) {
