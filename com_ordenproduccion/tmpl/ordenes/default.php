@@ -177,7 +177,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 <?php echo htmlspecialchars($item->order_number); ?>
                                             </a>
                                         </td>
-                                        <td>
+                                        <td style="font-size: 0.82em;">
                                             <?php echo htmlspecialchars($item->client_name); ?>
                                         </td>
                                         <td style="white-space: nowrap;">
@@ -193,7 +193,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                             </span>
                                         </td>
                                         <?php if ($isVentas || ($isVentas && $isProduccion)) : ?>
-                                            <td>
+                                            <td style="font-size: 0.82em;">
                                                 <?php echo htmlspecialchars($item->sales_agent); ?>
                                             </td>
                                         <?php endif; ?>
