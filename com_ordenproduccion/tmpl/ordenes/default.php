@@ -287,12 +287,12 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                     <div class="modal-header bg-warning">
                         <h5 class="modal-title" id="anulacionBloqueadaModalLabel">
                             <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ANULACION_BLOQUEADA_TITLE'); ?>
+                            Anulación No Disponible
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
                     <div class="modal-body">
-                        <p><?php echo Text::_('COM_ORDENPRODUCCION_ANULACION_BLOQUEADA_MSG'); ?></p>
+                        <p>Esta orden de trabajo tiene transacciones asociadas y no puede ser anulada, favor enviar su solicitud via correo a administracion.</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCLOSE'); ?></button>
