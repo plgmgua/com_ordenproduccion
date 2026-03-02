@@ -115,6 +115,9 @@ class PaymentsModel extends ListModel
         $salesAgent = $app->getUserStateFromRequest($this->context . '.filter.sales_agent', 'filter_sales_agent', '', 'string');
         $this->setState('filter.sales_agent', $salesAgent);
 
+        $docNumber = $app->getUserStateFromRequest($this->context . '.filter.doc_number', 'filter_doc_number', '', 'string');
+        $this->setState('filter.doc_number', $docNumber);
+
         $state = $app->input->get('filter_state', null, 'string');
         if ($state !== null && $state !== '') {
             $state = (int) $state;
@@ -217,6 +220,27 @@ class PaymentsModel extends ListModel
         $salesAgent = $this->getState('filter.sales_agent');
         if (!empty($salesAgent)) {
             $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+
+        // Filter by document number — searches both the proof header and any line
+        $docNumber = $this->getState('filter.doc_number');
+        if (!empty($docNumber)) {
+            $docSearch = $db->quote('%' . $db->escape(trim($docNumber), true) . '%');
+            if ($this->hasPaymentProofLinesTable()) {
+                // LEFT JOIN lines so we can match on any line's document_number
+                $query->leftJoin(
+                    $db->quoteName('#__ordenproduccion_payment_proof_lines', 'ppl') .
+                    ' ON ppl.' . $db->quoteName('payment_proof_id') . ' = pp.' . $db->quoteName('id')
+                );
+                $query->where(
+                    '(pp.' . $db->quoteName('document_number') . ' LIKE ' . $docSearch .
+                    ' OR ppl.' . $db->quoteName('document_number') . ' LIKE ' . $docSearch . ')'
+                );
+                // Avoid duplicate rows when multiple lines match
+                $query->group('pp.id');
+            } else {
+                $query->where('pp.' . $db->quoteName('document_number') . ' LIKE ' . $docSearch);
+            }
         }
 
         $orderCol = $this->state->get('list.ordering', 'pp.created');

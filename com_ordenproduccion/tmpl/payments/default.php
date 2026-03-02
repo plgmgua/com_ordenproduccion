@@ -77,10 +77,16 @@ use Joomla\CMS\Session\Session;
                                     </select>
                                 </div>
                                 <div class="col-md-2">
+                                    <label for="filter_doc_number" class="form-label small mb-0">Doc. #</label>
+                                    <input type="text" name="filter_doc_number" id="filter_doc_number" class="form-control form-control-sm"
+                                           value="<?php echo htmlspecialchars($this->state->get('filter.doc_number', '')); ?>"
+                                           placeholder="Número de documento...">
+                                </div>
+                                <div class="col-md-2">
                                     <button type="submit" class="btn btn-primary btn-sm">
                                         <i class="fas fa-search"></i> Aplicar
                                     </button>
-                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments' . ($isDeletedView ? '&filter_state=0' : '')); ?>" class="btn btn-outline-secondary btn-sm">
+                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments&filter_doc_number=' . ($isDeletedView ? '&filter_state=0' : '')); ?>" class="btn btn-outline-secondary btn-sm">
                                         <i class="fas fa-times"></i> Limpiar
                                     </a>
                                 </div>
