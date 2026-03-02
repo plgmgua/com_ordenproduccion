@@ -169,6 +169,8 @@ class OrdenesModel extends ListModel
 
     /**
      * Return a map of order_id => shipping slip count for the given order IDs.
+     * Checks #__ordenproduccion_historial for 'shipping_print' events, which is
+     * the record that gets written every time a shipping slip PDF is generated.
      * Returns an empty array on any database error (e.g. table does not exist yet).
      *
      * @param   array  $orderIds  List of integer order IDs
@@ -187,8 +189,9 @@ class OrdenesModel extends ListModel
             $ids   = implode(',', array_map('intval', $orderIds));
             $query = $db->getQuery(true)
                 ->select(['order_id', 'COUNT(*) AS cnt'])
-                ->from($db->quoteName('#__ordenproduccion_shipping'))
+                ->from($db->quoteName('#__ordenproduccion_historial'))
                 ->where('order_id IN (' . $ids . ')')
+                ->where($db->quoteName('event_type') . ' = ' . $db->quote('shipping_print'))
                 ->where('state = 1')
                 ->group('order_id');
 
