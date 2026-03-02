@@ -212,6 +212,17 @@ class PaymentproofModel extends ItemModel
             
             $paymentProofId = $db->insertid();
 
+            // Insert additional file attachments into payment_proof_files (3.65.0+)
+            if (!empty($data['file_paths']) && is_array($data['file_paths']) && $this->hasPaymentProofFilesTable()) {
+                $createdBy = (int) ($data['created_by'] ?? 0);
+                foreach ($data['file_paths'] as $fp) {
+                    $fp = trim((string) $fp);
+                    if ($fp !== '') {
+                        $this->addFileToProof((int) $paymentProofId, $fp, $createdBy);
+                    }
+                }
+            }
+
             // Insert payment_proof_lines if table exists (3.64.0+)
             if ($this->hasPaymentProofLinesTable() && !empty($paymentLines)) {
                 $ordering = 0;
@@ -609,8 +620,8 @@ class PaymentproofModel extends ItemModel
                     'po.amount_applied',
                     'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
                     'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name',
-                    'COALESCE(o.valor_a_facturar, 0) AS invoice_value',
-                    'o.fecha_de_solicitud AS request_date'
+                    'COALESCE(o.invoice_value, o.valor_a_facturar, 0) AS invoice_value',
+                    'COALESCE(o.request_date, o.fecha_de_solicitud) AS request_date'
                 ])
                 ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
                 ->innerJoin(
@@ -621,9 +632,101 @@ class PaymentproofModel extends ItemModel
 
             $db->setQuery($query);
             return $db->loadObjectList();
-            
+
         } catch (\Exception $e) {
             return [];
+        }
+    }
+
+    /**
+     * Check if the payment_proof_files table exists (3.65.0+)
+     *
+     * @return  boolean
+     */
+    public function hasPaymentProofFilesTable(): bool
+    {
+        try {
+            $db     = $this->getDatabase();
+            $tables = $db->getTableList();
+            $target = $db->getPrefix() . 'ordenproduccion_payment_proof_files';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $target) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Return all file attachments for a payment proof.
+     * Reads from the new payment_proof_files table when available;
+     * falls back to the legacy file_path column otherwise.
+     *
+     * @param   object  $proof  Payment proof object (needs id and file_path)
+     *
+     * @return  array   Array of objects with a file_path property
+     */
+    public function getPaymentProofFiles(object $proof): array
+    {
+        $files = [];
+
+        if ($this->hasPaymentProofFilesTable()) {
+            try {
+                $db    = $this->getDatabase();
+                $query = $db->getQuery(true)
+                    ->select('id, file_path')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . (int) ($proof->id ?? 0))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->order('id ASC');
+                $db->setQuery($query);
+                $files = $db->loadObjectList();
+            } catch (\Throwable $e) {
+                $files = [];
+            }
+        }
+
+        // If nothing in the new table, fall back to the legacy file_path column
+        if (empty($files) && !empty($proof->file_path)) {
+            $files[] = (object) ['id' => 0, 'file_path' => $proof->file_path];
+        }
+
+        return $files;
+    }
+
+    /**
+     * Add a file attachment to an existing payment proof.
+     *
+     * @param   int     $proofId    Payment proof ID
+     * @param   string  $filePath   Relative file path
+     * @param   int     $createdBy  User ID
+     *
+     * @return  boolean
+     */
+    public function addFileToProof(int $proofId, string $filePath, int $createdBy): bool
+    {
+        if ($proofId <= 0 || $filePath === '') {
+            return false;
+        }
+
+        try {
+            $db    = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                ->columns($db->quoteName(['payment_proof_id', 'file_path', 'created_by', 'state']))
+                ->values(
+                    $proofId . ',' .
+                    $db->quote($filePath) . ',' .
+                    $createdBy . ',1'
+                );
+            $db->setQuery($query);
+            $db->execute();
+            return true;
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 

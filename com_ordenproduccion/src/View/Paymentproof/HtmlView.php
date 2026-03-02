@@ -164,6 +164,32 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Return all file attachments for a proof as display-ready objects.
+     * Each item has 'url' and 'type' ('image'|'pdf').
+     *
+     * @param   object  $proof  Payment proof object
+     *
+     * @return  array
+     */
+    public function getProofFiles(object $proof): array
+    {
+        $model = $this->getModel();
+        if (!method_exists($model, 'getPaymentProofFiles')) {
+            $fi = $this->getPaymentProofFileInfo($proof);
+            return $fi ? [$fi] : [];
+        }
+        $rawFiles = $model->getPaymentProofFiles($proof);
+        $result   = [];
+        foreach ($rawFiles as $f) {
+            $fi = $this->getPaymentProofFileInfo($f);
+            if ($fi !== null) {
+                $result[] = $fi;
+            }
+        }
+        return $result;
+    }
+
+    /**
      * Get file info for displaying an attached payment proof (image or PDF).
      *
      * @param   object  $proof  Payment proof object with file_path

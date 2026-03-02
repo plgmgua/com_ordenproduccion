@@ -136,28 +136,24 @@ class PaymentproofController extends BaseController
                 }
             }
 
-            // Handle file upload
-            $uploadedFile = null;
-            $files = $this->input->files->get('payment_proof_file', [], 'array');
-            
-            if (!empty($files) && isset($files['name']) && !empty($files['name'])) {
-                $uploadedFile = $this->handleFileUpload($files, $validatedOrders[0]['order_id']);
-            }
+            // Handle file uploads (supports multiple files via payment_proof_files[])
+            $uploadedFiles = $this->handleMultipleFileUploads($validatedOrders[0]['order_id']);
 
             $model = $this->getModel('Paymentproof');
-            
+
             $mismatchNote = trim((string) $this->input->getString('payment_mismatch_note', ''));
             $mismatchDifference = $this->input->getString('payment_mismatch_difference', '');
 
             $data = [
-                'order_id' => $validatedOrders[0]['order_id'],
+                'order_id'     => $validatedOrders[0]['order_id'],
                 'payment_amount' => array_sum(array_column($validatedLines, 'amount')),
-                'file_path' => $uploadedFile ?? '',
-                'created_by' => $user->id,
-                'created' => Factory::getDate()->toSql(),
-                'state' => 1,
+                'file_path'    => !empty($uploadedFiles) ? $uploadedFiles[0] : '',
+                'file_paths'   => $uploadedFiles,
+                'created_by'   => $user->id,
+                'created'      => Factory::getDate()->toSql(),
+                'state'        => 1,
                 'payment_orders' => $validatedOrders,
-                'payment_lines' => $validatedLines
+                'payment_lines'  => $validatedLines,
             ];
 
             if ($model->save($data)) {
@@ -189,6 +185,118 @@ class PaymentproofController extends BaseController
 
         // Redirect back to orders list
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes');
+        $this->setRedirect($redirectUrl);
+    }
+
+    /**
+     * Handle multiple file uploads from the payment_proof_files[] input.
+     * Falls back to legacy payment_proof_file (single) for backward compatibility.
+     *
+     * @param   int  $orderId  Primary order ID used in generated filenames
+     *
+     * @return  array  List of relative file paths that were successfully saved
+     */
+    private function handleMultipleFileUploads(int $orderId): array
+    {
+        $saved = [];
+
+        // New multiple-file input: payment_proof_files[]
+        $filesInput = $this->input->files->get('payment_proof_files', [], 'array');
+        if (!empty($filesInput) && isset($filesInput['name'])) {
+            if (is_array($filesInput['name'])) {
+                foreach ($filesInput['name'] as $i => $name) {
+                    if (empty($name) || empty($filesInput['tmp_name'][$i])) {
+                        continue;
+                    }
+                    $single = [
+                        'name'     => $name,
+                        'type'     => $filesInput['type'][$i] ?? '',
+                        'tmp_name' => $filesInput['tmp_name'][$i],
+                        'error'    => $filesInput['error'][$i] ?? 0,
+                        'size'     => $filesInput['size'][$i] ?? 0,
+                    ];
+                    try {
+                        $saved[] = $this->handleFileUpload($single, $orderId);
+                    } catch (\Exception $e) {
+                        // skip invalid individual files silently
+                    }
+                }
+            } elseif (!empty($filesInput['name'])) {
+                try {
+                    $saved[] = $this->handleFileUpload($filesInput, $orderId);
+                } catch (\Exception $e) { /* skip */ }
+            }
+        }
+
+        // Legacy single-file input: payment_proof_file
+        if (empty($saved)) {
+            $legacy = $this->input->files->get('payment_proof_file', [], 'array');
+            if (!empty($legacy) && isset($legacy['name']) && !empty($legacy['name'])) {
+                try {
+                    $saved[] = $this->handleFileUpload($legacy, $orderId);
+                } catch (\Exception $e) { /* skip */ }
+            }
+        }
+
+        return $saved;
+    }
+
+    /**
+     * Add a file attachment to an existing (already saved) payment proof.
+     * POST params: proof_id (int), payment_proof_file (file), order_id (int, for redirect)
+     */
+    public function addFile()
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        $proofId = $this->input->getInt('proof_id', 0);
+        $orderId = $this->input->getInt('order_id', 0);
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        if ($proofId <= 0) {
+            $this->app->enqueueMessage('ID de comprobante inválido.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        try {
+            $uploadedFiles = $this->handleMultipleFileUploads($orderId ?: $proofId);
+
+            if (empty($uploadedFiles)) {
+                throw new \Exception('No se pudo guardar el archivo. Verifique el formato y tamaño (máx. 5MB, JPG/PNG/PDF).');
+            }
+
+            $model = $this->getModel('Paymentproof');
+            $saved = 0;
+            foreach ($uploadedFiles as $fp) {
+                if ($model->addFileToProof($proofId, $fp, $user->id)) {
+                    $saved++;
+                }
+            }
+
+            if ($saved > 0) {
+                $this->app->enqueueMessage(
+                    $saved === 1 ? 'Archivo agregado correctamente.' : $saved . ' archivos agregados correctamente.',
+                    'success'
+                );
+            } else {
+                throw new \Exception('No se pudieron guardar los archivos en la base de datos.');
+            }
+        } catch (\Exception $e) {
+            $this->app->enqueueMessage($e->getMessage(), 'error');
+        }
+
         $this->setRedirect($redirectUrl);
     }
 

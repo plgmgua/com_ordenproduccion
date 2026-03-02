@@ -57,9 +57,30 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         </h1>
                         <p class="text-muted">
                             <?php
-                            $orderNum = $order->order_number ?? $order->orden_de_trabajo ?? $orderId;
-                            $fmt = $this->labelPaymentProofForOrder ?? 'Comprobante de Pago para Orden %s';
-                            echo htmlspecialchars(sprintf($fmt, $orderNum));
+                            // Collect all order numbers from all existing payment proofs, plus the current order
+                            $allLinkedOrderNums = [];
+                            if (!empty($existingPayments)) {
+                                $proofModelHdr = $this->getModel();
+                                foreach ($existingPayments as $ep) {
+                                    $epOrders = method_exists($proofModelHdr, 'getOrdersByPaymentProofId') ? $proofModelHdr->getOrdersByPaymentProofId($ep->id ?? 0) : [];
+                                    foreach ($epOrders as $epo) {
+                                        $num = $epo->order_number ?? '#' . ($epo->order_id ?? '');
+                                        if (!in_array($num, $allLinkedOrderNums, true)) {
+                                            $allLinkedOrderNums[] = $num;
+                                        }
+                                    }
+                                }
+                            }
+                            $currentOrderNum = $order->order_number ?? $order->orden_de_trabajo ?? $orderId;
+                            if (!in_array($currentOrderNum, $allLinkedOrderNums, true)) {
+                                $allLinkedOrderNums[] = $currentOrderNum;
+                            }
+                            if (count($allLinkedOrderNums) === 1) {
+                                $fmt = $this->labelPaymentProofForOrder ?? 'Comprobante de Pago para Orden %s';
+                                echo htmlspecialchars(sprintf($fmt, $allLinkedOrderNums[0]));
+                            } else {
+                                echo htmlspecialchars('Comprobante de Pago — Órdenes: ' . implode(', ', $allLinkedOrderNums));
+                            }
                             ?>
                         </p>
                     </div>
@@ -94,7 +115,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
-                                    <th style="width: 100px;"><?php echo htmlspecialchars($this->labelAttachment ?? 'Ver'); ?></th>
+                                    <th style="width: 200px;">Archivos adjuntos</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -117,20 +138,21 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td><?php
                                         if ($line === reset($lines)) {
-                                            $fileInfo = $this->getPaymentProofFileInfo($proof);
-                                            if ($fileInfo) {
-                                                $url = htmlspecialchars($fileInfo['url'], ENT_QUOTES, 'UTF-8');
-                                                $type = $fileInfo['type'];
-                                                if ($type === 'image') {
-                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
-                                                } else {
-                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                            $proofFiles = $this->getProofFiles($proof);
+                                            if (!empty($proofFiles)) {
+                                                foreach ($proofFiles as $pf) {
+                                                    $url  = htmlspecialchars($pf['url'], ENT_QUOTES, 'UTF-8');
+                                                    $type = $pf['type'];
+                                                    if ($type === 'image') {
+                                                        echo '<span class="view-payment-attachment payment-proof-thumb-wrap me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
+                                                    } else {
+                                                        echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                                    }
                                                 }
                                             } else {
-                                                echo '<span class="text-muted">—</span>';
+                                                echo '<span class="text-muted me-1">—</span>';
                                             }
-                                        } else {
-                                            echo '';
+                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary ms-1 toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                         }
                                     ?></td>
                                 </tr>
@@ -171,18 +193,21 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td><?php
-                                        $fileInfo = $this->getPaymentProofFileInfo($proof);
-                                        if ($fileInfo) {
-                                            $url = htmlspecialchars($fileInfo['url'], ENT_QUOTES, 'UTF-8');
-                                            $type = $fileInfo['type'];
-                                            if ($type === 'image') {
-                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
-                                            } else {
-                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                        $proofFiles2 = $this->getProofFiles($proof);
+                                        if (!empty($proofFiles2)) {
+                                            foreach ($proofFiles2 as $pf2) {
+                                                $url2  = htmlspecialchars($pf2['url'], ENT_QUOTES, 'UTF-8');
+                                                $type2 = $pf2['type'];
+                                                if ($type2 === 'image') {
+                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap me-1" role="button" tabindex="0" data-url="' . $url2 . '" data-type="' . $type2 . '" title="Ver comprobante"><img src="' . $url2 . '" alt="" class="payment-proof-thumb"></span>';
+                                                } else {
+                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf me-1" role="button" tabindex="0" data-url="' . $url2 . '" data-type="' . $type2 . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                                }
                                             }
                                         } else {
-                                            echo '<span class="text-muted">—</span>';
+                                            echo '<span class="text-muted me-1">—</span>';
                                         }
+                                        echo '<button type="button" class="btn btn-xs btn-outline-secondary ms-1 toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                     ?></td>
                                 </tr>
                                 <tr>
@@ -208,6 +233,30 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </td>
                                 </tr>
                                 <?php endif; endforeach; ?>
+                                <!-- Add-file mini-form rows (hidden, one per proof, toggled via JS) -->
+                                <?php foreach ($existingPayments as $epf) : ?>
+                                <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
+                                    <td colspan="5" class="bg-white py-2 px-3">
+                                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>"
+                                              method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
+                                            <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+                                            <span class="small fw-bold me-1">Agregar a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?>:</span>
+                                            <input type="file" name="payment_proof_files[]" multiple
+                                                   class="form-control form-control-sm" style="max-width:280px;"
+                                                   accept=".jpg,.jpeg,.png,.pdf"
+                                                   onchange="validateFiles(this)">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-upload me-1"></i>Guardar
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-add-file-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>">
+                                                Cancelar
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
                             </tbody>
                             <tfoot>
                                 <tr class="table-info fw-bold">
@@ -499,13 +548,14 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE', 'Payment proof file', 'Archivo comprobante de pago'); ?>
                                         </label>
                                         <input type="file" 
-                                               name="payment_proof_file" 
-                                               id="payment_proof_file" 
+                                               name="payment_proof_files[]" 
+                                               id="payment_proof_files" 
                                                class="form-control" 
                                                accept=".jpg,.jpeg,.png,.pdf"
-                                               onchange="validateFile(this)">
+                                               multiple
+                                               onchange="validateFiles(this)">
                                         <small class="form-text text-muted">
-                                            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE_HELP', 'Accepted: JPG, PNG, PDF (Max: 5MB)', 'Formatos aceptados: JPG, PNG, PDF (Máx: 5MB)'); ?>
+                                            Formatos aceptados: JPG, PNG, PDF (Máx: 5MB por archivo). Puede seleccionar varios archivos a la vez.
                                         </small>
                                     </div>
                                 </div>
@@ -553,6 +603,34 @@ window.validateFile = function(input) {
     }
     return true;
 };
+window.validateFiles = function(input) {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const maxSize = 5 * 1024 * 1024;
+    for (const file of input.files) {
+        if (!allowedTypes.includes(file.type)) {
+            alert('Tipo de archivo inválido: ' + file.name + '. Solo JPG, PNG o PDF.');
+            input.value = '';
+            return false;
+        }
+        if (file.size > maxSize) {
+            alert('Archivo demasiado grande: ' + file.name + '. Máximo 5MB por archivo.');
+            input.value = '';
+            return false;
+        }
+    }
+    return true;
+};
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.toggle-add-file-form').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var proofId = this.getAttribute('data-proof-id');
+            var row = document.getElementById('add-file-row-' + proofId);
+            if (row) {
+                row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+            }
+        });
+    });
+});
 
 (function() {
     const bankOpts = <?php echo json_encode($bankOptions); ?>;
