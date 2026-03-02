@@ -147,13 +147,63 @@ class OrdenesModel extends ListModel
         // Add access control and field visibility
         $user = Factory::getUser();
         $userGroups = $user->getAuthorisedGroups();
-        
+
         foreach ($items as &$item) {
             // Apply field visibility based on user groups
             $this->applyFieldVisibility($item, $userGroups, $user);
+            // Default shipping_count so the template always has the property
+            $item->shipping_count = 0;
+        }
+
+        // Batch-fetch shipping counts for all orders on this page
+        if (!empty($items)) {
+            $orderNumbers = array_map(static function ($i) { return $i->orden_de_trabajo; }, $items);
+            $shippingCounts = $this->getShippingCounts($orderNumbers);
+            foreach ($items as &$item) {
+                $item->shipping_count = $shippingCounts[$item->orden_de_trabajo] ?? 0;
+            }
         }
 
         return $items;
+    }
+
+    /**
+     * Return a map of orden_de_trabajo => shipping slip count for the given order numbers.
+     * Returns an empty array on any database error (e.g. table/column does not exist yet).
+     *
+     * @param   array  $orderNumbers  List of orden_de_trabajo values
+     *
+     * @return  array
+     */
+    protected function getShippingCounts(array $orderNumbers): array
+    {
+        if (empty($orderNumbers)) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+
+        try {
+            $quoted = array_map([$db, 'quote'], $orderNumbers);
+            $query  = $db->getQuery(true)
+                ->select(['numero_de_orden', 'COUNT(*) AS cnt'])
+                ->from($db->quoteName('#__ordenproduccion_shipping'))
+                ->where('numero_de_orden IN (' . implode(',', $quoted) . ')')
+                ->where('state = 1')
+                ->group('numero_de_orden');
+
+            $db->setQuery($query);
+            $rows = $db->loadObjectList('numero_de_orden');
+
+            $map = [];
+            foreach ($rows as $key => $row) {
+                $map[$key] = (int) $row->cnt;
+            }
+            return $map;
+        } catch (\Exception $e) {
+            // Table or column doesn't exist in this installation — treat as zero
+            return [];
+        }
     }
 
     /**
@@ -177,11 +227,6 @@ class OrdenesModel extends ListModel
                 'a.delivery_date, a.material, a.request_date, a.sales_agent, a.status, ' .
                 'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version'
             )
-        );
-        // Subquery: count active shipment slips linked to this order
-        $query->select(
-            '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_shipping') .
-            ' WHERE numero_de_orden = a.orden_de_trabajo AND state = 1) AS shipping_count'
         );
         $query->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
 
