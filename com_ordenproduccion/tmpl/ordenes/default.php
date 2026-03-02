@@ -203,20 +203,6 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <?php endif; ?>
                                         <td>
                                             <div class="btn-group ordenes-actions" role="group">
-                                                <!-- Solicitar Anulación - Only for Ventas group -->
-                                                <?php if ($canAnulacion) :
-                                                    $anulacionHref = rtrim($anulacionUrl, '?&') . '?'
-                                                        . 'user_id=' . (int) $currentUser->id
-                                                        . '&orden_id=' . urlencode($item->order_number)
-                                                        . '&requester=' . urlencode($currentUser->name);
-                                                ?>
-                                                <a href="<?php echo htmlspecialchars($anulacionHref, ENT_QUOTES, 'UTF-8'); ?>"
-                                                   class="btn btn-sm btn-outline-danger"
-                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>"
-                                                   aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>">
-                                                    <i class="fas fa-ban fa-sm" aria-hidden="true"></i>
-                                                </a>
-                                                <?php endif; ?>
                                                 <!-- Create Invoice - Only for Administracion group -->
                                                 <?php if ($isAdministracion): ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&order_id=' . $item->id); ?>"
@@ -242,6 +228,20 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                         title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>">
                                                     <i class="fas fa-receipt fa-sm" aria-hidden="true"></i>
                                                 </button>
+                                                <?php endif; ?>
+                                                <!-- Solicitar Anulación - Only for Ventas group (last button) -->
+                                                <?php if ($canAnulacion) :
+                                                    $anulacionHref = rtrim($anulacionUrl, '?&') . '?'
+                                                        . 'user_id=' . (int) $currentUser->id
+                                                        . '&orden_id=' . urlencode($item->order_number)
+                                                        . '&requester=' . urlencode($currentUser->name);
+                                                ?>
+                                                <a href="<?php echo htmlspecialchars($anulacionHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>"
+                                                   aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>">
+                                                    <i class="fas fa-ban fa-sm" aria-hidden="true"></i>
+                                                </a>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
