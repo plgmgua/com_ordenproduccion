@@ -284,7 +284,9 @@ class PaymentsModel extends ListModel
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
-        $options = ['' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_PAYMENTS_SELECT_SALES_AGENT')];
+        $key = 'COM_ORDENPRODUCCION_PAYMENTS_SELECT_SALES_AGENT';
+        $label = \Joomla\CMS\Language\Text::_($key);
+        $options = ['' => ($label !== $key ? $label : 'Todos los agentes')];
         foreach ($agents as $agent) {
             $options[$agent] = $agent;
         }
