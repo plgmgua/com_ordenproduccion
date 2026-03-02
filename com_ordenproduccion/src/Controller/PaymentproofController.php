@@ -196,9 +196,13 @@ class PaymentproofController extends BaseController
      *
      * @return  array  List of relative file paths that were successfully saved
      */
+    /**
+     * @throws \Exception  Rethrows the last upload error so callers can show a meaningful message.
+     */
     private function handleMultipleFileUploads(int $orderId): array
     {
-        $saved = [];
+        $saved     = [];
+        $lastError = null;
 
         // New multiple-file input: payment_proof_files[]
         $filesInput = $this->input->files->get('payment_proof_files', [], 'array');
@@ -218,13 +222,15 @@ class PaymentproofController extends BaseController
                     try {
                         $saved[] = $this->handleFileUpload($single, $orderId);
                     } catch (\Exception $e) {
-                        // skip invalid individual files silently
+                        $lastError = $e;
                     }
                 }
             } elseif (!empty($filesInput['name'])) {
                 try {
                     $saved[] = $this->handleFileUpload($filesInput, $orderId);
-                } catch (\Exception $e) { /* skip */ }
+                } catch (\Exception $e) {
+                    $lastError = $e;
+                }
             }
         }
 
@@ -234,8 +240,15 @@ class PaymentproofController extends BaseController
             if (!empty($legacy) && isset($legacy['name']) && !empty($legacy['name'])) {
                 try {
                     $saved[] = $this->handleFileUpload($legacy, $orderId);
-                } catch (\Exception $e) { /* skip */ }
+                } catch (\Exception $e) {
+                    $lastError = $e;
+                }
             }
+        }
+
+        // If nothing was saved and we have a real error reason, propagate it
+        if (empty($saved) && $lastError !== null) {
+            throw $lastError;
         }
 
         return $saved;
@@ -274,7 +287,8 @@ class PaymentproofController extends BaseController
             $uploadedFiles = $this->handleMultipleFileUploads($orderId ?: $proofId);
 
             if (empty($uploadedFiles)) {
-                throw new \Exception('No se pudo guardar el archivo. Verifique el formato y tamaño (máx. 5MB, JPG/PNG/PDF).');
+                // handleMultipleFileUploads only returns empty without throwing when no file was selected
+                throw new \Exception('No se seleccionó ningún archivo.');
             }
 
             $model = $this->getModel('Paymentproof');
@@ -305,37 +319,59 @@ class PaymentproofController extends BaseController
      */
     private function handleFileUpload($file, $orderId)
     {
+        // Check PHP upload error code first
+        $phpError = (int) ($file['error'] ?? 0);
+        if ($phpError !== UPLOAD_ERR_OK) {
+            $phpErrorMessages = [
+                UPLOAD_ERR_INI_SIZE   => 'El archivo supera el límite de tamaño configurado en el servidor (upload_max_filesize).',
+                UPLOAD_ERR_FORM_SIZE  => 'El archivo supera el límite de tamaño del formulario.',
+                UPLOAD_ERR_PARTIAL    => 'El archivo fue subido parcialmente. Intente de nuevo.',
+                UPLOAD_ERR_NO_FILE    => 'No se seleccionó ningún archivo.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Falta la carpeta temporal del servidor. Contacte al administrador.',
+                UPLOAD_ERR_CANT_WRITE => 'No se pudo escribir el archivo en el servidor. Verifique permisos.',
+                UPLOAD_ERR_EXTENSION  => 'Una extensión de PHP bloqueó la subida del archivo.',
+            ];
+            throw new \Exception($phpErrorMessages[$phpError] ?? 'Error al subir el archivo (código ' . $phpError . ').');
+        }
+
         // Validate file
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
         $maxSize = 5 * 1024 * 1024; // 5MB
-        
-        $fileName = File::makeSafe($file['name']);
-        $fileExtension = strtolower(File::getExt($fileName));
-        
+
+        // Use original name for extension detection (File::makeSafe may alter it)
+        $originalName  = $file['name'] ?? '';
+        $fileExtension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $fileName      = File::makeSafe($originalName);
+
         if (!in_array($fileExtension, $allowedExtensions)) {
-            throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_FILE_TYPE'));
+            throw new \Exception('Tipo de archivo no permitido: ".' . htmlspecialchars($fileExtension) . '". Solo JPG, PNG y PDF.');
         }
-        
-        if ($file['size'] > $maxSize) {
-            throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_FILE_TOO_LARGE'));
+
+        if ((int) ($file['size'] ?? 0) > $maxSize) {
+            throw new \Exception('Archivo demasiado grande (' . round($file['size'] / 1048576, 1) . ' MB). Máximo 5 MB.');
         }
         
         // Create upload directory
         $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/payment_proofs';
         if (!is_dir($uploadDir)) {
             if (!mkdir($uploadDir, 0755, true)) {
-                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_CREATING_UPLOAD_DIR'));
+                throw new \Exception('No se pudo crear el directorio de subida: ' . $uploadDir . '. Verifique permisos del servidor.');
             }
         }
-        
+
+        if (!is_writable($uploadDir)) {
+            throw new \Exception('El directorio de subida no tiene permisos de escritura: ' . $uploadDir);
+        }
+
         // Generate unique filename
-        $timestamp = date('Y-m-d_H-i-s');
+        $timestamp      = date('Y-m-d_H-i-s');
+        $safeBase       = $fileName !== '' ? pathinfo($fileName, PATHINFO_FILENAME) : 'file';
         $uniqueFileName = "payment_proof_{$orderId}_{$timestamp}.{$fileExtension}";
-        $filePath = $uploadDir . '/' . $uniqueFileName;
-        
+        $filePath       = $uploadDir . '/' . $uniqueFileName;
+
         // Move uploaded file
         if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-            throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_UPLOADING_FILE'));
+            throw new \Exception('No se pudo mover el archivo al destino: ' . $uploadDir . '. Verifique permisos y configuración de PHP (open_basedir).');
         }
         
         // Return relative path for database storage
