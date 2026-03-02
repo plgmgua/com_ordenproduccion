@@ -43,12 +43,19 @@ $currentUrl = Uri::current();
             
             <!-- PDF Generation Button (Top) -->
             <div class="pdf-actions">
+                <?php if ($isAnulada): ?>
+                <button type="button" class="btn btn-secondary btn-block" disabled title="No se puede imprimir una orden Anulada">
+                    <i class="fas fa-ban"></i>
+                    Orden Anulada
+                </button>
+                <?php else: ?>
                 <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
                    target="_blank" 
                    class="btn btn-primary btn-block">
                     <i class="fas fa-print"></i>
                     Imprimir Orden
                 </a>
+                <?php endif; ?>
             </div>
             
             <?php $isAnulada = (strtolower((string) ($workOrderData->status ?? '')) === 'anulada'); ?>

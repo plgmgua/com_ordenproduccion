@@ -100,6 +100,13 @@ class OrdenController extends BaseController
                 return;
             }
 
+            // Guard: block PDF for Anulada orders
+            if (strtolower((string) ($workOrderData->status ?? '')) === 'anulada') {
+                $app->enqueueMessage('No se puede imprimir una orden de trabajo Anulada.', 'error');
+                $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
+                return;
+            }
+
             // Generate PDF using FPDF
             $this->generateWorkOrderPDF($orderId, $workOrderData);
             
