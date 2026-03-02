@@ -229,19 +229,30 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-receipt fa-sm" aria-hidden="true"></i>
                                                 </button>
                                                 <?php endif; ?>
-                                                <!-- Solicitar Anulación - Only for Ventas group (last button) -->
+                                                <!-- Solicitar Anulación - last button, super users only -->
                                                 <?php if ($canAnulacion) :
-                                                    $anulacionHref = rtrim($anulacionUrl, '?&') . '?'
-                                                        . 'user_id=' . (int) $currentUser->id
-                                                        . '&orden_id=' . urlencode($item->order_number)
-                                                        . '&requester=' . urlencode($currentUser->name);
-                                                ?>
+                                                    $hasShipping = !empty($item->shipping_count) && (int) $item->shipping_count > 0;
+                                                    if ($hasShipping) : ?>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#anulacionBloqueadaModal">
+                                                    <i class="fas fa-ban fa-sm" aria-hidden="true"></i>
+                                                </button>
+                                                    <?php else :
+                                                        $anulacionHref = rtrim($anulacionUrl, '?&') . '?'
+                                                            . 'user_id=' . (int) $currentUser->id
+                                                            . '&orden_id=' . urlencode($item->order_number)
+                                                            . '&requester=' . urlencode($currentUser->name);
+                                                    ?>
                                                 <a href="<?php echo htmlspecialchars($anulacionHref, ENT_QUOTES, 'UTF-8'); ?>"
                                                    class="btn btn-sm btn-outline-danger"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>"
                                                    aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_SOLICITAR_ANULACION'); ?>">
                                                     <i class="fas fa-ban fa-sm" aria-hidden="true"></i>
                                                 </a>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -266,6 +277,29 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                     </div>
                 </div>
             <?php endif; ?>
+        <?php endif; ?>
+
+        <!-- Anulación Bloqueada Modal -->
+        <?php if ($canAnulacion) : ?>
+        <div class="modal fade" id="anulacionBloqueadaModal" tabindex="-1" aria-labelledby="anulacionBloqueadaModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title" id="anulacionBloqueadaModalLabel">
+                            <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_ANULACION_BLOQUEADA_TITLE'); ?>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><?php echo Text::_('COM_ORDENPRODUCCION_ANULACION_BLOQUEADA_MSG'); ?></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCLOSE'); ?></button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <?php endif; ?>
 
         <!-- Payment Info Modal (for users who can see payment info) -->

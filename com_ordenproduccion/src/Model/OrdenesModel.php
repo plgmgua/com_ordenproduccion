@@ -178,6 +178,12 @@ class OrdenesModel extends ListModel
                 'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version'
             )
         );
+        // Subquery: count active shipment slips linked to this order
+        $query->select(
+            '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_shipping') . ' AS sh ' .
+            'WHERE sh.' . $db->quoteName('numero_de_orden') . ' = a.' . $db->quoteName('orden_de_trabajo') .
+            ' AND sh.' . $db->quoteName('state') . ' = 1) AS shipping_count'
+        );
         $query->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
 
         // Filter by published state
