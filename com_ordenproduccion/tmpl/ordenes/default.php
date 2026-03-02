@@ -145,7 +145,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
             <div class="row">
                 <div class="col-12">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-striped table-hover table-sm">
                             <thead class="thead-dark">
                                 <tr>
                                     <th scope="col">
@@ -180,12 +180,9 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <td style="font-size: 0.82em;">
                                             <?php echo htmlspecialchars($item->client_name); ?>
                                         </td>
-                                        <td style="white-space: nowrap;">
-                                            <small class="text-muted d-block" style="font-size: 0.72em; line-height: 1.2;">Sol.</small>
-                                            <?php echo $this->formatDate($item->request_date); ?>
-                                            <hr class="my-1" style="border-color: #dee2e6;">
-                                            <small class="text-muted d-block" style="font-size: 0.72em; line-height: 1.2;">Ent.</small>
-                                            <?php echo $this->formatDate($item->delivery_date); ?>
+                                        <td style="white-space: nowrap; font-size: 0.82em; padding: 4px 6px; line-height: 1.3;">
+                                            <span class="text-muted" style="font-size: 0.78em;">Sol.&nbsp;</span><?php echo $this->formatDate($item->request_date); ?><br>
+                                            <span class="text-muted" style="font-size: 0.78em;">Ent.&nbsp;</span><?php echo $this->formatDate($item->delivery_date); ?>
                                         </td>
                                         <td>
                                             <span class="badge <?php echo $this->getStatusBadgeClass($item->status); ?>" style="color: #333 !important;">
