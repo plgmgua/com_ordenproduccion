@@ -301,7 +301,11 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($orderInfoRows as $po) : ?>
+                                    <?php
+                                    $totalOrdersValue = 0.0;
+                                    foreach ($orderInfoRows as $po) :
+                                        $totalOrdersValue += (float) ($po->invoice_value ?? 0);
+                                    ?>
                                     <tr>
                                         <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
                                         <td class="small"><?php echo htmlspecialchars($po->client_name ?? '—'); ?></td>
@@ -310,6 +314,27 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
+                                <tfoot>
+                                    <tr class="table-secondary fw-bold">
+                                        <td colspan="2" class="small text-end">Total órdenes:</td>
+                                        <td class="small"><?php echo $this->formatCurrency($totalOrdersValue); ?></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr class="table-info fw-bold">
+                                        <td colspan="2" class="small text-end">Total pagado:</td>
+                                        <td class="small">Q <?php echo number_format($totalMonto, 2); ?></td>
+                                        <td></td>
+                                    </tr>
+                                    <?php
+                                    $diff = $totalMonto - $totalOrdersValue;
+                                    $diffClass = $diff < 0 ? 'text-danger' : ($diff > 0 ? 'text-warning' : 'text-success');
+                                    ?>
+                                    <tr>
+                                        <td colspan="2" class="small text-end <?php echo $diffClass; ?>">Diferencia:</td>
+                                        <td class="small <?php echo $diffClass; ?>"><?php echo ($diff >= 0 ? '+' : '') . 'Q ' . number_format($diff, 2); ?></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                         <?php endif; ?>
