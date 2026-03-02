@@ -72,7 +72,14 @@ class WebhookController extends BaseController
                 $this->sendErrorResponse('Invalid JSON data', 400);
                 return;
             }
-            
+
+            // Route anulacion requests that arrive at this endpoint
+            $requestTitle = trim((string) ($data['request_title'] ?? ''));
+            if (strtolower($requestTitle) === strtolower('Anulacion de Orden de Trabajo')) {
+                $this->processAnulacion($data, $startTime);
+                return;
+            }
+
             // Validate required fields
             if (!$this->validateWebhookData($data)) {
                 $this->logError('Missing required fields', 'production', $startTime);
@@ -99,6 +106,63 @@ class WebhookController extends BaseController
         } catch (\Exception $e) {
             $this->logError('Webhook processing error: ' . $e->getMessage(), 'production', $startTime);
             $this->sendErrorResponse('Internal server error', 500);
+        }
+    }
+
+    /**
+     * Handle an anulacion payload that arrived at the process() endpoint.
+     * Shared logic used by both process() (via request_title routing) and
+     * the dedicated anulacion() task.
+     *
+     * @param   array  $data       Decoded JSON payload
+     * @param   float  $startTime  microtime(true) from the caller
+     *
+     * @return  void
+     *
+     * @since   3.71.0
+     */
+    protected function processAnulacion(array $data, float $startTime): void
+    {
+        $formData    = $data['form_data'] ?? [];
+        $ordenId     = trim((string) ($formData['orden_id'] ?? ''));
+        $requesterId = (int) ($formData['user_id'] ?? 0);
+        $requester   = trim((string) ($formData['requester'] ?? ''));
+        $description = trim((string) ($formData['descripcion'] ?? ''));
+
+        if (empty($ordenId)) {
+            $this->logError('Anulacion: missing orden_id', 'production', $startTime);
+            $this->sendErrorResponse('El campo orden_id es requerido.', 422);
+            return;
+        }
+
+        try {
+            $ordenModel = $this->app->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Orden', 'Site');
+
+            $result  = $ordenModel->anularOrden($ordenId, $requester, $requesterId, $description);
+            $elapsed = round((microtime(true) - $startTime) * 1000, 2);
+
+            if ($result['success']) {
+                $response = [
+                    'success'      => true,
+                    'message'      => $result['message'],
+                    'order_id'     => $result['order_id'],
+                    'order_number' => $ordenId,
+                    'elapsed_ms'   => $elapsed,
+                ];
+                $this->app->setHeader('Content-Type', 'application/json');
+                $this->app->setHeader('Status', '200');
+                echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                $this->app->close();
+            } else {
+                $httpCode = str_contains($result['message'], 'ya fue anulada') ? 409 : 422;
+                $this->logError('Anulacion failed: ' . $result['message'], 'production', $startTime);
+                $this->sendErrorResponse($result['message'], $httpCode);
+            }
+        } catch (\Exception $e) {
+            $this->logError('Anulacion exception: ' . $e->getMessage(), 'production', $startTime);
+            $this->sendErrorResponse('Error interno: ' . $e->getMessage(), 500);
         }
     }
 
@@ -641,54 +705,15 @@ class WebhookController extends BaseController
     {
         $startTime = microtime(true);
 
-        try {
-            $rawInput = file_get_contents('php://input');
-            $payload  = json_decode($rawInput, true);
+        $rawInput = file_get_contents('php://input');
+        $payload  = json_decode($rawInput, true);
 
-            if (json_last_error() !== JSON_ERROR_NONE || empty($payload)) {
-                $this->sendErrorResponse('Payload JSON inválido o vacío.', 400);
-                return;
-            }
-
-            $formData    = $payload['form_data'] ?? [];
-            $ordenId     = trim((string) ($formData['orden_id'] ?? ''));
-            $requesterId = (int) ($formData['user_id'] ?? 0);
-            $requester   = trim((string) ($formData['requester'] ?? ''));
-            $description = trim((string) ($formData['descripcion'] ?? ''));
-
-            if (empty($ordenId)) {
-                $this->sendErrorResponse('El campo orden_id es requerido.', 422);
-                return;
-            }
-
-            $ordenModel = $this->app->bootComponent('com_ordenproduccion')
-                ->getMVCFactory()
-                ->createModel('Orden', 'Site');
-
-            $result = $ordenModel->anularOrden($ordenId, $requester, $requesterId, $description);
-
-            $elapsed = round((microtime(true) - $startTime) * 1000, 2);
-
-            if ($result['success']) {
-                $response = [
-                    'success'      => true,
-                    'message'      => $result['message'],
-                    'order_id'     => $result['order_id'],
-                    'order_number' => $ordenId,
-                    'elapsed_ms'   => $elapsed,
-                ];
-                $this->app->setHeader('Content-Type', 'application/json');
-                $this->app->setHeader('Status', '200');
-                echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                $this->app->close();
-            } else {
-                $httpCode = str_contains($result['message'], 'ya fue anulada') ? 409 : 422;
-                $this->sendErrorResponse($result['message'], $httpCode);
-            }
-
-        } catch (\Exception $e) {
-            $this->sendErrorResponse('Error interno: ' . $e->getMessage(), 500);
+        if (json_last_error() !== JSON_ERROR_NONE || empty($payload)) {
+            $this->sendErrorResponse('Payload JSON inválido o vacío.', 400);
+            return;
         }
+
+        $this->processAnulacion($payload, $startTime);
     }
 
     /**
