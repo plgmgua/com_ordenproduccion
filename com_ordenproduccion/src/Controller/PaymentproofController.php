@@ -49,6 +49,30 @@ class PaymentproofController extends BaseController
             return false;
         }
 
+        // Resolve primary order for the redirect URL used throughout
+        $orderId = $this->input->getInt('order_id', 0);
+
+        // Guard: block if the primary order is Anulada
+        if ($orderId > 0) {
+            try {
+                $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+                $statusQuery = $db->getQuery(true)
+                    ->select($db->quoteName('status'))
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('id') . ' = ' . $orderId)
+                    ->where($db->quoteName('state') . ' = 1');
+                $db->setQuery($statusQuery);
+                $orderStatus = $db->loadResult();
+                if (strtolower((string) $orderStatus) === 'anulada') {
+                    $this->app->enqueueMessage('No se puede registrar un comprobante de pago para una orden Anulada.', 'error');
+                    $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId));
+                    return false;
+                }
+            } catch (\Exception $e) {
+                // Non-fatal: proceed and let the model handle it
+            }
+        }
+
         try {
             // Get form data - support multi-line (payment_lines) or legacy single-line
             $paymentLines = $this->input->get('payment_lines', [], 'array');

@@ -164,6 +164,13 @@ class OrdenController extends BaseController
                 return;
             }
 
+            // Guard: block for Anulada orders
+            if (strtolower((string) ($workOrderData->status ?? '')) === 'anulada') {
+                $app->enqueueMessage('No se puede generar un envío para una orden Anulada.', 'error');
+                $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
+                return;
+            }
+
             // Always save historial entries regardless of request method
             // This ensures history is logged even when opening PDF directly
             try {

@@ -423,9 +423,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         </script>
         <?php endif; ?>
 
-        <!-- Payment Proof Form: always shown so users can add installments or advances -->
+        <!-- Payment Proof Form -->
         <div class="row">
             <div class="col-12">
+                <?php if (strtolower((string) ($order->status ?? '')) === 'anulada') : ?>
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-ban me-2"></i>
+                    <strong>Orden Anulada.</strong> No se pueden registrar comprobantes de pago para una orden anulada.
+                </div>
+                <?php else : ?>
                 <?php if (!empty($existingPayments)) : ?>
                 <div class="alert alert-info mb-3" role="alert">
                     <i class="fas fa-info-circle"></i>
@@ -626,6 +632,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         </form>
                     </div>
                 </div>
+                <?php endif; // end not-anulada check ?>
             </div>
         </div>
     </div>

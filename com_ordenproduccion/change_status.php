@@ -57,11 +57,24 @@ try {
     }
     
     // Validate status value (removed 'En Proceso' and 'Cerrada' to match module dropdown)
+    // 'Anulada' is intentionally excluded — it can only be set via the webhook endpoint
     $validStatuses = ['Nueva', 'Terminada', 'Entregada', 'nueva', 'terminada', 'entregada'];
     if (!in_array($newStatus, $validStatuses)) {
         echo json_encode([
             'success' => false,
             'message' => 'Estado no válido: ' . $newStatus
+        ]);
+        exit;
+    }
+
+    // Guard: reject if the order is already Anulada
+    $stmtCurrent = $pdo->prepare("SELECT status FROM {$dbPrefix}ordenproduccion_ordenes WHERE id = :id AND state = 1 LIMIT 1");
+    $stmtCurrent->execute([':id' => $orderId]);
+    $currentStatus = $stmtCurrent->fetchColumn();
+    if (strtolower((string) $currentStatus) === 'anulada') {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Esta orden está Anulada y no se puede cambiar su estado.'
         ]);
         exit;
     }

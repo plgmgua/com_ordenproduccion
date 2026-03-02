@@ -107,11 +107,15 @@ if ($orderId > 0) {
 }
 
 // Get status options for dropdown - matching the filter values exactly
+// Note: "Anulada" is intentionally NOT included so it cannot be set via this UI
 $statusOptions = [
-    'Nueva' => 'Nueva',
+    'Nueva'     => 'Nueva',
     'Terminada' => 'Terminada',
-    'Entregada' => 'Entregada'
+    'Entregada' => 'Entregada',
 ];
+
+// Separate map used only for display labels (includes Anulada for read-only badge)
+$statusLabels = $statusOptions + ['Anulada' => 'Anulada'];
 
 // Load the template
 require ModuleHelper::getLayoutPath('mod_acciones_produccion', $params->get('layout', 'default'));

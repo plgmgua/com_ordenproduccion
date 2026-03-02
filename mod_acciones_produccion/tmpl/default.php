@@ -51,14 +51,22 @@ $currentUrl = Uri::current();
                 </a>
             </div>
             
+            <?php $isAnulada = (strtolower((string) ($workOrderData->status ?? '')) === 'anulada'); ?>
+
             <!-- Work Order Info with Status Change -->
             <div class="work-order-info">
                 <p><strong>Estado Actual:</strong> 
-                    <span class="status-badge status-<?php echo htmlspecialchars($workOrderData->status ?? 'Nueva'); ?>">
-                        <?php echo htmlspecialchars($statusOptions[$workOrderData->status ?? 'Nueva'] ?? 'Nueva'); ?>
+                    <span class="status-badge status-<?php echo strtolower(htmlspecialchars($workOrderData->status ?? 'nueva')); ?>">
+                        <?php echo htmlspecialchars($statusLabels[$workOrderData->status ?? 'Nueva'] ?? ($workOrderData->status ?? 'Nueva')); ?>
                     </span>
                 </p>
                 
+                <?php if ($isAnulada): ?>
+                <div class="alert-anulada">
+                    <i class="fas fa-ban"></i>
+                    Esta orden está <strong>Anulada</strong>. No se puede cambiar el estado.
+                </div>
+                <?php else: ?>
                 <form id="status-change-form" class="status-form">
                     <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
                     <input type="hidden" name="<?php echo $app->getFormToken(); ?>" value="1">
@@ -82,6 +90,7 @@ $currentUrl = Uri::current();
                         Actualizar Estado
                     </button>
                 </form>
+                <?php endif; ?>
                 
                 <div id="status-message" class="status-message" style="display: none;"></div>
             </div>
@@ -89,6 +98,12 @@ $currentUrl = Uri::current();
             <!-- Shipping Slip Form -->
             <div class="shipping-form-section">
                 <h6><i class="fas fa-shipping-fast"></i> Generar Envio</h6>
+                <?php if ($isAnulada): ?>
+                <div class="alert-anulada">
+                    <i class="fas fa-ban"></i>
+                    No se puede generar un envío para una orden <strong>Anulada</strong>.
+                </div>
+                <?php else: ?>
                 <form id="shipping-form" class="shipping-form">
                     <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
                     <input type="hidden" name="<?php echo $app->getFormToken(); ?>" value="1">
@@ -128,6 +143,7 @@ $currentUrl = Uri::current();
                         Generar Envio
                     </button>
                 </form>
+                <?php endif; ?>
                 
                 <div id="shipping-message" class="shipping-message" style="display: none;"></div>
             </div>
@@ -746,6 +762,24 @@ console.log('MOD_ACCIONES_PRODUCCION: Functions defined - closeShippingDescripti
 .status-cerrada { 
     background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); 
     color: #fff; 
+}
+.status-anulada { 
+    background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%); 
+    color: #fff; 
+}
+
+.alert-anulada {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    border-radius: 6px;
+    padding: 12px 15px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+.alert-anulada i {
+    margin-right: 6px;
 }
 
 .pdf-actions {
