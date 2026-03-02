@@ -488,15 +488,54 @@ class PaymentsModel extends ListModel
         try {
             $db->transactionStart();
 
-            // Get file_path before deleting (to remove physical file)
+            // Collect ALL file paths to delete from disk (legacy column + payment_proof_files rows)
+            $filesToDelete = [];
+
             $db->setQuery(
                 $db->getQuery(true)
                     ->select($db->quoteName('file_path'))
                     ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
                     ->where($db->quoteName('id') . ' = ' . $paymentId)
             );
-            $filePath = $db->loadResult();
+            $legacyFilePath = $db->loadResult();
+            if (!empty($legacyFilePath)) {
+                $filesToDelete[] = $legacyFilePath;
+            }
 
+            // Collect and clean up additional files (3.65.0+)
+            if ($this->hasPaymentProofFilesTable()) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('file_path'))
+                        ->from($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                        ->where($db->quoteName('payment_proof_id') . ' = ' . $paymentId)
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+                $extraPaths = $db->loadColumn();
+                foreach ($extraPaths as $ep) {
+                    if (!empty($ep)) {
+                        $filesToDelete[] = $ep;
+                    }
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->delete($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                        ->where($db->quoteName('payment_proof_id') . ' = ' . $paymentId)
+                );
+                $db->execute();
+            }
+
+            // Clean up payment lines (3.64.0+)
+            if ($this->hasPaymentProofLinesTable()) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->delete($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                        ->where($db->quoteName('payment_proof_id') . ' = ' . $paymentId)
+                );
+                $db->execute();
+            }
+
+            // Clean up order junction rows (3.54.0+)
             if ($this->hasPaymentOrdersTable()) {
                 $db->setQuery(
                     $db->getQuery(true)
@@ -506,6 +545,7 @@ class PaymentsModel extends ListModel
                 $db->execute();
             }
 
+            // Soft-delete the proof record itself
             $db->setQuery(
                 $db->getQuery(true)
                     ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
@@ -518,8 +558,12 @@ class PaymentsModel extends ListModel
 
             $db->transactionCommit();
 
-            if (!empty($filePath) && strpos($filePath, '..') === false) {
-                $fullPath = JPATH_ROOT . '/' . ltrim($filePath, '/');
+            // Delete physical files from disk after the transaction commits
+            foreach ($filesToDelete as $fp) {
+                if (strpos($fp, '..') !== false) {
+                    continue;
+                }
+                $fullPath = JPATH_ROOT . '/' . ltrim($fp, '/');
                 if (is_file($fullPath)) {
                     @unlink($fullPath);
                 }
@@ -557,6 +601,50 @@ class PaymentsModel extends ListModel
             $tableName = $prefix . 'ordenproduccion_payment_orders';
             foreach ($tables as $t) {
                 if (strcasecmp($t, $tableName) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if payment_proof_lines table exists (3.64.0+ schema)
+     *
+     * @return  boolean
+     */
+    protected function hasPaymentProofLinesTable(): bool
+    {
+        try {
+            $db     = $this->getDatabase();
+            $tables = $db->getTableList();
+            $target = $db->getPrefix() . 'ordenproduccion_payment_proof_lines';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $target) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if payment_proof_files table exists (3.65.0+ schema)
+     *
+     * @return  boolean
+     */
+    protected function hasPaymentProofFilesTable(): bool
+    {
+        try {
+            $db     = $this->getDatabase();
+            $tables = $db->getTableList();
+            $target = $db->getPrefix() . 'ordenproduccion_payment_proof_files';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $target) === 0) {
                     return true;
                 }
             }
