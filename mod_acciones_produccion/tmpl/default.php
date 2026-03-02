@@ -33,6 +33,7 @@ $currentUrl = Uri::current();
     ?>
     
     <?php if ($orderId && $workOrderData): ?>
+        <?php $isAnulada = (strtolower((string) ($workOrderData->status ?? '')) === 'anulada'); ?>
         
         <!-- PRODUCCION SECTION -->
         <?php if ($hasProductionAccess): ?>
@@ -58,7 +59,6 @@ $currentUrl = Uri::current();
                 <?php endif; ?>
             </div>
             
-            <?php $isAnulada = (strtolower((string) ($workOrderData->status ?? '')) === 'anulada'); ?>
 
             <!-- Work Order Info with Status Change -->
             <div class="work-order-info">
