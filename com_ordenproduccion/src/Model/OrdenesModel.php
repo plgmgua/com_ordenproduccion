@@ -157,10 +157,10 @@ class OrdenesModel extends ListModel
 
         // Batch-fetch shipping counts for all orders on this page
         if (!empty($items)) {
-            $orderNumbers = array_map(static function ($i) { return $i->orden_de_trabajo; }, $items);
-            $shippingCounts = $this->getShippingCounts($orderNumbers);
+            $orderIds = array_map(static function ($i) { return (int) $i->id; }, $items);
+            $shippingCounts = $this->getShippingCounts($orderIds);
             foreach ($items as &$item) {
-                $item->shipping_count = $shippingCounts[$item->orden_de_trabajo] ?? 0;
+                $item->shipping_count = $shippingCounts[(int) $item->id] ?? 0;
             }
         }
 
@@ -168,40 +168,40 @@ class OrdenesModel extends ListModel
     }
 
     /**
-     * Return a map of orden_de_trabajo => shipping slip count for the given order numbers.
-     * Returns an empty array on any database error (e.g. table/column does not exist yet).
+     * Return a map of order_id => shipping slip count for the given order IDs.
+     * Returns an empty array on any database error (e.g. table does not exist yet).
      *
-     * @param   array  $orderNumbers  List of orden_de_trabajo values
+     * @param   array  $orderIds  List of integer order IDs
      *
      * @return  array
      */
-    protected function getShippingCounts(array $orderNumbers): array
+    protected function getShippingCounts(array $orderIds): array
     {
-        if (empty($orderNumbers)) {
+        if (empty($orderIds)) {
             return [];
         }
 
         $db = $this->getDatabase();
 
         try {
-            $quoted = array_map([$db, 'quote'], $orderNumbers);
-            $query  = $db->getQuery(true)
-                ->select(['numero_de_orden', 'COUNT(*) AS cnt'])
+            $ids   = implode(',', array_map('intval', $orderIds));
+            $query = $db->getQuery(true)
+                ->select(['order_id', 'COUNT(*) AS cnt'])
                 ->from($db->quoteName('#__ordenproduccion_shipping'))
-                ->where('numero_de_orden IN (' . implode(',', $quoted) . ')')
+                ->where('order_id IN (' . $ids . ')')
                 ->where('state = 1')
-                ->group('numero_de_orden');
+                ->group('order_id');
 
             $db->setQuery($query);
-            $rows = $db->loadObjectList('numero_de_orden');
+            $rows = $db->loadObjectList('order_id');
 
             $map = [];
             foreach ($rows as $key => $row) {
-                $map[$key] = (int) $row->cnt;
+                $map[(int) $key] = (int) $row->cnt;
             }
             return $map;
         } catch (\Exception $e) {
-            // Table or column doesn't exist in this installation — treat as zero
+            // Table does not exist in this installation — treat as zero
             return [];
         }
     }
