@@ -197,6 +197,49 @@ class PaymentproofController extends BaseController
      * @return  array  List of relative file paths that were successfully saved
      */
     /**
+     * Normalise a raw Joomla Input\Files entry into a flat list of standard
+     * PHP single-file arrays (['name','type','tmp_name','error','size']).
+     *
+     * Joomla's Input\Files::decodeData() converts multi-file [] inputs into
+     * indexed sub-arrays ([$i => ['name'=>…, 'tmp_name'=>…, …]]).
+     * Raw PHP $_FILES for a single file or the legacy single input keeps the
+     * flat ['name'=>string, …] shape.  This helper handles both.
+     */
+    private function normaliseFilesInput(array $input): array
+    {
+        if (empty($input)) {
+            return [];
+        }
+
+        // Joomla decoded multi-file: $input[0] = ['name'=>…], $input[1] = […]
+        if (isset($input[0]) && is_array($input[0]) && isset($input[0]['name'])) {
+            return array_values($input);
+        }
+
+        // Raw PHP multiple files: $input['name'] is an array
+        if (isset($input['name']) && is_array($input['name'])) {
+            $files = [];
+            foreach ($input['name'] as $i => $name) {
+                $files[] = [
+                    'name'     => $name,
+                    'type'     => $input['type'][$i]     ?? '',
+                    'tmp_name' => $input['tmp_name'][$i] ?? '',
+                    'error'    => $input['error'][$i]    ?? UPLOAD_ERR_NO_FILE,
+                    'size'     => $input['size'][$i]     ?? 0,
+                ];
+            }
+            return $files;
+        }
+
+        // Raw PHP single file: $input['name'] is a string
+        if (isset($input['name']) && is_string($input['name'])) {
+            return [$input];
+        }
+
+        return [];
+    }
+
+    /**
      * @throws \Exception  Rethrows the last upload error so callers can show a meaningful message.
      */
     private function handleMultipleFileUploads(int $orderId): array
@@ -206,40 +249,26 @@ class PaymentproofController extends BaseController
 
         // New multiple-file input: payment_proof_files[]
         $filesInput = $this->input->files->get('payment_proof_files', [], 'array');
-        if (!empty($filesInput) && isset($filesInput['name'])) {
-            if (is_array($filesInput['name'])) {
-                foreach ($filesInput['name'] as $i => $name) {
-                    if (empty($name) || empty($filesInput['tmp_name'][$i])) {
-                        continue;
-                    }
-                    $single = [
-                        'name'     => $name,
-                        'type'     => $filesInput['type'][$i] ?? '',
-                        'tmp_name' => $filesInput['tmp_name'][$i],
-                        'error'    => $filesInput['error'][$i] ?? 0,
-                        'size'     => $filesInput['size'][$i] ?? 0,
-                    ];
-                    try {
-                        $saved[] = $this->handleFileUpload($single, $orderId);
-                    } catch (\Exception $e) {
-                        $lastError = $e;
-                    }
-                }
-            } elseif (!empty($filesInput['name'])) {
-                try {
-                    $saved[] = $this->handleFileUpload($filesInput, $orderId);
-                } catch (\Exception $e) {
-                    $lastError = $e;
-                }
+        foreach ($this->normaliseFilesInput($filesInput) as $single) {
+            if (empty($single['name']) && (int) ($single['error'] ?? 0) === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            try {
+                $saved[] = $this->handleFileUpload($single, $orderId);
+            } catch (\Exception $e) {
+                $lastError = $e;
             }
         }
 
         // Legacy single-file input: payment_proof_file
         if (empty($saved)) {
             $legacy = $this->input->files->get('payment_proof_file', [], 'array');
-            if (!empty($legacy) && isset($legacy['name']) && !empty($legacy['name'])) {
+            foreach ($this->normaliseFilesInput($legacy) as $single) {
+                if (empty($single['name']) && (int) ($single['error'] ?? 0) === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
                 try {
-                    $saved[] = $this->handleFileUpload($legacy, $orderId);
+                    $saved[] = $this->handleFileUpload($single, $orderId);
                 } catch (\Exception $e) {
                     $lastError = $e;
                 }
