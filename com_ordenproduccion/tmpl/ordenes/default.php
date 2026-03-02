@@ -155,9 +155,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CLIENTE'); ?>
                                     </th>
                                     <th scope="col">
-                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_SOLICITUD'); ?>
-                                    </th>
-                                    <th scope="col">
+                                        <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_SOLICITUD'); ?> /
                                         <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_FECHA_ENTREGA'); ?>
                                     </th>
                                     <th scope="col">
@@ -185,10 +183,11 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <td>
                                             <?php echo htmlspecialchars($item->client_name); ?>
                                         </td>
-                                        <td>
+                                        <td style="white-space: nowrap;">
+                                            <small class="text-muted d-block" style="font-size: 0.72em; line-height: 1.2;">Sol.</small>
                                             <?php echo $this->formatDate($item->request_date); ?>
-                                        </td>
-                                        <td>
+                                            <hr class="my-1" style="border-color: #dee2e6;">
+                                            <small class="text-muted d-block" style="font-size: 0.72em; line-height: 1.2;">Ent.</small>
                                             <?php echo $this->formatDate($item->delivery_date); ?>
                                         </td>
                                         <td>
