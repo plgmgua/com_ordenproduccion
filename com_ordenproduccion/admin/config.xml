@@ -56,4 +56,15 @@
             <option value="1">JYES</option>
         </field>
     </fieldset>
+    <fieldset name="integraciones" label="COM_ORDENPRODUCCION_CONFIG_INTEGRACIONES_LABEL">
+        <field
+            name="anulacion_url"
+            type="url"
+            label="COM_ORDENPRODUCCION_CONFIG_ANULACION_URL_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_ANULACION_URL_DESC"
+            default="https://grimpsa_webserver.grantsolutions.cc/index.php/anulacion-de-orden"
+            size="80"
+            filter="url"
+        />
+    </fieldset>
 </config>

@@ -59,6 +59,14 @@ class HtmlView extends BaseHtmlView
     protected $params;
 
     /**
+     * Configured URL for the anulación de orden action
+     *
+     * @var    string
+     * @since  1.0.0
+     */
+    public $anulacionUrl = '';
+
+    /**
      * The user object
      *
      * @var    \Joomla\CMS\User\User
@@ -98,6 +106,10 @@ class HtmlView extends BaseHtmlView
         $this->pagination = $this->get('Pagination');
         $this->params = $app->getParams('com_ordenproduccion');
         $this->user = $user;
+        $this->anulacionUrl = $this->params->get(
+            'anulacion_url',
+            'https://grimpsa_webserver.grantsolutions.cc/index.php/anulacion-de-orden'
+        );
 
         // Check for errors.
         if (count($errors = $this->get('Errors'))) {
@@ -271,6 +283,19 @@ class HtmlView extends BaseHtmlView
     public function canRegisterPaymentProof()
     {
         return AccessHelper::canRegisterPaymentProof();
+    }
+
+    /**
+     * Check if the current user can request an anulación de orden.
+     * Available to members of the Ventas group.
+     *
+     * @return  boolean
+     *
+     * @since   1.0.0
+     */
+    public function canRequestAnulacion()
+    {
+        return AccessHelper::isInVentasGroup();
     }
 
     /**
