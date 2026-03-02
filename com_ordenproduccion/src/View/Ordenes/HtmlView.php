@@ -287,7 +287,7 @@ class HtmlView extends BaseHtmlView
 
     /**
      * Check if the current user can request an anulación de orden.
-     * Available to members of the Ventas group.
+     * Currently restricted to super users only.
      *
      * @return  boolean
      *
@@ -295,7 +295,7 @@ class HtmlView extends BaseHtmlView
      */
     public function canRequestAnulacion()
     {
-        return AccessHelper::isInVentasGroup();
+        return $this->user->authorise('core.admin');
     }
 
     /**
