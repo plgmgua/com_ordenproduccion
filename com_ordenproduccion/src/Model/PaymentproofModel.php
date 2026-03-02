@@ -618,8 +618,8 @@ class PaymentproofModel extends ItemModel
                 ->select([
                     'po.order_id',
                     'po.amount_applied',
-                    'COALESCE(o.order_number, o.orden_de_trabajo) AS order_number',
-                    'COALESCE(o.client_name, o.nombre_del_cliente) AS client_name',
+                    'o.order_number',
+                    'o.client_name',
                     'o.invoice_value',
                     'o.request_date'
                 ])
