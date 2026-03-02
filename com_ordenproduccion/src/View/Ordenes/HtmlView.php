@@ -338,12 +338,17 @@ class HtmlView extends BaseHtmlView
         ];
 
         if (isset($statusMap[$status])) {
-            return Text::_($statusMap[$status]);
+            $key        = $statusMap[$status];
+            $translated = Text::_($key);
+            // If Joomla returned the key itself the string file isn't loaded;
+            // fall back to the raw status value which is already human-readable.
+            return ($translated !== $key) ? $translated : $status;
         }
 
         // If status is already a language key, try to translate it directly
         if (strpos($status, 'COM_ORDENPRODUCCION_STATUS_') === 0) {
-            return Text::_($status);
+            $translated = Text::_($status);
+            return ($translated !== $status) ? $translated : $status;
         }
 
         // Fallback: return the status as-is
