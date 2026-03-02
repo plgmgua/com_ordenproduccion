@@ -689,9 +689,21 @@ class PaymentproofModel extends ItemModel
             }
         }
 
-        // If nothing in the new table, fall back to the legacy file_path column
-        if (empty($files) && !empty($proof->file_path)) {
-            $files[] = (object) ['id' => 0, 'file_path' => $proof->file_path];
+        // Always include the legacy file_path if it is not already in the list.
+        // This covers proofs created before the payment_proof_files table existed
+        // that later had extra files added via addFileToProof().
+        $legacyPath = trim((string) ($proof->file_path ?? ''));
+        if ($legacyPath !== '') {
+            $alreadyListed = false;
+            foreach ($files as $f) {
+                if (trim((string) ($f->file_path ?? '')) === $legacyPath) {
+                    $alreadyListed = true;
+                    break;
+                }
+            }
+            if (!$alreadyListed) {
+                array_unshift($files, (object) ['id' => 0, 'file_path' => $legacyPath]);
+            }
         }
 
         return $files;

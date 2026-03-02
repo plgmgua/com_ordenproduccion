@@ -367,19 +367,22 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         </div>
         <script>
         (function() {
-            var viewer = document.getElementById('payment-proof-viewer');
-            var imgWrap = document.getElementById('payment-proof-viewer-image-wrap');
-            var imgEl = document.getElementById('payment-proof-viewer-img');
-            var pdfWrap = document.getElementById('payment-proof-viewer-pdf-wrap');
-            var iframe = document.getElementById('payment-proof-viewer-iframe');
+            var viewer   = document.getElementById('payment-proof-viewer');
+            var imgWrap  = document.getElementById('payment-proof-viewer-image-wrap');
+            var imgEl    = document.getElementById('payment-proof-viewer-img');
+            var pdfWrap  = document.getElementById('payment-proof-viewer-pdf-wrap');
+            var iframe   = document.getElementById('payment-proof-viewer-iframe');
             var emptyMsg = document.getElementById('payment-proof-viewer-empty');
             var closeBtn = document.querySelector('.close-payment-viewer');
-            var buttons = document.querySelectorAll('.view-payment-attachment');
+
             function showInViewer(url, type) {
                 if (!url) return;
+                // Reset iframe before re-assigning to force a reload
+                iframe.src = 'about:blank';
+                imgEl.src  = '';
                 emptyMsg.style.display = 'none';
-                imgWrap.style.display = 'none';
-                pdfWrap.style.display = 'none';
+                imgWrap.style.display  = 'none';
+                pdfWrap.style.display  = 'none';
                 if (type === 'image') {
                     imgEl.src = url;
                     imgWrap.style.display = 'block';
@@ -387,25 +390,35 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                     iframe.src = url;
                     pdfWrap.style.display = 'block';
                 }
+                viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
+
             function clearViewer() {
-                imgEl.src = '';
-                iframe.src = '';
-                imgWrap.style.display = 'none';
-                pdfWrap.style.display = 'none';
+                iframe.src = 'about:blank';
+                imgEl.src  = '';
+                imgWrap.style.display  = 'none';
+                pdfWrap.style.display  = 'none';
                 emptyMsg.style.display = 'block';
             }
-            buttons.forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    showInViewer(this.getAttribute('data-url'), this.getAttribute('data-type'));
-                });
+
+            // Use event delegation so every thumbnail — present or added later — works
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.view-payment-attachment');
+                if (btn) {
+                    e.preventDefault();
+                    showInViewer(btn.getAttribute('data-url'), btn.getAttribute('data-type'));
+                }
             });
-            if (buttons.length) {
-                showInViewer(buttons[0].getAttribute('data-url'), buttons[0].getAttribute('data-type'));
+
+            if (closeBtn) closeBtn.addEventListener('click', clearViewer);
+
+            // Auto-open the first attachment on page load
+            var first = document.querySelector('.view-payment-attachment');
+            if (first) {
+                showInViewer(first.getAttribute('data-url'), first.getAttribute('data-type'));
             } else {
                 emptyMsg.style.display = 'block';
             }
-            if (closeBtn) closeBtn.addEventListener('click', clearViewer);
         })();
         </script>
         <?php endif; ?>
