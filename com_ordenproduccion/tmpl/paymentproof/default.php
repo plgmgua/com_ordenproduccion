@@ -58,16 +58,19 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         <p class="text-muted">
                             <?php
                             // Collect all order numbers from all existing payment proofs, plus the current order
-                            $allLinkedOrderNums = [];
+                            $allLinkedOrderNums   = [];
+                            $allLinkedOrderNumIds = [];
                             if (!empty($existingPayments)) {
                                 $proofModelHdr = $this->getModel();
                                 foreach ($existingPayments as $ep) {
                                     $epOrders = method_exists($proofModelHdr, 'getOrdersByPaymentProofId') ? $proofModelHdr->getOrdersByPaymentProofId($ep->id ?? 0) : [];
                                     foreach ($epOrders as $epo) {
-                                        $num = $epo->order_number ?? '#' . ($epo->order_id ?? '');
-                                        if (!in_array($num, $allLinkedOrderNums, true)) {
-                                            $allLinkedOrderNums[] = $num;
+                                        $oid = (int) ($epo->order_id ?? 0);
+                                        if ($oid > 0 && in_array($oid, $allLinkedOrderNumIds, true)) {
+                                            continue;
                                         }
+                                        $allLinkedOrderNumIds[] = $oid;
+                                        $allLinkedOrderNums[]   = $epo->order_number ?? '#' . ($epo->order_id ?? '');
                                     }
                                 }
                             }
@@ -270,9 +273,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         <!-- Información de la Orden: subtable of orders associated to payment(s), above the viewer -->
                         <?php
                         $orderInfoRows = [];
+                        $seenOrderIds  = [];
                         foreach ($existingPayments as $proof) {
                             $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                             foreach ($proofOrders as $po) {
+                                $oid = (int) ($po->order_id ?? 0);
+                                if ($oid > 0 && in_array($oid, $seenOrderIds, true)) {
+                                    continue; // skip duplicate order
+                                }
+                                $seenOrderIds[]  = $oid;
                                 $orderInfoRows[] = $po;
                             }
                         }
