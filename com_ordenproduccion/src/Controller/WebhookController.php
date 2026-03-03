@@ -762,13 +762,21 @@ class WebhookController extends BaseController
                 return false;
             }
 
+            $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+            $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+            $hasNumber = isset($pcCols['number']);
+
             $query = $db->getQuery(true)
                 ->select([
                     $db->quoteName('q.id', 'quotation_id'),
                     $db->quoteName('qi.pre_cotizacion_id'),
                     $db->quoteName('pc.descripcion', 'pre_cotizacion_description'),
                 ])
-                ->from($qTable)
+                ->from($qTable);
+            if ($hasNumber) {
+                $query->select($db->quoteName('pc.number', 'pre_cotizacion_number'));
+            }
+            $query
                 ->innerJoin(
                     $qiTable . ' ON ' . $db->quoteName('qi.quotation_id') . ' = ' . $db->quoteName('q.id')
                     . ' AND ' . $db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL'
@@ -804,11 +812,15 @@ class WebhookController extends BaseController
             foreach ($rows as $row) {
                 $preId = (int) $row->pre_cotizacion_id;
                 $value = $this->getPrecotizacionTotalForApi($db, $preId);
+                $preNumber = $hasNumber && isset($row->pre_cotizacion_number) && trim((string) $row->pre_cotizacion_number) !== ''
+                    ? trim((string) $row->pre_cotizacion_number)
+                    : 'PRE-' . str_pad((string) $preId, 5, '0', STR_PAD_LEFT);
                 $data[] = [
-                    'quotation_id'             => (int) $row->quotation_id,
-                    'pre_cotizacion_id'        => $preId,
+                    'quotation_id'              => (int) $row->quotation_id,
+                    'pre_cotizacion_id'         => $preId,
+                    'pre_cotizacion_number'     => $preNumber,
                     'pre_cotizacion_description' => $row->pre_cotizacion_description !== null ? (string) $row->pre_cotizacion_description : '',
-                    'pre_cotizacion_value'     => round((float) $value, 2),
+                    'pre_cotizacion_value'      => round((float) $value, 2),
                 ];
             }
 
