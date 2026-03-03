@@ -722,7 +722,7 @@ class WebhookController extends BaseController
      * No authentication required (request comes from the same website).
      *
      * GET or POST: client_id (required)
-     * Returns JSON: { "success": true, "data": [ { "quotation_id", "pre_cotizacion_id", "pre_cotizacion_description", "pre_cotizacion_value" }, ... ] }
+     * Returns JSON: { "success": true, "data": [ { "quotation_id", "quotation_number" (e.g. COT-000001), "pre_cotizacion_id", "pre_cotizacion_number", "pre_cotizacion_description", "pre_cotizacion_value" }, ... ] }
      *
      * @return  boolean  False to prevent controller from calling display() (no JSON view in site).
      *
@@ -761,6 +761,7 @@ class WebhookController extends BaseController
                 $this->sendErrorResponse('Quotations table does not have client_id.', 500);
                 return false;
             }
+            $hasQuotationNumber = isset($quoteCols['quotation_number']);
 
             $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
             $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
@@ -773,6 +774,9 @@ class WebhookController extends BaseController
                     $db->quoteName('pc.descripcion', 'pre_cotizacion_description'),
                 ])
                 ->from($qTable);
+            if ($hasQuotationNumber) {
+                $query->select('MAX(' . $db->quoteName('q.quotation_number') . ') AS ' . $db->quoteName('quotation_number'));
+            }
             if ($hasNumber) {
                 $query->select($db->quoteName('pc.number', 'pre_cotizacion_number'));
             }
@@ -815,8 +819,13 @@ class WebhookController extends BaseController
                 $preNumber = $hasNumber && isset($row->pre_cotizacion_number) && trim((string) $row->pre_cotizacion_number) !== ''
                     ? trim((string) $row->pre_cotizacion_number)
                     : 'PRE-' . str_pad((string) $preId, 5, '0', STR_PAD_LEFT);
+                $quotationId = (int) $row->quotation_id;
+                $rawCotNumber = $hasQuotationNumber && isset($row->quotation_number) ? trim((string) $row->quotation_number) : '';
+                $cotNumber = $rawCotNumber !== '' ? $rawCotNumber : 'COT-' . str_pad((string) $quotationId, 6, '0', STR_PAD_LEFT);
+                // Always include quotation_number (COT-000001 format) in response
                 $data[] = [
-                    'quotation_id'              => (int) $row->quotation_id,
+                    'quotation_id'              => $quotationId,
+                    'quotation_number'          => $cotNumber,
                     'pre_cotizacion_id'         => $preId,
                     'pre_cotizacion_number'     => $preNumber,
                     'pre_cotizacion_description' => $row->pre_cotizacion_description !== null ? (string) $row->pre_cotizacion_description : '',

@@ -177,7 +177,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex gap-2 align-items-center mb-0">
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <input type="text" id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" value="<?php echo htmlspecialchars($descripcionValue); ?>">
+            <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
             <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
         </form>
         <?php endif; ?>

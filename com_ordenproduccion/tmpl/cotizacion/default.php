@@ -74,6 +74,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         $clientNitPrepop  = (string) ($this->clientNit ?? '');
                         $salesAgentPrepop = (string) ($this->salesAgent ?? '');
                         $readonlyClientName = $clientNamePrepop !== '';
+                        $readonlyClientId   = $clientIdPrepop !== '';
                         $readonlyClientNit  = $clientNitPrepop !== '';
                         $readonlySalesAgent = $salesAgentPrepop !== '';
                         ?>
@@ -91,6 +92,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    id="client_id" 
                                    name="client_id" 
                                    value="<?php echo htmlspecialchars($clientIdPrepop); ?>" 
+                                   <?php if ($readonlyClientId) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    placeholder="e.g. 7"
                                    title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CLIENT_ID_API_DESC', 'External client ID for API (e.g. Odoo partner id). Required for pending pre-cotizaciones API.', 'ID de cliente externo para API (ej. id partner Odoo). Requerido para la API de pre-cotizaciones pendientes.')); ?>">
                         </td>

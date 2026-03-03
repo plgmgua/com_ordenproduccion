@@ -488,7 +488,9 @@ class PrecotizacionController extends BaseController
         }
 
         $id = (int) $this->input->get('id', 0);
-        $descripcion = $this->input->getString('descripcion', '');
+        // Use raw filter so long/special text (e.g. newlines) is saved correctly
+        $descripcion = (string) $this->input->get('descripcion', '', 'raw');
+        $descripcion = trim($descripcion);
 
         if ($id < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
