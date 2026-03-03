@@ -236,26 +236,40 @@ $currency = $quotation->currency ?? 'Q';
                     <?php if (empty($items)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
                     <?php else : ?>
-                        <ul class="list-group list-group-flush">
-                            <?php foreach ($items as $item) :
-                                $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-                                $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
-                                $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
-                                $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                                $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
-                            ?>
-                                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center py-2">
-                                    <div class="flex-grow-1 me-2">
-                                        <strong><?php echo htmlspecialchars($preNum); ?></strong>
-                                        <span class="text-muted small d-block"><?php echo htmlspecialchars($desc !== '' ? $desc : '—'); ?></span>
-                                        <span class="small"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></span>
-                                    </div>
-                                    <?php if ($preId > 0) : ?>
-                                        <a href="<?php echo htmlspecialchars($ordenUrl); ?>" class="btn btn-sm btn-primary mt-1 mt-md-0" target="_blank"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></a>
-                                    <?php endif; ?>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                                        <th style="width: 48%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                                        <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                                        <th style="width: 22%;" class="text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($items as $item) :
+                                        $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                                        $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
+                                        $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
+                                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
+                                        $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
+                                    ?>
+                                        <tr>
+                                            <td class="align-middle"><strong><?php echo htmlspecialchars($preNum); ?></strong></td>
+                                            <td class="align-middle small text-muted"><?php echo htmlspecialchars($desc !== '' ? $desc : '—'); ?></td>
+                                            <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></td>
+                                            <td class="align-middle text-center">
+                                                <?php if ($preId > 0) : ?>
+                                                    <a href="<?php echo htmlspecialchars($ordenUrl); ?>" class="btn btn-sm btn-primary" target="_blank"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></a>
+                                                <?php else : ?>
+                                                    —
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
