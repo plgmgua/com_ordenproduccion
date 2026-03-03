@@ -62,6 +62,10 @@ use Joomla\CMS\Uri\Uri;
                 <i class="icon-link"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_WEBHOOK_CONFIG', 'Webhook Config'); ?>
             </a>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook#webhook-logs'); ?>" class="btn btn-sm btn-outline-primary">
+                <i class="icon-list"></i>
+                <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_WEBHOOK_LOG', 'Webhook Log'); ?>
+            </a>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=settings'); ?>" class="btn btn-sm btn-outline-primary">
                 <i class="icon-options"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_SETTINGS', 'Settings'); ?>
@@ -213,6 +217,58 @@ use Joomla\CMS\Uri\Uri;
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_status=en_proceso'); ?>" class="btn btn-sm btn-dark">
                         <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_IN_PROCESS', 'View In Process'); ?>
                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All backend views (quick links) -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h5 class="card-title mb-0">
+                        <i class="icon-folder-open"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_ALL_VIEWS'); ?>
+                    </h5>
+                </div>
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=dashboard'); ?>" class="btn btn-sm btn-outline-secondary">
+                            <i class="icon-dashboard"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_DASHBOARD', 'Dashboard'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="icon-list"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_ORDERS', 'Orders'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=technicians'); ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="icon-users"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_TECHNICIANS', 'Technicians'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook'); ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="icon-link"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_WEBHOOK', 'Webhook'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook#webhook-logs'); ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="icon-list"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_WEBHOOK_LOG', 'Webhook Log'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=settings'); ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="icon-options"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_SETTINGS', 'Settings'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=testing'); ?>" class="btn btn-sm btn-outline-secondary">
+                            <i class="icon-puzzle"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_TESTING', 'Testing'); ?>
+                        </a>
+                        <?php if ($this->hasPermission('core.admin')): ?>
+                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=debug'); ?>" class="btn btn-sm btn-outline-secondary">
+                                <i class="icon-bug"></i>
+                                <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_DEBUG_CONSOLE', 'Debug'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>

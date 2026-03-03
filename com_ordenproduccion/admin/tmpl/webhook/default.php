@@ -100,7 +100,120 @@ use Joomla\CMS\Session\Session;
         </div>
     </div>
 
-    <!-- Main Content Row -->
+    <!-- Recent Webhook Logs (above the fold, same view as endpoints) -->
+    <div class="row" id="webhook-logs">
+        <div class="col-12">
+            <div class="alert alert-info mb-3">
+                <strong><?php echo Text::_('COM_ORDENPRODUCCION_WEBHOOK_LOGS_NOTE_TITLE'); ?></strong>
+                <?php echo Text::_('COM_ORDENPRODUCCION_WEBHOOK_LOGS_NOTE_FAILED'); ?>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="icon-list"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_RECENT_WEBHOOK_LOGS'); ?>
+                    </h5>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="refreshLogs">
+                            <i class="icon-refresh"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_REFRESH'); ?>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <?php if (!empty($this->logs)): ?>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ENDPOINT_TYPE'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_ID'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TRABAJO'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATA'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_IP'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATE'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($this->logs as $log): ?>
+                                        <tr style="cursor: pointer;" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook&log_id=' . $log->id); ?>'">
+                                            <td>
+                                                <span class="badge bg-<?php echo $log->endpoint_type === 'production' ? 'primary' : 'info'; ?>">
+                                                    <?php echo htmlspecialchars(strtoupper($log->endpoint_type ?? 'N/A')); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-<?php 
+                                                    $status = strtolower($log->status ?? 'pending');
+                                                    echo $status === 'success' ? 'success' : ($status === 'error' ? 'danger' : 'warning'); 
+                                                ?>">
+                                                    <?php echo htmlspecialchars($log->status ?? 'Pending'); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <?php if (!empty($log->order_id)): ?>
+                                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $log->order_id); ?>" 
+                                                       onclick="event.stopPropagation();" target="_blank" 
+                                                       class="badge bg-success">
+                                                        ID: <?php echo (int) $log->order_id; ?>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if (!empty($log->orden_de_trabajo)): ?>
+                                                    <span class="badge bg-primary">
+                                                        <?php echo htmlspecialchars($log->orden_de_trabajo); ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <div class="log-data">
+                                                    <?php 
+                                                    $requestBody = json_decode($log->request_body ?? '', true);
+                                                    if (isset($requestBody['form_data']['cliente'])) {
+                                                        echo '<strong>' . htmlspecialchars($requestBody['form_data']['cliente']) . '</strong><br>';
+                                                        if (isset($requestBody['form_data']['descripcion_trabajo'])) {
+                                                            echo '<small class="text-muted">' . htmlspecialchars(substr($requestBody['form_data']['descripcion_trabajo'], 0, 40)) . '...</small>';
+                                                        }
+                                                    } else {
+                                                        echo '<small class="text-muted">' . htmlspecialchars(substr($log->request_body ?? 'No data', 0, 60)) . '...</small>';
+                                                    }
+                                                    ?>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    <?php 
+                                                    $headers = json_decode($log->request_headers ?? '{}', true);
+                                                    echo htmlspecialchars($headers['REMOTE-ADDR'] ?? $headers['X-FORWARDED-FOR'] ?? 'N/A'); 
+                                                    ?>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted"><?php echo $this->formatDate($log->created); ?></small>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div class="text-center py-4">
+                            <i class="icon-list icon-3x text-muted"></i>
+                            <p class="text-muted mt-2"><?php echo Text::_('COM_ORDENPRODUCCION_NO_WEBHOOK_LOGS'); ?></p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row: Webhook URLs and Info -->
     <div class="row">
         <!-- Webhook Configuration -->
         <div class="col-lg-6 mb-4">
@@ -227,115 +340,6 @@ use Joomla\CMS\Session\Session;
                             </ul>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Webhook Logs -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">
-                        <i class="icon-list"></i>
-                        <?php echo Text::_('COM_ORDENPRODUCCION_RECENT_WEBHOOK_LOGS'); ?>
-                    </h5>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="refreshLogs">
-                            <i class="icon-refresh"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_REFRESH'); ?>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <?php if (!empty($this->logs)): ?>
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ENDPOINT_TYPE'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_ID'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TRABAJO'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATA'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_IP'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_LOG_DATE'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($this->logs as $log): ?>
-                                        <tr style="cursor: pointer;" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook&log_id=' . $log->id); ?>'">
-                                            <td>
-                                                <span class="badge bg-<?php echo $log->endpoint_type === 'production' ? 'primary' : 'info'; ?>">
-                                                    <?php echo htmlspecialchars(strtoupper($log->endpoint_type ?? 'N/A')); ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-<?php 
-                                                    $status = strtolower($log->status ?? 'pending');
-                                                    echo $status === 'success' ? 'success' : ($status === 'error' ? 'danger' : 'warning'); 
-                                                ?>">
-                                                    <?php echo htmlspecialchars($log->status ?? 'Pending'); ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <?php if (!empty($log->order_id)): ?>
-                                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $log->order_id); ?>" 
-                                                       onclick="event.stopPropagation();" target="_blank" 
-                                                       class="badge bg-success">
-                                                        ID: <?php echo (int) $log->order_id; ?>
-                                                    </a>
-                                                <?php else: ?>
-                                                    <span class="text-muted">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <?php if (!empty($log->orden_de_trabajo)): ?>
-                                                    <span class="badge bg-primary">
-                                                        <?php echo htmlspecialchars($log->orden_de_trabajo); ?>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="text-muted">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <div class="log-data">
-                                                    <?php 
-                                                    $requestBody = json_decode($log->request_body ?? '', true);
-                                                    if (isset($requestBody['form_data']['cliente'])) {
-                                                        echo '<strong>' . htmlspecialchars($requestBody['form_data']['cliente']) . '</strong><br>';
-                                                        if (isset($requestBody['form_data']['descripcion_trabajo'])) {
-                                                            echo '<small class="text-muted">' . htmlspecialchars(substr($requestBody['form_data']['descripcion_trabajo'], 0, 40)) . '...</small>';
-                                                        }
-                                                    } else {
-                                                        echo '<small class="text-muted">' . htmlspecialchars(substr($log->request_body ?? 'No data', 0, 60)) . '...</small>';
-                                                    }
-                                                    ?>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <small class="text-muted">
-                                                    <?php 
-                                                    $headers = json_decode($log->request_headers ?? '{}', true);
-                                                    echo htmlspecialchars($headers['REMOTE-ADDR'] ?? $headers['X-FORWARDED-FOR'] ?? 'N/A'); 
-                                                    ?>
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <small class="text-muted"><?php echo $this->formatDate($log->created); ?></small>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php else: ?>
-                        <div class="text-center py-4">
-                            <i class="icon-list icon-3x text-muted"></i>
-                            <p class="text-muted mt-2"><?php echo Text::_('COM_ORDENPRODUCCION_NO_WEBHOOK_LOGS'); ?></p>
-                        </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>

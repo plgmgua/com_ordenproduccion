@@ -717,6 +717,119 @@ class WebhookController extends BaseController
     }
 
     /**
+     * Pending pre-cotizaciones API: returns cotizaciones for a client whose pre-cotizaciones
+     * do not yet have an orden de trabajo. For use by another component on the same site via API.
+     * No authentication required (request comes from the same website).
+     *
+     * GET or POST: client_id (required)
+     * Returns JSON: { "success": true, "data": [ { "quotation_id", "pre_cotizacion_id", "pre_cotizacion_description", "pre_cotizacion_value" }, ... ] }
+     *
+     * @return  boolean  False to prevent controller from calling display() (no JSON view in site).
+     *
+     * @since   3.81.0
+     */
+    public function pendingPrecotizaciones()
+    {
+        $this->app->setHeader('Content-Type', 'application/json; charset=utf-8');
+        $startTime = microtime(true);
+
+        $clientId = $this->input->getString('client_id', '');
+        if ($clientId === '' && $this->input->getMethod() === 'POST') {
+            $raw = file_get_contents('php://input');
+            $body = is_string($raw) ? json_decode($raw, true) : [];
+            $clientId = isset($body['client_id']) ? (string) $body['client_id'] : '';
+        }
+        $clientId = trim($clientId);
+        if ($clientId === '') {
+            $this->logError('client_id is required', 'pending_precotizaciones', $startTime);
+            $this->sendErrorResponse('client_id is required', 400);
+            return false;
+        }
+
+        $this->logToFile('[PENDING_PRECOTIZACIONES] Request client_id=' . $clientId);
+
+        try {
+            $db = Factory::getDbo();
+            $qTable = $db->quoteName('#__ordenproduccion_quotations', 'q');
+            $qiTable = $db->quoteName('#__ordenproduccion_quotation_items', 'qi');
+            $pcTable = $db->quoteName('#__ordenproduccion_pre_cotizacion', 'pc');
+
+            $quoteCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $quoteCols = is_array($quoteCols) ? array_change_key_case($quoteCols, CASE_LOWER) : [];
+            if (!isset($quoteCols['client_id'])) {
+                $this->logError('Quotations table does not have client_id.', 'pending_precotizaciones', $startTime);
+                $this->sendErrorResponse('Quotations table does not have client_id.', 500);
+                return false;
+            }
+
+            $query = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('q.id', 'quotation_id'),
+                    $db->quoteName('qi.pre_cotizacion_id'),
+                    $db->quoteName('pc.descripcion', 'pre_cotizacion_description'),
+                ])
+                ->from($qTable)
+                ->innerJoin(
+                    $qiTable . ' ON ' . $db->quoteName('qi.quotation_id') . ' = ' . $db->quoteName('q.id')
+                    . ' AND ' . $db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL'
+                )
+                ->innerJoin(
+                    $pcTable . ' ON ' . $db->quoteName('pc.id') . ' = ' . $db->quoteName('qi.pre_cotizacion_id')
+                    . ' AND ' . $db->quoteName('pc.state') . ' = 1'
+                )
+                ->where($db->quoteName('q.state') . ' = 1')
+                ->where($db->quoteName('q.client_id') . ' = ' . $db->quote($clientId));
+
+            $ordenesCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $ordenesCols = is_array($ordenesCols) ? array_change_key_case($ordenesCols, CASE_LOWER) : [];
+            if (isset($ordenesCols['pre_cotizacion_id'])) {
+                $oTable = $db->quoteName('#__ordenproduccion_ordenes', 'o');
+                $query->leftJoin(
+                    $oTable . ' ON ' . $db->quoteName('o.pre_cotizacion_id') . ' = ' . $db->quoteName('qi.pre_cotizacion_id')
+                    . ' AND ' . $db->quoteName('o.state') . ' = 1'
+                )
+                    ->where($db->quoteName('o.id') . ' IS NULL');
+            }
+
+            $query->group([$db->quoteName('q.id'), $db->quoteName('qi.pre_cotizacion_id')]);
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+
+            $data = [];
+            foreach ($rows as $row) {
+                $preId = (int) $row->pre_cotizacion_id;
+                $value = $this->getPrecotizacionTotalForApi($db, $preId);
+                $data[] = [
+                    'quotation_id'             => (int) $row->quotation_id,
+                    'pre_cotizacion_id'        => $preId,
+                    'pre_cotizacion_description' => $row->pre_cotizacion_description !== null ? (string) $row->pre_cotizacion_description : '',
+                    'pre_cotizacion_value'     => round((float) $value, 2),
+                ];
+            }
+
+            $response = [
+                'success' => true,
+                'message' => 'Pending pre-cotizaciones for client',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'data' => $data,
+            ];
+            $this->logToDatabase('webhook_request', [
+                'data' => json_encode(['client_id' => $clientId, 'result_count' => count($data)]),
+                'timestamp' => date('Y-m-d H:i:s'),
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            ], 'pending_precotizaciones', $startTime);
+            echo json_encode($response);
+            $this->app->close();
+            return false;
+        } catch (\Throwable $e) {
+            Log::add('pendingPrecotizaciones error: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+            $this->logError($e->getMessage(), 'pending_precotizaciones', $startTime);
+            $this->sendErrorResponse('Internal server error', 500);
+            return false;
+        }
+    }
+
+    /**
      * Health check endpoint
      *
      * @return  void
@@ -736,6 +849,60 @@ class WebhookController extends BaseController
         $this->app->setHeader('Status', '200');
         echo json_encode($response);
         $this->app->close();
+    }
+
+    /**
+     * Get pre-cotización total for API (no user check). Mirrors PrecotizacionModel::getTotalForPreCotizacion.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db    Database
+     * @param   int                                 $preId Pre-cotización id
+     *
+     * @return  float
+     *
+     * @since   3.81.0
+     */
+    protected function getPrecotizacionTotalForApi($db, $preId)
+    {
+        $preId = (int) $preId;
+        if ($preId < 1) {
+            return 0.0;
+        }
+        $lineTable = $db->quoteName('#__ordenproduccion_pre_cotizacion_line', 'l');
+        $subQuery = $db->getQuery(true)
+            ->select('SUM(' . $db->quoteName('l.total') . ')')
+            ->from($lineTable)
+            ->where($db->quoteName('l.pre_cotizacion_id') . ' = ' . $preId);
+        $lineCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $lineCols = is_array($lineCols) ? array_change_key_case($lineCols, CASE_LOWER) : [];
+        if (isset($lineCols['line_type'])) {
+            $subQuery->where('(' . $db->quoteName('l.line_type') . ' IS NULL OR ' . $db->quoteName('l.line_type') . ' != ' . $db->quote('envio') . ')');
+        }
+        $db->setQuery($subQuery);
+        $subtotal = (float) $db->loadResult();
+
+        $facturar = false;
+        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+        if (isset($pcCols['facturar'])) {
+            $headerQuery = $db->getQuery(true)
+                ->select($db->quoteName('facturar'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $preId)
+                ->where($db->quoteName('state') . ' = 1');
+            $db->setQuery($headerQuery);
+            $header = $db->loadObject();
+            $facturar = $header && !empty($header->facturar);
+        }
+
+        $params = \Joomla\CMS\Component\ComponentHelper::getParams('com_ordenproduccion');
+        $margen = (float) $params->get('margen_ganancia', 0);
+        $iva = (float) $params->get('iva', 0);
+        $isr = (float) $params->get('isr', 0);
+        $comision = (float) $params->get('comision_venta', 0);
+        if ($facturar) {
+            return round($subtotal + $subtotal * ($margen + $iva + $isr + $comision) / 100, 2);
+        }
+        return round($subtotal + $subtotal * ($margen + $comision) / 100, 2);
     }
 
     /**
