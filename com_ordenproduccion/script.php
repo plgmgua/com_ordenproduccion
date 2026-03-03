@@ -12,6 +12,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\Installer\InstallerAdapter;
 use Joomla\CMS\Language\LanguageHelper;
 use Joomla\CMS\Log\Log;
@@ -70,6 +71,118 @@ function copyAdminLanguageToSystem(InstallerAdapter $parent)
 }
 
 /**
+ * Ensure a frontend menu item with alias "cotizacion" exists so SEF URL /cotizacion works.
+ * Called on install/update so that index.php/cotizacion?client_id=7&... resolves to the component.
+ *
+ * @return  bool
+ */
+function ensureCotizacionMenuItem()
+{
+    try {
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('extension_id'))
+            ->from($db->quoteName('#__extensions'))
+            ->where($db->quoteName('type') . ' = ' . $db->quote('component'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'));
+        $db->setQuery($query);
+        $componentId = (int) $db->loadResult();
+        if ($componentId < 1) {
+            return true;
+        }
+
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__menu'))
+            ->where($db->quoteName('alias') . ' = ' . $db->quote('cotizacion'))
+            ->where($db->quoteName('client_id') . ' = 0')
+            ->where($db->quoteName('link') . ' LIKE ' . $db->quote('%option=com_ordenproduccion%view=cotizacion%'));
+        $db->setQuery($query);
+        $existing = (int) $db->loadResult();
+        if ($existing > 0) {
+            return true;
+        }
+
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('menutype'))
+            ->from($db->quoteName('#__menu_types'))
+            ->where($db->quoteName('client_id') . ' = 0')
+            ->order($db->quoteName('id') . ' ASC')
+            ->setLimit(1);
+        $db->setQuery($query);
+        $menutype = $db->loadResult();
+        if (!$menutype) {
+            $menutype = 'main';
+        }
+
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('rgt'))
+            ->from($db->quoteName('#__menu'))
+            ->where($db->quoteName('id') . ' = 1');
+        $db->setQuery($query);
+        $rootRgt = (int) $db->loadResult();
+        if ($rootRgt < 1) {
+            return true;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__menu'))
+                ->set($db->quoteName('rgt') . ' = ' . $db->quoteName('rgt') . ' + 2')
+                ->where($db->quoteName('rgt') . ' >= ' . $rootRgt)
+        )->execute();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__menu'))
+                ->set($db->quoteName('lft') . ' = ' . $db->quoteName('lft') . ' + 2')
+                ->where($db->quoteName('lft') . ' > ' . $rootRgt)
+        )->execute();
+
+        $columns = [
+            'menutype', 'title', 'alias', 'path', 'link', 'type', 'published',
+            'parent_id', 'level', 'component_id', 'access', 'language', 'client_id',
+            'lft', 'rgt',
+        ];
+        $values = [
+            $db->quote($menutype),
+            $db->quote('Cotización'),
+            $db->quote('cotizacion'),
+            $db->quote('cotizacion'),
+            $db->quote('index.php?option=com_ordenproduccion&view=cotizacion'),
+            $db->quote('component'),
+            '1',
+            '1',
+            '1',
+            (string) $componentId,
+            '1',
+            $db->quote('*'),
+            '0',
+            (string) $rootRgt,
+            (string) ($rootRgt + 1),
+        ];
+        $db->setQuery(
+            $db->getQuery(true)
+                ->insert($db->quoteName('#__menu'))
+                ->columns($db->quoteName($columns))
+                ->values(implode(', ', $values))
+        )->execute();
+        try {
+            Log::add('com_ordenproduccion: created menu item alias "cotizacion" for SEF URL.', Log::INFO, 'com_ordenproduccion');
+        } catch (\Exception $e) {
+            // ignore
+        }
+        return true;
+    } catch (\Throwable $e) {
+        try {
+            Log::add('com_ordenproduccion: ensureCotizacionMenuItem: ' . $e->getMessage(), Log::WARNING, 'com_ordenproduccion');
+        } catch (\Exception $e2) {
+            // ignore
+        }
+        return true;
+    }
+}
+
+/**
  * Script run on extension install.
  *
  * @param   InstallerAdapter  $parent  The installer adapter
@@ -78,7 +191,9 @@ function copyAdminLanguageToSystem(InstallerAdapter $parent)
  */
 function com_install($parent)
 {
-    return copyAdminLanguageToSystem($parent);
+    copyAdminLanguageToSystem($parent);
+    ensureCotizacionMenuItem();
+    return true;
 }
 
 /**
@@ -90,5 +205,7 @@ function com_install($parent)
  */
 function com_update($parent)
 {
-    return copyAdminLanguageToSystem($parent);
+    copyAdminLanguageToSystem($parent);
+    ensureCotizacionMenuItem();
+    return true;
 }
