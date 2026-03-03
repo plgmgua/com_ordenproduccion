@@ -187,8 +187,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <label class="me-2"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT', 'Pre-Quotation', 'Pre-Cotización'); ?></label>
                     <select id="precotizacionSelect" class="form-select form-select-sm cotizacion-precotizacion-select">
                         <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
-                        <?php foreach ($this->preCotizacionesList ?? [] as $pre) :
+                        <?php
+                        $precotizacionDescriptions = [];
+                        foreach ($this->preCotizacionesList ?? [] as $pre) :
                             $desc = isset($pre->descripcion) ? trim((string) $pre->descripcion) : '';
+                            $precotizacionDescriptions[(int) $pre->id] = $desc;
                             $label = $pre->number . ($desc !== '' ? ' — ' . $desc : '');
                             if (mb_strlen($label) > 120) {
                                 $label = mb_substr($label, 0, 117) . '...';
@@ -310,17 +313,27 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     const tbody = document.getElementById('quotationItemsBody');
     let lineIndex = <?php echo isset($lineIndex) ? (int)$lineIndex : 0; ?>;
 
-    // Auto-fill description when a pre-cotización is selected
+    // Pre-cotización descriptions from server (reliable for long/special chars), fallback to data-descripcion
+    var precotizacionDescriptions = <?php echo json_encode($precotizacionDescriptions ?? []); ?>;
+
+    function fillDescriptionFromPrecotizacion() {
+        if (!selectEl || !descEl) return;
+        var opt = selectEl.options[selectEl.selectedIndex];
+        if (opt && opt.value) {
+            var preId = String(opt.value);
+            var preDesc = (precotizacionDescriptions[preId] !== undefined && precotizacionDescriptions[preId] !== null)
+                ? String(precotizacionDescriptions[preId])
+                : (opt.getAttribute('data-descripcion') || '');
+            descEl.value = preDesc;
+        } else {
+            descEl.value = '';
+        }
+    }
+
+    // Auto-fill description when a pre-cotización is selected (and on load if one is already selected)
     if (selectEl && descEl) {
-        selectEl.addEventListener('change', function() {
-            var opt = selectEl.options[selectEl.selectedIndex];
-            if (opt && opt.value) {
-                var preDesc = opt.getAttribute('data-descripcion') || '';
-                descEl.value = preDesc;
-            } else {
-                descEl.value = '';
-            }
-        });
+        selectEl.addEventListener('change', fillDescriptionFromPrecotizacion);
+        fillDescriptionFromPrecotizacion();
     }
 
     function escapeAttr(s) {
