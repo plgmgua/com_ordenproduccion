@@ -40,23 +40,26 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 <style>
 .admin-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 0;
     border-bottom: 3px solid #dee2e6;
     margin-bottom: 30px;
 }
 
 .admin-tab {
-    padding: 15px 30px;
+    padding: 8px 12px;
     background: transparent;
     border: none;
     border-bottom: 3px solid transparent;
     margin-bottom: -3px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
     font-weight: 600;
     color: #666;
     text-decoration: none;
     transition: all 0.3s;
+    white-space: nowrap;
+    text-align: center;
 }
 
 .admin-tab:hover {
@@ -71,7 +74,9 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 }
 
 .admin-tab i {
-    margin-right: 8px;
+    display: block;
+    font-size: 14px;
+    margin-bottom: 3px;
 }
 
 .tab-content {
