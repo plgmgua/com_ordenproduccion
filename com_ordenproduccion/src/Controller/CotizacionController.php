@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Filesystem\File;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
@@ -274,6 +275,176 @@ class CotizacionController extends BaseController
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_PDF_GENERATION') . ': ' . $e->getMessage(), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
         }
+    }
+
+    /**
+     * Save Confirmar Cotización step 1: signed document (PDF or image) upload.
+     *
+     * @return  void
+     * @since   3.80.0
+     */
+    public function saveConfirmarStep1()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $quotationId = (int) $app->input->getInt('id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . $quotationId)
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        if (!$db->loadResult()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $file = $app->input->files->get('signed_document', [], 'array');
+        if (empty($file['name']) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_NO_FILE'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $phpError = (int) ($file['error'] ?? 0);
+        if ($phpError !== UPLOAD_ERR_OK) {
+            $messages = [
+                UPLOAD_ERR_INI_SIZE   => 'El archivo supera el límite de tamaño del servidor.',
+                UPLOAD_ERR_FORM_SIZE  => 'El archivo supera el límite del formulario.',
+                UPLOAD_ERR_PARTIAL    => 'El archivo fue subido parcialmente.',
+                UPLOAD_ERR_NO_FILE     => 'No se seleccionó ningún archivo.',
+                UPLOAD_ERR_NO_TMP_DIR  => 'Falta la carpeta temporal.',
+                UPLOAD_ERR_CANT_WRITE  => 'No se pudo escribir el archivo.',
+                UPLOAD_ERR_EXTENSION   => 'Una extensión bloqueó la subida.',
+            ];
+            $app->enqueueMessage($messages[$phpError] ?? 'Error al subir el archivo.', 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
+        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed, true)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_INVALID_FILE_TYPE'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $maxSize = 5 * 1024 * 1024;
+        if ((int) ($file['size'] ?? 0) > $maxSize) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FILE_TOO_BIG'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/cotizacion_signed';
+        if (!is_dir($uploadDir)) {
+            if (!@mkdir($uploadDir, 0755, true)) {
+                $app->enqueueMessage('No se pudo crear el directorio de subida.', 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+                return;
+            }
+        }
+        if (!is_writable($uploadDir)) {
+            $app->enqueueMessage('El directorio de subida no tiene permisos de escritura.', 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $uniqueName = 'cotizacion_' . $quotationId . '_' . date('Y-m-d_H-i-s') . '.' . $ext;
+        $fullPath = $uploadDir . '/' . $uniqueName;
+        if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            $app->enqueueMessage('No se pudo guardar el archivo.', 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $relativePath = 'media/com_ordenproduccion/cotizacion_signed/' . $uniqueName;
+        $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['signed_document_path'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $update = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_quotations'))
+            ->set($db->quoteName('signed_document_path') . ' = ' . $db->quote($relativePath))
+            ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+            ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+            ->where($db->quoteName('id') . ' = ' . $quotationId);
+        $db->setQuery($update);
+        $db->execute();
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
+     * Save Confirmar Cotización step 2: billing instructions (Instrucciones de Facturación).
+     *
+     * @return  void
+     * @since   3.80.0
+     */
+    public function saveConfirmarStep2()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $quotationId = (int) $app->input->getInt('id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . $quotationId)
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        if (!$db->loadResult()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $instrucciones = $app->input->post->getString('instrucciones_facturacion', '');
+        $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['instrucciones_facturacion'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $update = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_quotations'))
+            ->set($db->quoteName('instrucciones_facturacion') . ' = ' . $db->quote($instrucciones))
+            ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+            ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+            ->where($db->quoteName('id') . ' = ' . $quotationId);
+        $db->setQuery($update);
+        $db->execute();
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
     }
 
     /**
