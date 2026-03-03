@@ -47,7 +47,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         <?php if ($quotationId) : ?>
         <input type="hidden" name="quotation_id" id="quotation_id" value="<?php echo $quotationId; ?>">
         <?php endif; ?>
-        <input type="hidden" name="client_id" id="client_id" value="<?php echo htmlspecialchars($this->clientId ?? ''); ?>">
+        <!-- Client ID is in the client table below (visible field for API) -->
 
         <!-- Client Information Section -->
         <div class="client-info-section">
@@ -59,9 +59,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             <table class="client-table">
                 <thead>
                     <tr>
-                        <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
-                        <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
-                        <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?></th>
+                        <th style="width: 25%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
+                        <th style="width: 15%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_ID_API', 'Client ID (API)', 'Client ID (API)'); ?></th>
+                        <th style="width: 15%;"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
+                        <th style="width: 25%;"><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?></th>
                         <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Sales Agent', 'Agente de ventas'); ?></th>
                     </tr>
                 </thead>
@@ -69,6 +70,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <tr>
                         <?php
                         $clientNamePrepop = (string) ($this->clientName ?? '');
+                        $clientIdPrepop   = (string) ($this->clientId ?? '');
                         $clientNitPrepop  = (string) ($this->clientNit ?? '');
                         $salesAgentPrepop = (string) ($this->salesAgent ?? '');
                         $readonlyClientName = $clientNamePrepop !== '';
@@ -83,6 +85,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                    <?php if ($readonlyClientName) : ?>readonly class="readonly-prepop"<?php endif; ?>
                                    required 
                                    placeholder="<?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?>">
+                        </td>
+                        <td>
+                            <input type="text" 
+                                   id="client_id" 
+                                   name="client_id" 
+                                   value="<?php echo htmlspecialchars($clientIdPrepop); ?>" 
+                                   placeholder="e.g. 7"
+                                   title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CLIENT_ID_API_DESC', 'External client ID for API (e.g. Odoo partner id). Required for pending pre-cotizaciones API.', 'ID de cliente externo para API (ej. id partner Odoo). Requerido para la API de pre-cotizaciones pendientes.')); ?>">
                         </td>
                         <td>
                             <input type="text" 

@@ -777,8 +777,13 @@ class WebhookController extends BaseController
                     $pcTable . ' ON ' . $db->quoteName('pc.id') . ' = ' . $db->quoteName('qi.pre_cotizacion_id')
                     . ' AND ' . $db->quoteName('pc.state') . ' = 1'
                 )
-                ->where($db->quoteName('q.state') . ' = 1')
-                ->where($db->quoteName('q.client_id') . ' = ' . $db->quote($clientId));
+                ->where($db->quoteName('q.state') . ' = 1');
+            // Match client_id as number when possible (DB may store int; request may send "7")
+            if (is_numeric($clientId)) {
+                $query->where($db->quoteName('q.client_id') . ' = ' . (int) $clientId);
+            } else {
+                $query->where($db->quoteName('q.client_id') . ' = ' . $db->quote($clientId));
+            }
 
             $ordenesCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
             $ordenesCols = is_array($ordenesCols) ? array_change_key_case($ordenesCols, CASE_LOWER) : [];

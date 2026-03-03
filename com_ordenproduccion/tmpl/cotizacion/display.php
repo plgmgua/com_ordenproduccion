@@ -67,21 +67,35 @@ $currency = $quotation->currency ?? 'Q';
         <table class="table table-bordered">
             <thead>
                 <tr>
-                    <th style="width: 25%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
-                    <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
-                    <th style="width: 35%;"><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?></th>
+                    <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
+                    <th style="width: 15%;"><?php echo $l('COM_ORDENPRODUCCION_CLIENT_ID_API', 'Client ID (API)', 'Client ID (API)'); ?></th>
+                    <th style="width: 15%;"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
+                    <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Address', 'Dirección'); ?></th>
                     <th style="width: 20%;"><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Sales Agent', 'Agente de ventas'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td><?php echo htmlspecialchars($quotation->client_name ?? ''); ?></td>
+                    <td><?php
+                        $cid = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
+                        if ($cid !== '') {
+                            echo '<code>' . htmlspecialchars($cid) . '</code>';
+                        } else {
+                            echo '<span class="text-muted">—</span>';
+                        }
+                    ?></td>
                     <td><?php echo htmlspecialchars($quotation->client_nit ?? ''); ?></td>
                     <td><?php echo htmlspecialchars($quotation->client_address ?? ''); ?></td>
                     <td><?php echo htmlspecialchars($quotation->sales_agent ?? ''); ?></td>
                 </tr>
             </tbody>
         </table>
+        <?php if (empty($quotation->client_id) || trim((string) $quotation->client_id) === ''): ?>
+        <p class="small text-warning mb-0 mt-1">
+            <?php echo $l('COM_ORDENPRODUCCION_CLIENT_ID_MISSING_NOTE', 'Client ID is empty. The pending pre-cotizaciones API requires client_id; edit the quotation and set the client ID (e.g. from Odoo) so this cotización appears when querying by client_id.', 'El Client ID está vacío. La API de pre-cotizaciones pendientes requiere client_id; edite la cotización y asigne el ID del cliente (ej. desde Odoo) para que aparezca al consultar por client_id.'); ?>
+        </p>
+        <?php endif; ?>
     </div>
 
     <!-- Contact Information -->
