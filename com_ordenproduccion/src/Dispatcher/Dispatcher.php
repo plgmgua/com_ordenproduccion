@@ -51,8 +51,9 @@ class Dispatcher extends ComponentDispatcher
         // (site has no webhook JsonView, so the default MVC flow would throw "Vista no encontrada")
         // Use case-insensitive check: getCmd() or routing may return task in lowercase
         if ($taskLower === 'webhook.pendingprecotizaciones') {
-            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
-            $controller = $component->getMVCFactory()->createController('Webhook', 'Site');
+            $app = Factory::getApplication();
+            $component = $app->bootComponent('com_ordenproduccion');
+            $controller = $component->getMVCFactory()->createController('Webhook', 'Site', [], $app, $this->input);
             $controller->pendingPrecotizaciones();
             return;
         }

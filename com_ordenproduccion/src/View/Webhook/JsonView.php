@@ -35,7 +35,7 @@ class JsonView extends BaseJsonView
     {
         $app = Factory::getApplication();
         $component = $app->bootComponent('com_ordenproduccion');
-        $controller = $component->getMVCFactory()->createController('Webhook', 'Site');
+        $controller = $component->getMVCFactory()->createController('Webhook', 'Site', [], $app, $app->input);
         $controller->pendingPrecotizaciones();
     }
 }
