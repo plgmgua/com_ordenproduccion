@@ -412,7 +412,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     }
                                     ?>
                                     <tr>
-                                        <td colspan="2" class="small text-end <?php echo $diffClass; ?>"><?php if ($mismatchNoteDisplay !== '') : ?><span class="text-muted" title="<?php echo htmlspecialchars($mismatchNoteDisplay); ?>"><?php echo htmlspecialchars(mb_strlen($mismatchNoteDisplay) > 50 ? mb_substr($mismatchNoteDisplay, 0, 47) . '…' : $mismatchNoteDisplay); ?></span> — <?php endif; ?>Diferencia:</td>
+                                        <td colspan="2" class="small text-end <?php echo $diffClass; ?>"><?php if ($mismatchNoteDisplay !== '') : ?><span class="<?php echo $diffClass; ?>" style="word-break: break-word; text-align: justify; display: inline-block; max-width: 100%;" title="<?php echo htmlspecialchars($mismatchNoteDisplay); ?>"><?php echo htmlspecialchars($mismatchNoteDisplay); ?></span> — <?php endif; ?>Diferencia:</td>
                                         <td class="small <?php echo $diffClass; ?>"><?php echo ($diff >= 0 ? '+' : '') . 'Q ' . number_format($diff, 2); ?></td>
                                         <td></td>
                                     </tr>
