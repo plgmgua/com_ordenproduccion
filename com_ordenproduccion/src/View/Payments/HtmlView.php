@@ -169,12 +169,11 @@ class HtmlView extends BaseHtmlView
             return '-';
         }
 
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            $timestamp = strtotime($date);
-            return date('d F Y', $timestamp);
+        $timestamp = strtotime($date);
+        if ($timestamp === false) {
+            return '-';
         }
-
-        return HTMLHelper::_('date', $date, Text::_('DATE_FORMAT_LC3'));
+        return date('d/m/Y', $timestamp);
     }
 
     /**
