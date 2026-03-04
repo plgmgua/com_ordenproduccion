@@ -146,13 +146,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                             $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
-                                            if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
-                                                echo '<br><form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline mt-1">';
-                                                echo HTMLHelper::_('form.token');
-                                                echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
-                                                echo '<button type="submit" class="btn btn-xs btn-success" title="' . htmlspecialchars($this->labelMarkVerificado ?? 'Marcar como Verificado') . '"><i class="fas fa-check me-1"></i>' . htmlspecialchars($this->labelVerificado ?? 'Verificado') . '</button>';
-                                                echo '</form>';
-                                            }
                                         }
                                     ?></td>
                                     <td><?php
@@ -169,21 +162,32 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     }
                                                 }
                                             } else {
-                                                echo '<span class="text-muted me-1">—</span>';
+                                                echo '<span class="text-muted">—</span>';
                                             }
-                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary ms-1 toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                         }
                                     ?></td>
                                     <td class="align-top"><?php
                                         if ($line === reset($lines)) {
                                             $pn = trim((string)($proof->mismatch_note ?? ''));
                                             if ($pn !== '') {
-                                                echo '<span class="small text-muted" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span><br>';
+                                                echo '<span class="small text-muted d-block" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span>';
+                                            }
+                                            $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
+                                            $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
+                                            echo '<div class="payment-proof-actions-row mt-1">';
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
+                                            if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
+                                                echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
+                                                echo HTMLHelper::_('form.token');
+                                                echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
+                                                echo '<button type="submit" class="btn btn-sm btn-success payment-proof-action-btn" title="' . htmlspecialchars($this->labelMarkVerificado ?? 'Marcar como Verificado') . '"><i class="fas fa-check"></i></button>';
+                                                echo '</form>';
                                             }
                                             if (!empty($this->canEditNoteOrAssociateOrder)) {
-                                                echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
-                                                echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                                echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit"></i></button>';
+                                                echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link"></i></button>';
                                             }
+                                            echo '</div>';
                                         }
                                     ?></td>
                                 </tr>
@@ -227,13 +231,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                         echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
-                                        if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
-                                            echo '<br><form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline mt-1">';
-                                            echo HTMLHelper::_('form.token');
-                                            echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
-                                            echo '<button type="submit" class="btn btn-xs btn-success" title="' . htmlspecialchars($this->labelMarkVerificado ?? 'Marcar como Verificado') . '"><i class="fas fa-check me-1"></i>' . htmlspecialchars($this->labelVerificado ?? 'Verificado') . '</button>';
-                                            echo '</form>';
-                                        }
                                     ?></td>
                                     <td><?php
                                         $proofFiles2 = $this->getProofFiles($proof);
@@ -248,19 +245,30 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 }
                                             }
                                         } else {
-                                            echo '<span class="text-muted me-1">—</span>';
+                                            echo '<span class="text-muted">—</span>';
                                         }
-                                        echo '<button type="button" class="btn btn-xs btn-outline-secondary ms-1 toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                     ?></td>
                                     <td class="align-top"><?php
                                         $pn = trim((string)($proof->mismatch_note ?? ''));
                                         if ($pn !== '') {
-                                            echo '<span class="small text-muted" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span><br>';
+                                            echo '<span class="small text-muted d-block" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span>';
+                                        }
+                                        $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
+                                        $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
+                                        echo '<div class="payment-proof-actions-row mt-1">';
+                                        echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
+                                        if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
+                                            echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
+                                            echo HTMLHelper::_('form.token');
+                                            echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
+                                            echo '<button type="submit" class="btn btn-sm btn-success payment-proof-action-btn" title="' . htmlspecialchars($this->labelMarkVerificado ?? 'Marcar como Verificado') . '"><i class="fas fa-check"></i></button>';
+                                            echo '</form>';
                                         }
                                         if (!empty($this->canEditNoteOrAssociateOrder)) {
-                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
-                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit"></i></button>';
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link"></i></button>';
                                         }
+                                        echo '</div>';
                                     ?></td>
                                 </tr>
                                 <tr>
