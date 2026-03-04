@@ -556,7 +556,7 @@ class PaymentproofModel extends ItemModel
             $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
             $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
             $verifiedCondition = isset($ppCols['verification_status'])
-                ? " AND (pp.verification_status = 'verificado' OR pp.verification_status IS NULL)"
+                ? " AND pp.verification_status = 'verificado'"
                 : '';
             $query = $db->getQuery(true)
                 ->select('COALESCE(SUM(po.amount_applied), 0)')
@@ -586,7 +586,7 @@ class PaymentproofModel extends ItemModel
             $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
             $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
             if (isset($ppCols['verification_status'])) {
-                $query->where("(pp.verification_status = 'verificado' OR pp.verification_status IS NULL)");
+                $query->where("pp.verification_status = 'verificado'");
             }
             $db->setQuery($query);
             return (float) $db->loadResult();

@@ -176,8 +176,8 @@ use Joomla\CMS\Session\Session;
                                         <td><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
                                         <td><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
                                         <td><?php
-                                            $status = isset($item->verification_status) ? trim((string) $item->verification_status) : 'verificado';
-                                            echo (strtolower($status) === 'ingresado') ? 'Ingresado' : 'Verificado';
+                                            $status = isset($item->verification_status) ? trim((string) $item->verification_status) : '';
+                                            echo ($status !== '' && strtolower($status) === 'verificado') ? 'Verificado' : 'Ingresado';
                                         ?></td>
                                         <td><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($item->created_by_name ?? '-'); ?></td>

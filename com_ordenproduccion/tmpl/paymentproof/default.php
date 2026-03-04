@@ -143,8 +143,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
                                         if ($line === reset($lines)) {
-                                            $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : 'verificado';
-                                            $isIngresado = (strtolower($proofStatus) === 'ingresado');
+                                            $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
+                                            $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
                                             if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
                                                 echo '<br><form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline mt-1">';
@@ -224,8 +224,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
-                                        $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : 'verificado';
-                                        $isIngresado = (strtolower($proofStatus) === 'ingresado');
+                                        $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
+                                        $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                         echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
                                         if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
                                             echo '<br><form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline mt-1">';
