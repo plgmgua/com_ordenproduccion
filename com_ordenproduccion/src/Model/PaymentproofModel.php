@@ -211,6 +211,10 @@ class PaymentproofModel extends ItemModel
                 $columns[] = 'mismatch_difference';
                 $values[] = $db->quote(trim((string) ($data['mismatch_difference'] ?? '')));
             }
+            if (isset($ppCols['verification_status'])) {
+                $columns[] = 'verification_status';
+                $values[] = $db->quote('ingresado');
+            }
             $query->insert($db->quoteName('#__ordenproduccion_payment_proofs'))
                   ->columns($db->quoteName($columns))
                   ->values(implode(',', $values));
@@ -549,14 +553,18 @@ class PaymentproofModel extends ItemModel
                 return $this->getTotalPaidByOrderIdLegacy($orderId);
             }
             $db = $this->getDatabase();
+            $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+            $verifiedCondition = isset($ppCols['verification_status'])
+                ? " AND (pp.verification_status = 'verificado' OR pp.verification_status IS NULL)"
+                : '';
             $query = $db->getQuery(true)
                 ->select('COALESCE(SUM(po.amount_applied), 0)')
                 ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
                 ->innerJoin(
-                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id'
+                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id AND pp.state = 1' . $verifiedCondition
                 )
-                ->where('po.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
-                ->where('pp.' . $db->quoteName('state') . ' = 1');
+                ->where('po.' . $db->quoteName('order_id') . ' = ' . (int) $orderId);
 
             $db->setQuery($query);
             return (float) $db->loadResult();
@@ -575,6 +583,11 @@ class PaymentproofModel extends ItemModel
                 ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
                 ->where('pp.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
                 ->where('pp.' . $db->quoteName('state') . ' = 1');
+            $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+            if (isset($ppCols['verification_status'])) {
+                $query->where("(pp.verification_status = 'verificado' OR pp.verification_status IS NULL)");
+            }
             $db->setQuery($query);
             return (float) $db->loadResult();
         } catch (\Throwable $e) {
@@ -758,6 +771,41 @@ class PaymentproofModel extends ItemModel
                 'amount_applied'   => $amountApplied,
             ];
             $db->insertObject('#__ordenproduccion_payment_orders', $ins);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Set payment proof verification status to Verificado (so it counts toward client balance).
+     *
+     * @param   integer  $proofId  Payment proof ID
+     *
+     * @return  boolean
+     *
+     * @since   3.84.0
+     */
+    public function setVerificado($proofId)
+    {
+        $proofId = (int) $proofId;
+        if ($proofId <= 0) {
+            return false;
+        }
+        try {
+            $db = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['verification_status'])) {
+                return false;
+            }
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->set($db->quoteName('verification_status') . ' = ' . $db->quote('verificado'))
+                ->where($db->quoteName('id') . ' = ' . $proofId)
+                ->where($db->quoteName('state') . ' = 1');
+            $db->setQuery($query);
+            $db->execute();
             return true;
         } catch (\Exception $e) {
             return false;

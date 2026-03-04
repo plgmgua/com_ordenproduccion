@@ -74,8 +74,19 @@ WHERE TABLE_SCHEMA = DATABASE()
   AND COLUMN_NAME = 'descripcion';
 
 
+-- -----------------------------------------------------------------------------
+-- 7) Payment proofs: verification_status (3.84.0) — Ingresado/Verificado
+-- Expect 1 row. If 0, run 3.84.0_payment_proof_verification_status migration.
+-- -----------------------------------------------------------------------------
+SELECT COLUMN_NAME, DATA_TYPE, COLUMN_DEFAULT
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'joomla_ordenproduccion_payment_proofs'
+  AND COLUMN_NAME = 'verification_status';
+
+
 -- =============================================================================
--- 7) COMBINED CHECK — one result set: all key columns, YES or MISSING
+-- 8) COMBINED CHECK — one result set: all key columns, YES or MISSING
 -- Every row should show column_exists = YES. Any MISSING = run that migration.
 -- =============================================================================
 SELECT t.TABLE_NAME,
@@ -84,6 +95,7 @@ SELECT t.TABLE_NAME,
 FROM (
     SELECT 'joomla_ordenproduccion_payment_proofs' AS TABLE_NAME, 'mismatch_note' AS COLUMN_NAME
     UNION SELECT 'joomla_ordenproduccion_payment_proofs', 'mismatch_difference'
+    UNION SELECT 'joomla_ordenproduccion_payment_proofs', 'verification_status'
     UNION SELECT 'joomla_ordenproduccion_ordenes', 'pre_cotizacion_id'
     UNION SELECT 'joomla_ordenproduccion_quotations', 'client_id'
     UNION SELECT 'joomla_ordenproduccion_quotations', 'sales_agent'

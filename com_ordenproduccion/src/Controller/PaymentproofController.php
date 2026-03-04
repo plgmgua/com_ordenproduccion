@@ -494,6 +494,67 @@ class PaymentproofController extends BaseController
     }
 
     /**
+     * Mark a payment proof as Verificado (only Administracion/Admon). Proof will then affect client balance.
+     * POST: proof_id, order_id (for redirect)
+     */
+    public function markAsVerificado()
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage('No tiene permiso para marcar comprobantes como verificados.', 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $proofId = $this->input->getInt('proof_id', 0);
+        $orderId = $this->input->getInt('order_id', 0);
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        if ($proofId <= 0) {
+            $this->app->enqueueMessage('ID de comprobante inválido.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        $model = $this->getModel('Paymentproof');
+        if (!$model->getItem($proofId)) {
+            $this->app->enqueueMessage('Comprobante no encontrado.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        if ($model->setVerificado($proofId)) {
+            $this->app->enqueueMessage('Comprobante marcado como Verificado. El saldo del cliente se actualizará.', 'success');
+            try {
+                $adminModel = $this->app->bootComponent('com_ordenproduccion')
+                    ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+                if ($adminModel && method_exists($adminModel, 'refreshClientBalances')) {
+                    $adminModel->refreshClientBalances();
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal
+            }
+        } else {
+            $this->app->enqueueMessage('No se pudo actualizar el estado del comprobante.', 'error');
+        }
+
+        $this->setRedirect($redirectUrl);
+        return true;
+    }
+
+    /**
      * Handle file upload for payment proof
      */
     private function handleFileUpload($file, $orderId)

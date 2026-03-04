@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.84.0-STABLE] - 2026-02-24
+
+### Added
+- **Payment proof Estado (Ingresado / Verificado).** Each proof has a status: "Ingresado" (default for new proofs) or "Verificado". Only proofs with status **Verificado** count toward client balance (Saldo) and order total paid. This allows manual validation before payments affect balances.
+- **Verificado button** on the payment proof view (Registro de Comprobante de Pago): only visible to **Administracion** or **Admon** members. When status is "Ingresado", the button marks the proof as "Verificado" and refreshes client balances. Ventas members do not see the button.
+- New column **Estado** in the existing payments table; new DB column `verification_status` on `#__ordenproduccion_payment_proofs` (values: `ingresado`, `verificado`; default for existing rows: `verificado` for backward compatibility; new inserts use `ingresado`).
+
+### Changed
+- Client balance (AdministracionModel getPaidFromJan2026ByClientMap), order total paid (PaymentproofModel getTotalPaidByOrderId), and "orders with remaining balance" (View) now only include payment proofs with `verification_status = 'verificado'` (or NULL for pre-migration rows).
+
 ## [3.83.0-STABLE] - 2026-02-24
 
 ### Added

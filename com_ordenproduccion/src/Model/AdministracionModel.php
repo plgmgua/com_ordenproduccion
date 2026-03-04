@@ -699,6 +699,12 @@ class AdministracionModel extends BaseDatabaseModel
         if (!$this->hasTable($db, '#__ordenproduccion_payment_orders') || !$this->hasTable($db, '#__ordenproduccion_payment_proofs')) {
             return [];
         }
+        $verifiedCondition = '';
+        $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+        if (isset($ppCols['verification_status'])) {
+            $verifiedCondition = " AND (pp.verification_status = 'verificado' OR pp.verification_status IS NULL)";
+        }
         $query = $db->getQuery(true)
             ->select([
                 'o.' . $db->quoteName('client_name'),
@@ -708,7 +714,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
             ->innerJoin(
                 $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id AND pp.state = 1'
-                . ' AND pp.created >= ' . $db->quote('2026-01-01 00:00:00')
+                . ' AND pp.created >= ' . $db->quote('2026-01-01 00:00:00') . $verifiedCondition
             )
             ->innerJoin($db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id AND o.state = 1')
             ->group(['o.client_name', 'o.nit']);

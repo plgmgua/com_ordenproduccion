@@ -118,6 +118,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
+                                    <th class="text-nowrap"><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
                                     <th style="width: 200px;">Archivos adjuntos</th>
                                     <th style="width: 180px;"><?php echo htmlspecialchars($this->labelMismatchNoteActions ?? 'Nota / Acciones'); ?></th>
                                 </tr>
@@ -140,6 +141,20 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
+                                    <td class="text-nowrap"><?php
+                                        if ($line === reset($lines)) {
+                                            $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : 'verificado';
+                                            $isIngresado = (strtolower($proofStatus) === 'ingresado');
+                                            echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
+                                            if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
+                                                echo '<br><form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline mt-1">';
+                                                echo HTMLHelper::_('form.token');
+                                                echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
+                                                echo '<button type="submit" class="btn btn-xs btn-success" title="' . htmlspecialchars($this->labelMarkVerificado ?? 'Marcar como Verificado') . '"><i class="fas fa-check me-1"></i>' . htmlspecialchars($this->labelVerificado ?? 'Verificado') . '</button>';
+                                                echo '</form>';
+                                            }
+                                        }
+                                    ?></td>
                                     <td><?php
                                         if ($line === reset($lines)) {
                                             $proofFiles = $this->getProofFiles($proof);
@@ -177,7 +192,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr>
-                                    <td colspan="6" class="p-2 pt-0">
+                                    <td colspan="7" class="p-2 pt-0">
                                         <?php if (!empty($proofOrders)) : ?>
                                         <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
                                             <thead class="table-light">
@@ -208,6 +223,18 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
+                                    <td class="text-nowrap"><?php
+                                        $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : 'verificado';
+                                        $isIngresado = (strtolower($proofStatus) === 'ingresado');
+                                        echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
+                                        if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
+                                            echo '<br><form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline mt-1">';
+                                            echo HTMLHelper::_('form.token');
+                                            echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
+                                            echo '<button type="submit" class="btn btn-xs btn-success" title="' . htmlspecialchars($this->labelMarkVerificado ?? 'Marcar como Verificado') . '"><i class="fas fa-check me-1"></i>' . htmlspecialchars($this->labelVerificado ?? 'Verificado') . '</button>';
+                                            echo '</form>';
+                                        }
+                                    ?></td>
                                     <td><?php
                                         $proofFiles2 = $this->getProofFiles($proof);
                                         if (!empty($proofFiles2)) {
@@ -237,7 +264,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     ?></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="6" class="p-2 pt-0">
+                                    <td colspan="7" class="p-2 pt-0">
                                         <?php if (!empty($proofOrders)) : ?>
                                         <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
                                             <thead class="table-light">
@@ -262,7 +289,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <!-- Add-file mini-form rows (hidden, one per proof, toggled via JS) -->
                                 <?php foreach ($existingPayments as $epf) : ?>
                                 <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="6" class="bg-white py-2 px-3">
+                                    <td colspan="7" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>"
                                               method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
@@ -289,7 +316,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $currentNote = trim((string)($epf->mismatch_note ?? ''));
                                 ?>
                                 <tr class="edit-note-form-row" id="edit-note-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="6" class="bg-white py-2 px-3">
+                                    <td colspan="7" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateMismatchNote'); ?>" method="post" class="d-flex align-items-start gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -307,7 +334,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $availableOrders = method_exists($proofModel, 'getOrdersNotLinkedToProof') ? $proofModel->getOrdersNotLinkedToProof($epf->id ?? 0, 150) : [];
                                 ?>
                                 <tr class="add-order-form-row" id="add-order-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="6" class="bg-white py-2 px-3">
+                                    <td colspan="7" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addOrderToProof'); ?>" method="post" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -334,6 +361,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td></td>
                                     <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
                                     <td>Q <?php echo number_format($totalMonto, 2); ?></td>
+                                    <td></td>
                                     <td></td>
                                     <td></td>
                                 </tr>

@@ -124,6 +124,10 @@ class HtmlView extends BaseHtmlView
         $this->labelAddNote = $t('COM_ORDENPRODUCCION_PAYMENT_ADD_NOTE', 'Agregar nota');
         $this->labelAssociateAnotherOrder = $t('COM_ORDENPRODUCCION_PAYMENT_ASSOCIATE_ANOTHER_ORDER', 'Asociar otra orden');
         $this->labelAmountToApply = $t('COM_ORDENPRODUCCION_VALUE_TO_APPLY', 'Valor a aplicar');
+        $this->labelEstado = $t('COM_ORDENPRODUCCION_PAYMENT_ESTADO', 'Estado');
+        $this->labelIngresado = $t('COM_ORDENPRODUCCION_PAYMENT_INGRESADO', 'Ingresado');
+        $this->labelVerificado = $t('COM_ORDENPRODUCCION_PAYMENT_VERIFICADO', 'Verificado');
+        $this->labelMarkVerificado = $t('COM_ORDENPRODUCCION_PAYMENT_MARK_VERIFICADO', 'Marcar como Verificado');
 
         parent::display($tpl);
     }
@@ -426,15 +430,25 @@ class HtmlView extends BaseHtmlView
             $orderNumCol = isset($orderColumns['order_number']) ? 'o.order_number'
                 : 'o.orden_de_trabajo';
 
+            $verifiedCond = '';
+            try {
+                $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+                $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+                if (isset($ppCols['verification_status'])) {
+                    $verifiedCond = " AND (pp2.verification_status = 'verificado' OR pp2.verification_status IS NULL)";
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
             if ($this->hasPaymentOrdersTable($db)) {
                 $totalPaidExpr = '(SELECT COALESCE(SUM(po2.amount_applied), 0) FROM ' .
                     $db->quoteName('#__ordenproduccion_payment_orders', 'po2') .
                     ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
-                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1 WHERE po2.order_id = o.id)';
+                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1' . $verifiedCond . ' WHERE po2.order_id = o.id)';
             } else {
                 $totalPaidExpr = '(SELECT COALESCE(SUM(pp2.payment_amount), 0) FROM ' .
                     $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
-                    ' WHERE pp2.order_id = o.id AND pp2.state = 1)';
+                    ' WHERE pp2.order_id = o.id AND pp2.state = 1' . $verifiedCond . ')';
             }
 
             $query = $db->getQuery(true)
