@@ -182,7 +182,8 @@ class PaymentproofController extends BaseController
                 'mismatch_difference' => $mismatchDifference,
             ];
 
-            if ($model->save($data)) {
+            $proofId = $model->save($data);
+            if ($proofId) {
                 $orderCount = count($validatedOrders);
                 $message = $orderCount > 1 
                     ? Text::sprintf('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTERED_MULTIPLE_SUCCESS', $orderCount)
@@ -192,7 +193,7 @@ class PaymentproofController extends BaseController
 
                 if ($mismatchNote !== '' || $mismatchDifference !== '') {
                     $this->sendMismatchNotificationToAdministracion(
-                        $validatedOrders,
+                        (int) $proofId,
                         array_sum(array_column($validatedLines, 'amount')),
                         $mismatchDifference,
                         $mismatchNote,
@@ -559,23 +560,33 @@ class PaymentproofController extends BaseController
     /**
      * Send email to Administracion group when payment proof was saved with a totals mismatch.
      *
-     * @param   array    $validatedOrders   Orders with amounts applied
+     * @param   int      $paymentProofId    Payment proof ID (for PA-00000 and order list)
      * @param   float    $paymentLinesTotal Total of payment lines
      * @param   string   $mismatchDifference  Difference amount (e.g. "10.50" or "-5.00")
      * @param   string   $mismatchNote      User note
      * @param   \Joomla\CMS\User\User  $user  Current user who saved
      * @return  void
      */
-    private function sendMismatchNotificationToAdministracion($validatedOrders, $paymentLinesTotal, $mismatchDifference, $mismatchNote, $user)
+    private function sendMismatchNotificationToAdministracion($paymentProofId, $paymentLinesTotal, $mismatchDifference, $mismatchNote, $user)
     {
         $emails = AccessHelper::getAdministracionGroupEmails();
         if (empty($emails)) {
             return;
         }
 
+        $proofNumber = 'PA-' . str_pad((string) (int) $paymentProofId, 5, '0', STR_PAD_LEFT);
+
+        $model = $this->getModel('Paymentproof');
+        $proofOrders = method_exists($model, 'getOrdersByPaymentProofId') ? $model->getOrdersByPaymentProofId((int) $paymentProofId) : [];
         $ordersTotal = 0.0;
-        foreach ($validatedOrders as $o) {
-            $ordersTotal += (float) ($o['value'] ?? 0);
+        $orderNumbers = [];
+        foreach ($proofOrders as $po) {
+            $ordersTotal += (float) ($po->amount_applied ?? 0);
+            $orderNumbers[] = $po->order_number ?? ('#' . ($po->order_id ?? ''));
+        }
+        $orderNumbersLine = implode(', ', array_unique($orderNumbers));
+        if ($orderNumbersLine === '') {
+            $orderNumbersLine = '—';
         }
 
         $diffNum = is_numeric($mismatchDifference) ? (float) $mismatchDifference : null;
@@ -585,9 +596,12 @@ class PaymentproofController extends BaseController
         if (strpos($subject, 'COM_ORDENPRODUCCION') === 0) {
             $subject = 'Comprobante de pago: totales no coinciden';
         }
+        $subject = $proofNumber . ' ' . $subject;
 
         $body = Text::sprintf(
             'COM_ORDENPRODUCCION_PAYMENT_MISMATCH_EMAIL_BODY',
+            $proofNumber,
+            $orderNumbersLine,
             $user->name,
             $user->email,
             number_format($paymentLinesTotal, 2),
@@ -598,11 +612,15 @@ class PaymentproofController extends BaseController
         if (strpos($body, 'COM_ORDENPRODUCCION') === 0) {
             $body = sprintf(
                 "Un usuario registró un comprobante de pago con totales que no coinciden.\n\n"
+                . "Comprobante: %s\n"
+                . "Órdenes asociadas: %s\n\n"
                 . "Usuario: %s (%s)\n"
                 . "Total Líneas de Pago: Q. %s\n"
                 . "Total Órdenes a aplicar: Q. %s\n"
                 . "Diferencia: %s\n\n"
                 . "Nota del usuario:\n%s",
+                $proofNumber,
+                $orderNumbersLine,
                 $user->name,
                 $user->email,
                 number_format($paymentLinesTotal, 2),

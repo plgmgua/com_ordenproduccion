@@ -311,7 +311,7 @@ class PaymentproofModel extends ItemModel
                 // Non-fatal: Saldo will update on next clientes view load
             }
 
-            return true;
+            return (int) $paymentProofId;
             
         } catch (\Exception $e) {
             if (isset($db)) {
