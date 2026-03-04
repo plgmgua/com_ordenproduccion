@@ -142,7 +142,7 @@ class PaymentsModel extends ListModel
 
         $clientCol = 'o.' . $this->getOrdenesClientColumn();
 
-        $query->select([
+        $selectCols = [
             'pp.id',
             'pp.order_id',
             'pp.payment_type',
@@ -160,7 +160,13 @@ class PaymentsModel extends ListModel
             'pp.modified',
             'pp.modified_by',
             'deleter.name AS modified_by_name'
-        ])
+        ];
+        $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+        if (isset($ppCols['verification_status'])) {
+            $selectCols[] = 'pp.verification_status';
+        }
+        $query->select($selectCols)
             ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
             ->leftJoin(
                 $db->quoteName('#__users', 'creator') . ' ON creator.id = pp.created_by'

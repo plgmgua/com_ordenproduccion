@@ -130,29 +130,30 @@ use Joomla\CMS\Session\Session;
             <div class="row">
                 <div class="col-12">
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped table-hover">
+                        <table class="table table-sm table-striped table-hover com-ordenproduccion-payments-table">
                             <thead class="table-dark">
                                 <tr>
-                                    <th scope="col" class="small">Nº Pago</th>
-                                    <th scope="col" class="small">Fecha</th>
-                                    <th scope="col" class="small">Cliente</th>
-                                    <th scope="col" class="small">Orden</th>
-                                    <th scope="col" class="small">Tipo</th>
-                                    <th scope="col" class="small">Nº Doc.</th>
-                                    <th scope="col" class="small">Monto</th>
-                                    <th scope="col" class="small">Agente</th>
-                                    <th scope="col" class="small">Registrado por</th>
+                                    <th scope="col">Nº Pago</th>
+                                    <th scope="col">Fecha</th>
+                                    <th scope="col">Cliente</th>
+                                    <th scope="col">Orden</th>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col">Nº Doc.</th>
+                                    <th scope="col">Monto</th>
+                                    <th scope="col">Estado</th>
+                                    <th scope="col">Agente</th>
+                                    <th scope="col">Registrado por</th>
                                     <?php if ($isDeletedView) : ?>
-                                    <th scope="col" class="small">Eliminado</th>
-                                    <th scope="col" class="small">Eliminado por</th>
+                                    <th scope="col">Eliminado</th>
+                                    <th scope="col">Eliminado por</th>
                                     <?php endif; ?>
-                                    <th scope="col" class="small"></th>
+                                    <th scope="col"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($this->items as $item) : ?>
                                     <tr>
-                                        <td class="small">
+                                        <td>
                                             <?php
                                             $paymentIdFormatted = 'PA-' . str_pad((int) ($item->id ?? 0), 6, '0', STR_PAD_LEFT);
                                             if (!empty($item->order_id)) :
@@ -162,25 +163,29 @@ use Joomla\CMS\Session\Session;
                                             endif;
                                             ?>
                                         </td>
-                                        <td class="small"><?php echo $this->formatDate($item->created); ?></td>
-                                        <td class="small"><?php echo htmlspecialchars($item->client_name ?? '-'); ?></td>
-                                        <td class="small">
+                                        <td><?php echo $this->formatDate($item->created); ?></td>
+                                        <td><?php echo htmlspecialchars($item->client_name ?? '-'); ?></td>
+                                        <td>
                                             <?php if (!empty($item->order_id)) : ?>
                                                 <a href="<?php echo $this->getOrderRoute($item->order_id); ?>" class="text-primary">
                                                     <?php echo htmlspecialchars($item->order_number ?? $item->orden_de_trabajo ?? '#' . $item->order_id); ?>
                                                 </a>
                                             <?php else : ?>-<?php endif; ?>
                                         </td>
-                                        <td class="small"><?php echo $this->translatePaymentType($item->payment_type ?? ''); ?></td>
-                                        <td class="small"><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
-                                        <td class="small"><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
-                                        <td class="small"><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
-                                        <td class="small"><?php echo htmlspecialchars($item->created_by_name ?? '-'); ?></td>
+                                        <td><?php echo $this->translatePaymentType($item->payment_type ?? ''); ?></td>
+                                        <td><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
+                                        <td><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
+                                        <td><?php
+                                            $status = isset($item->verification_status) ? trim((string) $item->verification_status) : 'verificado';
+                                            echo (strtolower($status) === 'ingresado') ? 'Ingresado' : 'Verificado';
+                                        ?></td>
+                                        <td><?php echo htmlspecialchars($item->sales_agent ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($item->created_by_name ?? '-'); ?></td>
                                         <?php if ($isDeletedView) : ?>
-                                        <td class="small"><?php echo !empty($item->modified) ? $this->formatDate($item->modified) : '-'; ?></td>
-                                        <td class="small"><?php echo htmlspecialchars($item->modified_by_name ?? '-'); ?></td>
+                                        <td><?php echo !empty($item->modified) ? $this->formatDate($item->modified) : '-'; ?></td>
+                                        <td><?php echo htmlspecialchars($item->modified_by_name ?? '-'); ?></td>
                                         <?php endif; ?>
-                                        <td class="small">
+                                        <td>
                                             <?php if (!$isDeletedView) : ?>
                                                 <?php if (!empty($item->order_id)) : ?>
                                                     <a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>"
@@ -270,6 +275,7 @@ use Joomla\CMS\Session\Session;
 </div>
 <style>
 .com-ordenproduccion-payments .card-compact .card-body { padding: 0.5rem 1rem; }
+.com-ordenproduccion-payments .table-responsive .table { font-size: 0.8rem; }
 .com-ordenproduccion-payments .table th, .com-ordenproduccion-payments .table td { vertical-align: middle; }
 </style>
 <script>
