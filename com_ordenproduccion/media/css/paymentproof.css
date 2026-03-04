@@ -122,15 +122,28 @@
     margin-bottom: 2px;
 }
 
-/* Payment proof list: smaller column headers */
+/* Payment proof list: bold column headers, smaller row font */
 .com-ordenproduccion-paymentproof .payment-proof-list-table thead th {
     font-size: 0.7rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
     color: #5a6c7d;
     padding: 0.4rem 0.5rem;
     border-bottom-width: 1px;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tbody td {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.5rem;
+}
+/* Número de Documento column: thinner */
+.com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(2),
+.com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(2) {
+    max-width: 90px;
+    width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Action column: tiny icon buttons, no gap */
