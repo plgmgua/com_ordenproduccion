@@ -119,6 +119,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
                                     <th style="width: 200px;">Archivos adjuntos</th>
+                                    <th style="width: 180px;"><?php echo htmlspecialchars($this->labelMismatchNoteActions ?? 'Nota / Acciones'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -158,13 +159,23 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             echo '<button type="button" class="btn btn-xs btn-outline-secondary ms-1 toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                         }
                                     ?></td>
+                                    <td class="align-top"><?php
+                                        if ($line === reset($lines)) {
+                                            $pn = trim((string)($proof->mismatch_note ?? ''));
+                                            if ($pn !== '') {
+                                                echo '<span class="small text-muted" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span><br>';
+                                            }
+                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
+                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                        }
+                                    ?></td>
                                 </tr>
                                 <?php endforeach;
                                         $totalMonto += $proofMonto;
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr>
-                                    <td colspan="5" class="p-2 pt-0">
+                                    <td colspan="6" class="p-2 pt-0">
                                         <?php if (!empty($proofOrders)) : ?>
                                         <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
                                             <thead class="table-light">
@@ -212,9 +223,17 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         }
                                         echo '<button type="button" class="btn btn-xs btn-outline-secondary ms-1 toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                     ?></td>
+                                    <td class="align-top"><?php
+                                        $pn = trim((string)($proof->mismatch_note ?? ''));
+                                        if ($pn !== '') {
+                                            echo '<span class="small text-muted" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span><br>';
+                                        }
+                                        echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
+                                        echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                    ?></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="5" class="p-2 pt-0">
+                                    <td colspan="6" class="p-2 pt-0">
                                         <?php if (!empty($proofOrders)) : ?>
                                         <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
                                             <thead class="table-light">
@@ -239,7 +258,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <!-- Add-file mini-form rows (hidden, one per proof, toggled via JS) -->
                                 <?php foreach ($existingPayments as $epf) : ?>
                                 <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="5" class="bg-white py-2 px-3">
+                                    <td colspan="6" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>"
                                               method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
@@ -260,12 +279,56 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
+                                <!-- Edit mismatch note rows (hidden, one per proof) -->
+                                <?php foreach ($existingPayments as $epf) :
+                                    $currentNote = trim((string)($epf->mismatch_note ?? ''));
+                                ?>
+                                <tr class="edit-note-form-row" id="edit-note-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
+                                    <td colspan="6" class="bg-white py-2 px-3">
+                                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateMismatchNote'); ?>" method="post" class="d-flex align-items-start gap-2 flex-wrap">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
+                                            <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+                                            <label class="small fw-bold me-1"><?php echo htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota'); ?> (PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?>):</label>
+                                            <textarea name="payment_mismatch_note" class="form-control form-control-sm" rows="2" style="min-width: 260px;" placeholder="<?php echo htmlspecialchars($this->labelMismatchNotePlaceholder ?? 'Indique el motivo o nota para la diferencia.'); ?>"><?php echo htmlspecialchars($currentNote); ?></textarea>
+                                            <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-edit-note-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>">Cancelar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                                <!-- Associate another order rows (hidden, one per proof) -->
+                                <?php foreach ($existingPayments as $epf) :
+                                    $availableOrders = method_exists($proofModel, 'getOrdersNotLinkedToProof') ? $proofModel->getOrdersNotLinkedToProof($epf->id ?? 0, 150) : [];
+                                ?>
+                                <tr class="add-order-form-row" id="add-order-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
+                                    <td colspan="6" class="bg-white py-2 px-3">
+                                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addOrderToProof'); ?>" method="post" class="d-flex align-items-center gap-2 flex-wrap">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
+                                            <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+                                            <span class="small fw-bold me-1"><?php echo htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden'); ?> a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?>:</span>
+                                            <select name="add_order_id" class="form-select form-select-sm" style="max-width: 220px;" required>
+                                                <option value="">— <?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden'); ?> —</option>
+                                                <?php foreach ($availableOrders as $ao) : ?>
+                                                <option value="<?php echo (int)($ao->id ?? 0); ?>"><?php echo htmlspecialchars(($ao->order_number ?? '#' . ($ao->id ?? '')) . ' — ' . ($ao->client_name ?? '')); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <label class="small mb-0"><?php echo htmlspecialchars($this->labelAmountToApply ?? 'Valor a aplicar'); ?></label>
+                                            <input type="number" name="add_amount_applied" step="0.01" min="0.01" class="form-control form-control-sm" style="width: 100px;" required placeholder="0.00">
+                                            <button type="submit" class="btn btn-sm btn-primary">Agregar</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-add-order-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>">Cancelar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
                             </tbody>
                             <tfoot>
                                 <tr class="table-info fw-bold">
                                     <td></td>
                                     <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
                                     <td>Q <?php echo number_format($totalMonto, 2); ?></td>
+                                    <td></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -337,9 +400,19 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <?php
                                     $diff = $totalMonto - $totalOrdersValue;
                                     $diffClass = $diff < 0 ? 'text-danger' : ($diff > 0 ? 'text-warning' : 'text-success');
+                                    $mismatchNoteDisplay = '';
+                                    if (abs($diff) >= 0.01 && !empty($existingPayments)) {
+                                        foreach ($existingPayments as $p) {
+                                            $note = isset($p->mismatch_note) ? trim((string) $p->mismatch_note) : '';
+                                            if ($note !== '') {
+                                                $mismatchNoteDisplay = $note;
+                                                break;
+                                            }
+                                        }
+                                    }
                                     ?>
                                     <tr>
-                                        <td colspan="2" class="small text-end <?php echo $diffClass; ?>">Diferencia:</td>
+                                        <td colspan="2" class="small text-end <?php echo $diffClass; ?>"><?php if ($mismatchNoteDisplay !== '') : ?><span class="text-muted" title="<?php echo htmlspecialchars($mismatchNoteDisplay); ?>"><?php echo htmlspecialchars(mb_strlen($mismatchNoteDisplay) > 50 ? mb_substr($mismatchNoteDisplay, 0, 47) . '…' : $mismatchNoteDisplay); ?></span> — <?php endif; ?>Diferencia:</td>
                                         <td class="small <?php echo $diffClass; ?>"><?php echo ($diff >= 0 ? '+' : '') . 'Q ' . number_format($diff, 2); ?></td>
                                         <td></td>
                                     </tr>
@@ -679,6 +752,24 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             var proofId = this.getAttribute('data-proof-id');
             var row = document.getElementById('add-file-row-' + proofId);
+            if (row) {
+                row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+            }
+        });
+    });
+    document.querySelectorAll('.toggle-edit-note-form').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var proofId = this.getAttribute('data-proof-id');
+            var row = document.getElementById('edit-note-row-' + proofId);
+            if (row) {
+                row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+            }
+        });
+    });
+    document.querySelectorAll('.toggle-add-order-form').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var proofId = this.getAttribute('data-proof-id');
+            var row = document.getElementById('add-order-row-' + proofId);
             if (row) {
                 row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
             }

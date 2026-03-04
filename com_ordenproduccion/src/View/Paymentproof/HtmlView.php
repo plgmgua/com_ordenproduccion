@@ -117,6 +117,11 @@ class HtmlView extends BaseHtmlView
         $this->labelSelectPaymentType = $t('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Seleccionar tipo de pago');
         $this->labelDocumentNumberPlaceholder = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'ej. Número de cheque, referencia');
         $this->labelPaymentProofId = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_ID', 'ID');
+        $this->labelMismatchNoteActions = $t('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_NOTE_ACTIONS', 'Nota / Acciones');
+        $this->labelEditMismatchNote = $t('COM_ORDENPRODUCCION_PAYMENT_EDIT_MISMATCH_NOTE', 'Editar nota');
+        $this->labelAddNote = $t('COM_ORDENPRODUCCION_PAYMENT_ADD_NOTE', 'Agregar nota');
+        $this->labelAssociateAnotherOrder = $t('COM_ORDENPRODUCCION_PAYMENT_ASSOCIATE_ANOTHER_ORDER', 'Asociar otra orden');
+        $this->labelAmountToApply = $t('COM_ORDENPRODUCCION_VALUE_TO_APPLY', 'Valor a aplicar');
 
         parent::display($tpl);
     }
@@ -158,6 +163,14 @@ class HtmlView extends BaseHtmlView
                 $byDoc[$key]->payment_amount = (float) ($byDoc[$key]->payment_amount ?? 0) + (float) ($p->payment_amount ?? 0);
                 $byDoc[$key]->amount_applied = (float) ($byDoc[$key]->amount_applied ?? 0) + (float) ($p->amount_applied ?? 0);
                 $byDoc[$key]->_merged = true;
+                // Preserve first non-empty mismatch_note when merging
+                $note = trim((string) ($byDoc[$key]->mismatch_note ?? ''));
+                if ($note === '' && isset($p->mismatch_note)) {
+                    $pNote = trim((string) $p->mismatch_note);
+                    if ($pNote !== '') {
+                        $byDoc[$key]->mismatch_note = $p->mismatch_note;
+                    }
+                }
             }
         }
         return array_values($byDoc);

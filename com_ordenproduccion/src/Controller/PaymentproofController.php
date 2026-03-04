@@ -178,6 +178,8 @@ class PaymentproofController extends BaseController
                 'state'        => 1,
                 'payment_orders' => $validatedOrders,
                 'payment_lines'  => $validatedLines,
+                'mismatch_note' => $mismatchNote,
+                'mismatch_difference' => $mismatchDifference,
             ];
 
             if ($model->save($data)) {
@@ -365,6 +367,117 @@ class PaymentproofController extends BaseController
         }
 
         $this->setRedirect($redirectUrl);
+    }
+
+    /**
+     * Update mismatch note for an existing payment proof (after the fact).
+     * POST: proof_id, order_id (for redirect), payment_mismatch_note
+     */
+    public function updateMismatchNote()
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        $proofId = $this->input->getInt('proof_id', 0);
+        $orderId = $this->input->getInt('order_id', 0);
+        $note    = $this->input->get('payment_mismatch_note', '', 'raw');
+        $note    = is_string($note) ? trim($note) : '';
+
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        if ($proofId <= 0) {
+            $this->app->enqueueMessage('ID de comprobante inválido.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        $model = $this->getModel('Paymentproof');
+        $proof = $model->getItem($proofId);
+        if (!$proof) {
+            $this->app->enqueueMessage('Comprobante no encontrado.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        if ($model->updateMismatchNote($proofId, $note, null)) {
+            $this->app->enqueueMessage('Nota de diferencia guardada.', 'success');
+        } else {
+            $this->app->enqueueMessage('No se pudo guardar la nota.', 'error');
+        }
+
+        $this->setRedirect($redirectUrl);
+        return true;
+    }
+
+    /**
+     * Associate another order to an existing payment proof (positive balance / overpayment).
+     * POST: proof_id, order_id (for redirect), add_order_id, add_amount_applied
+     */
+    public function addOrderToProof()
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        $proofId   = $this->input->getInt('proof_id', 0);
+        $orderId   = $this->input->getInt('order_id', 0);
+        $addOrderId = $this->input->getInt('add_order_id', 0);
+        $amount    = $this->input->getFloat('add_amount_applied', 0);
+
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        if ($proofId <= 0 || $addOrderId <= 0 || $amount <= 0) {
+            $this->app->enqueueMessage('Datos inválidos: comprobante, orden y monto son requeridos.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        $model = $this->getModel('Paymentproof');
+        if (!$model->getItem($proofId)) {
+            $this->app->enqueueMessage('Comprobante no encontrado.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        $orderModel = $this->app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Orden', 'Site');
+        try {
+            $order = $orderModel->getItem($addOrderId);
+        } catch (\Exception $e) {
+            $order = null;
+        }
+        if (!$order) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        if ($model->addOrderToProof($proofId, $addOrderId, $amount)) {
+            $this->app->enqueueMessage('Orden asociada al comprobante correctamente.', 'success');
+        } else {
+            $this->app->enqueueMessage('No se pudo asociar la orden (ya está asociada o error de base de datos).', 'error');
+        }
+
+        $this->setRedirect($redirectUrl);
+        return true;
     }
 
     /**

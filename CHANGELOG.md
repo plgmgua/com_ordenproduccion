@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.83.0-STABLE] - 2026-02-24
+
+### Added
+- **Payment proof: add or edit difference note after the fact.** On the "Registro de Comprobante de Pago" view, each existing payment proof row has a "Nota / Acciones" column with an "Agregar nota" or "Editar nota" button. Clicking it shows a form to add or update the mismatch note (saved to `mismatch_note`); the note is displayed next to "Diferencia" when viewing the proof.
+- **Payment proof: associate another orden de trabajo.** When a proof has a positive balance (paid more than the associated orders) or you want to assign the overpayment to another order, use "Asociar otra orden" for that proof. A form lets you select an order (from those not already linked to this proof) and an amount to apply; the new link is stored in `#__ordenproduccion_payment_orders`.
+
+### Changed
+- Payment proof view: new table column "Nota / Acciones" with per-proof actions (edit note, associate order). Expandable rows for edit-note and add-order forms (same pattern as "Agregar archivo").
+
 ## [3.70.0-STABLE] - 2026-02-01
 
 ### Added

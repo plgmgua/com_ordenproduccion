@@ -190,7 +190,6 @@ class PaymentproofModel extends ItemModel
                 'created',
                 'state'
             ];
-            
             $values = [
                 $primaryOrderId > 0 ? $primaryOrderId : 'NULL',
                 $db->quote($paymentType),
@@ -202,7 +201,16 @@ class PaymentproofModel extends ItemModel
                 $db->quote($data['created'] ?? Factory::getDate()->toSql()),
                 (int) ($data['state'] ?? 1)
             ];
-            
+            $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+            if (isset($ppCols['mismatch_note'])) {
+                $columns[] = 'mismatch_note';
+                $values[] = $db->quote(trim((string) ($data['mismatch_note'] ?? '')));
+            }
+            if (isset($ppCols['mismatch_difference'])) {
+                $columns[] = 'mismatch_difference';
+                $values[] = $db->quote(trim((string) ($data['mismatch_difference'] ?? '')));
+            }
             $query->insert($db->quoteName('#__ordenproduccion_payment_proofs'))
                   ->columns($db->quoteName($columns))
                   ->values(implode(',', $values));
@@ -635,6 +643,124 @@ class PaymentproofModel extends ItemModel
 
         } catch (\Exception $e) {
             return [];
+        }
+    }
+
+    /**
+     * Get orders that are not yet linked to this payment proof (for "associate another order").
+     *
+     * @param   integer  $paymentProofId  The payment proof ID
+     * @param   integer  $limit            Max number of orders to return (default 150)
+     *
+     * @return  array  Array of objects with id, order_number, client_name, invoice_value
+     *
+     * @since   3.83.0
+     */
+    public function getOrdersNotLinkedToProof($paymentProofId, $limit = 150)
+    {
+        if ((int) $paymentProofId <= 0) {
+            return [];
+        }
+        try {
+            $db = $this->getDatabase();
+            $sub = $db->getQuery(true)
+                ->select('po.order_id')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->where('po.' . $db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId);
+            $query = $db->getQuery(true)
+                ->select(['o.id', 'o.order_number', 'o.client_name', 'o.invoice_value'])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+                ->where('o.id NOT IN (' . (string) $sub . ')')
+                ->order('o.id DESC')
+                ->setLimit((int) $limit);
+            $db->setQuery($query);
+            return $db->loadObjectList() ?: [];
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Update mismatch note (and optional difference) for an existing payment proof.
+     *
+     * @param   integer  $proofId    Payment proof ID
+     * @param   string   $note      Mismatch note text
+     * @param   string   $difference  Optional difference amount at save time
+     *
+     * @return  boolean
+     *
+     * @since   3.83.0
+     */
+    public function updateMismatchNote($proofId, $note, $difference = null)
+    {
+        if ((int) $proofId <= 0) {
+            return false;
+        }
+        try {
+            $db = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            if (!isset($cols['mismatch_note'])) {
+                return false;
+            }
+            $note = trim((string) $note);
+            $updates = [$db->quoteName('mismatch_note') . ' = ' . $db->quote($note)];
+            if (isset($cols['mismatch_difference'])) {
+                $difference = $difference !== null ? trim((string) $difference) : '';
+                $updates[] = $db->quoteName('mismatch_difference') . ' = ' . $db->quote($difference);
+            }
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->set($updates)
+                ->where($db->quoteName('id') . ' = ' . (int) $proofId)
+                ->where($db->quoteName('state') . ' = 1');
+            $db->setQuery($query);
+            $db->execute();
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Associate another order to an existing payment proof (add row to payment_orders).
+     *
+     * @param   integer  $proofId       Payment proof ID
+     * @param   integer  $orderId      Order ID to link
+     * @param   float    $amountApplied  Amount to apply to this order
+     *
+     * @return  boolean
+     *
+     * @since   3.83.0
+     */
+    public function addOrderToProof($proofId, $orderId, $amountApplied)
+    {
+        $proofId = (int) $proofId;
+        $orderId = (int) $orderId;
+        $amountApplied = (float) $amountApplied;
+        if ($proofId <= 0 || $orderId <= 0 || $amountApplied <= 0) {
+            return false;
+        }
+        try {
+            $db = $this->getDatabase();
+            $exists = $db->getQuery(true)
+                ->select('1')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders'))
+                ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
+                ->where($db->quoteName('order_id') . ' = ' . $orderId);
+            $db->setQuery($exists);
+            if ($db->loadResult()) {
+                return false;
+            }
+            $ins = (object) [
+                'payment_proof_id' => $proofId,
+                'order_id'         => $orderId,
+                'amount_applied'   => $amountApplied,
+            ];
+            $db->insertObject('#__ordenproduccion_payment_orders', $ins);
+            return true;
+        } catch (\Exception $e) {
+            return false;
         }
     }
 
