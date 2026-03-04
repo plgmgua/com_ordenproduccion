@@ -13,6 +13,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 class HtmlView extends BaseHtmlView
 {
@@ -67,7 +68,8 @@ class HtmlView extends BaseHtmlView
         // Get component params
         $this->params = $app->getParams('com_ordenproduccion');
         $this->user = $user;
-        
+        $this->canEditNoteOrAssociateOrder = AccessHelper::isInAdministracionOrAdmonGroup();
+
         // Initialize empty item for new payment proof
         $this->item = new \stdClass();
         $this->item->order_id = $this->orderId;

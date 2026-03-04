@@ -165,8 +165,10 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             if ($pn !== '') {
                                                 echo '<span class="small text-muted" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span><br>';
                                             }
-                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
-                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                            if (!empty($this->canEditNoteOrAssociateOrder)) {
+                                                echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
+                                                echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                            }
                                         }
                                     ?></td>
                                 </tr>
@@ -228,8 +230,10 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         if ($pn !== '') {
                                             echo '<span class="small text-muted" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span><br>';
                                         }
-                                        echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
-                                        echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                        if (!empty($this->canEditNoteOrAssociateOrder)) {
+                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-edit-note-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota') . '"><i class="fas fa-edit me-1"></i>' . ($pn === '' ? htmlspecialchars($this->labelAddNote ?? 'Agregar nota') : htmlspecialchars($this->labelEditMismatchNote ?? 'Editar nota')) . '</button><br>';
+                                            echo '<button type="button" class="btn btn-xs btn-outline-secondary mt-1 toggle-add-order-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '"><i class="fas fa-link me-1"></i>' . htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden') . '</button>';
+                                        }
                                     ?></td>
                                 </tr>
                                 <tr>
@@ -279,6 +283,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
+                                <?php if (!empty($this->canEditNoteOrAssociateOrder)) : ?>
                                 <!-- Edit mismatch note rows (hidden, one per proof) -->
                                 <?php foreach ($existingPayments as $epf) :
                                     $currentNote = trim((string)($epf->mismatch_note ?? ''));
@@ -322,6 +327,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                             <tfoot>
                                 <tr class="table-info fw-bold">

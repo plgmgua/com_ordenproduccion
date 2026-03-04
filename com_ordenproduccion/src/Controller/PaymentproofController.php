@@ -395,6 +395,12 @@ class PaymentproofController extends BaseController
 
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
 
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage('No tiene permiso para editar la nota de diferencia.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
         if ($proofId <= 0) {
             $this->app->enqueueMessage('ID de comprobante inválido.', 'error');
             $this->setRedirect($redirectUrl);
@@ -444,6 +450,12 @@ class PaymentproofController extends BaseController
         $amount    = $this->input->getFloat('add_amount_applied', 0);
 
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage('No tiene permiso para asociar otra orden al comprobante.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
 
         if ($proofId <= 0 || $addOrderId <= 0 || $amount <= 0) {
             $this->app->enqueueMessage('Datos inválidos: comprobante, orden y monto son requeridos.', 'error');
