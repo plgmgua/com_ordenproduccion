@@ -57,6 +57,7 @@ class PaymentsController extends BaseController
             $model->setState('filter.date_from', $app->input->get('filter_date_from', '', 'string'));
             $model->setState('filter.date_to', $app->input->get('filter_date_to', '', 'string'));
             $model->setState('filter.sales_agent', $app->input->get('filter_sales_agent', '', 'string'));
+            $model->setState('filter.estado', $app->input->get('filter_estado', '', 'string'));
             $items = $model->getItems();
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_ERROR'), 'error');

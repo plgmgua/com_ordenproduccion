@@ -77,6 +77,22 @@ use Joomla\CMS\Session\Session;
                                     </select>
                                 </div>
                                 <div class="col-md-2">
+                                    <label for="filter_estado" class="form-label small mb-0">Estado</label>
+                                    <select name="filter_estado" id="filter_estado" class="form-select form-select-sm">
+                                        <?php
+                                        $lblAll = Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_ESTADO_ALL');
+                                        $lblIngresado = Text::_('COM_ORDENPRODUCCION_PAYMENT_INGRESADO');
+                                        $lblVerificado = Text::_('COM_ORDENPRODUCCION_PAYMENT_VERIFICADO');
+                                        if ($lblAll === 'COM_ORDENPRODUCCION_PAYMENTS_FILTER_ESTADO_ALL') $lblAll = 'Todos';
+                                        if ($lblIngresado === 'COM_ORDENPRODUCCION_PAYMENT_INGRESADO') $lblIngresado = 'Ingresado';
+                                        if ($lblVerificado === 'COM_ORDENPRODUCCION_PAYMENT_VERIFICADO') $lblVerificado = 'Verificado';
+                                        ?>
+                                        <option value=""<?php echo $this->state->get('filter.estado') === '' ? ' selected' : ''; ?>><?php echo htmlspecialchars($lblAll); ?></option>
+                                        <option value="ingresado"<?php echo $this->state->get('filter.estado') === 'ingresado' ? ' selected' : ''; ?>><?php echo htmlspecialchars($lblIngresado); ?></option>
+                                        <option value="verificado"<?php echo $this->state->get('filter.estado') === 'verificado' ? ' selected' : ''; ?>><?php echo htmlspecialchars($lblVerificado); ?></option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
                                     <label for="filter_doc_number" class="form-label small mb-0">Doc. #</label>
                                     <input type="text" name="filter_doc_number" id="filter_doc_number" class="form-control form-control-sm"
                                            value="<?php echo htmlspecialchars($this->state->get('filter.doc_number', '')); ?>"
@@ -109,6 +125,7 @@ use Joomla\CMS\Session\Session;
                     $exportUrl .= '&filter_date_from=' . rawurlencode($this->state->get('filter.date_from', ''));
                     $exportUrl .= '&filter_date_to=' . rawurlencode($this->state->get('filter.date_to', ''));
                     $exportUrl .= '&filter_sales_agent=' . rawurlencode($this->state->get('filter.sales_agent', ''));
+                    $exportUrl .= '&filter_estado=' . rawurlencode($this->state->get('filter.estado', ''));
                     ?>
                 <a href="<?php echo $exportUrl; ?>" class="btn btn-success btn-sm" target="_blank" rel="noopener">
                     <i class="fas fa-file-excel"></i> Exportar a Excel

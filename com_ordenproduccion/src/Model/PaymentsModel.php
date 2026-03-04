@@ -64,6 +64,7 @@ class PaymentsModel extends ListModel
         $id .= ':' . $this->getState('filter.date_to');
         $id .= ':' . $this->getState('filter.sales_agent');
         $id .= ':' . $this->getState('filter.state');
+        $id .= ':' . $this->getState('filter.estado');
 
         return parent::getStoreId($id);
     }
@@ -126,6 +127,9 @@ class PaymentsModel extends ListModel
             $state = $app->getUserStateFromRequest($this->context . '.filter.state', 'filter_state', 1, 'int');
             $this->setState('filter.state', $state);
         }
+
+        $estado = $app->getUserStateFromRequest($this->context . '.filter.estado', 'filter_estado', '', 'string');
+        $this->setState('filter.estado', $estado);
     }
 
     /**
@@ -226,6 +230,20 @@ class PaymentsModel extends ListModel
         $salesAgent = $this->getState('filter.sales_agent');
         if (!empty($salesAgent)) {
             $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+
+        // Filter by verification status (Estado: Ingresado / Verificado) when column exists
+        $estado = $this->getState('filter.estado');
+        if (isset($ppCols['verification_status']) && $estado !== '') {
+            if ($estado === 'verificado') {
+                $query->where($db->quoteName('pp.verification_status') . ' = ' . $db->quote('verificado'));
+            } elseif ($estado === 'ingresado') {
+                $query->where(
+                    '(' . $db->quoteName('pp.verification_status') . ' IS NULL OR ' .
+                    $db->quoteName('pp.verification_status') . ' = ' . $db->quote('') . ' OR ' .
+                    $db->quoteName('pp.verification_status') . ' = ' . $db->quote('ingresado') . ')'
+                );
+            }
         }
 
         // Filter by document number — searches both the proof header and any line
