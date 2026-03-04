@@ -122,28 +122,53 @@
     margin-bottom: 2px;
 }
 
-/* Action column: small icon buttons in a row */
+/* Payment proof list: smaller column headers */
+.com-ordenproduccion-paymentproof .payment-proof-list-table thead th {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #5a6c7d;
+    padding: 0.4rem 0.5rem;
+    border-bottom-width: 1px;
+}
+
+/* Action column: tiny icon buttons, no gap */
 .com-ordenproduccion-paymentproof .payment-proof-actions-row {
-    display: flex;
+    display: inline-flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 4px;
+    gap: 0;
 }
 .com-ordenproduccion-paymentproof .payment-proof-action-btn {
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
     padding: 0;
+    margin: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    font-size: 0.75rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    border: 1px solid transparent;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+.com-ordenproduccion-paymentproof .payment-proof-action-btn:hover {
+    border-color: rgba(0, 0, 0, 0.15);
+}
+.com-ordenproduccion-paymentproof .payment-proof-action-btn.btn-success:hover {
+    border-color: rgba(255, 255, 255, 0.5);
 }
 .com-ordenproduccion-paymentproof .payment-proof-action-btn i {
     margin: 0;
 }
 .com-ordenproduccion-paymentproof .payment-proof-actions-row form {
     display: inline-flex;
+    margin: 0;
+}
+.com-ordenproduccion-paymentproof .payment-proof-actions-row form .payment-proof-action-btn {
+    margin: 0;
 }
 
 .com-ordenproduccion-paymentproof .form-text {

@@ -111,7 +111,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                     </div>
                     <div class="card-body">
                         <p class="small text-muted mb-2"><?php echo htmlspecialchars($this->labelPaymentProofNoEdit ?? 'Los comprobantes guardados no se pueden modificar, solo eliminar (desde Control de Pagos).'); ?></p>
-                        <table class="table table-sm">
+                        <table class="table table-sm payment-proof-list-table">
                             <thead>
                                 <tr>
                                     <th><?php echo htmlspecialchars($this->labelPaymentProofId ?? 'ID'); ?></th>
