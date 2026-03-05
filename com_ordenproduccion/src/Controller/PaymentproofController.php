@@ -90,6 +90,7 @@ class PaymentproofController extends BaseController
                             'payment_type' => $type,
                             'bank' => trim($line['bank'] ?? ''),
                             'document_number' => $doc,
+                            'document_date' => trim($line['document_date'] ?? ''),
                             'amount' => $amount
                         ];
                     }
@@ -107,6 +108,7 @@ class PaymentproofController extends BaseController
                         'payment_type' => $paymentType,
                         'bank' => $bank,
                         'document_number' => $documentNumber,
+                        'document_date' => trim($this->input->getString('document_date', '')),
                         'amount' => $paymentAmount
                     ];
                 }

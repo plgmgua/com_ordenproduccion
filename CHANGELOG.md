@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.85.0-STABLE] - 2026-02-24
+
+### Added
+- **Fecha del Documento** on payment registration: in "Líneas de pago" (Registro de Comprobante de Pago), a new optional date field **Fecha del Documento** per line so you can record the date of the check, transfer, or other document. Stored in `#__ordenproduccion_payment_proof_lines.document_date` (DATE NULL). Run SQL update `admin/sql/updates/mysql/3.85.0_payment_proof_lines_document_date.sql` (safe to run multiple times).
+
 ## [3.84.0-STABLE] - 2026-02-24
 
 ### Added

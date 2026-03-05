@@ -116,6 +116,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <tr>
                                     <th><?php echo htmlspecialchars($this->labelPaymentProofId ?? 'ID'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelDocumentDate ?? 'Fecha Doc.'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
                                     <th class="text-nowrap"><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
@@ -139,6 +140,12 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; $isFirstLine = false; } ?>>
                                     <td><?php echo $line === reset($lines) ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
+                                    <td class="text-nowrap"><?php
+                                        $docDate = $line->document_date ?? null;
+                                        if (!empty($docDate)) {
+                                            try { echo htmlspecialchars(Factory::getDate($docDate)->format('d/m/Y')); } catch (\Exception $e) { echo htmlspecialchars($docDate); }
+                                        } else { echo '—'; }
+                                    ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
@@ -196,7 +203,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
                                 <tr>
-                                    <td colspan="7" class="p-2 pt-0">
+                                    <td colspan="8" class="p-2 pt-0">
                                         <?php if (!empty($proofOrders)) : ?>
                                         <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
                                             <thead class="table-light">
@@ -225,6 +232,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
                                     <td>PA-<?php echo str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT); ?></td>
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
+                                    <td class="text-nowrap">—</td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
@@ -272,7 +280,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     ?></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="7" class="p-2 pt-0">
+                                    <td colspan="8" class="p-2 pt-0">
                                         <?php if (!empty($proofOrders)) : ?>
                                         <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
                                             <thead class="table-light">
@@ -297,7 +305,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <!-- Add-file mini-form rows (hidden, one per proof, toggled via JS) -->
                                 <?php foreach ($existingPayments as $epf) : ?>
                                 <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="7" class="bg-white py-2 px-3">
+                                    <td colspan="8" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>"
                                               method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
@@ -324,7 +332,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $currentNote = trim((string)($epf->mismatch_note ?? ''));
                                 ?>
                                 <tr class="edit-note-form-row" id="edit-note-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="7" class="bg-white py-2 px-3">
+                                    <td colspan="8" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateMismatchNote'); ?>" method="post" class="d-flex align-items-start gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -342,7 +350,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $availableOrders = method_exists($proofModel, 'getOrdersNotLinkedToProof') ? $proofModel->getOrdersNotLinkedToProof($epf->id ?? 0, 150) : [];
                                 ?>
                                 <tr class="add-order-form-row" id="add-order-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="7" class="bg-white py-2 px-3">
+                                    <td colspan="8" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addOrderToProof'); ?>" method="post" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -582,6 +590,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
+                                                    <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                                     <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
                                                     <th style="width: 40px;"></th>
                                                 </tr>
@@ -608,6 +617,9 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                         <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque, referencia'); ?>" maxlength="255" required>
                                                     </td>
                                                     <td>
+                                                        <input type="date" name="payment_lines[0][document_date]" class="form-control form-control-sm payment-line-document-date" placeholder="">
+                                                    </td>
+                                                    <td>
                                                         <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>
                                                     </td>
                                                     <td class="text-center"></td>
@@ -615,7 +627,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             </tbody>
                                             <tfoot>
                                                 <tr class="table-info">
-                                                    <td colspan="3" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
+                                                    <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                     <td><strong id="payment-lines-total">Q. 0.00</strong></td>
                                                     <td></td>
                                                 </tr>
@@ -859,6 +871,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 el.name = 'payment_lines[' + lineIndex + '][' + m[1] + ']';
                 if (m[1] === 'amount') el.value = '';
                 else if (m[1] === 'document_number') el.value = '';
+                else if (m[1] === 'document_date') el.value = '';
                 else if (m[1] === 'payment_type') el.value = '';
             }
         });

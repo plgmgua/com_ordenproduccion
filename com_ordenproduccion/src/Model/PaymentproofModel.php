@@ -124,7 +124,7 @@ class PaymentproofModel extends ItemModel
      * Uses junction table for many-to-many: multiple payments per order, multiple orders per payment.
      * Supports multiple payment method lines (3.64.0+): cheque + nota crédito fiscal, etc.
      *
-     * @param   array  $data  The form data. May include payment_lines (array of {payment_type, bank, document_number, amount}).
+     * @param   array  $data  The form data. May include payment_lines (array of {payment_type, bank, document_number, document_date, amount}).
      *
      * @return  boolean  True on success, false on failure.
      *
@@ -237,23 +237,31 @@ class PaymentproofModel extends ItemModel
 
             // Insert payment_proof_lines if table exists (3.64.0+)
             if ($this->hasPaymentProofLinesTable() && !empty($paymentLines)) {
+                $pplCols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
+                $pplCols = is_array($pplCols) ? array_change_key_case($pplCols, CASE_LOWER) : [];
+                $hasDocumentDate = isset($pplCols['document_date']);
                 $ordering = 0;
                 foreach ($paymentLines as $line) {
                     $amt = (float) ($line['amount'] ?? 0);
                     if ($amt <= 0) {
                         continue;
                     }
+                    $columns = ['payment_proof_id', 'payment_type', 'bank', 'document_number', 'amount', 'ordering'];
+                    $values = (int) $paymentProofId . ',' .
+                        $db->quote($line['payment_type'] ?? 'efectivo') . ',' .
+                        $db->quote($line['bank'] ?? '') . ',' .
+                        $db->quote($line['document_number'] ?? '') . ',' .
+                        $amt . ',' .
+                        $ordering++;
+                    if ($hasDocumentDate) {
+                        $docDate = trim($line['document_date'] ?? '');
+                        $columns[] = 'document_date';
+                        $values .= ',' . ($docDate !== '' ? $db->quote($docDate) : 'NULL');
+                    }
                     $insertLine = $db->getQuery(true)
                         ->insert($db->quoteName('#__ordenproduccion_payment_proof_lines'))
-                        ->columns($db->quoteName(['payment_proof_id', 'payment_type', 'bank', 'document_number', 'amount', 'ordering']))
-                        ->values(
-                            (int) $paymentProofId . ',' .
-                            $db->quote($line['payment_type'] ?? 'efectivo') . ',' .
-                            $db->quote($line['bank'] ?? '') . ',' .
-                            $db->quote($line['document_number'] ?? '') . ',' .
-                            $amt . ',' .
-                            $ordering++
-                        );
+                        ->columns($db->quoteName($columns))
+                        ->values($values);
                     $db->setQuery($insertLine);
                     $db->execute();
                 }
@@ -346,6 +354,7 @@ class PaymentproofModel extends ItemModel
                     'payment_type' => $line['payment_type'] ?? 'efectivo',
                     'bank' => $line['bank'] ?? '',
                     'document_number' => trim($line['document_number'] ?? ''),
+                    'document_date' => trim($line['document_date'] ?? ''),
                     'amount' => $amount
                 ];
             }
@@ -357,6 +366,7 @@ class PaymentproofModel extends ItemModel
                     'payment_type' => $data['payment_type'],
                     'bank' => $data['bank'] ?? '',
                     'document_number' => trim($data['document_number']),
+                    'document_date' => trim($data['document_date'] ?? ''),
                     'amount' => $amt
                 ];
             }
