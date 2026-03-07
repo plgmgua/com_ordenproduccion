@@ -146,15 +146,15 @@ $currency = $quotation->currency ?? 'Q';
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
                         $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
                         $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
-                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                        $unit = $qty > 0 ? ($subtotal / $qty) : 0;
+                        $lineTotal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : (isset($item->subtotal) ? (float) $item->subtotal : 0);
+                        $unit = $qty > 0 ? ($lineTotal / $qty) : 0;
                     ?>
                         <tr>
                             <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                             <td><?php echo (int) $qty; ?></td>
                             <td><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
                             <td class="text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
-                            <td class="text-end"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></td>
+                            <td class="text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

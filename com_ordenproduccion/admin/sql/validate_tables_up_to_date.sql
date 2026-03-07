@@ -102,6 +102,7 @@ FROM (
     UNION SELECT 'joomla_ordenproduccion_quotations', 'signed_document_path'
     UNION SELECT 'joomla_ordenproduccion_quotations', 'instrucciones_facturacion'
     UNION SELECT 'joomla_ordenproduccion_quotation_items', 'pre_cotizacion_id'
+    UNION SELECT 'joomla_ordenproduccion_quotation_items', 'valor_final'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'descripcion'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'lines_subtotal'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'total_final'

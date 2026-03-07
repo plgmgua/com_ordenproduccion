@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.87.0-STABLE] - 2026-02-24
+
+### Added
+- **Cotización: Valor final por línea.** In the cotización edit view (Detalles de la Cotización), each line now has a **Subtotal** column (read-only, from the pre-cotización) and a **Valor final** input. The valor final can only be greater than or equal to the subtotal; when set, the unit price (Precio unidad.) is recalculated as valor final ÷ cantidad. All values are saved: `#__ordenproduccion_quotation_items` has a new column `valor_final` (DECIMAL 12,2 NULL). Run SQL update `admin/sql/updates/mysql/3.87.0_quotation_items_valor_final.sql` (safe to run multiple times). Display view and PDF use valor_final when present for line total and unit price.
+
+### Changed
+- createQuotation and updateQuotation (AJAX) validate that each line’s valor final is not lower than the pre-cotización subtotal and persist valor_final. Quantity change in the form no longer resets the line value; it only recalculates the displayed unit price and total.
+
 ## [3.86.0-STABLE] - 2026-02-24
 
 ### Added

@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
@@ -355,7 +356,8 @@ class AjaxController extends BaseController
             $totalAmount = 0;
             $lineItems = [];
             
-            // New format: lines[] with pre_cotizacion_id, cantidad, descripcion, value
+            // New format: lines[] with pre_cotizacion_id, cantidad, descripcion, value (valor final)
+            $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             if (!empty($lines)) {
                 foreach ($lines as $lineOrder => $line) {
                     $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
@@ -366,6 +368,12 @@ class AjaxController extends BaseController
                     }
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
+                        $minTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
+                        if ($value < $minTotal) {
+                            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+                            echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
+                            exit;
+                        }
                         $valorUnitario = $cantidad > 0 ? round($value / $cantidad, 4) : (float) $value;
                         $lineItems[] = [
                             'line_order' => $lineOrder,
@@ -373,6 +381,7 @@ class AjaxController extends BaseController
                             'descripcion' => $desc !== '' ? $desc : 'PRE-' . $preId,
                             'valor_unitario' => $valorUnitario,
                             'subtotal' => $value,
+                            'valor_final' => $value,
                             'pre_cotizacion_id' => $preId,
                         ];
                         $totalAmount += $value;
@@ -437,6 +446,7 @@ class AjaxController extends BaseController
             $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
             $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
             $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
+            $hasValorFinal = isset($itemCols['valor_final']);
 
             if ($result) {
                 $quotationId = $quotationData->id;
@@ -453,6 +463,9 @@ class AjaxController extends BaseController
                     ];
                     if ($hasPreCotizacionId && isset($item['pre_cotizacion_id']) && $item['pre_cotizacion_id'] > 0) {
                         $itemData->pre_cotizacion_id = $item['pre_cotizacion_id'];
+                    }
+                    if ($hasValorFinal && isset($item['valor_final'])) {
+                        $itemData->valor_final = $item['valor_final'];
                     }
                     $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
                 }
@@ -533,6 +546,7 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => 'Missing required fields']);
             exit;
         }
+        $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
         $lineItems = [];
         $totalAmount = 0;
         foreach ($lines as $lineOrder => $line) {
@@ -542,6 +556,14 @@ class AjaxController extends BaseController
             if ($cantidad < 0.001) $cantidad = 1;
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
+                if ($preId > 0 && $precotModel) {
+                    $minTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
+                    if ($value < $minTotal) {
+                        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+                        echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
+                        exit;
+                    }
+                }
                 $valorUnitario = $cantidad > 0 ? round($value / $cantidad, 4) : (float) $value;
                 $lineItems[] = [
                     'line_order' => $lineOrder,
@@ -549,6 +571,7 @@ class AjaxController extends BaseController
                     'descripcion' => $desc !== '' ? $desc : ('PRE-' . $preId),
                     'valor_unitario' => $valorUnitario,
                     'subtotal' => $value,
+                    'valor_final' => $value,
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
                 ];
                 $totalAmount += $value;
@@ -584,6 +607,7 @@ class AjaxController extends BaseController
             $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
             $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
             $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
+            $hasValorFinal = isset($itemCols['valor_final']);
             foreach ($lineItems as $item) {
                 $itemData = (object) [
                     'quotation_id' => $quotationId,
@@ -596,6 +620,9 @@ class AjaxController extends BaseController
                 ];
                 if ($hasPreCotizacionId && isset($item['pre_cotizacion_id']) && $item['pre_cotizacion_id'] > 0) {
                     $itemData->pre_cotizacion_id = $item['pre_cotizacion_id'];
+                }
+                if ($hasValorFinal && isset($item['valor_final'])) {
+                    $itemData->valor_final = $item['valor_final'];
                 }
                 $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
             }

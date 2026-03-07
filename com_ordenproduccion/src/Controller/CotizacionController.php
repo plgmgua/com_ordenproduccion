@@ -940,10 +940,10 @@ class CotizacionController extends BaseController
         $pdf->SetFont('Arial', '', 9);
 
         foreach ($items as $item) {
-            $qty      = isset($item->cantidad) ? (int) $item->cantidad : 1;
-            $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-            $unit     = $qty > 0 ? ($subtotal / $qty) : 0;
-            $desc     = $fixSpanishChars($item->descripcion ?? '');
+            $qty       = isset($item->cantidad) ? (int) $item->cantidad : 1;
+            $lineTotal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : (isset($item->subtotal) ? (float) $item->subtotal : 0);
+            $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
+            $desc      = $fixSpanishChars($item->descripcion ?? '');
 
             $rowX = $pdf->GetX();
             $rowY = $pdf->GetY();
@@ -961,7 +961,7 @@ class CotizacionController extends BaseController
             // Skip description column (already drawn), draw price and subtotal
             $pdf->SetXY($rowX + $colCant + $colDesc, $rowY);
             $pdf->Cell($colUnit, $rowH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R');
-            $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($subtotal, 2), 1, 1, 'R');
+            $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($lineTotal, 2), 1, 1, 'R');
 
             $pdf->SetXY($rowX, $newY);
         }
