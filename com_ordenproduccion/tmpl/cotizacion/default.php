@@ -258,7 +258,13 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
-                        <td class="text-end">Q <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>"><input type="number" step="0.01" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" min="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>"></td>
+                        <td class="text-end align-middle">Q
+                            <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>">
+                            <div class="d-inline-block ms-1">
+                                <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" data-min="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" placeholder="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
+                                <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
+                            </div>
+                        </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button>
@@ -345,7 +351,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         var total = 0;
         tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
             var v = tr.querySelector('input[name*="[value]"]');
-            if (v) total += parseFloat(v.value) || 0;
+            if (v) {
+                var n = parseFloat(String(v.value).trim().replace(',', '.'), 10);
+                total += isNaN(n) ? 0 : n;
+            }
         });
         var totalInp = document.getElementById('totalAmount');
         if (totalInp) totalInp.value = total.toFixed(2);
@@ -357,21 +366,50 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         var span = row.querySelector('.line-precio-unidad');
         if (!span || !qtyInp || !valueInp) return;
         var q = parseFloat(qtyInp.value, 10) || 1;
-        var sub = parseFloat(valueInp.value, 10) || 0;
+        var raw = String(valueInp.value).trim().replace(',', '.');
+        var sub = parseFloat(raw, 10);
+        if (isNaN(sub)) sub = 0;
         span.textContent = q > 0 ? (sub / q).toFixed(4) : '0.0000';
     }
 
+    var msgValorFinalMin = '<?php echo addslashes($l('COM_ORDENPRODUCCION_VALOR_FINAL_CANNOT_LOWER', 'The value cannot be lower than the subtotal.', 'El valor no puede ser menor al subtotal.')); ?>';
+
     function onValorFinalChange(row) {
         var valueInp = row.querySelector('input[name*="[value]"]');
+        var errEl = row.querySelector('.line-valor-final-error');
         var minVal = parseFloat(row.getAttribute('data-subtotal-ref') || row.getAttribute('data-unit') || 0, 10);
-        if (valueInp && minVal >= 0) {
-            var v = parseFloat(valueInp.value, 10);
-            if (isNaN(v) || v < minVal) {
-                valueInp.value = minVal.toFixed(2);
+        if (!valueInp || minVal < 0) return;
+        var raw = String(valueInp.value).trim().replace(',', '.');
+        var v = parseFloat(raw, 10);
+        if (errEl) {
+            if (raw !== '' && !isNaN(v) && v < minVal) {
+                errEl.textContent = msgValorFinalMin;
+                errEl.style.display = 'block';
+            } else {
+                errEl.textContent = '';
+                errEl.style.display = 'none';
             }
-            updateUnitPriceDisplay(row);
-            updateTotal();
         }
+        if (!isNaN(v) && v >= minVal) {
+            valueInp.value = v.toFixed(2);
+        }
+        updateUnitPriceDisplay(row);
+        updateTotal();
+    }
+
+    function onValorFinalBlur(row) {
+        var valueInp = row.querySelector('input[name*="[value]"]');
+        var errEl = row.querySelector('.line-valor-final-error');
+        var minVal = parseFloat(row.getAttribute('data-subtotal-ref') || row.getAttribute('data-unit') || 0, 10);
+        if (!valueInp || minVal < 0) return;
+        var raw = String(valueInp.value).trim().replace(',', '.');
+        var v = parseFloat(raw, 10);
+        if (isNaN(v) || v < minVal) {
+            valueInp.value = minVal.toFixed(2);
+            if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+        }
+        updateUnitPriceDisplay(row);
+        updateTotal();
     }
 
     function onRowCantidadChange(row) {
@@ -387,7 +425,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     function saveLine(btn) {
         var tr = btn.closest('tr');
         if (!tr) return;
-        onValorFinalChange(tr);
+        onValorFinalBlur(tr);
         onRowCantidadChange(tr);
         var saveBtn = tr.querySelector('.btn-save-line');
         if (saveBtn) {
@@ -445,13 +483,16 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + parseFloat(value).toFixed(2) + '</span></td>' +
-                '<td class="text-end">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><input type="number" step="0.01" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm d-inline-block text-end" style="width:90px;" value="' + value + '" min="' + unitTotal + '"></td>' +
+                '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + unitTotal + '" placeholder="' + unitTotal + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)"><i class="fas fa-save"></i></button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);
             var qtyInput = tr.querySelector('.line-cantidad-input');
             if (qtyInput) qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
             var valueInput = tr.querySelector('.line-value-input');
-            if (valueInput) valueInput.addEventListener('input', function() { onValorFinalChange(tr); });
+            if (valueInput) {
+                valueInput.addEventListener('input', function() { onValorFinalChange(tr); });
+                valueInput.addEventListener('blur', function() { onValorFinalBlur(tr); });
+            }
             if (descEl) descEl.value = '';
             if (cantidadEl) cantidadEl.value = '1';
             selectEl.selectedIndex = 0;
@@ -459,12 +500,15 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             updateTotal();
         });
     }
-    // Bind cantidad and valor final change on existing rows (edit mode)
+    // Bind cantidad and valor final change/blur on existing rows (edit mode)
     tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
         var qtyInp = tr.querySelector('.line-cantidad-input');
         if (qtyInp) qtyInp.addEventListener('input', function() { onRowCantidadChange(tr); });
         var valueInp = tr.querySelector('.line-value-input');
-        if (valueInp) valueInp.addEventListener('input', function() { onValorFinalChange(tr); });
+        if (valueInp) {
+            valueInp.addEventListener('input', function() { onValorFinalChange(tr); });
+            valueInp.addEventListener('blur', function() { onValorFinalBlur(tr); });
+        }
     });
     updateTotal();
     tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) { updateUnitPriceDisplay(tr); });
