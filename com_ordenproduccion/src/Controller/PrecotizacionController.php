@@ -591,6 +591,7 @@ class PrecotizacionController extends BaseController
             'modified_by' => $user->id,
         ];
         $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
+        $model->refreshPreCotizacionTotalsSnapshot($id);
 
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_SAVED'));
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));

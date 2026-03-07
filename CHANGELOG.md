@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.86.0-STABLE] - 2026-02-24
+
+### Added
+- **Pre-Cotización totals snapshot (historical).** All calculated summary values (Subtotal, Margen de Ganancia, IVA, ISR, Comisión de venta, Total) are now saved on the pre-cotización header so they do not change if folio or otros elementos prices change later. New columns on `#__ordenproduccion_pre_cotizacion`: `lines_subtotal`, `margen_amount`, `iva_amount`, `isr_amount`, `comision_amount`, `total`, `total_final`. Run SQL update `admin/sql/updates/mysql/3.86.0_pre_cotizacion_totals_snapshot.sql` (safe to run multiple times).
+- **Total final.** New field `total_final` defaults to the calculated total; it can be updated later from the cotización view for manual overrides. The document view displays this as the main Total.
+
+### Changed
+- When a pre-cotización is edited (add/update/delete line, or save Facturar), the snapshot is refreshed so stored totals stay in sync. The Líneas table in the document view uses stored values when present; first view after upgrade backfills the snapshot for existing pre-cotizaciones.
+
 ## [3.85.0-STABLE] - 2026-02-24
 
 ### Added

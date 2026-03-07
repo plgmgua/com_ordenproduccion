@@ -162,6 +162,11 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['facturar'])) {
             $cols[] = 'a.facturar';
         }
+        foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final'] as $snapCol) {
+            if (isset($tableCols[$snapCol])) {
+                $cols[] = 'a.' . $snapCol;
+            }
+        }
         $query = $db->getQuery(true)
             ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
@@ -236,6 +241,10 @@ class PrecotizacionModel extends ListModel
      */
     public function getTotalForPreCotizacion($preCotizacionId)
     {
+        $item = $this->getItem((int) $preCotizacionId);
+        if ($item && isset($item->total) && $item->total !== null && $item->total !== '') {
+            return round((float) $item->total, 2);
+        }
         $lines = $this->getLines((int) $preCotizacionId);
         $subtotal = 0.0;
         foreach ($lines as $line) {
@@ -249,7 +258,6 @@ class PrecotizacionModel extends ListModel
         $iva = (float) $params->get('iva', 0);
         $isr = (float) $params->get('isr', 0);
         $comision = (float) $params->get('comision_venta', 0);
-        $item = $this->getItem((int) $preCotizacionId);
         $facturar = $item && !empty($item->facturar);
         if ($facturar) {
             $total = $subtotal + $subtotal * ($margen + $iva + $isr + $comision) / 100;
@@ -257,6 +265,72 @@ class PrecotizacionModel extends ListModel
             $total = $subtotal + $subtotal * ($margen + $comision) / 100;
         }
         return round($total, 2);
+    }
+
+    /**
+     * Refresh and save the totals snapshot on the pre_cotizacion (lines_subtotal, margen_amount, iva_amount, isr_amount, comision_amount, total, total_final).
+     * Call after addLine, updateLine, deleteLine, or saveFacturar so stored totals stay in sync and remain historical if prices change later.
+     *
+     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @return  bool  True if snapshot columns exist and were updated.
+     * @since   3.86.0
+     */
+    public function refreshPreCotizacionTotalsSnapshot($preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['lines_subtotal']) || !isset($tableCols['total'])) {
+            return false;
+        }
+
+        $lines = $this->getLines($preCotizacionId);
+        $linesSubtotal = 0.0;
+        foreach ($lines as $line) {
+            $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+            if ($lineType !== 'envio') {
+                $linesSubtotal += (float) ($line->total ?? 0);
+            }
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $paramMargen = (float) $params->get('margen_ganancia', 0);
+        $paramIva = (float) $params->get('iva', 0);
+        $paramIsr = (float) $params->get('isr', 0);
+        $paramComision = (float) $params->get('comision_venta', 0);
+        $item = $this->getItem($preCotizacionId);
+        $facturar = $item && !empty($item->facturar);
+
+        $margenAmount = round($linesSubtotal * ($paramMargen / 100), 2);
+        $ivaAmount = $facturar ? round($linesSubtotal * ($paramIva / 100), 2) : 0.0;
+        $isrAmount = $facturar ? round($linesSubtotal * ($paramIsr / 100), 2) : 0.0;
+        $comisionAmount = round($linesSubtotal * ($paramComision / 100), 2);
+        $total = round($linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount, 2);
+
+        $obj = (object) [
+            'id' => $preCotizacionId,
+            'lines_subtotal' => $linesSubtotal,
+            'margen_amount' => $margenAmount,
+            'iva_amount' => $ivaAmount,
+            'isr_amount' => $isrAmount,
+            'comision_amount' => $comisionAmount,
+            'total' => $total,
+        ];
+        if (isset($tableCols['total_final'])) {
+            $obj->total_final = $total;
+        }
+
+        try {
+            $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -453,6 +527,10 @@ class PrecotizacionModel extends ListModel
 
         try {
             $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+            $preCotizacionId = (int) $line->pre_cotizacion_id;
+            if ($preCotizacionId > 0) {
+                $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+            }
             return true;
         } catch (\Exception $e) {
             return false;
@@ -588,6 +666,7 @@ class PrecotizacionModel extends ListModel
 
         try {
             $db->insertObject('#__ordenproduccion_pre_cotizacion_line', $line, 'id');
+            $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
             return (int) $line->id;
         } catch (\Exception $e) {
             return false;
@@ -675,6 +754,7 @@ class PrecotizacionModel extends ListModel
                 ->where($db->quoteName('id') . ' = ' . $lineId)
         )->execute();
 
+        $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
         return true;
     }
 }

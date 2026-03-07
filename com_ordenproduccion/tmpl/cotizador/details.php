@@ -28,15 +28,41 @@ $elementosById = [];
 foreach ($this->elementos ?? [] as $el) {
     $elementosById[(int) $el->id] = $el;
 }
-$linesSubtotal = 0;
-if (!empty($lines)) {
-    foreach ($lines as $l) {
-        $lineType = isset($l->line_type) ? (string) $l->line_type : 'pliego';
-        if ($lineType !== 'envio') {
-            $linesSubtotal += (float) ($l->total ?? 0);
+$facturar = !empty($item->facturar);
+$hasStoredTotals = isset($item->lines_subtotal) && $item->lines_subtotal !== null && $item->lines_subtotal !== '';
+if ($hasStoredTotals) {
+    $linesSubtotal = (float) $item->lines_subtotal;
+    $margenAmount = (float) ($item->margen_amount ?? 0);
+    $ivaAmount = (float) ($item->iva_amount ?? 0);
+    $isrAmount = (float) ($item->isr_amount ?? 0);
+    $comisionAmount = (float) ($item->comision_amount ?? 0);
+    $linesTotal = (float) ($item->total ?? 0);
+    $linesTotalFinal = isset($item->total_final) && $item->total_final !== null && $item->total_final !== '' ? (float) $item->total_final : $linesTotal;
+} else {
+    $linesSubtotal = 0;
+    if (!empty($lines)) {
+        foreach ($lines as $l) {
+            $lineType = isset($l->line_type) ? (string) $l->line_type : 'pliego';
+            if ($lineType !== 'envio') {
+                $linesSubtotal += (float) ($l->total ?? 0);
+            }
         }
     }
+    $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
+    $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
+    $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
+    $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
+    $margenAmount = $linesSubtotal * ($paramMargen / 100);
+    $ivaAmount = $facturar ? ($linesSubtotal * ($paramIva / 100)) : 0;
+    $isrAmount = $facturar ? ($linesSubtotal * ($paramIsr / 100)) : 0;
+    $comisionAmount = $linesSubtotal * ($paramComision / 100);
+    $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
+    $linesTotalFinal = $linesTotal;
 }
+$paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
+$paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
+$paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
+$paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
 $clickAncho  = isset($this->clickAncho)  ? (float) $this->clickAncho  : 0.0;
 $clickAlto   = isset($this->clickAlto)   ? (float) $this->clickAlto   : 0.0;
 $clickPrecio = isset($this->clickPrecio) ? (float) $this->clickPrecio : 0.0;
@@ -61,16 +87,6 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
     return (int) $quantity * (int) ceil($ratio);
 };
 
-$facturar = !empty($item->facturar);
-$paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
-$paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
-$paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
-$paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
-$margenAmount = $linesSubtotal * ($paramMargen / 100);
-$ivaAmount = $facturar ? ($linesSubtotal * ($paramIva / 100)) : 0;
-$isrAmount = $facturar ? ($linesSubtotal * ($paramIsr / 100)) : 0;
-$comisionAmount = $linesSubtotal * ($paramComision / 100);
-$linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
 ?>
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
@@ -203,7 +219,7 @@ $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisi
                     <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
-                        <td class="text-end">Q <?php echo number_format($linesTotal, 2); ?></td>
+                        <td class="text-end">Q <?php echo number_format($linesTotalFinal, 2); ?></td>
                     </tr>
                 </tfoot>
             </table>

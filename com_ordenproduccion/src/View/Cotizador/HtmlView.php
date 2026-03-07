@@ -113,6 +113,11 @@ class HtmlView extends BaseHtmlView
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
                     $this->precotizacionLocked = !empty($this->associatedQuotations);
+                    // Backfill totals snapshot (3.86.0) when not yet stored so first view persists historical totals
+                    if (!empty($this->lines) && (!isset($this->item->lines_subtotal) || $this->item->lines_subtotal === null || $this->item->lines_subtotal === '')) {
+                        $precotModel->refreshPreCotizacionTotalsSnapshot($id);
+                        $this->item = $precotModel->getItem($id);
+                    }
                 }
             }
             $params = ComponentHelper::getParams('com_ordenproduccion');

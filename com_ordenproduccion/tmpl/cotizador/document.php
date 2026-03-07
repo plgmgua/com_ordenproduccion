@@ -51,26 +51,43 @@ $elementosById = [];
 foreach ($this->elementos ?? [] as $el) {
     $elementosById[(int) $el->id] = $el;
 }
-// Subtotal = sum of line totals (exclude shipment lines when line_type envio exists; for now all lines are items)
-$linesSubtotal = 0;
-if (!empty($lines)) {
-    foreach ($lines as $l) {
-        $lineType = isset($l->line_type) ? (string) $l->line_type : 'pliego';
-        if ($lineType !== 'envio') {
-            $linesSubtotal += (float) ($l->total ?? 0);
+// Use stored snapshot totals when present (3.86.0+), so totals stay historical if prices change later
+$hasStoredTotals = isset($item->lines_subtotal) && $item->lines_subtotal !== null && $item->lines_subtotal !== '';
+if ($hasStoredTotals) {
+    $linesSubtotal = (float) $item->lines_subtotal;
+    $margenAmount = (float) ($item->margen_amount ?? 0);
+    $ivaAmount = (float) ($item->iva_amount ?? 0);
+    $isrAmount = (float) ($item->isr_amount ?? 0);
+    $comisionAmount = (float) ($item->comision_amount ?? 0);
+    $linesTotal = (float) ($item->total ?? 0);
+    $linesTotalFinal = isset($item->total_final) && $item->total_final !== null && $item->total_final !== '' ? (float) $item->total_final : $linesTotal;
+} else {
+    $linesSubtotal = 0;
+    if (!empty($lines)) {
+        foreach ($lines as $l) {
+            $lineType = isset($l->line_type) ? (string) $l->line_type : 'pliego';
+            if ($lineType !== 'envio') {
+                $linesSubtotal += (float) ($l->total ?? 0);
+            }
         }
     }
+    $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
+    $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
+    $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
+    $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
+    $margenAmount = $linesSubtotal * ($paramMargen / 100);
+    $facturar = !empty($item->facturar);
+    $ivaAmount = $facturar ? ($linesSubtotal * ($paramIva / 100)) : 0;
+    $isrAmount = $facturar ? ($linesSubtotal * ($paramIsr / 100)) : 0;
+    $comisionAmount = $linesSubtotal * ($paramComision / 100);
+    $linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
+    $linesTotalFinal = $linesTotal;
 }
 $facturar = !empty($item->facturar);
 $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
 $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
 $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
 $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
-$margenAmount = $linesSubtotal * ($paramMargen / 100);
-$ivaAmount = $facturar ? ($linesSubtotal * ($paramIva / 100)) : 0;
-$isrAmount = $facturar ? ($linesSubtotal * ($paramIsr / 100)) : 0;
-$comisionAmount = $linesSubtotal * ($paramComision / 100);
-$linesTotal = $linesSubtotal + $margenAmount + $ivaAmount + $isrAmount + $comisionAmount;
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
 $labelCalculoFolios = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS');
 if ($labelCalculoFolios === 'COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS' || $labelCalculoFolios === 'COM_ORDENPRODUCCION_PRE_COTIZACION_NUEVA_LINEA' || $labelCalculoFolios === 'New Line' || $labelCalculoFolios === 'Nueva Línea') {
@@ -397,7 +414,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                     <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
-                        <td class="text-end">Q <?php echo number_format($linesTotal, 2); ?></td>
+                        <td class="text-end">Q <?php echo number_format($linesTotalFinal, 2); ?></td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -439,7 +456,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
             </div>
             <div class="modal-body">
                 <form id="pliego-line-form" method="post" action="<?php echo $addLineTask; ?>" data-add-action="<?php echo htmlspecialchars($addLineTask); ?>" data-edit-action="<?php echo htmlspecialchars($editLineTask); ?>">
-                    <input type="hidden" name="<?php echo $token; ?>" value="1">
+                    <?php echo HTMLHelper::_('form.token'); ?>
                     <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preCotizacionId; ?>">
                     <input type="hidden" name="line_id" id="pliego_modal_line_id" value="">
                     <input type="hidden" name="price_per_sheet" id="pliego_modal_price_per_sheet" value="">
@@ -856,8 +873,11 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
             rows: line.breakdown || []
         };
         renderBreakdownTable(lastCalc.rows, line.total);
-        document.getElementById('pliego_modal_price_display').textContent = line.price_per_sheet != null ? 'Q ' + Number(line.price_per_sheet).toFixed(2) : '-';
-        document.getElementById('pliego_modal_total_display').textContent = line.total != null ? 'Q ' + Number(line.total).toFixed(2) : '-';
+        document.getElementById('pliego_modal_price_display').textContent = line.price_per_sheet != null && line.price_per_sheet !== '' ? 'Q ' + Number(line.price_per_sheet).toFixed(2) : '-';
+        document.getElementById('pliego_modal_total_display').textContent = line.total != null && line.total !== '' ? 'Q ' + Number(line.total).toFixed(2) : '-';
+        document.getElementById('pliego_modal_price_per_sheet').value = line.price_per_sheet != null && line.price_per_sheet !== '' ? line.price_per_sheet : '';
+        document.getElementById('pliego_modal_total').value = line.total != null && line.total !== '' ? line.total : '';
+        document.getElementById('pliego_modal_breakdown').value = (line.breakdown && line.breakdown.length) ? JSON.stringify(line.breakdown) : '[]';
         if (submitBtn) submitBtn.disabled = false;
         filterSizeDropdown();
         filterLaminationBySize();
