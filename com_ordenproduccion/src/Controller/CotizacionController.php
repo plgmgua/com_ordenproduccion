@@ -988,27 +988,31 @@ class CotizacionController extends BaseController
         $pdf->SetFont('Arial', '', 10);
         $pdf->Ln(6);
 
-        // Términos y condiciones (50% width) + Aceptación de cotización (50% width)
-        $contentW   = $pageW - 15 - $marginR;
-        $halfW      = $contentW / 2;
-        $termStartX = ($termX > 0 ? $termX : 15);
-        $termStartY = ($termY > 0 ? $termY : $pdf->GetY());
+        // Términos y condiciones (60% width) + Aceptación de cotización (40% width)
+        $contentW     = $pageW - 15 - $marginR;
+        $termW        = $contentW * 0.6;
+        $aceptacionW  = $contentW * 0.4;
+        $aceptacionLineH = 9;
+        $termStartX   = ($termX > 0 ? $termX : 15);
+        $termStartY   = ($termY > 0 ? $termY : $pdf->GetY());
         $pdf->SetXY($termStartX, $termStartY);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($halfW, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
+        $pdf->Cell($termW, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
         if (!empty($terminosBlocks)) {
-            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars, $halfW);
+            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars, $termW);
         }
-        $leftEndY = $pdf->GetY();
-        $aceptacionX = $termStartX + $halfW;
+        $leftEndY   = $pdf->GetY();
+        $aceptacionX = $termStartX + $termW;
         $pdf->SetXY($aceptacionX, $termStartY);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($halfW, $lineH, $fixSpanishChars('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Aceptacion de cotizacion'), 0, 1, 'L');
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetX($aceptacionX);
-        $pdf->Cell($halfW, $lineH, $fixSpanishChars('Nombre'), 0, 1, 'L');
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Nombre'), 0, 1, 'L');
         $pdf->SetX($aceptacionX);
-        $pdf->Cell($halfW, $lineH, $fixSpanishChars('Fecha'), 0, 1, 'L');
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Fecha'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Firma'), 0, 1, 'L');
         $pdf->SetY(max($leftEndY, $pdf->GetY()));
         $pdf->Ln(4);
 
