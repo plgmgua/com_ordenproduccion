@@ -2460,6 +2460,7 @@ class AdministracionModel extends BaseDatabaseModel
     {
         $db = Factory::getDbo();
         $keys = [
+            'cotizacion_pdf_format_version',
             'cotizacion_pdf_logo_path',
             'cotizacion_pdf_logo_x',
             'cotizacion_pdf_logo_y',
@@ -2489,7 +2490,15 @@ class AdministracionModel extends BaseDatabaseModel
             $v = (float) $rows[$key]->setting_value;
             return $v;
         };
+        $formatVersion = 1;
+        if (isset($rows['cotizacion_pdf_format_version']) && $rows['cotizacion_pdf_format_version']->setting_value !== '') {
+            $v = (int) $rows['cotizacion_pdf_format_version']->setting_value;
+            if ($v >= 1 && $v <= 2) {
+                $formatVersion = $v;
+            }
+        }
         return [
+            'format_version' => $formatVersion,
             'logo_path'  => isset($rows['cotizacion_pdf_logo_path']) ? $rows['cotizacion_pdf_logo_path']->setting_value : '',
             'logo_x'     => $getFloat('cotizacion_pdf_logo_x', 15),
             'logo_y'     => $getFloat('cotizacion_pdf_logo_y', 15),
@@ -2521,6 +2530,7 @@ class AdministracionModel extends BaseDatabaseModel
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
         $map = [
+            'format_version' => 'cotizacion_pdf_format_version',
             'logo_path'  => 'cotizacion_pdf_logo_path',
             'logo_x'     => 'cotizacion_pdf_logo_x',
             'logo_y'     => 'cotizacion_pdf_logo_y',
@@ -2541,6 +2551,8 @@ class AdministracionModel extends BaseDatabaseModel
             $value = isset($data[$inputKey]) ? $data[$inputKey] : '';
             if (in_array($inputKey, ['logo_x', 'logo_y', 'logo_width', 'encabezado_x', 'encabezado_y', 'table_x', 'table_y', 'terminos_x', 'terminos_y', 'pie_x', 'pie_y'], true)) {
                 $value = (string) (float) $value;
+            } elseif ($inputKey === 'format_version') {
+                $value = (string) max(1, min(2, (int) $value));
             } else {
                 $value = is_string($value) ? $value : '';
             }

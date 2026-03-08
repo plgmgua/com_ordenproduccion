@@ -430,7 +430,9 @@ class AdministracionController extends BaseController
         }
 
         $jform = $app->input->post->get('jform', [], 'array');
+        $formatVersion = isset($jform['format_version']) ? max(1, min(2, (int) $jform['format_version'])) : 1;
         $data = [
+            'format_version' => $formatVersion,
             'logo_path'  => isset($jform['logo_path'])  ? trim((string) $jform['logo_path'])  : '',
             'logo_x'     => isset($jform['logo_x'])     ? (float) $jform['logo_x']     : 15,
             'logo_y'     => isset($jform['logo_y'])     ? (float) $jform['logo_y']     : 15,

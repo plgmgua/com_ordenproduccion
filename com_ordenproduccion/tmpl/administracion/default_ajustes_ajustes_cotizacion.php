@@ -26,7 +26,8 @@ $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/compone
 
 $settings = isset($this->cotizacionPdfSettings) && is_array($this->cotizacionPdfSettings)
     ? $this->cotizacionPdfSettings
-    : ['logo_path' => '', 'logo_x' => 15, 'logo_y' => 15, 'logo_width' => 50, 'encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => '', 'encabezado_x' => 15, 'encabezado_y' => 15, 'table_x' => 0, 'table_y' => 0, 'terminos_x' => 0, 'terminos_y' => 0, 'pie_x' => 0, 'pie_y' => 0];
+    : ['format_version' => 1, 'logo_path' => '', 'logo_x' => 15, 'logo_y' => 15, 'logo_width' => 50, 'encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => '', 'encabezado_x' => 15, 'encabezado_y' => 15, 'table_x' => 0, 'table_y' => 0, 'terminos_x' => 0, 'terminos_y' => 0, 'pie_x' => 0, 'pie_y' => 0];
+$format_version = isset($settings['format_version']) ? max(1, min(2, (int) $settings['format_version'])) : 1;
 $logo_path  = isset($settings['logo_path'])  ? $settings['logo_path']  : '';
 $logo_x     = isset($settings['logo_x'])     ? (float) $settings['logo_x']     : 15;
 $logo_y     = isset($settings['logo_y'])     ? (float) $settings['logo_y']     : 15;
@@ -76,6 +77,18 @@ $editorButtons = true;
         <p class="text-muted mb-4">
             <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_DESC'); ?>
         </p>
+
+            <!-- PDF format version -->
+            <div class="mb-4">
+                <label for="jform_format_version" class="form-label fw-bold">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_VERSION'); ?>
+                </label>
+                <select name="jform[format_version]" id="jform_format_version" class="form-select" style="max-width: 22rem;">
+                    <option value="1"<?php echo $format_version === 1 ? ' selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_1'); ?></option>
+                    <option value="2"<?php echo $format_version === 2 ? ' selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_2'); ?></option>
+                </select>
+                <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_VERSION_DESC'); ?></div>
+            </div>
 
         <div class="alert alert-info mb-4">
             <h3 class="alert-heading h6 mb-2">

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.89.0-STABLE] - 2026-02-24
+
+### Added
+- **Cotización PDF format version 2 (print-style).** In Ajustes > Ajustes de Cotización you can select **Formato del PDF**: Version 1 (Clásico) or Version 2 (Estilo impresión). Version 2 uses: top and bottom horizontal bars in cyan, yellow and magenta (CMY); section headers (Datos del cliente, Precios, Términos y Condiciones) in a compatible plum/magenta colour; pricing table with a lighter row background and compatible header colour. Setting is stored in `#__ordenproduccion_config` as `cotizacion_pdf_format_version` (1 or 2).
+
 ## [3.88.0-STABLE] - 2026-02-24
 
 ### Added

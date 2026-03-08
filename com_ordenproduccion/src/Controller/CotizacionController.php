@@ -264,20 +264,37 @@ class CotizacionController extends BaseController
         $currency = $quotation->currency ?? 'Q';
         $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 
+        $formatVersion = isset($pdfSettings['format_version']) ? max(1, min(2, (int) $pdfSettings['format_version'])) : 1;
         try {
-            $this->generateCotizacionPdf(
-                $quotation,
-                $items,
-                $encabezadoHtml,
-                $terminosHtml,
-                $pieHtml,
-                $numeroCotizacion,
-                $fechaFormatted,
-                $currency,
-                $totalAmount,
-                (int) $app->input->get('download', 0) === 1,
-                $pdfSettings
-            );
+            if ($formatVersion === 2) {
+                $this->generateCotizacionPdfV2(
+                    $quotation,
+                    $items,
+                    $encabezadoHtml,
+                    $terminosHtml,
+                    $pieHtml,
+                    $numeroCotizacion,
+                    $fechaFormatted,
+                    $currency,
+                    $totalAmount,
+                    (int) $app->input->get('download', 0) === 1,
+                    $pdfSettings
+                );
+            } else {
+                $this->generateCotizacionPdf(
+                    $quotation,
+                    $items,
+                    $encabezadoHtml,
+                    $terminosHtml,
+                    $pieHtml,
+                    $numeroCotizacion,
+                    $fechaFormatted,
+                    $currency,
+                    $totalAmount,
+                    (int) $app->input->get('download', 0) === 1,
+                    $pdfSettings
+                );
+            }
         } catch (\Throwable $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_PDF_GENERATION') . ': ' . $e->getMessage(), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
@@ -1026,6 +1043,250 @@ class CotizacionController extends BaseController
             }
             $this->renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
+
+        $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
+        $dest = $forceDownload ? 'D' : 'I';
+        $pdf->Output($dest, $filename);
+        exit;
+    }
+
+    /**
+     * Generate cotización PDF format version 2: print-style with CMY top/bottom bars,
+     * section headers in a compatible colour, and light table background.
+     *
+     * @param   object   $quotation       Quotation row
+     * @param   array    $items           Quotation items
+     * @param   string   $encabezadoHtml  Header content (HTML)
+     * @param   string   $terminosHtml    Terms content (HTML)
+     * @param   string   $pieHtml         Footer content (HTML)
+     * @param   string   $numeroCotizacion Quotation number
+     * @param   string   $fechaFormatted  Formatted date
+     * @param   string   $currency        Currency symbol
+     * @param   float    $totalAmount    Total amount
+     * @param   bool     $forceDownload   True to force download (D), false for inline (I)
+     * @param   array    $pdfSettings     Optional. Same keys as generateCotizacionPdf.
+     * @return  void
+     */
+    private function generateCotizacionPdfV2($quotation, $items, $encabezadoHtml, $terminosHtml, $pieHtml, $numeroCotizacion, $fechaFormatted, $currency, $totalAmount, $forceDownload = false, array $pdfSettings = [])
+    {
+        require_once JPATH_ROOT . '/fpdf/fpdf.php';
+
+        $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
+        $pdf->AddPage();
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+
+        $fixSpanishChars = function ($text) {
+            if (empty($text)) {
+                return $text;
+            }
+            $text = str_replace("\xc2\xa0", ' ', $text);
+            if (function_exists('iconv')) {
+                $converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
+                return ($converted !== false) ? $converted : $text;
+            }
+            return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+        };
+
+        $encabezadoBlocks = $this->parseHtmlBlocks($encabezadoHtml, $fixSpanishChars);
+        $terminosBlocks   = $this->parseHtmlBlocks($terminosHtml, $fixSpanishChars);
+        $pieBlocks        = $this->parseHtmlBlocks($pieHtml, $fixSpanishChars);
+
+        $logoPath  = isset($pdfSettings['logo_path'])  ? trim($pdfSettings['logo_path'])  : '';
+        $logoX     = isset($pdfSettings['logo_x'])     ? (float) $pdfSettings['logo_x']     : 15;
+        $logoY     = isset($pdfSettings['logo_y'])     ? (float) $pdfSettings['logo_y']     : 15;
+        $logoWidth = isset($pdfSettings['logo_width']) ? (float) $pdfSettings['logo_width'] : 50;
+        $encX = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
+        $encY = isset($pdfSettings['encabezado_y']) ? (float) $pdfSettings['encabezado_y'] : 15;
+        $tableX = isset($pdfSettings['table_x']) ? (float) $pdfSettings['table_x'] : 0;
+        $tableY = isset($pdfSettings['table_y']) ? (float) $pdfSettings['table_y'] : 0;
+        $termX = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
+        $termY = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
+        $pieX = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
+        $pieY = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
+
+        $pageW   = $pdf->GetPageWidth();
+        $marginR = 15;
+        $contentW = $pageW - 15 - $marginR;
+
+        // ── Top CMY bar (cyan, yellow, magenta) ──
+        $cmyBarH = 4;
+        $thirdW  = $pageW / 3;
+        $pdf->SetY(0);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);   // Cyan
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);   // Yellow
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);   // Magenta
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        $pdf->SetFillColor(255, 255, 255);
+
+        // Start content below top bar and below top margin
+        $pdf->SetY($cmyBarH + 15);
+
+        // Section bar colour: compatible with CMY (dark magenta/plum)
+        $sectionR = 139;
+        $sectionG = 58;
+        $sectionB = 98;
+        $tableHeaderR = 166;
+        $tableHeaderG = 103;
+        $tableHeaderB = 134;
+        $tableLightR = 248;
+        $tableLightG = 240;
+        $tableLightB = 247;
+
+        // Logo
+        if (!empty($logoPath)) {
+            $resolvedLogo = $this->resolveImagePath($logoPath);
+            if ($resolvedLogo) {
+                $pdf->Image($resolvedLogo, $logoX, $pdf->GetY(), $logoWidth);
+            }
+        }
+
+        // ── Section: Client / Quote details (encabezado) ──
+        $sectionH = 7;
+        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Datos del cliente / Cotizacion'), 0, 1, 'L', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+
+        if (!empty($encabezadoBlocks)) {
+            $pdf->SetXY($encX, $pdf->GetY());
+            $this->renderPdfBlocks($pdf, $encabezadoBlocks, 6, 10, $pageW, $marginR, 15, 4, $fixSpanishChars);
+        }
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Ln(4);
+
+        // ── Section: Pricing (table) ──
+        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Precios'), 0, 1, 'L', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+
+        $colCodigo = 16;
+        $colCant   = 16;
+        $colDesc   = 102;
+        $colUnit   = 28;
+        $colSub    = 28;
+        $lineH     = 6;
+
+        if ($tableY > 0 || $tableX > 0) {
+            $pdf->SetXY($tableX > 0 ? $tableX : 15, $tableY > 0 ? $tableY : $pdf->GetY());
+        }
+
+        // Table header row (lighter compatible colour)
+        $pdf->SetFillColor($tableHeaderR, $tableHeaderG, $tableHeaderB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 8);
+        $pdf->Cell($colCodigo, $lineH, 'Codigo', 1, 0, 'L', true);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($colCant, $lineH, 'Cant.', 1, 0, 'L', true);
+        $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L', true);
+        $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R', true);
+        $pdf->Cell($colSub, $lineH, 'Subtotal', 1, 1, 'R', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->SetFont('Arial', '', 9);
+
+        $rowIndex = 0;
+        foreach ($items as $item) {
+            $qty       = isset($item->cantidad) ? (int) $item->cantidad : 1;
+            $lineTotal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : (isset($item->subtotal) ? (float) $item->subtotal : 0);
+            $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
+            $desc      = $fixSpanishChars($item->descripcion ?? '');
+            $codigo    = $fixSpanishChars(isset($item->pre_cotizacion_number) && trim((string) $item->pre_cotizacion_number) !== ''
+                ? trim((string) $item->pre_cotizacion_number)
+                : (isset($item->pre_cotizacion_id) && (int) $item->pre_cotizacion_id > 0 ? 'PRE-' . (int) $item->pre_cotizacion_id : '-'));
+
+            $rowX = $pdf->GetX();
+            $rowY = $pdf->GetY();
+            $fill = ($rowIndex % 2 === 1);
+            if ($fill) {
+                $pdf->SetFillColor($tableLightR, $tableLightG, $tableLightB);
+            }
+
+            $pdf->SetXY($rowX + $colCodigo + $colCant, $rowY);
+            $pdf->MultiCell($colDesc, $lineH, $desc, 1, 'L', $fill);
+            $newY   = $pdf->GetY();
+            $rowH   = max($lineH, $newY - $rowY);
+
+            $pdf->SetXY($rowX, $rowY);
+            $pdf->SetFont('Arial', '', 8);
+            $pdf->Cell($colCodigo, $rowH, $codigo, 1, 0, 'L', $fill);
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell($colCant, $rowH, (string) $qty, 1, 0, 'C', $fill);
+            $pdf->SetXY($rowX + $colCodigo + $colCant + $colDesc, $rowY);
+            $pdf->Cell($colUnit, $rowH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R', $fill);
+            $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($lineTotal, 2), 1, 1, 'R', $fill);
+            if ($fill) {
+                $pdf->SetFillColor(255, 255, 255);
+            }
+            $pdf->SetXY($rowX, $newY);
+            $rowIndex++;
+        }
+
+        // Total row (no fill)
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($colCodigo + $colCant + $colDesc + $colUnit, $lineH, 'Total:', 1, 0, 'R');
+        $pdf->Cell($colSub, $lineH, $currency . ' ' . number_format($totalAmount, 2), 1, 1, 'R');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Ln(6);
+
+        // ── Section: Términos y condiciones + Aceptación ──
+        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Terminos y Condiciones'), 0, 1, 'L', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+
+        $termW        = $contentW * 0.6;
+        $aceptacionW  = $contentW * 0.4;
+        $aceptacionLineH = 9;
+        $termStartX   = ($termX > 0 ? $termX : 15);
+        $termStartY   = ($termY > 0 ? $termY : $pdf->GetY());
+        $pdf->SetXY($termStartX, $termStartY);
+        if (!empty($terminosBlocks)) {
+            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars, $termW);
+        }
+        $leftEndY = $pdf->GetY();
+        $aceptacionX = $termStartX + $termW;
+        $pdf->SetXY($aceptacionX, $termStartY);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Nombre'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Fecha'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Firma'), 0, 1, 'L');
+        $pdf->SetY(max($leftEndY, $pdf->GetY()));
+        $pdf->Ln(4);
+
+        // Pie de página
+        if (!empty($pieBlocks)) {
+            if ($pieY > 0 || $pieX > 0) {
+                $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
+            }
+            $this->renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
+        }
+
+        // ── Bottom CMY bar ──
+        $curY = $pdf->GetY();
+        $pdf->SetY($curY + 4);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
         $dest = $forceDownload ? 'D' : 'I';
