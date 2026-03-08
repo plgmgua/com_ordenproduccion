@@ -625,21 +625,11 @@ class CotizacionController extends BaseController
         }
 
         $solicitudUrl = $this->getSolicitudOrdenUrlForNotify();
-        $nextOrderNumber = '';
-        try {
-            $component = $app->bootComponent('com_ordenproduccion');
-            $settingsModel = $component->getMVCFactory()->createModel('Settings', 'Administrator', ['ignore_request' => true]);
-            if (method_exists($settingsModel, 'getNextOrderNumberPreview')) {
-                $nextOrderNumber = (string) $settingsModel->getNextOrderNumberPreview();
-            }
-        } catch (\Throwable $e) {
-            // Continue without order number
-        }
+        $cotizacionUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, true);
 
         if ($solicitudUrl !== '') {
             try {
                 $payload = [
-                    'order_number'            => $nextOrderNumber,
                     'pre_cotizacion_id'       => $preCotizacionId,
                     'quotation_id'            => $quotationId,
                     'client_name'             => $clientName,
@@ -648,15 +638,15 @@ class CotizacionController extends BaseController
                     'precotizacion_number'   => $precotizacionNumber,
                     'precotizacion_description' => $precotizacionDescription,
                     'precotizacion_total'     => $precotizacionTotal,
+                    'cotizacion_url'          => $cotizacionUrl,
                 ];
                 $http = \Joomla\CMS\Http\HttpFactory::getHttp();
                 $http->post($solicitudUrl, json_encode($payload), ['Content-Type' => 'application/json']);
             } catch (\Exception $e) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
             }
-            // Redirect the user's browser to the configured Order Request URL (with params)
+            // Redirect the user's browser to the configured Order Request URL (with params). No order_number: this is a solicitud from pre-cotización only.
             $redirectUri = new Uri($solicitudUrl);
-            $redirectUri->setVar('order_number', $nextOrderNumber);
             $redirectUri->setVar('pre_cotizacion_id', (string) $preCotizacionId);
             $redirectUri->setVar('quotation_id', (string) $quotationId);
             $redirectUri->setVar('client_name', $clientName);
@@ -665,6 +655,7 @@ class CotizacionController extends BaseController
             $redirectUri->setVar('precotizacion_number', $precotizacionNumber);
             $redirectUri->setVar('precotizacion_description', $precotizacionDescription);
             $redirectUri->setVar('precotizacion_total', $precotizacionTotal);
+            $redirectUri->setVar('cotizacion_url', $cotizacionUrl);
             $app->redirect((string) $redirectUri);
             return;
         }
