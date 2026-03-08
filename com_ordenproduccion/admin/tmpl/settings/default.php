@@ -199,8 +199,14 @@ use Joomla\CMS\Router\Route;
                     </div>
                     <div class="card-body">
                         <div class="form-group" id="solicitud-orden-url">
+                            <?php
+                            $solicitudOrdenUrlLabel = Text::_('COM_ORDENPRODUCCION_SETTINGS_SOLICITUD_ORDEN_URL_LABEL');
+                            if (strpos($solicitudOrdenUrlLabel, 'COM_ORDENPRODUCCION_') === 0) {
+                                $solicitudOrdenUrlLabel = (Factory::getApplication()->getLanguage()->getTag() === 'es-ES') ? 'Solicitud de Orden URL' : 'Order Request URL';
+                            }
+                            ?>
                             <label for="jform_solicitud_orden_url" class="form-label">
-                                <?php echo Text::_('COM_ORDENPRODUCCION_SETTINGS_SOLICITUD_ORDEN_URL_LABEL'); ?>
+                                <?php echo htmlspecialchars($solicitudOrdenUrlLabel, ENT_QUOTES, 'UTF-8'); ?>
                             </label>
                             <input type="url"
                                    name="jform[solicitud_orden_url]"
