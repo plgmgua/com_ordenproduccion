@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.91.0-STABLE] - 2026-02-24
+
+### Added
+- **Detalles (instructions) per line/concept before Orden de Trabajo.** When confirming the cotización and clicking "Generar Orden de Trabajo", the user is taken to an "Instrucciones para orden de trabajo" form. For each pre-cotización line: **Folios (pliego)** lines show one "Detalles" field per concept from the calculation breakdown (e.g. Impresión (Tiro/Retiro), Laminación, Corte, Grapa). **Otros Elementos** lines show three fields: Interiores, Espiral metálico, Portada. **Envío** lines show one optional "Detalles envío" field. Values are stored in `#__ordenproduccion_pre_cotizacion_line_detalles` (pre_cotizacion_line_id, concepto_key, concepto_label, detalle). Run SQL update `admin/sql/updates/mysql/3.91.0_pre_cotizacion_line_detalles.sql` (replace joomla_ with your table prefix). After saving (or skipping), the user is redirected to the Orden de Trabajo form. This data is for use when creating the actual work order.
+
 ## [3.90.0-STABLE] - 2026-02-24
 
 ### Added

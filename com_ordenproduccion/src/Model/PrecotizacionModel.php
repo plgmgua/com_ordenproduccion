@@ -771,4 +771,145 @@ class PrecotizacionModel extends ListModel
         $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
         return true;
     }
+
+    /**
+     * Get concepts (element labels) that require "Detalles" for a given line.
+     * Pliego: one per breakdown row (label). Elementos: Interiores, Espiral metálico, Portada. Envío: one optional.
+     *
+     * @param   \stdClass  $line  Line object (breakdown, line_type)
+     * @return  array  List of [concepto_key => concepto_label]
+     * @since   3.91.0
+     */
+    public function getConceptsForLine($line)
+    {
+        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if ($lineType === 'envio') {
+            return ['detalle_envio' => 'Detalles envío'];
+        }
+        if ($lineType === 'elementos') {
+            return [
+                'interiores'       => 'Interiores',
+                'espiral_metalico' => 'Espiral metálico',
+                'portada'          => 'Portada',
+            ];
+        }
+        $concepts = [];
+        $breakdown = isset($line->breakdown) && is_array($line->breakdown) ? $line->breakdown : [];
+        foreach ($breakdown as $row) {
+            $label = isset($row['label']) ? trim((string) $row['label']) : '';
+            if ($label === '') {
+                continue;
+            }
+            $key = preg_replace('/[^a-z0-9_]/', '_', strtolower($label));
+            $key = trim(preg_replace('/_+/', '_', $key), '_');
+            if ($key === '') {
+                $key = 'concepto_' . count($concepts);
+            }
+            $concepts[$key] = $label;
+        }
+        return $concepts;
+    }
+
+    /**
+     * Get saved Detalles for multiple lines (for instrucciones form).
+     *
+     * @param   int[]  $lineIds  Pre-cotizacion line ids
+     * @return  array  [line_id => [concepto_key => detalle]]
+     * @since   3.91.0
+     */
+    public function getDetallesForLines(array $lineIds)
+    {
+        if (empty($lineIds)) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $tbl = $db->quoteName('#__ordenproduccion_pre_cotizacion_line_detalles');
+        try {
+            $cols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_pre_cotizacion_line_detalles'), false);
+        } catch (\Exception $e) {
+            return [];
+        }
+        if (empty($cols)) {
+            return [];
+        }
+        $lineIds = array_map('intval', $lineIds);
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['pre_cotizacion_line_id', 'concepto_key', 'detalle']))
+            ->from($tbl)
+            ->whereIn($db->quoteName('pre_cotizacion_line_id'), $lineIds);
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $out = [];
+        foreach ($lineIds as $lid) {
+            $out[$lid] = [];
+        }
+        foreach ($rows as $r) {
+            $lid = (int) $r->pre_cotizacion_line_id;
+            if (isset($out[$lid])) {
+                $out[$lid][$r->concepto_key] = $r->detalle ?? '';
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Save Detalles for one line. Replaces all existing detalles for that line with the given map.
+     *
+     * @param   int    $lineId                Pre-cotizacion line id
+     * @param   array  $conceptoKeyToDetalle  [concepto_key => detalle]; keys must match concepto_label for insert
+     * @param   array  $conceptoKeyToLabel    [concepto_key => concepto_label] for new rows
+     * @return  bool
+     * @since   3.91.0
+     */
+    public function saveLineDetalles($lineId, array $conceptoKeyToDetalle, array $conceptoKeyToLabel = [])
+    {
+        $lineId = (int) $lineId;
+        if ($lineId < 1) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $tbl = '#__ordenproduccion_pre_cotizacion_line_detalles';
+        try {
+            $cols = $db->getTableColumns($db->replacePrefix($tbl), false);
+        } catch (\Exception $e) {
+            return false;
+        }
+        if (empty($cols)) {
+            return false;
+        }
+        $db->setQuery($db->getQuery(true)->delete($db->quoteName($tbl))->where($db->quoteName('pre_cotizacion_line_id') . ' = ' . $lineId))->execute();
+        foreach ($conceptoKeyToDetalle as $key => $detalle) {
+            $key = trim((string) $key);
+            if ($key === '') {
+                continue;
+            }
+            $label = isset($conceptoKeyToLabel[$key]) ? trim((string) $conceptoKeyToLabel[$key]) : $key;
+            $obj = (object) [
+                'pre_cotizacion_line_id' => $lineId,
+                'concepto_key'           => $key,
+                'concepto_label'         => $label,
+                'detalle'                => is_string($detalle) ? $detalle : '',
+            ];
+            $db->insertObject($tbl, $obj);
+        }
+        return true;
+    }
+
+    /**
+     * Check if the line_detalles table exists.
+     *
+     * @return  bool
+     * @since   3.91.0
+     */
+    public function lineDetallesTableExists()
+    {
+        $db = $this->getDatabase();
+        try {
+            $name = $db->replacePrefix('#__ordenproduccion_pre_cotizacion_line_detalles');
+            $cols = $db->getTableColumns($name, false);
+            return !empty($cols);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
 }

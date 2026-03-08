@@ -472,6 +472,68 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Save "Detalles" (instructions) per line/concept and redirect to Orden de Trabajo form.
+     * POST: pre_cotizacion_id, quotation_id, detalle[line_id][concepto_key] = value.
+     *
+     * @return  void
+     * @since   3.91.0
+     */
+    public function saveInstruccionesOrden()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
+        $quotationId = (int) $app->input->post->get('quotation_id', 0);
+        if ($preCotizacionId < 1 || $quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $db = Factory::getDbo();
+        $db->setQuery($db->getQuery(true)->select('id')->from($db->quoteName('#__ordenproduccion_quotations'))->where($db->quoteName('id') . ' = ' . $quotationId)->where($db->quoteName('state') . ' = 1'));
+        if (!$db->loadResult()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (!$precotModel->lineDetallesTableExists()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TABLE_MISSING'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $lines = $precotModel->getLines($preCotizacionId);
+        if (empty($lines)) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+            return;
+        }
+        $detallePost = $app->input->post->get('detalle', [], 'array');
+        foreach ($lines as $line) {
+            $lineId = (int) $line->id;
+            $concepts = $precotModel->getConceptsForLine($line);
+            $keyToDetalle = [];
+            $keyToLabel = $concepts;
+            $lineData = isset($detallePost[$lineId]) && is_array($detallePost[$lineId]) ? $detallePost[$lineId] : [];
+            foreach ($concepts as $key => $label) {
+                $keyToDetalle[$key] = isset($lineData[$key]) ? trim((string) $lineData[$key]) : '';
+            }
+            $precotModel->saveLineDetalles($lineId, $keyToDetalle, $keyToLabel);
+        }
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+    }
+
+    /**
      * Parse HTML into blocks with alignment (preserve WYSIWYG: left/right/center and line breaks).
      * Used for encabezado, términos and pie. Block text preserves \n for MultiCell.
      *

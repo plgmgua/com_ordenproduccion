@@ -266,7 +266,7 @@ $currency = $quotation->currency ?? 'Q';
                                         $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
                                         $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
                                         $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                                        $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
+                                        $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=cotizacion&layout=instrucciones_orden&id=' . $quotationId . '&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
                                     ?>
                                         <tr>
                                             <td class="align-middle"><strong><?php echo htmlspecialchars($preNum); ?></strong></td>

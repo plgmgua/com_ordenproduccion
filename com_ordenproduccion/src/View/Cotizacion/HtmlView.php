@@ -172,9 +172,42 @@ class HtmlView extends BaseHtmlView
                 }
             }
 
-            // Use read-only display layout when viewing by id (no layout=edit)
+            // Layout: edit, instrucciones_orden, or display (read-only)
             $layout = $input->get('layout', '', 'cmd');
-            if ($quotationId > 0 && $this->quotation && $layout !== 'edit') {
+            if ($layout === 'instrucciones_orden') {
+                $preCotizacionId = $input->getInt('pre_cotizacion_id', 0);
+                $quotationIdForOrden = $input->getInt('quotation_id', $quotationId);
+                if ($preCotizacionId > 0 && ($quotationIdForOrden > 0 || $quotationId > 0)) {
+                    $component = $app->bootComponent('com_ordenproduccion');
+                    $precotModel = $component->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+                    $productosModel = $component->getMVCFactory()->createModel('Productos', 'Site', ['ignore_request' => true]);
+                    $this->instruccionesPreCotizacionId = $preCotizacionId;
+                    $this->instruccionesQuotationId = $quotationIdForOrden > 0 ? $quotationIdForOrden : $quotationId;
+                    $lines = $precotModel->getLines($preCotizacionId);
+                    $lineIds = array_map(function ($l) { return (int) $l->id; }, $lines);
+                    $detallesMap = $precotModel->lineDetallesTableExists() ? $precotModel->getDetallesForLines($lineIds) : [];
+                    $linesWithConcepts = [];
+                    foreach ($lines as $line) {
+                        $lid = (int) $line->id;
+                        $concepts = $precotModel->getConceptsForLine($line);
+                        $existing = isset($detallesMap[$lid]) ? $detallesMap[$lid] : [];
+                        $linesWithConcepts[] = (object) [
+                            'line'     => $line,
+                            'concepts' => $concepts,
+                            'detalles' => $existing,
+                        ];
+                    }
+                    $this->instruccionesLines = $linesWithConcepts;
+                    $this->instruccionesQuotation = $this->quotation;
+                    $this->pliegoPaperTypes = $productosModel->getPaperTypesWithNonZeroPrintPrice();
+                    $this->pliegoSizes = $productosModel->getSizesWithNonZeroPrintPrice();
+                    $this->elementos = $productosModel->elementosTableExists() ? $productosModel->getElementos() : [];
+                    $this->setLayout('instrucciones_orden');
+                } else {
+                    $layout = '';
+                }
+            }
+            if ($quotationId > 0 && $this->quotation && $layout !== 'edit' && $layout !== 'instrucciones_orden') {
                 $this->setLayout('display');
             }
 
