@@ -78,18 +78,6 @@ $editorButtons = true;
             <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_DESC'); ?>
         </p>
 
-            <!-- PDF format version -->
-            <div class="mb-4">
-                <label for="jform_format_version" class="form-label fw-bold">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_VERSION'); ?>
-                </label>
-                <select name="jform[format_version]" id="jform_format_version" class="form-select" style="max-width: 22rem;">
-                    <option value="1"<?php echo $format_version === 1 ? ' selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_1'); ?></option>
-                    <option value="2"<?php echo $format_version === 2 ? ' selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_2'); ?></option>
-                </select>
-                <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_VERSION_DESC'); ?></div>
-            </div>
-
         <div class="alert alert-info mb-4">
             <h3 class="alert-heading h6 mb-2">
                 <i class="fas fa-code"></i>
@@ -108,6 +96,18 @@ $editorButtons = true;
             <?php if (!empty($this->returnUrlAjustesCotizacion)): ?>
                 <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($this->returnUrlAjustesCotizacion, ENT_QUOTES, 'UTF-8'); ?>" />
             <?php endif; ?>
+
+            <!-- PDF format version -->
+            <div class="mb-4">
+                <label for="jform_format_version" class="form-label fw-bold">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_VERSION'); ?>
+                </label>
+                <select name="jform[format_version]" id="jform_format_version" class="form-select" style="max-width: 22rem;">
+                    <option value="1"<?php echo $format_version === 1 ? ' selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_1'); ?></option>
+                    <option value="2"<?php echo $format_version === 2 ? ' selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_2'); ?></option>
+                </select>
+                <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_FORMAT_VERSION_DESC'); ?></div>
+            </div>
 
             <!-- ── Logo ──────────────────────────────────────────────────────── -->
             <div class="mb-4 p-3 border rounded bg-light">
