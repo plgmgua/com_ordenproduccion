@@ -774,7 +774,7 @@ class PrecotizacionModel extends ListModel
 
     /**
      * Get concepts (element labels) that require "Detalles" for a given line.
-     * Pliego: one per breakdown row (label). Elementos: Interiores, Espiral metálico, Portada. Envío: one optional.
+     * Pliego: one per breakdown row (label). Elementos/Envío: one single "Detalles" input per line (each is a single element).
      *
      * @param   \stdClass  $line  Line object (breakdown, line_type)
      * @return  array  List of [concepto_key => concepto_label]
@@ -787,11 +787,7 @@ class PrecotizacionModel extends ListModel
             return ['detalle_envio' => 'Detalles envío'];
         }
         if ($lineType === 'elementos') {
-            return [
-                'interiores'       => 'Interiores',
-                'espiral_metalico' => 'Espiral metálico',
-                'portada'          => 'Portada',
-            ];
+            return ['detalle' => 'Detalles'];
         }
         $concepts = [];
         $breakdown = isset($line->breakdown) && is_array($line->breakdown) ? $line->breakdown : [];

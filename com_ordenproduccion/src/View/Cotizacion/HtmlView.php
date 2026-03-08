@@ -167,8 +167,52 @@ class HtmlView extends BaseHtmlView
                             $item->pre_cotizacion_total = null;
                         }
                     }
+                    // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
+                    $this->itemsWithLineDetalles = [];
+                    if ($precotModel->lineDetallesTableExists()) {
+                        $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                            ->createModel('Productos', 'Site', ['ignore_request' => true]);
+                        $this->pliegoPaperTypesModal = $productosModel->getPaperTypesWithNonZeroPrintPrice();
+                        $this->pliegoSizesModal = $productosModel->getSizesWithNonZeroPrintPrice();
+                        $this->elementosModal = $productosModel->elementosTableExists() ? $productosModel->getElementos() : [];
+                        foreach ($this->quotationItems as $item) {
+                            $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                            if ($preId < 1) {
+                                continue;
+                            }
+                            $lines = $precotModel->getLines($preId);
+                            $lineIds = array_map(function ($l) { return (int) $l->id; }, $lines);
+                            $detallesMap = $precotModel->getDetallesForLines($lineIds);
+                            $linesWithConcepts = [];
+                            foreach ($lines as $line) {
+                                $lid = (int) $line->id;
+                                $concepts = $precotModel->getConceptsForLine($line);
+                                $existing = isset($detallesMap[$lid]) ? $detallesMap[$lid] : [];
+                                $linesWithConcepts[] = (object) [
+                                    'line'     => $line,
+                                    'concepts' => $concepts,
+                                    'detalles' => $existing,
+                                ];
+                            }
+                            $this->itemsWithLineDetalles[] = (object) [
+                                'pre_cotizacion_id'   => $preId,
+                                'pre_cotizacion_number' => $item->pre_cotizacion_number ?? ('PRE-' . $preId),
+                                'descripcion'         => $item->descripcion ?? '',
+                                'subtotal'            => isset($item->subtotal) ? (float) $item->subtotal : 0,
+                                'linesWithConcepts'   => $linesWithConcepts,
+                            ];
+                        }
+                    } else {
+                        $this->pliegoPaperTypesModal = [];
+                        $this->pliegoSizesModal = [];
+                        $this->elementosModal = [];
+                    }
                 } else {
                     $this->quotationItems = [];
+                    $this->itemsWithLineDetalles = [];
+                    $this->pliegoPaperTypesModal = [];
+                    $this->pliegoSizesModal = [];
+                    $this->elementosModal = [];
                 }
             }
 

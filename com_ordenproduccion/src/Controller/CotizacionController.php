@@ -472,8 +472,10 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * Save "Detalles" (instructions) per line/concept and redirect to Orden de Trabajo form.
-     * POST: pre_cotizacion_id, quotation_id, detalle[line_id][concepto_key] = value.
+     * Save "Detalles" (instructions) per line/concept.
+     * POST: quotation_id (required), optional pre_cotizacion_id, detalle[line_id][concepto_key] = value.
+     * If pre_cotizacion_id is set: save only that pre-cotizacion's lines and redirect to orden.
+     * If only quotation_id: save all lines of all pre-cotizaciones in the quotation and redirect back to quotation display (modal).
      *
      * @return  void
      * @since   3.91.0
@@ -494,9 +496,9 @@ class CotizacionController extends BaseController
         }
         $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
         $quotationId = (int) $app->input->post->get('quotation_id', 0);
-        if ($preCotizacionId < 1 || $quotationId < 1) {
+        if ($quotationId < 1) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
         $db = Factory::getDbo();
@@ -512,25 +514,40 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
             return;
         }
-        $lines = $precotModel->getLines($preCotizacionId);
-        if (empty($lines)) {
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
-            return;
+        $preCotizacionIds = [];
+        if ($preCotizacionId > 0) {
+            $preCotizacionIds = [$preCotizacionId];
+        } else {
+            $db->setQuery($db->getQuery(true)->select($db->quoteName('pre_cotizacion_id'))->from($db->quoteName('#__ordenproduccion_quotation_items'))->where($db->quoteName('quotation_id') . ' = ' . $quotationId));
+            $rows = $db->loadColumn() ?: [];
+            foreach ($rows as $id) {
+                $id = (int) $id;
+                if ($id > 0) {
+                    $preCotizacionIds[] = $id;
+                }
+            }
         }
         $detallePost = $app->input->post->get('detalle', [], 'array');
-        foreach ($lines as $line) {
-            $lineId = (int) $line->id;
-            $concepts = $precotModel->getConceptsForLine($line);
-            $keyToDetalle = [];
-            $keyToLabel = $concepts;
-            $lineData = isset($detallePost[$lineId]) && is_array($detallePost[$lineId]) ? $detallePost[$lineId] : [];
-            foreach ($concepts as $key => $label) {
-                $keyToDetalle[$key] = isset($lineData[$key]) ? trim((string) $lineData[$key]) : '';
+        foreach ($preCotizacionIds as $pid) {
+            $lines = $precotModel->getLines($pid);
+            foreach ($lines as $line) {
+                $lineId = (int) $line->id;
+                $concepts = $precotModel->getConceptsForLine($line);
+                $keyToDetalle = [];
+                $keyToLabel = $concepts;
+                $lineData = isset($detallePost[$lineId]) && is_array($detallePost[$lineId]) ? $detallePost[$lineId] : [];
+                foreach ($concepts as $key => $label) {
+                    $keyToDetalle[$key] = isset($lineData[$key]) ? trim((string) $lineData[$key]) : '';
+                }
+                $precotModel->saveLineDetalles($lineId, $keyToDetalle, $keyToLabel);
             }
-            $precotModel->saveLineDetalles($lineId, $keyToDetalle, $keyToLabel);
         }
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
-        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+        if ($preCotizacionId > 0) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+        } else {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+        }
     }
 
     /**

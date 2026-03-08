@@ -200,7 +200,8 @@ $currency = $quotation->currency ?? 'Q';
                 <div class="confirmar-steps mb-3">
                     <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="1">1</span>
                     <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="2">2</span>
-                    <span class="badge bg-secondary confirmar-step-dot" data-step="3">3</span>
+                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="3">3</span>
+                    <span class="badge bg-secondary confirmar-step-dot" data-step="4">4</span>
                 </div>
 
                 <!-- Step 1: Upload signed document -->
@@ -243,8 +244,88 @@ $currency = $quotation->currency ?? 'Q';
                     </form>
                 </div>
 
-                <!-- Step 3: Pre-cotizaciones + Generar Orden de Trabajo -->
+                <!-- Step 3: Detalles / Instrucciones por línea (para orden de trabajo) -->
                 <div class="confirmar-step-pane" id="confirmarStep3" data-step="3" style="display:none;">
+                    <h6 class="mb-2"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?></h6>
+                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?></p>
+                    <?php
+                    $itemsWithLineDetalles = isset($this->itemsWithLineDetalles) ? $this->itemsWithLineDetalles : [];
+                    $paperNamesModal = [];
+                    $sizeNamesModal = [];
+                    $elementosByIdModal = [];
+                    if (!empty($this->pliegoPaperTypesModal)) {
+                        foreach ($this->pliegoPaperTypesModal as $p) {
+                            $paperNamesModal[(int) $p->id] = $p->name ?? '';
+                        }
+                    }
+                    if (!empty($this->pliegoSizesModal)) {
+                        foreach ($this->pliegoSizesModal as $s) {
+                            $sizeNamesModal[(int) $s->id] = $s->name ?? '';
+                        }
+                    }
+                    if (!empty($this->elementosModal)) {
+                        foreach ($this->elementosModal as $el) {
+                            $elementosByIdModal[(int) $el->id] = $el;
+                        }
+                    }
+                    if (empty($itemsWithLineDetalles)) : ?>
+                        <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
+                        <button type="button" class="btn btn-primary btn-confirmar-next" data-next="4"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                    <?php else : ?>
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden'); ?>" method="post" id="confirmarFormStep3">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>">
+                            <div class="overflow-auto mb-3" style="max-height: 45vh;">
+                                <?php foreach ($itemsWithLineDetalles as $preItem) :
+                                    $preNum = $preItem->pre_cotizacion_number ?? ('PRE-' . $preItem->pre_cotizacion_id);
+                                    foreach ($preItem->linesWithConcepts as $row) :
+                                        $line = $row->line;
+                                        $concepts = $row->concepts;
+                                        $detalles = $row->detalles;
+                                        $lineId = (int) $line->id;
+                                        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+                                        $lineLabel = '—';
+                                        if ($lineType === 'envio') {
+                                            $lineLabel = isset($line->envio_name) ? $line->envio_name : 'Envío';
+                                        } elseif ($lineType === 'elementos' && !empty($line->elemento_id) && isset($elementosByIdModal[(int) $line->elemento_id])) {
+                                            $lineLabel = $elementosByIdModal[(int) $line->elemento_id]->name ?? ('ID ' . $line->elemento_id);
+                                        } else {
+                                            $pn = $paperNamesModal[$line->paper_type_id ?? 0] ?? '';
+                                            $sn = $sizeNamesModal[$line->size_id ?? 0] ?? '';
+                                            $lineLabel = ($pn ?: '') . ($pn && $sn ? ' · ' : '') . ($sn ?: '') . (($pn || $sn) ? ' · ' : '') . (int) ($line->quantity ?? 0);
+                                        }
+                                        $tipoElemento = isset($line->tipo_elemento) && trim((string) $line->tipo_elemento) !== '' ? trim((string) $line->tipo_elemento) : $lineLabel;
+                                        if (empty($concepts)) {
+                                            continue;
+                                        }
+                                    ?>
+                                    <div class="card mb-2">
+                                        <div class="card-header py-1 px-2 small bg-light"><strong><?php echo htmlspecialchars($tipoElemento); ?></strong> <span class="text-muted"><?php echo htmlspecialchars($preNum); ?></span></div>
+                                        <div class="card-body py-2 px-2">
+                                            <?php foreach ($concepts as $conceptoKey => $conceptoLabel) :
+                                                $value = isset($detalles[$conceptoKey]) ? htmlspecialchars((string) $detalles[$conceptoKey], ENT_QUOTES, 'UTF-8') : '';
+                                                $name = 'detalle[' . $lineId . '][' . htmlspecialchars($conceptoKey, ENT_QUOTES, 'UTF-8') . ']';
+                                                $id = 'detalle_' . $lineId . '_' . preg_replace('/[^a-z0-9_]/', '_', $conceptoKey);
+                                            ?>
+                                            <div class="mb-2">
+                                                <label for="<?php echo $id; ?>" class="form-label small mb-0"><?php echo htmlspecialchars($conceptoLabel); ?></label>
+                                                <textarea name="<?php echo $name; ?>" id="<?php echo $id; ?>" class="form-control form-control-sm" rows="2" placeholder="<?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_PLACEHOLDER', 'Details / instructions', 'Detalles / instrucciones'); ?>"><?php echo $value; ?></textarea>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; endforeach; ?>
+                            </div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="submit" class="btn btn-outline-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
+                                <button type="button" class="btn btn-primary btn-confirmar-next" data-next="4"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Step 4: Pre-cotizaciones + Generar Orden de Trabajo -->
+                <div class="confirmar-step-pane" id="confirmarStep4" data-step="4" style="display:none;">
                     <h6 class="mb-2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_DESC', 'Generate work order for each pre-quotation.', 'Generar orden de trabajo para cada pre-cotización.'); ?></p>
                     <?php if (empty($items)) : ?>
@@ -266,7 +347,7 @@ $currency = $quotation->currency ?? 'Q';
                                         $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
                                         $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
                                         $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                                        $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=cotizacion&layout=instrucciones_orden&id=' . $quotationId . '&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
+                                        $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
                                     ?>
                                         <tr>
                                             <td class="align-middle"><strong><?php echo htmlspecialchars($preNum); ?></strong></td>
@@ -295,7 +376,7 @@ $currency = $quotation->currency ?? 'Q';
 (function() {
     var modal = document.getElementById('confirmarCotizacionModal');
     if (!modal) return;
-    var steps = [1, 2, 3];
+    var steps = [1, 2, 3, 4];
     function showStep(step) {
         steps.forEach(function(s) {
             var pane = document.getElementById('confirmarStep' + s);
@@ -313,7 +394,7 @@ $currency = $quotation->currency ?? 'Q';
         var nextBtn = e.target && e.target.closest && e.target.closest('.btn-confirmar-next');
         if (nextBtn) {
             var next = parseInt(nextBtn.getAttribute('data-next'), 10);
-            if (next >= 1 && next <= 3) showStep(next);
+            if (next >= 1 && next <= 4) showStep(next);
         }
     });
 })();
