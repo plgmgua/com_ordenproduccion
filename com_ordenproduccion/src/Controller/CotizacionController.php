@@ -219,6 +219,13 @@ class CotizacionController extends BaseController
             ->from($db->quoteName('#__ordenproduccion_quotation_items', 'i'))
             ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
             ->order($db->quoteName('i.line_order') . ' ASC, ' . $db->quoteName('i.id') . ' ASC');
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        if (isset($itemCols['pre_cotizacion_id'])) {
+            $subq = '(SELECT ' . $db->quoteName('p.number') . ' FROM ' . $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p')
+                . ' WHERE ' . $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id') . ' LIMIT 1)';
+            $query->select($subq . ' AS ' . $db->quoteName('pre_cotizacion_number'));
+        }
         $db->setQuery($query);
         $items = $db->loadObjectList() ?: [];
 
@@ -718,17 +725,19 @@ class CotizacionController extends BaseController
     /**
      * Render a list of parsed HTML blocks to an FPDF instance.
      *
-     * @param   \FPDF    $pdf      FPDF instance
-     * @param   array    $blocks   Block list from parseHtmlBlocks()
-     * @param   float    $lineH    Line height in mm
-     * @param   int      $fontSize Font size in pt
-     * @param   float    $pageW    Page width in mm
-     * @param   float    $marginR  Right margin in mm
-     * @param   float    $marginL  Left margin in mm
-     * @param   float    $gap      Spacing added after each non-list text block (mm)
+     * @param   \FPDF    $pdf       FPDF instance
+     * @param   array    $blocks    Block list from parseHtmlBlocks()
+     * @param   float    $lineH     Line height in mm
+     * @param   int      $fontSize  Font size in pt
+     * @param   float    $pageW     Page width in mm
+     * @param   float    $marginR   Right margin in mm
+     * @param   float    $marginL   Left margin in mm
+     * @param   float    $gap       Spacing added after each non-list text block (mm)
+     * @param   callable $fixSpanishChars Optional encoder for FPDF
+     * @param   float    $maxWidth  Optional max width in mm (e.g. for 50% column); 0 = full width
      * @return  void
      */
-    private function renderPdfBlocks($pdf, $blocks, $lineH, $fontSize, $pageW, $marginR, $marginL = 15, $gap = 4, callable $fixSpanishChars = null)
+    private function renderPdfBlocks($pdf, $blocks, $lineH, $fontSize, $pageW, $marginR, $marginL = 15, $gap = 4, callable $fixSpanishChars = null, $maxWidth = 0)
     {
         // Apply Latin-1 conversion for FPDF; fall back to identity if not provided
         $encode = $fixSpanishChars ?? static function ($t) { return $t; };
@@ -760,7 +769,7 @@ class CotizacionController extends BaseController
             // ── Table block ───────────────────────────────────────────────────
             if ($type === 'table') {
                 $contentStarted = true;
-                $tableW = $pageW - $marginL - $marginR;
+                $tableW = ($maxWidth > 0 ? $maxWidth : ($pageW - $marginL - $marginR));
                 foreach ($block['rows'] as $row) {
                     $numCols = count($row);
                     if ($numCols === 0) {
@@ -824,6 +833,7 @@ class CotizacionController extends BaseController
             $isList = !empty($block['list']);
             $pdf->SetFont('Arial', $block['style'] ?? '', $fontSize);
 
+            $textW = ($maxWidth > 0 ? $maxWidth : 0);
             if ($align === 'R') {
                 foreach (explode("\n", $text) as $line) {
                     $line = trim($line);
@@ -835,7 +845,7 @@ class CotizacionController extends BaseController
                     $pdf->Cell($w, $lineH, $line, 0, 1, 'L');
                 }
             } else {
-                $pdf->MultiCell(0, $lineH, $text, 0, $align);
+                $pdf->MultiCell($textW, $lineH, $text, 0, $align);
             }
             $pdf->Ln($isList ? 1 : $gap);
         }
@@ -922,17 +932,19 @@ class CotizacionController extends BaseController
 
         $pdf->Ln(4);
 
-        // Table: position (X,Y mm) then Cantidad, Descripción, Precio unit., Subtotal
+        // Table: Codigo (pre-cotizacion number), Cantidad, Descripción, Precio unit., Subtotal
         if ($tableY > 0 || $tableX > 0) {
             $pdf->SetXY($tableX > 0 ? $tableX : 15, $tableY > 0 ? $tableY : $pdf->GetY());
         }
-        $colCant = 18;
-        $colDesc = 95;
-        $colUnit = 35;
-        $colSub  = 35;
-        $lineH  = 6;
+        $colCodigo = 22;
+        $colCant   = 16;
+        $colDesc   = 82;
+        $colUnit   = 35;
+        $colSub    = 35;
+        $lineH     = 6;
 
         $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($colCodigo, $lineH, 'Codigo', 1, 0, 'L');
         $pdf->Cell($colCant, $lineH, 'Cantidad', 1, 0, 'L');
         $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L');
         $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R');
@@ -944,22 +956,26 @@ class CotizacionController extends BaseController
             $lineTotal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : (isset($item->subtotal) ? (float) $item->subtotal : 0);
             $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
             $desc      = $fixSpanishChars($item->descripcion ?? '');
+            $codigo    = $fixSpanishChars(isset($item->pre_cotizacion_number) && trim((string) $item->pre_cotizacion_number) !== ''
+                ? trim((string) $item->pre_cotizacion_number)
+                : (isset($item->pre_cotizacion_id) && (int) $item->pre_cotizacion_id > 0 ? 'PRE-' . (int) $item->pre_cotizacion_id : '-'));
 
             $rowX = $pdf->GetX();
             $rowY = $pdf->GetY();
 
             // Draw description first (MultiCell wraps and advances Y)
-            $pdf->SetXY($rowX + $colCant, $rowY);
+            $pdf->SetXY($rowX + $colCodigo + $colCant, $rowY);
             $pdf->MultiCell($colDesc, $lineH, $desc, 1, 'L');
             $newY   = $pdf->GetY();
             $rowH   = max($lineH, $newY - $rowY);
 
-            // Draw Cantidad with full row height over the already-drawn description
+            // Draw Codigo and Cantidad with full row height
             $pdf->SetXY($rowX, $rowY);
+            $pdf->Cell($colCodigo, $rowH, $codigo, 1, 0, 'L');
             $pdf->Cell($colCant, $rowH, (string) $qty, 1, 0, 'C');
 
             // Skip description column (already drawn), draw price and subtotal
-            $pdf->SetXY($rowX + $colCant + $colDesc, $rowY);
+            $pdf->SetXY($rowX + $colCodigo + $colCant + $colDesc, $rowY);
             $pdf->Cell($colUnit, $rowH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R');
             $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($lineTotal, 2), 1, 1, 'R');
 
@@ -967,21 +983,34 @@ class CotizacionController extends BaseController
         }
 
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($colCant + $colDesc + $colUnit, $lineH, 'Total:', 1, 0, 'R');
+        $pdf->Cell($colCodigo + $colCant + $colDesc + $colUnit, $lineH, 'Total:', 1, 0, 'R');
         $pdf->Cell($colSub, $lineH, $currency . ' ' . number_format($totalAmount, 2), 1, 1, 'R');
         $pdf->SetFont('Arial', '', 10);
         $pdf->Ln(6);
 
-        // Términos y condiciones
+        // Términos y condiciones (50% width) + Aceptación de cotización (50% width)
+        $contentW   = $pageW - 15 - $marginR;
+        $halfW      = $contentW / 2;
+        $termStartX = ($termX > 0 ? $termX : 15);
+        $termStartY = ($termY > 0 ? $termY : $pdf->GetY());
+        $pdf->SetXY($termStartX, $termStartY);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($halfW, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
         if (!empty($terminosBlocks)) {
-            if ($termY > 0 || $termX > 0) {
-                $pdf->SetXY($termX > 0 ? $termX : 15, $termY > 0 ? $termY : $pdf->GetY());
-            }
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(0, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
-            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
-            $pdf->Ln(4);
+            $this->renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars, $halfW);
         }
+        $leftEndY = $pdf->GetY();
+        $aceptacionX = $termStartX + $halfW;
+        $pdf->SetXY($aceptacionX, $termStartY);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($halfW, $lineH, $fixSpanishChars('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($halfW, $lineH, $fixSpanishChars('Nombre'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($halfW, $lineH, $fixSpanishChars('Fecha'), 0, 1, 'L');
+        $pdf->SetY(max($leftEndY, $pdf->GetY()));
+        $pdf->Ln(4);
 
         // Pie de página
         if (!empty($pieBlocks)) {
