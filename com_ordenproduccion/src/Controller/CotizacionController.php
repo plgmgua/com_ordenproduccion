@@ -893,6 +893,19 @@ class CotizacionController extends BaseController
         $pdf->SetMargins(15, 15, 15);
         $pdf->SetAutoPageBreak(true, 15);
 
+        // Top CMY bar (cyan, yellow, magenta)
+        $cmyBarH = 4;
+        $thirdW  = $pdf->GetPageWidth() / 3;
+        $pdf->SetY(0);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        $pdf->SetFillColor(255, 255, 255);
+
         // FPDF uses Latin-1 (ISO-8859-1) internally. Spanish characters (á, é, í, ó, ú, ñ, ü…)
         // exist in Latin-1, so we simply re-encode from UTF-8 instead of stripping them.
         // iconv with //TRANSLIT preserves Latin-1 characters exactly and transliterates any
@@ -1043,6 +1056,18 @@ class CotizacionController extends BaseController
             }
             $this->renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
+
+        // Bottom CMY bar (cyan, yellow, magenta)
+        $pdf->Ln(4);
+        $curY = $pdf->GetY();
+        $pdf->SetY($curY);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
         $dest = $forceDownload ? 'D' : 'I';
