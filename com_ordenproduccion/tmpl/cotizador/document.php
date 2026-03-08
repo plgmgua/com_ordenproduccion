@@ -243,6 +243,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
             <table class="table table-bordered">
                 <thead>
                     <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_QUANTITY'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COL_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_SIZE'); ?></th>
@@ -276,6 +277,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         }
                         $lineJson = $isEnvio ? '' : htmlspecialchars(json_encode([
                             'id' => (int) $line->id,
+                            'tipo_elemento' => isset($line->tipo_elemento) ? (string) $line->tipo_elemento : '',
                             'quantity' => (int) $line->quantity,
                             'paper_type_id' => (int) $line->paper_type_id,
                             'size_id' => (int) $line->size_id,
@@ -297,8 +299,10 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                             }
                             $lineCostoClicks = ($lineClicks !== null && $clickPrecio > 0) ? $lineClicks * $clickPrecio : null;
                         }
+                        $tipoElemento = isset($line->tipo_elemento) && trim((string) $line->tipo_elemento) !== '' ? trim((string) $line->tipo_elemento) : '—';
                         ?>
                         <tr class="line-data-row">
+                            <td><?php echo htmlspecialchars($tipoElemento); ?></td>
                             <td><?php echo (int) $line->quantity; ?></td>
                             <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
@@ -327,7 +331,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         </tr>
                         <?php if (!$isElemento && !$isEnvio) : ?>
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
-                            <td colspan="6" class="p-0 bg-light align-top">
+                            <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
                                         <thead>
@@ -378,7 +382,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <?php $tfootLabelSpan = 4; ?>
+                    <?php $tfootLabelSpan = 5; ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
@@ -463,6 +467,10 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                     <input type="hidden" name="total" id="pliego_modal_total" value="">
                     <input type="hidden" name="calculation_breakdown" id="pliego_modal_breakdown" value="">
 
+                    <div class="mb-2">
+                        <label for="pliego_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
+                        <input type="text" id="pliego_modal_tipo_elemento" name="tipo_elemento" class="form-control" maxlength="255" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                    </div>
                     <div class="row mb-2">
                         <div class="col-md-4">
                             <label for="pliego_modal_quantity" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_QUANTITY'); ?></label>
@@ -573,6 +581,10 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                 <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preCotizacionId; ?>">
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="elementos_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
+                        <input type="text" name="tipo_elemento" id="elementos_modal_tipo_elemento" class="form-control" maxlength="255" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                    </div>
+                    <div class="mb-3">
                         <label for="elementos_modal_elemento_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ELEMENTO_LINE'); ?></label>
                         <select name="elemento_id" id="elementos_modal_elemento_id" class="form-select" required>
                             <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT_ELEMENTO'); ?></option>
@@ -608,6 +620,10 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                 <?php echo HTMLHelper::_('form.token'); ?>
                 <input type="hidden" name="id" value="<?php echo $preCotizacionId; ?>">
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="envio_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
+                        <input type="text" name="tipo_elemento" id="envio_modal_tipo_elemento" class="form-control" maxlength="255" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                    </div>
                     <div class="mb-3">
                         <label for="envio_modal_envio_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_METHOD'); ?></label>
                         <select name="envio_id" id="envio_modal_envio_id" class="form-select" required data-envios="<?php echo htmlspecialchars(json_encode(array_map(function($e) { return ['id' => (int)$e->id, 'tipo' => isset($e->tipo) ? (string)$e->tipo : 'fixed', 'valor' => (float)($e->valor ?? 0)]; }, $envios))); ?>">
@@ -816,11 +832,13 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         });
     }
 
+    var pliegoTipoElemento = document.getElementById('pliego_modal_tipo_elemento');
     function setAddMode() {
         if (lineIdInput) lineIdInput.value = '';
         if (form) form.action = form.getAttribute('data-add-action') || form.action;
         if (modalTitle) modalTitle.textContent = modalTitleNew;
         if (submitBtn) submitBtn.textContent = addLineBtnLabel;
+        if (pliegoTipoElemento) pliegoTipoElemento.value = '';
         if (qty) qty.value = '1';
         if (paper) paper.value = '';
         if (size) size.value = '';
@@ -856,6 +874,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         if (form) form.action = form.getAttribute('data-edit-action') || form.action;
         if (modalTitle) modalTitle.textContent = modalTitleEdit;
         if (submitBtn) submitBtn.textContent = saveLineBtnLabel;
+        if (pliegoTipoElemento) pliegoTipoElemento.value = line.tipo_elemento || '';
         if (qty) qty.value = line.quantity || 1;
         if (paper) paper.value = (line.paper_type_id || '').toString();
         if (size) size.value = (line.size_id || '').toString();

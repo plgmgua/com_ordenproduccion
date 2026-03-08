@@ -524,6 +524,14 @@ class PrecotizacionModel extends ListModel
             'total'                   => (float) ($data['total'] ?? $line->total),
             'calculation_breakdown'   => $breakdown,
         ];
+        $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        if (isset($columns['tipo_elemento'])) {
+            $obj->tipo_elemento = trim((string) ($data['tipo_elemento'] ?? $line->tipo_elemento ?? ''));
+            if ($obj->tipo_elemento === '') {
+                $obj->tipo_elemento = null;
+            }
+        }
 
         try {
             $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
@@ -662,6 +670,12 @@ class PrecotizacionModel extends ListModel
         if (isset($columns['envio_id']) && $lineType === 'envio') {
             $line->envio_id = (int) ($data['envio_id'] ?? 0) ?: null;
             $line->envio_valor = isset($data['envio_valor']) ? (float) $data['envio_valor'] : null;
+        }
+        if (isset($columns['tipo_elemento'])) {
+            $line->tipo_elemento = trim((string) ($data['tipo_elemento'] ?? ''));
+            if ($line->tipo_elemento === '') {
+                $line->tipo_elemento = null;
+            }
         }
 
         try {

@@ -124,6 +124,7 @@ class PrecotizacionController extends BaseController
         }
 
         $data = [
+            'tipo_elemento'          => trim($app->input->get('tipo_elemento', '', 'string')),
             'quantity'               => (int) $app->input->get('quantity', 1),
             'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
             'size_id'                => (int) $app->input->get('size_id', 0),
@@ -207,6 +208,7 @@ class PrecotizacionController extends BaseController
         }
 
         $data = [
+            'tipo_elemento'          => trim($app->input->get('tipo_elemento', '', 'string')),
             'quantity'               => (int) $app->input->get('quantity', 1),
             'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
             'size_id'                => (int) $app->input->get('size_id', 0),
@@ -378,6 +380,7 @@ class PrecotizacionController extends BaseController
 
         $data = [
             'line_type'             => 'elementos',
+            'tipo_elemento'         => trim($app->input->post->get('tipo_elemento', '', 'string')),
             'elemento_id'           => $elementoId,
             'quantity'              => $quantity,
             'price_per_sheet'       => $unitPrice,
@@ -450,6 +453,7 @@ class PrecotizacionController extends BaseController
         $tipoEnvio = isset($envio->tipo) ? (string) $envio->tipo : 'fixed';
         $data = [
             'line_type'   => 'envio',
+            'tipo_elemento' => trim($app->input->post->get('tipo_elemento', '', 'string')),
             'envio_id'    => $envioId,
             'envio_valor' => $tipoEnvio === 'custom' ? (float) $envioValor : null,
         ];

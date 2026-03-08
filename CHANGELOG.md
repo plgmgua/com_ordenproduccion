@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.90.0-STABLE] - 2026-02-24
+
+### Added
+- **Pre-cotización: "Tipo de Elemento" per line.** When adding a **Cálculo de folios** (pliego), **Otros elementos**, or **Envío** line, the first field asked is **Tipo de Elemento** — a custom name for that line (e.g. "Tarjeta presentación", "Volante"). The value is stored in `#__ordenproduccion_pre_cotizacion_line.tipo_elemento` (VARCHAR 255, nullable). Run SQL update `admin/sql/updates/mysql/3.90.0_pre_cotizacion_line_tipo_elemento.sql` (safe to run multiple times). The lines table in the pre-cotización document and details popup show a "Tipo de Elemento" column; when editing a pliego line, the field is pre-filled.
+
 ## [3.89.0-STABLE] - 2026-02-24
 
 ### Added

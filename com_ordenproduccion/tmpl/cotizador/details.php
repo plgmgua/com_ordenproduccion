@@ -99,6 +99,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
             <table class="table table-bordered table-sm">
                 <thead>
                     <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_QUANTITY'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COL_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_SIZE'); ?></th>
@@ -127,8 +128,10 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                             }
                             $lineCostoClicks = ($lineClicks !== null && $clickPrecio > 0) ? $lineClicks * $clickPrecio : null;
                         }
+                    $tipoElementoDetail = isset($line->tipo_elemento) && trim((string) $line->tipo_elemento) !== '' ? trim((string) $line->tipo_elemento) : '—';
                     ?>
                         <tr>
+                            <td><?php echo htmlspecialchars($tipoElementoDetail); ?></td>
                             <td><?php echo (int) $line->quantity; ?></td>
                             <td><?php echo $isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
@@ -139,7 +142,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                             $breakdown = $line->breakdown ?? [];
                         ?>
                         <tr class="line-detail-row">
-                            <td colspan="5" class="p-0 bg-light align-top">
+                            <td colspan="6" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
                                         <thead>
