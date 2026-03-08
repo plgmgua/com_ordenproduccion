@@ -186,20 +186,6 @@ use Joomla\CMS\Router\Route;
                                 </div>
                             </div>
                         </div>
-                        <div class="form-group mt-3" id="solicitud-orden-url">
-                            <label for="jform_solicitud_orden_url" class="form-label">
-                                <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SOLICITUD_ORDEN_URL_LABEL'); ?>
-                            </label>
-                            <input type="url"
-                                   name="jform[solicitud_orden_url]"
-                                   id="jform_solicitud_orden_url"
-                                   value="<?php echo htmlspecialchars($this->item->solicitud_orden_url ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                                   class="form-control"
-                                   placeholder="https://..." />
-                            <small class="form-text text-muted">
-                                <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SOLICITUD_ORDEN_URL_DESC'); ?>
-                            </small>
-                        </div>
                     </div>
                 </div>
 
@@ -212,6 +198,20 @@ use Joomla\CMS\Router\Route;
                         </h5>
                     </div>
                     <div class="card-body">
+                        <div class="form-group" id="solicitud-orden-url">
+                            <label for="jform_solicitud_orden_url" class="form-label">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_SETTINGS_SOLICITUD_ORDEN_URL_LABEL'); ?>
+                            </label>
+                            <input type="url"
+                                   name="jform[solicitud_orden_url]"
+                                   id="jform_solicitud_orden_url"
+                                   value="<?php echo htmlspecialchars($this->item->solicitud_orden_url ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                   class="form-control"
+                                   placeholder="https://..." />
+                            <small class="form-text text-muted">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SOLICITUD_ORDEN_URL_DESC'); ?>
+                            </small>
+                        </div>
                         <div class="form-group">
                             <label for="jform_duplicate_request_endpoint" class="form-label">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_DUPLICATE_REQUEST_ENDPOINT'); ?>
