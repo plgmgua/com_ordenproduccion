@@ -580,10 +580,48 @@ class CotizacionController extends BaseController
             return;
         }
         $db = Factory::getDbo();
-        $db->setQuery($db->getQuery(true)->select('id')->from($db->quoteName('#__ordenproduccion_quotations'))->where($db->quoteName('id') . ' = ' . $quotationId)->where($db->quoteName('state') . ' = 1'));
-        if (!$db->loadResult()) {
+
+        $qCols = ['id', 'client_name', 'client_id', 'client_nit'];
+        $qQuery = $db->getQuery(true)
+            ->select($db->quoteName($qCols))
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . $quotationId)
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($qQuery);
+        $quotation = $db->loadObject();
+        if (!$quotation) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
+        }
+
+        $clientName = trim((string) ($quotation->client_name ?? ''));
+        $clientId = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
+        $nit = isset($quotation->client_nit) ? trim((string) $quotation->client_nit) : '';
+
+        $pcCols = ['id', 'number', 'descripcion'];
+        $pcTableCols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_pre_cotizacion'), false);
+        $pcTableCols = is_array($pcTableCols) ? array_change_key_case($pcTableCols, CASE_LOWER) : [];
+        if (isset($pcTableCols['total_final'])) {
+            $pcCols[] = 'total_final';
+        }
+        if (isset($pcTableCols['total']) && !in_array('total_final', $pcCols)) {
+            $pcCols[] = 'total';
+        }
+        $pcQuery = $db->getQuery(true)
+            ->select($db->quoteName($pcCols))
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+            ->where($db->quoteName('id') . ' = ' . $preCotizacionId);
+        $db->setQuery($pcQuery);
+        $precotizacion = $db->loadObject();
+        $precotizacionNumber = $precotizacion ? (trim((string) ($precotizacion->number ?? '')) ?: 'PRE-' . $preCotizacionId) : 'PRE-' . $preCotizacionId;
+        $precotizacionDescription = $precotizacion ? trim((string) ($precotizacion->descripcion ?? '')) : '';
+        $precotizacionTotal = '';
+        if ($precotizacion) {
+            if (isset($precotizacion->total_final) && $precotizacion->total_final !== null && $precotizacion->total_final !== '') {
+                $precotizacionTotal = (string) $precotizacion->total_final;
+            } elseif (isset($precotizacion->total) && $precotizacion->total !== null && $precotizacion->total !== '') {
+                $precotizacionTotal = (string) $precotizacion->total;
+            }
         }
 
         $solicitudUrl = $this->getSolicitudOrdenUrlForNotify();
@@ -601,20 +639,32 @@ class CotizacionController extends BaseController
         if ($solicitudUrl !== '') {
             try {
                 $payload = [
-                    'order_number'       => $nextOrderNumber,
-                    'pre_cotizacion_id'  => $preCotizacionId,
-                    'quotation_id'       => $quotationId,
+                    'order_number'            => $nextOrderNumber,
+                    'pre_cotizacion_id'       => $preCotizacionId,
+                    'quotation_id'            => $quotationId,
+                    'client_name'             => $clientName,
+                    'client_id'               => $clientId,
+                    'nit'                     => $nit,
+                    'precotizacion_number'   => $precotizacionNumber,
+                    'precotizacion_description' => $precotizacionDescription,
+                    'precotizacion_total'     => $precotizacionTotal,
                 ];
                 $http = \Joomla\CMS\Http\HttpFactory::getHttp();
                 $http->post($solicitudUrl, json_encode($payload), ['Content-Type' => 'application/json']);
             } catch (\Exception $e) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
             }
-            // Redirect the user's browser to the configured Order Request URL (with params) so that tab opens the URL they set in the backend
+            // Redirect the user's browser to the configured Order Request URL (with params)
             $redirectUri = new Uri($solicitudUrl);
             $redirectUri->setVar('order_number', $nextOrderNumber);
             $redirectUri->setVar('pre_cotizacion_id', (string) $preCotizacionId);
             $redirectUri->setVar('quotation_id', (string) $quotationId);
+            $redirectUri->setVar('client_name', $clientName);
+            $redirectUri->setVar('client_id', $clientId);
+            $redirectUri->setVar('nit', $nit);
+            $redirectUri->setVar('precotizacion_number', $precotizacionNumber);
+            $redirectUri->setVar('precotizacion_description', $precotizacionDescription);
+            $redirectUri->setVar('precotizacion_total', $precotizacionTotal);
             $app->redirect((string) $redirectUri);
             return;
         }
