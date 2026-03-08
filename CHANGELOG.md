@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.88.0-STABLE] - 2026-02-24
+
+### Added
+- **Margen Adicional on pre-cotización.** When a cotización line has **Valor final** set manually above the original subtotal (from the pre-cotización), the difference is saved on the pre-cotización record as **Margen Adicional**. New column `#__ordenproduccion_pre_cotizacion.margen_adicional` (DECIMAL 12,2 NULL). Run SQL update `admin/sql/updates/mysql/3.88.0_pre_cotizacion_margen_adicional.sql` (safe to run multiple times). On create/update quotation, each line that references a pre_cotizacion_id updates that pre-cotización’s margen_adicional to (valor_final - pre_cotizacion_total) when valor_final > pre_cotizacion_total, or NULL when not.
+
 ## [3.87.0-STABLE] - 2026-02-24
 
 ### Added

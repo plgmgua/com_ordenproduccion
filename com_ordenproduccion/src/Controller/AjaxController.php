@@ -383,6 +383,7 @@ class AjaxController extends BaseController
                             'subtotal' => $value,
                             'valor_final' => $value,
                             'pre_cotizacion_id' => $preId,
+                            'pre_cotizacion_total' => $minTotal,
                         ];
                         $totalAmount += $value;
                     }
@@ -447,7 +448,6 @@ class AjaxController extends BaseController
             $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
             $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
             $hasValorFinal = isset($itemCols['valor_final']);
-
             if ($result) {
                 $quotationId = $quotationData->id;
                 
@@ -468,6 +468,33 @@ class AjaxController extends BaseController
                         $itemData->valor_final = $item['valor_final'];
                     }
                     $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
+                    if (isset($item['pre_cotizacion_id']) && (int) $item['pre_cotizacion_id'] > 0) {
+                        $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0;
+                        $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
+                        if ($valorFinal > $preTotal) {
+                            $margenAdicional = round($valorFinal - $preTotal, 2);
+                            try {
+                                $db->setQuery(
+                                    $db->getQuery(true)
+                                        ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                        ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
+                                        ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
+                                )->execute();
+                            } catch (\Exception $e) {
+                                // Column may not exist yet; run admin/sql/updates/mysql/3.88.0_pre_cotizacion_margen_adicional.sql
+                            }
+                        } else {
+                            try {
+                                $db->setQuery(
+                                    $db->getQuery(true)
+                                        ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                        ->set($db->quoteName('margen_adicional') . ' = NULL')
+                                        ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
+                                )->execute();
+                            } catch (\Exception $e) {
+                            }
+                        }
+                    }
                 }
                 
                 echo json_encode([
@@ -556,6 +583,7 @@ class AjaxController extends BaseController
             if ($cantidad < 0.001) $cantidad = 1;
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
+                $minTotal = null;
                 if ($preId > 0 && $precotModel) {
                     $minTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
                     if ($value < $minTotal) {
@@ -573,6 +601,7 @@ class AjaxController extends BaseController
                     'subtotal' => $value,
                     'valor_final' => $value,
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
+                    'pre_cotizacion_total' => $minTotal,
                 ];
                 $totalAmount += $value;
             }
@@ -625,6 +654,33 @@ class AjaxController extends BaseController
                     $itemData->valor_final = $item['valor_final'];
                 }
                 $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
+                if (isset($item['pre_cotizacion_id']) && (int) $item['pre_cotizacion_id'] > 0) {
+                    $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0;
+                    $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
+                    if ($valorFinal > $preTotal) {
+                        $margenAdicional = round($valorFinal - $preTotal, 2);
+                        try {
+                            $db->setQuery(
+                                $db->getQuery(true)
+                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                    ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
+                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
+                            )->execute();
+                        } catch (\Exception $e) {
+                            // Column may not exist; run admin/sql/updates/mysql/3.88.0_pre_cotizacion_margen_adicional.sql
+                        }
+                    } else {
+                        try {
+                            $db->setQuery(
+                                $db->getQuery(true)
+                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                    ->set($db->quoteName('margen_adicional') . ' = NULL')
+                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
+                            )->execute();
+                        } catch (\Exception $e) {
+                        }
+                    }
+                }
             }
             echo json_encode([
                 'success' => true,

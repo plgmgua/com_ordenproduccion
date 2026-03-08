@@ -106,6 +106,7 @@ FROM (
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'descripcion'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'lines_subtotal'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'total_final'
+    UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'margen_adicional'
     UNION SELECT 'joomla_ordenproduccion_payment_proof_lines', 'document_date'
 ) t
 LEFT JOIN INFORMATION_SCHEMA.COLUMNS c
