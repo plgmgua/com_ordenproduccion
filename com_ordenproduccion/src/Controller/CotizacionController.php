@@ -938,15 +938,15 @@ class CotizacionController extends BaseController
         }
         $colCodigo = 16;
         $colCant   = 16;
-        $colDesc   = 88;
-        $colUnit   = 35;
-        $colSub    = 35;
+        $colDesc   = 102;
+        $colUnit   = 28;
+        $colSub    = 28;
         $lineH     = 6;
 
         $pdf->SetFont('Arial', 'B', 8);
         $pdf->Cell($colCodigo, $lineH, 'Codigo', 1, 0, 'L');
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($colCant, $lineH, 'Cantidad', 1, 0, 'L');
+        $pdf->Cell($colCant, $lineH, 'Cant.', 1, 0, 'L');
         $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L');
         $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R');
         $pdf->Cell($colSub, $lineH, 'Subtotal', 1, 1, 'R');
