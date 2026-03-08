@@ -17,6 +17,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 
 /**
@@ -584,19 +585,20 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
-        $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
+
         $solicitudUrl = $this->getSolicitudOrdenUrlForNotify();
-        if ($solicitudUrl !== '') {
-            $nextOrderNumber = '';
-            try {
-                $component = $app->bootComponent('com_ordenproduccion');
-                $settingsModel = $component->getMVCFactory()->createModel('Settings', 'Administrator', ['ignore_request' => true]);
-                if (method_exists($settingsModel, 'getNextOrderNumberPreview')) {
-                    $nextOrderNumber = (string) $settingsModel->getNextOrderNumberPreview();
-                }
-            } catch (\Throwable $e) {
-                // Continue without order number so webhook is still sent
+        $nextOrderNumber = '';
+        try {
+            $component = $app->bootComponent('com_ordenproduccion');
+            $settingsModel = $component->getMVCFactory()->createModel('Settings', 'Administrator', ['ignore_request' => true]);
+            if (method_exists($settingsModel, 'getNextOrderNumberPreview')) {
+                $nextOrderNumber = (string) $settingsModel->getNextOrderNumberPreview();
             }
+        } catch (\Throwable $e) {
+            // Continue without order number
+        }
+
+        if ($solicitudUrl !== '') {
             try {
                 $payload = [
                     'order_number'       => $nextOrderNumber,
@@ -608,7 +610,17 @@ class CotizacionController extends BaseController
             } catch (\Exception $e) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
             }
+            // Redirect the user's browser to the configured Order Request URL (with params) so that tab opens the URL they set in the backend
+            $redirectUri = new Uri($solicitudUrl);
+            $redirectUri->setVar('order_number', $nextOrderNumber);
+            $redirectUri->setVar('pre_cotizacion_id', (string) $preCotizacionId);
+            $redirectUri->setVar('quotation_id', (string) $quotationId);
+            $app->redirect((string) $redirectUri);
+            return;
         }
+
+        // No Order Request URL configured: fallback to internal order form
+        $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
         $app->redirect($ordenUrl);
     }
 
