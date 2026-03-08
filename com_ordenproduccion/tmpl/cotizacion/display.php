@@ -357,6 +357,8 @@ $currency = $quotation->currency ?? 'Q';
                                                 <?php if ($preId > 0) : ?>
                                                     <form action="<?php echo htmlspecialchars($notifyUrl); ?>" method="post" class="d-inline" target="_blank">
                                                         <?php echo HTMLHelper::_('form.token'); ?>
+                                                        <input type="hidden" name="option" value="com_ordenproduccion">
+                                                        <input type="hidden" name="task" value="cotizacion.notifySolicitudOrden">
                                                         <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preId; ?>">
                                                         <input type="hidden" name="quotation_id" value="<?php echo $quotationId; ?>">
                                                         <button type="submit" class="btn btn-sm btn-primary"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></button>

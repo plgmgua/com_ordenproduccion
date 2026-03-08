@@ -585,13 +585,19 @@ class CotizacionController extends BaseController
             return;
         }
         $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
-        $component = $app->bootComponent('com_ordenproduccion');
-        $adminModel = $component->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
-        $solicitudUrl = $adminModel->getSolicitudOrdenUrl();
+        $solicitudUrl = $this->getSolicitudOrdenUrlForNotify();
         if ($solicitudUrl !== '') {
+            $nextOrderNumber = '';
             try {
+                $component = $app->bootComponent('com_ordenproduccion');
                 $settingsModel = $component->getMVCFactory()->createModel('Settings', 'Administrator', ['ignore_request' => true]);
-                $nextOrderNumber = $settingsModel->getNextOrderNumberPreview();
+                if (method_exists($settingsModel, 'getNextOrderNumberPreview')) {
+                    $nextOrderNumber = (string) $settingsModel->getNextOrderNumberPreview();
+                }
+            } catch (\Throwable $e) {
+                // Continue without order number so webhook is still sent
+            }
+            try {
                 $payload = [
                     'order_number'       => $nextOrderNumber,
                     'pre_cotizacion_id'  => $preCotizacionId,
@@ -600,11 +606,41 @@ class CotizacionController extends BaseController
                 $http = \Joomla\CMS\Http\HttpFactory::getHttp();
                 $http->post($solicitudUrl, json_encode($payload), ['Content-Type' => 'application/json']);
             } catch (\Exception $e) {
-                // Log but do not block redirect
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
             }
         }
         $app->redirect($ordenUrl);
+    }
+
+    /**
+     * Get Solicitud de Orden URL from config (model or direct DB) for use when sending the webhook.
+     *
+     * @return  string
+     * @since   3.92.0
+     */
+    private function getSolicitudOrdenUrlForNotify()
+    {
+        $app = Factory::getApplication();
+        try {
+            $component = $app->bootComponent('com_ordenproduccion');
+            $model = $component->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            if (method_exists($model, 'getSolicitudOrdenUrl')) {
+                $url = $model->getSolicitudOrdenUrl();
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fall through to direct DB read
+        }
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('setting_value'))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote('solicitud_orden_url'));
+        $db->setQuery($query);
+        $v = $db->loadResult();
+        return $v !== null ? trim((string) $v) : '';
     }
 
     /**
