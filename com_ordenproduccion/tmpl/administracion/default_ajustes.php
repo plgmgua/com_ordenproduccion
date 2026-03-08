@@ -61,10 +61,17 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-cog"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_AJUSTES_COTIZACION'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_orden'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'solicitud_orden' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-link"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_SOLICITUD_ORDEN'); ?>
+    </a>
 </div>
 <div class="subtab-content">
     <?php if ($activeSubTab === 'ajustes_cotizacion'): ?>
         <?php include __DIR__ . '/default_ajustes_ajustes_cotizacion.php'; ?>
+    <?php elseif ($activeSubTab === 'solicitud_orden'): ?>
+        <?php include __DIR__ . '/default_ajustes_solicitud_orden.php'; ?>
     <?php else: ?>
         <?php include __DIR__ . '/default_ajustes_cotizaciones.php'; ?>
     <?php endif; ?>

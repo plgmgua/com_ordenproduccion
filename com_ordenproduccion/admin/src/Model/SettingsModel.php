@@ -321,6 +321,65 @@ class SettingsModel extends BaseModel
     }
 
     /**
+     * Get the next order number without incrementing (preview only, for webhooks/notifications).
+     *
+     * @return  string  The next order number that would be assigned
+     *
+     * @since   3.92.0
+     */
+    public function getNextOrderNumberPreview()
+    {
+        try {
+            $db = Factory::getDbo();
+            $this->ensureSettingsTableExists();
+
+            $query = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('next_order_number'),
+                    $db->quoteName('order_prefix'),
+                    $db->quoteName('order_format')
+                ])
+                ->from($db->quoteName('#__ordenproduccion_settings'))
+                ->where($db->quoteName('id') . ' = 1')
+                ->setLimit(1);
+            $db->setQuery($query);
+            $settings = $db->loadObject();
+
+            if (!$settings) {
+                return 'ORD-' . date('YmdHis');
+            }
+
+            $buildOrderNumber = function ($n) use ($settings) {
+                $num = str_replace('PREFIX', $settings->order_prefix, $settings->order_format);
+                return str_replace('NUMBER', str_pad((string) $n, 6, '0', STR_PAD_LEFT), $num);
+            };
+
+            $nextNumber = (int) $settings->next_order_number;
+            $orderNumber = $buildOrderNumber($nextNumber);
+
+            $maxAttempts = 1000;
+            $attempts = 0;
+            while ($attempts < $maxAttempts) {
+                $existsQuery = $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('order_number') . ' = ' . $db->quote($orderNumber));
+                $db->setQuery($existsQuery);
+                if ((int) $db->loadResult() === 0) {
+                    return $orderNumber;
+                }
+                $nextNumber++;
+                $orderNumber = $buildOrderNumber($nextNumber);
+                $attempts++;
+            }
+
+            return $orderNumber;
+        } catch (\Exception $e) {
+            return 'ORD-' . date('YmdHis');
+        }
+    }
+
+    /**
      * Get saved settings from database
      *
      * @return  object|null  Settings object or null

@@ -347,7 +347,7 @@ $currency = $quotation->currency ?? 'Q';
                                         $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
                                         $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
                                         $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                                        $ordenUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preId . '&quotation_id=' . $quotationId) : '#';
+                                        $notifyUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&task=cotizacion.notifySolicitudOrden') : '#';
                                     ?>
                                         <tr>
                                             <td class="align-middle"><strong><?php echo htmlspecialchars($preNum); ?></strong></td>
@@ -355,7 +355,12 @@ $currency = $quotation->currency ?? 'Q';
                                             <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></td>
                                             <td class="align-middle text-center">
                                                 <?php if ($preId > 0) : ?>
-                                                    <a href="<?php echo htmlspecialchars($ordenUrl); ?>" class="btn btn-sm btn-primary" target="_blank"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></a>
+                                                    <form action="<?php echo htmlspecialchars($notifyUrl); ?>" method="post" class="d-inline" target="_blank">
+                                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                                        <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preId; ?>">
+                                                        <input type="hidden" name="quotation_id" value="<?php echo $quotationId; ?>">
+                                                        <button type="submit" class="btn btn-sm btn-primary"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></button>
+                                                    </form>
                                                 <?php else : ?>
                                                     —
                                                 <?php endif; ?>

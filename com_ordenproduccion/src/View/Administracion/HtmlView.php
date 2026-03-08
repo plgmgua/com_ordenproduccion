@@ -309,6 +309,14 @@ class HtmlView extends BaseHtmlView
     protected $cotizacionPdfSettings = [];
 
     /**
+     * Solicitud de Orden URL (webhook) for ajustes > solicitud_orden subtab.
+     *
+     * @var    string
+     * @since  3.92.0
+     */
+    protected $solicitudOrdenUrl = '';
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -682,6 +690,16 @@ class HtmlView extends BaseHtmlView
                 $this->cotizacionPdfSettings = $statsModel->getCotizacionPdfSettings();
             } catch (\Exception $e) {
                 $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
+            }
+        }
+
+        // Load Solicitud de Orden URL if ajustes tab and Solicitud de Orden subtab
+        $this->solicitudOrdenUrl = '';
+        if ($activeTab === 'ajustes' && $activeSubTab === 'solicitud_orden') {
+            try {
+                $this->solicitudOrdenUrl = $statsModel->getSolicitudOrdenUrl();
+            } catch (\Exception $e) {
+                $this->solicitudOrdenUrl = '';
             }
         }
 

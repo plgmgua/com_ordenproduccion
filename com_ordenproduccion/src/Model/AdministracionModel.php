@@ -2595,5 +2595,77 @@ class AdministracionModel extends BaseDatabaseModel
         }
         return true;
     }
+
+    /**
+     * Get Solicitud de Orden URL from config (webhook URL called when finishing confirmar steps with next order number).
+     *
+     * @return  string
+     * @since   3.92.0
+     */
+    public function getSolicitudOrdenUrl()
+    {
+        $db = Factory::getDbo();
+        $key = 'solicitud_orden_url';
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('setting_value'))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($key));
+        $db->setQuery($query);
+        $v = $db->loadResult();
+        return $v !== null ? trim((string) $v) : '';
+    }
+
+    /**
+     * Save Solicitud de Orden URL to config.
+     *
+     * @param   string  $url  URL to notify (e.g. webhook) with next order number when finishing steps.
+     * @return  bool
+     * @since   3.92.0
+     */
+    public function saveSolicitudOrdenUrl($url)
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $key = 'solicitud_orden_url';
+        $value = is_string($url) ? trim($url) : '';
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($key));
+        $db->setQuery($query);
+        $id = $db->loadResult();
+        if ($id) {
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_config'))
+                ->set($db->quoteName('setting_value') . ' = ' . $db->quote($value))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+            $db->setQuery($query);
+            $db->execute();
+        } else {
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_config'))
+                ->columns([
+                    $db->quoteName('setting_key'),
+                    $db->quoteName('setting_value'),
+                    $db->quoteName('state'),
+                    $db->quoteName('created_by'),
+                    $db->quoteName('modified'),
+                    $db->quoteName('modified_by'),
+                ])
+                ->values(
+                    $db->quote($key) . ',' .
+                    $db->quote($value) . ',1,' .
+                    (int) $user->id . ',' .
+                    $db->quote($now) . ',' .
+                    (int) $user->id
+                );
+            $db->setQuery($query);
+            $db->execute();
+        }
+        return true;
+    }
 }
 

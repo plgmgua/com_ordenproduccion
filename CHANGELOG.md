@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.92.0-STABLE] - 2026-02-24
+
+### Added
+- **Solicitud de Orden URL (webhook).** In backend **Ajustes > Solicitud de Orden** you can set a URL. When the user finishes the confirmar cotización steps and clicks **Generar Orden de Trabajo**, a POST request is sent to that URL with JSON body: `order_number` (next order number preview), `pre_cotizacion_id`, `quotation_id`. The user is then redirected to the orden form. If the URL is empty, no request is sent. Setting is stored in `#__ordenproduccion_config` as `solicitud_orden_url`. Admin **Settings** (next order number) is unchanged; the preview does not consume the counter.
+
 ## [3.91.0-STABLE] - 2026-02-24
 
 ### Added

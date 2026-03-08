@@ -465,4 +465,45 @@ class AdministracionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion', false));
         }
     }
+
+    /**
+     * Save Solicitud de Orden URL (webhook URL for when user finishes confirmar steps).
+     *
+     * @return  void
+     * @since   3.92.0
+     */
+    public function saveSolicitudOrden()
+    {
+        $app = Factory::getApplication();
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_orden', false));
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $url = isset($jform['solicitud_orden_url']) ? trim((string) $jform['solicitud_orden_url']) : '';
+
+        try {
+            $model = $this->getModel('Administracion');
+            $model->saveSolicitudOrdenUrl($url);
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SOLICITUD_ORDEN_SAVED'), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $returnUrl = $app->input->post->getString('return_url', '');
+        if ($returnUrl !== '' && strpos($returnUrl, 'option=com_ordenproduccion') !== false) {
+            $app->redirect($returnUrl);
+        } else {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_orden', false));
+        }
+    }
 }

@@ -551,6 +551,63 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Notify Solicitud de Orden URL (webhook) with next order number and redirect to orden form.
+     * Called when user clicks "Generar Orden de Trabajo" after finishing confirmar steps.
+     * POST: pre_cotizacion_id, quotation_id.
+     *
+     * @return  void
+     * @since   3.92.0
+     */
+    public function notifySolicitudOrden()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
+        $quotationId = (int) $app->input->post->get('quotation_id', 0);
+        if ($preCotizacionId < 1 || $quotationId < 1) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+            return;
+        }
+        $db = Factory::getDbo();
+        $db->setQuery($db->getQuery(true)->select('id')->from($db->quoteName('#__ordenproduccion_quotations'))->where($db->quoteName('id') . ' = ' . $quotationId)->where($db->quoteName('state') . ' = 1'));
+        if (!$db->loadResult()) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
+        $component = $app->bootComponent('com_ordenproduccion');
+        $adminModel = $component->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+        $solicitudUrl = $adminModel->getSolicitudOrdenUrl();
+        if ($solicitudUrl !== '') {
+            try {
+                $settingsModel = $component->getMVCFactory()->createModel('Settings', 'Administrator', ['ignore_request' => true]);
+                $nextOrderNumber = $settingsModel->getNextOrderNumberPreview();
+                $payload = [
+                    'order_number'       => $nextOrderNumber,
+                    'pre_cotizacion_id'  => $preCotizacionId,
+                    'quotation_id'       => $quotationId,
+                ];
+                $http = \Joomla\CMS\Http\HttpFactory::getHttp();
+                $http->post($solicitudUrl, json_encode($payload), ['Content-Type' => 'application/json']);
+            } catch (\Exception $e) {
+                // Log but do not block redirect
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
+            }
+        }
+        $app->redirect($ordenUrl);
+    }
+
+    /**
      * Parse HTML into blocks with alignment (preserve WYSIWYG: left/right/center and line breaks).
      * Used for encabezado, términos and pie. Block text preserves \n for MultiCell.
      *
