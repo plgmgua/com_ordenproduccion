@@ -936,15 +936,16 @@ class CotizacionController extends BaseController
         if ($tableY > 0 || $tableX > 0) {
             $pdf->SetXY($tableX > 0 ? $tableX : 15, $tableY > 0 ? $tableY : $pdf->GetY());
         }
-        $colCodigo = 22;
+        $colCodigo = 16;
         $colCant   = 16;
-        $colDesc   = 82;
+        $colDesc   = 88;
         $colUnit   = 35;
         $colSub    = 35;
         $lineH     = 6;
 
-        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->SetFont('Arial', 'B', 8);
         $pdf->Cell($colCodigo, $lineH, 'Codigo', 1, 0, 'L');
+        $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($colCant, $lineH, 'Cantidad', 1, 0, 'L');
         $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L');
         $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R');
@@ -969,9 +970,11 @@ class CotizacionController extends BaseController
             $newY   = $pdf->GetY();
             $rowH   = max($lineH, $newY - $rowY);
 
-            // Draw Codigo and Cantidad with full row height
+            // Draw Codigo (small font) and Cantidad with full row height
             $pdf->SetXY($rowX, $rowY);
+            $pdf->SetFont('Arial', '', 8);
             $pdf->Cell($colCodigo, $rowH, $codigo, 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
             $pdf->Cell($colCant, $rowH, (string) $qty, 1, 0, 'C');
 
             // Skip description column (already drawn), draw price and subtotal
