@@ -421,7 +421,10 @@ class CotizacionController extends BaseController
         $db->execute();
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
         $nextStep = (int) $app->input->post->get('next_step', 0);
-        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
+        if ($nextStep === 2) {
+            $app->getSession()->set('com_ordenproduccion.confirmar_step', 2);
+        }
+        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId;
         $app->redirect(Route::_($url, false));
     }
 
@@ -469,8 +472,10 @@ class CotizacionController extends BaseController
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['instrucciones_facturacion'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
-            $app->redirect(Route::_($url, false));
+            if ($nextStep === 2) {
+                $app->getSession()->set('com_ordenproduccion.confirmar_step', 2);
+            }
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
             return;
         }
         $update = $db->getQuery(true)
@@ -482,8 +487,10 @@ class CotizacionController extends BaseController
         $db->setQuery($update);
         $db->execute();
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
-        $app->redirect(Route::_($url, false));
+        if ($nextStep === 2) {
+            $app->getSession()->set('com_ordenproduccion.confirmar_step', 2);
+        }
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
     }
 
     /**
@@ -562,8 +569,10 @@ class CotizacionController extends BaseController
         if ($preCotizacionId > 0) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
         } else {
-            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 3 ? '&confirmar_step=3' : '');
-            $app->redirect(Route::_($url, false));
+            if ($nextStep === 3) {
+                $app->getSession()->set('com_ordenproduccion.confirmar_step', 3);
+            }
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
         }
     }
 

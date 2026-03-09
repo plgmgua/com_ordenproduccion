@@ -369,12 +369,22 @@ $currency = $quotation->currency ?? 'Q';
     </div>
 </div>
 
+<?php
+$app = Factory::getApplication();
+$confirmarStepOnLoad = (int) $app->input->getInt('confirmar_step', 0);
+if ($confirmarStepOnLoad === 0) {
+    $confirmarStepOnLoad = (int) $app->getSession()->get('com_ordenproduccion.confirmar_step', 0);
+    if ($confirmarStepOnLoad > 0) {
+        $app->getSession()->clear('com_ordenproduccion.confirmar_step');
+    }
+}
+?>
 <script>
 (function() {
     var modal = document.getElementById('confirmarCotizacionModal');
     if (!modal) return;
     var steps = [1, 2, 3];
-    var confirmarStepOnLoad = <?php echo json_encode(Factory::getApplication()->input->getInt('confirmar_step', 0)); ?>;
+    var confirmarStepOnLoad = <?php echo json_encode($confirmarStepOnLoad); ?>;
     function showStep(step) {
         steps.forEach(function(s) {
             var pane = document.getElementById('confirmarStep' + s);
