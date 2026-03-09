@@ -471,6 +471,12 @@ class CotizacionController extends BaseController
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['instrucciones_facturacion'])) {
+            $isAjaxCol = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+            if ($isAjaxCol && $nextStep === 2) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => true, 'next_step' => 2]);
+                $app->close();
+            }
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
             if ($nextStep === 2) {
                 $app->getSession()->set('com_ordenproduccion.confirmar_step', 2);
@@ -486,6 +492,12 @@ class CotizacionController extends BaseController
             ->where($db->quoteName('id') . ' = ' . $quotationId);
         $db->setQuery($update);
         $db->execute();
+        $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+        if ($isAjax && $nextStep === 2) {
+            $app->setHeader('Content-Type', 'application/json', true);
+            echo json_encode(['success' => true, 'next_step' => 2]);
+            $app->close();
+        }
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
         if ($nextStep === 2) {
             $app->getSession()->set('com_ordenproduccion.confirmar_step', 2);
@@ -564,11 +576,17 @@ class CotizacionController extends BaseController
                 $precotModel->saveLineDetalles($lineId, $keyToDetalle, $keyToLabel);
             }
         }
-        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
         $nextStep = (int) $app->input->post->get('next_step', 0);
+        $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
         if ($preCotizacionId > 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+        } elseif ($isAjax && $nextStep === 3) {
+            $app->setHeader('Content-Type', 'application/json', true);
+            echo json_encode(['success' => true, 'next_step' => 3]);
+            $app->close();
         } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
             if ($nextStep === 3) {
                 $app->getSession()->set('com_ordenproduccion.confirmar_step', 3);
             }

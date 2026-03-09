@@ -406,13 +406,39 @@ if ($confirmarStepOnLoad === 0) {
             var form = nextBtn.closest('form');
             var next = parseInt(nextBtn.getAttribute('data-next'), 10);
             if (next < 1 || next > 3) return;
-            if (!form || next < 2 || next > 3) {
+            if (!form) {
+                showStep(next);
+                return;
+            }
+            if (next < 2 || next > 3) {
                 showStep(next);
                 return;
             }
             var hidden = form.querySelector('input[name="next_step"]');
             if (hidden) hidden.value = next;
-            form.submit();
+            var url = form.getAttribute('action') || '';
+            if (url.indexOf('format=json') === -1) url += (url.indexOf('?') !== -1 ? '&' : '?') + 'format=json';
+            var submitBtn = nextBtn;
+            var originalHtml = submitBtn.innerHTML;
+            var btnText = submitBtn.textContent.trim() || '';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> ' + btnText;
+            fetch(url, { method: 'POST', body: new FormData(form) })
+                .then(function(r) { return r.json().catch(function() { return { success: false }; }); })
+                .then(function(data) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                    if (data && data.success && data.next_step === next) {
+                        showStep(next);
+                    } else {
+                        form.submit();
+                    }
+                })
+                .catch(function() {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                    form.submit();
+                });
         }
     });
     if (confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 3 && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
