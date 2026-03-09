@@ -337,7 +337,6 @@ $currency = $quotation->currency ?? 'Q';
                                         $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
                                         $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
                                         $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                                        $notifyUrl = $preId > 0 ? Route::_('index.php?option=com_ordenproduccion&task=cotizacion.notifySolicitudOrden') : '#';
                                     ?>
                                         <tr>
                                             <td class="align-middle"><strong><?php echo htmlspecialchars($preNum); ?></strong></td>
@@ -345,7 +344,8 @@ $currency = $quotation->currency ?? 'Q';
                                             <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></td>
                                             <td class="align-middle text-center">
                                                 <?php if ($preId > 0) : ?>
-                                                    <form action="<?php echo htmlspecialchars($notifyUrl); ?>" method="post" class="d-inline" target="_blank">
+                                                    <?php $notifyActionUrl = Uri::base() . 'index.php?option=com_ordenproduccion&task=cotizacion.notifySolicitudOrden'; ?>
+                                                    <form action="<?php echo htmlspecialchars($notifyActionUrl); ?>" method="post" class="d-inline">
                                                         <?php echo HTMLHelper::_('form.token'); ?>
                                                         <input type="hidden" name="option" value="com_ordenproduccion">
                                                         <input type="hidden" name="task" value="cotizacion.notifySolicitudOrden">

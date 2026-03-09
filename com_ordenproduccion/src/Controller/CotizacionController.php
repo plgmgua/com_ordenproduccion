@@ -611,15 +611,16 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_users&view=login', false));
             return;
         }
-        if (!Session::checkToken('post')) {
+        if (!Session::checkToken('post') && !Session::checkToken('request')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
-        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
-        $quotationId = (int) $app->input->post->get('quotation_id', 0);
+        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', (int) $app->input->get('pre_cotizacion_id', 0));
+        $quotationId = (int) $app->input->post->get('quotation_id', (int) $app->input->get('quotation_id', 0));
         if ($preCotizacionId < 1 || $quotationId < 1) {
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
             return;
         }
         $db = Factory::getDbo();
