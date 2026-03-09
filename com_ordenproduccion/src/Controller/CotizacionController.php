@@ -585,13 +585,16 @@ class CotizacionController extends BaseController
         $qTableCols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_quotations'), false);
         $qTableCols = is_array($qTableCols) ? array_change_key_case($qTableCols, CASE_LOWER) : [];
         if (!isset($qTableCols['signed_document_path'])) {
-            $qCols = array_diff($qCols, ['signed_document_path']);
+            $qCols = array_values(array_diff($qCols, ['signed_document_path']));
         }
         if (!isset($qTableCols['instrucciones_facturacion'])) {
-            $qCols = array_diff($qCols, ['instrucciones_facturacion']);
+            $qCols = array_values(array_diff($qCols, ['instrucciones_facturacion']));
         }
+        $selectList = implode(', ', array_map(function ($c) use ($db) {
+            return $db->quoteName($c);
+        }, $qCols));
         $qQuery = $db->getQuery(true)
-            ->select($db->quoteName($qCols))
+            ->select($selectList)
             ->from($db->quoteName('#__ordenproduccion_quotations'))
             ->where($db->quoteName('id') . ' = ' . $quotationId)
             ->where($db->quoteName('state') . ' = 1');
@@ -605,8 +608,8 @@ class CotizacionController extends BaseController
         $clientName = trim((string) ($quotation->client_name ?? ''));
         $clientId = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
         $nit = isset($quotation->client_nit) ? trim((string) $quotation->client_nit) : '';
-        $signedDocumentPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : '';
-        $instruccionesFacturacion = isset($quotation->instrucciones_facturacion) ? trim((string) $quotation->instrucciones_facturacion) : '';
+        $signedDocumentPath = $this->getObjectProperty($quotation, 'signed_document_path');
+        $instruccionesFacturacion = $this->getObjectProperty($quotation, 'instrucciones_facturacion');
 
         $lineDetallesJson = $this->getLineDetallesJsonForPreCotizacion($db, $preCotizacionId);
 
@@ -702,7 +705,6 @@ class CotizacionController extends BaseController
         if ($preCotizacionId < 1) {
             return '[]';
         }
-        $detallesTable = $db->replacePrefix('#__ordenproduccion_pre_cotizacion_line_detalles');
         try {
             $db->setQuery($db->getQuery(true)
                 ->select($db->quoteName('id'))
@@ -715,28 +717,28 @@ class CotizacionController extends BaseController
         if (empty($lineIds)) {
             return '[]';
         }
+        $lineIds = array_map('intval', $lineIds);
+        $selectDetalles = implode(', ', array_map(function ($c) use ($db) {
+            return $db->quoteName($c);
+        }, ['pre_cotizacion_line_id', 'concepto_key', 'concepto_label', 'detalle']));
         try {
-            $cols = $db->getTableColumns($detallesTable, false);
+            $query = $db->getQuery(true)
+                ->select($selectDetalles)
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line_detalles'))
+                ->whereIn($db->quoteName('pre_cotizacion_line_id'), $lineIds);
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
         } catch (\Throwable $e) {
             return '[]';
         }
-        if (empty($cols)) {
-            return '[]';
-        }
-        $lineIds = array_map('intval', $lineIds);
-        $query = $db->getQuery(true)
-            ->select($db->quoteName(['pre_cotizacion_line_id', 'concepto_key', 'concepto_label', 'detalle']))
-            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line_detalles'))
-            ->whereIn($db->quoteName('pre_cotizacion_line_id'), $lineIds);
-        $db->setQuery($query);
-        $rows = $db->loadObjectList() ?: [];
         $out = [];
         foreach ($rows as $r) {
+            $lineIdVal = $this->getObjectProperty($r, 'pre_cotizacion_line_id');
             $out[] = [
-                'pre_cotizacion_line_id' => (int) $r->pre_cotizacion_line_id,
-                'concepto_key'           => $r->concepto_key ?? '',
-                'concepto_label'         => $r->concepto_label ?? '',
-                'detalle'                => $r->detalle ?? '',
+                'pre_cotizacion_line_id' => $lineIdVal !== '' ? (int) $lineIdVal : 0,
+                'concepto_key'           => $this->getObjectProperty($r, 'concepto_key'),
+                'concepto_label'         => $this->getObjectProperty($r, 'concepto_label'),
+                'detalle'                => $this->getObjectProperty($r, 'detalle'),
             ];
         }
         return json_encode($out, JSON_UNESCAPED_UNICODE);
@@ -803,6 +805,29 @@ class CotizacionController extends BaseController
         } catch (\Throwable $e) {
             return 0;
         }
+    }
+
+    /**
+     * Get object property value case-insensitively (DB drivers may return different column case).
+     *
+     * @param   object  $obj
+     * @param   string  $key
+     * @return  string
+     * @since   3.93.1
+     */
+    private function getObjectProperty($obj, $key)
+    {
+        if (!is_object($obj)) {
+            return '';
+        }
+        $keyLower = strtolower($key);
+        foreach (array_keys((array) $obj) as $k) {
+            if (strtolower((string) $k) === $keyLower) {
+                $v = $obj->$k;
+                return $v !== null && $v !== '' ? trim((string) $v) : '';
+            }
+        }
+        return '';
     }
 
     /**
