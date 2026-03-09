@@ -645,14 +645,13 @@ class CotizacionController extends BaseController
             } catch (\Exception $e) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
             }
-            // Redirect the user's browser to the configured Order Request URL (with params). No order_number: this is a solicitud from pre-cotización only.
+            // Redirect the user's browser to the configured Order Request URL (with params). Use pre-cotización number (PRE-00006) not id.
             $redirectUri = new Uri($solicitudUrl);
-            $redirectUri->setVar('pre_cotizacion_id', (string) $preCotizacionId);
+            $redirectUri->setVar('precotizacion_number', $precotizacionNumber);
             $redirectUri->setVar('quotation_id', (string) $quotationId);
             $redirectUri->setVar('client_name', $clientName);
             $redirectUri->setVar('client_id', $clientId);
             $redirectUri->setVar('nit', $nit);
-            $redirectUri->setVar('precotizacion_number', $precotizacionNumber);
             $redirectUri->setVar('precotizacion_description', $precotizacionDescription);
             $redirectUri->setVar('precotizacion_total', $precotizacionTotal);
             $redirectUri->setVar('cotizacion_url', $cotizacionUrl);
