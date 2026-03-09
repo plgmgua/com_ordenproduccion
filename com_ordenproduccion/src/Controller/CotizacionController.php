@@ -581,7 +581,15 @@ class CotizacionController extends BaseController
         }
         $db = Factory::getDbo();
 
-        $qCols = ['id', 'client_name', 'client_id', 'client_nit'];
+        $qCols = ['id', 'client_name', 'client_id', 'client_nit', 'signed_document_path', 'instrucciones_facturacion'];
+        $qTableCols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_quotations'), false);
+        $qTableCols = is_array($qTableCols) ? array_change_key_case($qTableCols, CASE_LOWER) : [];
+        if (!isset($qTableCols['signed_document_path'])) {
+            $qCols = array_diff($qCols, ['signed_document_path']);
+        }
+        if (!isset($qTableCols['instrucciones_facturacion'])) {
+            $qCols = array_diff($qCols, ['instrucciones_facturacion']);
+        }
         $qQuery = $db->getQuery(true)
             ->select($db->quoteName($qCols))
             ->from($db->quoteName('#__ordenproduccion_quotations'))
@@ -597,6 +605,17 @@ class CotizacionController extends BaseController
         $clientName = trim((string) ($quotation->client_name ?? ''));
         $clientId = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
         $nit = isset($quotation->client_nit) ? trim((string) $quotation->client_nit) : '';
+        $signedDocumentPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : '';
+        $instruccionesFacturacion = isset($quotation->instrucciones_facturacion) ? trim((string) $quotation->instrucciones_facturacion) : '';
+
+        $confirmationId = $this->savePreCotizacionConfirmation(
+            $db,
+            $quotationId,
+            $preCotizacionId,
+            $signedDocumentPath,
+            $instruccionesFacturacion,
+            $user->id
+        );
 
         $pcCols = ['id', 'number', 'descripcion'];
         $pcTableCols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_pre_cotizacion'), false);
@@ -630,6 +649,7 @@ class CotizacionController extends BaseController
         if ($solicitudUrl !== '') {
             try {
                 $payload = [
+                    'pre_cotizacion_confirmation_id' => $confirmationId,
                     'pre_cotizacion_id'       => $preCotizacionId,
                     'quotation_id'            => $quotationId,
                     'client_name'             => $clientName,
@@ -647,6 +667,7 @@ class CotizacionController extends BaseController
             }
             // Redirect the user's browser to the configured Order Request URL (with params). Use pre-cotización number (PRE-00006) not id.
             $redirectUri = new Uri($solicitudUrl);
+            $redirectUri->setVar('pre_cotizacion_confirmation_id', (string) $confirmationId);
             $redirectUri->setVar('precotizacion_number', $precotizacionNumber);
             $redirectUri->setVar('quotation_id', (string) $quotationId);
             $redirectUri->setVar('client_name', $clientName);
@@ -662,6 +683,60 @@ class CotizacionController extends BaseController
         // No Order Request URL configured: fallback to internal order form
         $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
         $app->redirect($ordenUrl);
+    }
+
+    /**
+     * Save a pre-cotización confirmation row (Confirmar cotización steps snapshot) and return its id.
+     * Used when "Generar Orden de Trabajo" is clicked; the id is sent as pre_cotizacion_confirmation_id.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   int                                  $quotationId
+     * @param   int                                  $preCotizacionId
+     * @param   string                               $signedDocumentPath   Step 1
+     * @param   string                               $instruccionesFacturacion  Step 2
+     * @param   int                                  $createdBy
+     * @return  int  New confirmation id, or 0 if table missing / insert failed
+     * @since   3.93.0
+     */
+    private function savePreCotizacionConfirmation($db, $quotationId, $preCotizacionId, $signedDocumentPath, $instruccionesFacturacion, $createdBy)
+    {
+        $tableName = $db->replacePrefix('#__ordenproduccion_pre_cotizacion_confirmation');
+        try {
+            $tables = $db->getTableList();
+            if (!in_array($tableName, $tables, true)) {
+                return 0;
+            }
+        } catch (\Throwable $e) {
+            return 0;
+        }
+        $now = Factory::getDate()->toSql();
+        $columns = [
+            $db->quoteName('quotation_id'),
+            $db->quoteName('pre_cotizacion_id'),
+            $db->quoteName('signed_document_path'),
+            $db->quoteName('instrucciones_facturacion'),
+            $db->quoteName('created'),
+            $db->quoteName('created_by'),
+        ];
+        $values = [
+            (int) $quotationId,
+            (int) $preCotizacionId,
+            $db->quote($signedDocumentPath),
+            $db->quote($instruccionesFacturacion),
+            $db->quote($now),
+            (int) $createdBy,
+        ];
+        $query = $db->getQuery(true)
+            ->insert($db->quoteName('#__ordenproduccion_pre_cotizacion_confirmation'))
+            ->columns($columns)
+            ->values(implode(',', $values));
+        $db->setQuery($query);
+        try {
+            $db->execute();
+            return (int) $db->insertid();
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     /**
