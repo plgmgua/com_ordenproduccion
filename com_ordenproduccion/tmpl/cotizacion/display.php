@@ -215,6 +215,7 @@ $currency = $quotation->currency ?? 'Q';
                     <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep1'); ?>" method="post" enctype="multipart/form-data" id="confirmarFormStep1">
                         <?php echo HTMLHelper::_('form.token'); ?>
                         <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                        <input type="hidden" name="next_step" value="">
                         <div class="mb-3">
                             <label for="signed_document" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></label>
                             <input type="file" name="signed_document" id="signed_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
@@ -233,6 +234,7 @@ $currency = $quotation->currency ?? 'Q';
                     <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="confirmarFormStep2">
                         <?php echo HTMLHelper::_('form.token'); ?>
                         <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                        <input type="hidden" name="next_step" value="">
                         <div class="mb-3">
                             <label for="instrucciones_facturacion" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
                             <textarea name="instrucciones_facturacion" id="instrucciones_facturacion" class="form-control" rows="4" placeholder=""><?php echo htmlspecialchars(isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : ''); ?></textarea>
@@ -275,6 +277,7 @@ $currency = $quotation->currency ?? 'Q';
                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden'); ?>" method="post" id="confirmarFormStep3">
                             <?php echo HTMLHelper::_('form.token'); ?>
                             <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>">
+                            <input type="hidden" name="next_step" value="">
                             <div class="overflow-auto mb-3" style="max-height: 45vh;">
                                 <?php foreach ($itemsWithLineDetalles as $preItem) :
                                     $preNum = $preItem->pre_cotizacion_number ?? ('PRE-' . $preItem->pre_cotizacion_id);
@@ -384,6 +387,7 @@ $currency = $quotation->currency ?? 'Q';
     var modal = document.getElementById('confirmarCotizacionModal');
     if (!modal) return;
     var steps = [1, 2, 3, 4];
+    var confirmarStepOnLoad = <?php echo json_encode(Factory::getApplication()->input->getInt('confirmar_step', 0)); ?>;
     function showStep(step) {
         steps.forEach(function(s) {
             var pane = document.getElementById('confirmarStep' + s);
@@ -395,15 +399,27 @@ $currency = $quotation->currency ?? 'Q';
             }
         });
     }
-    modal.addEventListener('show.bs.modal', function() { showStep(1); });
+    modal.addEventListener('show.bs.modal', function() { showStep(confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 4 ? confirmarStepOnLoad : 1); });
     modal.addEventListener('hidden.bs.modal', function() { showStep(1); });
     modal.addEventListener('click', function(e) {
         var nextBtn = e.target && e.target.closest && e.target.closest('.btn-confirmar-next');
         if (nextBtn) {
+            e.preventDefault();
+            var form = nextBtn.closest('form');
             var next = parseInt(nextBtn.getAttribute('data-next'), 10);
+            if (form && next >= 2 && next <= 4) {
+                var hidden = form.querySelector('input[name="next_step"]');
+                if (hidden) hidden.value = next;
+                form.submit();
+                return;
+            }
             if (next >= 1 && next <= 4) showStep(next);
         }
     });
+    if (confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 4 && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        var m = document.getElementById('confirmarCotizacionModal');
+        if (m) bootstrap.Modal.getOrCreateInstance(m).show();
+    }
 })();
 </script>
 

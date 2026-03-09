@@ -340,10 +340,12 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
+        $nextStep = (int) $app->input->post->get('next_step', 0);
         $file = $app->input->files->get('signed_document', [], 'array');
         if (empty($file['name']) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_NO_FILE'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $phpError = (int) ($file['error'] ?? 0);
@@ -358,40 +360,46 @@ class CotizacionController extends BaseController
                 UPLOAD_ERR_EXTENSION   => 'Una extensión bloqueó la subida.',
             ];
             $app->enqueueMessage($messages[$phpError] ?? 'Error al subir el archivo.', 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
         $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
         if (!in_array($ext, $allowed, true)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_INVALID_FILE_TYPE'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $maxSize = 5 * 1024 * 1024;
         if ((int) ($file['size'] ?? 0) > $maxSize) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FILE_TOO_BIG'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/cotizacion_signed';
         if (!is_dir($uploadDir)) {
             if (!@mkdir($uploadDir, 0755, true)) {
                 $app->enqueueMessage('No se pudo crear el directorio de subida.', 'error');
-                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+                $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+                $app->redirect(Route::_($url, false));
                 return;
             }
         }
         if (!is_writable($uploadDir)) {
             $app->enqueueMessage('El directorio de subida no tiene permisos de escritura.', 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $uniqueName = 'cotizacion_' . $quotationId . '_' . date('Y-m-d_H-i-s') . '.' . $ext;
         $fullPath = $uploadDir . '/' . $uniqueName;
         if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
             $app->enqueueMessage('No se pudo guardar el archivo.', 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep ? '&confirmar_step=1' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $relativePath = 'media/com_ordenproduccion/cotizacion_signed/' . $uniqueName;
@@ -399,7 +407,8 @@ class CotizacionController extends BaseController
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['signed_document_path'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $update = $db->getQuery(true)
@@ -411,7 +420,9 @@ class CotizacionController extends BaseController
         $db->setQuery($update);
         $db->execute();
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+        $nextStep = (int) $app->input->post->get('next_step', 0);
+        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
+        $app->redirect(Route::_($url, false));
     }
 
     /**
@@ -453,11 +464,13 @@ class CotizacionController extends BaseController
             return;
         }
         $instrucciones = $app->input->post->getString('instrucciones_facturacion', '');
+        $nextStep = (int) $app->input->post->get('next_step', 0);
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['instrucciones_facturacion'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 3 ? '&confirmar_step=3' : '');
+            $app->redirect(Route::_($url, false));
             return;
         }
         $update = $db->getQuery(true)
@@ -469,7 +482,8 @@ class CotizacionController extends BaseController
         $db->setQuery($update);
         $db->execute();
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 3 ? '&confirmar_step=3' : '');
+        $app->redirect(Route::_($url, false));
     }
 
     /**
@@ -544,10 +558,12 @@ class CotizacionController extends BaseController
             }
         }
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
+        $nextStep = (int) $app->input->post->get('next_step', 0);
         if ($preCotizacionId > 0) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
         } else {
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 4 ? '&confirmar_step=4' : '');
+            $app->redirect(Route::_($url, false));
         }
     }
 
