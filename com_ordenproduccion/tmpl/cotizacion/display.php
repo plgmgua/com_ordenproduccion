@@ -179,7 +179,18 @@ $currency = $quotation->currency ?? 'Q';
                 <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
             </a>
         </div>
-        <div>
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <?php $signedPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : ''; ?>
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep1'); ?>" method="post" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                <label for="signed_document_view" class="form-label mb-0 small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></label>
+                <input type="file" name="signed_document" id="signed_document_view" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png" style="max-width: 12rem;">
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
+                <?php if ($signedPath !== '') : ?>
+                    <span class="small text-success"><i class="fas fa-file"></i> <?php echo htmlspecialchars(basename($signedPath)); ?> <a href="<?php echo htmlspecialchars(Uri::root() . $signedPath); ?>" target="_blank" class="ms-1"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></a></span>
+                <?php endif; ?>
+            </form>
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarCotizacionModal" id="btnConfirmarCotizacion">
                 <i class="fas fa-check-circle"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_COTIZACION', 'Confirm Quotation', 'Confirmar Cotización'); ?>
@@ -188,7 +199,7 @@ $currency = $quotation->currency ?? 'Q';
     </div>
 </div>
 
-<!-- Modal: Confirmar Cotización (3 steps) -->
+<!-- Modal: Confirmar Cotización (3 steps: billing, line details, generate order) -->
 <div class="modal fade" id="confirmarCotizacionModal" tabindex="-1" aria-labelledby="confirmarCotizacionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -200,38 +211,14 @@ $currency = $quotation->currency ?? 'Q';
                 <div class="confirmar-steps mb-3">
                     <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="1"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1</span>
                     <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="2"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2</span>
-                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="3"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3</span>
-                    <span class="badge bg-secondary confirmar-step-dot" data-step="4"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 4</span>
+                    <span class="badge bg-secondary confirmar-step-dot" data-step="3"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3</span>
                 </div>
 
-                <!-- Step 1: Upload signed document -->
+                <!-- Step 1: Instrucciones de Facturación -->
                 <div class="confirmar-step-pane" id="confirmarStep1" data-step="1">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></h6>
-                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_DESC', 'Upload the signed quotation as proof of acceptance (PDF or image).', 'Subir la cotización firmada como comprobante de aceptación (PDF o imagen).'); ?></p>
-                    <?php $signedPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : ''; ?>
-                    <?php if ($signedPath !== '') : ?>
-                        <p class="small text-success mb-2"><i class="fas fa-file"></i> <?php echo htmlspecialchars(basename($signedPath)); ?> <a href="<?php echo htmlspecialchars(Uri::root() . $signedPath); ?>" target="_blank" class="ms-1"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></a></p>
-                    <?php endif; ?>
-                    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep1'); ?>" method="post" enctype="multipart/form-data" id="confirmarFormStep1">
-                        <?php echo HTMLHelper::_('form.token'); ?>
-                        <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
-                        <input type="hidden" name="next_step" value="">
-                        <div class="mb-3">
-                            <label for="signed_document" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></label>
-                            <input type="file" name="signed_document" id="signed_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
-                        </div>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button type="submit" class="btn btn-outline-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-                            <button type="button" class="btn btn-primary btn-confirmar-next" data-next="2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Step 2: Instrucciones de Facturación -->
-                <div class="confirmar-step-pane" id="confirmarStep2" data-step="2" style="display:none;">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h6>
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_DESC', 'Enter billing instructions for this quotation.', 'Indique las instrucciones de facturación para esta cotización.'); ?></p>
-                    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="confirmarFormStep2">
+                    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="confirmarFormStep1">
                         <?php echo HTMLHelper::_('form.token'); ?>
                         <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
                         <input type="hidden" name="next_step" value="">
@@ -241,14 +228,14 @@ $currency = $quotation->currency ?? 'Q';
                         </div>
                         <div class="d-flex gap-2 flex-wrap">
                             <button type="submit" class="btn btn-outline-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-                            <button type="button" class="btn btn-primary btn-confirmar-next" data-next="3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                            <button type="button" class="btn btn-primary btn-confirmar-next" data-next="2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
                         </div>
                     </form>
                 </div>
 
-                <!-- Step 3: Detalles / Instrucciones por línea (para orden de trabajo) -->
-                <div class="confirmar-step-pane" id="confirmarStep3" data-step="3" style="display:none;">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3:</span> <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?></h6>
+                <!-- Step 2: Detalles / Instrucciones por línea (para orden de trabajo) -->
+                <div class="confirmar-step-pane" id="confirmarStep2" data-step="2" style="display:none;">
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2:</span> <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?></p>
                     <?php
                     $itemsWithLineDetalles = isset($this->itemsWithLineDetalles) ? $this->itemsWithLineDetalles : [];
@@ -272,9 +259,9 @@ $currency = $quotation->currency ?? 'Q';
                     }
                     if (empty($itemsWithLineDetalles)) : ?>
                         <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
-                        <button type="button" class="btn btn-primary btn-confirmar-next" data-next="4"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                        <button type="button" class="btn btn-primary btn-confirmar-next" data-next="3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
                     <?php else : ?>
-                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden'); ?>" method="post" id="confirmarFormStep3">
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden'); ?>" method="post" id="confirmarFormStep2">
                             <?php echo HTMLHelper::_('form.token'); ?>
                             <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>">
                             <input type="hidden" name="next_step" value="">
@@ -321,15 +308,15 @@ $currency = $quotation->currency ?? 'Q';
                             </div>
                             <div class="d-flex gap-2 flex-wrap">
                                 <button type="submit" class="btn btn-outline-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-                                <button type="button" class="btn btn-primary btn-confirmar-next" data-next="4"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                                <button type="button" class="btn btn-primary btn-confirmar-next" data-next="3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
                             </div>
                         </form>
                     <?php endif; ?>
                 </div>
 
-                <!-- Step 4: Pre-cotizaciones + Generar Orden de Trabajo -->
-                <div class="confirmar-step-pane" id="confirmarStep4" data-step="4" style="display:none;">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 4:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h6>
+                <!-- Step 3: Pre-cotizaciones + Generar Orden de Trabajo -->
+                <div class="confirmar-step-pane" id="confirmarStep3" data-step="3" style="display:none;">
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_DESC', 'Generate work order for each pre-quotation.', 'Generar orden de trabajo para cada pre-cotización.'); ?></p>
                     <?php if (empty($items)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
@@ -386,7 +373,7 @@ $currency = $quotation->currency ?? 'Q';
 (function() {
     var modal = document.getElementById('confirmarCotizacionModal');
     if (!modal) return;
-    var steps = [1, 2, 3, 4];
+    var steps = [1, 2, 3];
     var confirmarStepOnLoad = <?php echo json_encode(Factory::getApplication()->input->getInt('confirmar_step', 0)); ?>;
     function showStep(step) {
         steps.forEach(function(s) {
@@ -399,7 +386,7 @@ $currency = $quotation->currency ?? 'Q';
             }
         });
     }
-    modal.addEventListener('show.bs.modal', function() { showStep(confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 4 ? confirmarStepOnLoad : 1); });
+    modal.addEventListener('show.bs.modal', function() { showStep(confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 3 ? confirmarStepOnLoad : 1); });
     modal.addEventListener('hidden.bs.modal', function() { showStep(1); });
     modal.addEventListener('click', function(e) {
         var nextBtn = e.target && e.target.closest && e.target.closest('.btn-confirmar-next');
@@ -408,12 +395,8 @@ $currency = $quotation->currency ?? 'Q';
             e.stopPropagation();
             var form = nextBtn.closest('form');
             var next = parseInt(nextBtn.getAttribute('data-next'), 10);
-            if (next < 1 || next > 4) return;
-            if (form && form.id === 'confirmarFormStep1') {
-                showStep(next);
-                return;
-            }
-            if (!form || next < 2 || next > 4) {
+            if (next < 1 || next > 3) return;
+            if (!form || next < 2 || next > 3) {
                 showStep(next);
                 return;
             }
@@ -422,7 +405,7 @@ $currency = $quotation->currency ?? 'Q';
             form.submit();
         }
     });
-    if (confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 4 && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+    if (confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 3 && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         var m = document.getElementById('confirmarCotizacionModal');
         if (m) bootstrap.Modal.getOrCreateInstance(m).show();
     }

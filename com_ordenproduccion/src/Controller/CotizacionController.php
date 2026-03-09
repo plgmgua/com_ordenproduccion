@@ -469,7 +469,7 @@ class CotizacionController extends BaseController
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['instrucciones_facturacion'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 3 ? '&confirmar_step=3' : '');
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
             $app->redirect(Route::_($url, false));
             return;
         }
@@ -482,7 +482,7 @@ class CotizacionController extends BaseController
         $db->setQuery($update);
         $db->execute();
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
-        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 3 ? '&confirmar_step=3' : '');
+        $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 2 ? '&confirmar_step=2' : '');
         $app->redirect(Route::_($url, false));
     }
 
@@ -562,7 +562,7 @@ class CotizacionController extends BaseController
         if ($preCotizacionId > 0) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
         } else {
-            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 4 ? '&confirmar_step=4' : '');
+            $url = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . ($nextStep === 3 ? '&confirmar_step=3' : '');
             $app->redirect(Route::_($url, false));
         }
     }
