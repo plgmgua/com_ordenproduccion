@@ -198,15 +198,15 @@ $currency = $quotation->currency ?? 'Q';
             </div>
             <div class="modal-body">
                 <div class="confirmar-steps mb-3">
-                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="1">1</span>
-                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="2">2</span>
-                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="3">3</span>
-                    <span class="badge bg-secondary confirmar-step-dot" data-step="4">4</span>
+                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="1"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1</span>
+                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="2"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2</span>
+                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="3"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3</span>
+                    <span class="badge bg-secondary confirmar-step-dot" data-step="4"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 4</span>
                 </div>
 
                 <!-- Step 1: Upload signed document -->
                 <div class="confirmar-step-pane" id="confirmarStep1" data-step="1">
-                    <h6 class="mb-2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></h6>
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_DESC', 'Upload the signed quotation as proof of acceptance (PDF or image).', 'Subir la cotización firmada como comprobante de aceptación (PDF o imagen).'); ?></p>
                     <?php $signedPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : ''; ?>
                     <?php if ($signedPath !== '') : ?>
@@ -229,7 +229,7 @@ $currency = $quotation->currency ?? 'Q';
 
                 <!-- Step 2: Instrucciones de Facturación -->
                 <div class="confirmar-step-pane" id="confirmarStep2" data-step="2" style="display:none;">
-                    <h6 class="mb-2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h6>
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_DESC', 'Enter billing instructions for this quotation.', 'Indique las instrucciones de facturación para esta cotización.'); ?></p>
                     <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="confirmarFormStep2">
                         <?php echo HTMLHelper::_('form.token'); ?>
@@ -248,7 +248,7 @@ $currency = $quotation->currency ?? 'Q';
 
                 <!-- Step 3: Detalles / Instrucciones por línea (para orden de trabajo) -->
                 <div class="confirmar-step-pane" id="confirmarStep3" data-step="3" style="display:none;">
-                    <h6 class="mb-2"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?></h6>
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3:</span> <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?></p>
                     <?php
                     $itemsWithLineDetalles = isset($this->itemsWithLineDetalles) ? $this->itemsWithLineDetalles : [];
@@ -329,7 +329,7 @@ $currency = $quotation->currency ?? 'Q';
 
                 <!-- Step 4: Pre-cotizaciones + Generar Orden de Trabajo -->
                 <div class="confirmar-step-pane" id="confirmarStep4" data-step="4" style="display:none;">
-                    <h6 class="mb-2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h6>
+                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 4:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h6>
                     <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_DESC', 'Generate work order for each pre-quotation.', 'Generar orden de trabajo para cada pre-cotización.'); ?></p>
                     <?php if (empty($items)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
@@ -405,15 +405,15 @@ $currency = $quotation->currency ?? 'Q';
         var nextBtn = e.target && e.target.closest && e.target.closest('.btn-confirmar-next');
         if (nextBtn) {
             e.preventDefault();
+            e.stopPropagation();
             var form = nextBtn.closest('form');
             var next = parseInt(nextBtn.getAttribute('data-next'), 10);
-            if (!form || next < 2 || next > 4) {
-                if (next >= 1 && next <= 4) showStep(next);
+            if (next < 1 || next > 4) return;
+            if (form && form.id === 'confirmarFormStep1') {
+                showStep(next);
                 return;
             }
-            var fileInput = form.id === 'confirmarFormStep1' ? form.querySelector('input[name="signed_document"]') : null;
-            var hasFile = fileInput && fileInput.files && fileInput.files.length > 0 && fileInput.files[0].name;
-            if (form.id === 'confirmarFormStep1' && !hasFile) {
+            if (!form || next < 2 || next > 4) {
                 showStep(next);
                 return;
             }
