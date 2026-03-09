@@ -407,13 +407,19 @@ $currency = $quotation->currency ?? 'Q';
             e.preventDefault();
             var form = nextBtn.closest('form');
             var next = parseInt(nextBtn.getAttribute('data-next'), 10);
-            if (form && next >= 2 && next <= 4) {
-                var hidden = form.querySelector('input[name="next_step"]');
-                if (hidden) hidden.value = next;
-                form.submit();
+            if (!form || next < 2 || next > 4) {
+                if (next >= 1 && next <= 4) showStep(next);
                 return;
             }
-            if (next >= 1 && next <= 4) showStep(next);
+            var fileInput = form.id === 'confirmarFormStep1' ? form.querySelector('input[name="signed_document"]') : null;
+            var hasFile = fileInput && fileInput.files && fileInput.files.length > 0 && fileInput.files[0].name;
+            if (form.id === 'confirmarFormStep1' && !hasFile) {
+                showStep(next);
+                return;
+            }
+            var hidden = form.querySelector('input[name="next_step"]');
+            if (hidden) hidden.value = next;
+            form.submit();
         }
     });
     if (confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 4 && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
