@@ -608,12 +608,15 @@ class CotizacionController extends BaseController
         $signedDocumentPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : '';
         $instruccionesFacturacion = isset($quotation->instrucciones_facturacion) ? trim((string) $quotation->instrucciones_facturacion) : '';
 
+        $lineDetallesJson = $this->getLineDetallesJsonForPreCotizacion($db, $preCotizacionId);
+
         $confirmationId = $this->savePreCotizacionConfirmation(
             $db,
             $quotationId,
             $preCotizacionId,
             $signedDocumentPath,
             $instruccionesFacturacion,
+            $lineDetallesJson,
             $user->id
         );
 
@@ -686,6 +689,60 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Build JSON snapshot of line detalles (Step 3: instrucciones para orden de trabajo) for a pre_cotizacion.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   int                                  $preCotizacionId
+     * @return  string  JSON array of { pre_cotizacion_line_id, concepto_key, concepto_label, detalle }
+     * @since   3.93.1
+     */
+    private function getLineDetallesJsonForPreCotizacion($db, $preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return '[]';
+        }
+        $detallesTable = $db->replacePrefix('#__ordenproduccion_pre_cotizacion_line_detalles');
+        try {
+            $db->setQuery($db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId));
+            $lineIds = $db->loadColumn() ?: [];
+        } catch (\Throwable $e) {
+            return '[]';
+        }
+        if (empty($lineIds)) {
+            return '[]';
+        }
+        try {
+            $cols = $db->getTableColumns($detallesTable, false);
+        } catch (\Throwable $e) {
+            return '[]';
+        }
+        if (empty($cols)) {
+            return '[]';
+        }
+        $lineIds = array_map('intval', $lineIds);
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['pre_cotizacion_line_id', 'concepto_key', 'concepto_label', 'detalle']))
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line_detalles'))
+            ->whereIn($db->quoteName('pre_cotizacion_line_id'), $lineIds);
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = [
+                'pre_cotizacion_line_id' => (int) $r->pre_cotizacion_line_id,
+                'concepto_key'           => $r->concepto_key ?? '',
+                'concepto_label'         => $r->concepto_label ?? '',
+                'detalle'                => $r->detalle ?? '',
+            ];
+        }
+        return json_encode($out, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
      * Save a pre-cotización confirmation row (Confirmar cotización steps snapshot) and return its id.
      * Used when "Generar Orden de Trabajo" is clicked; the id is sent as pre_cotizacion_confirmation_id.
      *
@@ -694,11 +751,12 @@ class CotizacionController extends BaseController
      * @param   int                                  $preCotizacionId
      * @param   string                               $signedDocumentPath   Step 1
      * @param   string                               $instruccionesFacturacion  Step 2
+     * @param   string                               $lineDetallesJson     Step 3: JSON of line detalles
      * @param   int                                  $createdBy
      * @return  int  New confirmation id, or 0 if table missing / insert failed
      * @since   3.93.0
      */
-    private function savePreCotizacionConfirmation($db, $quotationId, $preCotizacionId, $signedDocumentPath, $instruccionesFacturacion, $createdBy)
+    private function savePreCotizacionConfirmation($db, $quotationId, $preCotizacionId, $signedDocumentPath, $instruccionesFacturacion, $lineDetallesJson, $createdBy)
     {
         $tableName = $db->replacePrefix('#__ordenproduccion_pre_cotizacion_confirmation');
         try {
@@ -709,6 +767,10 @@ class CotizacionController extends BaseController
         } catch (\Throwable $e) {
             return 0;
         }
+        $cols = $db->getTableColumns($tableName, false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $hasLineDetallesJson = isset($cols['line_detalles_json']);
+
         $now = Factory::getDate()->toSql();
         $columns = [
             $db->quoteName('quotation_id'),
@@ -726,6 +788,10 @@ class CotizacionController extends BaseController
             $db->quote($now),
             (int) $createdBy,
         ];
+        if ($hasLineDetallesJson) {
+            $columns[] = $db->quoteName('line_detalles_json');
+            $values[] = $db->quote(is_string($lineDetallesJson) ? $lineDetallesJson : '[]');
+        }
         $query = $db->getQuery(true)
             ->insert($db->quoteName('#__ordenproduccion_pre_cotizacion_confirmation'))
             ->columns($columns)
