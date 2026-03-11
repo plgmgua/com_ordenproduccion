@@ -682,6 +682,7 @@ class AdministracionModel extends BaseDatabaseModel
 
         $openingMap = $this->getOpeningBalancesMap($db);
         $paidFromJan2026Map = $this->getPaidFromJan2026ByClientMap($db);
+        $registradoFromJan2026Map = $this->getRegistradoFromJan2026ByClientMap($db);
         $invoiceOctDec2025Map = $this->getInvoiceValueOctDec2025ByClientMap($db);
         $invoiceFromJan2026Map = $this->getInvoiceValueFromJan2026ByClientMap($db);
 
@@ -689,6 +690,7 @@ class AdministracionModel extends BaseDatabaseModel
             $key = $this->clientKey($c->client_name ?? '', $c->nit ?? '');
             $initialPaid = (float) ($openingMap[$key] ?? 0);
             $paidFromJan = (float) ($paidFromJan2026Map[$key] ?? 0);
+            $registradoFromJan = (float) ($registradoFromJan2026Map[$key] ?? 0);
             $totalInvoiced = (float) ($c->total_invoice_value ?? 0);
             $invoiceOctDec2025 = (float) ($invoiceOctDec2025Map[$key] ?? 0);
             $compras = (float) ($invoiceFromJan2026Map[$key] ?? 0);
@@ -696,8 +698,10 @@ class AdministracionModel extends BaseDatabaseModel
             $c->initial_paid_to_dec31_2025 = $initialPaid;
             $c->display_pagado = $initialPaid > 0 ? $initialPaid : $invoiceOctDec2025;
             $c->paid_from_jan2026 = $paidFromJan;
+            $c->registrado_from_jan2026 = $registradoFromJan;
+            $c->verificado_from_jan2026 = $paidFromJan;
             $c->compras = $compras;
-            // Accounting convention: positive = client owes, negative = client has credit (advance). Display as -1 * saldo (unpaid = negative, in favor = positive).
+            // Accounting convention: positive = client owes, negative = client has credit (advance). Saldo = total invoiced - initial paid - verified payments (exact value owed).
             $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
@@ -886,7 +890,7 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get map of client_key => sum of payments from Jan 1 2026
+     * Get map of client_key => sum of payments from Jan 1 2026 (verified only; used for Saldo).
      */
     protected function getPaidFromJan2026ByClientMap($db)
     {
@@ -909,6 +913,36 @@ class AdministracionModel extends BaseDatabaseModel
             ->innerJoin(
                 $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id AND pp.state = 1'
                 . ' AND pp.created >= ' . $db->quote('2026-01-01 00:00:00') . $verifiedCondition
+            )
+            ->innerJoin($db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id AND o.state = 1')
+            ->group(['o.client_name', 'o.nit']);
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$this->clientKey($r->client_name ?? '', $r->nit ?? '')] = (float) ($r->total_paid ?? 0);
+        }
+        return $map;
+    }
+
+    /**
+     * Get map of client_key => sum of all registered payments from Jan 1 2026 (Registrado; any verification status).
+     */
+    protected function getRegistradoFromJan2026ByClientMap($db)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_payment_orders') || !$this->hasTable($db, '#__ordenproduccion_payment_proofs')) {
+            return [];
+        }
+        $query = $db->getQuery(true)
+            ->select([
+                'o.' . $db->quoteName('client_name'),
+                'o.' . $db->quoteName('nit'),
+                'SUM(CAST(po.' . $db->quoteName('amount_applied') . ' AS DECIMAL(15,2))) AS total_paid'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id AND pp.state = 1'
+                . ' AND pp.created >= ' . $db->quote('2026-01-01 00:00:00')
             )
             ->innerJoin($db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id AND o.state = 1')
             ->group(['o.client_name', 'o.nit']);
