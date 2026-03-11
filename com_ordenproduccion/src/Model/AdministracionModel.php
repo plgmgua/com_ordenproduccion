@@ -261,18 +261,21 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $limit = 0, $offset = 0)
+    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $limit = 0, $offset = 0, $paymentStatus = '')
     {
         $db = Factory::getDbo();
-        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent);
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
+        $totalPaidSub = $this->getReportTotalPaidSubquery($db, 'o.id');
         $query->select([
-            $db->quoteName('orden_de_trabajo'),
-            $db->quoteName('work_description'),
-            $db->quoteName('invoice_value'),
-            $db->quoteName('client_name'),
-            $db->quoteName('request_date'),
-            $db->quoteName('delivery_date'),
-        ])->order($db->quoteName('orden_de_trabajo') . ' ASC');
+            $db->quoteName('o.id', 'id'),
+            $db->quoteName('o.orden_de_trabajo', 'orden_de_trabajo'),
+            $db->quoteName('o.work_description', 'work_description'),
+            $db->quoteName('o.invoice_value', 'invoice_value'),
+            $db->quoteName('o.client_name', 'client_name'),
+            $db->quoteName('o.request_date', 'request_date'),
+            $db->quoteName('o.delivery_date', 'delivery_date'),
+            $totalPaidSub . ' AS total_paid',
+        ])->order($db->quoteName('o.orden_de_trabajo') . ' ASC');
         if ((int) $limit > 0) {
             $db->setQuery($query, (int) $offset, (int) $limit);
         } else {
@@ -293,10 +296,10 @@ class AdministracionModel extends BaseDatabaseModel
      * @return  int
      * @since   3.78.0
      */
-    public function getReportWorkOrdersTotal($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    public function getReportWorkOrdersTotal($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '')
     {
         $db = Factory::getDbo();
-        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent);
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
         $query->select('COUNT(*)');
         $db->setQuery($query);
         return (int) $db->loadResult();
@@ -314,17 +317,17 @@ class AdministracionModel extends BaseDatabaseModel
      * @return  float
      * @since   3.78.0
      */
-    public function getReportWorkOrdersTotalValue($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    public function getReportWorkOrdersTotalValue($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '')
     {
         $db = Factory::getDbo();
-        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent);
-        $query->select('COALESCE(SUM(CAST(' . $db->quoteName('invoice_value') . ' AS DECIMAL(15,2))), 0)');
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
+        $query->select('COALESCE(SUM(CAST(' . $db->quoteName('o.invoice_value') . ' AS DECIMAL(15,2))), 0)');
         $db->setQuery($query);
         return (float) $db->loadResult();
     }
 
     /**
-     * Build base query for report work orders (FROM + WHERE only).
+     * Build base query for report work orders (FROM + WHERE only). Uses alias 'o' for ordenes.
      *
      * @param   \Joomla\Database\DatabaseInterface  $db
      * @param   string  $dateFrom
@@ -332,33 +335,64 @@ class AdministracionModel extends BaseDatabaseModel
      * @param   string  $clientName
      * @param   string  $nit
      * @param   string  $salesAgent
+     * @param   string  $paymentStatus  '' = all, 'paid' = fully paid, 'unpaid' = no payment, 'balance_due' = has payment but balance remaining
      *
      * @return  \Joomla\Database\DatabaseQuery
      * @since   3.78.0
      */
-    protected function buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '')
+    protected function buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '')
     {
         $query = $db->getQuery(true)
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('state') . ' = 1');
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where($db->quoteName('o.state') . ' = 1');
 
         if (!empty($dateFrom)) {
-            $query->where($db->quoteName('created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));
+            $query->where($db->quoteName('o.created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));
         }
         if (!empty($dateTo)) {
-            $query->where($db->quoteName('created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
+            $query->where($db->quoteName('o.created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
         }
         if (!empty($clientName)) {
-            $query->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+            $query->where($db->quoteName('o.client_name') . ' = ' . $db->quote($clientName));
         }
         if (!empty($nit)) {
-            $query->where($db->quoteName('nit') . ' = ' . $db->quote($nit));
+            $query->where($db->quoteName('o.nit') . ' = ' . $db->quote($nit));
         }
         if (!empty($salesAgent)) {
-            $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+            $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+
+        $invoiceCol = $db->quoteName('o.invoice_value');
+        $totalPaidSub = $this->getReportTotalPaidSubquery($db, 'o.id');
+        if ($paymentStatus === 'unpaid') {
+            $query->where('(' . $totalPaidSub . ') <= 0');
+        } elseif ($paymentStatus === 'paid') {
+            $query->where('(' . $totalPaidSub . ') >= CAST(' . $invoiceCol . ' AS DECIMAL(15,2)) - 0.01');
+        } elseif ($paymentStatus === 'balance_due') {
+            $query->where('(' . $totalPaidSub . ') > 0');
+            $query->where('(' . $totalPaidSub . ') < CAST(' . $invoiceCol . ' AS DECIMAL(15,2)) - 0.01');
         }
 
         return $query;
+    }
+
+    /**
+     * Subquery for total amount paid per order (report). Supports payment_orders junction or legacy payment_proofs.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   string  $orderIdColumn  Column reference e.g. 'o.id'
+     * @return  string  SQL expression
+     * @since   1.0.0
+     */
+    protected function getReportTotalPaidSubquery($db, $orderIdColumn = 'o.id')
+    {
+        if ($this->hasTable($db, '#__ordenproduccion_payment_orders')) {
+            return '(SELECT COALESCE(SUM(po.amount_applied), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
+                ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+                ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = ' . $orderIdColumn . ')';
+        }
+        return '(SELECT COALESCE(SUM(pp.payment_amount), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+            ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1)';
     }
 
     /**

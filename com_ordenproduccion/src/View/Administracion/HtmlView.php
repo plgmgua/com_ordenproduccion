@@ -217,6 +217,13 @@ class HtmlView extends BaseHtmlView
     protected $reportSalesAgent = '';
 
     /**
+     * Report payment status filter: '', 'paid', 'unpaid', 'balance_due'
+     *
+     * @var string
+     */
+    protected $reportPaymentStatus = '';
+
+    /**
      * Report pagination (total, limit, limitstart)
      *
      * @var    \Joomla\CMS\Pagination\Pagination|null
@@ -416,6 +423,7 @@ class HtmlView extends BaseHtmlView
         $this->reportClient = '';
         $this->reportNit = '';
         $this->reportSalesAgent = '';
+        $this->reportPaymentStatus = '';
         $this->reportSalesAgents = [];
         $this->reportSubTab = 'ordenes';
         $this->envios = [];
@@ -646,6 +654,7 @@ class HtmlView extends BaseHtmlView
                 $this->reportNit = $input->getString('filter_report_nit', '');
                 // Ventas: force filter to own agent; Administracion: use request filter
                 $this->reportSalesAgent = $salesAgentFilter !== null ? $salesAgentFilter : $input->getString('filter_report_sales_agent', '');
+                $this->reportPaymentStatus = $input->getString('filter_report_payment_status', '');
                 $this->reportLimit = max(5, min(100, (int) $input->getInt('report_limit', 20)));
                 $this->reportLimitStart = max(0, (int) $input->getInt('report_limitstart', 0));
                 $this->reportTotal = $statsModel->getReportWorkOrdersTotal(
@@ -653,14 +662,16 @@ class HtmlView extends BaseHtmlView
                     $this->reportDateTo,
                     $this->reportClient,
                     $this->reportNit,
-                    $this->reportSalesAgent
+                    $this->reportSalesAgent,
+                    $this->reportPaymentStatus
                 );
                 $this->reportTotalValue = $statsModel->getReportWorkOrdersTotalValue(
                     $this->reportDateFrom,
                     $this->reportDateTo,
                     $this->reportClient,
                     $this->reportNit,
-                    $this->reportSalesAgent
+                    $this->reportSalesAgent,
+                    $this->reportPaymentStatus
                 );
                 $this->reportWorkOrders = $statsModel->getReportWorkOrders(
                     $this->reportDateFrom,
@@ -669,7 +680,8 @@ class HtmlView extends BaseHtmlView
                     $this->reportNit,
                     $this->reportSalesAgent,
                     $this->reportLimit,
-                    $this->reportLimitStart
+                    $this->reportLimitStart,
+                    $this->reportPaymentStatus
                 );
                 $this->reportPagination = new \Joomla\CMS\Pagination\Pagination(
                     $this->reportTotal,
@@ -685,6 +697,7 @@ class HtmlView extends BaseHtmlView
                 $this->reportPagination->setAdditionalUrlParam('filter_report_client', $this->reportClient);
                 $this->reportPagination->setAdditionalUrlParam('filter_report_nit', $this->reportNit);
                 $this->reportPagination->setAdditionalUrlParam('filter_report_sales_agent', $this->reportSalesAgent);
+                $this->reportPagination->setAdditionalUrlParam('filter_report_payment_status', $this->reportPaymentStatus);
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
                 $this->reportWorkOrders = [];

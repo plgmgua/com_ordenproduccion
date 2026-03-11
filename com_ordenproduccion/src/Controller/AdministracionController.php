@@ -49,6 +49,7 @@ class AdministracionController extends BaseController
         $client = $app->input->getString('filter_report_client', '');
         $nit = $app->input->getString('filter_report_nit', '');
         $salesAgent = $app->input->getString('filter_report_sales_agent', '');
+        $paymentStatus = $app->input->getString('filter_report_payment_status', '');
         // Ventas: only export own data
         $salesAgentFilter = AccessHelper::getSalesAgentFilter();
         if ($salesAgentFilter !== null) {
@@ -57,7 +58,7 @@ class AdministracionController extends BaseController
 
         try {
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
-            $rows = $model->getReportWorkOrders($dateFrom, $dateTo, $client, $nit, $salesAgent);
+            $rows = $model->getReportWorkOrders($dateFrom, $dateTo, $client, $nit, $salesAgent, 0, 0, $paymentStatus);
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_ERROR'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes', false));
@@ -77,6 +78,7 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_DELIVERY_DATE'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_PAYMENT_RECORD'),
         ];
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
@@ -115,10 +117,13 @@ class AdministracionController extends BaseController
         $out = fopen('php://output', 'w');
         fprintf($out, "\xEF\xBB\xBF");
         fputcsv($out, $cols);
+        $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage($app->getLanguage()->getTag());
+        $lang->load('com_ordenproduccion', JPATH_SITE);
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
+            $hasPayment = isset($row->total_paid) && (float) $row->total_paid > 0;
             fputcsv($out, [
                 $row->orden_de_trabajo ?? '',
                 $row->client_name ?? '',
@@ -126,6 +131,7 @@ class AdministracionController extends BaseController
                 $deliveryDate,
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2),
+                $hasPayment ? $lang->_('JYES') : $lang->_('JNO'),
             ]);
         }
         fclose($out);
@@ -150,16 +156,19 @@ class AdministracionController extends BaseController
         $sheet->setTitle('Reporte órdenes');
 
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:F1');
+        $headerStyle = $sheet->getStyle('A1:G1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
 
+        $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage($app->getLanguage()->getTag());
+        $lang->load('com_ordenproduccion', JPATH_SITE);
         $rowIndex = 2;
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
+            $hasPayment = isset($row->total_paid) && (float) $row->total_paid > 0;
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
                 $row->client_name ?? '',
@@ -167,11 +176,12 @@ class AdministracionController extends BaseController
                 $deliveryDate,
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2),
+                $hasPayment ? $lang->_('JYES') : $lang->_('JNO'),
             ], null, 'A' . $rowIndex);
             $rowIndex++;
         }
 
-        foreach (range('A', 'F') as $col) {
+        foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 

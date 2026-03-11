@@ -25,6 +25,7 @@ $reportDateTo = $this->reportDateTo ?? '';
 $reportClient = $this->reportClient ?? '';
 $reportNit = $this->reportNit ?? '';
 $reportSalesAgent = $this->reportSalesAgent ?? '';
+$reportPaymentStatus = $this->reportPaymentStatus ?? '';
 $reportSalesAgents = $this->reportSalesAgents ?? [];
 $reportPagination = $this->reportPagination ?? null;
 $reportTotal = (int) ($this->reportTotal ?? 0);
@@ -58,7 +59,8 @@ $exportReportUrl = Route::_(
     '&filter_report_date_to=' . rawurlencode($reportDateTo) .
     '&filter_report_client=' . rawurlencode($reportClient) .
     '&filter_report_nit=' . rawurlencode($reportNit) .
-    '&filter_report_sales_agent=' . rawurlencode($reportSalesAgent),
+    '&filter_report_sales_agent=' . rawurlencode($reportSalesAgent) .
+    '&filter_report_payment_status=' . rawurlencode($reportPaymentStatus),
     false
 );
 
@@ -440,6 +442,15 @@ function safeEscape($value, $default = '')
                         <?php endforeach; ?>
                     </select>
                 </label>
+                <label>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_PAYMENT_STATUS'); ?>
+                    <select name="filter_report_payment_status">
+                        <option value="" <?php echo $reportPaymentStatus === '' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_PAYMENT_STATUS_ALL'); ?></option>
+                        <option value="paid" <?php echo $reportPaymentStatus === 'paid' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_PAYMENT_STATUS_PAID'); ?></option>
+                        <option value="unpaid" <?php echo $reportPaymentStatus === 'unpaid' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_PAYMENT_STATUS_UNPAID'); ?></option>
+                        <option value="balance_due" <?php echo $reportPaymentStatus === 'balance_due' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_PAYMENT_STATUS_BALANCE_DUE'); ?></option>
+                    </select>
+                </label>
             </div>
             <div class="reportes-actions-row">
                 <label class="reportes-client-wrap">
@@ -484,22 +495,26 @@ function safeEscape($value, $default = '')
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_DELIVERY_DATE'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'); ?></th>
                     <th class="col-invoice-value"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_PAYMENT_RECORD'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php
                 foreach ($reportWorkOrders as $row) :
                     $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
+                    $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
                     $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
                     $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
+                    $orderLink = !empty($row->id) ? Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) $row->id) : '';
                 ?>
                     <tr>
-                        <td class="col-work-order"><?php echo safeEscape($row->orden_de_trabajo ?? ''); ?></td>
+                        <td class="col-work-order"><?php if ($orderLink) : ?><a href="<?php echo htmlspecialchars($orderLink); ?>"><?php endif; ?><?php echo safeEscape($row->orden_de_trabajo ?? ''); ?><?php if ($orderLink) : ?></a><?php endif; ?></td>
                         <td><?php echo safeEscape($row->client_name ?? ''); ?></td>
                         <td><?php echo $requestDate !== '' ? safeEscape($requestDate) : '—'; ?></td>
                         <td><?php echo $deliveryDate !== '' ? safeEscape($deliveryDate) : '—'; ?></td>
                         <td><?php echo safeEscape($row->work_description ?? ''); ?></td>
                         <td class="col-invoice-value"><?php echo number_format($invoiceVal, 2); ?></td>
+                        <td><?php echo $totalPaid > 0 ? Text::_('JYES') : Text::_('JNO'); ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
