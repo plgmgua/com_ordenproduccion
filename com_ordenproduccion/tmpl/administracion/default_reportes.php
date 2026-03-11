@@ -379,7 +379,6 @@ function safeEscape($value, $default = '')
         </h2>
     </div>
 
-    <?php if ($canSeeEnviosSubtab) : ?>
     <div class="reportes-subtabs mb-3" style="display: flex; gap: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes'); ?>"
            class="btn btn-sm <?php echo $reportSubTab === 'ordenes' ? 'btn-primary' : 'btn-outline-secondary'; ?>">
@@ -390,7 +389,6 @@ function safeEscape($value, $default = '')
             <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SUBTAB_ENVIOS'); ?>
         </a>
     </div>
-    <?php endif; ?>
 
     <?php if ($reportSubTab === 'ordenes') : ?>
     <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes'); ?>" 
