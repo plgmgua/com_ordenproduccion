@@ -266,6 +266,7 @@ class AdministracionModel extends BaseDatabaseModel
         $db = Factory::getDbo();
         $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
         $totalPaidSub = $this->getReportTotalPaidSubquery($db, 'o.id');
+        $paymentNumbersSub = $this->getReportPaymentRecordNumbersSubquery($db, 'o.id');
         $query->select([
             $db->quoteName('o.id', 'id'),
             $db->quoteName('o.orden_de_trabajo', 'orden_de_trabajo'),
@@ -275,6 +276,7 @@ class AdministracionModel extends BaseDatabaseModel
             $db->quoteName('o.request_date', 'request_date'),
             $db->quoteName('o.delivery_date', 'delivery_date'),
             $totalPaidSub . ' AS total_paid',
+            $paymentNumbersSub . ' AS payment_record_numbers',
         ])->order($db->quoteName('o.orden_de_trabajo') . ' ASC');
         if ((int) $limit > 0) {
             $db->setQuery($query, (int) $offset, (int) $limit);
@@ -392,6 +394,26 @@ class AdministracionModel extends BaseDatabaseModel
                 ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = ' . $orderIdColumn . ')';
         }
         return '(SELECT COALESCE(SUM(pp.payment_amount), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+            ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1)';
+    }
+
+    /**
+     * Subquery for comma-separated payment record numbers (PA-00001 format) per order. NULL when none.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   string  $orderIdColumn  Column reference e.g. 'o.id'
+     * @return  string  SQL expression
+     * @since   1.0.0
+     */
+    protected function getReportPaymentRecordNumbersSubquery($db, $orderIdColumn = 'o.id')
+    {
+        $q = $db->quoteName('#__ordenproduccion_payment_proofs', 'pp');
+        $fmt = "CONCAT('PA-', LPAD(pp.id, 5, '0'))";
+        if ($this->hasTable($db, '#__ordenproduccion_payment_orders')) {
+            return '(SELECT GROUP_CONCAT(' . $fmt . ' ORDER BY pp.id SEPARATOR ", ") FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
+                ' INNER JOIN ' . $q . ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = ' . $orderIdColumn . ')';
+        }
+        return '(SELECT GROUP_CONCAT(' . $fmt . ' ORDER BY pp.id SEPARATOR ", ") FROM ' . $q .
             ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1)';
     }
 

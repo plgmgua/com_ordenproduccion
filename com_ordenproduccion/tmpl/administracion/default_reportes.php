@@ -214,30 +214,36 @@ function safeEscape($value, $default = '')
     background: #005a8b;
 }
 
-#com-op-reportes .reportes-actions-row {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
 #com-op-reportes .reportes-buttons-row {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
-#com-op-reportes .reportes-toolbar-label {
-    font-weight: 700;
-    color: #212529;
-    font-size: 14px;
+#com-op-reportes .reportes-btn-sm.filter-btn,
+#com-op-reportes .reportes-btn-sm.reportes-export-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+#com-op-reportes .reportes-font-controls-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
 }
 
 #com-op-reportes .reportes-font-controls {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+#com-op-reportes .reportes-font-btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 3px;
 }
 
 #com-op-reportes .reportes-font-btn {
@@ -451,8 +457,6 @@ function safeEscape($value, $default = '')
                         <option value="balance_due" <?php echo $reportPaymentStatus === 'balance_due' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_PAYMENT_STATUS_BALANCE_DUE'); ?></option>
                     </select>
                 </label>
-            </div>
-            <div class="reportes-actions-row">
                 <label class="reportes-client-wrap">
                     <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>
                     <input type="text" 
@@ -464,22 +468,21 @@ function safeEscape($value, $default = '')
                            aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" />
                     <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
                 </label>
-                <span class="reportes-toolbar-label"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SIZE'); ?></span>
-                <div class="reportes-font-controls">
-                    <button type="button" class="reportes-font-btn" data-size="small" aria-pressed="false"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?></button>
-                    <button type="button" class="reportes-font-btn active" data-size="medium" aria-pressed="true"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_MEDIUM'); ?></button>
-                    <button type="button" class="reportes-font-btn" data-size="large" aria-pressed="false"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_LARGE'); ?></button>
-                </div>
             </div>
             <div class="reportes-buttons-row">
-                <button type="submit" class="filter-btn">
+                <button type="submit" class="filter-btn reportes-btn-sm">
                     <i class="fas fa-search"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_GENERATE'); ?>
                 </button>
-                <a href="<?php echo $exportReportUrl; ?>" class="reportes-export-btn" target="_blank" rel="noopener">
+                <a href="<?php echo $exportReportUrl; ?>" class="reportes-export-btn reportes-btn-sm" target="_blank" rel="noopener">
                     <i class="fas fa-file-excel"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_EXCEL'); ?>
                 </a>
+                <div class="reportes-font-controls reportes-font-controls-inline">
+                    <button type="button" class="reportes-font-btn reportes-font-btn-sm" data-size="small" aria-pressed="false" title="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?></button>
+                    <button type="button" class="reportes-font-btn reportes-font-btn-sm active" data-size="medium" aria-pressed="true" title="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_MEDIUM'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_MEDIUM'); ?></button>
+                    <button type="button" class="reportes-font-btn reportes-font-btn-sm" data-size="large" aria-pressed="false" title="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_LARGE'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_LARGE'); ?></button>
+                </div>
             </div>
         </div>
     </form>
@@ -514,7 +517,7 @@ function safeEscape($value, $default = '')
                         <td><?php echo $deliveryDate !== '' ? safeEscape($deliveryDate) : '—'; ?></td>
                         <td><?php echo safeEscape($row->work_description ?? ''); ?></td>
                         <td class="col-invoice-value"><?php echo number_format($invoiceVal, 2); ?></td>
-                        <td><?php echo $totalPaid > 0 ? Text::_('JYES') : Text::_('JNO'); ?></td>
+                        <td><?php echo !empty($row->payment_record_numbers) ? safeEscape($row->payment_record_numbers) : '—'; ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

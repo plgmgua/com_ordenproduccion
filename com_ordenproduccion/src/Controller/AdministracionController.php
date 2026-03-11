@@ -117,13 +117,11 @@ class AdministracionController extends BaseController
         $out = fopen('php://output', 'w');
         fprintf($out, "\xEF\xBB\xBF");
         fputcsv($out, $cols);
-        $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage($app->getLanguage()->getTag());
-        $lang->load('com_ordenproduccion', JPATH_SITE);
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
-            $hasPayment = isset($row->total_paid) && (float) $row->total_paid > 0;
+            $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
             fputcsv($out, [
                 $row->orden_de_trabajo ?? '',
                 $row->client_name ?? '',
@@ -131,7 +129,7 @@ class AdministracionController extends BaseController
                 $deliveryDate,
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2),
-                $hasPayment ? $lang->_('JYES') : $lang->_('JNO'),
+                $paymentCol,
             ]);
         }
         fclose($out);
@@ -161,14 +159,12 @@ class AdministracionController extends BaseController
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
 
-        $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage($app->getLanguage()->getTag());
-        $lang->load('com_ordenproduccion', JPATH_SITE);
         $rowIndex = 2;
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
-            $hasPayment = isset($row->total_paid) && (float) $row->total_paid > 0;
+            $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
                 $row->client_name ?? '',
@@ -176,7 +172,7 @@ class AdministracionController extends BaseController
                 $deliveryDate,
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2),
-                $hasPayment ? $lang->_('JYES') : $lang->_('JNO'),
+                $paymentCol,
             ], null, 'A' . $rowIndex);
             $rowIndex++;
         }
