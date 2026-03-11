@@ -589,7 +589,8 @@ class HtmlView extends BaseHtmlView
 
         // Load reportes tab data: work orders by date/client/NIT/sales agent (Ventas: only own data)
         if ($activeTab === 'reportes') {
-            $this->canSeeEnviosSubtab = AccessHelper::isInAdministracionOrAdmonGroup();
+            // Envios subtab is visible to everyone who can access Reportes (Administracion sees all envios, Ventas see only their own)
+            $this->canSeeEnviosSubtab = true;
             $this->reportSubTab = $input->get('subtab', 'ordenes', 'string');
             if ($this->reportSubTab !== 'ordenes' && $this->reportSubTab !== 'envios') {
                 $this->reportSubTab = 'ordenes';
