@@ -220,14 +220,47 @@ class OrdenController extends BaseController
                     );
                     error_log('SHIPPING HISTORY DEBUG - Parcial save result: ' . var_export($result2, true));
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 // Log error but don't break PDF generation
                 error_log('SHIPPING HISTORY ERROR: ' . $e->getMessage());
                 $app->enqueueMessage('Advertencia: El envio se genero pero no se registro en el historial.', 'warning');
             }
 
-                    // Generate shipping slip PDF using FPDF
-                    $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoMensajeria, $descripcionEnvio);
+            // When "envio completo" is printed, set orden status to Terminada
+            if ($tipoEnvio === 'completo') {
+                try {
+                    $db = Factory::getDbo();
+                    $query = $db->getQuery(true)
+                        ->select($db->quoteName('status'))
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('id') . ' = ' . (int) $orderId);
+                    $db->setQuery($query);
+                    $oldStatus = $db->loadResult();
+                    $newStatus = 'Terminada';
+                    if ($oldStatus !== $newStatus) {
+                        $db->setQuery($db->getQuery(true)
+                            ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                            ->set($db->quoteName('status') . ' = ' . $db->quote($newStatus))
+                            ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                            ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                            ->where($db->quoteName('id') . ' = ' . (int) $orderId));
+                        $db->execute();
+                        HistorialHelper::saveEntry(
+                            $orderId,
+                            'status_change',
+                            'Cambio de Estado',
+                            'Estado cambiado de "' . ($oldStatus ?: 'N/A') . '" a "' . $newStatus . '" (envio completo impreso)',
+                            $user->id,
+                            ['old_status' => $oldStatus, 'new_status' => $newStatus, 'trigger' => 'envio_completo']
+                        );
+                    }
+                } catch (\Exception $e) {
+                    error_log('ENVIO COMPLETO STATUS UPDATE ERROR: ' . $e->getMessage());
+                }
+            }
+
+            // Generate shipping slip PDF using FPDF
+            $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoMensajeria, $descripcionEnvio);
             
         } catch (Exception $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
