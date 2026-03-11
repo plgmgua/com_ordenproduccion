@@ -222,9 +222,28 @@ function safeEscape($value, $default = '')
 }
 
 #com-op-reportes .reportes-btn-sm.filter-btn,
-#com-op-reportes .reportes-btn-sm.reportes-export-btn {
+#com-op-reportes .reportes-btn-sm.reportes-export-btn,
+#com-op-reportes .reportes-btn-sm.reportes-clear-filters-btn {
     padding: 6px 14px;
     font-size: 13px;
+}
+
+#com-op-reportes .reportes-clear-filters-btn {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+#com-op-reportes .reportes-clear-filters-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    color: #212529;
 }
 
 #com-op-reportes .reportes-font-controls-inline {
@@ -477,6 +496,10 @@ function safeEscape($value, $default = '')
                 <a href="<?php echo $exportReportUrl; ?>" class="reportes-export-btn reportes-btn-sm" target="_blank" rel="noopener">
                     <i class="fas fa-file-excel"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_EXCEL'); ?>
+                </a>
+                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes'); ?>" class="reportes-clear-filters-btn reportes-btn-sm">
+                    <i class="fas fa-times-circle"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLEAR_FILTERS'); ?>
                 </a>
                 <div class="reportes-font-controls reportes-font-controls-inline">
                     <button type="button" class="reportes-font-btn reportes-font-btn-sm" data-size="small" aria-pressed="false" title="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_FONT_SMALL'); ?></button>
