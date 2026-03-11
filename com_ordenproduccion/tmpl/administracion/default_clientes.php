@@ -291,8 +291,6 @@ function safeEscape($value, $default = '')
                             <th class="col-select"><input type="checkbox" id="select-all-clients" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SELECT_ALL'); ?>"></th>
                             <?php endif; ?>
                             <th class="col-client-name"><a href="<?php echo clientesSortUrl('name', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'name' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?><?php if ($clientesOrdering === 'name') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
-                            <th class="col-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_NIT'); ?></th>
-                            <th class="col-order-count"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_ORDER_COUNT'); ?></th>
                             <th class="col-compras"><a href="<?php echo clientesSortUrl('compras', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'compras' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_COMPRAS'); ?><?php if ($clientesOrdering === 'compras') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
                             <th class="col-registrado"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_REGISTRADO'); ?></th>
                             <th class="col-verificado"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_VERIFICADO'); ?></th>
@@ -302,7 +300,6 @@ function safeEscape($value, $default = '')
                     <tbody>
                         <?php
                         foreach ($clients as $idx => $client) :
-                            $orderCount = (int) ($client->order_count ?? 0);
                             $saldo = (float) ($client->saldo ?? 0);
                             $saldoDisplay = -1 * $saldo;
                             $compras = (float) ($client->compras ?? 0);
@@ -320,8 +317,6 @@ function safeEscape($value, $default = '')
                                 </td>
                                 <?php endif; ?>
                                 <td class="col-client-name"><?php echo safeEscape($cn); ?></td>
-                                <td class="col-nit"><?php echo safeEscape($nit ?: '—'); ?></td>
-                                <td class="col-order-count"><?php echo $orderCount; ?></td>
                                 <td class="col-compras">Q.<?php echo number_format($compras, 2); ?></td>
                                 <td class="col-registrado">Q.<?php echo number_format($registrado, 2); ?></td>
                                 <td class="col-verificado">Q.<?php echo number_format($verificado, 2); ?></td>
