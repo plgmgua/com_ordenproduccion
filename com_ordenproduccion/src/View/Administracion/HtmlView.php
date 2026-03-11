@@ -420,6 +420,10 @@ class HtmlView extends BaseHtmlView
         $this->reportSubTab = 'ordenes';
         $this->envios = [];
         $this->enviosPagination = null;
+        $this->enviosFilterClient = '';
+        $this->enviosFilterTipo = '';
+        $this->enviosFilterDateFrom = '';
+        $this->enviosFilterDateTo = '';
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -590,19 +594,20 @@ class HtmlView extends BaseHtmlView
             if ($this->reportSubTab !== 'ordenes' && $this->reportSubTab !== 'envios') {
                 $this->reportSubTab = 'ordenes';
             }
-            // Envios subtab: Administracion only
+            // Envios subtab: Administrator groups see all envios; Ventas see only their own orders' envios
             if ($this->reportSubTab === 'envios') {
-                if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
-                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
-                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes', false));
-                    return;
-                }
                 try {
                     $statsModel = $this->getModel('Administracion');
                     $enviosLimit = max(10, min(100, (int) $input->getInt('envios_limit', 25)));
                     $enviosStart = max(0, (int) $input->getInt('envios_limitstart', 0));
-                    $this->enviosTotal = $statsModel->getEnviosTotal();
-                    $this->envios = $statsModel->getEnviosList($enviosLimit, $enviosStart);
+                    $this->enviosFilterClient = $input->getString('filter_envios_client', '');
+                    $this->enviosFilterTipo = $input->getString('filter_envios_tipo', '');
+                    $this->enviosFilterDateFrom = $input->getString('filter_envios_date_from', '');
+                    $this->enviosFilterDateTo = $input->getString('filter_envios_date_to', '');
+                    $user = Factory::getUser();
+                    $enviosSalesFilter = (AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin')) ? null : $salesAgentFilter;
+                    $this->enviosTotal = $statsModel->getEnviosTotal($enviosSalesFilter, $this->enviosFilterClient, $this->enviosFilterTipo, $this->enviosFilterDateFrom, $this->enviosFilterDateTo);
+                    $this->envios = $statsModel->getEnviosList($enviosLimit, $enviosStart, $enviosSalesFilter, $this->enviosFilterClient, $this->enviosFilterTipo, $this->enviosFilterDateFrom, $this->enviosFilterDateTo);
                     $this->enviosPagination = new \Joomla\CMS\Pagination\Pagination(
                         $this->enviosTotal,
                         $enviosStart,
@@ -613,6 +618,10 @@ class HtmlView extends BaseHtmlView
                     $this->enviosPagination->setAdditionalUrlParam('view', 'administracion');
                     $this->enviosPagination->setAdditionalUrlParam('tab', 'reportes');
                     $this->enviosPagination->setAdditionalUrlParam('subtab', 'envios');
+                    $this->enviosPagination->setAdditionalUrlParam('filter_envios_client', $this->enviosFilterClient);
+                    $this->enviosPagination->setAdditionalUrlParam('filter_envios_tipo', $this->enviosFilterTipo);
+                    $this->enviosPagination->setAdditionalUrlParam('filter_envios_date_from', $this->enviosFilterDateFrom);
+                    $this->enviosPagination->setAdditionalUrlParam('filter_envios_date_to', $this->enviosFilterDateTo);
                 } catch (\Exception $e) {
                     $app->enqueueMessage('Error loading envios: ' . $e->getMessage(), 'error');
                     $this->envios = [];

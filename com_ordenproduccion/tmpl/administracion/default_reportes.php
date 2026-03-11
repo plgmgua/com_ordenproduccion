@@ -37,6 +37,10 @@ $canSeeEnviosSubtab = !empty($this->canSeeEnviosSubtab);
 $envios = $this->envios ?? [];
 $enviosPagination = $this->enviosPagination ?? null;
 $enviosTotal = (int) ($this->enviosTotal ?? 0);
+$enviosFilterClient = $this->enviosFilterClient ?? '';
+$enviosFilterTipo = $this->enviosFilterTipo ?? '';
+$enviosFilterDateFrom = $this->enviosFilterDateFrom ?? '';
+$enviosFilterDateTo = $this->enviosFilterDateTo ?? '';
 
 $tokenParam = Session::getFormToken() . '=1';
 $suggestClientsUrl = Route::_(
@@ -369,6 +373,19 @@ function safeEscape($value, $default = '')
     display: flex;
     gap: 4px;
 }
+
+/* Envios table: smaller font, more compressed */
+#com-op-reportes .reportes-envios-table-wrap {
+    font-size: 0.8rem;
+}
+#com-op-reportes .reportes-envios-table th,
+#com-op-reportes .reportes-envios-table td {
+    padding: 0.25rem 0.4rem;
+    font-size: inherit;
+}
+#com-op-reportes .reportes-envios-table td a {
+    font-size: inherit;
+}
 </style>
 
 <div id="com-op-reportes" class="reportes-section">
@@ -505,8 +522,37 @@ function safeEscape($value, $default = '')
     <?php endif; ?>
 
     <?php elseif ($reportSubTab === 'envios') : ?>
+    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=envios'); ?>" class="reportes-envios-filters mb-3">
+        <input type="hidden" name="option" value="com_ordenproduccion" />
+        <input type="hidden" name="view" value="administracion" />
+        <input type="hidden" name="tab" value="reportes" />
+        <input type="hidden" name="subtab" value="envios" />
+        <div class="d-flex flex-wrap align-items-end gap-2" style="font-size: 0.9rem;">
+            <label class="mb-0">
+                <?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_FILTER_CLIENT'); ?>
+                <input type="text" name="filter_envios_client" value="<?php echo safeEscape($enviosFilterClient); ?>" class="form-control form-control-sm" style="width: 12rem;" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_FILTER_CLIENT_PLACEHOLDER'); ?>" />
+            </label>
+            <label class="mb-0">
+                <?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_FILTER_TIPO'); ?>
+                <select name="filter_envios_tipo" class="form-select form-select-sm" style="width: auto;">
+                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_FILTER_TIPO_ALL'); ?></option>
+                    <option value="completo" <?php echo $enviosFilterTipo === 'completo' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_TIPO_COMPLETO'); ?></option>
+                    <option value="parcial" <?php echo $enviosFilterTipo === 'parcial' ? 'selected="selected"' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_TIPO_PARCIAL'); ?></option>
+                </select>
+            </label>
+            <label class="mb-0">
+                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_FROM'); ?>
+                <input type="date" name="filter_envios_date_from" value="<?php echo safeEscape($enviosFilterDateFrom); ?>" class="form-control form-control-sm" style="width: auto;" />
+            </label>
+            <label class="mb-0">
+                <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_DATE_TO'); ?>
+                <input type="date" name="filter_envios_date_to" value="<?php echo safeEscape($enviosFilterDateTo); ?>" class="form-control form-control-sm" style="width: auto;" />
+            </label>
+            <button type="submit" class="btn btn-sm btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_FILTER_APPLY'); ?></button>
+        </div>
+    </form>
     <div class="reportes-envios-table-wrap">
-        <table class="reportes-table table table-striped">
+        <table class="reportes-table reportes-envios-table table table-striped">
             <thead>
                 <tr>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_ID'); ?></th>
@@ -522,10 +568,13 @@ function safeEscape($value, $default = '')
                 <?php if (empty($envios)) : ?>
                 <tr><td colspan="7"><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_NO_DATA'); ?></td></tr>
                 <?php else : ?>
-                <?php foreach ($envios as $e) : ?>
+                <?php foreach ($envios as $e) :
+                    $envioIdFormatted = 'ENV-' . str_pad((int) $e->envio_id, 4, '0', STR_PAD_LEFT);
+                    $ordenLink = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) ($e->order_id ?? 0));
+                ?>
                 <tr>
-                    <td><?php echo (int) $e->envio_id; ?></td>
-                    <td><?php echo safeEscape($e->order_number ?? ''); ?></td>
+                    <td><?php echo safeEscape($envioIdFormatted); ?></td>
+                    <td><a href="<?php echo htmlspecialchars($ordenLink); ?>"><?php echo safeEscape($e->order_number ?? ''); ?></a></td>
                     <td><?php echo safeEscape($e->client_name ?? ''); ?></td>
                     <td><?php echo safeEscape(mb_substr($e->work_description ?? '', 0, 80)); ?><?php echo mb_strlen($e->work_description ?? '') > 80 ? '…' : ''; ?></td>
                     <td><?php echo $e->tipo === 'parcial' ? Text::_('COM_ORDENPRODUCCION_ENVIOS_TIPO_PARCIAL') : Text::_('COM_ORDENPRODUCCION_ENVIOS_TIPO_COMPLETO'); ?></td>

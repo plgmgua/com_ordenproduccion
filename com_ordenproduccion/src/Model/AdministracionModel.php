@@ -363,16 +363,47 @@ class AdministracionModel extends BaseDatabaseModel
 
     /**
      * Get total count of envios (shipping print events from historial) for Reportes > Envios.
-     * Administracion only.
+     * When $salesAgent is set (Ventas), only envios for that agent's orders are counted.
      *
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only).
+     * @param   string       $client      Optional client filter (substring match on client_name).
+     * @param   string       $tipo        Optional tipo filter: 'completo', 'parcial', or '' for all.
+     * @param   string       $dateFrom    Optional date from (Y-m-d).
+     * @param   string       $dateTo      Optional date to (Y-m-d).
      * @return  int
      * @since   1.0.0
      */
-    public function getEnviosTotal()
+    public function getEnviosTotal($salesAgent = null, $client = '', $tipo = '', $dateFrom = '', $dateTo = '')
     {
         $db = Factory::getDbo();
+        $query = $this->buildEnviosListQuery($db, $salesAgent, $client, $tipo, $dateFrom, $dateTo);
+        $query->clear('select')->select('COUNT(*)');
+        $db->setQuery($query);
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * Build base query for envios list (shared by getEnviosTotal and getEnviosList).
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   string|null  $salesAgent
+     * @param   string       $client
+     * @param   string       $tipo
+     * @param   string       $dateFrom
+     * @param   string       $dateTo
+     * @return  \Joomla\Database\DatabaseQuery
+     */
+    protected function buildEnviosListQuery($db, $salesAgent = null, $client = '', $tipo = '', $dateFrom = '', $dateTo = '')
+    {
+        $clientCol = $db->quoteName('o.client_name');
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
+                $clientCol = $db->quoteName('o.nombre_del_cliente');
+            }
+        } catch (\Exception $e) {
+        }
         $query = $db->getQuery(true)
-            ->select('COUNT(*)')
             ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
             ->innerJoin(
                 $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.' . $db->quoteName('id') . ' = h.' . $db->quoteName('order_id')
@@ -380,20 +411,41 @@ class AdministracionModel extends BaseDatabaseModel
             )
             ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print'))
             ->where('h.' . $db->quoteName('state') . ' = 1');
-        $db->setQuery($query);
-        return (int) $db->loadResult();
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+        if ($client !== '') {
+            $query->where($clientCol . ' LIKE ' . $db->quote('%' . $db->escape(trim($client), true) . '%'));
+        }
+        if ($tipo === 'parcial') {
+            $query->where('(' . $db->quoteName('h.metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"parcial"%') . ' OR ' . $db->quoteName('h.event_description') . ' LIKE ' . $db->quote('%Envio parcial%') . ')');
+        } elseif ($tipo === 'completo') {
+            $query->where('(' . $db->quoteName('h.metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"completo"%') . ' OR ' . $db->quoteName('h.event_description') . ' LIKE ' . $db->quote('%Envio completo%') . ')');
+        }
+        if ($dateFrom !== '') {
+            $query->where($db->quoteName('h.created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));
+        }
+        if ($dateTo !== '') {
+            $query->where($db->quoteName('h.created') . ' <= ' . $db->quote($dateTo . ' 23:59:59'));
+        }
+        return $query;
     }
 
     /**
      * Get list of envios (shipping print events) for Reportes > Envios subtab.
-     * Each row = one historial shipping_print entry with order data. Administracion only.
+     * Each row = one historial shipping_print entry with order data.
      *
-     * @param   int  $limit   Page size (0 = no limit)
-     * @param   int  $offset  Offset for pagination
+     * @param   int          $limit       Page size (0 = no limit)
+     * @param   int          $offset      Offset for pagination
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only).
+     * @param   string       $client      Optional client filter (substring match).
+     * @param   string       $tipo        Optional tipo: 'completo', 'parcial', or ''.
+     * @param   string       $dateFrom    Optional date from (Y-m-d).
+     * @param   string       $dateTo      Optional date to (Y-m-d).
      * @return  array  List of objects: envio_id, order_id, order_number, client_name, work_description, tipo (completo|parcial), partial_description, created
      * @since   1.0.0
      */
-    public function getEnviosList($limit = 50, $offset = 0)
+    public function getEnviosList($limit = 50, $offset = 0, $salesAgent = null, $client = '', $tipo = '', $dateFrom = '', $dateTo = '')
     {
         $db = Factory::getDbo();
         $orderNumberCol = $db->quoteName('o.orden_de_trabajo');
@@ -413,25 +465,17 @@ class AdministracionModel extends BaseDatabaseModel
         } catch (\Exception $e) {
             // use defaults
         }
-        $query = $db->getQuery(true)
-            ->select([
-                'h.' . $db->quoteName('id') . ' AS envio_id',
-                'h.' . $db->quoteName('order_id'),
-                'h.' . $db->quoteName('event_description'),
-                'h.' . $db->quoteName('metadata'),
-                'h.' . $db->quoteName('created'),
-                $orderNumberCol . ' AS order_number',
-                $clientCol . ' AS client_name',
-                $descCol . ' AS work_description',
-            ])
-            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
-            ->innerJoin(
-                $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.' . $db->quoteName('id') . ' = h.' . $db->quoteName('order_id')
-                . ' AND o.' . $db->quoteName('state') . ' = 1'
-            )
-            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print'))
-            ->where('h.' . $db->quoteName('state') . ' = 1')
-            ->order('h.' . $db->quoteName('created') . ' DESC');
+        $query = $this->buildEnviosListQuery($db, $salesAgent, $client, $tipo, $dateFrom, $dateTo);
+        $query->select([
+            'h.' . $db->quoteName('id') . ' AS envio_id',
+            'h.' . $db->quoteName('order_id'),
+            'h.' . $db->quoteName('event_description'),
+            'h.' . $db->quoteName('metadata'),
+            'h.' . $db->quoteName('created'),
+            $orderNumberCol . ' AS order_number',
+            $clientCol . ' AS client_name',
+            $descCol . ' AS work_description',
+        ])->order('h.' . $db->quoteName('created') . ' DESC');
         if ((int) $limit > 0) {
             $db->setQuery($query, (int) $offset, (int) $limit);
         } else {

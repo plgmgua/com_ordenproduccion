@@ -694,7 +694,6 @@ class CotizacionController extends BaseController
         }
 
         $solicitudUrl = $this->getSolicitudOrdenUrlForNotify();
-        $cotizacionUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, true);
 
         if ($solicitudUrl !== '') {
             try {
@@ -708,16 +707,13 @@ class CotizacionController extends BaseController
                     'precotizacion_number'   => $precotizacionNumber,
                     'precotizacion_description' => $precotizacionDescription,
                     'precotizacion_total'     => $precotizacionTotal,
-                    'cotizacion_url'          => $cotizacionUrl,
                 ];
                 $http = \Joomla\CMS\Http\HttpFactory::getHttp();
                 $http->post($solicitudUrl, json_encode($payload), ['Content-Type' => 'application/json']);
             } catch (\Exception $e) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_NOTIFY_ERROR'), 'warning');
             }
-            // Redirect the user's browser to the configured Order Request URL (with params). Use pre-cotización number (PRE-00006) not id.
-            // Encode cotizacion_url so & and = inside it are not interpreted as query separators; use placeholder for receivers that don't decode.
-            $cotizacionUrlSafe = str_replace('&', '__AMP__', $cotizacionUrl);
+            // Redirect the user's browser to the configured Order Request URL (with params). Pass quotation_id (cotización id) only; receiver can build URL if needed.
             $redirectUri = new Uri($solicitudUrl);
             $redirectUri->setVar('pre_cotizacion_confirmation_id', (string) $confirmationId);
             $redirectUri->setVar('precotizacion_number', $precotizacionNumber);
@@ -727,7 +723,6 @@ class CotizacionController extends BaseController
             $redirectUri->setVar('nit', $nit);
             $redirectUri->setVar('precotizacion_description', $precotizacionDescription);
             $redirectUri->setVar('precotizacion_total', $precotizacionTotal);
-            $redirectUri->setVar('cotizacion_url', $cotizacionUrlSafe);
             $app->redirect((string) $redirectUri);
             return;
         }
