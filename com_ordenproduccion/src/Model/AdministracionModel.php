@@ -701,8 +701,8 @@ class AdministracionModel extends BaseDatabaseModel
             $c->registrado_from_jan2026 = $registradoFromJan;
             $c->verificado_from_jan2026 = $paidFromJan;
             $c->compras = $compras;
-            // Accounting convention: positive = client owes, negative = client has credit (advance). Saldo = total invoiced - initial paid - verified payments (exact value owed).
-            $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
+            // Saldo = pending of payment: total invoiced - initial paid - all registered payments (Registrado). Positive = client owes.
+            $c->saldo = round($totalInvoiced - $initialPaid - $registradoFromJan, 2);
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
 
