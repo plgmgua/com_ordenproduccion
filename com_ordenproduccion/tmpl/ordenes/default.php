@@ -16,11 +16,9 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Ordenes\HtmlView $this */
 
-// Get user groups for access control
+// Get user groups for access control (for columns and action buttons)
 $isVentas = AccessHelper::isInVentasGroup();
 $isProduccion = AccessHelper::isInProduccionGroup();
-$isAdministracion = AccessHelper::isInAdministracionGroup();
-$canAnulacion = $this->canRequestAnulacion();
 $anulacionUrl = $this->anulacionUrl;
 $currentUser = $this->user;
 ?>
@@ -196,8 +194,8 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <?php endif; ?>
                                         <td>
                                             <div class="btn-group ordenes-actions" role="group">
-                                                <!-- Create Invoice - Only for Administracion group -->
-                                                <?php if ($isAdministracion): ?>
+                                                <!-- Create Invoice - groups from Settings or Administración by default -->
+                                                <?php if ($this->canShowCrearFactura()) : ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&order_id=' . $item->id); ?>"
                                                    class="btn btn-sm btn-outline-primary"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>"
@@ -205,8 +203,8 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-file-invoice fa-sm" aria-hidden="true"></i>
                                                 </a>
                                                 <?php endif; ?>
-                                                <!-- Registrar comprobante de Pago - Available to everyone (Ventas, Produccion, Administracion) so sales can register payments for their own orders -->
-                                                <?php if ($this->canRegisterPaymentProof()) : ?>
+                                                <!-- Registrar comprobante de pago - groups from Settings or default -->
+                                                <?php if ($this->canShowRegistrarPago()) : ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $item->id); ?>"
                                                    class="btn btn-sm btn-outline-success"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF'); ?>"
@@ -214,7 +212,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-credit-card fa-sm" aria-hidden="true"></i>
                                                 </a>
                                                 <?php endif; ?>
-                                                <?php if ($this->canSeeInvoiceValue($item)) : ?>
+                                                <?php if ($this->canShowPaymentInfo($item)) : ?>
                                                 <!-- Payment Info Popup -->
                                                 <button type="button" class="btn btn-sm btn-outline-info"
                                                         onclick="if(typeof showPaymentInfoPopup==='function')showPaymentInfoPopup(<?php echo (int) $item->id; ?>, window.paymentInfoBaseUrl||'', window.paymentInfoToken||'');"
@@ -222,8 +220,8 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-receipt fa-sm" aria-hidden="true"></i>
                                                 </button>
                                                 <?php endif; ?>
-                                                <!-- Solicitar Anulación - super users OR the order owner -->
-                                                <?php if ($canAnulacion || $this->isOrderOwner($item)) :
+                                                <!-- Solicitar anulación - groups from Settings or super user / order owner -->
+                                                <?php if ($this->canShowSolicitarAnulacion($item)) :
                                                     $isAnulada    = (strtolower((string) ($item->status ?? '')) === 'anulada');
                                                     $hasShipping  = !empty($item->shipping_count) && (int) $item->shipping_count > 0;
                                                     if ($isAnulada) : ?>
@@ -282,12 +280,10 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         <?php endif; ?>
 
         <?php
-        // Modals need to exist if the button appears for ANY row (super user OR owner).
-        $anyCanAnulacion = $canAnulacion;
-        if (!$anyCanAnulacion) {
-            foreach ($this->items as $_item) {
-                if ($this->isOrderOwner($_item)) { $anyCanAnulacion = true; break; }
-            }
+        // Modals need to exist if the anulación button appears for ANY row.
+        $anyCanAnulacion = false;
+        foreach ($this->items as $_item) {
+            if ($this->canShowSolicitarAnulacion($_item)) { $anyCanAnulacion = true; break; }
         }
         ?>
         <!-- Anulación Bloqueada Modal -->

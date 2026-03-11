@@ -189,6 +189,53 @@ use Joomla\CMS\Router\Route;
                     </div>
                 </div>
 
+                <!-- Orden de Trabajo list – Action buttons access -->
+                <div class="card mt-4" id="ordenes-actions-access">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="icon-shield"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS'); ?>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_DESC'); ?>
+                        </p>
+                        <?php
+                        $usergroups = isset($this->item->usergroups) ? $this->item->usergroups : [];
+                        $btnKeys = [
+                            'ordenes_btn_crear_factura_groups' => 'COM_ORDENPRODUCCION_CREATE_INVOICE',
+                            'ordenes_btn_registrar_pago_groups' => 'COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF',
+                            'ordenes_btn_payment_info_groups'   => 'COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO',
+                            'ordenes_btn_solicitar_anulacion_groups' => 'COM_ORDENPRODUCCION_SOLICITAR_ANULACION',
+                        ];
+                        foreach ($btnKeys as $name => $labelKey) :
+                            $selected = isset($this->item->$name) && is_array($this->item->$name) ? $this->item->$name : [];
+                        ?>
+                        <div class="form-group mb-3">
+                            <label for="jform_<?php echo htmlspecialchars($name); ?>" class="form-label">
+                                <?php echo Text::_($labelKey); ?>
+                            </label>
+                            <select name="jform[<?php echo htmlspecialchars($name); ?>][]"
+                                    id="jform_<?php echo htmlspecialchars($name); ?>"
+                                    class="form-select"
+                                    multiple="multiple"
+                                    size="6">
+                                <?php foreach ($usergroups as $grp) : ?>
+                                <option value="<?php echo (int) $grp->id; ?>"
+                                    <?php echo in_array((int) $grp->id, $selected, true) ? ' selected="selected"' : ''; ?>>
+                                    <?php echo htmlspecialchars($grp->title); ?> (<?php echo (int) $grp->id; ?>)
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small class="form-text text-muted">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_HINT'); ?>
+                            </small>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <!-- Ventas Settings -->
                 <div class="card mt-4">
                     <div class="card-header">

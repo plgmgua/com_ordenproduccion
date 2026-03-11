@@ -104,6 +104,11 @@ class SettingsModel extends BaseModel
             }
 
             $settings->solicitud_orden_url = $this->getSolicitudOrdenUrlFromConfig();
+            $settings->ordenes_btn_crear_factura_groups = $this->getConfigButtonGroups('ordenes_btn_crear_factura_groups');
+            $settings->ordenes_btn_registrar_pago_groups = $this->getConfigButtonGroups('ordenes_btn_registrar_pago_groups');
+            $settings->ordenes_btn_payment_info_groups = $this->getConfigButtonGroups('ordenes_btn_payment_info_groups');
+            $settings->ordenes_btn_solicitar_anulacion_groups = $this->getConfigButtonGroups('ordenes_btn_solicitar_anulacion_groups');
+            $settings->usergroups = $this->getUsergroups();
             return $settings;
             
         } catch (\Exception $e) {
@@ -199,6 +204,10 @@ class SettingsModel extends BaseModel
             $db->setQuery($query);
             $db->execute();
             $this->saveSolicitudOrdenUrlToConfig(isset($data['solicitud_orden_url']) ? trim((string) $data['solicitud_orden_url']) : '');
+            $this->saveConfigButtonGroups('ordenes_btn_crear_factura_groups', isset($data['ordenes_btn_crear_factura_groups']) ? $data['ordenes_btn_crear_factura_groups'] : []);
+            $this->saveConfigButtonGroups('ordenes_btn_registrar_pago_groups', isset($data['ordenes_btn_registrar_pago_groups']) ? $data['ordenes_btn_registrar_pago_groups'] : []);
+            $this->saveConfigButtonGroups('ordenes_btn_payment_info_groups', isset($data['ordenes_btn_payment_info_groups']) ? $data['ordenes_btn_payment_info_groups'] : []);
+            $this->saveConfigButtonGroups('ordenes_btn_solicitar_anulacion_groups', isset($data['ordenes_btn_solicitar_anulacion_groups']) ? $data['ordenes_btn_solicitar_anulacion_groups'] : []);
             Factory::getApplication()->enqueueMessage('Settings saved successfully', 'success');
             return true;
         } catch (\Exception $e) {
@@ -275,6 +284,98 @@ class SettingsModel extends BaseModel
             $db->setQuery($query);
             $db->execute();
         }
+    }
+
+    /**
+     * Get allowed group IDs for an ordenes list action button from config.
+     *
+     * @param   string  $key  Config key (e.g. ordenes_btn_crear_factura_groups).
+     * @return  int[]   Array of user group IDs; empty if not set or invalid.
+     * @since   1.0.0
+     */
+    protected function getConfigButtonGroups($key)
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('setting_value'))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($key));
+        $db->setQuery($query);
+        $v = $db->loadResult();
+        if ($v === null || $v === '') {
+            return [];
+        }
+        $decoded = json_decode($v, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        return array_map('intval', array_values($decoded));
+    }
+
+    /**
+     * Save allowed group IDs for an ordenes list action button to config.
+     *
+     * @param   string  $key    Config key.
+     * @param   array   $value  Array of user group IDs.
+     * @return  void
+     * @since   1.0.0
+     */
+    protected function saveConfigButtonGroups($key, array $value)
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $json = json_encode(array_values(array_map('intval', $value)));
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($key));
+        $db->setQuery($query);
+        $id = $db->loadResult();
+        if ($id) {
+            $db->setQuery($db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_config'))
+                ->set($db->quoteName('setting_value') . ' = ' . $db->quote($json))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('id') . ' = ' . (int) $id));
+            $db->execute();
+        } else {
+            $db->setQuery($db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_config'))
+                ->columns([
+                    $db->quoteName('setting_key'),
+                    $db->quoteName('setting_value'),
+                    $db->quoteName('state'),
+                    $db->quoteName('created_by'),
+                    $db->quoteName('modified'),
+                    $db->quoteName('modified_by'),
+                ])
+                ->values(
+                    $db->quote($key) . ',' .
+                    $db->quote($json) . ',1,' .
+                    (int) $user->id . ',' .
+                    $db->quote($now) . ',' .
+                    (int) $user->id
+                ));
+            $db->execute();
+        }
+    }
+
+    /**
+     * Get all user groups for use in settings (ordenes button access).
+     *
+     * @return  object[]  Array of {id, title}.
+     * @since   1.0.0
+     */
+    public function getUsergroups()
+    {
+        $db = Factory::getDbo();
+        $db->setQuery($db->getQuery(true)
+            ->select([$db->quoteName('id'), $db->quoteName('title')])
+            ->from($db->quoteName('#__usergroups'))
+            ->order($db->quoteName('id')));
+        return $db->loadObjectList() ?: [];
     }
 
     /**

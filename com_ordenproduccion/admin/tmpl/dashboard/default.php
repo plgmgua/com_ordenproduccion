@@ -74,6 +74,10 @@ use Joomla\CMS\Uri\Uri;
                 <i class="icon-link"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_SOLICITUD_ORDEN_URL_BTN', 'Order Request URL'); ?>
             </a>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=settings#ordenes-actions-access'); ?>" class="btn btn-sm btn-outline-primary">
+                <i class="icon-shield"></i>
+                <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_BTN', 'Order list action buttons'); ?>
+            </a>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=testing'); ?>" class="btn btn-sm btn-outline-secondary">
                 <i class="icon-puzzle"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_TESTING', 'Testing'); ?>
@@ -261,6 +265,10 @@ use Joomla\CMS\Uri\Uri;
                         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=settings'); ?>" class="btn btn-sm btn-outline-primary">
                             <i class="icon-options"></i>
                             <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_SETTINGS', 'Settings'); ?>
+                        </a>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=settings#ordenes-actions-access'); ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="icon-shield"></i>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_BTN', 'Order list action buttons'); ?>
                         </a>
                         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=testing'); ?>" class="btn btn-sm btn-outline-secondary">
                             <i class="icon-puzzle"></i>

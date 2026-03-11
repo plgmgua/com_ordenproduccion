@@ -75,6 +75,16 @@ class HtmlView extends BaseHtmlView
     protected $user;
 
     /**
+     * Allowed group IDs per ordenes list action button (from backend settings).
+     * Keys: crear_factura, registrar_pago, payment_info, solicitar_anulacion.
+     * Value: int[] or empty array if use component default.
+     *
+     * @var    array
+     * @since  1.0.0
+     */
+    protected $ordenesButtonAccess = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse; automatically searches through the template paths.
@@ -110,6 +120,7 @@ class HtmlView extends BaseHtmlView
             'anulacion_url',
             'https://grimpsa_webserver.grantsolutions.cc/index.php/anulacion-de-orden'
         );
+        $this->ordenesButtonAccess = $this->getOrdenesButtonAccessConfig();
 
         // Check for errors.
         if (count($errors = $this->get('Errors'))) {
@@ -274,6 +285,118 @@ class HtmlView extends BaseHtmlView
     public function canSeeInvoiceValue($item)
     {
         return AccessHelper::canSeeValorFactura($item->sales_agent ?? '');
+    }
+
+    /**
+     * Load allowed user group IDs per ordenes list action button from #__ordenproduccion_config.
+     *
+     * @return  array  Keys: crear_factura, registrar_pago, payment_info, solicitar_anulacion. Values: int[].
+     * @since   1.0.0
+     */
+    protected function getOrdenesButtonAccessConfig()
+    {
+        $keys = [
+            'crear_factura' => 'ordenes_btn_crear_factura_groups',
+            'registrar_pago' => 'ordenes_btn_registrar_pago_groups',
+            'payment_info'   => 'ordenes_btn_payment_info_groups',
+            'solicitar_anulacion' => 'ordenes_btn_solicitar_anulacion_groups',
+        ];
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select([$db->quoteName('setting_key'), $db->quoteName('setting_value')])
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->whereIn($db->quoteName('setting_key'), array_values($keys));
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $out = [
+            'crear_factura' => [],
+            'registrar_pago' => [],
+            'payment_info'   => [],
+            'solicitar_anulacion' => [],
+        ];
+        $keyToOut = array_flip($keys);
+        foreach ($rows as $row) {
+            $k = $keyToOut[$row->setting_key] ?? null;
+            if ($k === null) {
+                continue;
+            }
+            $decoded = json_decode($row->setting_value, true);
+            $out[$k] = is_array($decoded) ? array_map('intval', array_values($decoded)) : [];
+        }
+        return $out;
+    }
+
+    /**
+     * Whether the current user is in any of the given group IDs.
+     *
+     * @param   int[]  $groupIds  Allowed group IDs.
+     * @return  bool
+     */
+    protected function userInGroups(array $groupIds)
+    {
+        if (empty($groupIds)) {
+            return false;
+        }
+        $userGroups = $this->user->groups ?? [];
+        return !empty(array_intersect($groupIds, $userGroups));
+    }
+
+    /**
+     * Whether to show the "Crear Factura" button. Uses backend-configured groups if set; else Administración.
+     *
+     * @return  bool
+     */
+    public function canShowCrearFactura()
+    {
+        $groups = $this->ordenesButtonAccess['crear_factura'] ?? [];
+        if ($groups === []) {
+            return AccessHelper::isInAdministracionGroup();
+        }
+        return $this->userInGroups($groups);
+    }
+
+    /**
+     * Whether to show the "Registrar comprobante de pago" button. Uses backend-configured groups if set; else default.
+     *
+     * @return  bool
+     */
+    public function canShowRegistrarPago()
+    {
+        $groups = $this->ordenesButtonAccess['registrar_pago'] ?? [];
+        if ($groups === []) {
+            return $this->canRegisterPaymentProof();
+        }
+        return $this->userInGroups($groups);
+    }
+
+    /**
+     * Whether to show the "View payment information" button. Uses backend-configured groups if set; else canSeeInvoiceValue.
+     *
+     * @param   object  $item  The order row (for sales_agent when using default logic).
+     * @return  bool
+     */
+    public function canShowPaymentInfo($item)
+    {
+        $groups = $this->ordenesButtonAccess['payment_info'] ?? [];
+        if ($groups === []) {
+            return $this->canSeeInvoiceValue($item);
+        }
+        return $this->userInGroups($groups);
+    }
+
+    /**
+     * Whether to show the "Solicitar anulación" button. Uses backend-configured groups if set; else super user or owner.
+     *
+     * @param   object|null  $item  The order row (for owner check); can be null when only checking by group.
+     * @return  bool
+     */
+    public function canShowSolicitarAnulacion($item = null)
+    {
+        $groups = $this->ordenesButtonAccess['solicitar_anulacion'] ?? [];
+        if ($groups === []) {
+            return $this->canRequestAnulacion() || ($item !== null && $this->isOrderOwner($item));
+        }
+        return $this->userInGroups($groups) || ($item !== null && $this->isOrderOwner($item));
     }
 
     /**
