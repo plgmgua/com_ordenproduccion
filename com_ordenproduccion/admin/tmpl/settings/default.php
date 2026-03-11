@@ -190,31 +190,43 @@ use Joomla\CMS\Router\Route;
                 </div>
 
                 <!-- Orden de Trabajo list – Action buttons access -->
+                <?php
+                $l = function ($key, $en, $es = null) {
+                    $t = Text::_($key);
+                    $isUntranslated = ($t === $key || strpos((string) $t, 'COM_ORDENPRODUCCION_') === 0);
+                    if ($isUntranslated) {
+                        $tag = Factory::getApplication()->getLanguage()->getTag();
+                        return (strpos($tag, 'es') === 0) ? ($es ?? $en) : $en;
+                    }
+                    return $t;
+                };
+                ?>
                 <div class="card mt-4" id="ordenes-actions-access">
                     <div class="card-header">
                         <h5 class="card-title">
                             <i class="icon-shield"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS'); ?>
+                            <?php echo $l('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS', 'Work order list – Action buttons access', 'Lista de órdenes – Acceso a botones de acción'); ?>
                         </h5>
                     </div>
                     <div class="card-body">
                         <p class="text-muted small mb-3">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_DESC'); ?>
+                            <?php echo $l('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_DESC', 'Choose which user groups can see each action button in the work order list (Create Invoice, Register payment receipt, View payment information, Request cancellation). Leave a list empty to use the component default.', 'Elija qué grupos de usuario pueden ver cada botón de acción en la lista de órdenes (Crear Factura, Registrar comprobante de pago, Ver información de pago, Solicitar anulación). Deje una lista vacía para usar el valor por defecto del componente.'); ?>
                         </p>
                         <?php
                         $usergroups = isset($this->item->usergroups) ? $this->item->usergroups : [];
                         $btnKeys = [
-                            'ordenes_btn_crear_factura_groups' => 'COM_ORDENPRODUCCION_CREATE_INVOICE',
-                            'ordenes_btn_registrar_pago_groups' => 'COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF',
-                            'ordenes_btn_payment_info_groups'   => 'COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO',
-                            'ordenes_btn_solicitar_anulacion_groups' => 'COM_ORDENPRODUCCION_SOLICITAR_ANULACION',
+                            'ordenes_btn_crear_factura_groups' => ['COM_ORDENPRODUCCION_CREATE_INVOICE', 'Create Invoice', 'Crear Factura'],
+                            'ordenes_btn_registrar_pago_groups' => ['COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF', 'Register payment receipt', 'Registrar comprobante de pago'],
+                            'ordenes_btn_payment_info_groups'   => ['COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO', 'View payment information', 'Ver información de pago'],
+                            'ordenes_btn_solicitar_anulacion_groups' => ['COM_ORDENPRODUCCION_SOLICITAR_ANULACION', 'Request cancellation', 'Solicitar anulación'],
                         ];
-                        foreach ($btnKeys as $name => $labelKey) :
+                        foreach ($btnKeys as $name => $labelData) :
                             $selected = isset($this->item->$name) && is_array($this->item->$name) ? $this->item->$name : [];
+                            $btnLabel = $l($labelData[0], $labelData[1], $labelData[2]);
                         ?>
                         <div class="form-group mb-3">
                             <label for="jform_<?php echo htmlspecialchars($name); ?>" class="form-label">
-                                <?php echo Text::_($labelKey); ?>
+                                <?php echo htmlspecialchars($btnLabel); ?>
                             </label>
                             <select name="jform[<?php echo htmlspecialchars($name); ?>][]"
                                     id="jform_<?php echo htmlspecialchars($name); ?>"
@@ -229,7 +241,7 @@ use Joomla\CMS\Router\Route;
                                 <?php endforeach; ?>
                             </select>
                             <small class="form-text text-muted">
-                                <?php echo Text::_('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_HINT'); ?>
+                                <?php echo $l('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_HINT', 'Hold Ctrl/Cmd to select multiple groups. Only selected groups will see this button.', 'Mantenga Ctrl/Cmd para seleccionar varios grupos. Solo los grupos seleccionados verán este botón.'); ?>
                             </small>
                         </div>
                         <?php endforeach; ?>
