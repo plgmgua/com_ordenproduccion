@@ -517,7 +517,23 @@ function safeEscape($value, $default = '')
                         <td><?php echo $deliveryDate !== '' ? safeEscape($deliveryDate) : '—'; ?></td>
                         <td><?php echo safeEscape($row->work_description ?? ''); ?></td>
                         <td class="col-invoice-value"><?php echo number_format($invoiceVal, 2); ?></td>
-                        <td><?php echo !empty($row->payment_record_numbers) ? safeEscape($row->payment_record_numbers) : '—'; ?></td>
+                        <td>
+                            <?php
+                            if (!empty($row->payment_record_numbers) && !empty($row->id)) {
+                                $paymentProofUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $row->id);
+                                $numbers = array_map('trim', explode(',', $row->payment_record_numbers));
+                                $links = [];
+                                foreach ($numbers as $num) {
+                                    if ($num !== '') {
+                                        $links[] = '<a href="' . htmlspecialchars($paymentProofUrl) . '">' . safeEscape($num) . '</a>';
+                                    }
+                                }
+                                echo implode(', ', $links);
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
