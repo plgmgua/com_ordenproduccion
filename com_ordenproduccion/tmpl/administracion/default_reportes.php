@@ -32,6 +32,12 @@ $reportTotalValue = (float) ($this->reportTotalValue ?? 0);
 $reportLimit = max(5, min(100, (int) ($this->reportLimit ?? 20)));
 $reportLimitStart = max(0, (int) ($this->reportLimitStart ?? 0));
 
+$reportSubTab = $this->reportSubTab ?? 'ordenes';
+$canSeeEnviosSubtab = !empty($this->canSeeEnviosSubtab);
+$envios = $this->envios ?? [];
+$enviosPagination = $this->enviosPagination ?? null;
+$enviosTotal = (int) ($this->enviosTotal ?? 0);
+
 $tokenParam = Session::getFormToken() . '=1';
 $suggestClientsUrl = Route::_(
     'index.php?option=com_ordenproduccion&task=ajax.suggestReportClients&format=json&' . $tokenParam,
@@ -373,11 +379,26 @@ function safeEscape($value, $default = '')
         </h2>
     </div>
 
-    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes'); ?>" 
+    <?php if ($canSeeEnviosSubtab) : ?>
+    <div class="reportes-subtabs mb-3" style="display: flex; gap: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes'); ?>"
+           class="btn btn-sm <?php echo $reportSubTab === 'ordenes' ? 'btn-primary' : 'btn-outline-secondary'; ?>">
+            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SUBTAB_ORDENES'); ?>
+        </a>
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=envios'); ?>"
+           class="btn btn-sm <?php echo $reportSubTab === 'envios' ? 'btn-primary' : 'btn-outline-secondary'; ?>">
+            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_SUBTAB_ENVIOS'); ?>
+        </a>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($reportSubTab === 'ordenes') : ?>
+    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes'); ?>" 
           method="get" class="reportes-filters-form">
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="reportes" />
+        <input type="hidden" name="subtab" value="ordenes" />
         <input type="hidden" name="report_limit" value="<?php echo (int) $reportLimit; ?>" />
         <div class="reportes-filters">
             <div class="reportes-filters-row">
@@ -490,6 +511,44 @@ function safeEscape($value, $default = '')
         <div class="reportes-empty">
             <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_NO_RESULTS'); ?>
         </div>
+    <?php endif; ?>
+
+    <?php elseif ($reportSubTab === 'envios') : ?>
+    <div class="reportes-envios-table-wrap">
+        <table class="reportes-table table table-striped">
+            <thead>
+                <tr>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_ID'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_ORDER'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_CLIENT'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_WORK_DESC'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_TIPO'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_PARTIAL_ITEMS'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_COL_DATE'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($envios)) : ?>
+                <tr><td colspan="7"><?php echo Text::_('COM_ORDENPRODUCCION_ENVIOS_NO_DATA'); ?></td></tr>
+                <?php else : ?>
+                <?php foreach ($envios as $e) : ?>
+                <tr>
+                    <td><?php echo (int) $e->envio_id; ?></td>
+                    <td><?php echo safeEscape($e->order_number ?? ''); ?></td>
+                    <td><?php echo safeEscape($e->client_name ?? ''); ?></td>
+                    <td><?php echo safeEscape(mb_substr($e->work_description ?? '', 0, 80)); ?><?php echo mb_strlen($e->work_description ?? '') > 80 ? '…' : ''; ?></td>
+                    <td><?php echo $e->tipo === 'parcial' ? Text::_('COM_ORDENPRODUCCION_ENVIOS_TIPO_PARCIAL') : Text::_('COM_ORDENPRODUCCION_ENVIOS_TIPO_COMPLETO'); ?></td>
+                    <td><?php echo $e->tipo === 'parcial' ? safeEscape($e->partial_description) : '—'; ?></td>
+                    <td><?php echo safeEscape($e->created ?? ''); ?></td>
+                </tr>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+        <?php if ($enviosPagination && $enviosTotal > 0) : ?>
+        <div class="reportes-pagination mt-2"><?php echo $enviosPagination->getListFooter(); ?></div>
+        <?php endif; ?>
+    </div>
     <?php endif; ?>
 </div>
 

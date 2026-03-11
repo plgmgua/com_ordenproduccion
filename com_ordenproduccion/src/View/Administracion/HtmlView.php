@@ -417,7 +417,10 @@ class HtmlView extends BaseHtmlView
         $this->reportNit = '';
         $this->reportSalesAgent = '';
         $this->reportSalesAgents = [];
-        
+        $this->reportSubTab = 'ordenes';
+        $this->envios = [];
+        $this->enviosPagination = null;
+
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
             $this->banks = [];
@@ -582,6 +585,42 @@ class HtmlView extends BaseHtmlView
 
         // Load reportes tab data: work orders by date/client/NIT/sales agent (Ventas: only own data)
         if ($activeTab === 'reportes') {
+            $this->canSeeEnviosSubtab = AccessHelper::isInAdministracionOrAdmonGroup();
+            $this->reportSubTab = $input->get('subtab', 'ordenes', 'string');
+            if ($this->reportSubTab !== 'ordenes' && $this->reportSubTab !== 'envios') {
+                $this->reportSubTab = 'ordenes';
+            }
+            // Envios subtab: Administracion only
+            if ($this->reportSubTab === 'envios') {
+                if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes', false));
+                    return;
+                }
+                try {
+                    $statsModel = $this->getModel('Administracion');
+                    $enviosLimit = max(10, min(100, (int) $input->getInt('envios_limit', 25)));
+                    $enviosStart = max(0, (int) $input->getInt('envios_limitstart', 0));
+                    $this->enviosTotal = $statsModel->getEnviosTotal();
+                    $this->envios = $statsModel->getEnviosList($enviosLimit, $enviosStart);
+                    $this->enviosPagination = new \Joomla\CMS\Pagination\Pagination(
+                        $this->enviosTotal,
+                        $enviosStart,
+                        $enviosLimit,
+                        'envios_'
+                    );
+                    $this->enviosPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                    $this->enviosPagination->setAdditionalUrlParam('view', 'administracion');
+                    $this->enviosPagination->setAdditionalUrlParam('tab', 'reportes');
+                    $this->enviosPagination->setAdditionalUrlParam('subtab', 'envios');
+                } catch (\Exception $e) {
+                    $app->enqueueMessage('Error loading envios: ' . $e->getMessage(), 'error');
+                    $this->envios = [];
+                    $this->enviosTotal = 0;
+                    $this->enviosPagination = null;
+                }
+            }
+            if ($this->reportSubTab === 'ordenes') {
             try {
                 $statsModel = $this->getModel('Administracion');
                 $this->reportSalesAgents = $statsModel->getReportSalesAgents($salesAgentFilter);
@@ -639,6 +678,7 @@ class HtmlView extends BaseHtmlView
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
                 $this->reportWorkOrders = [];
+            }
             }
         }
 

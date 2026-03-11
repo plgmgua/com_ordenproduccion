@@ -362,6 +362,100 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Get total count of envios (shipping print events from historial) for Reportes > Envios.
+     * Administracion only.
+     *
+     * @return  int
+     * @since   1.0.0
+     */
+    public function getEnviosTotal()
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.' . $db->quoteName('id') . ' = h.' . $db->quoteName('order_id')
+                . ' AND o.' . $db->quoteName('state') . ' = 1'
+            )
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print'))
+            ->where('h.' . $db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * Get list of envios (shipping print events) for Reportes > Envios subtab.
+     * Each row = one historial shipping_print entry with order data. Administracion only.
+     *
+     * @param   int  $limit   Page size (0 = no limit)
+     * @param   int  $offset  Offset for pagination
+     * @return  array  List of objects: envio_id, order_id, order_number, client_name, work_description, tipo (completo|parcial), partial_description, created
+     * @since   1.0.0
+     */
+    public function getEnviosList($limit = 50, $offset = 0)
+    {
+        $db = Factory::getDbo();
+        $orderNumberCol = $db->quoteName('o.orden_de_trabajo');
+        $clientCol = $db->quoteName('o.client_name');
+        $descCol = $db->quoteName('o.work_description');
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($cols['order_number']) && !isset($cols['orden_de_trabajo'])) {
+                $orderNumberCol = $db->quoteName('o.order_number');
+            }
+            if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
+                $clientCol = $db->quoteName('o.nombre_del_cliente');
+            }
+            if (isset($cols['descripcion_de_trabajo']) && !isset($cols['work_description'])) {
+                $descCol = $db->quoteName('o.descripcion_de_trabajo');
+            }
+        } catch (\Exception $e) {
+            // use defaults
+        }
+        $query = $db->getQuery(true)
+            ->select([
+                'h.' . $db->quoteName('id') . ' AS envio_id',
+                'h.' . $db->quoteName('order_id'),
+                'h.' . $db->quoteName('event_description'),
+                'h.' . $db->quoteName('metadata'),
+                'h.' . $db->quoteName('created'),
+                $orderNumberCol . ' AS order_number',
+                $clientCol . ' AS client_name',
+                $descCol . ' AS work_description',
+            ])
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.' . $db->quoteName('id') . ' = h.' . $db->quoteName('order_id')
+                . ' AND o.' . $db->quoteName('state') . ' = 1'
+            )
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('shipping_print'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->order('h.' . $db->quoteName('created') . ' DESC');
+        if ((int) $limit > 0) {
+            $db->setQuery($query, (int) $offset, (int) $limit);
+        } else {
+            $db->setQuery($query);
+        }
+        $rows = $db->loadObjectList() ?: [];
+        foreach ($rows as $row) {
+            $row->tipo = 'completo';
+            $row->partial_description = '';
+            if (!empty($row->metadata)) {
+                $meta = json_decode($row->metadata, true);
+                if (is_array($meta) && isset($meta['tipo_envio'])) {
+                    $row->tipo = $meta['tipo_envio'] === 'parcial' ? 'parcial' : 'completo';
+                    $row->partial_description = isset($meta['descripcion']) ? (string) $meta['descripcion'] : '';
+                }
+            }
+            if ($row->tipo === 'completo' && !empty($row->event_description) && stripos($row->event_description, 'parcial') !== false) {
+                $row->tipo = 'parcial';
+            }
+        }
+        return $rows;
+    }
+
+    /**
      * Get clients with totals (and optional filters / pagination).
      * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
      *
