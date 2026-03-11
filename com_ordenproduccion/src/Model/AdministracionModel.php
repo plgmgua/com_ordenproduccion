@@ -277,7 +277,7 @@ class AdministracionModel extends BaseDatabaseModel
             $db->quoteName('o.delivery_date', 'delivery_date'),
             $totalPaidSub . ' AS total_paid',
             $paymentNumbersSub . ' AS payment_record_numbers',
-        ])->order($db->quoteName('o.orden_de_trabajo') . ' ASC');
+        ])->order($db->quoteName('o.orden_de_trabajo') . ' DESC');
         if ((int) $limit > 0) {
             $db->setQuery($query, (int) $offset, (int) $limit);
         } else {
