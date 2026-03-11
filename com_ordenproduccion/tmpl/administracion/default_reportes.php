@@ -372,13 +372,6 @@ function safeEscape($value, $default = '')
 </style>
 
 <div id="com-op-reportes" class="reportes-section">
-    <div class="reportes-header">
-        <h2 class="reportes-title">
-            <i class="fas fa-file-alt"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_TITLE'); ?>
-        </h2>
-    </div>
-
     <div class="reportes-subtabs mb-3" style="display: flex; gap: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes&subtab=ordenes'); ?>"
            class="btn btn-sm <?php echo $reportSubTab === 'ordenes' ? 'btn-primary' : 'btn-outline-secondary'; ?>">
