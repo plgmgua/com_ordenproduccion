@@ -88,6 +88,8 @@ $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
 $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
 $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
 $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
+$margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== '') ? (float) $item->margen_adicional : 0;
+$displayTotal = $linesTotalFinal + $margenAdicional;
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
 $labelCalculoFolios = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS');
 if ($labelCalculoFolios === 'COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS' || $labelCalculoFolios === 'COM_ORDENPRODUCCION_PRE_COTIZACION_NUEVA_LINEA' || $labelCalculoFolios === 'New Line' || $labelCalculoFolios === 'Nueva Línea') {
@@ -416,9 +418,16 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <td></td>
                     </tr>
                     <?php endif; ?>
+                    <?php if ($margenAdicional > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($margenAdicional, 2); ?></td>
+                        <td></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
-                        <td class="text-end">Q <?php echo number_format($linesTotalFinal, 2); ?></td>
+                        <td class="text-end">Q <?php echo number_format($displayTotal, 2); ?></td>
                         <td></td>
                     </tr>
                 </tfoot>
