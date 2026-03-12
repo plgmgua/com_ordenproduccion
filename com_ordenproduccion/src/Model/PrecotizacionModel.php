@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
@@ -104,17 +105,28 @@ class PrecotizacionModel extends ListModel
         $db    = $this->getDatabase();
         $query = $db->getQuery(true);
 
+        $user = Factory::getUser();
+        $isAdministracion = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+
         $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         if (is_array($tableCols) && array_key_exists('descripcion', array_change_key_case($tableCols, CASE_LOWER))) {
             $cols[] = 'a.descripcion';
         }
+        if ($isAdministracion) {
+            $cols[] = 'u.name AS created_by_name';
+        }
         $query->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.state') . ' = 1');
 
-        $user = Factory::getUser();
-        $query->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
+        if ($isAdministracion) {
+            $query->leftJoin(
+                $db->quoteName('#__users', 'u') . ' ON u.id = a.created_by'
+            );
+        } else {
+            $query->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
+        }
 
         $search = $this->getState('filter.search');
         if (!empty($search)) {

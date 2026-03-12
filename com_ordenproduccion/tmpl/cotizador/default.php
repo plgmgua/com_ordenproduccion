@@ -43,6 +43,9 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                     <tr>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NUMBER'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CREATED'); ?></th>
+                        <?php if (!empty($this->showSalesAgentColumn)) : ?>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SALES_AGENT'); ?></th>
+                        <?php endif; ?>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION'); ?></th>
                         <th scope="col" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
@@ -61,6 +64,9 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                                 <a href="<?php echo htmlspecialchars($docUrl); ?>"><?php echo htmlspecialchars($item->number ?? ''); ?></a>
                             </td>
                             <td><?php echo htmlspecialchars($created); ?></td>
+                            <?php if (!empty($this->showSalesAgentColumn)) : ?>
+                            <td><?php echo htmlspecialchars($item->created_by_name ?? '—'); ?></td>
+                            <?php endif; ?>
                             <td>
                                 <?php
                                 if (empty($quotationNumbers)) {

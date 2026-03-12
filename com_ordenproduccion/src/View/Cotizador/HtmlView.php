@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Cotizador;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
@@ -139,6 +140,7 @@ class HtmlView extends BaseHtmlView
             $this->items = $precotModel->getItems();
             $this->pagination = $precotModel->getPagination();
             $this->state = $precotModel->getState();
+            $this->showSalesAgentColumn = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
             $ids = [];
             foreach ($this->items as $it) {
                 $ids[] = (int) $it->id;
