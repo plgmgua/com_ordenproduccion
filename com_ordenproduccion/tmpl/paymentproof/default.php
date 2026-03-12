@@ -151,14 +151,10 @@ if (empty($order)) :
                                         <tr class="payment-order-row" data-row-index="0">
                                             <td>
                                                 <input type="hidden" name="payment_orders[0][order_id]" class="order-id-input" value="">
-                                                <select class="form-control order-select" required>
-                                                    <option value=""><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_SELECT_ORDER') ?: 'Seleccionar orden...'); ?></option>
-                                                    <?php foreach ($availableOrders as $ao): $rem = (float)($ao['remaining_balance'] ?? $ao['invoice_value'] ?? 0); ?>
-                                                    <option value="<?php echo (int)($ao['id']); ?>" data-invoice-value="<?php echo (float)($ao['invoice_value'] ?? 0); ?>" data-remaining-balance="<?php echo $rem; ?>">
-                                                        <?php echo htmlspecialchars(($ao['order_number'] ?? '') . ' (Saldo: Q.' . number_format($rem, 2) . ')'); ?>
-                                                    </option>
-                                                    <?php endforeach; ?>
-                                                </select>
+                                                <div class="order-search-wrap position-relative">
+                                                    <input type="text" class="form-control order-search-input" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_SEARCH_ORDER_PLACEHOLDER') ?: 'Escriba número de orden para buscar...'); ?>" autocomplete="off" required>
+                                                    <ul class="order-search-results list-group position-absolute" style="display:none; z-index: 1000; max-height: 200px; overflow-y: auto; min-width: 100%;"></ul>
+                                                </div>
                                             </td>
                                             <td>
                                                 <div class="input-group">
@@ -211,23 +207,15 @@ if (empty($order)) :
 <?php
     // Inline script: order select sync and totals (same behaviour as paymentproof.js)
     ?>
+<style>
+.order-search-results { list-style: none; margin: 0; padding: 0; }
+.order-search-results .list-group-item { cursor: pointer; }
+.order-search-results .list-group-item:hover { background-color: var(--bs-list-group-hover-bg, #e9ecef); }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var tbody = document.getElementById('payment-orders-body');
     if (tbody) {
-        tbody.addEventListener('change', function(e) {
-            if (e.target.classList.contains('order-select')) {
-                var row = e.target.closest('tr');
-                var hidden = row && row.querySelector('.order-id-input');
-                var valueInput = row && row.querySelector('.payment-value-input');
-                if (hidden) hidden.value = e.target.value || '';
-                if (valueInput && e.target.selectedOptions[0]) {
-                    var opt = e.target.selectedOptions[0];
-                    var val = opt.getAttribute('data-invoice-value') || opt.getAttribute('data-remaining-balance');
-                    if (val !== null && val !== '') valueInput.value = parseFloat(val) >= 0 ? val : '';
-                }
-            }
-        });
         tbody.addEventListener('input', function(e) {
             if (e.target.classList.contains('payment-value-input')) {
                 var total = 0;

@@ -71,14 +71,88 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Listen for order selection changes
-        tbody.addEventListener('change', function(e) {
-            if (e.target.classList.contains('order-select')) {
-                handleOrderSelection(e.target);
+        // Order search: type-to-search (delegated)
+        table.addEventListener('focusin', function(e) {
+            if (e.target.classList.contains('order-search-input')) {
+                filterAndShowOrderResults(e.target);
+            }
+        });
+        table.addEventListener('input', function(e) {
+            if (e.target.classList.contains('order-search-input')) {
+                filterAndShowOrderResults(e.target);
+            }
+        });
+        table.addEventListener('click', function(e) {
+            const item = e.target.closest('.order-search-result-item');
+            if (item) {
+                e.preventDefault();
+                handleOrderSearchSelect(item);
+            }
+        });
+        table.addEventListener('focusout', function(e) {
+            if (e.target.classList.contains('order-search-input')) {
+                const wrap = e.target.closest('.order-search-wrap');
+                setTimeout(function() {
+                    if (wrap && wrap.querySelector('.order-search-results')) {
+                        wrap.querySelector('.order-search-results').style.display = 'none';
+                    }
+                }, 200);
             }
         });
 
         // Initial total calculation
+        updateTotalAndValidate();
+    }
+
+    function filterAndShowOrderResults(inputEl) {
+        const wrap = inputEl.closest('.order-search-wrap');
+        const listEl = wrap && wrap.querySelector('.order-search-results');
+        if (!listEl) return;
+        const q = (inputEl.value || '').trim().toLowerCase();
+        const row = inputEl.closest('tr');
+        const hiddenInput = row && row.querySelector('.order-id-input');
+        const alreadySelected = hiddenInput ? (hiddenInput.value || '').trim() : '';
+        const maxResults = 15;
+        let matches = unpaidOrders.filter(function(o) {
+            const num = (o.order_number || '').toString().toLowerCase();
+            const idStr = (o.id || '').toString();
+            return (num.indexOf(q) !== -1 || idStr.indexOf(q) !== -1) && (q.length >= 1 || alreadySelected === idStr);
+        }).slice(0, maxResults);
+        listEl.innerHTML = '';
+        if (q.length === 0) {
+            matches = unpaidOrders.slice(0, maxResults);
+        }
+        matches.forEach(function(order) {
+            const remaining = order.remaining_balance ?? order.invoice_value ?? 0;
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action order-search-result-item';
+            li.setAttribute('data-order-id', order.id);
+            li.setAttribute('data-order-number', order.order_number || '');
+            li.setAttribute('data-amount', (remaining || order.invoice_value || 0));
+            li.textContent = (order.order_number || '') + ' — Saldo: Q.' + parseFloat(remaining || 0).toFixed(2);
+            listEl.appendChild(li);
+        });
+        listEl.style.display = matches.length ? 'block' : 'none';
+    }
+
+    function handleOrderSearchSelect(itemEl) {
+        const row = itemEl.closest('tr');
+        if (!row) return;
+        const wrap = itemEl.closest('.order-search-wrap');
+        const hiddenInput = row.querySelector('.order-id-input');
+        const searchInput = row.querySelector('.order-search-input');
+        const valueInput = row.querySelector('.payment-value-input');
+        const orderId = itemEl.getAttribute('data-order-id');
+        const orderNumber = itemEl.getAttribute('data-order-number');
+        const amount = itemEl.getAttribute('data-amount');
+        if (hiddenInput) hiddenInput.value = orderId || '';
+        if (searchInput) searchInput.value = orderNumber || '';
+        if (valueInput && amount !== null && amount !== '') {
+            valueInput.value = parseFloat(amount).toFixed(2);
+        }
+        if (wrap && wrap.querySelector('.order-search-results')) {
+            wrap.querySelector('.order-search-results').style.display = 'none';
+        }
         updateTotalAndValidate();
     }
 
@@ -93,21 +167,13 @@ document.addEventListener('DOMContentLoaded', function() {
         newRow.className = 'payment-order-row';
         newRow.setAttribute('data-row-index', rowIndex);
 
-        // Create dropdown options (use remaining_balance for suggested amount)
-        let options = '<option value="">Seleccionar orden...</option>';
-        unpaidOrders.forEach(order => {
-            const remaining = order.remaining_balance ?? order.invoice_value ?? 0;
-            options += `<option value="${order.id}" data-invoice-value="${order.invoice_value}" data-remaining-balance="${remaining}">
-                ${order.order_number} (Saldo: Q.${parseFloat(remaining).toFixed(2)})
-            </option>`;
-        });
-
         newRow.innerHTML = `
             <td>
                 <input type="hidden" name="payment_orders[${rowIndex}][order_id]" class="order-id-input" value="">
-                <select class="form-control order-select" required>
-                    ${options}
-                </select>
+                <div class="order-search-wrap position-relative">
+                    <input type="text" class="form-control order-search-input" placeholder="Escriba número de orden para buscar..." autocomplete="off" required>
+                    <ul class="order-search-results list-group position-absolute" style="display:none; z-index: 1000; max-height: 200px; overflow-y: auto; min-width: 100%;"></ul>
+                </div>
             </td>
             <td>
                 <div class="input-group">
@@ -139,28 +205,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (row) {
             row.remove();
             updateTotalAndValidate();
-        }
-    }
-
-    function handleOrderSelection(selectElement) {
-        const row = selectElement.closest('tr');
-        const hiddenInput = row.querySelector('.order-id-input');
-        const valueInput = row.querySelector('.payment-value-input');
-        const selectedOption = selectElement.selectedOptions[0];
-
-        if (selectedOption && selectedOption.value) {
-            hiddenInput.value = selectedOption.value;
-            
-            // Pre-fill with remaining balance (or full invoice value if no partial payments)
-            const remainingBalance = selectedOption.getAttribute('data-remaining-balance');
-            const fallback = selectedOption.getAttribute('data-invoice-value');
-            const defaultVal = remainingBalance || fallback;
-            if (defaultVal && (!valueInput.value || valueInput.value === '0')) {
-                valueInput.value = parseFloat(defaultVal).toFixed(2);
-                updateTotalAndValidate();
-            }
-        } else {
-            hiddenInput.value = '';
         }
     }
 
@@ -337,13 +381,24 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMessage += '• Agregue al menos una línea de pago con monto mayor a cero\n';
         }
 
-        // Validate at least one order with value
+        // Validate at least one order with value and that each row with value has an order selected
         let hasValues = false;
+        let needOrderSelection = false;
         valueInputs.forEach(input => {
-            if (parseFloat(input.value) > 0) {
+            const val = parseFloat(input.value) || 0;
+            if (val > 0) {
                 hasValues = true;
+                const row = input.closest('tr');
+                const orderIdInput = row && row.querySelector('.order-id-input');
+                if (orderIdInput && !orderIdInput.value.trim()) {
+                    needOrderSelection = true;
+                }
             }
         });
+        if (needOrderSelection) {
+            isValid = false;
+            errorMessage += '• Escriba el número de orden y seleccione una orden de la lista para cada fila con monto\n';
+        }
 
         if (!hasValues) {
             isValid = false;
