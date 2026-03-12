@@ -180,6 +180,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['oferta'])) {
             $cols[] = 'a.oferta';
         }
+        if (isset($tableCols['oferta_expires'])) {
+            $cols[] = 'a.oferta_expires';
+        }
         foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
                 $cols[] = 'a.' . $snapCol;
@@ -659,8 +662,11 @@ class PrecotizacionModel extends ListModel
             ->select([$db->quoteName('id'), $db->quoteName('number'), $db->quoteName('descripcion')])
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
             ->where($db->quoteName('oferta') . ' = 1')
-            ->where($db->quoteName('state') . ' = 1')
-            ->order($db->quoteName('number') . ' ASC');
+            ->where($db->quoteName('state') . ' = 1');
+        if (isset($tableCols['oferta_expires'])) {
+            $query->where('(' . $db->quoteName('oferta_expires') . ' IS NULL OR ' . $db->quoteName('oferta_expires') . ' >= CURDATE())');
+        }
+        $query->order($db->quoteName('number') . ' ASC');
         $db->setQuery($query);
         $list = $db->loadObjectList() ?: [];
         return $list;

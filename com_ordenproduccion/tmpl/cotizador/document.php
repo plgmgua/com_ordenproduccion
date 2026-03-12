@@ -195,7 +195,13 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
     if (strpos($labelOferta, 'COM_ORDENPRODUCCION_') === 0) {
         $labelOferta = 'Oferta';
     }
+    $labelOfertaExpires = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_EXPIRES');
+    if (strpos($labelOfertaExpires, 'COM_ORDENPRODUCCION_') === 0) {
+        $labelOfertaExpires = 'Fecha de vencimiento';
+    }
     $ofertaChecked = !empty($item->oferta);
+    $ofertaExpiresValue = isset($item->oferta_expires) && $item->oferta_expires !== '' && $item->oferta_expires !== null
+        ? (new \DateTime($item->oferta_expires))->format('Y-m-d') : '';
     $saveOfertaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOferta');
     ?>
     <div class="precotizacion-descripcion mb-4">
@@ -211,14 +217,29 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                 <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
             </form>
             <?php if (!empty($this->showOfertaCheckbox)) : ?>
-            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
+            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline-flex flex-wrap align-items-center gap-2 mb-0" id="form-oferta">
                 <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
                 <?php echo HTMLHelper::_('form.token'); ?>
                 <div class="form-check mb-0">
-                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
+                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>
+                           data-oferta-expires-wrap="oferta-expires-wrap">
                     <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
                 </div>
+                <span id="oferta-expires-wrap" class="d-flex align-items-center gap-1" style="<?php echo $ofertaChecked ? '' : 'display:none!important;'; ?>">
+                    <label class="form-label mb-0 small"><?php echo htmlspecialchars($labelOfertaExpires); ?></label>
+                    <input type="date" name="oferta_expires" id="precotizacion-oferta-expires" class="form-control form-control-sm" style="width:auto;"
+                           value="<?php echo htmlspecialchars($ofertaExpiresValue); ?>"
+                           min="<?php echo (new \DateTime('today'))->format('Y-m-d'); ?>">
+                </span>
+                <button type="submit" class="btn btn-sm btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
             </form>
+            <script>
+            document.getElementById('precotizacion-oferta').addEventListener('change', function() {
+                var wrap = document.getElementById('oferta-expires-wrap');
+                if (wrap) wrap.style.display = this.checked ? '' : 'none';
+                if (!this.checked) document.getElementById('form-oferta').submit();
+            });
+            </script>
             <?php endif; ?>
         </div>
         <?php endif; ?>

@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -662,7 +663,16 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if (!AccessHelper::isInAdministracionOrAdmonGroup() && !$user->authorise('core.admin')) {
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $ofertasUserIds = (array) $params->get('ofertas_user_ids', []);
+        if (!is_array($ofertasUserIds)) {
+            $ofertasUserIds = array_filter(array_map('intval', explode(',', (string) $ofertasUserIds)));
+        } else {
+            $ofertasUserIds = array_values(array_filter(array_map('intval', $ofertasUserIds)));
+        }
+        $canEditOferta = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin')
+            || in_array((int) $user->id, $ofertasUserIds, true);
+        if (!$canEditOferta) {
             $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
             return false;
@@ -671,6 +681,7 @@ class PrecotizacionController extends BaseController
         $id = (int) $this->input->get('id', 0);
         $oferta = (int) $this->input->get('oferta', 0);
         $oferta = $oferta ? 1 : 0;
+        $ofertaExpires = trim((string) $this->input->get('oferta_expires', '', 'string'));
 
         if ($id < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
@@ -695,12 +706,32 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($oferta === 1) {
+            if ($ofertaExpires === '') {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_EXPIRES_REQUIRED'), 'error');
+                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+                return false;
+            }
+            $d = \DateTime::createFromFormat('Y-m-d', $ofertaExpires);
+            $ofertaExpiresValue = ($d && $d->format('Y-m-d') === $ofertaExpires) ? $ofertaExpires : null;
+            if ($ofertaExpiresValue === null) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_EXPIRES_INVALID'), 'error');
+                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+                return false;
+            }
+        } else {
+            $ofertaExpiresValue = null;
+        }
+
         $obj = (object) [
             'id' => $id,
             'oferta' => $oferta,
             'modified' => Factory::getDate()->toSql(),
             'modified_by' => $user->id,
         ];
+        if (isset($tableCols['oferta_expires'])) {
+            $obj->oferta_expires = $ofertaExpiresValue;
+        }
         $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
 
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_SAVED'));
