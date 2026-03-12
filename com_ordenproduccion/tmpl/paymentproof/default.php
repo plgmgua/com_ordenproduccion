@@ -356,14 +356,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
                                             <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
                                             <span class="small fw-bold me-1"><?php echo htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden'); ?> a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?>:</span>
-                                            <select name="add_order_id" class="form-select form-select-sm" style="max-width: 220px;" required>
+                                            <select name="add_order_id" class="form-select form-select-sm add-order-select" style="max-width: 220px;" required>
                                                 <option value="">— <?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden'); ?> —</option>
                                                 <?php foreach ($availableOrders as $ao) : ?>
-                                                <option value="<?php echo (int)($ao->id ?? 0); ?>"><?php echo htmlspecialchars(($ao->order_number ?? '#' . ($ao->id ?? '')) . ' — ' . ($ao->client_name ?? '')); ?></option>
+                                                <?php $invVal = isset($ao->invoice_value) ? (float) $ao->invoice_value : 0; ?>
+                                                <option value="<?php echo (int)($ao->id ?? 0); ?>" data-invoice-value="<?php echo $invVal > 0 ? number_format($invVal, 2, '.', '') : ''; ?>"><?php echo htmlspecialchars(($ao->order_number ?? '#' . ($ao->id ?? '')) . ' — ' . ($ao->client_name ?? '')); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                             <label class="small mb-0"><?php echo htmlspecialchars($this->labelAmountToApply ?? 'Valor a aplicar'); ?></label>
-                                            <input type="number" name="add_amount_applied" step="0.01" min="0.01" class="form-control form-control-sm" style="width: 100px;" required placeholder="0.00">
+                                            <input type="number" name="add_amount_applied" step="0.01" min="0.01" class="form-control form-control-sm add-amount-input" style="width: 100px;" required placeholder="0.00">
                                             <button type="submit" class="btn btn-sm btn-primary">Agregar</button>
                                             <button type="button" class="btn btn-sm btn-outline-secondary toggle-add-order-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>">Cancelar</button>
                                         </form>
@@ -826,6 +827,16 @@ document.addEventListener('DOMContentLoaded', function () {
             var row = document.getElementById('add-order-row-' + proofId);
             if (row) {
                 row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+            }
+        });
+    });
+    document.querySelectorAll('.add-order-select').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            var amountInput = this.closest('form') && this.closest('form').querySelector('.add-amount-input');
+            if (amountInput && opt && opt.hasAttribute('data-invoice-value')) {
+                var val = opt.getAttribute('data-invoice-value');
+                amountInput.value = (val !== '' && parseFloat(val) >= 0) ? val : '';
             }
         });
     });

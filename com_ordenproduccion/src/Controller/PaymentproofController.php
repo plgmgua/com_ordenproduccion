@@ -452,6 +452,8 @@ class PaymentproofController extends BaseController
         $addOrderId = $this->input->getInt('add_order_id', 0);
         $amount    = $this->input->getFloat('add_amount_applied', 0);
 
+        $this->app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
 
         if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
