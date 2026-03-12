@@ -48,6 +48,7 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                         <?php endif; ?>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CLIENT'); ?></th>
                         <th scope="col" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
                 </thead>
@@ -88,15 +89,29 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                                 }
                                 ?>
                             </td>
+                            <td class="col-client">
+                                <?php
+                                $clientNames = [];
+                                foreach ($quotationNumbers as $q) {
+                                    $name = is_array($q) ? trim((string) ($q['client_name'] ?? '')) : '';
+                                    if ($name !== '' && !in_array($name, $clientNames, true)) {
+                                        $clientNames[] = $name;
+                                    }
+                                }
+                                echo $clientNames !== [] ? htmlspecialchars(implode(', ', $clientNames)) : '—';
+                                ?>
+                            </td>
                             <td class="text-end">
-                                <a href="<?php echo htmlspecialchars($docUrl); ?>" class="btn btn-sm btn-outline-primary">
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VIEW'); ?>
+                                <a href="<?php echo htmlspecialchars($docUrl); ?>" class="btn btn-sm btn-outline-primary" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VIEW')); ?>">
+                                    <span class="icon-eye" aria-hidden="true"></span>
                                 </a>
                                 <?php if (empty($quotationNumbers)) : ?>
                                 <form action="<?php echo htmlspecialchars($deleteAction); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE')); ?>');">
                                     <?php echo HTMLHelper::_('form.token'); ?>
                                     <input type="hidden" name="id" value="<?php echo (int) $item->id; ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">
+                                        <span class="icon-trash" aria-hidden="true"></span>
+                                    </button>
                                 </form>
                                 <?php endif; ?>
                             </td>
@@ -114,8 +129,11 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
     <?php endif; ?>
 </div>
 <style>
-.precotizacion-list-table-wrap .precotizacion-list-table { font-size: 0.85rem; }
+.precotizacion-list-table-wrap .precotizacion-list-table { font-size: 0.8rem; }
 .precotizacion-list-table-wrap .precotizacion-list-table th,
-.precotizacion-list-table-wrap .precotizacion-list-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
-.precotizacion-list-table-wrap .precotizacion-list-table .col-descripcion { max-width: 280px; }
+.precotizacion-list-table-wrap .precotizacion-list-table td { padding: 0.3rem 0.4rem; vertical-align: middle; }
+.precotizacion-list-table-wrap .precotizacion-list-table .col-descripcion { max-width: 260px; }
+.precotizacion-list-table-wrap .precotizacion-list-table .col-client { max-width: 200px; }
+.precotizacion-list-table-wrap .precotizacion-list-table .btn .icon-eye,
+.precotizacion-list-table-wrap .precotizacion-list-table .btn .icon-trash { font-size: 1rem; }
 </style>

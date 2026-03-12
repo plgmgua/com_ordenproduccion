@@ -209,8 +209,15 @@ class HtmlView extends BaseHtmlView
         if (empty($ids)) {
             return [];
         }
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        $selectClientName = isset($qCols['client_name']);
+        $select = $db->quoteName('qi.pre_cotizacion_id') . ', ' . $db->quoteName('q.id', 'quotation_id') . ', ' . $db->quoteName('q.quotation_number');
+        if ($selectClientName) {
+            $select .= ', ' . $db->quoteName('q.client_name');
+        }
         $query = $db->getQuery(true)
-            ->select($db->quoteName('qi.pre_cotizacion_id') . ', ' . $db->quoteName('q.id', 'quotation_id') . ', ' . $db->quoteName('q.quotation_number'))
+            ->select($select)
             ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
             ->innerJoin(
                 $db->quoteName('#__ordenproduccion_quotations', 'q'),
@@ -237,7 +244,11 @@ class HtmlView extends BaseHtmlView
                 }
             }
             if (!$seen) {
-                $map[$pid][] = ['id' => $qid, 'quotation_number' => $num];
+                $entry = ['id' => $qid, 'quotation_number' => $num];
+                if ($selectClientName && isset($row->client_name)) {
+                    $entry['client_name'] = trim((string) $row->client_name);
+                }
+                $map[$pid][] = $entry;
             }
         }
         return $map;
