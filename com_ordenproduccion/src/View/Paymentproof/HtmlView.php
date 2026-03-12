@@ -43,8 +43,19 @@ class HtmlView extends BaseHtmlView
 
         $this->orderId = $app->input->getInt('order_id', 0);
         if (empty($this->orderId)) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_ORDER_ID'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            $this->order = null;
+            $this->existingPayments = [];
+            $this->item = new \stdClass();
+            $this->item->order_id = 0;
+            $this->highlightProofId = null;
+            $this->_prepareDocument();
+            $t = function ($key, $fallback) {
+                $v = Text::_($key);
+                return ($v !== $key) ? $v : $fallback;
+            };
+            $this->labelPaymentProofTitle = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_TITLE', 'Registro de Comprobante de Pago');
+            $this->labelBackToOrder = $t('COM_ORDENPRODUCCION_BACK_TO_PAYMENTS', 'Volver a Control de Pagos');
+            parent::display($tpl);
             return;
         }
 

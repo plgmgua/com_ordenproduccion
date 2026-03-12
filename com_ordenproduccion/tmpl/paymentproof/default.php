@@ -20,6 +20,33 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 $order = $this->order;
 $orderId = $this->orderId;
 $existingPayments = $this->existingPayments ?? [];
+
+if (empty($order)) :
+    $labelTitle = $this->labelPaymentProofTitle ?? 'Registro de Comprobante de Pago';
+    $labelBack  = $this->labelBackToOrder ?? 'Volver a Control de Pagos';
+    $labelNoOrder = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_NO_ORDER_SELECTED');
+    if (strpos($labelNoOrder, 'COM_ORDENPRODUCCION_') === 0) {
+        $labelNoOrder = 'Seleccione una orden de trabajo para registrar un comprobante de pago. Use la tabla Control de Pagos o la lista de órdenes para abrir el comprobante de una orden.';
+    }
+    $backUrl = Route::_('index.php?option=com_ordenproduccion&view=payments');
+?>
+<div class="com-ordenproduccion-paymentproof">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="page-title"><?php echo htmlspecialchars($labelTitle); ?></h1>
+                <p class="text-muted"><?php echo htmlspecialchars($labelNoOrder); ?></p>
+                <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($labelBack); ?>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<?php
+    return;
+endif;
+
 $invoiceValue = (float) ($order->invoice_value ?? 0);
 $defaultAmount = $invoiceValue > 0 ? number_format($invoiceValue, 2, '.', '') : '';
 

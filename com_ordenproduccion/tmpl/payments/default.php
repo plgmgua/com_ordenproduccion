@@ -33,6 +33,15 @@ use Joomla\CMS\Session\Session;
                 <?php endif; ?>
             </div>
         </div>
+        <?php if (!$isDeletedView) : ?>
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof'); ?>" class="btn btn-primary btn-sm">
+                    <i class="fas fa-credit-card"></i> <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION')); ?>
+                </a>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Filters - compact -->
         <div class="row mb-2">
