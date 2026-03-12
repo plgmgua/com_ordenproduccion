@@ -276,6 +276,7 @@ class HtmlView extends BaseHtmlView
             $this->iva = (float) $params->get('iva', 0);
             $this->isr = (float) $params->get('isr', 0);
             $this->comisionVenta = (float) $params->get('comision_venta', 0);
+            $this->comisionMargenAdicional = (float) $params->get('comision_margen_adicional', 0);
             $this->_prepareDocument();
             parent::display($tpl);
             return;
