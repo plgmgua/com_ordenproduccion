@@ -578,7 +578,7 @@ class HtmlView extends BaseHtmlView
             $verifiedCond = '';
             try {
                 $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
-                $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER);
+                $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
                 if (isset($ppCols['verification_status'])) {
                     $verifiedCond = " AND pp2.verification_status = 'verificado'";
                 }
