@@ -647,7 +647,7 @@ class PrecotizacionModel extends ListModel
     /**
      * Get pre-cotizaciones marked as template (oferta=1) for "Nueva Pre-Cotización" template selector.
      *
-     * @return  \stdClass[]  List with id, number, descripcion
+     * @return  \stdClass[]  List with id, number, descripcion, oferta_expires
      * @since   3.95.0
      */
     public function getTemplates()
@@ -658,8 +658,12 @@ class PrecotizacionModel extends ListModel
         if (!isset($tableCols['oferta'])) {
             return [];
         }
+        $cols = [$db->quoteName('id'), $db->quoteName('number'), $db->quoteName('descripcion')];
+        if (isset($tableCols['oferta_expires'])) {
+            $cols[] = $db->quoteName('oferta_expires');
+        }
         $query = $db->getQuery(true)
-            ->select([$db->quoteName('id'), $db->quoteName('number'), $db->quoteName('descripcion')])
+            ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
             ->where($db->quoteName('oferta') . ' = 1')
             ->where($db->quoteName('state') . ' = 1');

@@ -36,7 +36,14 @@ if (strpos($labelNewBlank, 'COM_ORDENPRODUCCION_') === 0) {
             <select name="template_id" id="new-precotizacion-template" class="form-select" style="width: auto; max-width: 360px;">
                 <option value="0"><?php echo htmlspecialchars($labelNewBlank); ?></option>
                 <?php foreach ($templates as $tpl) :
-                    $optLabel = $tpl->number . (strlen((string) ($tpl->descripcion ?? '')) ? ' — ' . $tpl->descripcion : '');
+                    $parts = [$tpl->number ?? ''];
+                    if (strlen((string) ($tpl->descripcion ?? '')) > 0) {
+                        $parts[] = (string) $tpl->descripcion;
+                    }
+                    if (!empty($tpl->oferta_expires)) {
+                        $parts[] = (new \DateTime($tpl->oferta_expires))->format('d/m/Y');
+                    }
+                    $optLabel = implode(' — ', $parts);
                 ?>
                 <option value="<?php echo (int) $tpl->id; ?>"><?php echo htmlspecialchars($optLabel); ?></option>
                 <?php endforeach; ?>
