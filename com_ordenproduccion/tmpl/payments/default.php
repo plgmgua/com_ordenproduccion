@@ -26,18 +26,17 @@ use Joomla\CMS\Session\Session;
                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments'); ?>" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-arrow-left"></i> Volver a pagos activos
                     </a>
-                <?php else : ?>
-                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments&filter_state=0'); ?>" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-trash"></i> Ver pagos eliminados
-                    </a>
                 <?php endif; ?>
             </div>
         </div>
         <?php if (!$isDeletedView) : ?>
         <div class="row mb-3">
-            <div class="col-12">
+            <div class="col-12 d-flex flex-wrap align-items-center gap-2">
                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=paymentproof'); ?>" class="btn btn-primary btn-sm">
                     <i class="fas fa-credit-card"></i> <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION')); ?>
+                </a>
+                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments&filter_state=0'); ?>" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-trash"></i> Ver pagos eliminados
                 </a>
             </div>
         </div>

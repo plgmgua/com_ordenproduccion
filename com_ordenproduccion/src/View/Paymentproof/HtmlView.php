@@ -48,6 +48,8 @@ class HtmlView extends BaseHtmlView
             $this->item = new \stdClass();
             $this->item->order_id = 0;
             $this->highlightProofId = null;
+            $this->params = $app->getParams('com_ordenproduccion');
+            $this->user = $user;
             $this->_prepareDocument();
             $t = function ($key, $fallback) {
                 $v = Text::_($key);
