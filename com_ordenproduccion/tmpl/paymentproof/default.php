@@ -26,23 +26,275 @@ if (empty($order)) :
     $labelBack  = $this->labelBackToOrder ?? 'Volver a Control de Pagos';
     $labelNoOrder = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_NO_ORDER_SELECTED');
     if (strpos($labelNoOrder, 'COM_ORDENPRODUCCION_') === 0) {
-        $labelNoOrder = 'Seleccione una orden de trabajo para registrar un comprobante de pago. Use la tabla Control de Pagos o la lista de órdenes para abrir el comprobante de una orden.';
+        $labelNoOrder = 'Seleccione una o más órdenes de trabajo para registrar un comprobante de pago. Solo se muestran órdenes a las que tiene acceso (Agente de Ventas: sus órdenes; Administración: todas).';
     }
     $backUrl = Route::_('index.php?option=com_ordenproduccion&view=payments');
+    // Bank and payment type options for the form
+    $bankOptions = [];
+    $defaultBankCode = null;
+    try {
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $q = $db->getQuery(true)->select('id, code, name, name_es, name_en, is_default')
+            ->from($db->quoteName('#__ordenproduccion_banks'))->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, id ASC');
+        $db->setQuery($q);
+        $banks = $db->loadObjectList() ?: [];
+        $lang = Factory::getLanguage();
+        $isSpanish = (strpos($lang->getTag(), 'es') === 0);
+        foreach ($banks as $b) {
+            if (empty($b->code)) continue;
+            $displayName = ($isSpanish && !empty($b->name_es)) ? trim($b->name_es) : (trim($b->name_en ?? $b->name ?? '') ?: $b->code);
+            $bankOptions[$b->code] = $displayName;
+            if (!empty($b->is_default)) $defaultBankCode = $b->code;
+        }
+    } catch (\Exception $e) { /* ignore */ }
+    $paymentTypeOptions = $this->getPaymentTypeOptions();
+    $availableOrders = json_decode($this->availableOrdersJson ?? '[]', true);
 ?>
 <div class="com-ordenproduccion-paymentproof">
     <div class="container">
-        <div class="row mb-4">
-            <div class="col-12">
-                <h1 class="page-title"><?php echo htmlspecialchars($labelTitle); ?></h1>
-                <p class="text-muted"><?php echo htmlspecialchars($labelNoOrder); ?></p>
-                <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-secondary">
+        <div class="row mb-2">
+            <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h1 class="page-title h4 mb-0"><?php echo htmlspecialchars($labelTitle); ?></h1>
+                <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-secondary btn-sm">
                     <i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($labelBack); ?>
                 </a>
             </div>
         </div>
+        <p class="text-muted mb-3"><?php echo htmlspecialchars($labelNoOrder); ?></p>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-credit-card"></i> <?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION', 'Registro de Comprobante de Pago', 'Registro de Comprobante de Pago')); ?></h5>
+            </div>
+            <div class="card-body">
+                <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.register'); ?>" method="post" enctype="multipart/form-data" class="form-validate" id="payment-proof-form">
+                    <input type="hidden" name="order_id" value="0">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES', 'Payment method lines', 'Métodos de pago'); ?></label>
+                            <small class="form-text text-muted d-block mb-2"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_METHOD_LINES_HELP', 'Add one or more lines.', 'Agregue una o más líneas.'); ?></small>
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="payment-lines-table">
+                                    <thead>
+                                        <tr>
+                                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
+                                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
+                                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
+                                            <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
+                                            <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
+                                            <th style="width: 40px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="payment-lines-body">
+                                        <tr class="payment-line-row">
+                                            <td>
+                                                <select name="payment_lines[0][payment_type]" class="form-control form-control-sm payment-line-type" required>
+                                                    <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Select payment type', 'Seleccionar tipo de pago'); ?></option>
+                                                    <?php foreach ($paymentTypeOptions as $val => $txt): ?>
+                                                    <option value="<?php echo htmlspecialchars($val); ?>"><?php echo htmlspecialchars($txt); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                            <td class="bank-cell">
+                                                <select name="payment_lines[0][bank]" class="form-control form-control-sm payment-line-bank">
+                                                    <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_BANK', 'Select bank', 'Seleccionar banco'); ?></option>
+                                                    <?php foreach ($bankOptions as $code => $name): ?>
+                                                    <option value="<?php echo htmlspecialchars($code); ?>"<?php echo ($defaultBankCode && $code === $defaultBankCode) ? ' selected' : ''; ?>><?php echo htmlspecialchars($name); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                            <td><input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque'); ?>" maxlength="255" required></td>
+                                            <td><input type="date" name="payment_lines[0][document_date]" class="form-control form-control-sm payment-line-document-date"></td>
+                                            <td><input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required></td>
+                                            <td class="text-center"></td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-info">
+                                            <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
+                                            <td><strong id="payment-lines-total">Q. 0.00</strong></td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                                        <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="payment_amount" id="payment_amount" value="">
+                    <input type="hidden" name="payment_mismatch_note" id="payment_mismatch_note" value="">
+                    <input type="hidden" name="payment_mismatch_difference" id="payment_mismatch_difference" value="">
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <?php if (empty($availableOrders)) : ?>
+                            <div class="alert alert-warning"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_NO_ORDERS_AVAILABLE_FOR_PAYMENT') ?: 'No tiene órdenes disponibles para registrar pago. Solo se muestran órdenes activas (no anuladas) a las que tiene acceso.'); ?></div>
+                            <?php endif; ?>
+                            <label><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_PAYMENT', 'Orders to apply payment', 'Órdenes a aplicar este pago'); ?></label>
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="payment-orders-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50%"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
+                                            <th style="width: 35%"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
+                                            <th style="width: 15%"><?php echo htmlspecialchars($this->labelActions ?? 'Acciones'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="payment-orders-body">
+                                        <tr class="payment-order-row" data-row-index="0">
+                                            <td>
+                                                <input type="hidden" name="payment_orders[0][order_id]" class="order-id-input" value="">
+                                                <select class="form-control order-select" required>
+                                                    <option value=""><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_SELECT_ORDER') ?: 'Seleccionar orden...'); ?></option>
+                                                    <?php foreach ($availableOrders as $ao): $rem = (float)($ao['remaining_balance'] ?? $ao['invoice_value'] ?? 0); ?>
+                                                    <option value="<?php echo (int)($ao['id']); ?>" data-invoice-value="<?php echo (float)($ao['invoice_value'] ?? 0); ?>" data-remaining-balance="<?php echo $rem; ?>">
+                                                        <?php echo htmlspecialchars(($ao['order_number'] ?? '') . ' (Saldo: Q.' . number_format($rem, 2) . ')'); ?>
+                                                    </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">Q.</span>
+                                                    <input type="number" name="payment_orders[0][value]" class="form-control payment-value-input" min="0.01" step="0.01" placeholder="0.00" required>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-success add-row-btn" title="<?php echo htmlspecialchars($this->labelAddOrder ?? 'Agregar orden'); ?>"><i class="fas fa-plus"></i></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-info">
+                                            <td class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">Q.</span>
+                                                    <input type="text" id="payment-total" class="form-control font-weight-bold" value="0.00" readonly>
+                                                </div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <small class="form-text text-muted"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_HELP', 'Add work orders and amount for each', 'Agregue las órdenes y el monto para cada una.'); ?></small>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="payment_proof_file"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE', 'Payment proof file', 'Archivo comprobante de pago'); ?></label>
+                            <input type="file" name="payment_proof_files[]" id="payment_proof_files" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple onchange="validateFiles(this)">
+                            <small class="form-text text-muted">Formatos: JPG, PNG, PDF (Máx: 5MB por archivo).</small>
+                        </div>
+                    </div>
+
+                    <script type="application/json" id="unpaid-orders-data"><?php echo $this->availableOrdersJson ?? '[]'; ?></script>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <?php echo htmlspecialchars($this->labelRegisterPaymentProof ?? 'Registrar Comprobante de Pago'); ?></button>
+                        <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($this->labelCancel ?? 'Cancelar'); ?></a>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
+<?php
+    // Inline script: order select sync and totals (same behaviour as paymentproof.js)
+    ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var tbody = document.getElementById('payment-orders-body');
+    if (tbody) {
+        tbody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('order-select')) {
+                var row = e.target.closest('tr');
+                var hidden = row && row.querySelector('.order-id-input');
+                var valueInput = row && row.querySelector('.payment-value-input');
+                if (hidden) hidden.value = e.target.value || '';
+                if (valueInput && e.target.selectedOptions[0]) {
+                    var opt = e.target.selectedOptions[0];
+                    var val = opt.getAttribute('data-invoice-value') || opt.getAttribute('data-remaining-balance');
+                    if (val !== null && val !== '') valueInput.value = parseFloat(val) >= 0 ? val : '';
+                }
+            }
+        });
+        tbody.addEventListener('input', function(e) {
+            if (e.target.classList.contains('payment-value-input')) {
+                var total = 0;
+                document.querySelectorAll('#payment-orders-body .payment-value-input').forEach(function(inp) { total += parseFloat(inp.value) || 0; });
+                var el = document.getElementById('payment-total');
+                if (el) el.value = total.toFixed(2);
+            }
+        });
+    }
+    var lineIndex = 1;
+    var bankOpts = <?php echo json_encode($bankOptions); ?>;
+    var defaultBank = <?php echo json_encode($defaultBankCode ?? ''); ?>;
+    var typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
+    var typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
+    function toggleBankCell(row) {
+        var typeSel = row && row.querySelector('.payment-line-type');
+        var bankCell = row && row.querySelector('.bank-cell');
+        if (bankCell) bankCell.style.visibility = (typeSel && typeSel.value === 'efectivo') ? 'hidden' : 'visible';
+    }
+    function updateLinesTotal() {
+        var sum = 0;
+        document.querySelectorAll('.payment-line-amount').forEach(function(inp) { sum += parseFloat(inp.value) || 0; });
+        var el = document.getElementById('payment-lines-total');
+        if (el) el.textContent = 'Q. ' + sum.toFixed(2);
+        var amt = document.getElementById('payment_amount');
+        if (amt) amt.value = sum.toFixed(2);
+    }
+    document.querySelectorAll('.add-payment-line-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var tbody = document.getElementById('payment-lines-body');
+            var first = tbody && tbody.querySelector('.payment-line-row');
+            if (!first) return;
+            var clone = first.cloneNode(true);
+            clone.classList.remove('payment-line-row');
+            var lastTd = clone.querySelector('td:last-child');
+            if (lastTd) lastTd.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn"><i class="fas fa-minus"></i></button>';
+            clone.querySelectorAll('select, input').forEach(function(el) {
+                var m = el.name && el.name.match(/payment_lines\[\d+\]\[(\w+)\]/);
+                if (m) { el.name = 'payment_lines[' + lineIndex + '][' + m[1] + ']'; if (m[1] === 'amount' || m[1] === 'document_number' || m[1] === 'document_date') el.value = ''; }
+            });
+            tbody.appendChild(clone);
+            lineIndex++;
+            toggleBankCell(clone);
+            clone.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(clone); });
+            clone.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
+            var rm = clone.querySelector('.remove-payment-line-btn');
+            if (rm) rm.addEventListener('click', function() { clone.remove(); updateLinesTotal(); });
+            updateLinesTotal();
+        });
+    });
+    document.querySelectorAll('.payment-line-type').forEach(function(el) { el.addEventListener('change', function() { toggleBankCell(el.closest('tr')); }); });
+    document.querySelectorAll('.payment-line-amount').forEach(function(el) { el.addEventListener('input', updateLinesTotal); });
+    toggleBankCell(document.querySelector('.payment-line-row'));
+    updateLinesTotal();
+});
+window.validateFiles = function(input) {
+    var allowed = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    var max = 5 * 1024 * 1024;
+    for (var i = 0; i < input.files.length; i++) {
+        var file = input.files[i];
+        if (allowed.indexOf(file.type) === -1) { alert('Tipo inválido: ' + file.name); input.value = ''; return false; }
+        if (file.size > max) { alert('Archivo demasiado grande: ' + file.name); input.value = ''; return false; }
+    }
+    return true;
+};
+</script>
 <?php
     return;
 endif;

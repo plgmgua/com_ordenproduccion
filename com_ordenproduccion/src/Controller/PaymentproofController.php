@@ -212,8 +212,19 @@ class PaymentproofController extends BaseController
             $this->app->enqueueMessage($e->getMessage(), 'error');
         }
 
-        // Redirect back to orders list
-        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes');
+        // Redirect: when coming from no-order form (order_id 0), go to payment proof view for first order; else orders list
+        $orderId = $this->input->getInt('order_id', 0);
+        if ($orderId > 0) {
+            $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+        } else {
+            $paymentOrders = $this->input->get('payment_orders', [], 'array');
+            $firstOrderId = isset($paymentOrders[0]['order_id']) ? (int) $paymentOrders[0]['order_id'] : 0;
+            if ($firstOrderId > 0) {
+                $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $firstOrderId);
+            } else {
+                $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=payments');
+            }
+        }
         $this->setRedirect($redirectUrl);
     }
 

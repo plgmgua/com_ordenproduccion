@@ -57,6 +57,17 @@ class HtmlView extends BaseHtmlView
             };
             $this->labelPaymentProofTitle = $t('COM_ORDENPRODUCCION_PAYMENT_PROOF_TITLE', 'Registro de Comprobante de Pago');
             $this->labelBackToOrder = $t('COM_ORDENPRODUCCION_BACK_TO_PAYMENTS', 'Volver a Control de Pagos');
+            $this->labelOrderNumber = $t('COM_ORDENPRODUCCION_ORDER_NUMBER', 'Orden #');
+            $this->labelValueToApply = $t('COM_ORDENPRODUCCION_VALUE_TO_APPLY', 'Valor a Aplicar');
+            $this->labelActions = $t('COM_ORDENPRODUCCION_ACTIONS', 'Acciones');
+            $this->labelAddOrder = $t('COM_ORDENPRODUCCION_ADD_ORDER', 'Agregar orden');
+            $this->labelRegisterPaymentProof = $t('COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF', 'Registrar Comprobante de Pago');
+            $this->labelCancel = $t('JTOOLBAR_CANCEL', 'Cancelar');
+            $this->labelTotal = $t('COM_ORDENPRODUCCION_TOTAL', 'Total');
+            $this->labelDocumentNumberPlaceholder = $t('COM_ORDENPRODUCCION_DOCUMENT_NUMBER_PLACEHOLDER', 'ej. Número de cheque, referencia');
+            $this->availableOrdersJson = $this->getOrdersAvailableForRegistrationJson();
+            $wa = $app->getDocument()->getWebAssetManager();
+            $wa->registerAndUseScript('com_ordenproduccion.paymentproof', 'media/com_ordenproduccion/js/paymentproof.js', [], ['version' => 'auto']);
             parent::display($tpl);
             return;
         }
@@ -540,6 +551,112 @@ class HtmlView extends BaseHtmlView
             ];
         }
         
+        return json_encode($data);
+    }
+
+    /**
+     * Get orders the current user can register a payment for (Agente de Ventas: own orders; Admin: all).
+     * Excludes Anulada and returns id, order_number, invoice_value, remaining_balance for the registration form.
+     *
+     * @return  array  Array of order objects
+     *
+     * @since   3.95.0
+     */
+    public function getOrdersAvailableForRegistration()
+    {
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $orderColumns = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $orderColumns = array_change_key_case($orderColumns ?: [], CASE_LOWER);
+
+            $invoiceCol = isset($orderColumns['invoice_value']) ? 'o.invoice_value'
+                : (isset($orderColumns['valor_a_facturar']) ? 'o.valor_a_facturar' : '0');
+            $orderNumCol = isset($orderColumns['order_number']) ? 'o.order_number'
+                : 'o.orden_de_trabajo';
+            $statusCol = isset($orderColumns['status']) ? 'o.status' : null;
+
+            $verifiedCond = '';
+            try {
+                $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+                $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER);
+                if (isset($ppCols['verification_status'])) {
+                    $verifiedCond = " AND pp2.verification_status = 'verificado'";
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+            if ($this->hasPaymentOrdersTable($db)) {
+                $totalPaidExpr = '(SELECT COALESCE(SUM(po2.amount_applied), 0) FROM ' .
+                    $db->quoteName('#__ordenproduccion_payment_orders', 'po2') .
+                    ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
+                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1' . $verifiedCond . ' WHERE po2.order_id = o.id)';
+            } else {
+                $totalPaidExpr = '(SELECT COALESCE(SUM(pp2.payment_amount), 0) FROM ' .
+                    $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
+                    ' WHERE pp2.order_id = o.id AND pp2.state = 1' . $verifiedCond . ')';
+            }
+
+            $query = $db->getQuery(true)
+                ->select([
+                    'o.id',
+                    $orderNumCol . ' AS order_number',
+                    'COALESCE(' . $invoiceCol . ', 0) AS invoice_value',
+                    $totalPaidExpr . ' AS total_paid'
+                ])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->where('o.state = 1')
+                ->order($orderNumCol . ' DESC')
+                ->setLimit(500);
+
+            if ($statusCol) {
+                $query->where('(LOWER(TRIM(' . $statusCol . ')) IS NULL OR LOWER(TRIM(' . $statusCol . ')) != ' . $db->quote('anulada') . ')');
+            }
+
+            $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+            if ($salesAgentFilter !== null && $salesAgentFilter !== '') {
+                $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+            }
+
+            $db->setQuery($query);
+            $orders = $db->loadObjectList();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        if (empty($orders)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($orders as $order) {
+            $invoiceValue = (float) ($order->invoice_value ?? 0);
+            $totalPaid = (float) ($order->total_paid ?? 0);
+            $remainingBalance = $invoiceValue - $totalPaid;
+            $order->remaining_balance = $remainingBalance;
+            $result[] = $order;
+        }
+        return $result;
+    }
+
+    /**
+     * Get orders available for registration as JSON for the no-order registration form.
+     *
+     * @return  string  JSON encoded array
+     *
+     * @since   3.95.0
+     */
+    public function getOrdersAvailableForRegistrationJson()
+    {
+        $orders = $this->getOrdersAvailableForRegistration();
+        $data = [];
+        foreach ($orders as $order) {
+            $data[] = [
+                'id' => (int) $order->id,
+                'order_number' => $order->order_number ?? '',
+                'invoice_value' => (float) ($order->invoice_value ?? 0),
+                'remaining_balance' => (float) ($order->remaining_balance ?? $order->invoice_value ?? 0)
+            ];
+        }
         return json_encode($data);
     }
 
