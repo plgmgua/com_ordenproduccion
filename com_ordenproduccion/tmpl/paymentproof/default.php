@@ -358,9 +358,12 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <span class="small fw-bold me-1"><?php echo htmlspecialchars($this->labelAssociateAnotherOrder ?? 'Asociar otra orden'); ?> a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?>:</span>
                                             <select name="add_order_id" class="form-select form-select-sm add-order-select" style="max-width: 220px;" required>
                                                 <option value="">— <?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden'); ?> —</option>
-                                                <?php foreach ($availableOrders as $ao) : ?>
-                                                <?php $invVal = isset($ao->invoice_value) ? (float) $ao->invoice_value : 0; ?>
-                                                <option value="<?php echo (int)($ao->id ?? 0); ?>" data-invoice-value="<?php echo $invVal > 0 ? number_format($invVal, 2, '.', '') : ''; ?>"><?php echo htmlspecialchars(($ao->order_number ?? '#' . ($ao->id ?? '')) . ' — ' . ($ao->client_name ?? '')); ?></option>
+                                                <?php foreach ($availableOrders as $ao) :
+                                                    $aoId = (int)($ao->id ?? 0);
+                                                    if ($aoId === (int) $orderId) { continue; }
+                                                    $invVal = isset($ao->invoice_value) ? (float) $ao->invoice_value : 0;
+                                                ?>
+                                                <option value="<?php echo $aoId; ?>" data-invoice-value="<?php echo $invVal > 0 ? number_format($invVal, 2, '.', '') : ''; ?>"><?php echo htmlspecialchars(($ao->order_number ?? '#' . ($ao->id ?? '')) . ' — ' . ($ao->client_name ?? '')); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                             <label class="small mb-0"><?php echo htmlspecialchars($this->labelAmountToApply ?? 'Valor a aplicar'); ?></label>

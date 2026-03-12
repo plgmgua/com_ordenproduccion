@@ -817,6 +817,37 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Check if an order is already linked to a payment proof.
+     *
+     * @param   integer  $proofId   Payment proof ID
+     * @param   integer  $orderId   Order ID
+     *
+     * @return  boolean
+     *
+     * @since   3.97.0
+     */
+    public function isOrderLinkedToProof($proofId, $orderId)
+    {
+        $proofId = (int) $proofId;
+        $orderId = (int) $orderId;
+        if ($proofId <= 0 || $orderId <= 0) {
+            return false;
+        }
+        try {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('1')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders'))
+                ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
+                ->where($db->quoteName('order_id') . ' = ' . $orderId);
+            $db->setQuery($query);
+            return (bool) $db->loadResult();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * Set payment proof verification status to Verificado (so it counts toward client balance).
      *
      * @param   integer  $proofId  Payment proof ID

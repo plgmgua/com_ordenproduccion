@@ -490,7 +490,11 @@ class PaymentproofController extends BaseController
         if ($model->addOrderToProof($proofId, $addOrderId, $amount)) {
             $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_ORDER_ASSOCIATED_SUCCESS'), 'success');
         } else {
-            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_ORDER_ASSOCIATE_ERROR'), 'error');
+            if ($model->isOrderLinkedToProof($proofId, $addOrderId)) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_ORDER_ALREADY_LINKED'), 'notice');
+            } else {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_ORDER_ASSOCIATE_ERROR'), 'error');
+            }
         }
 
         $this->setRedirect($redirectUrl);
