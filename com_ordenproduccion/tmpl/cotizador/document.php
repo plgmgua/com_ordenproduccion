@@ -217,28 +217,72 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                 <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
             </form>
             <?php if (!empty($this->showOfertaCheckbox)) : ?>
-            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline-flex flex-wrap align-items-center gap-2 mb-0" id="form-oferta">
+            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
                 <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
                 <?php echo HTMLHelper::_('form.token'); ?>
-                <div class="form-check mb-0">
-                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>
-                           data-oferta-expires-wrap="oferta-expires-wrap">
+                <div class="form-check mb-0 d-inline-block">
+                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>>
                     <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
                 </div>
-                <span id="oferta-expires-wrap" class="d-flex align-items-center gap-1" style="<?php echo $ofertaChecked ? '' : 'display:none!important;'; ?>">
-                    <label class="form-label mb-0 small"><?php echo htmlspecialchars($labelOfertaExpires); ?></label>
-                    <input type="date" name="oferta_expires" id="precotizacion-oferta-expires" class="form-control form-control-sm" style="width:auto;"
-                           value="<?php echo htmlspecialchars($ofertaExpiresValue); ?>"
-                           min="<?php echo (new \DateTime('today'))->format('Y-m-d'); ?>">
-                </span>
-                <button type="submit" class="btn btn-sm btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
             </form>
+            <!-- Modal: Vencimiento de la oferta -->
+            <div class="modal fade" id="modal-oferta-expires" tabindex="-1" aria-labelledby="modal-oferta-expires-label" aria-hidden="true" data-bs-backdrop="static">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modal-oferta-expires-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>" id="modal-oferta-expires-btn-close"></button>
+                        </div>
+                        <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" id="form-oferta-modal">
+                            <div class="modal-body">
+                                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                                <input type="hidden" name="oferta" value="1">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <div class="mb-0">
+                                    <label for="precotizacion-oferta-expires" class="form-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></label>
+                                    <input type="date" name="oferta_expires" id="precotizacion-oferta-expires" class="form-control" required
+                                           value="<?php echo htmlspecialchars($ofertaExpiresValue); ?>"
+                                           min="<?php echo (new \DateTime('today'))->format('Y-m-d'); ?>">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal-oferta-expires-btn-cancel"><?php echo Text::_('JCANCEL'); ?></button>
+                                <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
             <script>
-            document.getElementById('precotizacion-oferta').addEventListener('change', function() {
-                var wrap = document.getElementById('oferta-expires-wrap');
-                if (wrap) wrap.style.display = this.checked ? '' : 'none';
-                if (!this.checked) document.getElementById('form-oferta').submit();
-            });
+            (function() {
+                var chk = document.getElementById('precotizacion-oferta');
+                var modalEl = document.getElementById('modal-oferta-expires');
+                if (!chk || !modalEl) return;
+                var modal = typeof bootstrap !== 'undefined' ? new bootstrap.Modal(modalEl) : null;
+                chk.addEventListener('change', function() {
+                    if (this.checked) {
+                        if (modal) modal.show();
+                    } else {
+                        document.getElementById('form-oferta').submit();
+                    }
+                });
+                function closeAndUncheck() {
+                    chk.checked = false;
+                    if (modal) modal.hide();
+                    document.getElementById('form-oferta').submit();
+                }
+                if (modalEl) {
+                    modalEl.addEventListener('hide.bs.modal', function() {
+                        if (!chk.checked) return;
+                        chk.checked = false;
+                        document.getElementById('form-oferta').submit();
+                    });
+                    var cancelBtn = document.getElementById('modal-oferta-expires-btn-cancel');
+                    var closeBtn = document.getElementById('modal-oferta-expires-btn-close');
+                    if (cancelBtn) cancelBtn.addEventListener('click', closeAndUncheck);
+                    if (closeBtn) closeBtn.addEventListener('click', closeAndUncheck);
+                }
+            })();
             </script>
             <?php endif; ?>
         </div>

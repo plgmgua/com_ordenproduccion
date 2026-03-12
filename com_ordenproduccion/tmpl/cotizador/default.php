@@ -33,7 +33,6 @@ if (strpos($labelNewBlank, 'COM_ORDENPRODUCCION_') === 0) {
     <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
         <form action="<?php echo htmlspecialchars($addFromTemplateUrl); ?>" method="post" class="d-flex flex-wrap align-items-center gap-2">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <label for="new-precotizacion-template" class="form-label mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW'); ?></label>
             <select name="template_id" id="new-precotizacion-template" class="form-select" style="max-width: 400px;">
                 <option value="0"><?php echo htmlspecialchars($labelNewBlank); ?></option>
                 <?php foreach ($templates as $tpl) :
