@@ -123,7 +123,7 @@ class AdministracionController extends BaseController
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
             $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
-            $diferencia = ($totalPaid < $invoiceVal && $invoiceVal > 0) ? ($invoiceVal - $totalPaid) : '';
+            $diferencia = $totalPaid - $invoiceVal;
             $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
             fputcsv($out, [
                 $row->orden_de_trabajo ?? '',
@@ -133,7 +133,7 @@ class AdministracionController extends BaseController
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2, '.', ''),
                 $paymentCol,
-                $diferencia !== '' ? number_format($diferencia, 2, '.', '') : '',
+                number_format($diferencia, 2, '.', ''),
             ]);
         }
         fclose($out);
@@ -169,7 +169,7 @@ class AdministracionController extends BaseController
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
             $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
-            $diferencia = ($totalPaid < $invoiceVal && $invoiceVal > 0) ? ($invoiceVal - $totalPaid) : '';
+            $diferencia = $totalPaid - $invoiceVal;
             $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
@@ -179,7 +179,7 @@ class AdministracionController extends BaseController
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2, '.', ''),
                 $paymentCol,
-                $diferencia !== '' ? number_format($diferencia, 2, '.', '') : '',
+                number_format($diferencia, 2, '.', ''),
             ], null, 'A' . $rowIndex);
             $rowIndex++;
         }

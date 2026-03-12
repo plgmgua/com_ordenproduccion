@@ -531,7 +531,7 @@ function safeEscape($value, $default = '')
                 foreach ($reportWorkOrders as $row) :
                     $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
                     $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
-                    $diferencia = ($totalPaid < $invoiceVal && $invoiceVal > 0) ? ($invoiceVal - $totalPaid) : null;
+                    $diferencia = $totalPaid - $invoiceVal;
                     $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
                     $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
                     $orderLink = !empty($row->id) ? Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) $row->id) : '';
@@ -560,7 +560,7 @@ function safeEscape($value, $default = '')
                             }
                             ?>
                         </td>
-                        <td class="col-diferencia"><?php echo $diferencia !== null ? number_format($diferencia, 2, '.', '') : '—'; ?></td>
+                        <td class="col-diferencia"><?php echo number_format($diferencia, 2, '.', ''); ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
