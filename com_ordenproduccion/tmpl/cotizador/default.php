@@ -1,6 +1,6 @@
 <?php
 /**
- * Pre-Cotización list (current user). Same URL as cotizador; "Nueva cotización (pliego)" is in modal on document view.
+ * Pre-Cotización list (current user). "Nueva Pre-Cotización" opens modal to choose template or create blank.
  *
  * @package     com_ordenproduccion
  * @copyright   (C) 2025 Grimpsa. All rights reserved.
@@ -18,7 +18,17 @@ use Joomla\CMS\Session\Session;
 
 $items      = $this->items ?? [];
 $pagination = $this->pagination ?? null;
-$createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.create&' . Session::getFormToken() . '=1');
+$templates  = $this->templates ?? [];
+$createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.create&' . Session::getFormToken() . '=1', false);
+$addFromTemplateUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addFromTemplate', false);
+$labelNewBlank = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW_BLANK');
+if (strpos($labelNewBlank, 'COM_ORDENPRODUCCION_') === 0) {
+    $labelNewBlank = 'Crear en blanco';
+}
+$labelChooseTemplate = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CHOOSE_TEMPLATE');
+if (strpos($labelChooseTemplate, 'COM_ORDENPRODUCCION_') === 0) {
+    $labelChooseTemplate = 'Crear desde plantilla';
+}
 ?>
 
 <div class="com-ordenproduccion-precotizacion-list container py-4">
@@ -27,9 +37,43 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
     <p class="lead"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_DESC'); ?></p>
 
     <div class="mb-3">
-        <a href="<?php echo $createUrl; ?>" class="btn btn-primary">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPrecotizacionModal">
             <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW'); ?>
-        </a>
+        </button>
+    </div>
+
+    <!-- Modal: Nueva Pre-Cotización - choose template or blank -->
+    <div class="modal fade" id="newPrecotizacionModal" tabindex="-1" aria-labelledby="newPrecotizacionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newPrecotizacionModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW'); ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted"><?php echo htmlspecialchars($labelChooseTemplate); ?></p>
+                    <?php if (!empty($templates)) : ?>
+                    <ul class="list-group list-group-flush mb-3">
+                        <?php foreach ($templates as $tpl) : ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><?php echo htmlspecialchars($tpl->number . (\strlen((string) ($tpl->descripcion ?? '')) ? ' — ' . $tpl->descripcion : '')); ?></span>
+                            <form action="<?php echo htmlspecialchars($addFromTemplateUrl); ?>" method="post" class="d-inline">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="template_id" value="<?php echo (int) $tpl->id; ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-primary"><?php echo Text::_('COM_ORDENPRODUCCION_USE_TEMPLATE'); ?></button>
+                            </form>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php endif; ?>
+                    <form action="<?php echo htmlspecialchars($addFromTemplateUrl); ?>" method="post">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="template_id" value="0">
+                        <button type="submit" class="btn btn-secondary"><?php echo htmlspecialchars($labelNewBlank); ?></button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <?php if (empty($items)) : ?>

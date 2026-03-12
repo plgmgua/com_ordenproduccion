@@ -266,24 +266,21 @@ class HtmlView extends BaseHtmlView
                 $this->contactPersonPhone = $input->getString('contact_person_phone', '');
             }
 
-            // Pre-Cotizaciones list for line selector: current user, not associated to any quotation, with number, total and description
+            // Pre-Cotizaciones list for line selector: current user + oferta; include if not associated OR oferta=1
             $component = $app->bootComponent('com_ordenproduccion');
             $precotModel = $component->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             if ($precotModel) {
-                $precotModel->setState('list.limit', 500);
-                $items = $precotModel->getItems();
+                $items = $precotModel->getItemsForQuotationLineSelector();
                 $list = [];
                 foreach ($items ?: [] as $item) {
-                    if ($precotModel->isAssociatedWithQuotation((int) $item->id)) {
+                    if ($precotModel->isAssociatedWithQuotation((int) $item->id) && empty($item->oferta)) {
                         continue;
                     }
-                    $total = $precotModel->getTotalForPreCotizacion((int) $item->id);
-                    $desc = isset($item->descripcion) ? trim((string) $item->descripcion) : '';
                     $list[] = (object) [
                         'id'          => (int) $item->id,
                         'number'      => $item->number ?? ('PRE-' . $item->id),
-                        'total'       => $total,
-                        'descripcion' => $desc,
+                        'total'       => $item->total,
+                        'descripcion' => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
                     ];
                 }
                 $this->preCotizacionesList = $list;

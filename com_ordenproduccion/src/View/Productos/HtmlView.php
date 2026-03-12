@@ -233,6 +233,22 @@ class HtmlView extends BaseHtmlView
     protected $envio = null;
 
     /**
+     * Selected user IDs for Ofertas (can mark pre-cotización as template).
+     *
+     * @var    int[]
+     * @since  3.95.0
+     */
+    protected $ofertasUserIds = [];
+
+    /**
+     * Users list for Ofertas multi-select (id, name).
+     *
+     * @var    \stdClass[]
+     * @since  3.95.0
+     */
+    protected $ofertasUsersList = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -251,7 +267,7 @@ class HtmlView extends BaseHtmlView
 
         $input = $app->input;
         $this->section = $input->get('section', 'pliegos', 'cmd');
-        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios', 'ajustes'], true)) {
+        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios', 'ofertas', 'ajustes'], true)) {
             $this->section = 'pliegos';
         }
         $defaultTab = ($this->section === 'ajustes') ? 'cotizaciones' : 'sizes';
@@ -277,6 +293,20 @@ class HtmlView extends BaseHtmlView
             $this->isr = (float) $params->get('isr', 0);
             $this->comisionVenta = (float) $params->get('comision_venta', 0);
             $this->comisionMargenAdicional = (float) $params->get('comision_margen_adicional', 0);
+            $this->_prepareDocument();
+            parent::display($tpl);
+            return;
+        }
+
+        if ($this->section === 'ofertas') {
+            $this->setLayout('ofertas');
+            $params = ComponentHelper::getParams('com_ordenproduccion');
+            $this->ofertasUserIds = (array) $params->get('ofertas_user_ids', []);
+            if (!empty($this->ofertasUserIds) && !is_array($this->ofertasUserIds)) {
+                $this->ofertasUserIds = array_map('intval', explode(',', (string) $this->ofertasUserIds));
+            }
+            $this->ofertasUserIds = array_values(array_filter(array_map('intval', $this->ofertasUserIds)));
+            $this->ofertasUsersList = $this->getUsersListForOfertas();
             $this->_prepareDocument();
             parent::display($tpl);
             return;
@@ -332,6 +362,25 @@ class HtmlView extends BaseHtmlView
 
         $this->_prepareDocument();
         parent::display($tpl);
+    }
+
+    /**
+     * Get users list for Ofertas tab (id, name). Excludes blocked users.
+     *
+     * @return  \stdClass[]
+     * @since   3.95.0
+     */
+    protected function getUsersListForOfertas()
+    {
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select([$db->quoteName('id'), $db->quoteName('name'), $db->quoteName('username')])
+            ->from($db->quoteName('#__users'))
+            ->where($db->quoteName('block') . ' = 0')
+            ->order($db->quoteName('name') . ' ASC');
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        return $rows;
     }
 
     /**

@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -55,6 +56,44 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CREATED'));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+        return true;
+    }
+
+    /**
+     * Create a new Pre-Cotización from a template (or blank if no template_id).
+     * Task: precotizacion.addFromTemplate. POST template_id (optional).
+     *
+     * @return  bool
+     * @since   3.95.0
+     */
+    public function addFromTemplate()
+    {
+        $app = Factory::getApplication();
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+            return false;
+        }
+        $templateId = (int) $app->input->post->get('template_id', 0);
+        $model = $this->getModel('Precotizacion', 'Site');
+        if ($templateId > 0) {
+            $id = $model->createFromTemplate($templateId);
+        } else {
+            $id = $model->create();
+        }
+        if ($id === false) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_CREATE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CREATED'));
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
         return true;
@@ -598,6 +637,73 @@ class PrecotizacionController extends BaseController
         $model->refreshPreCotizacionTotalsSnapshot($id);
 
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_SAVED'));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+        return true;
+    }
+
+    /**
+     * Save the Oferta flag (1 = offer; can be selected in quotation even if already used). Administracion only.
+     *
+     * @return  bool
+     * @since   3.95.0
+     */
+    public function saveOferta()
+    {
+        if (!Session::checkToken('request')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && !$user->authorise('core.admin')) {
+            $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $id = (int) $this->input->get('id', 0);
+        $oferta = (int) $this->input->get('oferta', 0);
+        $oferta = $oferta ? 1 : 0;
+
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $item = $model->getItem($id);
+        if (!$item) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        $db = Factory::getDbo();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['oferta'])) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_OFERTA_NOT_AVAILABLE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+            return false;
+        }
+
+        $obj = (object) [
+            'id' => $id,
+            'oferta' => $oferta,
+            'modified' => Factory::getDate()->toSql(),
+            'modified_by' => $user->id,
+        ];
+        $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
+
+        $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_SAVED'));
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
         return true;
     }

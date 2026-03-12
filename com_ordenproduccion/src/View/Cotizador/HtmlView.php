@@ -135,6 +135,15 @@ class HtmlView extends BaseHtmlView
             } else {
                 $this->setLayout('document');
                 $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE') . ' ' . $this->item->number);
+                // Show "Oferta" (template) checkbox only for users selected in Administración > Ofertas tab
+                $params = ComponentHelper::getParams('com_ordenproduccion');
+                $ofertasUserIds = (array) $params->get('ofertas_user_ids', []);
+                if (!empty($ofertasUserIds) && !is_array($ofertasUserIds)) {
+                    $ofertasUserIds = array_map('intval', array_filter(explode(',', (string) $ofertasUserIds)));
+                } else {
+                    $ofertasUserIds = array_values(array_filter(array_map('intval', $ofertasUserIds)));
+                }
+                $this->showOfertaCheckbox = in_array((int) $user->id, $ofertasUserIds, true);
             }
         } else {
             $precotModel = $mvcFactory->createModel('Precotizacion', 'Site');
@@ -142,6 +151,7 @@ class HtmlView extends BaseHtmlView
             $this->pagination = $precotModel->getPagination();
             $this->state = $precotModel->getState();
             $this->showSalesAgentColumn = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+            $this->templates = $precotModel->getTemplates();
             $ids = [];
             foreach ($this->items as $it) {
                 $ids[] = (int) $it->id;
@@ -149,6 +159,7 @@ class HtmlView extends BaseHtmlView
             $this->associatedQuotationNumbersByPreId = $this->getAssociatedQuotationNumbersByPreCotizacionIds($ids);
             $this->setLayout('default');
             $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_TITLE'));
+            HTMLHelper::_('bootstrap.framework');
         }
 
         parent::display($tpl);

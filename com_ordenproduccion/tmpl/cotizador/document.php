@@ -190,17 +190,37 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
     $descripcionValue = isset($item->descripcion) ? (string) $item->descripcion : '';
     $saveDescripcionUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveDescripcion');
     ?>
+    <?php
+    $labelOferta = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA');
+    if (strpos($labelOferta, 'COM_ORDENPRODUCCION_') === 0) {
+        $labelOferta = 'Oferta';
+    }
+    $ofertaChecked = !empty($item->oferta);
+    $saveOfertaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOferta');
+    ?>
     <div class="precotizacion-descripcion mb-4">
         <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
         <?php if ($precotizacionLocked) : ?>
             <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
         <?php else : ?>
-        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex gap-2 align-items-center mb-0">
-            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-            <?php echo HTMLHelper::_('form.token'); ?>
-            <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
-            <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
-        </form>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex gap-2 align-items-center flex-grow-1 mb-0" style="min-width: 0;">
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical; min-width: 0;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
+                <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
+            </form>
+            <?php if (!empty($this->showOfertaCheckbox)) : ?>
+            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <div class="form-check mb-0">
+                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
+                    <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
+                </div>
+            </form>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
     </div>
 
@@ -218,7 +238,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         </button>
         <?php endif; ?>
         <?php endif; ?>
-        <div class="ms-auto">
+        <div class="ms-auto d-flex flex-wrap align-items-center gap-3">
             <?php if ($precotizacionLocked) : ?>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>

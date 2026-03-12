@@ -466,6 +466,47 @@ class ProductosController extends BaseController
     }
 
     /**
+     * Save Ofertas selected user IDs to component params. Redirects to section=ofertas.
+     *
+     * @return  void
+     * @since   3.95.0
+     */
+    public function saveOfertas()
+    {
+        if (!Session::checkToken('post')) {
+            Factory::getApplication()->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ofertas', false));
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            Factory::getApplication()->enqueueMessage(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ofertas', false));
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $ids = $input->post->get('ofertas_user_ids', [], 'array');
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $params->set('ofertas_user_ids', $ids);
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $table = new TableExtension($db);
+        $table->load(['element' => 'com_ordenproduccion', 'type' => 'component']);
+        $table->params = $params->toString();
+        if (!$table->store()) {
+            Factory::getApplication()->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_SAVE_FAILED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ofertas', false));
+            return;
+        }
+        $msg = Text::_('COM_ORDENPRODUCCION_OFERTAS_SAVED');
+        if (strpos($msg, 'COM_ORDENPRODUCCION_') === 0) {
+            $msg = 'Ofertas guardadas correctamente.';
+        }
+        Factory::getApplication()->enqueueMessage($msg, 'success');
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=ofertas', false));
+    }
+
+    /**
      * Redirect to Productos section=parametros.
      *
      * @param   string  $msg   Message text

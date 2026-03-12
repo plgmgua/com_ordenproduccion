@@ -21,6 +21,7 @@ $baseUrl = 'index.php?option=com_ordenproduccion&view=productos';
 $basePliegos = $baseUrl . '&section=pliegos';
 $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
+$baseOfertas = $baseUrl . '&section=ofertas';
 $baseEnvios = $baseUrl . '&section=envios';
 $baseAjustes = $baseUrl . '&section=ajustes&tab=cotizaciones';
 
@@ -51,6 +52,12 @@ $l = function ($key, $fallback) {
                 <a class="nav-link <?php echo $section === 'parametros' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($baseParametros); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_PARAMETROS', 'Parámetros'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $section === 'ofertas' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($baseOfertas); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_OFERTAS', 'Ofertas'); ?>
                 </a>
             </li>
             <li class="nav-item">

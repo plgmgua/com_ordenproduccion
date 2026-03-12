@@ -113,6 +113,9 @@ class PrecotizacionModel extends ListModel
         if (is_array($tableCols) && array_key_exists('descripcion', array_change_key_case($tableCols, CASE_LOWER))) {
             $cols[] = 'a.descripcion';
         }
+        if (is_array($tableCols) && array_key_exists('oferta', array_change_key_case($tableCols, CASE_LOWER))) {
+            $cols[] = 'a.oferta';
+        }
         if ($isAdministracion) {
             $cols[] = 'u.name AS created_by_name';
         }
@@ -173,6 +176,9 @@ class PrecotizacionModel extends ListModel
         }
         if (isset($tableCols['facturar'])) {
             $cols[] = 'a.facturar';
+        }
+        if (isset($tableCols['oferta'])) {
+            $cols[] = 'a.oferta';
         }
         foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
@@ -241,6 +247,50 @@ class PrecotizacionModel extends ListModel
             ->setLimit(1);
         $db->setQuery($query);
         return (bool) $db->loadResult();
+    }
+
+    /**
+     * Get pre-cotizaciones for the quotation line selector: current user's + all with oferta=1.
+     * Used so "Oferta" pre-cotizaciones can be selected by any user even if already in another quotation.
+     *
+     * @return  \stdClass[]  List of objects with id, number, total, descripcion, oferta
+     * @since   3.95.0
+     */
+    public function getItemsForQuotationLineSelector()
+    {
+        $db   = $this->getDatabase();
+        $user = Factory::getUser();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['oferta'])) {
+            return $this->getItems() ?: [];
+        }
+        $cols = ['a.id', 'a.number', 'a.descripcion', 'a.oferta', 'a.created_by'];
+        if (isset($tableCols['total'])) {
+            $cols[] = 'a.total AS total_snapshot';
+        }
+        $query = $db->getQuery(true)
+            ->select($cols)
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
+            ->where($db->quoteName('a.state') . ' = 1')
+            ->where('(' . $db->quoteName('a.created_by') . ' = ' . (int) $user->id . ' OR ' . $db->quoteName('a.oferta') . ' = 1)')
+            ->order($db->quoteName('a.id') . ' DESC');
+        $db->setQuery($query);
+        $rows = $db->loadObjectList();
+        $list = [];
+        foreach ($rows ?: [] as $row) {
+            $total = isset($row->total_snapshot) && $row->total_snapshot !== null && $row->total_snapshot !== ''
+                ? round((float) $row->total_snapshot, 2)
+                : $this->getTotalForPreCotizacion((int) $row->id);
+            $list[] = (object) [
+                'id'          => (int) $row->id,
+                'number'      => $row->number ?? ('PRE-' . $row->id),
+                'total'       => $total,
+                'descripcion' => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
+                'oferta'      => !empty($row->oferta),
+            ];
+        }
+        return $list;
     }
 
     /**
@@ -589,6 +639,107 @@ class PrecotizacionModel extends ListModel
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * Get pre-cotizaciones marked as template (oferta=1) for "Nueva Pre-Cotización" template selector.
+     *
+     * @return  \stdClass[]  List with id, number, descripcion
+     * @since   3.95.0
+     */
+    public function getTemplates()
+    {
+        $db = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['oferta'])) {
+            return [];
+        }
+        $query = $db->getQuery(true)
+            ->select([$db->quoteName('id'), $db->quoteName('number'), $db->quoteName('descripcion')])
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+            ->where($db->quoteName('oferta') . ' = 1')
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('number') . ' ASC');
+        $db->setQuery($query);
+        $list = $db->loadObjectList() ?: [];
+        return $list;
+    }
+
+    /**
+     * Create a new Pre-Cotización by copying a template (oferta=1). Copies header and all lines.
+     * New pre-cotización has current user as created_by and oferta=0.
+     *
+     * @param   int  $templateId  Template pre-cotización id (must have oferta=1).
+     * @return  int|false  New pre-cotización id on success, false on failure.
+     * @since   3.95.0
+     */
+    public function createFromTemplate($templateId)
+    {
+        $templateId = (int) $templateId;
+        if ($templateId < 1) {
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['oferta'])) {
+            return false;
+        }
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+            ->where($db->quoteName('id') . ' = ' . $templateId)
+            ->where($db->quoteName('oferta') . ' = 1')
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        $template = $db->loadObject();
+        if (!$template) {
+            return false;
+        }
+        $newNumber = $this->getNextNumber();
+        $newRow = (object) [
+            'number'      => $newNumber,
+            'created_by'  => (int) $user->id,
+            'state'       => 1,
+            'descripcion' => isset($template->descripcion) ? (string) $template->descripcion : '',
+            'oferta'      => 0,
+        ];
+        if (isset($tableCols['facturar'])) {
+            $newRow->facturar = isset($template->facturar) ? (int) $template->facturar : 1;
+        }
+        try {
+            $db->insertObject('#__ordenproduccion_pre_cotizacion', $newRow, 'id');
+        } catch (\Exception $e) {
+            return false;
+        }
+        $newId = (int) $newRow->id;
+        $lineCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $lineCols = is_array($lineCols) ? array_keys(array_change_key_case($lineCols, CASE_LOWER)) : [];
+        $copyCols = array_values(array_diff($lineCols, ['id', 'pre_cotizacion_id']));
+        $selectList = implode(', ', array_map(function ($c) use ($db) {
+            return $db->quoteName($c);
+        }, $copyCols));
+        $query = $db->getQuery(true)
+            ->select($selectList)
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $templateId)
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+        $db->setQuery($query);
+        $lines = $db->loadObjectList() ?: [];
+        foreach ($lines as $line) {
+            $newLine = (object) ['pre_cotizacion_id' => $newId];
+            foreach ($copyCols as $col) {
+                $newLine->{$col} = $line->{$col};
+            }
+            $db->insertObject('#__ordenproduccion_pre_cotizacion_line', $newLine, 'id');
+        }
+        $this->refreshPreCotizacionTotalsSnapshot($newId);
+        return $newId;
     }
 
     /**
