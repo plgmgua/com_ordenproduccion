@@ -843,6 +843,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    <?php if (!empty($this->highlightProofId)) : ?>
+    (function () {
+        var el = document.getElementById('proof-<?php echo (int) $this->highlightProofId; ?>');
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            el.classList.add('table-warning');
+            setTimeout(function () { el.classList.remove('table-warning'); }, 2500);
+        }
+    })();
+    <?php endif; ?>
 });
 
 (function() {

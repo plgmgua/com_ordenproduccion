@@ -174,7 +174,7 @@ use Joomla\CMS\Session\Session;
                                             <?php
                                             $paymentIdFormatted = 'PA-' . str_pad((int) ($item->id ?? 0), 6, '0', STR_PAD_LEFT);
                                             if (!empty($item->order_id)) :
-                                                ?><a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>" class="text-primary text-decoration-none"><?php echo htmlspecialchars($paymentIdFormatted); ?></a><?php
+                                                ?><a href="<?php echo $this->getPaymentProofRoute($item->order_id, (int)($item->id ?? 0)); ?>" class="text-primary text-decoration-none"><?php echo htmlspecialchars($paymentIdFormatted); ?></a><?php
                                             else :
                                                 echo htmlspecialchars($paymentIdFormatted);
                                             endif;
@@ -205,7 +205,7 @@ use Joomla\CMS\Session\Session;
                                         <td>
                                             <?php if (!$isDeletedView) : ?>
                                                 <?php if (!empty($item->order_id)) : ?>
-                                                    <a href="<?php echo $this->getPaymentProofRoute($item->order_id); ?>"
+                                                    <a href="<?php echo $this->getPaymentProofRoute($item->order_id, (int)($item->id ?? 0)); ?>"
                                                        class="btn btn-sm btn-outline-primary py-0 px-1" title="Ver comprobante">
                                                         <i class="fas fa-credit-card"></i>
                                                     </a>

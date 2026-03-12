@@ -199,9 +199,13 @@ class HtmlView extends BaseHtmlView
      *
      * @since   1.0.0
      */
-    public function getPaymentProofRoute($orderId)
+    public function getPaymentProofRoute($orderId, $proofId = null)
     {
-        return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $orderId);
+        $url = 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $orderId;
+        if ($proofId > 0) {
+            $url .= '&proof_id=' . (int) $proofId;
+        }
+        return Route::_($url);
     }
 
     /**

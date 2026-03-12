@@ -24,6 +24,8 @@ class HtmlView extends BaseHtmlView
     protected $orderId;
     protected $order;
     protected $existingPayments = [];
+    /** @var int|null When opening from Control de Pagos with proof_id in URL, scroll to this proof row */
+    protected $highlightProofId;
 
     public function display($tpl = null)
     {
@@ -62,8 +64,23 @@ class HtmlView extends BaseHtmlView
         }
 
         // Get existing payments for display (no longer blocks adding more - many-to-many)
-        // Merge duplicate documents (same document_number for this order) into one row with summed amounts
-        $this->existingPayments = $this->mergePaymentsByDocumentNumber($this->getExistingPayments());
+        $requestedProofId = $app->input->getInt('proof_id', 0);
+        $rawPayments = $this->getExistingPayments();
+        if ($requestedProofId > 0 && !empty($rawPayments)) {
+            usort($rawPayments, function ($a, $b) use ($requestedProofId) {
+                $idA = (int) ($a->id ?? 0);
+                $idB = (int) ($b->id ?? 0);
+                if ($idA === $requestedProofId) {
+                    return -1;
+                }
+                if ($idB === $requestedProofId) {
+                    return 1;
+                }
+                return $idA - $idB;
+            });
+        }
+        $this->existingPayments = $this->mergePaymentsByDocumentNumber($rawPayments);
+        $this->highlightProofId = $requestedProofId > 0 ? $requestedProofId : null;
 
         // Get component params
         $this->params = $app->getParams('com_ordenproduccion');
