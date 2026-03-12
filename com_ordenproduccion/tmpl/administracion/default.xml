@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <metadata>
-    <layout title="Panel de Administración">
+    <layout title="Control de Ventas">
         <help
             key="JHELP_MENUS_MENU_ITEM_COMPONENT_ORDENPRODUCCION_ADMINISTRACION"
         />
         <message>
-            <![CDATA[Muestra el panel de administración con estadísticas]]>
+            <![CDATA[Muestra el control de ventas con estadísticas]]>
         </message>
     </layout>
     
