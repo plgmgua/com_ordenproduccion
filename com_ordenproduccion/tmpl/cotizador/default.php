@@ -37,8 +37,8 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
             <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_ITEMS'); ?>
         </div>
     <?php else : ?>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
+        <div class="table-responsive precotizacion-list-table-wrap">
+            <table class="table table-striped table-hover precotizacion-list-table">
                 <thead>
                     <tr>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NUMBER'); ?></th>
@@ -46,6 +46,7 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                         <?php if (!empty($this->showSalesAgentColumn)) : ?>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SALES_AGENT'); ?></th>
                         <?php endif; ?>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION'); ?></th>
                         <th scope="col" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                     </tr>
@@ -67,6 +68,7 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
                             <?php if (!empty($this->showSalesAgentColumn)) : ?>
                             <td><?php echo htmlspecialchars($item->created_by_name ?? '—'); ?></td>
                             <?php endif; ?>
+                            <td class="col-descripcion"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
                             <td>
                                 <?php
                                 if (empty($quotationNumbers)) {
@@ -111,3 +113,9 @@ $createUrl  = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.
         <?php endif; ?>
     <?php endif; ?>
 </div>
+<style>
+.precotizacion-list-table-wrap .precotizacion-list-table { font-size: 0.85rem; }
+.precotizacion-list-table-wrap .precotizacion-list-table th,
+.precotizacion-list-table-wrap .precotizacion-list-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
+.precotizacion-list-table-wrap .precotizacion-list-table .col-descripcion { max-width: 280px; }
+</style>
