@@ -804,10 +804,12 @@ class PaymentproofModel extends ItemModel
             if ($db->loadResult()) {
                 return false;
             }
+            $user = Factory::getUser();
             $ins = (object) [
                 'payment_proof_id' => $proofId,
                 'order_id'         => $orderId,
                 'amount_applied'   => $amountApplied,
+                'created_by'      => (int) $user->id,
             ];
             $db->insertObject('#__ordenproduccion_payment_orders', $ins);
             return true;
