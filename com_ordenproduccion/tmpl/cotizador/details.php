@@ -235,8 +235,9 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <td class="text-end">Q <?php echo number_format($displayTotal, 2); ?></td>
                     </tr>
                     <?php if ($comisionMargenAdicionalAmount > 0) : ?>
+                    <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                     <tr class="comision-margen-adicional-row">
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> Q <?php echo number_format($totalComision, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
