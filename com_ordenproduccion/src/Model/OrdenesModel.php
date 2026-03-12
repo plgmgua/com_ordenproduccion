@@ -361,7 +361,8 @@ class OrdenesModel extends ListModel
             'Nueva' => $t('COM_ORDENPRODUCCION_STATUS_NEW', 'Nueva'),
             'En Proceso' => $t('COM_ORDENPRODUCCION_STATUS_IN_PROCESS', 'En Proceso'),
             'Terminada' => $t('COM_ORDENPRODUCCION_STATUS_COMPLETED', 'Terminada'),
-            'Cerrada' => $t('COM_ORDENPRODUCCION_STATUS_CLOSED', 'Cerrada')
+            'Cerrada' => $t('COM_ORDENPRODUCCION_STATUS_CLOSED', 'Cerrada'),
+            'Anulada' => $t('COM_ORDENPRODUCCION_STATUS_ANULADA', 'Anulada')
         ];
     }
 

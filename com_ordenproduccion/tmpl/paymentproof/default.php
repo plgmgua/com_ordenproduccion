@@ -476,15 +476,27 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         <?php endif; ?>
                         <!-- Viewer: image or PDF below table -->
                         <div id="payment-proof-viewer" class="mt-3 border rounded p-3 bg-light">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                                 <strong class="small">Comprobante adjunto</strong>
-                                <button type="button" class="btn btn-sm btn-outline-secondary close-payment-viewer" aria-label="Cerrar">&times;</button>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span id="payment-proof-viewer-zoom-controls" class="me-2" style="display: none;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary payment-proof-zoom-btn" data-zoom="out" title="Alejar" aria-label="Alejar">&minus;</button>
+                                        <span id="payment-proof-viewer-zoom-label" class="small mx-1" style="min-width: 3.5em; display: inline-block; text-align: center;">100%</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary payment-proof-zoom-btn" data-zoom="in" title="Acercar" aria-label="Acercar">+</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary payment-proof-zoom-btn" data-zoom="reset" title="Restablecer zoom" aria-label="Restablecer">1:1</button>
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary close-payment-viewer" aria-label="Cerrar">&times;</button>
+                                </div>
                             </div>
-                            <div id="payment-proof-viewer-image-wrap" style="display: none;">
-                                <img id="payment-proof-viewer-img" src="" alt="" class="img-fluid" style="max-height: 70vh; object-fit: contain;">
+                            <div id="payment-proof-viewer-image-wrap" style="display: none; overflow: auto; max-height: 70vh;">
+                                <div id="payment-proof-viewer-image-zoom-wrap" style="display: inline-block;">
+                                    <img id="payment-proof-viewer-img" src="" alt="" style="display: block; width: 100%; height: 100%; object-fit: contain; vertical-align: top;">
+                                </div>
                             </div>
-                            <div id="payment-proof-viewer-pdf-wrap" style="display: none;">
-                                <iframe id="payment-proof-viewer-iframe" src="" title="PDF" style="width: 100%; height: 70vh; border: 0;"></iframe>
+                            <div id="payment-proof-viewer-pdf-wrap" style="display: none; overflow: auto; max-height: 70vh;">
+                                <div id="payment-proof-viewer-pdf-zoom-wrap" style="transform-origin: 0 0; display: inline-block;">
+                                    <iframe id="payment-proof-viewer-iframe" src="" title="PDF" style="width: 800px; height: 70vh; border: 0;"></iframe>
+                                </div>
                             </div>
                             <div id="payment-proof-viewer-empty" class="text-muted small">No hay comprobante para mostrar. Haga clic en una miniatura de la tabla para ver el documento.</div>
                         </div>
@@ -494,28 +506,68 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         </div>
         <script>
         (function() {
-            var viewer   = document.getElementById('payment-proof-viewer');
-            var imgWrap  = document.getElementById('payment-proof-viewer-image-wrap');
-            var imgEl    = document.getElementById('payment-proof-viewer-img');
-            var pdfWrap  = document.getElementById('payment-proof-viewer-pdf-wrap');
-            var iframe   = document.getElementById('payment-proof-viewer-iframe');
-            var emptyMsg = document.getElementById('payment-proof-viewer-empty');
-            var closeBtn = document.querySelector('.close-payment-viewer');
+            var viewer    = document.getElementById('payment-proof-viewer');
+            var imgWrap   = document.getElementById('payment-proof-viewer-image-wrap');
+            var imgEl     = document.getElementById('payment-proof-viewer-img');
+            var imgZoomWrap = document.getElementById('payment-proof-viewer-image-zoom-wrap');
+            var pdfWrap   = document.getElementById('payment-proof-viewer-pdf-wrap');
+            var pdfZoomWrap = document.getElementById('payment-proof-viewer-pdf-zoom-wrap');
+            var iframe    = document.getElementById('payment-proof-viewer-iframe');
+            var emptyMsg  = document.getElementById('payment-proof-viewer-empty');
+            var closeBtn  = document.querySelector('.close-payment-viewer');
+            var zoomControls = document.getElementById('payment-proof-viewer-zoom-controls');
+            var zoomLabel   = document.getElementById('payment-proof-viewer-zoom-label');
+            var zoomLevel = 1;
+            var zoomMin = 0.25;
+            var zoomMax = 3;
+            var zoomStep = 0.25;
+            var currentType = '';
+            var imageNaturalW = 0;
+            var imageNaturalH = 0;
+
+            function applyZoom() {
+                if (zoomLabel) zoomLabel.textContent = Math.round(zoomLevel * 100) + '%';
+                if (currentType === 'image' && imgZoomWrap && imageNaturalW && imageNaturalH) {
+                    imgZoomWrap.style.width  = (imageNaturalW * zoomLevel) + 'px';
+                    imgZoomWrap.style.height = (imageNaturalH * zoomLevel) + 'px';
+                }
+                if (currentType === 'pdf' && pdfZoomWrap) {
+                    pdfZoomWrap.style.transform = 'scale(' + zoomLevel + ')';
+                }
+            }
+
+            function showZoomControls(show) {
+                if (zoomControls) zoomControls.style.display = show ? 'inline-flex' : 'none';
+            }
 
             function showInViewer(url, type) {
                 if (!url) return;
-                // Reset iframe before re-assigning to force a reload
                 iframe.src = 'about:blank';
                 imgEl.src  = '';
                 emptyMsg.style.display = 'none';
                 imgWrap.style.display  = 'none';
                 pdfWrap.style.display  = 'none';
+                imageNaturalW = 0;
+                imageNaturalH = 0;
+                zoomLevel = 1;
+                currentType = type;
                 if (type === 'image') {
-                    imgEl.src = url;
                     imgWrap.style.display = 'block';
+                    showZoomControls(true);
+                    imgEl.onload = function() {
+                        imageNaturalW = imgEl.naturalWidth || imgEl.offsetWidth;
+                        imageNaturalH = imgEl.naturalHeight || imgEl.offsetHeight;
+                        applyZoom();
+                    };
+                    imgEl.src = url;
+                    if (imgEl.complete) imgEl.onload();
                 } else if (type === 'pdf') {
                     iframe.src = url;
                     pdfWrap.style.display = 'block';
+                    showZoomControls(true);
+                    applyZoom();
+                } else {
+                    showZoomControls(false);
                 }
                 viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -525,21 +577,29 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                 imgEl.src  = '';
                 imgWrap.style.display  = 'none';
                 pdfWrap.style.display  = 'none';
+                showZoomControls(false);
                 emptyMsg.style.display = 'block';
             }
 
-            // Use event delegation so every thumbnail — present or added later — works
             document.addEventListener('click', function(e) {
                 var btn = e.target.closest('.view-payment-attachment');
                 if (btn) {
                     e.preventDefault();
                     showInViewer(btn.getAttribute('data-url'), btn.getAttribute('data-type'));
                 }
+                var zoomBtn = e.target.closest('.payment-proof-zoom-btn');
+                if (zoomBtn) {
+                    e.preventDefault();
+                    var action = zoomBtn.getAttribute('data-zoom');
+                    if (action === 'in')  zoomLevel = Math.min(zoomMax, zoomLevel + zoomStep);
+                    if (action === 'out') zoomLevel = Math.max(zoomMin, zoomLevel - zoomStep);
+                    if (action === 'reset') zoomLevel = 1;
+                    applyZoom();
+                }
             });
 
             if (closeBtn) closeBtn.addEventListener('click', clearViewer);
 
-            // Auto-open the first attachment on page load
             var first = document.querySelector('.view-payment-attachment');
             if (first) {
                 showInViewer(first.getAttribute('data-url'), first.getAttribute('data-type'));
