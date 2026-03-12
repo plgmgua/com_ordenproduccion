@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -473,24 +474,36 @@ class AjaxController extends BaseController
                         $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
                         if ($valorFinal > $preTotal) {
                             $margenAdicional = round($valorFinal - $preTotal, 2);
+                            $paramPct = (float) ComponentHelper::getParams('com_ordenproduccion')->get('comision_margen_adicional', 0);
+                            $comisionMargenAdicional = round($margenAdicional * $paramPct / 100, 2);
+                            $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+                            $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+                            $hasComisionCol = isset($pcCols['comision_margen_adicional']);
                             try {
-                                $db->setQuery(
-                                    $db->getQuery(true)
-                                        ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                        ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
-                                        ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
-                                )->execute();
+                                $q = $db->getQuery(true)
+                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                    ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
+                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
+                                if ($hasComisionCol) {
+                                    $q->set($db->quoteName('comision_margen_adicional') . ' = ' . (float) $comisionMargenAdicional);
+                                }
+                                $db->setQuery($q)->execute();
                             } catch (\Exception $e) {
-                                // Column may not exist yet; run admin/sql/updates/mysql/3.88.0_pre_cotizacion_margen_adicional.sql
+                                // Column may not exist yet; run migration 3.88.0 / 3.94.0
                             }
                         } else {
+                            $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+                            $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+                            $hasComisionCol = isset($pcCols['comision_margen_adicional']);
                             try {
-                                $db->setQuery(
-                                    $db->getQuery(true)
-                                        ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                        ->set($db->quoteName('margen_adicional') . ' = NULL')
-                                        ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
-                                )->execute();
+                                $q = $db->getQuery(true)
+                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                    ->set($db->quoteName('margen_adicional') . ' = NULL')
+                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
+                                if ($hasComisionCol) {
+                                    $q->set($db->quoteName('comision_margen_adicional') . ' = NULL');
+                                }
+                                $db->setQuery($q)->execute();
                             } catch (\Exception $e) {
                             }
                         }
@@ -659,24 +672,36 @@ class AjaxController extends BaseController
                     $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
                     if ($valorFinal > $preTotal) {
                         $margenAdicional = round($valorFinal - $preTotal, 2);
+                        $paramPct = (float) ComponentHelper::getParams('com_ordenproduccion')->get('comision_margen_adicional', 0);
+                        $comisionMargenAdicional = round($margenAdicional * $paramPct / 100, 2);
+                        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+                        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+                        $hasComisionCol = isset($pcCols['comision_margen_adicional']);
                         try {
-                            $db->setQuery(
-                                $db->getQuery(true)
-                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                    ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
-                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
-                            )->execute();
+                            $q = $db->getQuery(true)
+                                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
+                                ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
+                            if ($hasComisionCol) {
+                                $q->set($db->quoteName('comision_margen_adicional') . ' = ' . (float) $comisionMargenAdicional);
+                            }
+                            $db->setQuery($q)->execute();
                         } catch (\Exception $e) {
-                            // Column may not exist; run admin/sql/updates/mysql/3.88.0_pre_cotizacion_margen_adicional.sql
+                            // Column may not exist; run migration 3.88.0 / 3.94.0
                         }
                     } else {
+                        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+                        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+                        $hasComisionCol = isset($pcCols['comision_margen_adicional']);
                         try {
-                            $db->setQuery(
-                                $db->getQuery(true)
-                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                    ->set($db->quoteName('margen_adicional') . ' = NULL')
-                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id'])
-                            )->execute();
+                            $q = $db->getQuery(true)
+                                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                ->set($db->quoteName('margen_adicional') . ' = NULL')
+                                ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
+                            if ($hasComisionCol) {
+                                $q->set($db->quoteName('comision_margen_adicional') . ' = NULL');
+                            }
+                            $db->setQuery($q)->execute();
                         } catch (\Exception $e) {
                         }
                     }

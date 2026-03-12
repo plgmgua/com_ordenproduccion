@@ -126,6 +126,7 @@ class HtmlView extends BaseHtmlView
             $this->paramIva      = (float) $params->get('iva', 0);
             $this->paramIsr      = (float) $params->get('isr', 0);
             $this->paramComision = (float) $params->get('comision_venta', 0);
+            $this->paramComisionMargenAdicional = (float) $params->get('comision_margen_adicional', 0);
             $this->clickAncho    = (float) $params->get('click_ancho', 0);
             $this->clickAlto     = (float) $params->get('click_alto', 0);
             $this->clickPrecio   = (float) $params->get('click_precio', 0);

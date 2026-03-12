@@ -88,7 +88,9 @@ $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;
 $paramIva = isset($this->paramIva) ? (float) $this->paramIva : 0;
 $paramIsr = isset($this->paramIsr) ? (float) $this->paramIsr : 0;
 $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
+$paramComisionMargenAdicional = isset($this->paramComisionMargenAdicional) ? (float) $this->paramComisionMargenAdicional : 0;
 $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== '') ? (float) $item->margen_adicional : 0;
+$comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '') ? (float) $item->comision_margen_adicional : 0;
 $displayTotal = $linesTotalFinal + $margenAdicional;
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
 $labelCalculoFolios = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS');
@@ -430,9 +432,19 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <td class="text-end">Q <?php echo number_format($displayTotal, 2); ?></td>
                         <td></td>
                     </tr>
+                    <?php if ($comisionMargenAdicionalAmount > 0) : ?>
+                    <tr class="comision-margen-adicional-row">
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></td>
+                        <td></td>
+                    </tr>
+                    <?php endif; ?>
                 </tfoot>
             </table>
         </div>
+        <style>
+        .comision-margen-adicional-row td { background-color: #e7f1ff !important; color: #004085; font-weight: 500; }
+        </style>
     <?php endif; ?>
 </div>
 

@@ -174,7 +174,7 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['facturar'])) {
             $cols[] = 'a.facturar';
         }
-        foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional'] as $snapCol) {
+        foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
                 $cols[] = 'a.' . $snapCol;
             }
