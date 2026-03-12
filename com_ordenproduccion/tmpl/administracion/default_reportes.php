@@ -342,7 +342,8 @@ function safeEscape($value, $default = '')
     color: #007cba;
 }
 
-#com-op-reportes .reportes-table-wrap .reportes-table .col-invoice-value {
+#com-op-reportes .reportes-table-wrap .reportes-table .col-invoice-value,
+#com-op-reportes .reportes-table-wrap .reportes-table .col-diferencia {
     text-align: right;
     font-weight: 500;
     white-space: nowrap;
@@ -522,6 +523,7 @@ function safeEscape($value, $default = '')
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'); ?></th>
                     <th class="col-invoice-value"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_PAYMENT_RECORD'); ?></th>
+                    <th class="col-diferencia"><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_COL_DIFERENCIA'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -529,6 +531,7 @@ function safeEscape($value, $default = '')
                 foreach ($reportWorkOrders as $row) :
                     $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
                     $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
+                    $diferencia = ($totalPaid < $invoiceVal && $invoiceVal > 0) ? ($invoiceVal - $totalPaid) : null;
                     $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
                     $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
                     $orderLink = !empty($row->id) ? Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) $row->id) : '';
@@ -539,7 +542,7 @@ function safeEscape($value, $default = '')
                         <td><?php echo $requestDate !== '' ? safeEscape($requestDate) : '—'; ?></td>
                         <td><?php echo $deliveryDate !== '' ? safeEscape($deliveryDate) : '—'; ?></td>
                         <td><?php echo safeEscape($row->work_description ?? ''); ?></td>
-                        <td class="col-invoice-value"><?php echo number_format($invoiceVal, 2); ?></td>
+                        <td class="col-invoice-value"><?php echo number_format($invoiceVal, 2, '.', ''); ?></td>
                         <td>
                             <?php
                             if (!empty($row->payment_record_numbers) && !empty($row->id)) {
@@ -557,6 +560,7 @@ function safeEscape($value, $default = '')
                             }
                             ?>
                         </td>
+                        <td class="col-diferencia"><?php echo $diferencia !== null ? number_format($diferencia, 2, '.', '') : '—'; ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

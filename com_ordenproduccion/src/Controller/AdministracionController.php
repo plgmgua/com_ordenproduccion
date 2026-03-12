@@ -79,6 +79,7 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_DESCRIPTION'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_INVOICE_VALUE'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_PAYMENT_RECORD'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_DIFERENCIA'),
         ];
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
@@ -121,6 +122,8 @@ class AdministracionController extends BaseController
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
+            $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
+            $diferencia = ($totalPaid < $invoiceVal && $invoiceVal > 0) ? ($invoiceVal - $totalPaid) : '';
             $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
             fputcsv($out, [
                 $row->orden_de_trabajo ?? '',
@@ -128,8 +131,9 @@ class AdministracionController extends BaseController
                 $requestDate,
                 $deliveryDate,
                 $row->work_description ?? '',
-                number_format($invoiceVal, 2),
+                number_format($invoiceVal, 2, '.', ''),
                 $paymentCol,
+                $diferencia !== '' ? number_format($diferencia, 2, '.', '') : '',
             ]);
         }
         fclose($out);
@@ -154,7 +158,7 @@ class AdministracionController extends BaseController
         $sheet->setTitle('Reporte órdenes');
 
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:G1');
+        $headerStyle = $sheet->getStyle('A1:H1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
@@ -164,6 +168,8 @@ class AdministracionController extends BaseController
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
+            $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
+            $diferencia = ($totalPaid < $invoiceVal && $invoiceVal > 0) ? ($invoiceVal - $totalPaid) : '';
             $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
@@ -171,13 +177,14 @@ class AdministracionController extends BaseController
                 $requestDate,
                 $deliveryDate,
                 $row->work_description ?? '',
-                number_format($invoiceVal, 2),
+                number_format($invoiceVal, 2, '.', ''),
                 $paymentCol,
+                $diferencia !== '' ? number_format($diferencia, 2, '.', '') : '',
             ], null, 'A' . $rowIndex);
             $rowIndex++;
         }
 
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', 'H') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
