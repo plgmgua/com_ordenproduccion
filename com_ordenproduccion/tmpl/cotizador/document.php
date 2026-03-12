@@ -393,8 +393,9 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <td></td>
                     </tr>
                     <?php if ($paramMargen != 0) : ?>
-                    <tr>
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
+                    <?php $margenTotal = $margenAmount + $margenAdicional; ?>
+                    <tr class="margen-total-row">
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <?php echo number_format($margenTotal, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                         <td></td>
                     </tr>
@@ -445,6 +446,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         </div>
         <style>
         .comision-margen-adicional-row td { background-color: #e7f1ff !important; color: #004085; font-weight: 500; }
+        .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
         </style>
     <?php endif; ?>
 </div>
