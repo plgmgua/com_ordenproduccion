@@ -670,7 +670,9 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
-     * Get orders that are not yet linked to this payment proof (for "associate another order").
+     * Get orders that can be associated to this payment proof (for "associate another order" dropdown).
+     * Only returns orders from the same client as the orders already linked to this proof,
+     * and that do not have any payment proof associated yet.
      *
      * @param   integer  $paymentProofId  The payment proof ID
      * @param   integer  $limit            Max number of orders to return (default 150)
@@ -681,20 +683,47 @@ class PaymentproofModel extends ItemModel
      */
     public function getOrdersNotLinkedToProof($paymentProofId, $limit = 150)
     {
-        if ((int) $paymentProofId <= 0) {
+        $paymentProofId = (int) $paymentProofId;
+        if ($paymentProofId <= 0) {
             return [];
         }
         try {
             $db = $this->getDatabase();
-            $sub = $db->getQuery(true)
+            $linkedOrders = $this->getOrdersByPaymentProofId($paymentProofId);
+            $clientNames = [];
+            foreach ($linkedOrders as $lo) {
+                $name = trim((string) ($lo->client_name ?? $lo->nombre_del_cliente ?? ''));
+                if ($name !== '' && !in_array($name, $clientNames, true)) {
+                    $clientNames[] = $name;
+                }
+            }
+            if (empty($clientNames)) {
+                return [];
+            }
+            $orderCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $orderCols = is_array($orderCols) ? array_change_key_case($orderCols, CASE_LOWER) : [];
+            $hasClientName = isset($orderCols['client_name']);
+            $clientCol = $hasClientName ? 'o.client_name' : 'o.nombre_del_cliente';
+            $quotedNames = array_map(function ($n) use ($db) {
+                return $db->quote($n);
+            }, $clientNames);
+            $clientCondition = $db->quoteName($clientCol) . ' IN (' . implode(',', $quotedNames) . ')';
+            $subThisProof = $db->getQuery(true)
                 ->select('po.order_id')
                 ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
-                ->where('po.' . $db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId);
+                ->where('po.' . $db->quoteName('payment_proof_id') . ' = ' . $paymentProofId);
+            $subAnyProof = $db->getQuery(true)
+                ->select('order_id')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders'));
+            $selectCols = ['o.id', 'o.order_number', 'o.invoice_value'];
+            $selectCols[] = $hasClientName ? 'o.client_name' : 'o.nombre_del_cliente AS client_name';
             $query = $db->getQuery(true)
-                ->select(['o.id', 'o.order_number', 'o.client_name', 'o.invoice_value'])
+                ->select($selectCols)
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where('o.' . $db->quoteName('state') . ' = 1')
-                ->where('o.id NOT IN (' . (string) $sub . ')')
+                ->where('o.id NOT IN (' . (string) $subThisProof . ')')
+                ->where('o.id NOT IN (' . (string) $subAnyProof . ')')
+                ->where($clientCondition)
                 ->order('o.id DESC')
                 ->setLimit((int) $limit);
             $db->setQuery($query);
