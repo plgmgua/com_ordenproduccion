@@ -217,6 +217,8 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                 <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
             </form>
             <?php if (!empty($this->showOfertaCheckbox)) : ?>
+            <!-- Hidden trigger for Bootstrap data-api: opening modal when checkbox is checked -->
+            <button type="button" class="d-none" id="trigger-modal-oferta-expires" data-bs-toggle="modal" data-bs-target="#modal-oferta-expires" aria-hidden="true"></button>
             <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
                 <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
                 <?php echo HTMLHelper::_('form.token'); ?>
@@ -256,32 +258,31 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
             <script>
             (function() {
                 var chk = document.getElementById('precotizacion-oferta');
+                var triggerBtn = document.getElementById('trigger-modal-oferta-expires');
                 var modalEl = document.getElementById('modal-oferta-expires');
                 if (!chk || !modalEl) return;
-                var modal = typeof bootstrap !== 'undefined' ? new bootstrap.Modal(modalEl) : null;
                 chk.addEventListener('change', function() {
                     if (this.checked) {
-                        if (modal) modal.show();
+                        if (triggerBtn) triggerBtn.click();
                     } else {
                         document.getElementById('form-oferta').submit();
                     }
                 });
                 function closeAndUncheck() {
                     chk.checked = false;
-                    if (modal) modal.hide();
-                    document.getElementById('form-oferta').submit();
+                    var fm = document.getElementById('form-oferta');
+                    if (fm) fm.submit();
                 }
-                if (modalEl) {
-                    modalEl.addEventListener('hide.bs.modal', function() {
-                        if (!chk.checked) return;
-                        chk.checked = false;
-                        document.getElementById('form-oferta').submit();
-                    });
-                    var cancelBtn = document.getElementById('modal-oferta-expires-btn-cancel');
-                    var closeBtn = document.getElementById('modal-oferta-expires-btn-close');
-                    if (cancelBtn) cancelBtn.addEventListener('click', closeAndUncheck);
-                    if (closeBtn) closeBtn.addEventListener('click', closeAndUncheck);
-                }
+                modalEl.addEventListener('hide.bs.modal', function() {
+                    if (!chk.checked) return;
+                    chk.checked = false;
+                    var fm = document.getElementById('form-oferta');
+                    if (fm) fm.submit();
+                });
+                var cancelBtn = document.getElementById('modal-oferta-expires-btn-cancel');
+                var closeBtn = document.getElementById('modal-oferta-expires-btn-close');
+                if (cancelBtn) cancelBtn.addEventListener('click', closeAndUncheck);
+                if (closeBtn) closeBtn.addEventListener('click', closeAndUncheck);
             })();
             </script>
             <?php endif; ?>

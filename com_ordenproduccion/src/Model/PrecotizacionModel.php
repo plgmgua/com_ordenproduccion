@@ -71,7 +71,14 @@ class PrecotizacionModel extends ListModel
         $params = $app->getParams();
         $this->setState('params', $params);
 
-        $limit = $app->getUserStateFromRequest('global.list.limit', 'limit', $app->get('list_limit'), 'uint');
+        $defaultLimit = (int) $app->get('list_limit');
+        if ($defaultLimit < 5) {
+            $defaultLimit = 20;
+        }
+        $limit = $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', $defaultLimit, 'uint');
+        if ($limit < 1) {
+            $limit = 20;
+        }
         $this->setState('list.limit', $limit);
 
         $limitstart = $app->input->get('limitstart', 0, 'uint');
