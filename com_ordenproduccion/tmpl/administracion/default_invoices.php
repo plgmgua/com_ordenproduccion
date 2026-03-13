@@ -186,7 +186,7 @@ if ($pagination === null && isset($this->invoicesPagination)) {
             <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.importInvoicesXml'); ?>" 
                   method="post" enctype="multipart/form-data" class="d-inline">
                 <?php echo HTMLHelper::_('form.token'); ?>
-                <input type="file" name="invoice_xml" accept=".xml" class="form-control form-control-sm d-inline-block" style="max-width: 220px;" />
+                <input type="file" name="invoice_xml[]" accept=".xml" multiple="multiple" class="form-control form-control-sm d-inline-block" style="max-width: 320px;" title="<?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML_MULTIPLE_HINT'); ?>" />
                 <button type="submit" class="btn btn-outline-primary btn-sm">
                     <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
                 </button>

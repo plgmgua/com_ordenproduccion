@@ -546,21 +546,11 @@ class AdministracionController extends BaseController
             return;
         }
 
-        $files = $app->input->files->get('invoice_xml', [], 'array');
-        if (empty($files) || (isset($files['name']) && $files['name'] === '')) {
-            $single = $app->input->files->get('invoice_xml', null, 'raw');
-            if ($single && !empty($single['tmp_name'])) {
-                $files = [$single];
-            }
-        }
+        $files = self::normalizeUploadedFiles($app->input->files->get('invoice_xml', [], 'array'));
         if (empty($files)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_NO_FILE'), 'warning');
             $app->redirect($redirectUrl);
             return;
-        }
-
-        if (!isset($files[0])) {
-            $files = [$files];
         }
 
         $imported = 0;
@@ -620,6 +610,53 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Normalize uploaded file(s) to a list of file arrays (handles single file, multiple files, and PHP multipart structure).
+     *
+     * @param   array  $input  Raw from input->files->get('invoice_xml', [], 'array')
+     * @return  array  List of ['name' => ..., 'tmp_name' => ..., 'error' => ..., 'size' => ..., 'type' => ...]
+     * @since   3.97.0
+     */
+    private static function normalizeUploadedFiles($input)
+    {
+        if (empty($input) || !is_array($input)) {
+            return [];
+        }
+        // PHP multipart: name="invoice_xml[]" gives ['name' => [n1,n2], 'tmp_name' => [t1,t2], ...]
+        if (isset($input['name']) && is_array($input['name'])) {
+            $list = [];
+            foreach ($input['name'] as $i => $name) {
+                if (($input['tmp_name'][$i] ?? '') !== '' && (int) ($input['error'][$i] ?? 4) === UPLOAD_ERR_OK) {
+                    $list[] = [
+                        'name'     => $name,
+                        'tmp_name' => $input['tmp_name'][$i] ?? '',
+                        'error'    => (int) ($input['error'][$i] ?? 4),
+                        'size'     => (int) ($input['size'][$i] ?? 0),
+                        'type'     => $input['type'][$i] ?? '',
+                    ];
+                }
+            }
+            return $list;
+        }
+        // Single file: ['name' => 'x.xml', 'tmp_name' => '...', ...]
+        if (isset($input['tmp_name']) && is_string($input['tmp_name']) && ($input['tmp_name'] !== '') && ((int) ($input['error'] ?? 4) === UPLOAD_ERR_OK)) {
+            return [
+                [
+                    'name'     => $input['name'] ?? '',
+                    'tmp_name' => $input['tmp_name'],
+                    'error'    => (int) ($input['error'] ?? 0),
+                    'size'     => (int) ($input['size'] ?? 0),
+                    'type'     => $input['type'] ?? '',
+                ],
+            ];
+        }
+        // Already list of file arrays
+        if (isset($input[0]) && is_array($input[0]) && isset($input[0]['tmp_name'])) {
+            return array_values($input);
+        }
+        return [];
     }
 
     /**
