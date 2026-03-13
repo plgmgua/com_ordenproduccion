@@ -259,11 +259,11 @@ if ($pagination === null && isset($this->invoicesPagination)) {
                 ?>
                     <tr onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
                         <td>
-                            <span class="invoice-serie-numero">Serie: <?php echo htmlspecialchars($serie ?: '—'); ?> | Número: <?php echo htmlspecialchars($numero ?: '—'); ?></span>
+                            <span class="invoice-serie-numero"><?php echo htmlspecialchars($serie ?: '—'); ?> | <?php echo htmlspecialchars($numero ?: '—'); ?></span>
                         </td>
-                        <td>Fecha de Emisión: <?php echo $fechaEmision; ?></td>
-                        <td>NIT: <?php echo htmlspecialchars($nit); ?></td>
-                        <td>Cliente: <?php echo htmlspecialchars($invoice->client_name ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?php echo $fechaEmision; ?></td>
+                        <td><?php echo htmlspecialchars($nit); ?></td>
+                        <td><?php echo htmlspecialchars($invoice->client_name ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="invoice-amount"><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></td>
                     </tr>
                 <?php endforeach; ?>
