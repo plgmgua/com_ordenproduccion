@@ -96,6 +96,18 @@ if ($pagination === null && isset($this->invoicesPagination)) {
     background: #5568d3;
 }
 
+.import-xml-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.import-xml-bar .form-control {
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
 .invoices-table {
     width: 100%;
     border-collapse: collapse;
@@ -180,22 +192,6 @@ if ($pagination === null && isset($this->invoicesPagination)) {
             <i class="fas fa-file-invoice-dollar"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_TITLE'); ?>
         </h2>
-        
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.importInvoicesXml'); ?>" 
-                  method="post" enctype="multipart/form-data" class="d-inline">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <input type="file" name="invoice_xml[]" accept=".xml" multiple="multiple" class="form-control form-control-sm d-inline-block" style="max-width: 320px;" title="<?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML_MULTIPLE_HINT'); ?>" />
-                <button type="submit" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
-                </button>
-            </form>
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&layout=create'); ?>" 
-               class="btn-create-invoice">
-                <i class="fas fa-plus"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
-            </a>
-        </div>
     </div>
 
     <!-- Filters: NIT, Cliente, Fecha, Total -->
@@ -224,6 +220,18 @@ if ($pagination === null && isset($this->invoicesPagination)) {
             <?php echo Text::_('COM_ORDENPRODUCCION_FILTER'); ?>
         </button>
     </form>
+
+    <!-- Import XML: file selection and button side by side -->
+    <div class="import-xml-bar">
+        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.importInvoicesXml'); ?>" 
+              method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="file" name="invoice_xml[]" accept=".xml" multiple="multiple" class="form-control form-control-sm" style="max-width: 320px;" title="<?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML_MULTIPLE_HINT'); ?>" />
+            <button type="submit" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
+            </button>
+        </form>
+    </div>
 
     <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Cliente, Total Factura (Q) -->
     <?php if (!empty($invoices)): ?>
