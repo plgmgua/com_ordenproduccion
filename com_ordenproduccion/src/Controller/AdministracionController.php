@@ -554,56 +554,86 @@ class AdministracionController extends BaseController
         }
 
         $imported = 0;
+        $skipped = 0;
         $errors = [];
+        $skippedFiles = [];
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
         foreach ($files as $file) {
             if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
                 continue;
             }
-            $xmlContent = @file_get_contents($file['tmp_name']);
-            if ($xmlContent === false || trim($xmlContent) === '') {
-                $errors[] = ($file['name'] ?? 'file') . ': ' . Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR');
-                continue;
-            }
-            $xmlContent = self::ensureUtf8($xmlContent);
-            // Force declaration to UTF-8 so libxml interprets bytes correctly (avoids ñ/á → ?)
-            $xmlContent = self::normalizeXmlEncodingDeclaration($xmlContent);
+            $fileName = $file['name'] ?? 'file';
 
-            $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
-            if (!$result['success']) {
-                $errors[] = ($file['name'] ?? 'file') . ': ' . ($result['error'] ?? 'Parse error');
-                continue;
-            }
-
-            $data = $result['data'];
-            $data['line_items'] = is_array($data['line_items']) ? json_encode($data['line_items'], JSON_UNESCAPED_UNICODE) : ($data['line_items'] ?? '[]');
-            $data['created'] = $data['invoice_date'] ?? date('Y-m-d H:i:s');
-            $data['created_by'] = $user->id;
-            // Encode fel_extra as UTF-8 JSON so ñ, á etc. are stored correctly
-            if (isset($data['fel_extra']) && is_array($data['fel_extra'])) {
-                $data['fel_extra'] = json_encode($data['fel_extra'], JSON_UNESCAPED_UNICODE);
-            }
-
-            $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
-            $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
-            $row = [];
-            foreach ($data as $k => $v) {
-                if (array_key_exists(strtolower($k), $cols)) {
-                    $row[$k] = $v;
-                }
-            }
-            $obj = (object) $row;
             try {
+                $xmlContent = @file_get_contents($file['tmp_name']);
+                if ($xmlContent === false || trim($xmlContent) === '') {
+                    $errors[] = $fileName . ': ' . Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR');
+                    continue;
+                }
+                $xmlContent = self::ensureUtf8($xmlContent);
+                $xmlContent = self::normalizeXmlEncodingDeclaration($xmlContent);
+
+                $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
+                if (!$result['success']) {
+                    $errors[] = $fileName . ': ' . ($result['error'] ?? 'Parse error');
+                    continue;
+                }
+
+                $data = $result['data'];
+                $data['line_items'] = is_array($data['line_items']) ? json_encode($data['line_items'], JSON_UNESCAPED_UNICODE) : ($data['line_items'] ?? '[]');
+                $data['created'] = $data['invoice_date'] ?? date('Y-m-d H:i:s');
+                $data['created_by'] = $user->id;
+                if (isset($data['fel_extra']) && is_array($data['fel_extra'])) {
+                    $data['fel_extra'] = json_encode($data['fel_extra'], JSON_UNESCAPED_UNICODE);
+                }
+
+                $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+                $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
+                $row = [];
+                foreach ($data as $k => $v) {
+                    if (array_key_exists(strtolower($k), $cols)) {
+                        $row[$k] = $v;
+                    }
+                }
+                $obj = (object) $row;
+
+                // Skip if invoice already exists (by FEL UUID or invoice_number)
+                $exists = false;
+                if (!empty($obj->fel_autorizacion_uuid)) {
+                    $query = $db->getQuery(true)
+                        ->select('1')
+                        ->from($db->quoteName('#__ordenproduccion_invoices'))
+                        ->where($db->quoteName('fel_autorizacion_uuid') . ' = ' . $db->quote($obj->fel_autorizacion_uuid));
+                    $db->setQuery($query);
+                    $exists = (bool) $db->loadResult();
+                }
+                if (!$exists && !empty($obj->invoice_number)) {
+                    $query = $db->getQuery(true)
+                        ->select('1')
+                        ->from($db->quoteName('#__ordenproduccion_invoices'))
+                        ->where($db->quoteName('invoice_number') . ' = ' . $db->quote($obj->invoice_number));
+                    $db->setQuery($query);
+                    $exists = (bool) $db->loadResult();
+                }
+                if ($exists) {
+                    $skipped++;
+                    $skippedFiles[] = $fileName;
+                    continue;
+                }
+
                 $db->insertObject('#__ordenproduccion_invoices', $obj, 'id');
                 $imported++;
-            } catch (\Exception $e) {
-                $errors[] = ($file['name'] ?? 'file') . ': ' . $e->getMessage();
+            } catch (\Throwable $e) {
+                $errors[] = $fileName . ': ' . $e->getMessage();
             }
         }
 
         if ($imported > 0) {
             $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORTED_COUNT', $imported), 'success');
+        }
+        if ($skipped > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORT_SKIPPED_COUNT', $skipped) . ' (' . implode(', ', $skippedFiles) . ')', 'notice');
         }
         foreach ($errors as $err) {
             $app->enqueueMessage($err, 'error');
