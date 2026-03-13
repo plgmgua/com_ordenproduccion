@@ -28,12 +28,6 @@ $l = function ($key, $fallback) {
 };
 
 $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
-$totalDescuentos = 0;
-$totalOtrosDescuentos = 0;
-foreach ($lineItems as $row) {
-    $totalDescuentos += (float) ($row['descuento'] ?? 0);
-    $totalOtrosDescuentos += (float) ($row['otros_descuento'] ?? 0);
-}
 ?>
 <div class="com-ordenproduccion-invoice-detail invoice-pdf-style container py-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -70,11 +64,11 @@ foreach ($lineItems as $row) {
             <div class="col-md-6 text-md-end small">
                 <?php if ($isFel && !empty($item->fel_autorizacion_uuid)) : ?>
                 <div><strong>Número de autorización:</strong><br><?php echo htmlspecialchars($item->fel_autorizacion_uuid); ?></div>
-                <?php if (!empty($felExtra['autorizacion_serie'])) : ?>
-                <div class="mt-1">Serie: <?php echo htmlspecialchars($felExtra['autorizacion_serie']); ?> <?php if (!empty($felExtra['autorizacion_numero_dte'])) : ?> Número de DTE: <?php echo htmlspecialchars($felExtra['autorizacion_numero_dte']); ?><?php endif; ?></div>
+                <?php if (!empty($felExtra['autorizacion_serie']) || !empty($felExtra['autorizacion_numero_dte'])) : ?>
+                <div class="mt-1">Serie: <?php echo htmlspecialchars($felExtra['autorizacion_serie'] ?? '-'); ?> | Numero: <?php echo htmlspecialchars($felExtra['autorizacion_numero_dte'] ?? '-'); ?></div>
                 <?php endif; ?>
                 <?php if (!empty($item->fel_fecha_emision)) : ?>
-                <div class="mt-1">Fecha y hora de emisión: <?php echo $item->fel_fecha_emision ? HTMLHelper::_('date', $item->fel_fecha_emision, 'd-m-Y H:i:s') : '-'; ?></div>
+                <div class="mt-1">Fecha de Emision: <?php echo $item->fel_fecha_emision ? HTMLHelper::_('date', $item->fel_fecha_emision, 'd-m-Y H:i:s') : '-'; ?></div>
                 <?php endif; ?>
                 <?php
                 $cert = $felExtra['certificacion'] ?? null;
@@ -88,15 +82,15 @@ foreach ($lineItems as $row) {
             </div>
         </div>
 
-        <!-- Receptor -->
+        <!-- Receptor (header: NIT, Cliente, Direccion) -->
         <div class="row mb-3 small">
             <div class="col-12">
                 <?php if ($item->client_nit ?? $item->fel_receptor_id ?? '') : ?>
-                <div><strong>ID receptor:</strong> <?php echo htmlspecialchars($item->client_nit ?? $item->fel_receptor_id ?? ''); ?></div>
+                <div><strong>NIT:</strong> <?php echo htmlspecialchars($item->client_nit ?? $item->fel_receptor_id ?? ''); ?></div>
                 <?php endif; ?>
-                <div><strong>Nombre receptor:</strong> <?php echo htmlspecialchars($item->client_name ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
+                <div><strong>Cliente:</strong> <?php echo htmlspecialchars($item->client_name ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php if (!empty($item->client_address) || !empty($item->fel_receptor_direccion)) : ?>
-                <div><strong>Dirección comprador:</strong> <?php echo htmlspecialchars($item->client_address ?? $item->fel_receptor_direccion ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+                <div><strong>Direccion:</strong> <?php echo htmlspecialchars($item->client_address ?? $item->fel_receptor_direccion ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
             </div>
         </div>
@@ -108,67 +102,27 @@ foreach ($lineItems as $row) {
                 <thead class="table-light">
                     <tr>
                         <th>#</th>
-                        <th>No B/S</th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_QTY', 'Cantidad'); ?></th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_DESCRIPTION', 'Descripción'); ?></th>
-                        <th class="text-end">P. Unit. con IVA (<?php echo $moneda; ?>)</th>
-                        <th class="text-end">Descuentos (<?php echo $moneda; ?>)</th>
-                        <th class="text-end">Otros Descuentos (<?php echo $moneda; ?>)</th>
-                        <th class="text-end">Total (<?php echo $moneda; ?>)</th>
-                        <th class="text-end">Impuestos</th>
+                        <th>Cantidad</th>
+                        <th>Descripcion</th>
+                        <th class="text-end">Precio Unitario (<?php echo $moneda; ?>)</th>
+                        <th class="text-end">Total Factura (<?php echo $moneda; ?>)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($lineItems as $idx => $row) :
-                        $impuestos = $row['impuestos'] ?? [];
-                        $lineImpuesto = 0;
-                        $impuestoLabel = '';
-                        foreach ($impuestos as $i) {
-                            $m = (float) ($i['monto_impuesto'] ?? 0);
-                            $lineImpuesto += $m;
-                            $n = $i['nombre_corto'] ?? 'IVA';
-                            if ($impuestoLabel !== '') {
-                                $impuestoLabel .= ' ';
-                            }
-                            $impuestoLabel .= $n . ' ' . number_format($m, 6);
-                        }
-                        $descuento = (float) ($row['descuento'] ?? 0);
-                        $otrosDescuento = (float) ($row['otros_descuento'] ?? 0);
-                        $bienServicio = isset($row['bien_servicio']) ? (strtoupper((string) $row['bien_servicio']) === 'S' ? 'Servicio' : 'Bien') : (count($impuestos) ? 'Servicio' : 'Bien');
-                    ?>
+                    <?php foreach ($lineItems as $idx => $row) : ?>
                     <tr>
                         <td><?php echo (int) ($row['numero_linea'] ?? $idx + 1); ?></td>
-                        <td><?php echo htmlspecialchars($bienServicio, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($row['cantidad'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($row['descripcion'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="text-end"><?php echo number_format((float) ($row['precio_unitario'] ?? 0), 2); ?></td>
-                        <td class="text-end"><?php echo number_format($descuento, 2); ?></td>
-                        <td class="text-end"><?php echo number_format($otrosDescuento, 2); ?></td>
                         <td class="text-end"><?php echo number_format((float) ($row['subtotal'] ?? 0), 2); ?></td>
-                        <td class="text-end small"><?php echo $impuestoLabel !== '' ? htmlspecialchars($impuestoLabel, ENT_QUOTES, 'UTF-8') : '—'; ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot class="table-light fw-bold">
                     <tr>
-                        <td colspan="5" class="text-end">TOTALES:</td>
-                        <td class="text-end"><?php echo number_format($totalDescuentos, 2); ?></td>
-                        <td class="text-end"><?php echo number_format($totalOtrosDescuentos, 2); ?></td>
+                        <td colspan="4" class="text-end">TOTALES:</td>
                         <td class="text-end"><?php echo number_format((float) ($item->invoice_amount ?? 0), 2); ?></td>
-                        <td class="text-end small">
-                            <?php
-                            $totImp = $felExtra['total_impuestos'] ?? [];
-                            if (!empty($totImp) && is_array($totImp)) {
-                                $parts = [];
-                                foreach ($totImp as $ti) {
-                                    $parts[] = ($ti['nombre_corto'] ?? 'IVA') . ' ' . number_format((float) ($ti['total_monto_impuesto'] ?? 0), 6);
-                                }
-                                echo htmlspecialchars(implode(' ', $parts), ENT_QUOTES, 'UTF-8');
-                            } else {
-                                echo '—';
-                            }
-                            ?>
-                        </td>
                     </tr>
                 </tfoot>
             </table>

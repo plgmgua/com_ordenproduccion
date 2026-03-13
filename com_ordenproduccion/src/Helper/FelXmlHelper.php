@@ -25,7 +25,13 @@ class FelXmlHelper
     ];
 
     /**
-     * Parse a single FEL XML string and return invoice data suitable for #__ordenproduccion_invoices
+     * Parse a single FEL XML string and return invoice data suitable for #__ordenproduccion_invoices.
+     *
+     * Required import fields:
+     * - Header (DatosGenerales): CodigoMoneda -> Moneda, FechaHoraEmision -> Fecha de Emision
+     * - Header (Receptor): IDReceptor -> NIT, NombreReceptor -> Cliente, dte:Direccion -> Direccion
+     * - Header (Totales): NumeroAutorizacion@Numero -> Numero, NumeroAutorizacion@Serie -> Serie
+     * - Detail (Items, one or more lines): dte:Cantidad, dte:Descripcion, dte:PrecioUnitario, dte:Total -> Total Factura
      *
      * @param   string  $xmlContent  Raw XML content (GTDocumento)
      * @return  array  ['success' => bool, 'data' => array|null, 'error' => string|null]
