@@ -54,15 +54,15 @@ class HtmlView extends BaseHtmlView
      * @var    array
      * @since  3.2.0
      */
-    protected $invoices;
+    protected $invoices = [];
 
     /**
      * Invoices pagination
      *
-     * @var    object
+     * @var    object|null
      * @since  3.2.0
      */
-    protected $invoicesPagination;
+    protected $invoicesPagination = null;
 
     /**
      * Model state
@@ -332,8 +332,9 @@ class HtmlView extends BaseHtmlView
     protected function getLayoutData()
     {
         $data = parent::getLayoutData();
-        $data['invoices'] = isset($this->invoices) && is_array($this->invoices) ? $this->invoices : [];
-        $data['invoicesPagination'] = $this->invoicesPagination ?? null;
+        // Always set so AbstractView never hits "Undefined array key 'invoices'" (line 197)
+        $data['invoices'] = is_array($this->invoices) ? $this->invoices : [];
+        $data['invoicesPagination'] = $this->invoicesPagination;
         return $data;
     }
 

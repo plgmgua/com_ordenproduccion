@@ -577,6 +577,8 @@ class AdministracionController extends BaseController
                 continue;
             }
             $xmlContent = self::ensureUtf8($xmlContent);
+            // Force declaration to UTF-8 so libxml interprets bytes correctly (avoids ñ/á → ?)
+            $xmlContent = self::normalizeXmlEncodingDeclaration($xmlContent);
 
             $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
             if (!$result['success']) {
@@ -588,6 +590,10 @@ class AdministracionController extends BaseController
             $data['line_items'] = is_array($data['line_items']) ? json_encode($data['line_items'], JSON_UNESCAPED_UNICODE) : ($data['line_items'] ?? '[]');
             $data['created'] = $data['invoice_date'] ?? date('Y-m-d H:i:s');
             $data['created_by'] = $user->id;
+            // Encode fel_extra as UTF-8 JSON so ñ, á etc. are stored correctly
+            if (isset($data['fel_extra']) && is_array($data['fel_extra'])) {
+                $data['fel_extra'] = json_encode($data['fel_extra'], JSON_UNESCAPED_UNICODE);
+            }
 
             $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
             $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
@@ -632,15 +638,35 @@ class AdministracionController extends BaseController
             return $str;
         }
         if (function_exists('mb_convert_encoding')) {
-            $utf8 = @mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
-            if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
-                return $utf8;
-            }
-            $utf8 = @mb_convert_encoding($str, 'UTF-8', 'Windows-1252');
-            if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
-                return $utf8;
+            foreach (['Windows-1252', 'ISO-8859-1', 'ISO-8859-15', 'CP1252'] as $from) {
+                $utf8 = @mb_convert_encoding($str, 'UTF-8', $from);
+                if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
+                    return $utf8;
+                }
             }
         }
         return $str;
+    }
+
+    /**
+     * Set XML declaration encoding to UTF-8 so libxml interprets content correctly after ensureUtf8().
+     *
+     * @param   string  $xml  XML string (content already converted to UTF-8)
+     * @return  string
+     * @since   3.97.0
+     */
+    private static function normalizeXmlEncodingDeclaration($xml)
+    {
+        $xml = (string) $xml;
+        // Replace encoding attribute value with UTF-8 so ñ, á etc. are not misinterpreted
+        if (preg_match('/<\?xml\s/i', $xml)) {
+            $xml = preg_replace(
+                '/(<\?xml\s[^?]*encoding\s*=\s*["\'])[^"\']*(["\'])/i',
+                '${1}UTF-8${2}',
+                $xml,
+                1
+            );
+        }
+        return $xml;
     }
 }

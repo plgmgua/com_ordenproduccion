@@ -212,25 +212,28 @@ class FelXmlHelper
     }
 
     /**
-     * Ensure string is valid UTF-8 (preserve á, é, í, ó, ú, ñ etc.)
+     * Ensure string is valid UTF-8 (preserve á, é, í, ó, ú, ñ etc.).
+     * Tries common Latin encodings when input is not valid UTF-8.
      *
-     * @param   string  $str
+     * @param   string  $str  Value from SimpleXML (may be wrong encoding if declaration didn't match content)
      * @return  string
      */
     private static function ensureUtf8String($str)
     {
+        $str = (string) $str;
         if ($str === '' || !function_exists('mb_convert_encoding') || !function_exists('mb_check_encoding')) {
-            return (string) $str;
+            return $str;
         }
         if (mb_check_encoding($str, 'UTF-8')) {
             return $str;
         }
-        $utf8 = @mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
-        if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
-            return $utf8;
+        foreach (['Windows-1252', 'ISO-8859-1', 'ISO-8859-15', 'CP1252'] as $from) {
+            $utf8 = @mb_convert_encoding($str, 'UTF-8', $from);
+            if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
+                return $utf8;
+            }
         }
-        $utf8 = @mb_convert_encoding($str, 'UTF-8', 'Windows-1252');
-        return ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) ? $utf8 : $str;
+        return $str;
     }
 
     /**
