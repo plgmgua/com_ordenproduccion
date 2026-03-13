@@ -48,7 +48,14 @@ $isFel = !empty($item->invoice_source) && $item->invoice_source === 'fel_import'
                 <div class="col-md-6">
                     <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DATE'); ?>:</strong> <?php echo $item->invoice_date ? HTMLHelper::_('date', $item->invoice_date, Text::_('DATE_FORMAT_LC3')) : '-'; ?></p>
                     <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_AMOUNT'); ?>:</strong> <?php echo htmlspecialchars($item->currency ?? 'Q'); ?> <?php echo number_format((float) ($item->invoice_amount ?? 0), 2); ?></p>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?>:</strong> <span class="badge bg-secondary"><?php echo htmlspecialchars($item->status ?? 'sent'); ?></span></p>
+                    <?php
+$statusKey = 'COM_ORDENPRODUCCION_STATUS_' . strtoupper((string) ($item->status ?? 'sent'));
+$statusLabel = Text::_($statusKey);
+if ($statusLabel === $statusKey) {
+    $statusLabel = htmlspecialchars($item->status ?? 'sent');
+}
+?>
+                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?>:</strong> <span class="badge bg-secondary"><?php echo $statusLabel; ?></span></p>
                     <?php if (!empty($item->sales_agent)) : ?>
                     <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?>:</strong> <?php echo htmlspecialchars($item->sales_agent); ?></p>
                     <?php endif; ?>

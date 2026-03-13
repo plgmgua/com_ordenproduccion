@@ -51,6 +51,10 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        // Ensure component language is loaded so labels translate (invoice detail uses many COM_ORDENPRODUCCION_* keys)
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
         $model = $this->getModel('Invoice');
         $this->item = $model->getItem($id);
 
