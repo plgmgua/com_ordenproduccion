@@ -338,6 +338,24 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Get a property value (avoids "Undefined array key" in AbstractView when layouts request 'invoices').
+     *
+     * @param   string  $key  Property name (e.g. 'invoices', 'invoicesPagination')
+     * @return  mixed
+     * @since   3.97.0
+     */
+    public function get($key)
+    {
+        if ($key === 'invoices') {
+            return isset($this->invoices) && is_array($this->invoices) ? $this->invoices : [];
+        }
+        if ($key === 'invoicesPagination') {
+            return $this->invoicesPagination ?? null;
+        }
+        return parent::get($key);
+    }
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -456,18 +474,23 @@ class HtmlView extends BaseHtmlView
         if ($activeTab === 'invoices') {
             try {
                 $invoicesModel = $this->getModel('Invoices');
+                if (!$invoicesModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoicesModel::class)) {
+                    $invoicesModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                        ->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => true]);
+                }
                 if ($invoicesModel) {
-                    // Non-Administracion: restrict to current user's invoices
                     if ($salesAgentFilter !== null) {
                         $invoicesModel->setState('filter.sales_agent', $salesAgentFilter);
                     }
                     $this->invoices = $invoicesModel->getItems();
                     $this->invoicesPagination = $invoicesModel->getPagination();
                     $this->state = $invoicesModel->getState();
+                } else {
+                    $this->invoices = [];
                 }
-            } catch (\Exception $e) {
-                // If invoices model fails, log error but continue with empty data
-                $app->enqueueMessage('Invoices feature is not yet fully configured. Please run the SQL script: helpers/create_invoices_table.sql', 'warning');
+            } catch (\Throwable $e) {
+                $this->invoices = [];
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
             }
         }
 

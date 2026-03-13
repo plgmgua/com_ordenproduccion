@@ -14,9 +14,15 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-// Get invoices data (we'll load this from the view)
-$invoices = $this->invoices ?? [];
-$pagination = $this->invoicesPagination ?? null;
+// Get invoices data from view (get() ensures value when layout data is used)
+$invoices = $this->get('invoices');
+if (!is_array($invoices)) {
+    $invoices = isset($this->invoices) && is_array($this->invoices) ? $this->invoices : [];
+}
+$pagination = $this->get('invoicesPagination');
+if ($pagination === null && isset($this->invoicesPagination)) {
+    $pagination = $this->invoicesPagination;
+}
 ?>
 
 <style>
