@@ -26,8 +26,8 @@ class InvoicesModel extends ListModel
     {
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = [
-                'id', 'invoice_number', 'orden_de_trabajo', 'client_name',
-                'sales_agent', 'invoice_date', 'invoice_amount', 'status'
+                'id', 'invoice_number', 'client_name', 'client_nit', 'invoice_date',
+                'fel_fecha_emision', 'invoice_amount', 'status'
             ];
         }
         parent::__construct($config);
@@ -41,82 +41,72 @@ class InvoicesModel extends ListModel
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        // Select fields
-        $query->select([
-            'i.*',
-            'o.delivery_date',
-            'o.request_date'
-        ])
-        ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
-        ->leftJoin($db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON ' . $db->quoteName('i.orden_id') . ' = ' . $db->quoteName('o.id'))
-        ->where($db->quoteName('i.state') . ' = 1');
+        $query->select('i.*')
+            ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
+            ->where($db->quoteName('i.state') . ' = 1');
 
-        // Filter by search
-        $search = $this->getState('filter.search');
-        if (!empty($search)) {
-            $search = $db->quote('%' . $db->escape($search) . '%');
-            $query->where('(' .
-                $db->quoteName('i.invoice_number') . ' LIKE ' . $search . ' OR ' .
-                $db->quoteName('i.orden_de_trabajo') . ' LIKE ' . $search . ' OR ' .
-                $db->quoteName('i.client_name') . ' LIKE ' . $search .
-            ')');
+        // Filter by NIT (client_nit or fel_receptor_id)
+        $nit = trim((string) $this->getState('filter.nit', ''));
+        if ($nit !== '') {
+            $nitLike = $db->quote('%' . $db->escape($nit, true) . '%');
+            $query->where('(' . $db->quoteName('i.client_nit') . ' LIKE ' . $nitLike .
+                ' OR ' . $db->quoteName('i.fel_receptor_id') . ' LIKE ' . $nitLike . ')');
         }
 
-        // Filter by status
-        $status = $this->getState('filter.status');
-        if (!empty($status)) {
-            $query->where($db->quoteName('i.status') . ' = ' . $db->quote($status));
+        // Filter by Cliente (client name)
+        $cliente = trim((string) $this->getState('filter.cliente', ''));
+        if ($cliente !== '') {
+            $query->where($db->quoteName('i.client_name') . ' LIKE ' . $db->quote('%' . $db->escape($cliente, true) . '%'));
         }
 
-        // Filter by sales agent
-        $agent = $this->getState('filter.sales_agent');
-        if (!empty($agent)) {
-            $query->where($db->quoteName('i.sales_agent') . ' = ' . $db->quote($agent));
+        // Filter by Fecha (date range: use fel_fecha_emision or invoice_date)
+        $fechaFrom = trim((string) $this->getState('filter.fecha_from', ''));
+        $fechaTo   = trim((string) $this->getState('filter.fecha_to', ''));
+        if ($fechaFrom !== '') {
+            $query->where('(COALESCE(i.fel_fecha_emision, i.invoice_date) >= ' . $db->quote($fechaFrom . ' 00:00:00') . ')');
+        }
+        if ($fechaTo !== '') {
+            $query->where('(COALESCE(i.fel_fecha_emision, i.invoice_date) <= ' . $db->quote($fechaTo . ' 23:59:59') . ')');
         }
 
-        // Ordering
-        $orderCol = $this->getState('list.ordering', 'i.invoice_date');
+        // Filter by Total (min/max)
+        $totalMin = $this->getState('filter.total_min', null);
+        $totalMax = $this->getState('filter.total_max', null);
+        if ($totalMin !== null && $totalMin !== '') {
+            $val = (float) $totalMin;
+            $query->where($db->quoteName('i.invoice_amount') . ' >= ' . $val);
+        }
+        if ($totalMax !== null && $totalMax !== '') {
+            $val = (float) $totalMax;
+            $query->where($db->quoteName('i.invoice_amount') . ' <= ' . $val);
+        }
+
+        // Ordering (default by emission date desc)
+        $orderCol = $this->getState('list.ordering', 'i.fel_fecha_emision');
         $orderDir = $this->getState('list.direction', 'DESC');
-        $query->order($db->escape($orderCol) . ' ' . $db->escape($orderDir));
+        if ($orderCol === 'i.invoice_date' || $orderCol === 'i.fel_fecha_emision') {
+            $query->order('COALESCE(i.fel_fecha_emision, i.invoice_date) ' . $db->escape($orderDir));
+        } else {
+            $query->order($db->escape($orderCol) . ' ' . $db->escape($orderDir));
+        }
 
         return $query;
     }
 
     /**
-     * Populate state
+     * Populate state (filters: NIT, Cliente, Fecha from/to, Total min/max)
      */
-    protected function populateState($ordering = 'invoice_date', $direction = 'desc')
+    protected function populateState($ordering = 'fel_fecha_emision', $direction = 'desc')
     {
         $app = Factory::getApplication();
 
-        // Search filter
-        $search = $app->getUserStateFromRequest(
-            $this->context . '.filter.search',
-            'filter_search',
-            '',
-            'string'
-        );
-        $this->setState('filter.search', $search);
+        $this->setState('filter.nit', $app->getUserStateFromRequest($this->context . '.filter.nit', 'filter_nit', '', 'string'));
+        $this->setState('filter.cliente', $app->getUserStateFromRequest($this->context . '.filter.cliente', 'filter_cliente', '', 'string'));
+        $this->setState('filter.fecha_from', $app->getUserStateFromRequest($this->context . '.filter.fecha_from', 'filter_fecha_from', '', 'string'));
+        $this->setState('filter.fecha_to', $app->getUserStateFromRequest($this->context . '.filter.fecha_to', 'filter_fecha_to', '', 'string'));
+        $this->setState('filter.total_min', $app->getUserStateFromRequest($this->context . '.filter.total_min', 'filter_total_min', '', 'string'));
+        $this->setState('filter.total_max', $app->getUserStateFromRequest($this->context . '.filter.total_max', 'filter_total_max', '', 'string'));
 
-        // Status filter
-        $status = $app->getUserStateFromRequest(
-            $this->context . '.filter.status',
-            'filter_status',
-            '',
-            'string'
-        );
-        $this->setState('filter.status', $status);
-
-        // Sales agent filter
-        $agent = $app->getUserStateFromRequest(
-            $this->context . '.filter.sales_agent',
-            'filter_sales_agent',
-            '',
-            'string'
-        );
-        $this->setState('filter.sales_agent', $agent);
-
-        // List state
         parent::populateState($ordering, $direction);
     }
 

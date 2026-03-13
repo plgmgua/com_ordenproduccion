@@ -487,6 +487,16 @@ class HtmlView extends BaseHtmlView
                     $this->invoices = $invoicesModel->getItems();
                     $this->invoicesPagination = $invoicesModel->getPagination();
                     $this->state = $invoicesModel->getState();
+                    // Preserve filter params in pagination links
+                    if ($this->invoicesPagination) {
+                        $st = $this->state;
+                        $this->invoicesPagination->setAdditionalUrlParam('filter_nit', $st->get('filter.nit', ''));
+                        $this->invoicesPagination->setAdditionalUrlParam('filter_cliente', $st->get('filter.cliente', ''));
+                        $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_from', $st->get('filter.fecha_from', ''));
+                        $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_to', $st->get('filter.fecha_to', ''));
+                        $this->invoicesPagination->setAdditionalUrlParam('filter_total_min', $st->get('filter.total_min', ''));
+                        $this->invoicesPagination->setAdditionalUrlParam('filter_total_max', $st->get('filter.total_max', ''));
+                    }
                 } else {
                     $this->invoices = [];
                 }

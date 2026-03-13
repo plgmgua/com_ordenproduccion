@@ -127,14 +127,10 @@ if ($pagination === null && isset($this->invoicesPagination)) {
     background: #f8f9fa;
 }
 
-.invoice-number {
+.invoice-number,
+.invoice-serie-numero {
     font-weight: bold;
     color: #667eea;
-}
-
-.orden-number {
-    font-weight: 600;
-    color: #333;
 }
 
 .invoice-status {
@@ -199,68 +195,73 @@ if ($pagination === null && isset($this->invoicesPagination)) {
         </div>
     </div>
 
-    <!-- Search and Filter -->
+    <!-- Filters: NIT, Cliente, Fecha, Total -->
     <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" 
           class="search-filter-bar">
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="invoices" />
-        
-        <input type="text" 
-               name="filter_search" 
-               placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_SEARCH_INVOICE'); ?>"
-               value="<?php echo isset($this->state) ? $this->escape($this->state->get('filter.search', '')) : ''; ?>" />
-        
-        <select name="filter_status">
-            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_ALL_STATUSES'); ?></option>
-            <option value="draft"><?php echo Text::_('COM_ORDENPRODUCCION_STATUS_DRAFT'); ?></option>
-            <option value="sent"><?php echo Text::_('COM_ORDENPRODUCCION_STATUS_SENT'); ?></option>
-            <option value="paid"><?php echo Text::_('COM_ORDENPRODUCCION_STATUS_PAID'); ?></option>
-            <option value="cancelled"><?php echo Text::_('COM_ORDENPRODUCCION_STATUS_CANCELLED'); ?></option>
-        </select>
-        
+        <?php
+        $state = $this->state ?? new \Joomla\Registry\Registry();
+        $filterNit     = $state->get('filter.nit', '');
+        $filterCliente = $state->get('filter.cliente', '');
+        $filterFechaFrom = $state->get('filter.fecha_from', '');
+        $filterFechaTo   = $state->get('filter.fecha_to', '');
+        $filterTotalMin  = $state->get('filter.total_min', '');
+        $filterTotalMax  = $state->get('filter.total_max', '');
+        ?>
+        <input type="text" name="filter_nit" placeholder="NIT" value="<?php echo htmlspecialchars($filterNit); ?>" />
+        <input type="text" name="filter_cliente" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> (Cliente)" value="<?php echo htmlspecialchars($filterCliente); ?>" />
+        <input type="date" name="filter_fecha_from" placeholder="Fecha desde" value="<?php echo htmlspecialchars($filterFechaFrom); ?>" title="Fecha desde" />
+        <input type="date" name="filter_fecha_to" placeholder="Fecha hasta" value="<?php echo htmlspecialchars($filterFechaTo); ?>" title="Fecha hasta" />
+        <input type="number" name="filter_total_min" placeholder="Total min" value="<?php echo htmlspecialchars($filterTotalMin); ?>" step="0.01" min="0" title="Total mínimo (Q)" />
+        <input type="number" name="filter_total_max" placeholder="Total max" value="<?php echo htmlspecialchars($filterTotalMax); ?>" step="0.01" min="0" title="Total máximo (Q)" />
         <button type="submit">
             <i class="fas fa-search"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FILTER'); ?>
         </button>
     </form>
 
-    <!-- Invoices Table -->
+    <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Cliente, Total Factura (Q) -->
     <?php if (!empty($invoices)): ?>
         <table class="invoices-table">
             <thead>
                 <tr>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NUMBER'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_REQUEST_DATE'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_DELIVERY_DATE'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?></th>
-                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_AMOUNT'); ?></th>
-                    <th><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?></th>
+                    <th>Serie | Número</th>
+                    <th>Fecha de Emisión</th>
+                    <th>NIT</th>
+                    <th>Cliente</th>
+                    <th style="text-align: right;">Total Factura (Q)</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($invoices as $invoice): ?>
-                    <tr onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoice->id); ?>'">
+                <?php foreach ($invoices as $invoice):
+                    $felExtra = [];
+                    if (!empty($invoice->fel_extra) && is_string($invoice->fel_extra)) {
+                        $felExtra = json_decode($invoice->fel_extra, true) ?: [];
+                    }
+                    $serie  = $felExtra['autorizacion_serie'] ?? '';
+                    $numero = $felExtra['autorizacion_numero_dte'] ?? '';
+                    $fechaEmision = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
+                    if ($fechaEmision) {
+                        $fechaEmision = HTMLHelper::_('date', $fechaEmision, 'd-m-Y H:i:s');
+                    } else {
+                        $fechaEmision = '—';
+                    }
+                    $nit = trim($invoice->client_nit ?? $invoice->fel_receptor_id ?? '');
+                    if ($nit === '') {
+                        $nit = '—';
+                    }
+                    $moneda = $invoice->currency ?? 'Q';
+                ?>
+                    <tr onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
                         <td>
-                            <span class="invoice-number"><?php echo htmlspecialchars($invoice->invoice_number); ?></span>
+                            <span class="invoice-serie-numero">Serie: <?php echo htmlspecialchars($serie ?: '—'); ?> | Número: <?php echo htmlspecialchars($numero ?: '—'); ?></span>
                         </td>
-                        <td>
-                            <span class="orden-number"><?php echo htmlspecialchars($invoice->orden_de_trabajo); ?></span>
-                        </td>
-                        <td><?php echo htmlspecialchars($invoice->client_name); ?></td>
-                        <td><?php echo !empty($invoice->request_date) ? HTMLHelper::_('date', $invoice->request_date, 'Y-m-d') : '-'; ?></td>
-                        <td><?php echo !empty($invoice->delivery_date) ? HTMLHelper::_('date', $invoice->delivery_date, 'Y-m-d') : '-'; ?></td>
-                        <td><?php echo htmlspecialchars($invoice->sales_agent); ?></td>
-                        <td class="invoice-amount">
-                            <?php echo htmlspecialchars($invoice->currency ?? 'Q'); ?> <?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?>
-                        </td>
-                        <td>
-                            <span class="invoice-status status-<?php echo htmlspecialchars($invoice->status); ?>">
-                                <?php echo ucfirst(htmlspecialchars($invoice->status)); ?>
-                            </span>
-                        </td>
+                        <td>Fecha de Emisión: <?php echo $fechaEmision; ?></td>
+                        <td>NIT: <?php echo htmlspecialchars($nit); ?></td>
+                        <td>Cliente: <?php echo htmlspecialchars($invoice->client_name ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td class="invoice-amount"><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
