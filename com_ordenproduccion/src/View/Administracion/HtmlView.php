@@ -332,9 +332,15 @@ class HtmlView extends BaseHtmlView
     protected function getLayoutData()
     {
         $data = parent::getLayoutData();
-        // Always set so AbstractView never hits "Undefined array key 'invoices'" (line 197)
-        $data['invoices'] = is_array($this->invoices) ? $this->invoices : [];
-        $data['invoicesPagination'] = $this->invoicesPagination;
+        // Guarantee keys exist so AbstractView line 197 never sees undefined "invoices"
+        $data = array_merge(
+            ['invoices' => [], 'invoicesPagination' => null],
+            $data,
+            [
+                'invoices' => is_array($this->invoices) ? $this->invoices : [],
+                'invoicesPagination' => $this->invoicesPagination ?? null,
+            ]
+        );
         return $data;
     }
 
