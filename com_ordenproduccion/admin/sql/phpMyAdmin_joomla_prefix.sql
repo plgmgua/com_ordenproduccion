@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `joomla_ordenproduccion_invoices` (
 
 -- Add invoice_number column to ordenes table to link invoices (skip if column already exists)
 ALTER TABLE `joomla_ordenproduccion_ordenes`
-ADD COLUMN `invoice_number` varchar(50) DEFAULT NULL AFTER `valor_a_facturar`,
+ADD COLUMN `invoice_number` varchar(50) DEFAULT NULL,
 ADD KEY `idx_invoice_number` (`invoice_number`);
 
 -- Update component version (if you have this table)
