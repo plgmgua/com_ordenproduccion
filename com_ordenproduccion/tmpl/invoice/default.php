@@ -17,37 +17,43 @@ use Joomla\CMS\Router\Route;
 $item = $this->item;
 $lineItems = is_array($item->line_items ?? null) ? $item->line_items : [];
 $isFel = !empty($item->invoice_source) && $item->invoice_source === 'fel_import';
+
+// Fallback labels when language file is not loaded (avoid showing COM_ORDENPRODUCCION_* to user)
+$l = function ($key, $fallback) {
+    $t = Text::_($key);
+    return ($t !== '' && $t !== $key) ? $t : $fallback;
+};
 ?>
 <div class="com-ordenproduccion-invoice-detail container py-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <h1 class="h4 mb-0">
             <i class="fas fa-file-invoice-dollar"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE'); ?>: <?php echo htmlspecialchars($item->invoice_number ?? ''); ?>
+            <?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?>: <?php echo htmlspecialchars($item->invoice_number ?? ''); ?>
         </h1>
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" class="btn btn-secondary btn-sm">
-            <i class="fas fa-arrow-left"></i> <?php echo Text::_('COM_ORDENPRODUCCION_BACK_TO_INVOICES'); ?>
+            <i class="fas fa-arrow-left"></i> <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_INVOICES', 'Volver a Facturas'); ?>
         </a>
     </div>
 
     <div class="card mb-3">
-        <div class="card-header"><strong><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DETAILS'); ?></strong></div>
+        <div class="card-header"><strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_DETAILS', 'Detalles de Factura'); ?></strong></div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?>:</strong> <?php echo htmlspecialchars($item->client_name ?? '-'); ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_CLIENT', 'Cliente'); ?>:</strong> <?php echo htmlspecialchars($item->client_name ?? '-'); ?></p>
                     <?php if (!empty($item->client_nit)) : ?>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?>:</strong> <?php echo htmlspecialchars($item->client_nit); ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_NIT', 'NIT'); ?>:</strong> <?php echo htmlspecialchars($item->client_nit); ?></p>
                     <?php endif; ?>
                     <?php if (!empty($item->client_address)) : ?>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_ADDRESS'); ?>:</strong> <?php echo htmlspecialchars($item->client_address); ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Dirección'); ?>:</strong> <?php echo htmlspecialchars($item->client_address); ?></p>
                     <?php endif; ?>
                     <?php if (!empty($item->orden_de_trabajo) && ($item->orden_de_trabajo ?? '') !== '') : ?>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDER_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($item->orden_de_trabajo); ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_ORDER_NUMBER', 'Orden #'); ?>:</strong> <?php echo htmlspecialchars($item->orden_de_trabajo); ?></p>
                     <?php endif; ?>
                 </div>
                 <div class="col-md-6">
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DATE'); ?>:</strong> <?php echo $item->invoice_date ? HTMLHelper::_('date', $item->invoice_date, Text::_('DATE_FORMAT_LC3')) : '-'; ?></p>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_AMOUNT'); ?>:</strong> <?php echo htmlspecialchars($item->currency ?? 'Q'); ?> <?php echo number_format((float) ($item->invoice_amount ?? 0), 2); ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_DATE', 'Fecha de factura'); ?>:</strong> <?php echo $item->invoice_date ? HTMLHelper::_('date', $item->invoice_date, Text::_('DATE_FORMAT_LC3')) : '-'; ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_AMOUNT', 'Valor Factura'); ?>:</strong> <?php echo htmlspecialchars($item->currency ?? 'Q'); ?> <?php echo number_format((float) ($item->invoice_amount ?? 0), 2); ?></p>
                     <?php
 $statusKey = 'COM_ORDENPRODUCCION_STATUS_' . strtoupper((string) ($item->status ?? 'sent'));
 $statusLabel = Text::_($statusKey);
@@ -55,24 +61,24 @@ if ($statusLabel === $statusKey) {
     $statusLabel = htmlspecialchars($item->status ?? 'sent');
 }
 ?>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_STATUS'); ?>:</strong> <span class="badge bg-secondary"><?php echo $statusLabel; ?></span></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Estado'); ?>:</strong> <span class="badge bg-secondary"><?php echo $statusLabel; ?></span></p>
                     <?php if (!empty($item->sales_agent)) : ?>
-                    <p><strong><?php echo Text::_('COM_ORDENPRODUCCION_SALES_AGENT'); ?>:</strong> <?php echo htmlspecialchars($item->sales_agent); ?></p>
+                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Agente de Ventas'); ?>:</strong> <?php echo htmlspecialchars($item->sales_agent); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
             <?php if ($isFel && (!empty($item->fel_emisor_nombre) || !empty($item->fel_autorizacion_uuid))) : ?>
             <hr>
-            <h6 class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_FEL_INFO'); ?></h6>
+            <h6 class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_FEL_INFO', 'Datos FEL (SAT)'); ?></h6>
             <div class="row small">
                 <?php if (!empty($item->fel_emisor_nombre)) : ?>
-                <div class="col-md-6"><strong><?php echo Text::_('COM_ORDENPRODUCCION_FEL_EMISOR'); ?>:</strong> <?php echo htmlspecialchars($item->fel_emisor_nombre); ?></div>
+                <div class="col-md-6"><strong><?php echo $l('COM_ORDENPRODUCCION_FEL_EMISOR', 'Emisor'); ?>:</strong> <?php echo htmlspecialchars($item->fel_emisor_nombre); ?></div>
                 <?php endif; ?>
                 <?php if (!empty($item->fel_tipo_dte)) : ?>
-                <div class="col-md-6"><strong><?php echo Text::_('COM_ORDENPRODUCCION_FEL_TIPO'); ?>:</strong> <?php echo htmlspecialchars($item->fel_tipo_dte); ?></div>
+                <div class="col-md-6"><strong><?php echo $l('COM_ORDENPRODUCCION_FEL_TIPO', 'Tipo DTE'); ?>:</strong> <?php echo htmlspecialchars($item->fel_tipo_dte); ?></div>
                 <?php endif; ?>
                 <?php if (!empty($item->fel_autorizacion_uuid)) : ?>
-                <div class="col-12"><strong><?php echo Text::_('COM_ORDENPRODUCCION_FEL_UUID'); ?>:</strong> <code><?php echo htmlspecialchars($item->fel_autorizacion_uuid); ?></code></div>
+                <div class="col-12"><strong><?php echo $l('COM_ORDENPRODUCCION_FEL_UUID', 'UUID de autorización'); ?>:</strong> <code><?php echo htmlspecialchars($item->fel_autorizacion_uuid); ?></code></div>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -81,15 +87,15 @@ if ($statusLabel === $statusKey) {
 
     <?php if (!empty($lineItems)) : ?>
     <div class="card">
-        <div class="card-header"><strong><?php echo Text::_('COM_ORDENPRODUCCION_LINE_ITEMS'); ?></strong></div>
+        <div class="card-header"><strong><?php echo $l('COM_ORDENPRODUCCION_LINE_ITEMS', 'Líneas de factura'); ?></strong></div>
         <div class="card-body p-0">
             <table class="table table-bordered mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ITEM_QTY'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ITEM_DESCRIPTION'); ?></th>
-                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ITEM_UNIT_PRICE'); ?></th>
-                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ITEM_TOTAL'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_QTY', 'Cant.'); ?></th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_DESCRIPTION', 'Descripción'); ?></th>
+                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ITEM_UNIT_PRICE', 'P. unit.'); ?></th>
+                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ITEM_TOTAL', 'Total'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
