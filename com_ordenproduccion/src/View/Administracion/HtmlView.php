@@ -760,10 +760,14 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        // Final safeguard: Ensure banks is always an array before parent::display()
-        // This prevents "Undefined array key 'bank'" errors in Joomla's AbstractView
-        // Joomla's AbstractView may access properties via array notation, so we need to ensure
-        // the property exists and is properly initialized
+        // Final safeguard: Ensure layout data properties exist before parent::display()
+        // This prevents "Undefined array key" errors in Joomla's AbstractView when loading sub-templates (e.g. invoices)
+        if (!isset($this->invoices) || !is_array($this->invoices)) {
+            $this->invoices = [];
+        }
+        if (!isset($this->invoicesPagination)) {
+            $this->invoicesPagination = null;
+        }
         if (!isset($this->banks) || !is_array($this->banks)) {
             $this->banks = [];
         }

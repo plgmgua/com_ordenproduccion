@@ -519,4 +519,97 @@ class AdministracionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_orden', false));
         }
     }
+
+    /**
+     * Import invoices from SAT Guatemala FEL XML file(s).
+     * Expects POST with invoice_xml (file) or invoice_xml[] (multiple files).
+     *
+     * @return  void
+     * @since   3.97.0
+     */
+    public function importInvoicesXml()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            return;
+        }
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            return;
+        }
+
+        $files = $app->input->files->get('invoice_xml', [], 'array');
+        if (empty($files) || (isset($files['name']) && $files['name'] === '')) {
+            $single = $app->input->files->get('invoice_xml', null, 'raw');
+            if ($single && !empty($single['tmp_name'])) {
+                $files = [$single];
+            }
+        }
+        if (empty($files)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_NO_FILE'), 'warning');
+            $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            return;
+        }
+
+        if (!isset($files[0])) {
+            $files = [$files];
+        }
+
+        $imported = 0;
+        $errors = [];
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+
+        foreach ($files as $file) {
+            if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+                continue;
+            }
+            $xmlContent = @file_get_contents($file['tmp_name']);
+            if ($xmlContent === false || trim($xmlContent) === '') {
+                $errors[] = ($file['name'] ?? 'file') . ': ' . Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR');
+                continue;
+            }
+
+            $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
+            if (!$result['success']) {
+                $errors[] = ($file['name'] ?? 'file') . ': ' . ($result['error'] ?? 'Parse error');
+                continue;
+            }
+
+            $data = $result['data'];
+            $data['line_items'] = is_array($data['line_items']) ? json_encode($data['line_items']) : ($data['line_items'] ?? '[]');
+            $data['created'] = $data['invoice_date'] ?? date('Y-m-d H:i:s');
+            $data['created_by'] = $user->id;
+
+            $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+            $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
+            $row = [];
+            foreach ($data as $k => $v) {
+                if (array_key_exists(strtolower($k), $cols)) {
+                    $row[$k] = $v;
+                }
+            }
+            $obj = (object) $row;
+            try {
+                $db->insertObject('#__ordenproduccion_invoices', $obj, 'id');
+                $imported++;
+            } catch (\Exception $e) {
+                $errors[] = ($file['name'] ?? 'file') . ': ' . $e->getMessage();
+            }
+        }
+
+        if ($imported > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORTED_COUNT', $imported), 'success');
+        }
+        foreach ($errors as $err) {
+            $app->enqueueMessage($err, 'error');
+        }
+
+        $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+    }
 }

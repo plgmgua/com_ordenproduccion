@@ -176,11 +176,21 @@ $pagination = $this->invoicesPagination ?? null;
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_TITLE'); ?>
         </h2>
         
-        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&layout=create'); ?>" 
-           class="btn-create-invoice">
-            <i class="fas fa-plus"></i>
-            <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
-        </a>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.importInvoicesXml'); ?>" 
+                  method="post" enctype="multipart/form-data" class="d-inline">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="file" name="invoice_xml" accept=".xml" class="form-control form-control-sm d-inline-block" style="max-width: 220px;" />
+                <button type="submit" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
+                </button>
+            </form>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&layout=create'); ?>" 
+               class="btn-create-invoice">
+                <i class="fas fa-plus"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_CREATE_INVOICE'); ?>
+            </a>
+        </div>
     </div>
 
     <!-- Search and Filter -->
@@ -238,7 +248,7 @@ $pagination = $this->invoicesPagination ?? null;
                         <td><?php echo !empty($invoice->delivery_date) ? HTMLHelper::_('date', $invoice->delivery_date, 'Y-m-d') : '-'; ?></td>
                         <td><?php echo htmlspecialchars($invoice->sales_agent); ?></td>
                         <td class="invoice-amount">
-                            <?php echo $invoice->currency; ?> <?php echo number_format($invoice->invoice_amount, 2); ?>
+                            <?php echo htmlspecialchars($invoice->currency ?? 'Q'); ?> <?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?>
                         </td>
                         <td>
                             <span class="invoice-status status-<?php echo htmlspecialchars($invoice->status); ?>">
