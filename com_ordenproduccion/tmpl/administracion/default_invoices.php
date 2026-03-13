@@ -99,6 +99,7 @@ if ($pagination === null && isset($this->invoicesPagination)) {
 .invoices-table {
     width: 100%;
     border-collapse: collapse;
+    font-size: 0.8125rem;
 }
 
 .invoices-table thead {
@@ -106,15 +107,17 @@ if ($pagination === null && isset($this->invoicesPagination)) {
 }
 
 .invoices-table th {
-    padding: 12px;
+    padding: 6px 8px;
     text-align: left;
     font-weight: bold;
+    font-size: 0.75rem;
     color: #666;
     border-bottom: 2px solid #dee2e6;
 }
 
 .invoices-table td {
-    padding: 12px;
+    padding: 6px 8px;
+    font-size: 0.8125rem;
     border-bottom: 1px solid #dee2e6;
 }
 
@@ -147,7 +150,7 @@ if ($pagination === null && isset($this->invoicesPagination)) {
 .status-cancelled { background: #ffebee; color: #c62828; }
 
 .invoice-amount {
-    font-size: 16px;
+    font-size: 0.8125rem;
     font-weight: bold;
     color: #28a745;
     text-align: right;
