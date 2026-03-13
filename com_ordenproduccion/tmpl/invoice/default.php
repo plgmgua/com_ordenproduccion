@@ -101,8 +101,8 @@ if ($statusLabel === $statusKey) {
                 <tbody>
                     <?php foreach ($lineItems as $row) : ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($row['cantidad'] ?? ''); ?></td>
-                        <td><?php echo htmlspecialchars($row['descripcion'] ?? ''); ?></td>
+                        <td><?php echo htmlspecialchars($row['cantidad'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?php echo htmlspecialchars($row['descripcion'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="text-end"><?php echo number_format((float) ($row['precio_unitario'] ?? $row['subtotal'] ?? 0), 2); ?></td>
                         <td class="text-end"><?php echo number_format((float) ($row['subtotal'] ?? 0), 2); ?></td>
                     </tr>

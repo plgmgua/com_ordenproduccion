@@ -576,6 +576,7 @@ class AdministracionController extends BaseController
                 $errors[] = ($file['name'] ?? 'file') . ': ' . Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR');
                 continue;
             }
+            $xmlContent = self::ensureUtf8($xmlContent);
 
             $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
             if (!$result['success']) {
@@ -584,7 +585,7 @@ class AdministracionController extends BaseController
             }
 
             $data = $result['data'];
-            $data['line_items'] = is_array($data['line_items']) ? json_encode($data['line_items']) : ($data['line_items'] ?? '[]');
+            $data['line_items'] = is_array($data['line_items']) ? json_encode($data['line_items'], JSON_UNESCAPED_UNICODE) : ($data['line_items'] ?? '[]');
             $data['created'] = $data['invoice_date'] ?? date('Y-m-d H:i:s');
             $data['created_by'] = $user->id;
 
@@ -613,5 +614,33 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Ensure string is valid UTF-8 so á, é, í, ó, ú, ñ etc. import correctly from XML.
+     *
+     * @param   string  $str  Raw file content (may be UTF-8, ISO-8859-1, or Windows-1252)
+     * @return  string  UTF-8 string
+     * @since   3.97.0
+     */
+    private static function ensureUtf8($str)
+    {
+        if ($str === '' || $str === null) {
+            return (string) $str;
+        }
+        if (function_exists('mb_check_encoding') && mb_check_encoding($str, 'UTF-8')) {
+            return $str;
+        }
+        if (function_exists('mb_convert_encoding')) {
+            $utf8 = @mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
+            if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
+                return $utf8;
+            }
+            $utf8 = @mb_convert_encoding($str, 'UTF-8', 'Windows-1252');
+            if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
+                return $utf8;
+            }
+        }
+        return $str;
     }
 }

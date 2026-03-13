@@ -94,15 +94,15 @@ class FelXmlHelper
         $tipoDte = (string) ($generales->attributes()->Tipo ?? '');
         $moneda = (string) ($generales->attributes()->CodigoMoneda ?? 'GTQ');
 
-        $emisorNit = (string) ($emisor->attributes()->NITEmisor ?? '');
-        $emisorNombre = (string) ($emisor->attributes()->NombreEmisor ?? '');
-        $receptorId = (string) ($receptor->attributes()->IDReceptor ?? '');
-        $receptorNombre = (string) ($receptor->attributes()->NombreReceptor ?? '');
+        $emisorNit = self::ensureUtf8String((string) ($emisor->attributes()->NITEmisor ?? ''));
+        $emisorNombre = self::ensureUtf8String((string) ($emisor->attributes()->NombreEmisor ?? ''));
+        $receptorId = self::ensureUtf8String((string) ($receptor->attributes()->IDReceptor ?? ''));
+        $receptorNombre = self::ensureUtf8String((string) ($receptor->attributes()->NombreReceptor ?? ''));
         $receptorDir = '';
         $recDir = $receptor->children($dteNs)->DireccionReceptor ?? null;
         if ($recDir) {
             $dirEl = $recDir->children($dteNs)->Direccion ?? $recDir->Direccion ?? null;
-            $receptorDir = $dirEl !== null ? (string) $dirEl : '';
+            $receptorDir = $dirEl !== null ? self::ensureUtf8String((string) $dirEl) : '';
         }
 
         $totCh = $totales->children($dteNs);
@@ -114,7 +114,7 @@ class FelXmlHelper
             foreach ($itemList as $item) {
                 $lineItems[] = [
                     'cantidad' => (float) ($item->Cantidad ?? 0),
-                    'descripcion' => (string) ($item->Descripcion ?? ''),
+                    'descripcion' => self::ensureUtf8String((string) ($item->Descripcion ?? '')),
                     'precio_unitario' => (float) ($item->PrecioUnitario ?? 0),
                     'subtotal' => (float) ($item->Total ?? 0),
                 ];
@@ -164,6 +164,28 @@ class FelXmlHelper
         $out['success'] = true;
         $out['data'] = $data;
         return $out;
+    }
+
+    /**
+     * Ensure string is valid UTF-8 (preserve á, é, í, ó, ú, ñ etc.)
+     *
+     * @param   string  $str
+     * @return  string
+     */
+    private static function ensureUtf8String($str)
+    {
+        if ($str === '' || !function_exists('mb_convert_encoding') || !function_exists('mb_check_encoding')) {
+            return (string) $str;
+        }
+        if (mb_check_encoding($str, 'UTF-8')) {
+            return $str;
+        }
+        $utf8 = @mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
+        if ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) {
+            return $utf8;
+        }
+        $utf8 = @mb_convert_encoding($str, 'UTF-8', 'Windows-1252');
+        return ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) ? $utf8 : $str;
     }
 
     /**
