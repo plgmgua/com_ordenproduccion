@@ -532,15 +532,17 @@ class AdministracionController extends BaseController
         $app = Factory::getApplication();
         $user = Factory::getUser();
 
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false);
+
         if (!Session::checkToken()) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            $app->redirect($redirectUrl);
             return;
         }
 
         if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
-            $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            $app->redirect($redirectUrl);
             return;
         }
 
@@ -553,7 +555,7 @@ class AdministracionController extends BaseController
         }
         if (empty($files)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_NO_FILE'), 'warning');
-            $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            $app->redirect($redirectUrl);
             return;
         }
 
@@ -610,6 +612,6 @@ class AdministracionController extends BaseController
             $app->enqueueMessage($err, 'error');
         }
 
-        $app->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+        $app->redirect($redirectUrl);
     }
 }
