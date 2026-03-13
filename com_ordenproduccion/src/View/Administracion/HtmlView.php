@@ -340,19 +340,20 @@ class HtmlView extends BaseHtmlView
     /**
      * Get a property value (avoids "Undefined array key" in AbstractView when layouts request 'invoices').
      *
-     * @param   string  $key  Property name (e.g. 'invoices', 'invoicesPagination')
+     * @param   string  $property  Property name (e.g. 'invoices', 'invoicesPagination')
+     * @param   mixed   $default   Default value if not set
      * @return  mixed
      * @since   3.97.0
      */
-    public function get($key)
+    public function get($property, $default = null)
     {
-        if ($key === 'invoices') {
+        if ($property === 'invoices') {
             return isset($this->invoices) && is_array($this->invoices) ? $this->invoices : [];
         }
-        if ($key === 'invoicesPagination') {
+        if ($property === 'invoicesPagination') {
             return $this->invoicesPagination ?? null;
         }
-        return parent::get($key);
+        return parent::get($property, $default);
     }
 
     /**
