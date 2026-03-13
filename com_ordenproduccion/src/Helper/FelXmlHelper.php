@@ -21,6 +21,7 @@ class FelXmlHelper
     private static $namespaces = [
         'dte' => 'http://www.sat.gob.gt/dte/fel/0.2.0',
         'cfc' => 'http://www.sat.gob.gt/dte/fel/CompCambiaria/0.1.0',
+        'cex' => 'http://www.sat.gob.gt/face2/ComplementoExportaciones/0.1.0',
     ];
 
     /**
@@ -96,8 +97,15 @@ class FelXmlHelper
 
         $emisorNit = self::ensureUtf8String((string) ($emisor->attributes()->NITEmisor ?? ''));
         $emisorNombre = self::ensureUtf8String((string) ($emisor->attributes()->NombreEmisor ?? ''));
+        $emisorNombreComercial = self::ensureUtf8String((string) ($emisor->attributes()->NombreComercial ?? ''));
+        $emisorAfiliacionIVA = self::ensureUtf8String((string) ($emisor->attributes()->AfiliacionIVA ?? ''));
+        $emisorCodigoEstablecimiento = self::ensureUtf8String((string) ($emisor->attributes()->CodigoEstablecimiento ?? ''));
+        $emisorCorreo = self::ensureUtf8String((string) ($emisor->attributes()->CorreoEmisor ?? ''));
+        $emisorDireccion = self::extractEmisorDireccion($emisor, $dteNs);
+
         $receptorId = self::ensureUtf8String((string) ($receptor->attributes()->IDReceptor ?? ''));
         $receptorNombre = self::ensureUtf8String((string) ($receptor->attributes()->NombreReceptor ?? ''));
+        $receptorCorreo = self::ensureUtf8String((string) ($receptor->attributes()->CorreoReceptor ?? ''));
         $receptorDir = '';
         $recDir = $receptor->children($dteNs)->DireccionReceptor ?? null;
         if ($recDir) {
@@ -105,23 +113,53 @@ class FelXmlHelper
             $receptorDir = $dirEl !== null ? self::ensureUtf8String((string) $dirEl) : '';
         }
 
+        $frases = self::extractFrases($datosEmision, $dteNs);
+
         $totCh = $totales->children($dteNs);
         $granTotal = (float) (($totCh->GranTotal ?? $totales->GranTotal ?? 0));
+        $totalImpuestos = self::extractTotalImpuestos($totales, $dteNs);
 
         $lineItems = [];
         $itemList = $items ? $items->children($dteNs)->Item : [];
         if ($itemList) {
             foreach ($itemList as $item) {
+                $impuestos = self::extractItemImpuestos($item, $dteNs);
                 $lineItems[] = [
+                    'numero_linea' => (int) ($item->attributes()->NumeroLinea ?? count($lineItems) + 1),
+                    'bien_servicio' => self::ensureUtf8String((string) ($item->attributes()->BienOServicio ?? '')),
                     'cantidad' => (float) ($item->Cantidad ?? 0),
                     'descripcion' => self::ensureUtf8String((string) ($item->Descripcion ?? '')),
                     'precio_unitario' => (float) ($item->PrecioUnitario ?? 0),
+                    'precio' => (float) ($item->Precio ?? 0),
+                    'descuento' => (float) ($item->Descuento ?? 0),
+                    'otros_descuento' => (float) ($item->OtrosDescuento ?? 0),
                     'subtotal' => (float) ($item->Total ?? 0),
+                    'impuestos' => $impuestos,
                 ];
             }
         }
 
+        $complementoAbonos = self::extractComplementoAbonos($datosEmision, $dteNs);
+        $complementoExportacion = self::extractComplementoExportacion($datosEmision, $dteNs);
+        $certificacion = self::extractCertificacion($certificacion, $dteNs);
+
         $invoiceNumber = $serie ? ('FEL-' . $serie) : ('FEL-' . substr(str_replace('-', '', $uuid), 0, 8));
+
+        $felExtra = [
+            'autorizacion_serie' => $serie ?: null,
+            'autorizacion_numero_dte' => $numero ?: null,
+            'emisor_nombre_comercial' => $emisorNombreComercial ?: null,
+            'emisor_afiliacion_iva' => $emisorAfiliacionIVA ?: null,
+            'emisor_codigo_establecimiento' => $emisorCodigoEstablecimiento ?: null,
+            'emisor_correo' => $emisorCorreo ?: null,
+            'emisor_direccion' => $emisorDireccion,
+            'receptor_correo' => $receptorCorreo ?: null,
+            'frases' => $frases,
+            'total_impuestos' => $totalImpuestos,
+            'complemento_abonos' => $complementoAbonos,
+            'complemento_exportacion' => $complementoExportacion,
+            'certificacion' => $certificacion,
+        ];
 
         $data = [
             'invoice_number' => $invoiceNumber,
@@ -159,6 +197,7 @@ class FelXmlHelper
             'fel_receptor_direccion' => $receptorDir,
             'fel_moneda' => $moneda,
             'invoice_source' => 'fel_import',
+            'fel_extra' => json_encode($felExtra, JSON_UNESCAPED_UNICODE),
         ];
 
         $out['success'] = true;
@@ -186,6 +225,158 @@ class FelXmlHelper
         }
         $utf8 = @mb_convert_encoding($str, 'UTF-8', 'Windows-1252');
         return ($utf8 !== false && mb_check_encoding($utf8, 'UTF-8')) ? $utf8 : $str;
+    }
+
+    /**
+     * Extract full emisor address from DireccionEmisor
+     */
+    private static function extractEmisorDireccion($emisor, $dteNs)
+    {
+        $dir = $emisor->children($dteNs)->DireccionEmisor ?? null;
+        if (!$dir) {
+            return null;
+        }
+        $d = $dir->children($dteNs);
+        $out = [
+            'direccion' => self::ensureUtf8String((string) ($d->Direccion ?? '')),
+            'codigo_postal' => (string) ($d->CodigoPostal ?? ''),
+            'municipio' => self::ensureUtf8String((string) ($d->Municipio ?? '')),
+            'departamento' => self::ensureUtf8String((string) ($d->Departamento ?? '')),
+            'pais' => (string) ($d->Pais ?? ''),
+        ];
+        return array_filter($out) ? $out : null;
+    }
+
+    /**
+     * Extract Frases (CodigoEscenario, TipoFrase)
+     */
+    private static function extractFrases($datosEmision, $dteNs)
+    {
+        $frases = $datosEmision->children($dteNs)->Frases ?? null;
+        if (!$frases) {
+            return [];
+        }
+        $list = [];
+        foreach ($frases->children($dteNs)->Frase ?? [] as $f) {
+            $list[] = [
+                'codigo_escenario' => (string) ($f->attributes()->CodigoEscenario ?? ''),
+                'tipo_frase' => (string) ($f->attributes()->TipoFrase ?? ''),
+            ];
+        }
+        return $list;
+    }
+
+    /**
+     * Extract Totales/TotalImpuestos
+     */
+    private static function extractTotalImpuestos($totales, $dteNs)
+    {
+        $ti = $totales->children($dteNs)->TotalImpuestos ?? null;
+        if (!$ti) {
+            return [];
+        }
+        $list = [];
+        foreach ($ti->children($dteNs)->TotalImpuesto ?? [] as $t) {
+            $list[] = [
+                'nombre_corto' => self::ensureUtf8String((string) ($t->attributes()->NombreCorto ?? '')),
+                'total_monto_impuesto' => (float) ($t->attributes()->TotalMontoImpuesto ?? 0),
+            ];
+        }
+        return $list;
+    }
+
+    /**
+     * Extract item-level Impuestos
+     */
+    private static function extractItemImpuestos($item, $dteNs)
+    {
+        $imp = $item->children($dteNs)->Impuestos ?? null;
+        if (!$imp) {
+            return [];
+        }
+        $list = [];
+        foreach ($imp->children($dteNs)->Impuesto ?? [] as $i) {
+            $list[] = [
+                'nombre_corto' => self::ensureUtf8String((string) ($i->NombreCorto ?? '')),
+                'codigo_unidad_gravable' => (string) ($i->CodigoUnidadGravable ?? ''),
+                'monto_gravable' => (float) ($i->MontoGravable ?? 0),
+                'monto_impuesto' => (float) ($i->MontoImpuesto ?? 0),
+            ];
+        }
+        return $list;
+    }
+
+    /**
+     * Extract FCAM Complemento Abonos (payment/due dates)
+     */
+    private static function extractComplementoAbonos($datosEmision, $dteNs)
+    {
+        $cfcNs = self::$namespaces['cfc'];
+        $complementos = $datosEmision->children($dteNs)->Complementos ?? null;
+        if (!$complementos) {
+            return [];
+        }
+        $list = [];
+        foreach ($complementos->children($dteNs)->Complemento ?? [] as $comp) {
+            $abonos = $comp->children($cfcNs)->AbonosFacturaCambiaria ?? null;
+            if (!$abonos) {
+                continue;
+            }
+            foreach ($abonos->children($cfcNs)->Abono ?? [] as $abono) {
+                $list[] = [
+                    'numero_abono' => (int) ($abono->children($cfcNs)->NumeroAbono ?? 0),
+                    'fecha_vencimiento' => (string) ($abono->children($cfcNs)->FechaVencimiento ?? ''),
+                    'monto_abono' => (float) ($abono->children($cfcNs)->MontoAbono ?? 0),
+                ];
+            }
+        }
+        return $list;
+    }
+
+    /**
+     * Extract Complemento Exportacion (EXP)
+     */
+    private static function extractComplementoExportacion($datosEmision, $dteNs)
+    {
+        $cexNs = self::$namespaces['cex'];
+        $complementos = $datosEmision->children($dteNs)->Complementos ?? null;
+        if (!$complementos) {
+            return null;
+        }
+        foreach ($complementos->children($dteNs)->Complemento ?? [] as $comp) {
+            $exp = $comp->children($cexNs)->Exportacion ?? null;
+            if (!$exp) {
+                continue;
+            }
+            $ex = $exp->children($cexNs);
+            return [
+                'lugar_expedicion' => self::ensureUtf8String((string) ($ex->LugarExpedicion ?? '')),
+                'nombre_consignatario' => self::ensureUtf8String((string) ($ex->NombreConsignatarioODestinatario ?? '')),
+                'direccion_consignatario' => self::ensureUtf8String((string) ($ex->DireccionConsignatarioODestinatario ?? '')),
+                'pais_consignatario' => self::ensureUtf8String((string) ($ex->PaisConsignatario ?? '')),
+                'incoterm' => (string) ($ex->INCOTERM ?? ''),
+            ];
+        }
+        return null;
+    }
+
+    /**
+     * Extract Certificacion (NITCertificador, NombreCertificador, FechaHoraCertificacion)
+     */
+    private static function extractCertificacion($certificacion, $dteNs)
+    {
+        $ch = $certificacion->children($dteNs);
+        $nit = (string) ($ch->NITCertificador ?? '');
+        $nombre = self::ensureUtf8String((string) ($ch->NombreCertificador ?? ''));
+        $fecha = (string) ($ch->FechaHoraCertificacion ?? '');
+        if ($nit === '' && $nombre === '' && $fecha === '') {
+            return null;
+        }
+        return [
+            'nit_certificador' => $nit ?: null,
+            'nombre_certificador' => $nombre ?: null,
+            'fecha_hora_certificacion' => $fecha ?: null,
+        ];
     }
 
     /**

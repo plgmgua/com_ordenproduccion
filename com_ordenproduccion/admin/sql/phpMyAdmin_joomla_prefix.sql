@@ -106,3 +106,10 @@ ALTER TABLE `joomla_ordenproduccion_invoices`
 -- Source: 'order' = from work order, 'fel_import' = from XML
 ALTER TABLE `joomla_ordenproduccion_invoices`
     ADD COLUMN `invoice_source` varchar(20) NOT NULL DEFAULT 'order' AFTER `fel_moneda`;
+
+-- -----------------------------------------------------------------------------
+-- Script 3 - 3.98.0 FEL extra data (JSON: emisor address, certification, taxes, abonos)
+-- -----------------------------------------------------------------------------
+
+ALTER TABLE `joomla_ordenproduccion_invoices`
+    ADD COLUMN `fel_extra` longtext NULL DEFAULT NULL COMMENT 'JSON: emisor_direccion, certificacion, total_impuestos, complemento_abonos, etc.' AFTER `invoice_source`;

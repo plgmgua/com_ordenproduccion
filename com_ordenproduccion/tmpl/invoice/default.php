@@ -1,6 +1,6 @@
 <?php
 /**
- * Single Invoice (detail) template
+ * Single Invoice (detail) template - layout matches SAT FEL PDF
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\View\Invoice
  * @since       3.97.0
@@ -17,99 +17,264 @@ use Joomla\CMS\Router\Route;
 $item = $this->item;
 $lineItems = is_array($item->line_items ?? null) ? $item->line_items : [];
 $isFel = !empty($item->invoice_source) && $item->invoice_source === 'fel_import';
+$felExtra = [];
+if (!empty($item->fel_extra) && is_string($item->fel_extra)) {
+    $felExtra = json_decode($item->fel_extra, true) ?: [];
+}
 
-// Fallback labels when language file is not loaded (avoid showing COM_ORDENPRODUCCION_* to user)
 $l = function ($key, $fallback) {
     $t = Text::_($key);
     return ($t !== '' && $t !== $key) ? $t : $fallback;
 };
+
+$moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
+$totalDescuentos = 0;
+$totalOtrosDescuentos = 0;
+foreach ($lineItems as $row) {
+    $totalDescuentos += (float) ($row['descuento'] ?? 0);
+    $totalOtrosDescuentos += (float) ($row['otros_descuento'] ?? 0);
+}
 ?>
-<div class="com-ordenproduccion-invoice-detail container py-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-        <h1 class="h4 mb-0">
-            <i class="fas fa-file-invoice-dollar"></i>
-            <?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?>: <?php echo htmlspecialchars($item->invoice_number ?? ''); ?>
-        </h1>
-        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" class="btn btn-secondary btn-sm">
+<div class="com-ordenproduccion-invoice-detail invoice-pdf-style container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h5 mb-0"><?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?> <?php echo htmlspecialchars($item->invoice_number ?? ''); ?></h1>
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_INVOICES', 'Volver a Facturas'); ?>
         </a>
     </div>
 
-    <div class="card mb-3">
-        <div class="card-header"><strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_DETAILS', 'Detalles de Factura'); ?></strong></div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_CLIENT', 'Cliente'); ?>:</strong> <?php echo htmlspecialchars($item->client_name ?? '-'); ?></p>
-                    <?php if (!empty($item->client_nit)) : ?>
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_NIT', 'NIT'); ?>:</strong> <?php echo htmlspecialchars($item->client_nit); ?></p>
-                    <?php endif; ?>
-                    <?php if (!empty($item->client_address)) : ?>
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_ADDRESS', 'Dirección'); ?>:</strong> <?php echo htmlspecialchars($item->client_address); ?></p>
-                    <?php endif; ?>
-                    <?php if (!empty($item->orden_de_trabajo) && ($item->orden_de_trabajo ?? '') !== '') : ?>
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_ORDER_NUMBER', 'Orden #'); ?>:</strong> <?php echo htmlspecialchars($item->orden_de_trabajo); ?></p>
-                    <?php endif; ?>
-                </div>
-                <div class="col-md-6">
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_DATE', 'Fecha de factura'); ?>:</strong> <?php echo $item->invoice_date ? HTMLHelper::_('date', $item->invoice_date, Text::_('DATE_FORMAT_LC3')) : '-'; ?></p>
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_AMOUNT', 'Valor Factura'); ?>:</strong> <?php echo htmlspecialchars($item->currency ?? 'Q'); ?> <?php echo number_format((float) ($item->invoice_amount ?? 0), 2); ?></p>
-                    <?php
-$statusKey = 'COM_ORDENPRODUCCION_STATUS_' . strtoupper((string) ($item->status ?? 'sent'));
-$statusLabel = Text::_($statusKey);
-if ($statusLabel === $statusKey) {
-    $statusLabel = htmlspecialchars($item->status ?? 'sent');
-}
-?>
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Estado'); ?>:</strong> <span class="badge bg-secondary"><?php echo $statusLabel; ?></span></p>
-                    <?php if (!empty($item->sales_agent)) : ?>
-                    <p><strong><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Agente de Ventas'); ?>:</strong> <?php echo htmlspecialchars($item->sales_agent); ?></p>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php if ($isFel && (!empty($item->fel_emisor_nombre) || !empty($item->fel_autorizacion_uuid))) : ?>
-            <hr>
-            <h6 class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_FEL_INFO', 'Datos FEL (SAT)'); ?></h6>
-            <div class="row small">
-                <?php if (!empty($item->fel_emisor_nombre)) : ?>
-                <div class="col-md-6"><strong><?php echo $l('COM_ORDENPRODUCCION_FEL_EMISOR', 'Emisor'); ?>:</strong> <?php echo htmlspecialchars($item->fel_emisor_nombre); ?></div>
+    <div class="invoice-pdf-layout border rounded p-3 bg-white">
+        <!-- Row: Emisor (left) | Autorización / Fechas / Moneda (right) -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <?php if ($isFel && !empty($item->fel_emisor_nombre)) : ?>
+                <div class="fw-bold"><?php echo htmlspecialchars($item->fel_emisor_nombre, ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php if (!empty($item->fel_emisor_nit)) : ?>
+                <div class="small">NIT Emisor: <?php echo htmlspecialchars($item->fel_emisor_nit); ?></div>
                 <?php endif; ?>
-                <?php if (!empty($item->fel_tipo_dte)) : ?>
-                <div class="col-md-6"><strong><?php echo $l('COM_ORDENPRODUCCION_FEL_TIPO', 'Tipo DTE'); ?>:</strong> <?php echo htmlspecialchars($item->fel_tipo_dte); ?></div>
+                <?php if (!empty($felExtra['emisor_nombre_comercial'])) : ?>
+                <div class="small"><?php echo htmlspecialchars($felExtra['emisor_nombre_comercial'], ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
-                <?php if (!empty($item->fel_autorizacion_uuid)) : ?>
-                <div class="col-12"><strong><?php echo $l('COM_ORDENPRODUCCION_FEL_UUID', 'UUID de autorización'); ?>:</strong> <code><?php echo htmlspecialchars($item->fel_autorizacion_uuid); ?></code></div>
+                <?php
+                $ed = $felExtra['emisor_direccion'] ?? null;
+                if (!empty($ed) && is_array($ed)) :
+                    $addrParts = array_filter([$ed['direccion'] ?? '', $ed['codigo_postal'] ?? '', ($ed['municipio'] ?? '') . (isset($ed['departamento']) && $ed['departamento'] !== '' ? ', ' . $ed['departamento'] : ''), $ed['pais'] ?? '']);
+                    if (!empty($addrParts)) :
+                ?>
+                <div class="small text-break"><?php echo htmlspecialchars(implode(' ', $addrParts), ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php endif; endif; ?>
+                <?php elseif (!empty($item->client_name)) : ?>
+                <div class="fw-bold"><?php echo htmlspecialchars($item->client_name, ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
             </div>
-            <?php endif; ?>
+            <div class="col-md-6 text-md-end small">
+                <?php if ($isFel && !empty($item->fel_autorizacion_uuid)) : ?>
+                <div><strong>Número de autorización:</strong><br><?php echo htmlspecialchars($item->fel_autorizacion_uuid); ?></div>
+                <?php if (!empty($felExtra['autorizacion_serie'])) : ?>
+                <div class="mt-1">Serie: <?php echo htmlspecialchars($felExtra['autorizacion_serie']); ?> <?php if (!empty($felExtra['autorizacion_numero_dte'])) : ?> Número de DTE: <?php echo htmlspecialchars($felExtra['autorizacion_numero_dte']); ?><?php endif; ?></div>
+                <?php endif; ?>
+                <?php if (!empty($item->fel_fecha_emision)) : ?>
+                <div class="mt-1">Fecha y hora de emisión: <?php echo $item->fel_fecha_emision ? HTMLHelper::_('date', $item->fel_fecha_emision, 'd-m-Y H:i:s') : '-'; ?></div>
+                <?php endif; ?>
+                <?php
+                $cert = $felExtra['certificacion'] ?? null;
+                if (!empty($cert['fecha_hora_certificacion'])) :
+                    $certDate = is_numeric(strtotime($cert['fecha_hora_certificacion'])) ? date('d-m-Y H:i:s', strtotime($cert['fecha_hora_certificacion'])) : $cert['fecha_hora_certificacion'];
+                ?>
+                <div>Fecha y hora de certificación: <?php echo htmlspecialchars($certDate); ?></div>
+                <?php endif; ?>
+                <?php endif; ?>
+                <div>Moneda: <?php echo $moneda; ?></div>
+            </div>
         </div>
-    </div>
 
-    <?php if (!empty($lineItems)) : ?>
-    <div class="card">
-        <div class="card-header"><strong><?php echo $l('COM_ORDENPRODUCCION_LINE_ITEMS', 'Líneas de factura'); ?></strong></div>
-        <div class="card-body p-0">
-            <table class="table table-bordered mb-0">
+        <!-- Receptor -->
+        <div class="row mb-3 small">
+            <div class="col-12">
+                <?php if ($item->client_nit ?? $item->fel_receptor_id ?? '') : ?>
+                <div><strong>ID receptor:</strong> <?php echo htmlspecialchars($item->client_nit ?? $item->fel_receptor_id ?? ''); ?></div>
+                <?php endif; ?>
+                <div><strong>Nombre receptor:</strong> <?php echo htmlspecialchars($item->client_name ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php if (!empty($item->client_address) || !empty($item->fel_receptor_direccion)) : ?>
+                <div><strong>Dirección comprador:</strong> <?php echo htmlspecialchars($item->client_address ?? $item->fel_receptor_direccion ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Items table (PDF columns) -->
+        <?php if (!empty($lineItems)) : ?>
+        <div class="table-responsive mb-3">
+            <table class="table table-bordered table-sm mb-0 invoice-items-table">
                 <thead class="table-light">
                     <tr>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_QTY', 'Cant.'); ?></th>
+                        <th>#</th>
+                        <th>No B/S</th>
+                        <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_QTY', 'Cantidad'); ?></th>
                         <th><?php echo $l('COM_ORDENPRODUCCION_ITEM_DESCRIPTION', 'Descripción'); ?></th>
-                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ITEM_UNIT_PRICE', 'P. unit.'); ?></th>
-                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ITEM_TOTAL', 'Total'); ?></th>
+                        <th class="text-end">P. Unit. con IVA (<?php echo $moneda; ?>)</th>
+                        <th class="text-end">Descuentos (<?php echo $moneda; ?>)</th>
+                        <th class="text-end">Otros Descuentos (<?php echo $moneda; ?>)</th>
+                        <th class="text-end">Total (<?php echo $moneda; ?>)</th>
+                        <th class="text-end">Impuestos</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($lineItems as $row) : ?>
+                    <?php foreach ($lineItems as $idx => $row) :
+                        $impuestos = $row['impuestos'] ?? [];
+                        $lineImpuesto = 0;
+                        $impuestoLabel = '';
+                        foreach ($impuestos as $i) {
+                            $m = (float) ($i['monto_impuesto'] ?? 0);
+                            $lineImpuesto += $m;
+                            $n = $i['nombre_corto'] ?? 'IVA';
+                            if ($impuestoLabel !== '') {
+                                $impuestoLabel .= ' ';
+                            }
+                            $impuestoLabel .= $n . ' ' . number_format($m, 6);
+                        }
+                        $descuento = (float) ($row['descuento'] ?? 0);
+                        $otrosDescuento = (float) ($row['otros_descuento'] ?? 0);
+                        $bienServicio = isset($row['bien_servicio']) ? (strtoupper((string) $row['bien_servicio']) === 'S' ? 'Servicio' : 'Bien') : (count($impuestos) ? 'Servicio' : 'Bien');
+                    ?>
                     <tr>
+                        <td><?php echo (int) ($row['numero_linea'] ?? $idx + 1); ?></td>
+                        <td><?php echo htmlspecialchars($bienServicio, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($row['cantidad'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($row['descripcion'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
-                        <td class="text-end"><?php echo number_format((float) ($row['precio_unitario'] ?? $row['subtotal'] ?? 0), 2); ?></td>
+                        <td class="text-end"><?php echo number_format((float) ($row['precio_unitario'] ?? 0), 2); ?></td>
+                        <td class="text-end"><?php echo number_format($descuento, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($otrosDescuento, 2); ?></td>
                         <td class="text-end"><?php echo number_format((float) ($row['subtotal'] ?? 0), 2); ?></td>
+                        <td class="text-end small"><?php echo $impuestoLabel !== '' ? htmlspecialchars($impuestoLabel, ENT_QUOTES, 'UTF-8') : '—'; ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="5" class="text-end">TOTALES:</td>
+                        <td class="text-end"><?php echo number_format($totalDescuentos, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($totalOtrosDescuentos, 2); ?></td>
+                        <td class="text-end"><?php echo number_format((float) ($item->invoice_amount ?? 0), 2); ?></td>
+                        <td class="text-end small">
+                            <?php
+                            $totImp = $felExtra['total_impuestos'] ?? [];
+                            if (!empty($totImp) && is_array($totImp)) {
+                                $parts = [];
+                                foreach ($totImp as $ti) {
+                                    $parts[] = ($ti['nombre_corto'] ?? 'IVA') . ' ' . number_format((float) ($ti['total_monto_impuesto'] ?? 0), 6);
+                                }
+                                echo htmlspecialchars(implode(' ', $parts), ENT_QUOTES, 'UTF-8');
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
+        <?php endif; ?>
+
+        <!-- Frases (notes) -->
+        <?php
+        $frases = $felExtra['frases'] ?? [];
+        if (!empty($frases) && is_array($frases)) :
+            $frasesText = [
+                '1' => ['1' => '', '2' => '', '3' => '', '4' => '* Exportaciones. Exenta del IVA (art. 7 núm. 2 Ley del IVA)'],
+                '2' => ['1' => '* Sujeto a retención definitiva ISR'],
+            ];
+            $toShow = [];
+            foreach ($frases as $f) {
+                $esc = $f['codigo_escenario'] ?? '';
+                $tipo = $f['tipo_frase'] ?? '';
+                if (isset($frasesText[$esc][$tipo]) && $frasesText[$esc][$tipo] !== '') {
+                    $toShow[] = $frasesText[$esc][$tipo];
+                }
+            }
+            if (empty($toShow) && ($felExtra['complemento_exportacion'] ?? null)) {
+                $toShow[] = '* Exportaciones. Exenta del IVA (art. 7 núm. 2 Ley del IVA)';
+            }
+            if (!empty($toShow)) :
+        ?>
+        <div class="small text-muted mb-3">
+            <?php foreach ($toShow as $txt) : ?>
+            <div><?php echo $txt; ?></div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; endif; ?>
+
+        <!-- Complemento Exportación -->
+        <?php
+        $exp = $felExtra['complemento_exportacion'] ?? null;
+        if (!empty($exp) && is_array($exp)) :
+        ?>
+        <div class="border rounded p-2 mb-3 small">
+            <div class="fw-bold mb-2">COMPLEMENTO EXPORTACIÓN</div>
+            <?php if (!empty($exp['lugar_expedicion'])) : ?>
+            <div>Lugar de expedición: <?php echo htmlspecialchars($exp['lugar_expedicion'], ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <?php if (!empty($exp['nombre_consignatario'])) : ?>
+            <div>Nombre consignatario: <?php echo htmlspecialchars($exp['nombre_consignatario'], ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <?php if (!empty($exp['direccion_consignatario'])) : ?>
+            <div>Dirección consignatario: <?php echo htmlspecialchars($exp['direccion_consignatario'], ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <?php if (!empty($exp['pais_consignatario'])) : ?>
+            <div>País del consignatario: <?php echo htmlspecialchars($exp['pais_consignatario'], ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <?php if (isset($exp['incoterm']) && $exp['incoterm'] !== '') : ?>
+            <div>Términos (INCOTERM): <?php echo htmlspecialchars($exp['incoterm'], ENT_QUOTES, 'UTF-8'); ?> <?php if ($exp['incoterm'] === 'ZZZ') : ?>- Otros<?php endif; ?></div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Complemento Abonos (FCAM) -->
+        <?php
+        $abonos = $felExtra['complemento_abonos'] ?? [];
+        if (!empty($abonos) && is_array($abonos)) :
+        ?>
+        <div class="border rounded p-2 mb-3 small">
+            <div class="fw-bold mb-2">Abonos / Fechas de vencimiento</div>
+            <ul class="mb-0 ps-3">
+            <?php foreach ($abonos as $ab) : ?>
+                <li>Abono <?php echo (int) ($ab['numero_abono'] ?? 0); ?>: Vence <?php echo htmlspecialchars($ab['fecha_vencimiento'] ?? ''); ?> — <?php echo $moneda; ?> <?php echo number_format((float) ($ab['monto_abono'] ?? 0), 2); ?></li>
+            <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
+
+        <!-- Datos del certificador (footer) -->
+        <?php
+        $cert = $felExtra['certificacion'] ?? null;
+        if (!empty($cert) && is_array($cert) && (!empty($cert['nombre_certificador']) || !empty($cert['nit_certificador']))) :
+        ?>
+        <div class="pt-2 mt-2 border-top small text-muted">
+            <strong>Datos del certificador</strong><br>
+            <?php if (!empty($cert['nombre_certificador'])) : ?>
+            <?php echo htmlspecialchars($cert['nombre_certificador'], ENT_QUOTES, 'UTF-8'); ?>
+            <?php endif; ?>
+            <?php if (!empty($cert['nit_certificador'])) : ?>
+            <?php if (!empty($cert['nombre_certificador'])) : ?> NIT: <?php endif; ?><?php echo htmlspecialchars($cert['nit_certificador']); ?>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <?php if (!$isFel) : ?>
+    <div class="mt-3 small">
+        <strong><?php echo $l('COM_ORDENPRODUCCION_INVOICE_DATE', 'Fecha'); ?>:</strong> <?php echo $item->invoice_date ? HTMLHelper::_('date', $item->invoice_date, Text::_('DATE_FORMAT_LC3')) : '-'; ?>
+        | <strong><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Estado'); ?>:</strong>
+        <?php
+        $statusKey = 'COM_ORDENPRODUCCION_STATUS_' . strtoupper((string) ($item->status ?? 'sent'));
+        $statusLabel = Text::_($statusKey);
+        echo ($statusLabel !== $statusKey) ? $statusLabel : htmlspecialchars($item->status ?? 'sent');
+        ?>
     </div>
     <?php endif; ?>
 </div>
+
+<style>
+.invoice-pdf-style .invoice-pdf-layout { max-width: 900px; }
+.invoice-pdf-style .invoice-items-table { font-size: 0.9rem; }
+.invoice-pdf-style .invoice-items-table th { white-space: nowrap; }
+</style>
