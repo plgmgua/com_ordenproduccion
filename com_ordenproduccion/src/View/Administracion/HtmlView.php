@@ -324,6 +324,20 @@ class HtmlView extends BaseHtmlView
     protected $solicitudOrdenUrl = '';
 
     /**
+     * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
+     *
+     * @return  array
+     * @since   3.97.0
+     */
+    protected function getLayoutData()
+    {
+        $data = parent::getLayoutData();
+        $data['invoices'] = isset($this->invoices) && is_array($this->invoices) ? $this->invoices : [];
+        $data['invoicesPagination'] = $this->invoicesPagination ?? null;
+        return $data;
+    }
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse

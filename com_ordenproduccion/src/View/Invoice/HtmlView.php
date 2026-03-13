@@ -14,6 +14,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 class HtmlView extends BaseHtmlView
 {
@@ -33,6 +34,13 @@ class HtmlView extends BaseHtmlView
 
         if ($user->guest) {
             $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        // Invoices (Facturas) are only visible to Administrator or Admon user groups
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
 

@@ -18,6 +18,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 class InvoiceController extends BaseController
 {
@@ -30,6 +31,13 @@ class InvoiceController extends BaseController
         if (!Session::checkToken()) {
             $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=workorders'));
+            return false;
+        }
+
+        // Facturas: only Administrator or Admon user groups may create invoices
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return false;
         }
 
