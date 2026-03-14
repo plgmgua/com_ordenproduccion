@@ -493,9 +493,12 @@ class HtmlView extends BaseHtmlView
                     $this->invoices = $invoicesModel->getItems();
                     $this->invoicesPagination = $invoicesModel->getPagination();
                     $this->state = $invoicesModel->getState();
-                    // Preserve filter params in pagination links
+                    // Preserve option, view, tab and filter params in pagination links (20 per page default)
                     if ($this->invoicesPagination) {
                         $st = $this->state;
+                        $this->invoicesPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                        $this->invoicesPagination->setAdditionalUrlParam('view', 'administracion');
+                        $this->invoicesPagination->setAdditionalUrlParam('tab', 'invoices');
                         $this->invoicesPagination->setAdditionalUrlParam('filter_nit', $st->get('filter.nit', ''));
                         $this->invoicesPagination->setAdditionalUrlParam('filter_cliente', $st->get('filter.cliente', ''));
                         $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_from', $st->get('filter.fecha_from', ''));

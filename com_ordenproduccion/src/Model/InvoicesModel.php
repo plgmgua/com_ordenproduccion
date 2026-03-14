@@ -94,7 +94,7 @@ class InvoicesModel extends ListModel
     }
 
     /**
-     * Populate state (filters: NIT, Cliente, Fecha from/to, Total min/max)
+     * Populate state (filters + list limit/start for pagination; default 20 per page)
      */
     protected function populateState($ordering = 'fel_fecha_emision', $direction = 'desc')
     {
@@ -106,6 +106,11 @@ class InvoicesModel extends ListModel
         $this->setState('filter.fecha_to', $app->getUserStateFromRequest($this->context . '.filter.fecha_to', 'filter_fecha_to', '', 'string'));
         $this->setState('filter.total_min', $app->getUserStateFromRequest($this->context . '.filter.total_min', 'filter_total_min', '', 'string'));
         $this->setState('filter.total_max', $app->getUserStateFromRequest($this->context . '.filter.total_max', 'filter_total_max', '', 'string'));
+
+        $limit = (int) $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', 20, 'uint');
+        $this->setState('list.limit', $limit ?: 20);
+        $limitstart = (int) $app->input->get('limitstart', 0, 'uint');
+        $this->setState('list.start', $limitstart);
 
         parent::populateState($ordering, $direction);
     }

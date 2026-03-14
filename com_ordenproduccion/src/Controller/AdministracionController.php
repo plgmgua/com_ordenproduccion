@@ -200,6 +200,130 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Export invoices list to Excel (.xlsx) or CSV (respects current filters).
+     *
+     * @return  void
+     * @since   3.97.0
+     */
+    public function exportInvoicesExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+            return;
+        }
+
+        $input = $app->input;
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => false]);
+        if (!$model) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR'), 'error');
+            $app->redirect($redirectUrl);
+            return;
+        }
+        $model->setState('filter.nit', $input->getString('filter_nit', ''));
+        $model->setState('filter.cliente', $input->getString('filter_cliente', ''));
+        $model->setState('filter.fecha_from', $input->getString('filter_fecha_from', ''));
+        $model->setState('filter.fecha_to', $input->getString('filter_fecha_to', ''));
+        $model->setState('filter.total_min', $input->getString('filter_total_min', ''));
+        $model->setState('filter.total_max', $input->getString('filter_total_max', ''));
+        $model->setState('list.limit', 999999);
+        $model->setState('list.start', 0);
+
+        $items = $model->getItems();
+        if (!is_array($items)) {
+            $items = [];
+        }
+
+        $cols = ['Serie | Número', 'Fecha de Emisión', 'NIT', 'Cliente', 'Total Factura (Q)'];
+        $rows = [];
+        foreach ($items as $invoice) {
+            $felExtra = [];
+            if (!empty($invoice->fel_extra) && is_string($invoice->fel_extra)) {
+                $felExtra = json_decode($invoice->fel_extra, true) ?: [];
+            }
+            $serie = $felExtra['autorizacion_serie'] ?? '';
+            $numero = $felExtra['autorizacion_numero_dte'] ?? '';
+            $serieNumero = trim($serie . ' | ' . $numero) ?: '—';
+            $fecha = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
+            $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '—';
+            $nit = trim($invoice->client_nit ?? $invoice->fel_receptor_id ?? '') ?: '—';
+            $cliente = $invoice->client_name ?? '—';
+            $moneda = $invoice->currency ?? 'Q';
+            $total = number_format((float) ($invoice->invoice_amount ?? 0), 2, '.', '') . ' ' . $moneda;
+            $rows[] = [$serieNumero, $fechaStr, $nit, $cliente, $total];
+        }
+
+        $autoload = JPATH_ROOT . '/vendor/autoload.php';
+        if (is_file($autoload)) {
+            require_once $autoload;
+            if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+                try {
+                    $this->exportInvoicesXlsx($cols, $rows, $app);
+                    return;
+                } catch (\Throwable $e) {
+                    // Fall through to CSV
+                }
+            }
+        }
+        $this->exportInvoicesCsv($cols, $rows, $app);
+    }
+
+    /**
+     * Export invoices to CSV.
+     */
+    protected function exportInvoicesCsv(array $cols, array $rows, $app)
+    {
+        $filename = 'facturas-' . date('Y-m-d-His') . '.csv';
+        @ob_clean();
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, must-revalidate');
+        $out = fopen('php://output', 'w');
+        fprintf($out, "\xEF\xBB\xBF");
+        fputcsv($out, $cols);
+        foreach ($rows as $row) {
+            fputcsv($out, $row);
+        }
+        fclose($out);
+        $app->close();
+    }
+
+    /**
+     * Export invoices to Excel .xlsx
+     */
+    protected function exportInvoicesXlsx(array $cols, array $rows, $app)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Facturas');
+        $sheet->fromArray($cols, null, 'A1');
+        $headerStyle = $sheet->getStyle('A1:E1');
+        $headerStyle->getFont()->setBold(true);
+        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
+        $rowIndex = 2;
+        foreach ($rows as $row) {
+            $sheet->fromArray($row, null, 'A' . $rowIndex);
+            $rowIndex++;
+        }
+        foreach (range('A', 'E') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        $filename = 'facturas-' . date('Y-m-d-His') . '.xlsx';
+        @ob_clean();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $app->close();
+    }
+
+    /**
      * Merge selected clients into one (super user only).
      *
      * @return  void

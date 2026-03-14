@@ -225,8 +225,8 @@ if ($importReport !== null) {
         </button>
     </form>
 
-    <!-- Import XML: file selection and button side by side -->
-    <div class="import-xml-bar">
+    <!-- Import XML and Export Excel -->
+    <div class="import-xml-bar d-flex flex-wrap gap-2 align-items-center">
         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.importInvoicesXml'); ?>" 
               method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
             <?php echo HTMLHelper::_('form.token'); ?>
@@ -235,6 +235,19 @@ if ($importReport !== null) {
                 <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
             </button>
         </form>
+        <?php
+        $state = $this->state ?? new \Joomla\Registry\Registry();
+        $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.exportInvoicesExcel&format=raw');
+        $exportUrl .= '&filter_nit=' . rawurlencode($state->get('filter.nit', ''));
+        $exportUrl .= '&filter_cliente=' . rawurlencode($state->get('filter.cliente', ''));
+        $exportUrl .= '&filter_fecha_from=' . rawurlencode($state->get('filter.fecha_from', ''));
+        $exportUrl .= '&filter_fecha_to=' . rawurlencode($state->get('filter.fecha_to', ''));
+        $exportUrl .= '&filter_total_min=' . rawurlencode($state->get('filter.total_min', ''));
+        $exportUrl .= '&filter_total_max=' . rawurlencode($state->get('filter.total_max', ''));
+        ?>
+        <a href="<?php echo $exportUrl; ?>" class="btn btn-success btn-sm" target="_blank" rel="noopener">
+            <i class="fas fa-file-excel"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_EXPORT_EXCEL'); ?>
+        </a>
     </div>
 
     <?php if (!empty($importReport) && is_array($importReport)): ?>
