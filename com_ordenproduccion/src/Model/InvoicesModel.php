@@ -109,8 +109,9 @@ class InvoicesModel extends ListModel
 
         parent::populateState($ordering, $direction);
 
-        // Force pagination: default 20 per page (parent may set list.limit to 0 on site)
-        $limit = (int) $this->getState('list.limit', 20);
+        // Force pagination: default 20 per page (parent may set list.limit to 0 on site).
+        // Read from request key 'limit' so pagination links (e.g. ?limit=20&limitstart=20) work.
+        $limit = (int) $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', 20, 'uint');
         if ($limit <= 0) {
             $limit = 20;
         }

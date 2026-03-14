@@ -484,7 +484,7 @@ class HtmlView extends BaseHtmlView
                 $invoicesModel = $this->getModel('Invoices');
                 if (!$invoicesModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoicesModel::class)) {
                     $invoicesModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
-                        ->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => true]);
+                        ->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => false]);
                 }
                 if ($invoicesModel) {
                     if ($salesAgentFilter !== null) {

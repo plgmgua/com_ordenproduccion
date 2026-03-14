@@ -210,6 +210,14 @@ if ($importReport !== null) {
 .invoices-pagination-links .page-link {
     padding: 6px 12px;
 }
+/* Ensure pagination block is visible (avoid template overrides hiding it) */
+.invoices-pagination-wrapper {
+    display: block !important;
+    visibility: visible !important;
+    margin-top: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid #dee2e6;
+}
 </style>
 
 <div class="invoices-section">
@@ -220,21 +228,25 @@ if ($importReport !== null) {
         </h2>
     </div>
 
-    <!-- Filters: NIT, Cliente, Fecha, Total -->
-    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" 
+    <!-- Filters: NIT, Cliente, Fecha, Total (id="adminForm" and limit/limitstart for pagination) -->
+    <?php
+    $state = $this->state ?? new \Joomla\Registry\Registry();
+    $listLimit   = (int) $state->get('list.limit', 20) ?: 20;
+    $listStart   = (int) $state->get('list.start', 0);
+    $filterNit     = $state->get('filter.nit', '');
+    $filterCliente = $state->get('filter.cliente', '');
+    $filterFechaFrom = $state->get('filter.fecha_from', '');
+    $filterFechaTo   = $state->get('filter.fecha_to', '');
+    $filterTotalMin  = $state->get('filter.total_min', '');
+    $filterTotalMax  = $state->get('filter.total_max', '');
+    ?>
+    <form id="adminForm" method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" 
           class="search-filter-bar">
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="invoices" />
-        <?php
-        $state = $this->state ?? new \Joomla\Registry\Registry();
-        $filterNit     = $state->get('filter.nit', '');
-        $filterCliente = $state->get('filter.cliente', '');
-        $filterFechaFrom = $state->get('filter.fecha_from', '');
-        $filterFechaTo   = $state->get('filter.fecha_to', '');
-        $filterTotalMin  = $state->get('filter.total_min', '');
-        $filterTotalMax  = $state->get('filter.total_max', '');
-        ?>
+        <input type="hidden" name="limit" value="<?php echo (int) $listLimit; ?>" />
+        <input type="hidden" name="limitstart" value="0" />
         <input type="text" name="filter_nit" placeholder="NIT" value="<?php echo htmlspecialchars($filterNit); ?>" />
         <input type="text" name="filter_cliente" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> (Cliente)" value="<?php echo htmlspecialchars($filterCliente); ?>" />
         <input type="date" name="filter_fecha_from" placeholder="Fecha desde" value="<?php echo htmlspecialchars($filterFechaFrom); ?>" title="Fecha desde" />
@@ -349,14 +361,48 @@ if ($importReport !== null) {
             </tbody>
         </table>
 
-        <!-- Pagination: always show when we have a pagination object -->
+        <!-- Pagination: always show when we have a pagination object (results counter + page links) -->
         <?php if ($pagination): ?>
-            <div class="invoices-pagination-wrapper">
+            <div class="invoices-pagination-wrapper" role="navigation" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_PAGINATION'); ?>">
                 <div class="invoices-pagination-info">
                     <?php echo $pagination->getResultsCounter(); ?>
                 </div>
                 <div class="invoices-pagination-links">
-                    <?php echo $pagination->getListFooter(); ?>
+                    <?php
+                    $listFooter = $pagination->getListFooter();
+                    if (trim((string) $listFooter) !== '') {
+                        echo $listFooter;
+                    } else {
+                        // Fallback: build prev/next and page counter when getListFooter() is empty (e.g. frontend)
+                        $total   = (int) $pagination->total;
+                        $limit   = (int) $pagination->limit ?: 20;
+                        $start   = (int) $pagination->limitstart;
+                        $pagesTotal = $limit > 0 ? (int) ceil($total / $limit) : 1;
+                        $currentPage = $pagesTotal > 0 ? (int) floor($start / $limit) + 1 : 1;
+                        $baseUrl = 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices&limit=' . $limit;
+                        $baseUrl .= '&filter_nit=' . rawurlencode($state->get('filter.nit', ''));
+                        $baseUrl .= '&filter_cliente=' . rawurlencode($state->get('filter.cliente', ''));
+                        $baseUrl .= '&filter_fecha_from=' . rawurlencode($state->get('filter.fecha_from', ''));
+                        $baseUrl .= '&filter_fecha_to=' . rawurlencode($state->get('filter.fecha_to', ''));
+                        $baseUrl .= '&filter_total_min=' . rawurlencode($state->get('filter.total_min', ''));
+                        $baseUrl .= '&filter_total_max=' . rawurlencode($state->get('filter.total_max', ''));
+                        ?>
+                        <nav aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_PAGINATION'); ?>">
+                            <ul class="pagination justify-content-center flex-wrap">
+                                <?php if ($currentPage > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="<?php echo Route::_($baseUrl . '&limitstart=' . max(0, $start - $limit)); ?>">&laquo; <?php echo Text::_('JPREV'); ?></a>
+                                    </li>
+                                <?php endif; ?>
+                                <li class="page-item disabled"><span class="page-link"><?php echo $pagination->getPagesCounter(); ?></span></li>
+                                <?php if ($currentPage < $pagesTotal): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="<?php echo Route::_($baseUrl . '&limitstart=' . ($start + $limit)); ?>"><?php echo Text::_('JNEXT'); ?> &raquo;</a>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                    <?php } ?>
                 </div>
             </div>
         <?php endif; ?>
