@@ -107,12 +107,16 @@ class InvoicesModel extends ListModel
         $this->setState('filter.total_min', $app->getUserStateFromRequest($this->context . '.filter.total_min', 'filter_total_min', '', 'string'));
         $this->setState('filter.total_max', $app->getUserStateFromRequest($this->context . '.filter.total_max', 'filter_total_max', '', 'string'));
 
-        $limit = (int) $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', 20, 'uint');
-        $this->setState('list.limit', $limit ?: 20);
-        $limitstart = (int) $app->input->get('limitstart', 0, 'uint');
-        $this->setState('list.start', $limitstart);
-
         parent::populateState($ordering, $direction);
+
+        // Force pagination: default 20 per page (parent may set list.limit to 0 on site)
+        $limit = (int) $this->getState('list.limit', 20);
+        if ($limit <= 0) {
+            $limit = 20;
+        }
+        $this->setState('list.limit', $limit);
+        $limitstart = (int) $app->input->get('limitstart', 0, 'uint');
+        $this->setState('list.start', max(0, $limitstart));
     }
 
     /**
