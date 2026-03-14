@@ -553,22 +553,39 @@ class AdministracionController extends BaseController
             return;
         }
 
+        $toProcess = self::expandUploadedFilesToXmlList($files);
+        if (empty($toProcess)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_NO_XML'), 'warning');
+            $app->redirect($redirectUrl);
+            return;
+        }
+        $tempDirs = [];
+        foreach ($toProcess as $item) {
+            if (!empty($item['temp_dir'])) {
+                $tempDirs[$item['temp_dir']] = true;
+            }
+        }
+
         $imported = 0;
         $skipped = 0;
-        $errors = [];
-        $skippedFiles = [];
+        $report = [];
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
-        foreach ($files as $file) {
-            if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+        foreach ($toProcess as $file) {
+            $tmpPath = $file['tmp_name'] ?? '';
+            $fileName = $file['name'] ?? 'file';
+            $isExtracted = !empty($file['is_extracted']);
+            $canRead = $tmpPath !== '' && (($isExtracted && is_file($tmpPath)) || is_uploaded_file($tmpPath));
+
+            if (!$canRead) {
+                $report[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR')];
                 continue;
             }
-            $fileName = $file['name'] ?? 'file';
 
             try {
-                $xmlContent = @file_get_contents($file['tmp_name']);
+                $xmlContent = @file_get_contents($tmpPath);
                 if ($xmlContent === false || trim($xmlContent) === '') {
-                    $errors[] = $fileName . ': ' . Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR');
+                    $report[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_READ_ERROR')];
                     continue;
                 }
                 $xmlContent = self::ensureUtf8($xmlContent);
@@ -576,7 +593,7 @@ class AdministracionController extends BaseController
 
                 $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
                 if (!$result['success']) {
-                    $errors[] = $fileName . ': ' . ($result['error'] ?? 'Parse error');
+                    $report[] = ['file' => $fileName, 'status' => 'error', 'message' => $result['error'] ?? 'Parse error'];
                     continue;
                 }
 
@@ -598,7 +615,6 @@ class AdministracionController extends BaseController
                 }
                 $obj = (object) $row;
 
-                // Skip if invoice already exists (by FEL UUID or invoice_number)
                 $exists = false;
                 if (!empty($obj->fel_autorizacion_uuid)) {
                     $query = $db->getQuery(true)
@@ -618,28 +634,99 @@ class AdministracionController extends BaseController
                 }
                 if ($exists) {
                     $skipped++;
-                    $skippedFiles[] = $fileName;
+                    $report[] = ['file' => $fileName, 'status' => 'skipped', 'message' => Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_ALREADY_EXISTS')];
                     continue;
                 }
 
                 $db->insertObject('#__ordenproduccion_invoices', $obj, 'id');
                 $imported++;
+                $report[] = ['file' => $fileName, 'status' => 'imported', 'message' => ''];
             } catch (\Throwable $e) {
-                $errors[] = $fileName . ': ' . $e->getMessage();
+                $report[] = ['file' => $fileName, 'status' => 'error', 'message' => $e->getMessage()];
             }
         }
 
+        foreach (array_keys($tempDirs) as $dir) {
+            if (is_dir($dir)) {
+                $filesInDir = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
+                foreach ($filesInDir as $f) {
+                    if ($f->isDir()) {
+                        @rmdir($f->getRealPath());
+                    } else {
+                        @unlink($f->getRealPath());
+                    }
+                }
+                @rmdir($dir);
+            }
+        }
+
+        $app->getSession()->set('com_ordenproduccion.import_report', $report);
         if ($imported > 0) {
             $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORTED_COUNT', $imported), 'success');
         }
         if ($skipped > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORT_SKIPPED_COUNT', $skipped) . ' (' . implode(', ', $skippedFiles) . ')', 'notice');
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORT_SKIPPED_COUNT', $skipped), 'notice');
         }
-        foreach ($errors as $err) {
-            $app->enqueueMessage($err, 'error');
+        $errorCount = count(array_filter($report, function ($r) { return $r['status'] === 'error'; }));
+        if ($errorCount > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_IMPORT_ERROR_COUNT', $errorCount), 'error');
         }
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Expand uploaded files to a flat list of XML files (extract ZIP contents).
+     *
+     * @param   array  $files  From normalizeUploadedFiles()
+     * @return  array  List of ['name' => string, 'tmp_name' => string, 'is_extracted' => bool, 'temp_dir' => string|null]
+     */
+    private static function expandUploadedFilesToXmlList(array $files)
+    {
+        $list = [];
+        foreach ($files as $file) {
+            $name = $file['name'] ?? '';
+            $tmpName = $file['tmp_name'] ?? '';
+            if ($tmpName === '') {
+                continue;
+            }
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if ($ext === 'zip' && class_exists('ZipArchive')) {
+                $zip = new \ZipArchive();
+                if ($zip->open($tmpName, \ZipArchive::RDONLY) !== true) {
+                    continue;
+                }
+                $tempDir = sys_get_temp_dir() . '/op_import_' . uniqid('', true);
+                if (!@mkdir($tempDir, 0700, true)) {
+                    $zip->close();
+                    continue;
+                }
+                $zip->extractTo($tempDir);
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $entry = $zip->getNameIndex($i);
+                    if ($entry === false || strpos($entry, '..') !== false) {
+                        continue;
+                    }
+                    if (strtolower(pathinfo($entry, PATHINFO_EXTENSION)) === 'xml') {
+                        $fullPath = $tempDir . '/' . $entry;
+                        if (is_file($fullPath)) {
+                            $list[] = [
+                                'name'         => basename($entry),
+                                'tmp_name'     => $fullPath,
+                                'is_extracted' => true,
+                                'temp_dir'     => $tempDir,
+                            ];
+                        }
+                    }
+                }
+                $zip->close();
+                continue;
+            }
+            if ($ext === 'xml') {
+                $list[] = array_merge($file, ['is_extracted' => false, 'temp_dir' => null]);
+            }
+        }
+        return $list;
     }
 
     /**

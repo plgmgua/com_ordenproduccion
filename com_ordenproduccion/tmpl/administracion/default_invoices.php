@@ -23,6 +23,10 @@ $pagination = $this->get('invoicesPagination');
 if ($pagination === null && isset($this->invoicesPagination)) {
     $pagination = $this->invoicesPagination;
 }
+$importReport = Factory::getApplication()->getSession()->get('com_ordenproduccion.import_report', null);
+if ($importReport !== null) {
+    Factory::getApplication()->getSession()->set('com_ordenproduccion.import_report', null);
+}
 ?>
 
 <style>
@@ -226,12 +230,44 @@ if ($pagination === null && isset($this->invoicesPagination)) {
         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.importInvoicesXml'); ?>" 
               method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <input type="file" name="invoice_xml[]" accept=".xml" multiple="multiple" class="form-control form-control-sm" style="max-width: 320px;" title="<?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML_MULTIPLE_HINT'); ?>" />
+            <input type="file" name="invoice_xml[]" accept=".xml,.zip" multiple="multiple" class="form-control form-control-sm" style="max-width: 320px;" title="<?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML_MULTIPLE_HINT'); ?>" />
             <button type="submit" class="btn btn-outline-primary btn-sm">
                 <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
             </button>
         </form>
     </div>
+
+    <?php if (!empty($importReport) && is_array($importReport)): ?>
+    <div class="import-report-box mb-3">
+        <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_IMPORT_REPORT'); ?></h3>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered" style="font-size: 0.875rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Archivo</th>
+                        <th>Resultado</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($importReport as $r):
+                        $file = isset($r['file']) ? $r['file'] : '';
+                        $status = isset($r['status']) ? $r['status'] : '';
+                        $msg = isset($r['message']) ? $r['message'] : '';
+                        $statusLabel = $status === 'imported' ? Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_IMPORTED') : ($status === 'skipped' ? Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_SKIPPED') : Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_ERROR'));
+                        $rowClass = $status === 'imported' ? 'table-success' : ($status === 'skipped' ? 'table-warning' : 'table-danger');
+                    ?>
+                    <tr class="<?php echo $rowClass; ?>">
+                        <td><?php echo htmlspecialchars($file, ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?php echo $statusLabel; ?></td>
+                        <td><?php echo htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Cliente, Total Factura (Q) -->
     <?php if (!empty($invoices)): ?>
