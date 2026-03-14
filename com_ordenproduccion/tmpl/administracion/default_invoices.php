@@ -188,6 +188,28 @@ if ($importReport !== null) {
     font-size: 18px;
     margin-bottom: 20px;
 }
+
+.invoices-pagination-wrapper {
+    margin-top: 20px;
+    padding: 15px;
+    text-align: center;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+.invoices-pagination-info {
+    margin-bottom: 10px;
+    font-size: 0.875rem;
+    color: #666;
+}
+.invoices-pagination-links .pagination {
+    margin: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.invoices-pagination-links .page-link {
+    padding: 6px 12px;
+}
 </style>
 
 <div class="invoices-section">
@@ -327,10 +349,15 @@ if ($importReport !== null) {
             </tbody>
         </table>
 
-        <!-- Pagination -->
+        <!-- Pagination: always show when we have a pagination object -->
         <?php if ($pagination): ?>
-            <div class="pagination-wrapper" style="margin-top: 20px; text-align: center;">
-                <?php echo $pagination->getListFooter(); ?>
+            <div class="invoices-pagination-wrapper">
+                <div class="invoices-pagination-info">
+                    <?php echo $pagination->getResultsCounter(); ?>
+                </div>
+                <div class="invoices-pagination-links">
+                    <?php echo $pagination->getListFooter(); ?>
+                </div>
             </div>
         <?php endif; ?>
     <?php else: ?>
