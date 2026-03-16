@@ -218,6 +218,11 @@ if ($importReport !== null) {
     padding: 1rem 0;
     border-top: 1px solid #dee2e6;
 }
+.invoices-cliente-autocomplete { display: inline-block; min-width: 180px; }
+.invoices-cliente-suggestions { list-style: none; margin: 2px 0 0; padding: 0; border: 1px solid #dee2e6; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: #fff; }
+.invoices-cliente-suggestions .list-group-item { cursor: pointer; padding: 8px 12px; border: none; border-bottom: 1px solid #eee; }
+.invoices-cliente-suggestions .list-group-item:last-child { border-bottom: none; }
+.invoices-cliente-suggestions .list-group-item:hover { background-color: #f0f0f0; }
 </style>
 
 <div class="invoices-section">
@@ -248,7 +253,10 @@ if ($importReport !== null) {
         <input type="hidden" name="limit" value="<?php echo (int) $listLimit; ?>" />
         <input type="hidden" name="limitstart" value="0" />
         <input type="text" name="filter_nit" placeholder="NIT" value="<?php echo htmlspecialchars($filterNit); ?>" />
-        <input type="text" name="filter_cliente" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> (Cliente)" value="<?php echo htmlspecialchars($filterCliente); ?>" />
+        <div class="invoices-cliente-autocomplete position-relative">
+            <input type="text" id="invoices-filter-cliente" name="filter_cliente" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?> (Cliente)" value="<?php echo htmlspecialchars($filterCliente); ?>" autocomplete="off" data-suggest-url="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=administracion.suggestInvoiceClients&format=json&' . \Joomla\CMS\Session\Session::getFormToken() . '=1&q=')); ?>" />
+            <ul id="invoices-cliente-suggestions" class="invoices-cliente-suggestions list-group position-absolute" style="display:none; z-index: 1000; max-height: 220px; overflow-y: auto; min-width: 100%;"></ul>
+        </div>
         <input type="date" name="filter_fecha_from" placeholder="Fecha desde" value="<?php echo htmlspecialchars($filterFechaFrom); ?>" title="Fecha desde" />
         <input type="date" name="filter_fecha_to" placeholder="Fecha hasta" value="<?php echo htmlspecialchars($filterFechaTo); ?>" title="Fecha hasta" />
         <input type="number" name="filter_total_min" placeholder="Total min" value="<?php echo htmlspecialchars($filterTotalMin); ?>" step="0.01" min="0" title="Total mínimo (Q)" />
@@ -419,5 +427,71 @@ if ($importReport !== null) {
             </p>
         </div>
     <?php endif; ?>
+
+    <script>
+    (function() {
+        var input = document.getElementById('invoices-filter-cliente');
+        var list = document.getElementById('invoices-cliente-suggestions');
+        if (!input || !list) return;
+        var baseUrl = input.getAttribute('data-suggest-url') || '';
+        var debounceTimer = null;
+        var hideTimer = null;
+
+        function hideSuggestions() {
+            list.style.display = 'none';
+            list.innerHTML = '';
+        }
+
+        function showSuggestions(items) {
+            list.innerHTML = '';
+            if (!items || items.length === 0) {
+                list.style.display = 'none';
+                return;
+            }
+            items.forEach(function(name) {
+                var li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = name;
+                li.addEventListener('click', function() {
+                    input.value = name;
+                    hideSuggestions();
+                    input.focus();
+                });
+                list.appendChild(li);
+            });
+            list.style.display = 'block';
+        }
+
+        input.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            var q = (input.value || '').trim();
+            if (q.length < 2) {
+                hideSuggestions();
+                return;
+            }
+            debounceTimer = setTimeout(function() {
+                var url = baseUrl + encodeURIComponent(q);
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(arr) { showSuggestions(Array.isArray(arr) ? arr : []); })
+                    .catch(function() { hideSuggestions(); });
+            }, 280);
+        });
+
+        input.addEventListener('focus', function() {
+            var q = (input.value || '').trim();
+            if (q.length >= 2 && list.children.length) list.style.display = 'block';
+        });
+
+        input.addEventListener('blur', function() {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(hideSuggestions, 180);
+        });
+
+        list.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+        });
+    })();
+    </script>
 </div>
 

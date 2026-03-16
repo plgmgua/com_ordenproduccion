@@ -273,6 +273,47 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Suggest invoice client names for autocomplete (JSON; partial match on client_name).
+     *
+     * @return  void
+     * @since   3.97.0
+     */
+    public function suggestInvoiceClients()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+            echo json_encode([]);
+            $app->close();
+            return;
+        }
+
+        $q = trim($app->input->getString('q', ''));
+        $suggestions = [];
+        if ($q !== '') {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $query = $db->getQuery(true)
+                ->select('DISTINCT ' . $db->quoteName('client_name'))
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('client_name') . ' IS NOT NULL')
+                ->where($db->quoteName('client_name') . ' != ' . $db->quote(''))
+                ->where($db->quoteName('client_name') . ' LIKE ' . $db->quote('%' . $db->escape($q, true) . '%'))
+                ->order($db->quoteName('client_name') . ' ASC')
+                ->setLimit(25);
+            $db->setQuery($query);
+            $rows = $db->loadColumn() ?: [];
+            $suggestions = array_values(array_map('trim', array_filter($rows)));
+        }
+
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        echo json_encode($suggestions);
+        $app->close();
+    }
+
+    /**
      * Export invoices to CSV.
      */
     protected function exportInvoicesCsv(array $cols, array $rows, $app)
