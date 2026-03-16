@@ -469,28 +469,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $totalMonto += $proofMonto;
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
-                                <tr>
-                                    <td colspan="8" class="p-2 pt-0">
-                                        <?php if (!empty($proofOrders)) : ?>
-                                        <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach ($proofOrders as $po) : ?>
-                                                <tr>
-                                                    <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                        <?php else : ?>
-                                        <span class="text-muted small">—</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
+                                <?php /* Removed duplicate simple "Orden #" list; keep detailed "Información de la Orden" table below. */ ?>
                                 <?php
                                     else:
                                         $totalMonto += (float)($proof->payment_amount ?? 0);
@@ -546,28 +525,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         echo '</div>';
                                     ?></td>
                                 </tr>
-                                <tr>
-                                    <td colspan="8" class="p-2 pt-0">
-                                        <?php if (!empty($proofOrders)) : ?>
-                                        <table class="table table-sm table-bordered mb-0 ms-3" style="max-width: 520px;">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th class="small"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach ($proofOrders as $po) : ?>
-                                                <tr>
-                                                    <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                        <?php else : ?>
-                                        <span class="text-muted small">—</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
+                                <?php /* Removed duplicate simple "Orden #" list; keep detailed "Información de la Orden" table below. */ ?>
                                 <?php endif; endforeach; ?>
                                 <!-- Add-file mini-form rows (hidden, one per proof, toggled via JS) -->
                                 <?php foreach ($existingPayments as $epf) : ?>
