@@ -82,7 +82,7 @@ if (empty($order)) :
                                         <tr>
                                             <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
                                             <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
-                                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
+                                            <th style="width: 140px;">Doc. No</th>
                                             <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                             <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
                                             <th style="width: 40px;"></th>
@@ -92,7 +92,7 @@ if (empty($order)) :
                                         <tr class="payment-line-row">
                                             <td>
                                                 <select name="payment_lines[0][payment_type]" class="form-control form-control-sm payment-line-type" required>
-                                                    <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Select payment type', 'Seleccionar tipo de pago'); ?></option>
+                                                    <option value="">Seleccionar</option>
                                                     <?php foreach ($paymentTypeOptions as $val => $txt): ?>
                                                     <option value="<?php echo htmlspecialchars($val); ?>"><?php echo htmlspecialchars($txt); ?></option>
                                                     <?php endforeach; ?>
@@ -143,7 +143,7 @@ if (empty($order)) :
                                         <tr>
                                             <th style="width: 50%"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
                                             <th style="width: 35%"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
-                                            <th style="width: 60px;"></th>
+                                            <th style="width: 40px;"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="payment-orders-body">
@@ -210,6 +210,9 @@ if (empty($order)) :
 .order-search-results { list-style: none; margin: 0; padding: 0; }
 .order-search-results .list-group-item { cursor: pointer; }
 .order-search-results .list-group-item:hover { background-color: var(--bs-list-group-hover-bg, #e9ecef); }
+/* Make action buttons column slim and right-aligned */
+#payment-orders-table th:last-child,
+#payment-orders-table td:last-child { text-align: right; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -381,7 +384,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             <thead>
                                 <tr>
                                     <th><?php echo htmlspecialchars($this->labelPaymentProofId ?? 'ID'); ?></th>
-                                    <th><?php echo htmlspecialchars($this->labelDocumentNumber ?? 'Número de Documento'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelDocumentNumberShort ?? 'Doc. No'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelDocumentDate ?? 'Fecha Doc.'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
@@ -877,7 +880,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 <tr>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
-                                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_NUMBER', 'Document Number', 'Número de documento'); ?></th>
+                                                    <th style="width: 140px;">Doc. No</th>
                                                     <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                                     <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
                                                     <th style="width: 40px;"></th>
@@ -887,7 +890,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 <tr class="payment-line-row">
                                                     <td>
                                                         <select name="payment_lines[0][payment_type]" class="form-control form-control-sm payment-line-type" required>
-                                                            <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_PAYMENT_TYPE', 'Select payment type', 'Seleccionar tipo de pago'); ?></option>
+                                                            <option value="">Seleccionar</option>
                                                             <?php foreach ($paymentTypeOptions as $val => $txt): ?>
                                                             <option value="<?php echo htmlspecialchars($val); ?>"><?php echo htmlspecialchars($txt); ?></option>
                                                             <?php endforeach; ?>
@@ -946,7 +949,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <tr>
                                                         <th style="width: 50%"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
                                                         <th style="width: 35%"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
-                                                        <th style="width: 60px;"></th>
+                                                        <th style="width: 40px;"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="payment-orders-body">
