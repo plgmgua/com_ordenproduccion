@@ -116,15 +116,14 @@ if (empty($order)) :
                                         <tr class="table-info">
                                             <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                             <td><strong id="payment-lines-total">Q. 0.00</strong></td>
-                                            <td></td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                                                    <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                                                </button>
+                                            </td>
                                         </tr>
                                     </tfoot>
                                 </table>
-                                <div class="mt-2">
-                                    <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
-                                        <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -162,9 +161,7 @@ if (empty($order)) :
                                                     <input type="number" name="payment_orders[0][value]" class="form-control payment-value-input" min="0.01" step="0.01" placeholder="0.00" required>
                                                 </div>
                                             </td>
-                                            <td class="text-center">
-                                                <button type="button" class="btn btn-sm btn-success add-row-btn" title="<?php echo htmlspecialchars($this->labelAddOrder ?? 'Agregar orden'); ?>"><i class="fas fa-plus"></i></button>
-                                            </td>
+                                            <td class="text-center"></td>
                                         </tr>
                                     </tbody>
                                     <tfoot>
@@ -176,7 +173,9 @@ if (empty($order)) :
                                                     <input type="text" id="payment-total" class="form-control font-weight-bold" value="0.00" readonly>
                                                 </div>
                                             </td>
-                                            <td></td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-success add-row-btn" title="<?php echo htmlspecialchars($this->labelAddOrder ?? 'Agregar orden'); ?>"><i class="fas fa-plus"></i></button>
+                                            </td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -918,15 +917,14 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 <tr class="table-info">
                                                     <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                     <td><strong id="payment-lines-total">Q. 0.00</strong></td>
-                                                    <td></td>
+                                                    <td class="text-end">
+                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                                                            <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             </tfoot>
                                         </table>
-                                        <div class="mt-2">
-                                            <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
-                                                <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -976,13 +974,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                                        required>
                                                             </div>
                                                         </td>
-                                                        <td class="text-center">
-                                                            <button type="button" 
-                                                                    class="btn btn-sm btn-success add-row-btn" 
-                                                                    title="<?php echo htmlspecialchars($this->labelAddOrder ?? 'Agregar orden'); ?>">
-                                                                <i class="fas fa-plus"></i>
-                                                            </button>
-                                                        </td>
+                                                        <td class="text-center"></td>
                                                     </tr>
                                                 </tbody>
                                                 <tfoot>
@@ -998,7 +990,13 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                                        readonly>
                                                             </div>
                                                         </td>
-                                                        <td></td>
+                                                        <td class="text-end">
+                                                            <button type="button" 
+                                                                    class="btn btn-sm btn-success add-row-btn" 
+                                                                    title="<?php echo htmlspecialchars($this->labelAddOrder ?? 'Agregar orden'); ?>">
+                                                                <i class="fas fa-plus"></i>
+                                                            </button>
+                                                        </td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
