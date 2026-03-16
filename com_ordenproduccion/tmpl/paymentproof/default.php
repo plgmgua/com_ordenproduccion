@@ -117,8 +117,8 @@ if (empty($order)) :
                                             <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                             <td><strong id="payment-lines-total">Q. 0.00</strong></td>
                                             <td class="text-end">
-                                                <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
-                                                    <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                                                <button type="button" class="btn btn-sm btn-success add-payment-line-btn" style="min-width: 38px;" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                                                    <i class="fas fa-plus"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -918,8 +918,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                     <td><strong id="payment-lines-total">Q. 0.00</strong></td>
                                                     <td class="text-end">
-                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
-                                                            <i class="fas fa-plus"></i> <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>
+                                                        <button type="button" class="btn btn-sm btn-success add-payment-line-btn" style="min-width: 38px;" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
+                                                            <i class="fas fa-plus"></i>
                                                         </button>
                                                     </td>
                                                 </tr>
