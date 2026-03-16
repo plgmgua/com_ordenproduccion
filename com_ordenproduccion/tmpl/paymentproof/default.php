@@ -143,7 +143,7 @@ if (empty($order)) :
                                         <tr>
                                             <th style="width: 50%"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
                                             <th style="width: 35%"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
-                                            <th style="width: 15%"><?php echo htmlspecialchars($this->labelActions ?? 'Acciones'); ?></th>
+                                            <th style="width: 60px;"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="payment-orders-body">
@@ -946,7 +946,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <tr>
                                                         <th style="width: 50%"><?php echo htmlspecialchars($this->labelOrderNumber ?? 'Orden #'); ?></th>
                                                         <th style="width: 35%"><?php echo htmlspecialchars($this->labelValueToApply ?? 'Valor a Aplicar'); ?></th>
-                                                        <th style="width: 15%"><?php echo htmlspecialchars($this->labelActions ?? 'Acciones'); ?></th>
+                                                        <th style="width: 60px;"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="payment-orders-body">
