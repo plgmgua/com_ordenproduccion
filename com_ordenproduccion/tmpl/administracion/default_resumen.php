@@ -375,12 +375,20 @@ switch ($selectedPeriod) {
     <!-- Payment Proofs Section -->
     <?php 
     $paymentProofsByAgent = $this->paymentProofsByAgent ?? [];
-    // Calculate totals
+    // Calculate totals (including Ingresado and Verificado)
     $totalProofs = 0;
     $totalCollected = 0;
+    $totalIngresadoCount = 0;
+    $totalIngresadoAmount = 0.0;
+    $totalVerificadoCount = 0;
+    $totalVerificadoAmount = 0.0;
     foreach ($paymentProofsByAgent as $agentStat) {
         $totalProofs += $agentStat->paymentProofsCount ?? 0;
         $totalCollected += $agentStat->moneyCollected ?? 0;
+        $totalIngresadoCount += $agentStat->ingresadoCount ?? 0;
+        $totalIngresadoAmount += $agentStat->ingresadoAmount ?? 0;
+        $totalVerificadoCount += $agentStat->verificadoCount ?? 0;
+        $totalVerificadoAmount += $agentStat->verificadoAmount ?? 0;
     }
     ?>
     <div class="resumen-section" style="margin-top: 40px;">
@@ -396,6 +404,8 @@ switch ($selectedPeriod) {
                     <th style="width: 40px;"></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
                     <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_INGRESADO'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO'); ?></th>
                     <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
                 </tr>
             </thead>
@@ -406,6 +416,14 @@ switch ($selectedPeriod) {
                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_TOTAL'); ?></strong></td>
                     <td style="text-align: center;">
                         <span class="badge-orders"><?php echo number_format($totalProofs); ?></span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalIngresadoCount); ?></span>
+                        <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalIngresadoAmount, 2); ?></span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalVerificadoCount); ?></span>
+                        <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalVerificadoAmount, 2); ?></span>
                     </td>
                     <td style="text-align: right;">
                         <span class="invoice-value">Q <?php echo number_format($totalCollected, 2); ?></span>
@@ -435,6 +453,14 @@ switch ($selectedPeriod) {
                                     <?php echo number_format($agentStat->paymentProofsCount ?? 0); ?>
                                 </span>
                             </td>
+                            <td style="text-align: center;">
+                                <span class="badge-orders"><?php echo number_format($agentStat->ingresadoCount ?? 0); ?></span>
+                                <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->ingresadoAmount ?? 0, 2); ?></span>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-orders"><?php echo number_format($agentStat->verificadoCount ?? 0); ?></span>
+                                <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->verificadoAmount ?? 0, 2); ?></span>
+                            </td>
                             <td style="text-align: right;">
                                 <span class="invoice-value">Q <?php echo number_format($agentStat->moneyCollected ?? 0, 2); ?></span>
                             </td>
@@ -442,7 +468,10 @@ switch ($selectedPeriod) {
 
                         <!-- Payment Proof Details (Initially Hidden) -->
                         <?php if ($hasProofs): ?>
-                            <?php foreach ($agentStat->paymentProofs as $proof): ?>
+                            <?php foreach ($agentStat->paymentProofs as $proof):
+                                $proofStatus = isset($proof->verification_status) ? trim((string) $proof->verification_status) : '';
+                                $isVerificado = ($proofStatus !== '' && strtolower($proofStatus) === 'verificado');
+                            ?>
                                 <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
                                     <td></td>
                                     <td style="padding-left: 40px; color: #999;">
@@ -455,6 +484,12 @@ switch ($selectedPeriod) {
                                         <span style="color: #666; font-size: 13px; margin-left: 32px;">
                                             <?php echo htmlspecialchars($proof->work_description ?? '-'); ?>
                                         </span>
+                                    </td>
+                                    <td style="text-align: center; font-size: 13px;">
+                                        <?php echo $isVerificado ? '—' : 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2); ?>
+                                    </td>
+                                    <td style="text-align: center; font-size: 13px;">
+                                        <?php echo $isVerificado ? 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2) : '—'; ?>
                                     </td>
                                     <td style="text-align: right;">
                                         <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>

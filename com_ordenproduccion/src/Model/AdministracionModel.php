@@ -2350,6 +2350,8 @@ class AdministracionModel extends BaseDatabaseModel
     {
         $db = Factory::getDbo();
         $agentsStats = [];
+        $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $hasVerificationStatus = isset($ppCols['verification_status']);
 
         $query = $db->getQuery(true)
             ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
@@ -2373,16 +2375,20 @@ class AdministracionModel extends BaseDatabaseModel
             $agentStats->salesAgent = $agent;
 
             // Get payment proofs for this agent
+            $selectProofs = [
+                'pp.' . $db->quoteName('id'),
+                'pp.' . $db->quoteName('order_id'),
+                'pp.' . $db->quoteName('payment_amount'),
+                'pp.' . $db->quoteName('created'),
+                'o.' . $db->quoteName('orden_de_trabajo'),
+                'o.' . $db->quoteName('order_number'),
+                'o.' . $db->quoteName('work_description')
+            ];
+            if ($hasVerificationStatus) {
+                $selectProofs[] = 'pp.' . $db->quoteName('verification_status');
+            }
             $query = $db->getQuery(true)
-                ->select([
-                    'pp.' . $db->quoteName('id'),
-                    'pp.' . $db->quoteName('order_id'),
-                    'pp.' . $db->quoteName('payment_amount'),
-                    'pp.' . $db->quoteName('created'),
-                    'o.' . $db->quoteName('orden_de_trabajo'),
-                    'o.' . $db->quoteName('order_number'),
-                    'o.' . $db->quoteName('work_description')
-                ])
+                ->select($selectProofs)
                 ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
                 ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
                 ->where('pp.' . $db->quoteName('state') . ' = 1')
@@ -2410,20 +2416,62 @@ class AdministracionModel extends BaseDatabaseModel
             $db->setQuery($query);
             $agentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
+            // Ingresado / Verificado counts and amounts for period (when verification_status exists)
+            $agentStats->ingresadoCount = 0;
+            $agentStats->ingresadoAmount = 0.0;
+            $agentStats->verificadoCount = 0;
+            $agentStats->verificadoAmount = 0.0;
+            if ($hasVerificationStatus) {
+                $baseQuery = function () use ($db, $agent, $startDate, $endDate) {
+                    $q = $db->getQuery(true)
+                        ->select('COUNT(*) as cnt, COALESCE(SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))), 0) as total')
+                        ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                        ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                        ->where('pp.' . $db->quoteName('state') . ' = 1')
+                        ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
+                        ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                        ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+                    return $q;
+                };
+                $ingresadoCond = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
+                    . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
+                $query = $baseQuery()->where($ingresadoCond);
+                $db->setQuery($query);
+                $row = $db->loadObject();
+                if ($row) {
+                    $agentStats->ingresadoCount = (int) $row->cnt;
+                    $agentStats->ingresadoAmount = (float) $row->total;
+                }
+                $query = $baseQuery()->where('LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('verificado'));
+                $db->setQuery($query);
+                $row = $db->loadObject();
+                if ($row) {
+                    $agentStats->verificadoCount = (int) $row->cnt;
+                    $agentStats->verificadoAmount = (float) $row->total;
+                }
+            } else {
+                $agentStats->ingresadoCount = $agentStats->paymentProofsCount;
+                $agentStats->ingresadoAmount = $agentStats->moneyCollected;
+            }
+
             $agentsStats[] = $agentStats;
         }
 
         // Get payment proofs without agent
+        $selectNoAgent = [
+            'pp.' . $db->quoteName('id'),
+            'pp.' . $db->quoteName('order_id'),
+            'pp.' . $db->quoteName('payment_amount'),
+            'pp.' . $db->quoteName('created'),
+            'o.' . $db->quoteName('orden_de_trabajo'),
+            'o.' . $db->quoteName('order_number'),
+            'o.' . $db->quoteName('work_description')
+        ];
+        if ($hasVerificationStatus) {
+            $selectNoAgent[] = 'pp.' . $db->quoteName('verification_status');
+        }
         $query = $db->getQuery(true)
-            ->select([
-                'pp.' . $db->quoteName('id'),
-                'pp.' . $db->quoteName('order_id'),
-                'pp.' . $db->quoteName('payment_amount'),
-                'pp.' . $db->quoteName('created'),
-                'o.' . $db->quoteName('orden_de_trabajo'),
-                'o.' . $db->quoteName('order_number'),
-                'o.' . $db->quoteName('work_description')
-            ])
+            ->select($selectNoAgent)
             ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
             ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
             ->where('pp.' . $db->quoteName('state') . ' = 1')
@@ -2456,6 +2504,42 @@ class AdministracionModel extends BaseDatabaseModel
                 ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
             $db->setQuery($query);
             $noAgentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
+
+            $noAgentStats->ingresadoCount = 0;
+            $noAgentStats->ingresadoAmount = 0.0;
+            $noAgentStats->verificadoCount = 0;
+            $noAgentStats->verificadoAmount = 0.0;
+            if ($hasVerificationStatus) {
+                $noAgentBaseQuery = function () use ($db, $startDate, $endDate) {
+                    return $db->getQuery(true)
+                        ->select('COUNT(*) as cnt, COALESCE(SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))), 0) as total')
+                        ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                        ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                        ->where('pp.' . $db->quoteName('state') . ' = 1')
+                        ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                        ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                        ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
+                };
+                $ingresadoCondNoAgent = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
+                    . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
+                $query = $noAgentBaseQuery()->where($ingresadoCondNoAgent);
+                $db->setQuery($query);
+                $row = $db->loadObject();
+                if ($row) {
+                    $noAgentStats->ingresadoCount = (int) $row->cnt;
+                    $noAgentStats->ingresadoAmount = (float) $row->total;
+                }
+                $query = $noAgentBaseQuery()->where('LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('verificado'));
+                $db->setQuery($query);
+                $row = $db->loadObject();
+                if ($row) {
+                    $noAgentStats->verificadoCount = (int) $row->cnt;
+                    $noAgentStats->verificadoAmount = (float) $row->total;
+                }
+            } else {
+                $noAgentStats->ingresadoCount = $noAgentStats->paymentProofsCount;
+                $noAgentStats->ingresadoAmount = $noAgentStats->moneyCollected;
+            }
 
             $agentsStats[] = $noAgentStats;
         }
