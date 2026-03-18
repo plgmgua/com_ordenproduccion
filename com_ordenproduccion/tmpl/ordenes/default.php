@@ -57,6 +57,8 @@ $labelFilterDateTo = $t('COM_ORDENPRODUCCION_FILTER_DATE_TO', 'Fecha Hasta');
 $labelFilterPaymentStatus = $t('COM_ORDENPRODUCCION_FILTER_PAYMENT_STATUS', 'Estado de Pago');
 $labelFilterApply = $t('COM_ORDENPRODUCCION_FILTER_APPLY', 'Aplicar Filtros');
 $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
+$labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotización');
+$labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotización');
 $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
@@ -240,12 +242,12 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 if ($hasQuotation && $cotizacionFileUrl !== '') : ?>
                                                 <button type="button" class="btn btn-sm btn-outline-info cotizacion-popup-btn"
                                                         data-cotizacion-url="<?php echo htmlspecialchars($cotizacionFileUrl); ?>"
-                                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>"
-                                                        aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>">
+                                                        title="<?php echo htmlspecialchars($labelViewCotizacion); ?>"
+                                                        aria-label="<?php echo htmlspecialchars($labelViewCotizacion); ?>">
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
                                                 </button>
                                                 <?php else : ?>
-                                                <span class="btn btn-sm btn-outline-secondary disabled" title="<?php echo Text::_('COM_ORDENPRODUCCION_NO_COTIZACION'); ?>">
+                                                <span class="btn btn-sm btn-outline-secondary disabled" title="<?php echo htmlspecialchars($labelNoCotizacion); ?>">
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
                                                 </span>
                                                 <?php endif; ?>
@@ -380,11 +382,11 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="cotizacionPopupModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?></h5>
+                        <h5 class="modal-title" id="cotizacionPopupModalLabel"><?php echo htmlspecialchars($labelViewCotizacion); ?></h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
                     </div>
                     <div class="modal-body p-0" style="min-height: 70vh;">
-                        <iframe id="cotizacionPopupIframe" style="width:100%; height:70vh; border:0;" title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>"></iframe>
+                        <iframe id="cotizacionPopupIframe" style="width:100%; height:70vh; border:0;" title="<?php echo htmlspecialchars($labelViewCotizacion); ?>"></iframe>
                     </div>
                 </div>
             </div>
