@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Ordenes\HtmlView $this */
@@ -214,28 +215,35 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 <?php endif; ?>
                                                 <?php
                                                 $hasQuotation = false;
-                                                $quotationFilesParam = '';
+                                                $cotizacionFileUrl = '';
                                                 if (!empty($item->quotation_files) && $item->quotation_files !== '[]' && $item->quotation_files !== '""') {
+                                                    $filePath = '';
                                                     if (strpos((string) $item->quotation_files, '[') === 0) {
                                                         $decoded = json_decode($item->quotation_files, true);
                                                         if (is_array($decoded) && !empty($decoded[0])) {
-                                                            $hasQuotation = true;
-                                                            $quotationFilesParam = $item->quotation_files;
+                                                            $filePath = is_string($decoded[0]) ? str_replace('\/', '/', $decoded[0]) : '';
                                                         }
                                                     } else {
+                                                        $filePath = (string) $item->quotation_files;
+                                                    }
+                                                    if ($filePath !== '') {
+                                                        if (strpos($filePath, 'http') === 0) {
+                                                            $cotizacionFileUrl = $filePath;
+                                                        } else {
+                                                            $uri = Uri::getInstance();
+                                                            $baseUrl = $uri->toString(['scheme', 'host', 'port']);
+                                                            $cotizacionFileUrl = (strpos($filePath, '/') === 0) ? ($baseUrl . $filePath) : ($baseUrl . '/' . ltrim($filePath, '/'));
+                                                        }
                                                         $hasQuotation = true;
-                                                        $quotationFilesParam = $item->quotation_files;
                                                     }
                                                 }
-                                                if ($hasQuotation) :
-                                                    $cotizacionUrl = Route::_('index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=' . (int) $item->id . '&order_number=' . urlencode($item->order_number ?? '') . '&quotation_files=' . urlencode($quotationFilesParam));
-                                                ?>
-                                                <a href="<?php echo htmlspecialchars($cotizacionUrl); ?>"
-                                                   class="btn btn-sm btn-outline-info"
-                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>"
-                                                   aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>">
+                                                if ($hasQuotation && $cotizacionFileUrl !== '') : ?>
+                                                <button type="button" class="btn btn-sm btn-outline-info cotizacion-popup-btn"
+                                                        data-cotizacion-url="<?php echo htmlspecialchars($cotizacionFileUrl); ?>"
+                                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>"
+                                                        aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>">
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
-                                                </a>
+                                                </button>
                                                 <?php else : ?>
                                                 <span class="btn btn-sm btn-outline-secondary disabled" title="<?php echo Text::_('COM_ORDENPRODUCCION_NO_COTIZACION'); ?>">
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
@@ -366,5 +374,41 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         <script>window.paymentInfoBaseUrl='<?php echo $paymentInfoBaseUrl; ?>';window.paymentInfoToken='<?php echo $paymentInfoToken; ?>';</script>
         <?php include __DIR__ . '/../payment_info_modal.php'; ?>
         <?php endif; ?>
+
+        <!-- Cotización file popup modal -->
+        <div class="modal fade" id="cotizacionPopupModal" tabindex="-1" aria-labelledby="cotizacionPopupModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cotizacionPopupModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+                    </div>
+                    <div class="modal-body p-0" style="min-height: 70vh;">
+                        <iframe id="cotizacionPopupIframe" style="width:100%; height:70vh; border:0;" title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+        (function() {
+            var modal = document.getElementById('cotizacionPopupModal');
+            var iframe = document.getElementById('cotizacionPopupIframe');
+            if (modal && iframe) {
+                document.querySelectorAll('.cotizacion-popup-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var url = this.getAttribute('data-cotizacion-url');
+                        if (url) {
+                            iframe.src = url;
+                            var bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+                            bsModal.show();
+                        }
+                    });
+                });
+                modal.addEventListener('hidden.bs.modal', function() {
+                    iframe.src = 'about:blank';
+                });
+            }
+        })();
+        </script>
     </div>
 </div>
