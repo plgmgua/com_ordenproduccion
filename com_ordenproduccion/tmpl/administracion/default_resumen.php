@@ -249,6 +249,13 @@ switch ($selectedPeriod) {
 #payment-proofs-summary-table tr.payment-proof-row .invoice-value {
     font-size: 13px;
 }
+#payment-proofs-summary-table .payment-proof-link {
+    color: #007cba;
+    text-decoration: none;
+}
+#payment-proofs-summary-table .payment-proof-link:hover {
+    text-decoration: underline;
+}
 </style>
 
 <div class="resumen-container">
@@ -488,6 +495,8 @@ switch ($selectedPeriod) {
                                 $proofNumber = 'PA-' . str_pad((int)($proof->id ?? 0), 6, '0', STR_PAD_LEFT);
                                 $proofDate = !empty($proof->created) ? HTMLHelper::_('date', $proof->created, 'd/m/Y') : '—';
                                 $estadoLabel = $isVerificado ? Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO') : Text::_('COM_ORDENPRODUCCION_RESUMEN_POR_VERIFICAR');
+                                $orderIdForLink = (int)($proof->first_order_id ?? $proof->order_id ?? 0);
+                                $proofUrl = $orderIdForLink > 0 ? \Joomla\CMS\Router\Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderIdForLink . '&proof_id=' . (int)($proof->id ?? 0)) : null;
                             ?>
                                 <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
                                     <td></td>
@@ -496,7 +505,11 @@ switch ($selectedPeriod) {
                                     </td>
                                     <td style="padding-left: 20px;">
                                         <i class="fas fa-file-invoice-dollar" style="color: #28a745; margin-right: 8px;"></i>
-                                        <strong><?php echo htmlspecialchars($proofNumber); ?></strong>
+                                        <?php if ($proofUrl): ?>
+                                            <a href="<?php echo htmlspecialchars($proofUrl); ?>" class="payment-proof-link"><strong><?php echo htmlspecialchars($proofNumber); ?></strong></a>
+                                        <?php else: ?>
+                                            <strong><?php echo htmlspecialchars($proofNumber); ?></strong>
+                                        <?php endif; ?>
                                         <span style="color: #666; font-size: 13px;"> · <?php echo htmlspecialchars($proofDate); ?> · <?php echo htmlspecialchars($estadoLabel); ?></span>
                                     </td>
                                     <td style="text-align: right;">

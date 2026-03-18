@@ -2573,6 +2573,7 @@ class AdministracionModel extends BaseDatabaseModel
             'pp.' . $db->quoteName('order_id'),
             'pp.' . $db->quoteName('payment_amount'),
             'pp.' . $db->quoteName('created'),
+            'o.' . $db->quoteName('id') . ' AS ' . $db->quoteName('first_order_id'),
             'o.' . $db->quoteName('orden_de_trabajo'),
             'o.' . $db->quoteName('order_number'),
             'o.' . $db->quoteName('work_description'),
