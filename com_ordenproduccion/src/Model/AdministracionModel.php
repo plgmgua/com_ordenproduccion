@@ -712,11 +712,11 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get summary of work orders (from Jan 1, 2026) without payment proof, grouped by client.
-     * Same filters as getOrdersWithoutPaymentProofByAgeBuckets. Returns list of client_name, order_count, total_value.
+     * Get summary of work orders (from Jan 1, 2026) without payment proof, grouped by client with per-bucket breakdown.
+     * Same filters as getOrdersWithoutPaymentProofByAgeBuckets. Returns list with client_name and count/value per range (0_15, 16_30, 31_45, 45_plus) plus total.
      *
      * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
-     * @return  array  List of objects with client_name, order_count, total_value
+     * @return  array  List of objects: client_name, count_0_15, total_value_0_15, count_16_30, total_value_16_30, count_31_45, total_value_31_45, count_45_plus, total_value_45_plus, order_count, total_value
      * @since   3.99.0
      */
     public function getOrdersWithoutPaymentProofSummaryByClient($salesAgent = null)
@@ -740,11 +740,21 @@ class AdministracionModel extends BaseDatabaseModel
         $noProofCond = 'NOT EXISTS (SELECT 1 FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
             ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
             ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = o.id)';
+        $days = 'DATEDIFF(CURDATE(), DATE(o.created))';
+        $val = 'CAST(' . $invoiceCol . ' AS DECIMAL(15,2))';
         $query = $db->getQuery(true)
             ->select([
                 $clientCol . ' AS client_name',
+                'SUM(CASE WHEN ' . $days . ' <= 15 THEN 1 ELSE 0 END) AS count_0_15',
+                'SUM(CASE WHEN ' . $days . ' <= 15 THEN ' . $val . ' ELSE 0 END) AS total_value_0_15',
+                'SUM(CASE WHEN ' . $days . ' > 15 AND ' . $days . ' <= 30 THEN 1 ELSE 0 END) AS count_16_30',
+                'SUM(CASE WHEN ' . $days . ' > 15 AND ' . $days . ' <= 30 THEN ' . $val . ' ELSE 0 END) AS total_value_16_30',
+                'SUM(CASE WHEN ' . $days . ' > 30 AND ' . $days . ' <= 45 THEN 1 ELSE 0 END) AS count_31_45',
+                'SUM(CASE WHEN ' . $days . ' > 30 AND ' . $days . ' <= 45 THEN ' . $val . ' ELSE 0 END) AS total_value_31_45',
+                'SUM(CASE WHEN ' . $days . ' > 45 THEN 1 ELSE 0 END) AS count_45_plus',
+                'SUM(CASE WHEN ' . $days . ' > 45 THEN ' . $val . ' ELSE 0 END) AS total_value_45_plus',
                 'COUNT(*) AS order_count',
-                'SUM(CAST(' . $invoiceCol . ' AS DECIMAL(15,2))) AS total_value'
+                'SUM(' . $val . ') AS total_value'
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')

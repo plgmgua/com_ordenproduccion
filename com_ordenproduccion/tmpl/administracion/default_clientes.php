@@ -298,22 +298,38 @@ function safeEscape($value, $default = '')
 }
 .dias-credito-by-client-table {
     width: 100%;
-    max-width: 600px;
     border-collapse: collapse;
     font-size: 13px;
 }
 .dias-credito-by-client-table th,
 .dias-credito-by-client-table td {
     padding: 8px 12px;
-    text-align: left;
     border-bottom: 1px solid #dee2e6;
 }
 .dias-credito-by-client-table th {
     background: #e9ecef;
     font-weight: 600;
     color: #495057;
+    text-align: center;
 }
-.dias-credito-by-client-table .col-value { text-align: right; }
+.dias-credito-by-client-table th.col-client-name,
+.dias-credito-by-client-table td.col-client-name {
+    text-align: left;
+    min-width: 160px;
+}
+.dias-credito-by-client-table td:not(.col-client-name) {
+    text-align: center;
+}
+.dias-credito-by-client-table .bucket-count {
+    font-size: 12px;
+    font-weight: normal;
+    color: #6c757d;
+    margin-top: 2px;
+}
+.dias-credito-by-client-table .dias-credito-total-col {
+    background: #f0f4f8;
+    font-weight: 600;
+}
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -555,22 +571,43 @@ function safeEscape($value, $default = '')
                 <table class="dias-credito-by-client-table">
                     <thead>
                         <tr>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
-                            <th class="col-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></th>
-                            <th class="col-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
+                            <th class="col-client-name"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
+                            <th><?php echo $bucketLabels['0_15']; ?></th>
+                            <th><?php echo $bucketLabels['16_30']; ?></th>
+                            <th><?php echo $bucketLabels['31_45']; ?></th>
+                            <th><?php echo $bucketLabels['45_plus']; ?></th>
+                            <th class="col-value dias-credito-total-col"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($clientesDiasCreditoByClient)) : ?>
                             <?php foreach ($clientesDiasCreditoByClient as $row) : ?>
                             <tr>
-                                <td><?php echo safeEscape($row->client_name ?? ''); ?></td>
-                                <td class="col-value"><?php echo (int)($row->order_count ?? 0); ?></td>
-                                <td class="col-value">Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?></td>
+                                <td class="col-client-name"><?php echo safeEscape($row->client_name ?? ''); ?></td>
+                                <td>
+                                    Q.<?php echo number_format((float)($row->total_value_0_15 ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($row->count_0_15 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                </td>
+                                <td>
+                                    Q.<?php echo number_format((float)($row->total_value_16_30 ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($row->count_16_30 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                </td>
+                                <td>
+                                    Q.<?php echo number_format((float)($row->total_value_31_45 ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($row->count_31_45 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                </td>
+                                <td>
+                                    Q.<?php echo number_format((float)($row->total_value_45_plus ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($row->count_45_plus ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                </td>
+                                <td class="dias-credito-total-col">
+                                    Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($row->order_count ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         <?php else : ?>
-                            <tr><td colspan="3" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></td></tr>
+                            <tr><td colspan="6" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
