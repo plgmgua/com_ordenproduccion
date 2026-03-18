@@ -2436,8 +2436,9 @@ class AdministracionModel extends BaseDatabaseModel
             $db->setQuery($query);
             $agentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
-            $agentStats->ingresadoCount = 0;
-            $agentStats->ingresadoAmount = 0.0;
+            // Ingresado = all payment proofs recorded in the period (regardless of verification status)
+            $agentStats->ingresadoCount = $agentStats->paymentProofsCount;
+            $agentStats->ingresadoAmount = $agentStats->moneyCollected;
             $agentStats->verificadoCount = 0;
             $agentStats->verificadoAmount = 0.0;
             if ($hasVerificationStatus) {
@@ -2451,15 +2452,6 @@ class AdministracionModel extends BaseDatabaseModel
                         ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
                         ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
                 };
-                $ingresadoCond = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
-                    . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
-                $query = $baseQuery()->where($ingresadoCond);
-                $db->setQuery($query);
-                $row = $db->loadObject();
-                if ($row) {
-                    $agentStats->ingresadoCount = (int) $row->cnt;
-                    $agentStats->ingresadoAmount = (float) $row->total;
-                }
                 $query = $baseQuery()->where($verificadoWhere);
                 $db->setQuery($query);
                 $row = $db->loadObject();
@@ -2467,9 +2459,6 @@ class AdministracionModel extends BaseDatabaseModel
                     $agentStats->verificadoCount = (int) $row->cnt;
                     $agentStats->verificadoAmount = (float) $row->total;
                 }
-            } else {
-                $agentStats->ingresadoCount = $agentStats->paymentProofsCount;
-                $agentStats->ingresadoAmount = $agentStats->moneyCollected;
             }
 
             $agentsStats[] = $agentStats;
@@ -2540,8 +2529,9 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $noAgentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
-        $noAgentStats->ingresadoCount = 0;
-        $noAgentStats->ingresadoAmount = 0.0;
+        // Ingresado = all payment proofs recorded in the period (regardless of verification status)
+        $noAgentStats->ingresadoCount = $noAgentStats->paymentProofsCount;
+        $noAgentStats->ingresadoAmount = $noAgentStats->moneyCollected;
         $noAgentStats->verificadoCount = 0;
         $noAgentStats->verificadoAmount = 0.0;
         if ($hasVerificationStatus) {
@@ -2555,15 +2545,6 @@ class AdministracionModel extends BaseDatabaseModel
                     ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
                     ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
             };
-            $ingresadoCondNoAgent = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
-                . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
-            $query = $noAgentBaseQuery()->where($ingresadoCondNoAgent);
-            $db->setQuery($query);
-            $row = $db->loadObject();
-            if ($row) {
-                $noAgentStats->ingresadoCount = (int) $row->cnt;
-                $noAgentStats->ingresadoAmount = (float) $row->total;
-            }
             $query = $noAgentBaseQuery()->where($verificadoWhere);
             $db->setQuery($query);
             $row = $db->loadObject();
@@ -2571,9 +2552,6 @@ class AdministracionModel extends BaseDatabaseModel
                 $noAgentStats->verificadoCount = (int) $row->cnt;
                 $noAgentStats->verificadoAmount = (float) $row->total;
             }
-        } else {
-            $noAgentStats->ingresadoCount = $noAgentStats->paymentProofsCount;
-            $noAgentStats->ingresadoAmount = $noAgentStats->moneyCollected;
         }
         return $noAgentStats;
     }
@@ -2644,18 +2622,14 @@ class AdministracionModel extends BaseDatabaseModel
                 $agentStats->moneyCollected += (float) ($r->payment_amount ?? 0);
             }
 
-            $agentStats->ingresadoCount = 0;
-            $agentStats->ingresadoAmount = 0.0;
+            // Ingresado = all payment proofs recorded in the period (regardless of verification status)
+            $agentStats->ingresadoCount = $agentStats->paymentProofsCount;
+            $agentStats->ingresadoAmount = $agentStats->moneyCollected;
             $agentStats->verificadoCount = 0;
             $agentStats->verificadoAmount = 0.0;
             if ($hasVerificationStatus) {
                 foreach ($proofRows as $r) {
                     $status = isset($r->verification_status) ? strtolower(trim((string) $r->verification_status)) : '';
-                    $isIngresado = ($status === '' || $status === 'ingresado');
-                    if ($isIngresado) {
-                        $agentStats->ingresadoCount++;
-                        $agentStats->ingresadoAmount += (float) ($r->payment_amount ?? 0);
-                    }
                     $isVerificado = ($status === 'verificado');
                     if ($isVerificado) {
                         if ($hasVerifiedDate && !empty($r->verified_date)) {
@@ -2670,9 +2644,6 @@ class AdministracionModel extends BaseDatabaseModel
                         }
                     }
                 }
-            } else {
-                $agentStats->ingresadoCount = $agentStats->paymentProofsCount;
-                $agentStats->ingresadoAmount = $agentStats->moneyCollected;
             }
 
             $agentsStats[] = $agentStats;

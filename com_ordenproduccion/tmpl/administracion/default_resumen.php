@@ -404,9 +404,9 @@ switch ($selectedPeriod) {
                     <th style="width: 40px;"></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_AGENT'); ?></th>
                     <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PAYMENT_PROOFS'); ?></th>
-                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_INGRESADO'); ?></th>
-                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO'); ?></th>
                     <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_MONEY_COLLECTED'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO'); ?></th>
+                    <th style="text-align: center;"><?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_POR_VERIFICAR'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -417,16 +417,16 @@ switch ($selectedPeriod) {
                     <td style="text-align: center;">
                         <span class="badge-orders"><?php echo number_format($totalProofs); ?></span>
                     </td>
-                    <td style="text-align: center;">
-                        <span class="badge-orders"><?php echo number_format($totalIngresadoCount); ?></span>
-                        <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalIngresadoAmount, 2); ?></span>
+                    <td style="text-align: right;">
+                        <span class="invoice-value">Q <?php echo number_format($totalCollected, 2); ?></span>
                     </td>
                     <td style="text-align: center;">
                         <span class="badge-orders"><?php echo number_format($totalVerificadoCount); ?></span>
                         <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalVerificadoAmount, 2); ?></span>
                     </td>
-                    <td style="text-align: right;">
-                        <span class="invoice-value">Q <?php echo number_format($totalCollected, 2); ?></span>
+                    <td style="text-align: center;">
+                        <span class="badge-orders"><?php echo number_format($totalIngresadoCount); ?></span>
+                        <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalIngresadoAmount, 2); ?></span>
                     </td>
                 </tr>
 
@@ -453,16 +453,16 @@ switch ($selectedPeriod) {
                                     <?php echo number_format($agentStat->paymentProofsCount ?? 0); ?>
                                 </span>
                             </td>
-                            <td style="text-align: center;">
-                                <span class="badge-orders"><?php echo number_format($agentStat->ingresadoCount ?? 0); ?></span>
-                                <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->ingresadoAmount ?? 0, 2); ?></span>
+                            <td style="text-align: right;">
+                                <span class="invoice-value">Q <?php echo number_format($agentStat->moneyCollected ?? 0, 2); ?></span>
                             </td>
                             <td style="text-align: center;">
                                 <span class="badge-orders"><?php echo number_format($agentStat->verificadoCount ?? 0); ?></span>
                                 <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->verificadoAmount ?? 0, 2); ?></span>
                             </td>
-                            <td style="text-align: right;">
-                                <span class="invoice-value">Q <?php echo number_format($agentStat->moneyCollected ?? 0, 2); ?></span>
+                            <td style="text-align: center;">
+                                <span class="badge-orders"><?php echo number_format($agentStat->ingresadoCount ?? 0); ?></span>
+                                <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->ingresadoAmount ?? 0, 2); ?></span>
                             </td>
                         </tr>
 
@@ -473,7 +473,7 @@ switch ($selectedPeriod) {
                                 $isVerificado = ($proofStatus !== '' && strtolower($proofStatus) === 'verificado');
                                 $proofNumber = 'PA-' . str_pad((int)($proof->id ?? 0), 6, '0', STR_PAD_LEFT);
                                 $proofDate = !empty($proof->created) ? HTMLHelper::_('date', $proof->created, 'd/m/Y') : '—';
-                                $estadoLabel = $isVerificado ? Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO') : Text::_('COM_ORDENPRODUCCION_RESUMEN_INGRESADO');
+                                $estadoLabel = $isVerificado ? Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO') : Text::_('COM_ORDENPRODUCCION_RESUMEN_POR_VERIFICAR');
                             ?>
                                 <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
                                     <td></td>
@@ -485,14 +485,14 @@ switch ($selectedPeriod) {
                                         <strong><?php echo htmlspecialchars($proofNumber); ?></strong>
                                         <span style="color: #666; font-size: 13px;"> · <?php echo htmlspecialchars($proofDate); ?> · <?php echo htmlspecialchars($estadoLabel); ?></span>
                                     </td>
-                                    <td style="text-align: center; font-size: 13px;">
-                                        <?php echo $isVerificado ? '—' : 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2); ?>
+                                    <td style="text-align: right; font-size: 13px;">
+                                        <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>
                                     </td>
                                     <td style="text-align: center; font-size: 13px;">
                                         <?php echo $isVerificado ? 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2) : '—'; ?>
                                     </td>
-                                    <td style="text-align: right;">
-                                        <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>
+                                    <td style="text-align: center; font-size: 13px;">
+                                        <?php echo $isVerificado ? '—' : 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2); ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
