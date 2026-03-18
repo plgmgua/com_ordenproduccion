@@ -2352,7 +2352,23 @@ class AdministracionModel extends BaseDatabaseModel
         $agentsStats = [];
         $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
         $hasVerificationStatus = isset($ppCols['verification_status']);
+        $hasVerifiedDate = isset($ppCols['verified_date']);
+        $hasPaymentOrders = $this->hasTable($db, '#__ordenproduccion_payment_orders');
 
+        // Agent is always from the orden de trabajo (work order), not who entered the payment.
+        // When payment_orders exists, link proofs via that table and use first linked order's sales_agent.
+        if ($hasPaymentOrders) {
+            return $this->getPaymentProofsByAgentForPeriodViaPaymentOrders(
+                $db,
+                $startDate,
+                $endDate,
+                $salesAgent,
+                $hasVerificationStatus,
+                $hasVerifiedDate
+            );
+        }
+
+        // Legacy: proofs linked to orders only via pp.order_id
         $query = $db->getQuery(true)
             ->select('DISTINCT o.' . $db->quoteName('sales_agent'))
             ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
@@ -2370,11 +2386,16 @@ class AdministracionModel extends BaseDatabaseModel
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
+        $verificadoWhere = 'LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('verificado');
+        if ($hasVerifiedDate) {
+            $verificadoWhere .= ' AND pp.' . $db->quoteName('verified_date') . ' >= ' . $db->quote($startDate)
+                . ' AND pp.' . $db->quoteName('verified_date') . ' <= ' . $db->quote($endDate);
+        }
+
         foreach ($agents as $agent) {
             $agentStats = new \stdClass();
             $agentStats->salesAgent = $agent;
 
-            // Get payment proofs for this agent
             $selectProofs = [
                 'pp.' . $db->quoteName('id'),
                 'pp.' . $db->quoteName('order_id'),
@@ -2402,7 +2423,6 @@ class AdministracionModel extends BaseDatabaseModel
             $agentStats->paymentProofs = $paymentProofs;
             $agentStats->paymentProofsCount = count($paymentProofs);
 
-            // Get total money collected
             $query = $db->getQuery(true)
                 ->select('SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
                 ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
@@ -2416,14 +2436,13 @@ class AdministracionModel extends BaseDatabaseModel
             $db->setQuery($query);
             $agentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
-            // Ingresado / Verificado counts and amounts for period (when verification_status exists)
             $agentStats->ingresadoCount = 0;
             $agentStats->ingresadoAmount = 0.0;
             $agentStats->verificadoCount = 0;
             $agentStats->verificadoAmount = 0.0;
             if ($hasVerificationStatus) {
                 $baseQuery = function () use ($db, $agent, $startDate, $endDate) {
-                    $q = $db->getQuery(true)
+                    return $db->getQuery(true)
                         ->select('COUNT(*) as cnt, COALESCE(SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))), 0) as total')
                         ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
                         ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
@@ -2431,7 +2450,6 @@ class AdministracionModel extends BaseDatabaseModel
                         ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
                         ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
                         ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
-                    return $q;
                 };
                 $ingresadoCond = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
                     . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
@@ -2442,7 +2460,7 @@ class AdministracionModel extends BaseDatabaseModel
                     $agentStats->ingresadoCount = (int) $row->cnt;
                     $agentStats->ingresadoAmount = (float) $row->total;
                 }
-                $query = $baseQuery()->where('LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('verificado'));
+                $query = $baseQuery()->where($verificadoWhere);
                 $db->setQuery($query);
                 $row = $db->loadObject();
                 if ($row) {
@@ -2457,7 +2475,7 @@ class AdministracionModel extends BaseDatabaseModel
             $agentsStats[] = $agentStats;
         }
 
-        // Get payment proofs without agent
+        // Proofs without agent (legacy: only when joined via pp.order_id and that order has no agent)
         $selectNoAgent = [
             'pp.' . $db->quoteName('id'),
             'pp.' . $db->quoteName('order_id'),
@@ -2477,72 +2495,199 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('pp.' . $db->quoteName('state') . ' = 1')
             ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
-            ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
-                   $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
-                   $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
+            ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
             ->order('pp.' . $db->quoteName('created') . ' DESC');
         $db->setQuery($query);
         $noAgentPaymentProofs = $db->loadObjectList() ?: [];
 
         if (!empty($noAgentPaymentProofs)) {
-            $noAgentStats = new \stdClass();
-            $noAgentStats->salesAgent = null;
-            $noAgentStats->paymentProofs = $noAgentPaymentProofs;
-            $noAgentStats->paymentProofsCount = count($noAgentPaymentProofs);
-
-            $query = $db->getQuery(true)
-                ->select('SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
-                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
-                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
-                ->where('pp.' . $db->quoteName('state') . ' = 1')
-                ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
-                ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
-                ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
-                       $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
-                       $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
-                ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
-                ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
-            $db->setQuery($query);
-            $noAgentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
-
-            $noAgentStats->ingresadoCount = 0;
-            $noAgentStats->ingresadoAmount = 0.0;
-            $noAgentStats->verificadoCount = 0;
-            $noAgentStats->verificadoAmount = 0.0;
-            if ($hasVerificationStatus) {
-                $noAgentBaseQuery = function () use ($db, $startDate, $endDate) {
-                    return $db->getQuery(true)
-                        ->select('COUNT(*) as cnt, COALESCE(SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))), 0) as total')
-                        ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
-                        ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
-                        ->where('pp.' . $db->quoteName('state') . ' = 1')
-                        ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
-                        ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
-                        ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
-                };
-                $ingresadoCondNoAgent = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
-                    . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
-                $query = $noAgentBaseQuery()->where($ingresadoCondNoAgent);
-                $db->setQuery($query);
-                $row = $db->loadObject();
-                if ($row) {
-                    $noAgentStats->ingresadoCount = (int) $row->cnt;
-                    $noAgentStats->ingresadoAmount = (float) $row->total;
-                }
-                $query = $noAgentBaseQuery()->where('LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('verificado'));
-                $db->setQuery($query);
-                $row = $db->loadObject();
-                if ($row) {
-                    $noAgentStats->verificadoCount = (int) $row->cnt;
-                    $noAgentStats->verificadoAmount = (float) $row->total;
-                }
-            } else {
-                $noAgentStats->ingresadoCount = $noAgentStats->paymentProofsCount;
-                $noAgentStats->ingresadoAmount = $noAgentStats->moneyCollected;
-            }
-
+            $noAgentStats = $this->buildNoAgentStatsLegacy(
+                $db,
+                $noAgentPaymentProofs,
+                $startDate,
+                $endDate,
+                $hasVerificationStatus,
+                $verificadoWhere
+            );
             $agentsStats[] = $noAgentStats;
         }
+
+        return $agentsStats;
+    }
+
+    /**
+     * Build stats for proofs with no agent (legacy path: join via pp.order_id).
+     */
+    protected function buildNoAgentStatsLegacy($db, $noAgentPaymentProofs, $startDate, $endDate, $hasVerificationStatus, $verificadoWhere)
+    {
+        $noAgentStats = new \stdClass();
+        $noAgentStats->salesAgent = null;
+        $noAgentStats->paymentProofs = $noAgentPaymentProofs;
+        $noAgentStats->paymentProofsCount = count($noAgentPaymentProofs);
+
+        $noAgentWhere = 'pp.state = 1 AND pp.created >= ' . $db->quote($startDate) . ' AND pp.created <= ' . $db->quote($endDate)
+            . ' AND (o.sales_agent IS NULL OR o.sales_agent = ' . $db->quote('') . ' OR o.sales_agent = ' . $db->quote(' ') . ')';
+        $query = $db->getQuery(true)
+            ->select('SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
+            ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
+            ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
+        $db->setQuery($query);
+        $noAgentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
+
+        $noAgentStats->ingresadoCount = 0;
+        $noAgentStats->ingresadoAmount = 0.0;
+        $noAgentStats->verificadoCount = 0;
+        $noAgentStats->verificadoAmount = 0.0;
+        if ($hasVerificationStatus) {
+            $noAgentBaseQuery = function () use ($db, $startDate, $endDate) {
+                return $db->getQuery(true)
+                    ->select('COUNT(*) as cnt, COALESCE(SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))), 0) as total')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                    ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                    ->where('pp.' . $db->quoteName('state') . ' = 1')
+                    ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                    ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                    ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
+            };
+            $ingresadoCondNoAgent = '(pp.' . $db->quoteName('verification_status') . ' IS NULL OR TRIM(pp.' . $db->quoteName('verification_status') . ') = ' . $db->quote('')
+                . ' OR LOWER(TRIM(pp.' . $db->quoteName('verification_status') . ')) = ' . $db->quote('ingresado') . ')';
+            $query = $noAgentBaseQuery()->where($ingresadoCondNoAgent);
+            $db->setQuery($query);
+            $row = $db->loadObject();
+            if ($row) {
+                $noAgentStats->ingresadoCount = (int) $row->cnt;
+                $noAgentStats->ingresadoAmount = (float) $row->total;
+            }
+            $query = $noAgentBaseQuery()->where($verificadoWhere);
+            $db->setQuery($query);
+            $row = $db->loadObject();
+            if ($row) {
+                $noAgentStats->verificadoCount = (int) $row->cnt;
+                $noAgentStats->verificadoAmount = (float) $row->total;
+            }
+        } else {
+            $noAgentStats->ingresadoCount = $noAgentStats->paymentProofsCount;
+            $noAgentStats->ingresadoAmount = $noAgentStats->moneyCollected;
+        }
+        return $noAgentStats;
+    }
+
+    /**
+     * Get payment proofs by agent when payment_orders table exists.
+     * Agent = sales_agent of the work order (first linked order), not who entered the payment.
+     * Ingresado = proofs created in period with status ingresado; Verificado = proofs verified in period (verified_date).
+     */
+    protected function getPaymentProofsByAgentForPeriodViaPaymentOrders($db, $startDate, $endDate, $salesAgent, $hasVerificationStatus, $hasVerifiedDate)
+    {
+        $subQuery = $db->getQuery(true)
+            ->select($db->quoteName('po.payment_proof_id') . ', MIN(' . $db->quoteName('po.order_id') . ') AS ' . $db->quoteName('order_id'))
+            ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+            ->group($db->quoteName('po.payment_proof_id'));
+
+        $selectCols = [
+            'pp.' . $db->quoteName('id'),
+            'pp.' . $db->quoteName('order_id'),
+            'pp.' . $db->quoteName('payment_amount'),
+            'pp.' . $db->quoteName('created'),
+            'o.' . $db->quoteName('orden_de_trabajo'),
+            'o.' . $db->quoteName('order_number'),
+            'o.' . $db->quoteName('work_description'),
+            'o.' . $db->quoteName('sales_agent')
+        ];
+        if ($hasVerificationStatus) {
+            $selectCols[] = 'pp.' . $db->quoteName('verification_status');
+        }
+        if ($hasVerifiedDate) {
+            $selectCols[] = 'pp.' . $db->quoteName('verified_date');
+        }
+
+        $query = $db->getQuery(true)
+            ->select($selectCols)
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->join('LEFT', '(' . (string) $subQuery . ') AS first_po ON pp.' . $db->quoteName('id') . ' = first_po.' . $db->quoteName('payment_proof_id'))
+            ->join('LEFT', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.' . $db->quoteName('id') . ' = COALESCE(first_po.' . $db->quoteName('order_id') . ', pp.' . $db->quoteName('order_id') . ')')
+            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->order('pp.' . $db->quoteName('created') . ' DESC');
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+
+        $byAgent = [];
+        foreach ($rows as $row) {
+            $agent = isset($row->sales_agent) && trim((string) $row->sales_agent) !== ''
+                ? trim((string) $row->sales_agent)
+                : null;
+            if (!isset($byAgent[$agent])) {
+                $byAgent[$agent] = [];
+            }
+            $byAgent[$agent][] = $row;
+        }
+
+        $agentsStats = [];
+        foreach ($byAgent as $agentKey => $proofRows) {
+            $agentStats = new \stdClass();
+            $agentStats->salesAgent = $agentKey;
+            $agentStats->paymentProofs = $proofRows;
+            $agentStats->paymentProofsCount = count($proofRows);
+            $agentStats->moneyCollected = 0.0;
+            foreach ($proofRows as $r) {
+                $agentStats->moneyCollected += (float) ($r->payment_amount ?? 0);
+            }
+
+            $agentStats->ingresadoCount = 0;
+            $agentStats->ingresadoAmount = 0.0;
+            $agentStats->verificadoCount = 0;
+            $agentStats->verificadoAmount = 0.0;
+            if ($hasVerificationStatus) {
+                foreach ($proofRows as $r) {
+                    $status = isset($r->verification_status) ? strtolower(trim((string) $r->verification_status)) : '';
+                    $isIngresado = ($status === '' || $status === 'ingresado');
+                    if ($isIngresado) {
+                        $agentStats->ingresadoCount++;
+                        $agentStats->ingresadoAmount += (float) ($r->payment_amount ?? 0);
+                    }
+                    $isVerificado = ($status === 'verificado');
+                    if ($isVerificado) {
+                        if ($hasVerifiedDate && !empty($r->verified_date)) {
+                            $vd = $r->verified_date;
+                            if ($vd >= $startDate && $vd <= $endDate) {
+                                $agentStats->verificadoCount++;
+                                $agentStats->verificadoAmount += (float) ($r->payment_amount ?? 0);
+                            }
+                        } else {
+                            $agentStats->verificadoCount++;
+                            $agentStats->verificadoAmount += (float) ($r->payment_amount ?? 0);
+                        }
+                    }
+                }
+            } else {
+                $agentStats->ingresadoCount = $agentStats->paymentProofsCount;
+                $agentStats->ingresadoAmount = $agentStats->moneyCollected;
+            }
+
+            $agentsStats[] = $agentStats;
+        }
+
+        // Sort so null agent (no agent) is last; others by name
+        usort($agentsStats, function ($a, $b) {
+            if ($a->salesAgent === null) {
+                return 1;
+            }
+            if ($b->salesAgent === null) {
+                return -1;
+            }
+            return strcmp($a->salesAgent, $b->salesAgent);
+        });
 
         return $agentsStats;
     }

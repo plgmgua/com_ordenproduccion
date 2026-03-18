@@ -873,7 +873,11 @@ class PaymentproofModel extends ItemModel
             }
             $query = $db->getQuery(true)
                 ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
-                ->set($db->quoteName('verification_status') . ' = ' . $db->quote('verificado'))
+                ->set($db->quoteName('verification_status') . ' = ' . $db->quote('verificado'));
+            if (isset($cols['verified_date'])) {
+                $query->set($db->quoteName('verified_date') . ' = ' . $db->quote(Factory::getDate()->toSql()));
+            }
+            $query
                 ->where($db->quoteName('id') . ' = ' . $proofId)
                 ->where($db->quoteName('state') . ' = 1');
             $db->setQuery($query);
