@@ -32,6 +32,8 @@ $clientesTotalSaldo = (float) ($this->clientesTotalSaldo ?? 0);
 $clientesTotalCompras = (float) ($this->clientesTotalCompras ?? 0);
 $clientesTotalOrders = (int) ($this->clientesTotalOrders ?? 0);
 $showClientesSalesAgentFilter = !empty($this->clientesShowSalesAgentFilter);
+$clientesSubtab = $this->clientesSubtab ?? 'estado_cuenta';
+$clientesDiasCreditoBuckets = $this->clientesDiasCreditoBuckets ?? ['0_15' => [], '16_30' => [], '31_45' => [], '45_plus' => []];
 
 function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit) {
     $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
@@ -203,6 +205,62 @@ function safeEscape($value, $default = '')
     background: #667eea;
     box-shadow: inset 0 0 0 3px #fff;
 }
+
+.clientes-subtabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 20px;
+}
+.clientes-subtab {
+    padding: 8px 16px;
+    color: #666;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+.clientes-subtab:hover {
+    color: #667eea;
+    text-decoration: none;
+}
+.clientes-subtab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+.dias-credito-bucket {
+    margin-bottom: 24px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+}
+.dias-credito-bucket h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #495057;
+}
+.dias-credito-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.dias-credito-table th,
+.dias-credito-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+.dias-credito-table th {
+    background: #e9ecef;
+    font-weight: 600;
+    color: #495057;
+}
+.dias-credito-table .col-order { min-width: 120px; }
+.dias-credito-table .col-client { min-width: 180px; }
+.dias-credito-table .col-date, .dias-credito-table .col-days { width: 100px; }
+.dias-credito-table .col-value { text-align: right; min-width: 100px; }
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -211,10 +269,30 @@ function safeEscape($value, $default = '')
             <i class="fas fa-users"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_TAB_ESTADO_DE_CUENTA'); ?>
         </h2>
-        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes'); ?>" class="clientes-filters-form mb-3">
+        <?php
+        $subtabBase = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes'];
+        if ($clientesSalesAgent !== '') {
+            $subtabBase['filter_clientes_sales_agent'] = $clientesSalesAgent;
+        }
+        $subtabEstadoUrl = Route::_('index.php?' . http_build_query($subtabBase + ['subtab' => 'estado_cuenta']));
+        $subtabDiasUrl = Route::_('index.php?' . http_build_query($subtabBase + ['subtab' => 'dias_credito']));
+        ?>
+        <div class="clientes-subtabs">
+            <a href="<?php echo $subtabEstadoUrl; ?>"
+               class="clientes-subtab <?php echo $clientesSubtab === 'estado_cuenta' ? 'active' : ''; ?>">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SUBTAB_ESTADO_CUENTA'); ?>
+            </a>
+            <a href="<?php echo $subtabDiasUrl; ?>"
+               class="clientes-subtab <?php echo $clientesSubtab === 'dias_credito' ? 'active' : ''; ?>">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SUBTAB_DIAS_CREDITO'); ?>
+            </a>
+        </div>
+        <?php if ($clientesSubtab === 'estado_cuenta') : ?>
+        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes&subtab=estado_cuenta'); ?>" class="clientes-filters-form mb-3">
             <input type="hidden" name="option" value="com_ordenproduccion" />
             <input type="hidden" name="view" value="administracion" />
             <input type="hidden" name="tab" value="clientes" />
+            <input type="hidden" name="subtab" value="estado_cuenta" />
             <input type="hidden" name="filter_clientes_ordering" value="<?php echo safeEscape($clientesOrdering); ?>" />
             <input type="hidden" name="filter_clientes_direction" value="<?php echo safeEscape($clientesDirection); ?>" />
             <input type="hidden" name="clientes_limit" value="<?php echo (int) $clientesLimit; ?>" />
@@ -333,6 +411,85 @@ function safeEscape($value, $default = '')
         <div class="clientes-empty">
             <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_NO_CLIENTS'); ?>
         </div>
+    <?php endif; ?>
+        <?php endif; ?>
+
+    <?php if ($clientesSubtab === 'dias_credito') : ?>
+        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes&subtab=dias_credito'); ?>" class="clientes-filters-form mb-4">
+            <input type="hidden" name="option" value="com_ordenproduccion" />
+            <input type="hidden" name="view" value="administracion" />
+            <input type="hidden" name="tab" value="clientes" />
+            <input type="hidden" name="subtab" value="dias_credito" />
+            <?php if ($showClientesSalesAgentFilter) : ?>
+            <label class="clientes-filter-item d-inline-block me-3">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_SALES_AGENT'); ?>
+                <select name="filter_clientes_sales_agent" class="form-select form-select-sm" style="min-width: 180px;">
+                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS'); ?></option>
+                    <?php foreach ($clientesSalesAgents as $agent) : ?>
+                        <option value="<?php echo safeEscape($agent); ?>" <?php echo $clientesSalesAgent === $agent ? 'selected="selected"' : ''; ?>><?php echo safeEscape($agent); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-search"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_BTN'); ?>
+            </button>
+        </form>
+        <p class="text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_INTRO'); ?></p>
+        <?php
+        $bucketLabels = [
+            '0_15'  => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_0_15'),
+            '16_30' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_16_30'),
+            '31_45' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_31_45'),
+            '45_plus' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_45_PLUS'),
+        ];
+        $hasAny = !empty($clientesDiasCreditoBuckets['0_15']) || !empty($clientesDiasCreditoBuckets['16_30']) || !empty($clientesDiasCreditoBuckets['31_45']) || !empty($clientesDiasCreditoBuckets['45_plus']);
+        ?>
+        <?php if ($hasAny) : ?>
+            <?php foreach (['0_15', '16_30', '31_45', '45_plus'] as $bucketKey) :
+                $orders = $clientesDiasCreditoBuckets[$bucketKey] ?? [];
+                $label = $bucketLabels[$bucketKey] ?? $bucketKey;
+            ?>
+            <div class="dias-credito-bucket">
+                <h4><?php echo $label; ?> (<?php echo count($orders); ?>)</h4>
+                <?php if (!empty($orders)) : ?>
+                <div class="table-responsive">
+                    <table class="dias-credito-table">
+                        <thead>
+                            <tr>
+                                <th class="col-order"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_ORDER'); ?></th>
+                                <th class="col-client"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
+                                <th class="col-date"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_DATE'); ?></th>
+                                <th class="col-days"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_DAYS'); ?></th>
+                                <th class="col-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_VALUE'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($orders as $ord) :
+                                $orderNum = $ord->orden_de_trabajo ?? $ord->order_number ?? '';
+                                $orderUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int)($ord->id ?? 0));
+                                $createdDate = !empty($ord->created) ? HTMLHelper::_('date', $ord->created, 'd/m/Y') : '';
+                            ?>
+                            <tr>
+                                <td class="col-order"><a href="<?php echo htmlspecialchars($orderUrl); ?>"><?php echo safeEscape($orderNum); ?></a></td>
+                                <td class="col-client"><?php echo safeEscape($ord->client_name ?? ''); ?></td>
+                                <td class="col-date"><?php echo $createdDate; ?></td>
+                                <td class="col-days"><?php echo (int)($ord->days_old ?? 0); ?></td>
+                                <td class="col-value">Q.<?php echo number_format((float)($ord->invoice_value ?? 0), 2); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        <?php else : ?>
+            <div class="clientes-empty">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 

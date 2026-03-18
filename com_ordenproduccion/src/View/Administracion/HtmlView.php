@@ -306,6 +306,10 @@ class HtmlView extends BaseHtmlView
     protected $clientesSalesAgents = [];
     /** Whether to show the sales agent filter dropdown (false when Ventas: only own data) */
     protected $clientesShowSalesAgentFilter = true;
+    /** Clientes subtab: estado_cuenta | dias_credito */
+    protected $clientesSubtab = 'estado_cuenta';
+    /** Orders without payment proof by age buckets (0_15, 16_30, 31_45, 45_plus) for Días de crédito subtab */
+    protected $clientesDiasCreditoBuckets = [];
 
     /**
      * Cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página) for Ajustes > Ajustes de Cotización
@@ -591,6 +595,11 @@ class HtmlView extends BaseHtmlView
 
         // Load clientes tab data: all clients with sum of valor a facturar (filtered by sales agent when Ventas)
         if ($activeTab === 'clientes') {
+            $clientesSubtab = $input->getString('subtab', 'estado_cuenta');
+            if (!in_array($clientesSubtab, ['estado_cuenta', 'dias_credito'], true)) {
+                $clientesSubtab = 'estado_cuenta';
+            }
+            $this->clientesSubtab = $clientesSubtab;
             try {
                 $statsModel = $this->getModel('Administracion');
                 $clientesOrdering = $input->getString('filter_clientes_ordering', 'name');
@@ -602,6 +611,13 @@ class HtmlView extends BaseHtmlView
                 $this->clientesLimit = max(5, min(100, (int) $input->getInt('clientes_limit', 20)));
                 $this->clientesLimitStart = max(0, (int) $input->getInt('clientes_limitstart', 0));
                 $this->clientesSalesAgents = $statsModel->getReportSalesAgents($salesAgentFilter);
+                if ($clientesSubtab === 'dias_credito') {
+                    $this->clientesDiasCreditoBuckets = $statsModel->getOrdersWithoutPaymentProofByAgeBuckets(
+                        $this->clientesSalesAgent !== '' ? $this->clientesSalesAgent : null
+                    );
+                } else {
+                    $this->clientesDiasCreditoBuckets = ['0_15' => [], '16_30' => [], '31_45' => [], '45_plus' => []];
+                }
                 $fullList = $statsModel->getClientsWithTotals(
                     $clientesOrdering,
                     $clientesDirection,
