@@ -35,6 +35,7 @@ $showClientesSalesAgentFilter = !empty($this->clientesShowSalesAgentFilter);
 $clientesSubtab = $this->clientesSubtab ?? 'estado_cuenta';
 $emptyBucketSummary = ['count' => 0, 'total_value' => 0.0];
 $clientesDiasCreditoBuckets = $this->clientesDiasCreditoBuckets ?? ['0_15' => $emptyBucketSummary, '16_30' => $emptyBucketSummary, '31_45' => $emptyBucketSummary, '45_plus' => $emptyBucketSummary];
+$clientesDiasCreditoByClient = $this->clientesDiasCreditoByClient ?? [];
 
 function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit) {
     $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
@@ -261,6 +262,58 @@ function safeEscape($value, $default = '')
     background: #f0f4f8;
     font-weight: 700;
 }
+.dias-credito-by-client-wrap {
+    margin-top: 16px;
+}
+.dias-credito-by-client-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #495057;
+}
+.dias-credito-by-client-toggle:hover {
+    background: #e9ecef;
+}
+.dias-credito-by-client-toggle i.fa-plus,
+.dias-credito-by-client-toggle i.fa-minus {
+    width: 16px;
+    text-align: center;
+}
+.dias-credito-by-client-table-wrap {
+    display: none;
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+.dias-credito-by-client-table-wrap.expanded {
+    display: block;
+}
+.dias-credito-by-client-table {
+    width: 100%;
+    max-width: 600px;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.dias-credito-by-client-table th,
+.dias-credito-by-client-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+.dias-credito-by-client-table th {
+    background: #e9ecef;
+    font-weight: 600;
+    color: #495057;
+}
+.dias-credito-by-client-table .col-value { text-align: right; }
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -492,6 +545,51 @@ function safeEscape($value, $default = '')
         <?php if (!$hasAny) : ?>
             <p class="text-muted mt-2"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></p>
         <?php endif; ?>
+
+        <div class="dias-credito-by-client-wrap">
+            <button type="button" class="dias-credito-by-client-toggle" id="dias-credito-toggle-by-client" aria-expanded="false">
+                <i class="fas fa-plus" id="dias-credito-toggle-icon" aria-hidden="true"></i>
+                <span><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_BY_CLIENT_TOGGLE'); ?></span>
+            </button>
+            <div class="dias-credito-by-client-table-wrap" id="dias-credito-by-client-table-wrap">
+                <table class="dias-credito-by-client-table">
+                    <thead>
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
+                            <th class="col-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></th>
+                            <th class="col-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($clientesDiasCreditoByClient)) : ?>
+                            <?php foreach ($clientesDiasCreditoByClient as $row) : ?>
+                            <tr>
+                                <td><?php echo safeEscape($row->client_name ?? ''); ?></td>
+                                <td class="col-value"><?php echo (int)($row->order_count ?? 0); ?></td>
+                                <td class="col-value">Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php else : ?>
+                            <tr><td colspan="3" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <script>
+        (function() {
+            var btn = document.getElementById('dias-credito-toggle-by-client');
+            var wrap = document.getElementById('dias-credito-by-client-table-wrap');
+            var icon = document.getElementById('dias-credito-toggle-icon');
+            if (btn && wrap && icon) {
+                btn.addEventListener('click', function() {
+                    var isExpanded = wrap.classList.toggle('expanded');
+                    btn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+                    icon.className = isExpanded ? 'fas fa-minus' : 'fas fa-plus';
+                });
+            }
+        })();
+        </script>
     <?php endif; ?>
 </div>
 

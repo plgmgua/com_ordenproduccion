@@ -712,6 +712,62 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Get summary of work orders (from Jan 1, 2026) without payment proof, grouped by client.
+     * Same filters as getOrdersWithoutPaymentProofByAgeBuckets. Returns list of client_name, order_count, total_value.
+     *
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
+     * @return  array  List of objects with client_name, order_count, total_value
+     * @since   3.99.0
+     */
+    public function getOrdersWithoutPaymentProofSummaryByClient($salesAgent = null)
+    {
+        $db = Factory::getDbo();
+        if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
+            return [];
+        }
+        $clientCol = $db->quoteName('o.client_name');
+        $invoiceCol = $db->quoteName('o.invoice_value');
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
+                $clientCol = $db->quoteName('o.nombre_del_cliente');
+            }
+            if (isset($cols['valor_a_facturar']) && !isset($cols['invoice_value'])) {
+                $invoiceCol = $db->quoteName('o.valor_a_facturar');
+            }
+        } catch (\Exception $e) {
+        }
+        $noProofCond = 'NOT EXISTS (SELECT 1 FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
+            ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+            ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = o.id)';
+        $query = $db->getQuery(true)
+            ->select([
+                $clientCol . ' AS client_name',
+                'COUNT(*) AS order_count',
+                'SUM(CAST(' . $invoiceCol . ' AS DECIMAL(15,2))) AS total_value'
+            ])
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
+            ->where('(' . $noProofCond . ')')
+            ->group($clientCol)
+            ->order($clientCol . ' ASC');
+        try {
+            $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($oCols['status'])) {
+                $query->where('o.' . $db->quoteName('status') . ' != ' . $db->quote('Anulada'));
+            }
+        } catch (\Exception $e) {
+        }
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        return $rows;
+    }
+
+    /**
      * Build clients list with calculated balances (used internally and for sync).
      *
      * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
