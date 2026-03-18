@@ -235,6 +235,20 @@ switch ($selectedPeriod) {
     font-weight: bold;
     color: #28a745;
 }
+
+/* Comprobantes de Pago: uniform amount size and compressed detail rows */
+#payment-proofs-summary-table .invoice-value {
+    font-size: 14px;
+    font-weight: 600;
+}
+#payment-proofs-summary-table tr.payment-proof-row td {
+    padding: 4px 12px;
+    font-size: 13px;
+    vertical-align: middle;
+}
+#payment-proofs-summary-table tr.payment-proof-row .invoice-value {
+    font-size: 13px;
+}
 </style>
 
 <div class="resumen-container">
@@ -398,7 +412,7 @@ switch ($selectedPeriod) {
             <small style="color: #666; font-weight: normal; margin-left: 10px;">(<?php echo htmlspecialchars($periodLabel); ?>)</small>
         </h3>
         
-        <table class="expandable-table">
+        <table class="expandable-table" id="payment-proofs-summary-table">
             <thead>
                 <tr>
                     <th style="width: 40px;"></th>
@@ -422,11 +436,11 @@ switch ($selectedPeriod) {
                     </td>
                     <td style="text-align: center;">
                         <span class="badge-orders"><?php echo number_format($totalVerificadoCount); ?></span>
-                        <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalVerificadoAmount, 2); ?></span>
+                        <span class="invoice-value" style="display: block;">Q <?php echo number_format($totalVerificadoAmount, 2); ?></span>
                     </td>
                     <td style="text-align: center;">
                         <span class="badge-orders"><?php echo number_format($totalIngresadoCount); ?></span>
-                        <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($totalIngresadoAmount, 2); ?></span>
+                        <span class="invoice-value" style="display: block;">Q <?php echo number_format($totalIngresadoAmount, 2); ?></span>
                     </td>
                 </tr>
 
@@ -458,11 +472,11 @@ switch ($selectedPeriod) {
                             </td>
                             <td style="text-align: center;">
                                 <span class="badge-orders"><?php echo number_format($agentStat->verificadoCount ?? 0); ?></span>
-                                <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->verificadoAmount ?? 0, 2); ?></span>
+                                <span class="invoice-value" style="display: block;">Q <?php echo number_format($agentStat->verificadoAmount ?? 0, 2); ?></span>
                             </td>
                             <td style="text-align: center;">
                                 <span class="badge-orders"><?php echo number_format($agentStat->ingresadoCount ?? 0); ?></span>
-                                <span class="invoice-value" style="display: block; font-size: 14px;">Q <?php echo number_format($agentStat->ingresadoAmount ?? 0, 2); ?></span>
+                                <span class="invoice-value" style="display: block;">Q <?php echo number_format($agentStat->ingresadoAmount ?? 0, 2); ?></span>
                             </td>
                         </tr>
 
@@ -485,13 +499,13 @@ switch ($selectedPeriod) {
                                         <strong><?php echo htmlspecialchars($proofNumber); ?></strong>
                                         <span style="color: #666; font-size: 13px;"> · <?php echo htmlspecialchars($proofDate); ?> · <?php echo htmlspecialchars($estadoLabel); ?></span>
                                     </td>
-                                    <td style="text-align: right; font-size: 13px;">
+                                    <td style="text-align: right;">
                                         <span class="invoice-value">Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></span>
                                     </td>
-                                    <td style="text-align: center; font-size: 13px;">
+                                    <td style="text-align: center;">
                                         <?php echo $isVerificado ? 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2) : '—'; ?>
                                     </td>
-                                    <td style="text-align: center; font-size: 13px;">
+                                    <td style="text-align: center;">
                                         <?php echo $isVerificado ? '—' : 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2); ?>
                                     </td>
                                 </tr>
