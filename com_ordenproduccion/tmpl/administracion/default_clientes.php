@@ -257,6 +257,10 @@ function safeEscape($value, $default = '')
     color: #6c757d;
     margin-top: 4px;
 }
+.dias-credito-summary-table .dias-credito-total-col {
+    background: #f0f4f8;
+    font-weight: 700;
+}
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -444,7 +448,9 @@ function safeEscape($value, $default = '')
         $b1 = $clientesDiasCreditoBuckets['16_30'] ?? ['count' => 0, 'total_value' => 0.0];
         $b2 = $clientesDiasCreditoBuckets['31_45'] ?? ['count' => 0, 'total_value' => 0.0];
         $b3 = $clientesDiasCreditoBuckets['45_plus'] ?? ['count' => 0, 'total_value' => 0.0];
-        $hasAny = ($b0['count'] + $b1['count'] + $b2['count'] + $b3['count']) > 0;
+        $totalValue = (float)$b0['total_value'] + (float)$b1['total_value'] + (float)$b2['total_value'] + (float)$b3['total_value'];
+        $totalCount = (int)$b0['count'] + (int)$b1['count'] + (int)$b2['count'] + (int)$b3['count'];
+        $hasAny = $totalCount > 0;
         ?>
         <div class="table-responsive">
             <table class="dias-credito-summary-table">
@@ -454,6 +460,7 @@ function safeEscape($value, $default = '')
                         <th><?php echo $bucketLabels['16_30']; ?></th>
                         <th><?php echo $bucketLabels['31_45']; ?></th>
                         <th><?php echo $bucketLabels['45_plus']; ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -473,6 +480,10 @@ function safeEscape($value, $default = '')
                         <td>
                             Q.<?php echo number_format((float)$b3['total_value'], 2); ?>
                             <div class="bucket-count"><?php echo (int)$b3['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td class="dias-credito-total-col">
+                            Q.<?php echo number_format($totalValue, 2); ?>
+                            <div class="bucket-count"><?php echo $totalCount; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                         </td>
                     </tr>
                 </tbody>
