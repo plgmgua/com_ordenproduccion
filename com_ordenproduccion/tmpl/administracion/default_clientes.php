@@ -262,6 +262,36 @@ function safeEscape($value, $default = '')
     background: #f0f4f8;
     font-weight: 700;
 }
+.dias-credito-summary-table .dias-credito-col-toggle {
+    width: 48px;
+    max-width: 48px;
+    text-align: center;
+    vertical-align: middle;
+}
+.dias-credito-summary-table .col-client-name {
+    min-width: 140px;
+    text-align: left;
+}
+.dias-credito-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #495057;
+}
+.dias-credito-expand-btn:hover {
+    background: #e9ecef;
+    color: #667eea;
+}
+.dias-credito-detail-row td {
+    background: #fafbfc;
+}
 .dias-credito-by-client-wrap {
     margin-top: 16px;
 }
@@ -522,18 +552,24 @@ function safeEscape($value, $default = '')
         $hasAny = $totalCount > 0;
         ?>
         <div class="table-responsive">
-            <table class="dias-credito-summary-table">
+            <table class="dias-credito-summary-table" id="dias-credito-unified-table">
                 <thead>
                     <tr>
+                        <th class="dias-credito-col-toggle"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
                         <th><?php echo $bucketLabels['0_15']; ?></th>
                         <th><?php echo $bucketLabels['16_30']; ?></th>
                         <th><?php echo $bucketLabels['31_45']; ?></th>
                         <th><?php echo $bucketLabels['45_plus']; ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
+                        <th class="dias-credito-total-col"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
+                    <tr class="dias-credito-summary-row">
+                        <td class="dias-credito-col-toggle">
+                            <button type="button" class="dias-credito-expand-btn" id="dias-credito-toggle-by-client" aria-expanded="false" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_BY_CLIENT_TOGGLE'); ?>">
+                                <i class="fas fa-plus" id="dias-credito-toggle-icon" aria-hidden="true"></i>
+                            </button>
+                        </td>
                         <td>
                             Q.<?php echo number_format((float)$b0['total_value'], 2); ?>
                             <div class="bucket-count"><?php echo (int)$b0['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
@@ -555,74 +591,53 @@ function safeEscape($value, $default = '')
                             <div class="bucket-count"><?php echo $totalCount; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                         </td>
                     </tr>
+                    <?php if (!empty($clientesDiasCreditoByClient)) : ?>
+                        <?php foreach ($clientesDiasCreditoByClient as $row) : ?>
+                        <tr class="dias-credito-detail-row" style="display: none;">
+                            <td class="col-client-name"><?php echo safeEscape($row->client_name ?? ''); ?></td>
+                            <td>
+                                Q.<?php echo number_format((float)($row->total_value_0_15 ?? 0), 2); ?>
+                                <div class="bucket-count"><?php echo (int)($row->count_0_15 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            </td>
+                            <td>
+                                Q.<?php echo number_format((float)($row->total_value_16_30 ?? 0), 2); ?>
+                                <div class="bucket-count"><?php echo (int)($row->count_16_30 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            </td>
+                            <td>
+                                Q.<?php echo number_format((float)($row->total_value_31_45 ?? 0), 2); ?>
+                                <div class="bucket-count"><?php echo (int)($row->count_31_45 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            </td>
+                            <td>
+                                Q.<?php echo number_format((float)($row->total_value_45_plus ?? 0), 2); ?>
+                                <div class="bucket-count"><?php echo (int)($row->count_45_plus ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            </td>
+                            <td class="dias-credito-total-col">
+                                Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?>
+                                <div class="bucket-count"><?php echo (int)($row->order_count ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php else : ?>
+                        <tr class="dias-credito-detail-row" style="display: none;"><td colspan="6" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></td></tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
         <?php if (!$hasAny) : ?>
             <p class="text-muted mt-2"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></p>
         <?php endif; ?>
-
-        <div class="dias-credito-by-client-wrap">
-            <button type="button" class="dias-credito-by-client-toggle" id="dias-credito-toggle-by-client" aria-expanded="false">
-                <i class="fas fa-plus" id="dias-credito-toggle-icon" aria-hidden="true"></i>
-                <span><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_BY_CLIENT_TOGGLE'); ?></span>
-            </button>
-            <div class="dias-credito-by-client-table-wrap" id="dias-credito-by-client-table-wrap">
-                <table class="dias-credito-by-client-table">
-                    <thead>
-                        <tr>
-                            <th class="col-client-name"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
-                            <th><?php echo $bucketLabels['0_15']; ?></th>
-                            <th><?php echo $bucketLabels['16_30']; ?></th>
-                            <th><?php echo $bucketLabels['31_45']; ?></th>
-                            <th><?php echo $bucketLabels['45_plus']; ?></th>
-                            <th class="col-value dias-credito-total-col"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!empty($clientesDiasCreditoByClient)) : ?>
-                            <?php foreach ($clientesDiasCreditoByClient as $row) : ?>
-                            <tr>
-                                <td class="col-client-name"><?php echo safeEscape($row->client_name ?? ''); ?></td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_0_15 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_0_15 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_16_30 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_16_30 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_31_45 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_31_45 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_45_plus ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_45_plus ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td class="dias-credito-total-col">
-                                    Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->order_count ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php else : ?>
-                            <tr><td colspan="6" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
         <script>
         (function() {
             var btn = document.getElementById('dias-credito-toggle-by-client');
-            var wrap = document.getElementById('dias-credito-by-client-table-wrap');
             var icon = document.getElementById('dias-credito-toggle-icon');
-            if (btn && wrap && icon) {
+            var detailRows = document.querySelectorAll('.dias-credito-detail-row');
+            if (btn && icon) {
                 btn.addEventListener('click', function() {
-                    var isExpanded = wrap.classList.toggle('expanded');
+                    var isExpanded = btn.getAttribute('aria-expanded') === 'true';
+                    isExpanded = !isExpanded;
                     btn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
                     icon.className = isExpanded ? 'fas fa-minus' : 'fas fa-plus';
+                    detailRows.forEach(function(tr) { tr.style.display = isExpanded ? '' : 'none'; });
                 });
             }
         })();
