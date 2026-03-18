@@ -466,11 +466,14 @@ switch ($selectedPeriod) {
                             </td>
                         </tr>
 
-                        <!-- Payment Proof Details (Initially Hidden) -->
+                        <!-- Payment Proof Details (Initially Hidden) - proof-of-payment info only, no work order detail -->
                         <?php if ($hasProofs): ?>
                             <?php foreach ($agentStat->paymentProofs as $proof):
                                 $proofStatus = isset($proof->verification_status) ? trim((string) $proof->verification_status) : '';
                                 $isVerificado = ($proofStatus !== '' && strtolower($proofStatus) === 'verificado');
+                                $proofNumber = 'PA-' . str_pad((int)($proof->id ?? 0), 6, '0', STR_PAD_LEFT);
+                                $proofDate = !empty($proof->created) ? HTMLHelper::_('date', $proof->created, 'd/m/Y') : '—';
+                                $estadoLabel = $isVerificado ? Text::_('COM_ORDENPRODUCCION_RESUMEN_VERIFICADO') : Text::_('COM_ORDENPRODUCCION_RESUMEN_INGRESADO');
                             ?>
                                 <tr class="payment-proof-row" data-agent-id="<?php echo $agentId; ?>" style="display: none;">
                                     <td></td>
@@ -479,11 +482,8 @@ switch ($selectedPeriod) {
                                     </td>
                                     <td style="padding-left: 20px;">
                                         <i class="fas fa-file-invoice-dollar" style="color: #28a745; margin-right: 8px;"></i>
-                                        <strong><?php echo htmlspecialchars($proof->orden_de_trabajo ?? $proof->order_number ?? 'ORD-' . $proof->order_id); ?></strong>
-                                        <br>
-                                        <span style="color: #666; font-size: 13px; margin-left: 32px;">
-                                            <?php echo htmlspecialchars($proof->work_description ?? '-'); ?>
-                                        </span>
+                                        <strong><?php echo htmlspecialchars($proofNumber); ?></strong>
+                                        <span style="color: #666; font-size: 13px;"> · <?php echo htmlspecialchars($proofDate); ?> · <?php echo htmlspecialchars($estadoLabel); ?></span>
                                     </td>
                                     <td style="text-align: center; font-size: 13px;">
                                         <?php echo $isVerificado ? '—' : 'Q ' . number_format((float)($proof->payment_amount ?? 0), 2); ?>
@@ -500,7 +500,7 @@ switch ($selectedPeriod) {
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="4" style="padding: 20px; text-align: center; color: #6c757d;">
+                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                             <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_PAYMENT_PROOFS'); ?>
                         </td>
                     </tr>
