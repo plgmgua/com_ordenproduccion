@@ -212,13 +212,34 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-credit-card fa-sm" aria-hidden="true"></i>
                                                 </a>
                                                 <?php endif; ?>
-                                                <?php if ($this->canShowPaymentInfo($item)) : ?>
-                                                <!-- Payment Info Popup -->
-                                                <button type="button" class="btn btn-sm btn-outline-info"
-                                                        onclick="if(typeof showPaymentInfoPopup==='function')showPaymentInfoPopup(<?php echo (int) $item->id; ?>, window.paymentInfoBaseUrl||'', window.paymentInfoToken||'');"
-                                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO'); ?>">
-                                                    <i class="fas fa-receipt fa-sm" aria-hidden="true"></i>
-                                                </button>
+                                                <?php
+                                                $hasQuotation = false;
+                                                $quotationFilesParam = '';
+                                                if (!empty($item->quotation_files) && $item->quotation_files !== '[]' && $item->quotation_files !== '""') {
+                                                    if (strpos((string) $item->quotation_files, '[') === 0) {
+                                                        $decoded = json_decode($item->quotation_files, true);
+                                                        if (is_array($decoded) && !empty($decoded[0])) {
+                                                            $hasQuotation = true;
+                                                            $quotationFilesParam = $item->quotation_files;
+                                                        }
+                                                    } else {
+                                                        $hasQuotation = true;
+                                                        $quotationFilesParam = $item->quotation_files;
+                                                    }
+                                                }
+                                                if ($hasQuotation) :
+                                                    $cotizacionUrl = Route::_('index.php?option=com_ordenproduccion&view=quotation&layout=display&order_id=' . (int) $item->id . '&order_number=' . urlencode($item->order_number ?? '') . '&quotation_files=' . urlencode($quotationFilesParam));
+                                                ?>
+                                                <a href="<?php echo htmlspecialchars($cotizacionUrl); ?>"
+                                                   class="btn btn-sm btn-outline-info"
+                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>"
+                                                   aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_VIEW_COTIZACION'); ?>">
+                                                    <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
+                                                </a>
+                                                <?php else : ?>
+                                                <span class="btn btn-sm btn-outline-secondary disabled" title="<?php echo Text::_('COM_ORDENPRODUCCION_NO_COTIZACION'); ?>">
+                                                    <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
+                                                </span>
                                                 <?php endif; ?>
                                                 <!-- Solicitar anulación - groups from Settings or super user / order owner -->
                                                 <?php if ($this->canShowSolicitarAnulacion($item)) :

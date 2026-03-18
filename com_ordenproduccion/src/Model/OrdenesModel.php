@@ -221,16 +221,22 @@ class OrdenesModel extends ListModel
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
+        $quotationCol = 'a.adjuntar_cotizacion';
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (!empty($cols) && isset($cols['quotation_files'])) {
+                $quotationCol = 'a.quotation_files';
+            }
+        } catch (\Exception $e) {
+        }
+        $baseSelect = 'a.id, a.orden_de_trabajo, a.order_number, a.client_name, a.nit, ' .
+            'a.invoice_value, a.work_description, a.print_color, a.dimensions, ' .
+            'a.delivery_date, a.material, a.request_date, a.sales_agent, a.status, ' .
+            'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version, ' .
+            $quotationCol . ' AS quotation_files';
+
         // Select the required fields from the table.
-        $query->select(
-            $this->getState(
-                'list.select',
-                'a.id, a.orden_de_trabajo, a.order_number, a.client_name, a.nit, ' .
-                'a.invoice_value, a.work_description, a.print_color, a.dimensions, ' .
-                'a.delivery_date, a.material, a.request_date, a.sales_agent, a.status, ' .
-                'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version'
-            )
-        );
+        $query->select($this->getState('list.select', $baseSelect));
         $query->from($db->quoteName('#__ordenproduccion_ordenes', 'a'));
 
         // Filter by published state
