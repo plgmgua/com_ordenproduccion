@@ -616,7 +616,7 @@ class HtmlView extends BaseHtmlView
                         $this->clientesSalesAgent !== '' ? $this->clientesSalesAgent : null
                     );
                 } else {
-                    $this->clientesDiasCreditoBuckets = ['0_15' => [], '16_30' => [], '31_45' => [], '45_plus' => []];
+                    $this->clientesDiasCreditoBuckets = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
                 }
                 $fullList = $statsModel->getClientsWithTotals(
                     $clientesOrdering,

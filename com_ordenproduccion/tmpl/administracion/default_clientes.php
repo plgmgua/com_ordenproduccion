@@ -33,7 +33,8 @@ $clientesTotalCompras = (float) ($this->clientesTotalCompras ?? 0);
 $clientesTotalOrders = (int) ($this->clientesTotalOrders ?? 0);
 $showClientesSalesAgentFilter = !empty($this->clientesShowSalesAgentFilter);
 $clientesSubtab = $this->clientesSubtab ?? 'estado_cuenta';
-$clientesDiasCreditoBuckets = $this->clientesDiasCreditoBuckets ?? ['0_15' => [], '16_30' => [], '31_45' => [], '45_plus' => []];
+$emptyBucketSummary = ['count' => 0, 'total_value' => 0.0];
+$clientesDiasCreditoBuckets = $this->clientesDiasCreditoBuckets ?? ['0_15' => $emptyBucketSummary, '16_30' => $emptyBucketSummary, '31_45' => $emptyBucketSummary, '45_plus' => $emptyBucketSummary];
 
 function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit) {
     $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
@@ -230,37 +231,32 @@ function safeEscape($value, $default = '')
     color: #667eea;
     border-bottom-color: #667eea;
 }
-.dias-credito-bucket {
-    margin-bottom: 24px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 16px;
-}
-.dias-credito-bucket h4 {
-    margin: 0 0 12px 0;
-    font-size: 16px;
-    color: #495057;
-}
-.dias-credito-table {
+.dias-credito-summary-table {
     width: 100%;
+    max-width: 700px;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 14px;
 }
-.dias-credito-table th,
-.dias-credito-table td {
-    padding: 8px 12px;
-    text-align: left;
-    border-bottom: 1px solid #e9ecef;
+.dias-credito-summary-table th,
+.dias-credito-summary-table td {
+    padding: 12px 16px;
+    text-align: center;
+    border: 1px solid #e9ecef;
 }
-.dias-credito-table th {
-    background: #e9ecef;
+.dias-credito-summary-table th {
+    background: #f8f9fa;
     font-weight: 600;
     color: #495057;
 }
-.dias-credito-table .col-order { min-width: 120px; }
-.dias-credito-table .col-client { min-width: 180px; }
-.dias-credito-table .col-date, .dias-credito-table .col-days { width: 100px; }
-.dias-credito-table .col-value { text-align: right; min-width: 100px; }
+.dias-credito-summary-table td {
+    font-weight: 600;
+}
+.dias-credito-summary-table .bucket-count {
+    font-size: 12px;
+    font-weight: normal;
+    color: #6c757d;
+    margin-top: 4px;
+}
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -439,56 +435,51 @@ function safeEscape($value, $default = '')
         <p class="text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_INTRO'); ?></p>
         <?php
         $bucketLabels = [
-            '0_15'  => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_0_15'),
-            '16_30' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_16_30'),
-            '31_45' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_31_45'),
+            '0_15'   => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_0_15'),
+            '16_30'  => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_16_30'),
+            '31_45'  => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_31_45'),
             '45_plus' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_45_PLUS'),
         ];
-        $hasAny = !empty($clientesDiasCreditoBuckets['0_15']) || !empty($clientesDiasCreditoBuckets['16_30']) || !empty($clientesDiasCreditoBuckets['31_45']) || !empty($clientesDiasCreditoBuckets['45_plus']);
+        $b0 = $clientesDiasCreditoBuckets['0_15'] ?? ['count' => 0, 'total_value' => 0.0];
+        $b1 = $clientesDiasCreditoBuckets['16_30'] ?? ['count' => 0, 'total_value' => 0.0];
+        $b2 = $clientesDiasCreditoBuckets['31_45'] ?? ['count' => 0, 'total_value' => 0.0];
+        $b3 = $clientesDiasCreditoBuckets['45_plus'] ?? ['count' => 0, 'total_value' => 0.0];
+        $hasAny = ($b0['count'] + $b1['count'] + $b2['count'] + $b3['count']) > 0;
         ?>
-        <?php if ($hasAny) : ?>
-            <?php foreach (['0_15', '16_30', '31_45', '45_plus'] as $bucketKey) :
-                $orders = $clientesDiasCreditoBuckets[$bucketKey] ?? [];
-                $label = $bucketLabels[$bucketKey] ?? $bucketKey;
-            ?>
-            <div class="dias-credito-bucket">
-                <h4><?php echo $label; ?> (<?php echo count($orders); ?>)</h4>
-                <?php if (!empty($orders)) : ?>
-                <div class="table-responsive">
-                    <table class="dias-credito-table">
-                        <thead>
-                            <tr>
-                                <th class="col-order"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_ORDER'); ?></th>
-                                <th class="col-client"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
-                                <th class="col-date"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_DATE'); ?></th>
-                                <th class="col-days"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_DAYS'); ?></th>
-                                <th class="col-value"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_VALUE'); ?></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($orders as $ord) :
-                                $orderNum = $ord->orden_de_trabajo ?? $ord->order_number ?? '';
-                                $orderUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int)($ord->id ?? 0));
-                                $createdDate = !empty($ord->created) ? HTMLHelper::_('date', $ord->created, 'd/m/Y') : '';
-                            ?>
-                            <tr>
-                                <td class="col-order"><a href="<?php echo htmlspecialchars($orderUrl); ?>"><?php echo safeEscape($orderNum); ?></a></td>
-                                <td class="col-client"><?php echo safeEscape($ord->client_name ?? ''); ?></td>
-                                <td class="col-date"><?php echo $createdDate; ?></td>
-                                <td class="col-days"><?php echo (int)($ord->days_old ?? 0); ?></td>
-                                <td class="col-value">Q.<?php echo number_format((float)($ord->invoice_value ?? 0), 2); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <?php endif; ?>
-            </div>
-            <?php endforeach; ?>
-        <?php else : ?>
-            <div class="clientes-empty">
-                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?>
-            </div>
+        <div class="table-responsive">
+            <table class="dias-credito-summary-table">
+                <thead>
+                    <tr>
+                        <th><?php echo $bucketLabels['0_15']; ?></th>
+                        <th><?php echo $bucketLabels['16_30']; ?></th>
+                        <th><?php echo $bucketLabels['31_45']; ?></th>
+                        <th><?php echo $bucketLabels['45_plus']; ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            Q.<?php echo number_format((float)$b0['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b0['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td>
+                            Q.<?php echo number_format((float)$b1['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b1['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td>
+                            Q.<?php echo number_format((float)$b2['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b2['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td>
+                            Q.<?php echo number_format((float)$b3['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b3['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <?php if (!$hasAny) : ?>
+            <p class="text-muted mt-2"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_EMPTY'); ?></p>
         <?php endif; ?>
     <?php endif; ?>
 </div>

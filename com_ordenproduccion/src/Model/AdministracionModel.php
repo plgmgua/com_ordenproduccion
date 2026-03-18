@@ -643,30 +643,24 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Get work orders that have no payment proof (comprobante de pago) associated, grouped by age in days.
+     * Get summary of work orders (from Jan 1, 2026) that have no payment proof, grouped by age in days.
      * Buckets: 0-15 days, 16-30 days, 31-45 days, >45 days (days since order creation).
+     * Returns only counts and total values per bucket, no order details.
      *
      * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
-     * @return  array  ['0_15' => [orders], '16_30' => [], '31_45' => [], '45_plus' => []], each order has id, orden_de_trabajo, order_number, client_name, created, days_old, invoice_value, sales_agent
+     * @return  array  ['0_15' => ['count' => N, 'total_value' => X], '16_30' => ..., '31_45' => ..., '45_plus' => ...]
      * @since   3.99.0
      */
     public function getOrdersWithoutPaymentProofByAgeBuckets($salesAgent = null)
     {
         $db = Factory::getDbo();
+        $emptySummary = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
         if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
-            return ['0_15' => [], '16_30' => [], '31_45' => [], '45_plus' => []];
+            return $emptySummary;
         }
-        $orderNumberCol = $db->quoteName('o.orden_de_trabajo');
-        $clientCol = $db->quoteName('o.client_name');
         $invoiceCol = $db->quoteName('o.invoice_value');
         try {
             $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
-            if (isset($cols['order_number']) && !isset($cols['orden_de_trabajo'])) {
-                $orderNumberCol = $db->quoteName('o.order_number');
-            }
-            if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
-                $clientCol = $db->quoteName('o.nombre_del_cliente');
-            }
             if (isset($cols['valor_a_facturar']) && !isset($cols['invoice_value'])) {
                 $invoiceCol = $db->quoteName('o.valor_a_facturar');
             }
@@ -677,17 +671,12 @@ class AdministracionModel extends BaseDatabaseModel
             ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = o.id)';
         $query = $db->getQuery(true)
             ->select([
-                'o.' . $db->quoteName('id'),
-                $orderNumberCol . ' AS orden_de_trabajo',
-                $orderNumberCol . ' AS order_number',
-                $clientCol . ' AS client_name',
-                'o.' . $db->quoteName('created'),
-                'o.' . $db->quoteName('sales_agent'),
                 'CAST(' . $invoiceCol . ' AS DECIMAL(15,2)) AS invoice_value',
                 'DATEDIFF(CURDATE(), DATE(o.created)) AS days_old'
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
             ->where('(' . $noProofCond . ')');
         try {
             $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
@@ -699,20 +688,24 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
-        $query->order('o.' . $db->quoteName('created') . ' ASC');
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
-        $buckets = ['0_15' => [], '16_30' => [], '31_45' => [], '45_plus' => []];
+        $buckets = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
         foreach ($rows as $row) {
             $days = (int) ($row->days_old ?? 0);
+            $val = (float) ($row->invoice_value ?? 0);
             if ($days <= 15) {
-                $buckets['0_15'][] = $row;
+                $buckets['0_15']['count']++;
+                $buckets['0_15']['total_value'] += $val;
             } elseif ($days <= 30) {
-                $buckets['16_30'][] = $row;
+                $buckets['16_30']['count']++;
+                $buckets['16_30']['total_value'] += $val;
             } elseif ($days <= 45) {
-                $buckets['31_45'][] = $row;
+                $buckets['31_45']['count']++;
+                $buckets['31_45']['total_value'] += $val;
             } else {
-                $buckets['45_plus'][] = $row;
+                $buckets['45_plus']['count']++;
+                $buckets['45_plus']['total_value'] += $val;
             }
         }
         return $buckets;
