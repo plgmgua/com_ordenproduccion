@@ -238,6 +238,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('sales_agent') . ' IS NOT NULL')
             ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(''))
             ->where($db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
+            ->where($db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
             ->group($db->quoteName('sales_agent'))
             ->order($db->quoteName('sales_agent') . ' ASC');
         if ($salesAgentFilter !== null && $salesAgentFilter !== '') {
