@@ -24,9 +24,12 @@ $isAdministracionOrAdmon = AccessHelper::isInAdministracionOrAdmonGroup();
 $canSeeVentasTabs = $isVentas || $isAdministracionOrAdmon;
 $canSeeAdminTabs = $isAdministracionOrAdmon;
 
-// Default tab: Ventas see resumen; Admin can use requested or resumen
+// Default tab: Ventas see resumen; Admin can use requested or resumen. workorders tab removed.
 $activeTab = $input->get('tab', 'resumen', 'string');
-if (!$canSeeAdminTabs && in_array($activeTab, ['workorders', 'invoices', 'herramientas'], true)) {
+if ($activeTab === 'workorders') {
+    $activeTab = 'resumen';
+}
+if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas'], true)) {
     $activeTab = 'resumen';
 }
 
@@ -99,11 +102,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     <?php endif; ?>
 
     <?php if ($canSeeAdminTabs) : ?>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=workorders'); ?>"
-       class="admin-tab <?php echo $activeTab === 'workorders' ? 'active' : ''; ?>">
-        <i class="fas fa-clipboard-list"></i>
-        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_WORK_ORDERS'); ?>
-    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>"
        class="admin-tab <?php echo $activeTab === 'invoices' ? 'active' : ''; ?>">
         <i class="fas fa-file-invoice-dollar"></i>
@@ -146,18 +144,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 <div class="tab-content">
     <?php if ($activeTab === 'resumen'): ?>
         <?php echo $this->loadTemplate('resumen'); ?>
-    <?php elseif ($activeTab === 'workorders'): ?>
-        <?php
-        $workOrders = $this->workOrders ?? [];
-        $pagination = $this->workOrdersPagination ?? null;
-        $state = $this->state ?? null;
-        $templatePath = JPATH_ROOT . '/components/com_ordenproduccion/tmpl/administracion/default_workorders.php';
-        if (file_exists($templatePath)) {
-            include $templatePath;
-        } else {
-            echo '<div style="padding: 20px; color: red;">Work orders template not found at: ' . $templatePath . '</div>';
-        }
-        ?>
     <?php elseif ($activeTab === 'invoices'): ?>
         <?php echo $this->loadTemplate('invoices'); ?>
     <?php elseif ($activeTab === 'statistics'): ?>

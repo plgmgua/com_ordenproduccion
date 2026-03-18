@@ -73,22 +73,6 @@ class HtmlView extends BaseHtmlView
     protected $state;
 
     /**
-     * Work orders list
-     *
-     * @var    array
-     * @since  3.2.0
-     */
-    protected $workOrders;
-
-    /**
-     * Work orders pagination
-     *
-     * @var    object
-     * @since  3.2.0
-     */
-    protected $workOrdersPagination;
-
-    /**
      * Banks list
      *
      * @var    array
@@ -396,11 +380,15 @@ class HtmlView extends BaseHtmlView
         $this->currentMonth = $input->getInt('month', 0); // 0 = All Year, 1-12 = specific month
         $this->currentYear = $input->getInt('year', date('Y'));
 
-        // Get active tab - default to resumen for better UX
+        // Get active tab - default to resumen for better UX. workorders tab removed → redirect to resumen
         $activeTab = $input->get('tab', 'resumen', 'string');
+        if ($activeTab === 'workorders') {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
 
-        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: workorders, invoices, herramientas, ajustes
-        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['workorders', 'invoices', 'herramientas', 'ajustes'], true)) {
+        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, herramientas, ajustes
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'herramientas', 'ajustes'], true)) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
@@ -456,8 +444,6 @@ class HtmlView extends BaseHtmlView
         // Initialize data arrays - ensure all properties are set before parent::display()
         $this->invoices = [];
         $this->invoicesPagination = null;
-        $this->workOrders = [];
-        $this->workOrdersPagination = null;
         $this->state = new \Joomla\Registry\Registry();
         $this->banks = [];
         $this->reportWorkOrders = [];
@@ -519,79 +505,6 @@ class HtmlView extends BaseHtmlView
             } catch (\Throwable $e) {
                 $this->invoices = [];
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
-            }
-        }
-
-        // Load work orders data if workorders tab is active
-        if ($activeTab === 'workorders') {
-            try {
-                // Get work orders from database; non-Administracion users see only their own (by sales_agent)
-                $db = Factory::getDbo();
-                $query = $db->getQuery(true);
-                
-                // Select all work order fields
-                $query->select([
-                    'id', 'orden_de_trabajo', 'order_number', 'client_name', 'nit',
-                    'invoice_value', 'work_description', 'print_color', 'dimensions',
-                    'delivery_date', 'material', 'request_date', 'sales_agent', 'status',
-                    'invoice_number', 'quotation_files', 'created', 'created_by', 'modified', 'modified_by', 'state', 'version'
-                ]);
-                $query->from($db->quoteName('#__ordenproduccion_ordenes'));
-                
-                // Only show published orders
-                $query->where($db->quoteName('state') . ' = 1');
-                
-                // Non-Administracion: restrict to current user's records by sales_agent
-                if ($salesAgentFilter !== null) {
-                    $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
-                }
-                
-                // Apply search filter if provided
-                $search = $input->getString('filter_search', '');
-                if (!empty($search)) {
-                    $searchEscaped = $db->quote('%' . $db->escape($search, true) . '%');
-                    $query->where('(' . $db->quoteName('orden_de_trabajo') . ' LIKE ' . $searchEscaped .
-                        ' OR ' . $db->quoteName('client_name') . ' LIKE ' . $searchEscaped . ')');
-                }
-                
-                // Apply status filter if provided
-                $status = $input->getString('filter_status', '');
-                if (!empty($status)) {
-                    $query->where($db->quoteName('status') . ' = ' . $db->quote($status));
-                }
-                
-                // Order by orden_de_trabajo descending
-                $query->order($db->quoteName('orden_de_trabajo') . ' DESC');
-                
-                // Get total count first
-                $countQuery = clone $query;
-                $countQuery->clear('select');
-                $countQuery->select('COUNT(*)');
-                $db->setQuery($countQuery);
-                $total = $db->loadResult();
-                
-                // Set limit for pagination
-                $limit = $input->getInt('limit', 20);
-                $start = $input->getInt('limitstart', 0);
-                $query->setLimit($limit, $start);
-                
-                $db->setQuery($query);
-                $this->workOrders = $db->loadObjectList() ?: [];
-                
-                // Create a proper pagination object
-                $this->workOrdersPagination = new \Joomla\CMS\Pagination\Pagination($total, $start, $limit);
-                
-                // Create state object
-                $this->state = new \Joomla\Registry\Registry();
-                $this->state->set('filter.search', $search);
-                $this->state->set('filter.status', $status);
-                
-                
-            } catch (\Exception $e) {
-                // If query fails, log error and show empty array
-                $app->enqueueMessage('Error loading work orders: ' . $e->getMessage(), 'error');
-                $this->workOrders = [];
-                $this->workOrdersPagination = null;
             }
         }
 
