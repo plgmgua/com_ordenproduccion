@@ -264,14 +264,24 @@ function safeEscape($value, $default = '')
     font-weight: 700;
 }
 .dias-credito-summary-table .dias-credito-col-toggle {
-    width: 48px;
-    max-width: 48px;
-    text-align: center;
+    min-width: 220px;
+    text-align: left;
     vertical-align: middle;
+    white-space: nowrap;
 }
 .dias-credito-summary-table .col-client-name {
-    min-width: 140px;
+    min-width: 220px;
     text-align: left;
+}
+.dias-credito-summary-table tfoot .dias-credito-grand-total-label {
+    font-weight: 700;
+    background: #e9ecef;
+    padding: 12px 16px;
+}
+.dias-credito-summary-table tfoot td {
+    font-weight: 700;
+    background: #e9ecef;
+    border-top: 2px solid #dee2e6;
 }
 .dias-credito-expand-btn {
     display: inline-flex;
@@ -707,6 +717,33 @@ function safeEscape($value, $default = '')
                     <?php endif; ?>
                     <?php endif; ?>
                 </tbody>
+                <?php if ($hasAny) : ?>
+                <tfoot>
+                    <tr class="dias-credito-grand-total-row">
+                        <td class="dias-credito-grand-total-label"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_GRAND_TOTAL'); ?></td>
+                        <td>
+                            Q.<?php echo number_format((float)$b0['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b0['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td>
+                            Q.<?php echo number_format((float)$b1['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b1['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td>
+                            Q.<?php echo number_format((float)$b2['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b2['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td>
+                            Q.<?php echo number_format((float)$b3['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$b3['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                        <td class="dias-credito-total-col">
+                            Q.<?php echo number_format($totalValue, 2); ?>
+                            <div class="bucket-count"><?php echo $totalCount; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                        </td>
+                    </tr>
+                </tfoot>
+                <?php endif; ?>
             </table>
         </div>
         <?php if (!$hasAny) : ?>
