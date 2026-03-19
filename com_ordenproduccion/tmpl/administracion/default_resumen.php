@@ -396,21 +396,19 @@ switch ($selectedPeriod) {
     <!-- Payment Proofs Section -->
     <?php 
     $paymentProofsByAgent = $this->paymentProofsByAgent ?? [];
-    // Calculate totals (including Ingresado and Verificado)
+    // Totals: Cobros = money collected in period; Verificado = verified in period; Por verificar = Cobros − Verificado (count and amount)
     $totalProofs = 0;
-    $totalCollected = 0;
-    $totalIngresadoCount = 0;
-    $totalIngresadoAmount = 0.0;
+    $totalCollected = 0.0;
     $totalVerificadoCount = 0;
     $totalVerificadoAmount = 0.0;
     foreach ($paymentProofsByAgent as $agentStat) {
-        $totalProofs += $agentStat->paymentProofsCount ?? 0;
-        $totalCollected += $agentStat->moneyCollected ?? 0;
-        $totalIngresadoCount += $agentStat->ingresadoCount ?? 0;
-        $totalIngresadoAmount += $agentStat->ingresadoAmount ?? 0;
-        $totalVerificadoCount += $agentStat->verificadoCount ?? 0;
-        $totalVerificadoAmount += $agentStat->verificadoAmount ?? 0;
+        $totalProofs += (int) ($agentStat->paymentProofsCount ?? 0);
+        $totalCollected += (float) ($agentStat->moneyCollected ?? 0);
+        $totalVerificadoCount += (int) ($agentStat->verificadoCount ?? 0);
+        $totalVerificadoAmount += (float) ($agentStat->verificadoAmount ?? 0);
     }
+    $totalPorVerificarCount = max(0, $totalProofs - $totalVerificadoCount);
+    $totalPorVerificarAmount = max(0.0, $totalCollected - $totalVerificadoAmount);
     ?>
     <div class="resumen-section" style="margin-top: 40px;">
         <h3>
@@ -446,8 +444,8 @@ switch ($selectedPeriod) {
                         <span class="invoice-value" style="display: block;">Q <?php echo number_format($totalVerificadoAmount, 2); ?></span>
                     </td>
                     <td style="text-align: center;">
-                        <span class="badge-orders"><?php echo number_format($totalIngresadoCount); ?></span>
-                        <span class="invoice-value" style="display: block;">Q <?php echo number_format($totalIngresadoAmount, 2); ?></span>
+                        <span class="badge-orders"><?php echo number_format($totalPorVerificarCount); ?></span>
+                        <span class="invoice-value" style="display: block;">Q <?php echo number_format($totalPorVerificarAmount, 2); ?></span>
                     </td>
                 </tr>
 
@@ -457,6 +455,8 @@ switch ($selectedPeriod) {
                         $agentId = md5($agentStat->salesAgent ?? 'no-agent-' . $index);
                         $agentName = htmlspecialchars($agentStat->salesAgent ?? Text::_('COM_ORDENPRODUCCION_RESUMEN_NO_AGENT'));
                         $hasProofs = !empty($agentStat->paymentProofs);
+                        $pvCount = max(0, (int) ($agentStat->paymentProofsCount ?? 0) - (int) ($agentStat->verificadoCount ?? 0));
+                        $pvAmount = max(0.0, (float) ($agentStat->moneyCollected ?? 0) - (float) ($agentStat->verificadoAmount ?? 0));
                     ?>
                         <tr class="agent-row" data-agent-id="<?php echo $agentId; ?>">
                             <td class="expand-cell">
@@ -482,8 +482,8 @@ switch ($selectedPeriod) {
                                 <span class="invoice-value" style="display: block;">Q <?php echo number_format($agentStat->verificadoAmount ?? 0, 2); ?></span>
                             </td>
                             <td style="text-align: center;">
-                                <span class="badge-orders"><?php echo number_format($agentStat->ingresadoCount ?? 0); ?></span>
-                                <span class="invoice-value" style="display: block;">Q <?php echo number_format($agentStat->ingresadoAmount ?? 0, 2); ?></span>
+                                <span class="badge-orders"><?php echo number_format($pvCount); ?></span>
+                                <span class="invoice-value" style="display: block;">Q <?php echo number_format($pvAmount, 2); ?></span>
                             </td>
                         </tr>
 
