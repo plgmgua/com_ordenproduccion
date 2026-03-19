@@ -743,9 +743,79 @@ class AdministracionModel extends BaseDatabaseModel
             ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = o.id)';
         $days = 'DATEDIFF(CURDATE(), DATE(o.created))';
         $val = 'CAST(' . $invoiceCol . ' AS DECIMAL(15,2))';
+        $selectFields = [
+            $clientCol . ' AS client_name',
+            'SUM(CASE WHEN ' . $days . ' <= 15 THEN 1 ELSE 0 END) AS count_0_15',
+            'SUM(CASE WHEN ' . $days . ' <= 15 THEN ' . $val . ' ELSE 0 END) AS total_value_0_15',
+            'SUM(CASE WHEN ' . $days . ' > 15 AND ' . $days . ' <= 30 THEN 1 ELSE 0 END) AS count_16_30',
+            'SUM(CASE WHEN ' . $days . ' > 15 AND ' . $days . ' <= 30 THEN ' . $val . ' ELSE 0 END) AS total_value_16_30',
+            'SUM(CASE WHEN ' . $days . ' > 30 AND ' . $days . ' <= 45 THEN 1 ELSE 0 END) AS count_31_45',
+            'SUM(CASE WHEN ' . $days . ' > 30 AND ' . $days . ' <= 45 THEN ' . $val . ' ELSE 0 END) AS total_value_31_45',
+            'SUM(CASE WHEN ' . $days . ' > 45 THEN 1 ELSE 0 END) AS count_45_plus',
+            'SUM(CASE WHEN ' . $days . ' > 45 THEN ' . $val . ' ELSE 0 END) AS total_value_45_plus',
+            'COUNT(*) AS order_count',
+            'SUM(' . $val . ') AS total_value'
+        ];
+        $groupBy = $clientCol;
+        $orderBy = $clientCol . ' ASC';
+        if ($salesAgent === null || $salesAgent === '') {
+            $selectFields = array_merge([$db->quoteName('o.sales_agent') . ' AS sales_agent'], $selectFields);
+            $groupBy = [$db->quoteName('o.sales_agent'), $clientCol];
+            $orderBy = $db->quoteName('o.sales_agent') . ' ASC, ' . $clientCol . ' ASC';
+        }
+        $query = $db->getQuery(true)
+            ->select($selectFields)
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
+            ->where('(' . $noProofCond . ')')
+            ->group($groupBy)
+            ->order($orderBy);
+        try {
+            $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($oCols['status'])) {
+                $query->where('o.' . $db->quoteName('status') . ' != ' . $db->quote('Anulada'));
+            }
+        } catch (\Exception $e) {
+        }
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        return $rows;
+    }
+
+    /**
+     * Get summary of work orders (from Jan 1, 2026) without payment proof, grouped by sales agent with per-bucket breakdown.
+     * Same filters as getOrdersWithoutPaymentProofByAgeBuckets. Returns list with sales_agent and count/value per range (0_15, 16_30, 31_45, 45_plus) plus total.
+     *
+     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only). When set, returns one row for that agent.
+     * @return  array  List of objects: sales_agent, count_0_15, total_value_0_15, count_16_30, total_value_16_30, count_31_45, total_value_31_45, count_45_plus, total_value_45_plus, order_count, total_value
+     * @since   3.99.0
+     */
+    public function getOrdersWithoutPaymentProofSummaryByAgent($salesAgent = null)
+    {
+        $db = Factory::getDbo();
+        if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
+            return [];
+        }
+        $invoiceCol = $db->quoteName('o.invoice_value');
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($cols['valor_a_facturar']) && !isset($cols['invoice_value'])) {
+                $invoiceCol = $db->quoteName('o.valor_a_facturar');
+            }
+        } catch (\Exception $e) {
+        }
+        $noProofCond = 'NOT EXISTS (SELECT 1 FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
+            ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+            ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = o.id)';
+        $days = 'DATEDIFF(CURDATE(), DATE(o.created))';
+        $val = 'CAST(' . $invoiceCol . ' AS DECIMAL(15,2))';
         $query = $db->getQuery(true)
             ->select([
-                $clientCol . ' AS client_name',
+                $db->quoteName('o.sales_agent') . ' AS sales_agent',
                 'SUM(CASE WHEN ' . $days . ' <= 15 THEN 1 ELSE 0 END) AS count_0_15',
                 'SUM(CASE WHEN ' . $days . ' <= 15 THEN ' . $val . ' ELSE 0 END) AS total_value_0_15',
                 'SUM(CASE WHEN ' . $days . ' > 15 AND ' . $days . ' <= 30 THEN 1 ELSE 0 END) AS count_16_30',
@@ -761,8 +831,8 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('o.' . $db->quoteName('state') . ' = 1')
             ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
             ->where('(' . $noProofCond . ')')
-            ->group($clientCol)
-            ->order($clientCol . ' ASC');
+            ->group($db->quoteName('o.sales_agent'))
+            ->order($db->quoteName('o.sales_agent') . ' ASC');
         try {
             $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
             if (isset($oCols['status'])) {

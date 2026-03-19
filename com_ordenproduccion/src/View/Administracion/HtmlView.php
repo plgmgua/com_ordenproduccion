@@ -296,6 +296,8 @@ class HtmlView extends BaseHtmlView
     protected $clientesDiasCreditoBuckets = [];
     /** Orders without payment proof summarized by client for Rango de días detail subtable */
     protected $clientesDiasCreditoByClient = [];
+    /** Orders without payment proof summarized by sales agent for Rango de días summary level */
+    protected $clientesDiasCreditoByAgent = [];
 
     /**
      * Cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página) for Ajustes > Ajustes de Cotización
@@ -529,9 +531,11 @@ class HtmlView extends BaseHtmlView
                 if ($clientesSubtab === 'dias_credito') {
                     $agentFilter = $this->clientesSalesAgent !== '' ? $this->clientesSalesAgent : null;
                     $this->clientesDiasCreditoBuckets = $statsModel->getOrdersWithoutPaymentProofByAgeBuckets($agentFilter);
+                    $this->clientesDiasCreditoByAgent = $statsModel->getOrdersWithoutPaymentProofSummaryByAgent($agentFilter);
                     $this->clientesDiasCreditoByClient = $statsModel->getOrdersWithoutPaymentProofSummaryByClient($agentFilter);
                 } else {
                     $this->clientesDiasCreditoBuckets = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
+                    $this->clientesDiasCreditoByAgent = [];
                     $this->clientesDiasCreditoByClient = [];
                 }
                 $fullList = $statsModel->getClientsWithTotals(
