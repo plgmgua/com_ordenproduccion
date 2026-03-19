@@ -268,12 +268,13 @@ class PaymentproofModel extends ItemModel
             }
             
             if ($this->hasPaymentOrdersTable()) {
-                // Insert into junction table (payment_orders) for each order
+                // Insert into junction table (payment_orders) for each order (one row per order per proof — UNIQUE)
                 if (!empty($data['payment_orders']) && is_array($data['payment_orders'])) {
-                    foreach ($data['payment_orders'] as $paymentOrder) {
+                    $mergedOrders = $this->mergePaymentOrdersForJunction($data['payment_orders']);
+                    foreach ($mergedOrders as $paymentOrder) {
                         $orderId = (int) ($paymentOrder['order_id'] ?? 0);
                         $amountApplied = (float) ($paymentOrder['value'] ?? 0);
-                        
+
                         if ($orderId > 0 && $amountApplied > 0) {
                             $insertQuery = $db->getQuery(true);
                             $insertQuery->insert($db->quoteName('#__ordenproduccion_payment_orders'))
@@ -329,9 +330,42 @@ class PaymentproofModel extends ItemModel
             if (isset($db)) {
                 $db->transactionRollback();
             }
-            $this->setError($e->getMessage());
+            $msg = $e->getMessage();
+            if (stripos($msg, 'Duplicate entry') !== false && stripos($msg, 'idx_payment_order') !== false) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_ORDERS_JUNCTION_DUPLICATE'));
+            } else {
+                $this->setError($msg);
+            }
             return false;
         }
+    }
+
+    /**
+     * Merge duplicate order_id entries in payment_orders POST data.
+     * idx_payment_order is UNIQUE(payment_proof_id, order_id); duplicate rows in the
+     * form (e.g. JS template + hidden row) caused "Duplicate entry 'N-M' for key idx_payment_order".
+     *
+     * @param   array  $paymentOrders  Rows with order_id and value (amount)
+     *
+     * @return  array  List of ['order_id' => int, 'value' => float] one per order
+     *
+     * @since   3.99.0
+     */
+    protected function mergePaymentOrdersForJunction(array $paymentOrders)
+    {
+        $byOrder = [];
+        foreach ($paymentOrders as $paymentOrder) {
+            $orderId = (int) ($paymentOrder['order_id'] ?? 0);
+            $amountApplied = (float) ($paymentOrder['value'] ?? 0);
+            if ($orderId <= 0 || $amountApplied <= 0) {
+                continue;
+            }
+            if (!isset($byOrder[$orderId])) {
+                $byOrder[$orderId] = ['order_id' => $orderId, 'value' => 0.0];
+            }
+            $byOrder[$orderId]['value'] += $amountApplied;
+        }
+        return array_values($byOrder);
     }
 
     /**
