@@ -686,6 +686,53 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Set a work order status to Anulada by order number (Ajustes > Anular orden).
+     * Anulada orders are excluded from Estado de cuenta, Comprobantes de pago, and Rango de días.
+     *
+     * @return  void
+     * @since   3.99.0
+     */
+    public function anularOrden()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if (!$user->authorise('core.admin', 'com_ordenproduccion') && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=anular_orden', false));
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $ordenDeTrabajo = isset($jform['orden_de_trabajo']) ? trim((string) $jform['orden_de_trabajo']) : '';
+        if ($ordenDeTrabajo === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_ANULAR_ORDEN_EMPTY'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=anular_orden', false));
+            return;
+        }
+
+        try {
+            $model = $this->getModel('Administracion');
+            $result = $model->anularOrdenByInput($ordenDeTrabajo, $user->name ?: 'Usuario', (int) $user->id);
+            if (!empty($result['success'])) {
+                $app->enqueueMessage($result['message'], 'success');
+            } else {
+                $app->enqueueMessage($result['message'], 'error');
+            }
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=anular_orden', false));
+    }
+
+    /**
      * Import invoices from SAT Guatemala FEL XML file(s).
      * Expects POST with invoice_xml (file) or invoice_xml[] (multiple files).
      *

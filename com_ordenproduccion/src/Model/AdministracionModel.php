@@ -3302,5 +3302,100 @@ class AdministracionModel extends BaseDatabaseModel
         }
         return true;
     }
+
+    /**
+     * Find a work order by orden_de_trabajo or order_number (case-insensitive).
+     * Used by Ajustes > Anular orden to resolve user input (e.g. "ord-006448").
+     *
+     * @param   string  $input  Order number / orden de trabajo (e.g. ord-006448, ORD-006448)
+     * @return  \stdClass|null  Order row (id, status, orden_de_trabajo, order_number if column exists) or null
+     * @since   3.99.0
+     */
+    public function findOrderByOrdenDeTrabajoOrNumber($input)
+    {
+        $input = trim((string) $input);
+        if ($input === '') {
+            return null;
+        }
+        $db = Factory::getDbo();
+        $normalized = $db->escape(strtolower($input));
+        $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
+        $hasOrderNumber = isset($cols['order_number']);
+        $select = ['id', 'status', $db->quoteName('orden_de_trabajo')];
+        if ($hasOrderNumber) {
+            $select[] = $db->quoteName('order_number');
+        }
+        $query = $db->getQuery(true)
+            ->select($select)
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('state') . ' = 1');
+        if ($hasOrderNumber) {
+            $query->where('(LOWER(TRIM(' . $db->quoteName('orden_de_trabajo') . ')) = ' . $db->quote($normalized) .
+                ' OR LOWER(TRIM(' . $db->quoteName('order_number') . ')) = ' . $db->quote($normalized) . ')');
+        } else {
+            $query->where('LOWER(TRIM(' . $db->quoteName('orden_de_trabajo') . ')) = ' . $db->quote($normalized));
+        }
+        $db->setQuery($query);
+        $row = $db->loadObject();
+        if ($row && !$hasOrderNumber) {
+            $row->order_number = $row->orden_de_trabajo ?? null;
+        }
+        return $row;
+    }
+
+    /**
+     * Set a work order status to Anulada by orden de trabajo / order number input.
+     * Orders with status Anulada are excluded from Estado de cuenta, Comprobantes de pago, and Rango de días.
+     *
+     * @param   string  $input        Order number (e.g. ord-006448)
+     * @param   string  $requestedBy  User name for historial
+     * @param   int     $requesterId  User ID
+     * @return  array{success: bool, message: string}
+     * @since   3.99.0
+     */
+    public function anularOrdenByInput($input, $requestedBy = '', $requesterId = 0)
+    {
+        $order = $this->findOrderByOrdenDeTrabajoOrNumber($input);
+        if (!$order) {
+            return ['success' => false, 'message' => 'Orden no encontrada con el número indicado.'];
+        }
+        if (strtolower((string) $order->status) === 'anulada') {
+            return ['success' => false, 'message' => 'La orden ya está anulada.'];
+        }
+        $db = Factory::getDbo();
+        try {
+            $updateQuery = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                ->set($db->quoteName('status') . ' = ' . $db->quote('Anulada'))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $requesterId)
+                ->where($db->quoteName('id') . ' = ' . (int) $order->id);
+            $db->setQuery($updateQuery);
+            $db->execute();
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()];
+        }
+        try {
+            $historialColumns = $db->getTableColumns('#__ordenproduccion_historial', false);
+            if (!empty($historialColumns)) {
+                $meta = json_encode(['requester' => $requestedBy, 'requester_id' => $requesterId, 'source' => 'ajustes_anular_orden'], JSON_UNESCAPED_UNICODE);
+                $db->setQuery($db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_historial'))
+                    ->set($db->quoteName('order_id') . ' = ' . (int) $order->id)
+                    ->set($db->quoteName('event_type') . ' = ' . $db->quote('anulacion'))
+                    ->set($db->quoteName('event_title') . ' = ' . $db->quote('Orden Anulada'))
+                    ->set($db->quoteName('event_description') . ' = ' . $db->quote('Anulada desde Ajustes. Solicitante: ' . $requestedBy))
+                    ->set($db->quoteName('metadata') . ' = ' . $db->quote($meta))
+                    ->set($db->quoteName('created_by') . ' = ' . (int) $requesterId)
+                    ->set($db->quoteName('state') . ' = 1'));
+                $db->execute();
+            }
+        } catch (\Exception $e) {
+            // non-fatal
+        }
+        $displayNumber = $order->orden_de_trabajo ?? $order->order_number ?? $input;
+        return ['success' => true, 'message' => 'La orden ' . $displayNumber . ' fue marcada como Anulada. No se incluirá en Estado de cuenta, Comprobantes de pago ni Rango de días.'];
+    }
 }
 
