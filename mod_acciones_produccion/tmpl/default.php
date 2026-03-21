@@ -947,7 +947,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const urlEncodedData = new URLSearchParams(formData).toString();
             
             // Make AJAX request
-            fetch('/components/com_ordenproduccion/change_status.php', {
+            fetch('index.php?option=com_ordenproduccion&task=ajax.changeStatus&format=raw', {
                 method: 'POST',
                 body: urlEncodedData,
                 headers: {
