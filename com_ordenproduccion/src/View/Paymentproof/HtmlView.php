@@ -81,6 +81,10 @@ class HtmlView extends BaseHtmlView
             if (!$this->order) {
                 throw new \Exception(Text::sprintf('COM_ORDENPRODUCCION_ERROR_ORDER_NOT_FOUND_ID', $this->orderId));
             }
+
+            if (!AccessHelper::canAccessPaymentProofForOrder($this->order->sales_agent ?? '')) {
+                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'));
+            }
         } catch (\Exception $e) {
             $app->enqueueMessage($e->getMessage(), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
@@ -612,7 +616,7 @@ class HtmlView extends BaseHtmlView
                 $query->where('(LOWER(TRIM(' . $statusCol . ')) IS NULL OR LOWER(TRIM(' . $statusCol . ')) != ' . $db->quote('anulada') . ')');
             }
 
-            $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+            $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
             if ($salesAgentFilter !== null && $salesAgentFilter !== '') {
                 $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
             }

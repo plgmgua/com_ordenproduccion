@@ -59,6 +59,7 @@ $labelFilterApply = $t('COM_ORDENPRODUCCION_FILTER_APPLY', 'Aplicar Filtros');
 $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
 $labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotización');
 $labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotización');
+$labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotización');
 $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
@@ -239,13 +240,18 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                         $hasQuotation = true;
                                                     }
                                                 }
-                                                if ($hasQuotation && $cotizacionFileUrl !== '') : ?>
+                                                $canViewCotizacionPdf = $this->canViewCotizacionPdf($item);
+                                                if ($hasQuotation && $cotizacionFileUrl !== '' && $canViewCotizacionPdf) : ?>
                                                 <button type="button" class="btn btn-sm btn-outline-info cotizacion-popup-btn"
                                                         data-cotizacion-url="<?php echo htmlspecialchars($cotizacionFileUrl); ?>"
                                                         title="<?php echo htmlspecialchars($labelViewCotizacion); ?>"
                                                         aria-label="<?php echo htmlspecialchars($labelViewCotizacion); ?>">
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
                                                 </button>
+                                                <?php elseif ($hasQuotation && $cotizacionFileUrl !== '' && !$canViewCotizacionPdf) : ?>
+                                                <span class="btn btn-sm btn-outline-secondary disabled" title="<?php echo htmlspecialchars($labelCotizacionNoPermission); ?>">
+                                                    <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
+                                                </span>
                                                 <?php else : ?>
                                                 <span class="btn btn-sm btn-outline-secondary disabled" title="<?php echo htmlspecialchars($labelNoCotizacion); ?>">
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>

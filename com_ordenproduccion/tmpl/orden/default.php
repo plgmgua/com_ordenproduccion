@@ -12,11 +12,13 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Orden\HtmlView $this */
 
 $item = $this->item;
 $canSeeInvoice = $this->canSeeInvoiceValue();
+$quotationFilesForJs = AccessHelper::canViewCotizacionPdfForOrder($item->sales_agent ?? '') ? ($item->quotation_files ?? '') : '';
 
 // Helper function to display SI/NO badge
 function displayYesNoBadge($value) {
@@ -579,7 +581,7 @@ window.currentOrderData = <?php echo json_encode([
     'dimensions' => $item->dimensions ?? '',
     'delivery_date' => $item->delivery_date ?? '',
     'material' => $item->material ?? '',
-    'quotation_files' => $item->quotation_files ?? '',
+    'quotation_files' => $quotationFilesForJs,
     'sales_agent' => $item->sales_agent ?? '',
     'request_date' => $item->request_date ?? '',
     'shipping_address' => $item->shipping_address ?? '',

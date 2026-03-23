@@ -160,6 +160,11 @@ class PaymentproofController extends BaseController
                     $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
                     return false;
                 }
+                if (!AccessHelper::canAccessPaymentProofForOrder($order->sales_agent ?? '')) {
+                    $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'), 'error');
+                    $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+                    return false;
+                }
             }
 
             // Handle file uploads (supports multiple files via payment_proof_files[])

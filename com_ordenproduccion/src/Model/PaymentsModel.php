@@ -202,8 +202,8 @@ class PaymentsModel extends ListModel
         $stateFilter = (int) $this->getState('filter.state', 1);
         $query->where($db->quoteName('pp.state') . ' = ' . $stateFilter);
 
-        // Apply sales agent filter for restricted users (e.g. Ventas sees only their payments)
-        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        // Administracion: all comprobantes. Ventas / Produccion: only orders where sales_agent matches user
+        $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
@@ -300,7 +300,7 @@ class PaymentsModel extends ListModel
             ->where('o.' . $db->quoteName('sales_agent') . ' != ' . $db->quote(' '))
             ->order('o.' . $db->quoteName('sales_agent') . ' ASC');
 
-        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
         if ($salesAgentFilter !== null) {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
@@ -399,7 +399,7 @@ class PaymentsModel extends ListModel
 
         $query->where('pp.id = ' . $paymentId)->where('pp.state = 1');
 
-        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
@@ -505,7 +505,7 @@ class PaymentsModel extends ListModel
         $db = $this->getDatabase();
 
         // Verify payment exists and user has access (sales agent filter)
-        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
         if ($salesAgentFilter !== null) {
             $checkQuery = $db->getQuery(true)
                 ->select('1')

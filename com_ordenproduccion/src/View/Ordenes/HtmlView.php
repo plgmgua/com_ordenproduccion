@@ -289,6 +289,19 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Whether the user may open the cotización PDF for this order (list/detail).
+     * Administracion: all. Ventas (including Ventas+Produccion): own only. Produccion-only: none.
+     *
+     * @param   object  $item  Order row
+     *
+     * @return  boolean
+     */
+    public function canViewCotizacionPdf($item)
+    {
+        return AccessHelper::canViewCotizacionPdfForOrder($item->sales_agent ?? '');
+    }
+
+    /**
      * Load allowed user group IDs per ordenes list action button from #__ordenproduccion_config.
      *
      * @return  array  Keys: crear_factura, registrar_pago, payment_info, solicitar_anulacion. Values: int[].

@@ -247,6 +247,60 @@ class AccessHelper
     }
 
     /**
+     * Sales agent filter for comprobantes de pago (payment proofs list, single proof, delete, etc.).
+     * Only Administracion (or Admon) see all records. Ventas (including Ventas+Produccion) and Produccion-only
+     * see only proofs linked to orders where sales_agent matches the current user.
+     *
+     * @return  string|null  Null = see all; otherwise filter by this sales agent name
+     */
+    public static function getSalesAgentFilterForPaymentProofs()
+    {
+        if (self::isInAdministracionOrAdmonGroup()) {
+            return null;
+        }
+        $user = Factory::getUser();
+        return $user->name;
+    }
+
+    /**
+     * Whether the current user may view/manage comprobantes de pago for an order (by sales_agent).
+     *
+     * @param   string|null  $salesAgent  Order's sales_agent value
+     *
+     * @return  boolean
+     */
+    public static function canAccessPaymentProofForOrder($salesAgent = null)
+    {
+        if (self::isInAdministracionOrAdmonGroup()) {
+            return true;
+        }
+        $user = Factory::getUser();
+        $agent = trim((string) $salesAgent);
+        return $agent !== '' && $agent === trim($user->name);
+    }
+
+    /**
+     * Whether the user may open the cotización (quotation) PDF for a work order in the list/detail UI.
+     * Administracion/Admon: all. Ventas (including Ventas+Produccion): own orders only. Produccion-only: no access.
+     *
+     * @param   string|null  $salesAgent  Order's sales_agent value
+     *
+     * @return  boolean
+     */
+    public static function canViewCotizacionPdfForOrder($salesAgent = null)
+    {
+        if (self::isInAdministracionOrAdmonGroup()) {
+            return true;
+        }
+        if (!self::isInVentasGroup()) {
+            return false;
+        }
+        $user = Factory::getUser();
+        $agent = trim((string) $salesAgent);
+        return $agent !== '' && $agent === trim($user->name);
+    }
+
+    /**
      * Get user's access level description
      *
      * @return  string
@@ -258,7 +312,7 @@ class AccessHelper
         }
         
         if (self::isInBothGroups()) {
-            return 'Ventas + Produccion: Can see all orders, valor_factura visible only for own orders';
+            return 'Ventas + Produccion: Can see all orders, valor_factura visible only for own orders; comprobantes de pago only for own orders; cotización PDF only for own orders';
         }
         
         if (self::isInVentasGroup() && !self::isInProduccionGroup()) {
@@ -266,7 +320,7 @@ class AccessHelper
         }
         
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
-            return 'Produccion only: Can see all orders; Valor a Facturar only for own orders';
+            return 'Produccion only: Can see all orders; Valor a Facturar only for own orders; comprobantes de pago only for own orders; cotización PDF not available';
         }
         
         return 'No access: Cannot see orders';
