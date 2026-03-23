@@ -1951,6 +1951,8 @@ class AdministracionModel extends BaseDatabaseModel
     {
         $weekStart = date('Y-m-d', strtotime('monday this week')) . ' 00:00:00';
         $weekEnd = date('Y-m-d', strtotime('sunday this week')) . ' 23:59:59';
+        $previousWeekStart = date('Y-m-d', strtotime('monday last week')) . ' 00:00:00';
+        $previousWeekEnd = date('Y-m-d', strtotime('sunday last week')) . ' 23:59:59';
         $monthStart = date('Y-m-01') . ' 00:00:00';
         $monthEnd = date('Y-m-t') . ' 23:59:59';
         $yearStart = date('Y-01-01') . ' 00:00:00';
@@ -1958,6 +1960,7 @@ class AdministracionModel extends BaseDatabaseModel
 
         $stats = new \stdClass();
         $stats->weekly = $this->getActivityStatsForPeriod($weekStart, $weekEnd, $salesAgent);
+        $stats->previousWeekly = $this->getActivityStatsForPeriod($previousWeekStart, $previousWeekEnd, $salesAgent);
         $stats->monthly = $this->getActivityStatsForPeriod($monthStart, $monthEnd, $salesAgent);
         $stats->yearly = $this->getActivityStatsForPeriod($yearStart, $yearEnd, $salesAgent);
 
@@ -1977,6 +1980,10 @@ class AdministracionModel extends BaseDatabaseModel
     public function getActivityStatisticsByAgent($period = 'week', $salesAgent = null)
     {
         switch ($period) {
+            case 'previous_week':
+                $startDate = date('Y-m-d', strtotime('monday last week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday last week')) . ' 23:59:59';
+                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';
@@ -2365,6 +2372,10 @@ class AdministracionModel extends BaseDatabaseModel
     public function getStatusChangesByAgent($period = 'week', $salesAgent = null)
     {
         switch ($period) {
+            case 'previous_week':
+                $startDate = date('Y-m-d', strtotime('monday last week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday last week')) . ' 23:59:59';
+                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';
@@ -2524,6 +2535,10 @@ class AdministracionModel extends BaseDatabaseModel
     public function getPaymentProofsByAgent($period = 'week', $salesAgent = null)
     {
         switch ($period) {
+            case 'previous_week':
+                $startDate = date('Y-m-d', strtotime('monday last week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday last week')) . ' 23:59:59';
+                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';
@@ -2882,6 +2897,10 @@ class AdministracionModel extends BaseDatabaseModel
     public function getShippingSlipsByAgent($period = 'week', $salesAgent = null)
     {
         switch ($period) {
+            case 'previous_week':
+                $startDate = date('Y-m-d', strtotime('monday last week')) . ' 00:00:00';
+                $endDate = date('Y-m-d', strtotime('sunday last week')) . ' 23:59:59';
+                break;
             case 'month':
                 $startDate = date('Y-m-01') . ' 00:00:00';
                 $endDate = date('Y-m-t') . ' 23:59:59';

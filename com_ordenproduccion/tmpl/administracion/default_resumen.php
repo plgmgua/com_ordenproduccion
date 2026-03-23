@@ -32,6 +32,10 @@ $activityStats = $this->activityStats ?? (object) [
 // Get stats for selected period only
 $currentStats = null;
 switch ($selectedPeriod) {
+    case 'previous_week':
+        $currentStats = $activityStats->previousWeekly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
+        $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_PREVIOUS_WEEK');
+        break;
     case 'month':
         $currentStats = $activityStats->monthly ?? (object) ['workOrdersCreated' => 0, 'statusChanges' => 0, 'paymentProofsRecorded' => 0, 'moneyGenerated' => 0, 'moneyCollected' => 0, 'shippingSlipsFull' => 0, 'shippingSlipsPartial' => 0];
         $periodLabel = Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_MONTH');
@@ -280,6 +284,9 @@ switch ($selectedPeriod) {
                     <select name="period" id="period-select" class="form-control" style="display: inline-block; width: auto; min-width: 150px; padding: 8px 12px; font-size: 14px;" onchange="this.form.submit();">
                         <option value="week" <?php echo $selectedPeriod === 'week' ? 'selected' : ''; ?>>
                             <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_WEEK'); ?>
+                        </option>
+                        <option value="previous_week" <?php echo $selectedPeriod === 'previous_week' ? 'selected' : ''; ?>>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_PREVIOUS_WEEK'); ?>
                         </option>
                         <option value="month" <?php echo $selectedPeriod === 'month' ? 'selected' : ''; ?>>
                             <?php echo Text::_('COM_ORDENPRODUCCION_RESUMEN_CURRENT_MONTH'); ?>
