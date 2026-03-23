@@ -176,7 +176,9 @@ class AccessHelper
 
     /**
      * Check if user can see valor_factura (Valor a Facturar) for a given order.
-     * Administracion: see all. Produccion: only own (sales_agent = current user). Ventas: only own.
+     * Administracion: see all. Produccion-only: only when sales_agent matches the user.
+     * Ventas (including Ventas+Produccion): only when sales_agent matches the user — same rule as cotización PDF
+     * (they may still list all orders via canSeeAllOrders, but not see amounts on others' orders).
      *
      * @param   string|null  $salesAgent  The sales agent name from the order
      * @return  boolean
@@ -192,18 +194,14 @@ class AccessHelper
         
         // Produccion only: can see all work orders but Valor a Facturar only for their own (sales_agent = current user)
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
-            if ($salesAgent === null || $salesAgent === '') {
-                return false;
-            }
-            return $salesAgent === $user->name;
+            $agent = trim((string) $salesAgent);
+            return $agent !== '' && $agent === trim($user->name);
         }
         
-        // Ventas (alone or with Produccion): can see valor_factura only for their own orders
+        // Ventas (alone or with Produccion): same as canViewCotizacionPdfForOrder — own orders only
         if (self::isInVentasGroup()) {
-            if ($salesAgent === null) {
-                return true;
-            }
-            return $salesAgent === $user->name;
+            $agent = trim((string) $salesAgent);
+            return $agent !== '' && $agent === trim($user->name);
         }
         
         return false;
