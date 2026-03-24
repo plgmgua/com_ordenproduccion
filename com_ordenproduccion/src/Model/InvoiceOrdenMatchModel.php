@@ -425,6 +425,47 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * Approve pending suggestions that belong to the given invoice (validates invoice_id per row).
+     *
+     * @param   int[]  $ids  Suggestion row ids from POST
+     *
+     * @return  int  Number of rows approved
+     */
+    public function approveSuggestionsForInvoice(int $invoiceId, array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if ($invoiceId <= 0 || $ids === [] || !$this->isTableAvailable()) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $approved = 0;
+
+        foreach ($ids as $sid) {
+            if ($sid <= 0) {
+                continue;
+            }
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('s.' . $db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions', 's'))
+                    ->where('s.' . $db->quoteName('id') . ' = ' . $sid)
+                    ->where('s.' . $db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                    ->where('s.' . $db->quoteName('status') . ' = ' . $db->quote('pending'))
+                    ->where('s.' . $db->quoteName('state') . ' = 1')
+            );
+            if (!$db->loadResult()) {
+                continue;
+            }
+            if ($this->approveSuggestion($sid)) {
+                $approved++;
+            }
+        }
+
+        return $approved;
+    }
+
+    /**
      * Reject a suggestion row (must be pending).
      */
     public function rejectSuggestion(int $id): bool
