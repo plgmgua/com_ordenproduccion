@@ -754,7 +754,7 @@ class AdministracionController extends BaseController
         }
 
         $user = Factory::getUser();
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if ($user->guest || !AccessHelper::isSuperUser()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
             $app->redirect($redirect);
             return;
@@ -805,7 +805,7 @@ class AdministracionController extends BaseController
         }
 
         $user = Factory::getUser();
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if ($user->guest || !AccessHelper::isSuperUser()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
             $app->redirect($redirect);
             return;
@@ -873,7 +873,7 @@ class AdministracionController extends BaseController
         }
 
         $user = Factory::getUser();
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if ($user->guest || !AccessHelper::isSuperUser()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
             $app->redirect($redirect);
             return;
@@ -907,6 +907,121 @@ class AdministracionController extends BaseController
             } else {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_CHANGE'), 'warning');
             }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ACTION_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
+     * Manually link a work order to a FEL invoice (same NIT). Super Users only.
+     *
+     * @return  void
+     * @since   3.100.0
+     */
+    public function addManualInvoiceOrdenMatch()
+    {
+        $app = Factory::getApplication();
+        $matchStatus = $app->input->post->getString('match_status', '');
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
+        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
+            $redirect .= '&match_status=' . rawurlencode($matchStatus);
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $invoiceId = $app->input->post->getInt('invoice_id', 0);
+        $ordenId = $app->input->post->getInt('orden_id', 0);
+        if ($invoiceId <= 0 || $ordenId <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_MANUAL_ADD_INVALID'), 'warning');
+            $app->redirect($redirect);
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch');
+            if (!$model) {
+                $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !$model->isTableAvailable()) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $app->redirect($redirect);
+                return;
+            }
+            $ok = $model->addManualInvoiceOrdenAssociation($invoiceId, $ordenId);
+            $app->enqueueMessage(
+                $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_MANUAL_ADD_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_MANUAL_ADD_NOOP'),
+                $ok ? 'success' : 'notice'
+            );
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ACTION_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
+     * Remove a suggestion row (unlink invoice ↔ orden). Super Users only.
+     *
+     * @return  void
+     * @since   3.100.0
+     */
+    public function removeInvoiceOrdenMatch()
+    {
+        $app = Factory::getApplication();
+        $matchStatus = $app->input->post->getString('match_status', '');
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
+        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
+            $redirect .= '&match_status=' . rawurlencode($matchStatus);
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $id = $app->input->post->getInt('cid', 0);
+        if ($id <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INVALID_ID'), 'warning');
+            $app->redirect($redirect);
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch');
+            if (!$model) {
+                $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !$model->isTableAvailable()) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $app->redirect($redirect);
+                return;
+            }
+            $ok = $model->deleteSuggestion($id);
+            $app->enqueueMessage(
+                $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REMOVE_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_CHANGE'),
+                $ok ? 'success' : 'notice'
+            );
         } catch (\Throwable $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ACTION_ERROR') . ': ' . $e->getMessage(), 'error');
         }

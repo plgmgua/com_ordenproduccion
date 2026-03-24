@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 // Get invoices data from view (get() ensures value when layout data is used)
 $invoices = $this->get('invoices');
@@ -32,12 +33,17 @@ $invoicesSubtab = $this->get('invoicesSubtab');
 if ($invoicesSubtab !== 'lista' && $invoicesSubtab !== 'match') {
     $invoicesSubtab = 'lista';
 }
-$matchRows = $this->get('invoiceOrdenMatchRows');
-if (!is_array($matchRows)) {
-    $matchRows = [];
-}
 $matchTableOk = (bool) $this->get('invoiceOrdenMatchTableAvailable');
 $matchStatusFilter = (string) $this->get('invoiceOrdenMatchStatusFilter');
+$canAccessInvoiceMatchSubtab = (bool) $this->get('canAccessInvoiceMatchSubtab');
+$matchGrouped = $this->get('invoiceOrdenMatchGrouped');
+if (!is_array($matchGrouped)) {
+    $matchGrouped = [];
+}
+$dropdownOpts = $this->get('invoiceOrdenMatchDropdownOptions');
+if (!is_array($dropdownOpts)) {
+    $dropdownOpts = [];
+}
 $listaUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista');
 $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match');
 ?>
@@ -250,6 +256,11 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
 .invoices-subtabs a:hover { color: #667eea; border-color: #667eea; }
 .invoices-subtabs a.active { background: #667eea; color: #fff; border-color: #667eea; }
 .match-reasons { font-size: 0.75rem; color: #666; }
+.match-client-group { border: 1px solid #dee2e6; border-radius: 8px; margin-bottom: 1.25rem; overflow: hidden; }
+.match-client-group-header { background: #f1f3f5; padding: 10px 14px; font-weight: 600; border-bottom: 1px solid #dee2e6; }
+.match-invoice-block { padding: 14px 16px; border-bottom: 1px solid #eee; }
+.match-invoice-block:last-child { border-bottom: none; }
+.invoice-lines-desc { font-size: 0.8125rem; color: #444; max-width: 42rem; word-break: break-word; }
 </style>
 
 <div class="invoices-section">
@@ -264,9 +275,11 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
         <a href="<?php echo $listaUrl; ?>" class="<?php echo $invoicesSubtab === 'lista' ? 'active' : ''; ?>">
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_LISTA'); ?>
         </a>
+        <?php if ($canAccessInvoiceMatchSubtab): ?>
         <a href="<?php echo $matchUrl; ?>" class="<?php echo $invoicesSubtab === 'match' ? 'active' : ''; ?>">
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_MATCH'); ?>
         </a>
+        <?php endif; ?>
     </div>
 
     <?php if ($invoicesSubtab === 'match'): ?>
@@ -308,82 +321,144 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
         </select>
     </form>
 
-    <?php if (empty($matchRows)): ?>
+    <?php if (empty($matchGrouped)): ?>
         <div class="empty-state">
             <i class="fas fa-link"></i>
-            <p><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_EMPTY'); ?></p>
+            <p><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_EMPTY_GROUPS'); ?></p>
         </div>
     <?php else: ?>
-        <div class="table-responsive">
-            <table class="table table-sm table-bordered align-middle" style="font-size: 0.8125rem;">
-                <thead class="table-light">
-                    <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_SCORE'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_STATUS'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_INVOICE'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ORDER'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_AMOUNTS'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_REASONS'); ?></th>
-                        <th style="width: 1%;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ACTIONS'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($matchRows as $row):
-                        $reasons = isset($row->reasons_list) && is_array($row->reasons_list) ? $row->reasons_list : [];
-                        $reasonLabels = [];
-                        foreach ($reasons as $code) {
-                            $key = 'COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REASON_' . strtoupper((string) $code);
-                            $reasonLabels[] = Text::_($key) !== $key ? Text::_($key) : (string) $code;
-                        }
-                        $st = (string) ($row->status ?? '');
-                        $badgeClass = $st === 'approved' ? 'success' : ($st === 'rejected' ? 'secondary' : 'warning');
-                    ?>
-                    <tr>
-                        <td><strong><?php echo number_format((float) ($row->score ?? 0), 1); ?></strong></td>
-                        <td><span class="badge bg-<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($st); ?></span></td>
-                        <td>
-                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) ($row->invoice_id ?? 0)); ?>">
-                                <?php echo htmlspecialchars($row->invoice_number ?? '', ENT_QUOTES, 'UTF-8'); ?>
-                            </a>
-                            <div class="small text-muted"><?php echo htmlspecialchars(trim($row->client_nit ?? $row->fel_receptor_id ?? ''), ENT_QUOTES, 'UTF-8'); ?> — <?php echo htmlspecialchars($row->client_name ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
-                        </td>
-                        <td>
-                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) ($row->orden_id ?? 0)); ?>">
-                                <?php echo htmlspecialchars($row->orden_de_trabajo ?? '', ENT_QUOTES, 'UTF-8'); ?>
-                            </a>
-                            <div class="small"><?php
-                                $wd = (string) ($row->orden_work_description ?? '');
-                                echo htmlspecialchars(function_exists('mb_strimwidth') ? mb_strimwidth($wd, 0, 120, '…') : substr($wd, 0, 120), ENT_QUOTES, 'UTF-8');
-                            ?></div>
-                        </td>
-                        <td>
-                            <div><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INV_TOTAL'); ?>: <strong><?php echo number_format((float) ($row->invoice_amount ?? 0), 2); ?></strong> Q</div>
-                            <div class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ORD_VALUE'); ?>: <?php echo number_format((float) ($row->orden_valor_facturar ?? 0), 2); ?> Q</div>
-                        </td>
-                        <td class="match-reasons"><?php echo htmlspecialchars(implode(', ', $reasonLabels), ENT_QUOTES, 'UTF-8'); ?></td>
-                        <td>
-                            <?php if ($st === 'pending'): ?>
-                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.approveInvoiceOrdenMatch'); ?>" class="d-inline">
-                                <?php echo HTMLHelper::_('form.token'); ?>
-                                <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
-                                <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
-                                <button type="submit" class="btn btn-success btn-sm mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE'); ?></button>
-                            </form>
-                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectInvoiceOrdenMatch'); ?>" class="d-inline">
-                                <?php echo HTMLHelper::_('form.token'); ?>
-                                <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
-                                <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
-                                <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REJECT'); ?></button>
-                            </form>
+        <?php foreach ($matchGrouped as $grp):
+            $gName = htmlspecialchars((string) ($grp['client_name'] ?? ''), ENT_QUOTES, 'UTF-8');
+            $gNit = htmlspecialchars(trim((string) ($grp['nit_display'] ?? '')), ENT_QUOTES, 'UTF-8');
+            ?>
+        <div class="match-client-group">
+            <div class="match-client-group-header">
+                <?php echo $gName !== '' ? $gName : '—'; ?>
+                <?php if ($gNit !== ''): ?><span class="text-muted fw-normal ms-2"><?php echo $gNit; ?></span><?php endif; ?>
+            </div>
+            <?php foreach (($grp['invoices'] ?? []) as $block):
+                $inv = $block['invoice'] ?? null;
+                if (!$inv || !is_object($inv)) {
+                    continue;
+                }
+                $iid = (int) ($inv->id ?? 0);
+                $desc = (string) ($block['description'] ?? '');
+                $sugs = isset($block['suggestions']) && is_array($block['suggestions']) ? $block['suggestions'] : [];
+                $opts = $dropdownOpts[$iid] ?? [];
+                ?>
+            <div class="match-invoice-block">
+                <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                    <div>
+                        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $iid); ?>" class="fw-bold">
+                            <?php echo htmlspecialchars($inv->invoice_number ?? ('#' . $iid), ENT_QUOTES, 'UTF-8'); ?>
+                        </a>
+                        <span class="text-muted small ms-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INV_TOTAL'); ?>: <strong><?php echo number_format((float) ($inv->invoice_amount ?? 0), 2); ?></strong> Q</span>
+                    </div>
+                </div>
+                <?php if ($desc !== ''): ?>
+                <p class="invoice-lines-desc mb-3"><?php echo htmlspecialchars($desc, ENT_QUOTES, 'UTF-8'); ?></p>
+                <?php endif; ?>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered align-middle mb-0" style="font-size: 0.8125rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_SCORE'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_STATUS'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ORDER'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_AMOUNTS'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_REASONS'); ?></th>
+                                <th style="width: 1%;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ACTIONS'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($sugs)): ?>
+                            <tr>
+                                <td colspan="6" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_SUGGESTIONS_FOR_INVOICE'); ?></td>
+                            </tr>
                             <?php else: ?>
-                            —
+                            <?php foreach ($sugs as $row):
+                                $reasons = isset($row->reasons_list) && is_array($row->reasons_list) ? $row->reasons_list : [];
+                                $reasonLabels = [];
+                                foreach ($reasons as $code) {
+                                    $key = 'COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REASON_' . strtoupper((string) $code);
+                                    $reasonLabels[] = Text::_($key) !== $key ? Text::_($key) : (string) $code;
+                                }
+                                $st = (string) ($row->status ?? '');
+                                $badgeClass = $st === 'approved' ? 'success' : ($st === 'rejected' ? 'secondary' : 'warning');
+                                ?>
+                            <tr>
+                                <td><strong><?php echo number_format((float) ($row->score ?? 0), 1); ?></strong></td>
+                                <td><span class="badge bg-<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($st, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                <td>
+                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) ($row->orden_id ?? 0)); ?>">
+                                        <?php echo htmlspecialchars($row->orden_de_trabajo ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                                    </a>
+                                    <div class="small"><?php
+                                        $wd = (string) ($row->orden_work_description ?? '');
+                                        echo htmlspecialchars(function_exists('mb_strimwidth') ? mb_strimwidth($wd, 0, 120, '…') : substr($wd, 0, 120), ENT_QUOTES, 'UTF-8');
+                                    ?></div>
+                                </td>
+                                <td>
+                                    <div class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ORD_VALUE'); ?>: <?php echo number_format((float) ($row->orden_valor_facturar ?? 0), 2); ?> Q</div>
+                                </td>
+                                <td class="match-reasons"><?php echo htmlspecialchars(implode(', ', $reasonLabels), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td class="text-nowrap">
+                                    <?php if ($st === 'pending'): ?>
+                                    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.approveInvoiceOrdenMatch'); ?>" class="d-inline">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
+                                        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                                        <button type="submit" class="btn btn-success btn-sm mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE'); ?></button>
+                                    </form>
+                                    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectInvoiceOrdenMatch'); ?>" class="d-inline">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
+                                        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REJECT'); ?></button>
+                                    </form>
+                                    <?php endif; ?>
+                                    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.removeInvoiceOrdenMatch'); ?>" class="d-inline" onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REMOVE_CONFIRM')); ?>);">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
+                                        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REMOVE_LINK'); ?></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
                             <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-end gap-2">
+                    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.addManualInvoiceOrdenMatch'); ?>" class="d-flex flex-wrap align-items-end gap-2">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="invoice_id" value="<?php echo $iid; ?>" />
+                        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                        <div>
+                            <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_MANUAL_ADD_LABEL'); ?></label>
+                            <select name="orden_id" class="form-control form-control-sm" style="min-width: 220px;">
+                                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_SELECT_ORDEN'); ?></option>
+                                <?php foreach ($opts as $opt):
+                                    $oid = (int) ($opt['id'] ?? 0);
+                                    $lab = (string) ($opt['label'] ?? '');
+                                    if ($oid <= 0) {
+                                        continue;
+                                    }
+                                    ?>
+                                <option value="<?php echo $oid; ?>"><?php echo htmlspecialchars($lab, ENT_QUOTES, 'UTF-8'); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_MANUAL_ADD'); ?></button>
+                    </form>
+                </div>
+            </div>
+            <?php endforeach; ?>
         </div>
+        <?php endforeach; ?>
     <?php endif; ?>
 
     <?php endif; ?>
@@ -482,7 +557,7 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
     </div>
     <?php endif; ?>
 
-    <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Cliente, Total Factura (Q) -->
+    <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Description (FEL lines), Total Factura (Q) -->
     <?php if (!empty($invoices)): ?>
         <table class="invoices-table">
             <thead>
@@ -490,7 +565,7 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                     <th>Serie | Número</th>
                     <th>Fecha de Emisión</th>
                     <th>NIT</th>
-                    <th>Cliente</th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_DESCRIPTION'); ?></th>
                     <th style="text-align: right;">Total Factura (Q)</th>
                 </tr>
             </thead>
@@ -520,7 +595,10 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                         </td>
                         <td><?php echo $fechaEmision; ?></td>
                         <td><?php echo htmlspecialchars($nit); ?></td>
-                        <td><?php echo htmlspecialchars($invoice->client_name ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td class="invoice-lines-desc"><?php
+                            $lineDesc = InvoiceOrdenMatchModel::getInvoiceLinesDescription($invoice);
+                            echo $lineDesc !== '' ? htmlspecialchars($lineDesc, ENT_QUOTES, 'UTF-8') : '—';
+                        ?></td>
                         <td class="invoice-amount"><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></td>
                     </tr>
                 <?php endforeach; ?>

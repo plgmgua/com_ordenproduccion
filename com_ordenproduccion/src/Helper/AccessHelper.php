@@ -23,6 +23,16 @@ use Joomla\CMS\User\User;
 class AccessHelper
 {
     /**
+     * Global Super Users (core.admin), e.g. Conciliar facturas con órdenes subtab.
+     *
+     * @return  bool
+     */
+    public static function isSuperUser()
+    {
+        return Factory::getUser()->authorise('core.admin');
+    }
+
+    /**
      * Check if user is in Ventas group
      *
      * @return  boolean

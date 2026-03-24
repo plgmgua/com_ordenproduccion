@@ -481,4 +481,337 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         return (int) $db->getAffectedRows();
     }
+
+    /**
+     * Concatenate FEL line item descriptions for list display.
+     */
+    public static function getInvoiceLinesDescription(object $invoice): string
+    {
+        $lineItems = $invoice->line_items ?? null;
+        if (is_string($lineItems)) {
+            $lineItems = json_decode($lineItems, true);
+        }
+        if (!is_array($lineItems)) {
+            return '';
+        }
+        $parts = [];
+        foreach ($lineItems as $li) {
+            if (is_array($li) && !empty($li['descripcion'])) {
+                $parts[] = trim((string) $li['descripcion']);
+            }
+        }
+        $out = trim(implode(' ', $parts));
+        return function_exists('mb_strimwidth') ? mb_strimwidth($out, 0, 500, '…') : substr($out, 0, 500);
+    }
+
+    /**
+     * FEL invoices grouped by client (NIT digits), each with suggestions and description.
+     *
+     * @return  array<int, array{client_name: string, nit_display: string, nit_digits: string, invoices: array<int, array{invoice: object, description: string, suggestions: array}>}>
+     */
+    public function getConciliationGroupedByClient(string $statusFilter = ''): array
+    {
+        if (!$this->isTableAvailable()) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $qInv = $db->getQuery(true)
+            ->select('i.*')
+            ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
+            ->where('i.' . $db->quoteName('state') . ' = 1')
+            ->where('i.' . $db->quoteName('invoice_source') . ' = ' . $db->quote('fel_import'))
+            ->order('i.' . $db->quoteName('client_name') . ' ASC')
+            ->order('i.id DESC');
+        $db->setQuery($qInv);
+        $invoices = $db->loadObjectList() ?: [];
+
+        $allSuggestions = $this->getSuggestionRows($statusFilter);
+        $byInvoice = [];
+        foreach ($allSuggestions as $row) {
+            $iid = (int) ($row->invoice_id ?? 0);
+            if ($iid <= 0) {
+                continue;
+            }
+            if (!isset($byInvoice[$iid])) {
+                $byInvoice[$iid] = [];
+            }
+            $byInvoice[$iid][] = $row;
+        }
+
+        $groups = [];
+        foreach ($invoices as $inv) {
+            $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+            $gkey = $digits !== '' ? $digits : ('_unknown_' . (int) $inv->id);
+            if (!isset($groups[$gkey])) {
+                $groups[$gkey] = [
+                    'client_name' => (string) ($inv->client_name ?? ''),
+                    'nit_display' => trim((string) ($inv->client_nit ?? $inv->fel_receptor_id ?? '')),
+                    'nit_digits' => $digits,
+                    'invoices' => [],
+                ];
+            }
+            $iid = (int) $inv->id;
+            $groups[$gkey]['invoices'][] = [
+                'invoice' => $inv,
+                'description' => self::getInvoiceLinesDescription($inv),
+                'suggestions' => $byInvoice[$iid] ?? [],
+            ];
+        }
+
+        usort(
+            $groups,
+            static function ($a, $b) {
+                return strcasecmp((string) ($a['client_name'] ?? ''), (string) ($b['client_name'] ?? ''));
+            }
+        );
+
+        return array_values($groups);
+    }
+
+    /**
+     * Orden IDs already linked to this invoice (any status, active rows).
+     *
+     * @return  int[]
+     */
+    public function getLinkedOrdenIdsForInvoice(int $invoiceId): array
+    {
+        if ($invoiceId <= 0 || !$this->isTableAvailable()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('orden_id'))
+                ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $cols = $db->loadColumn() ?: [];
+
+        return array_map('intval', $cols);
+    }
+
+    /**
+     * Dropdown options per invoice id (for conciliation UI batch load).
+     *
+     * @param   int[]  $invoiceIds
+     *
+     * @return  array<int, array<int, array{id: int, label: string}>>
+     */
+    public function getOrdnesDropdownBatchForInvoices(array $invoiceIds): array
+    {
+        $out = [];
+        foreach ($invoiceIds as $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+            $exclude = $this->getLinkedOrdenIdsForInvoice($id);
+            $out[$id] = $this->getOrdnesForInvoiceDropdown($id, $exclude);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Ordene rows for dropdown: same client NIT as invoice (digits), excluding already linked orden ids.
+     *
+     * @param   int       $invoiceId
+     * @param   int[]     $excludeOrdenIds  Orden IDs already linked to this invoice
+     *
+     * @return  array<int, array{id: int, label: string}>
+     */
+    public function getOrdnesForInvoiceDropdown(int $invoiceId, array $excludeOrdenIds = []): array
+    {
+        if ($invoiceId <= 0) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return [];
+        }
+
+        $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+        if ($digits === '') {
+            return [];
+        }
+
+        $exprs = $this->getOrdenColumnExprs($db);
+        $invoiceValExpr = $exprs['invoiceValue'];
+        $orderNumExpr = $exprs['orderNumber'];
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select([
+                    'o.id',
+                    'o.nit',
+                    $orderNumExpr . ' AS orden_num',
+                    $invoiceValExpr . ' AS orden_valor',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+                ->where('o.' . $db->quoteName('nit') . ' IS NOT NULL')
+                ->where('o.' . $db->quoteName('nit') . ' != ' . $db->quote(''))
+                ->setLimit(8000)
+        );
+        $orders = $db->loadObjectList() ?: [];
+
+        $exclude = array_flip(array_map('intval', $excludeOrdenIds));
+        $out = [];
+        foreach ($orders as $o) {
+            if (self::normalizeNitDigits($o->nit ?? '') !== $digits) {
+                continue;
+            }
+            $oid = (int) $o->id;
+            if (isset($exclude[$oid])) {
+                continue;
+            }
+            $num = trim((string) ($o->orden_num ?? ''));
+            if ($num === '') {
+                $num = 'ORD-' . str_pad((string) $oid, 6, '0', STR_PAD_LEFT);
+            }
+            $val = (float) ($o->orden_valor ?? 0);
+            $out[] = [
+                'id' => $oid,
+                'label' => $num . ' — Q ' . number_format($val, 2),
+            ];
+        }
+
+        usort($out, static function ($a, $b) {
+            return strcasecmp($a['label'], $b['label']);
+        });
+
+        return $out;
+    }
+
+    /**
+     * Manually link an orden to an invoice (approved, score 100). NIT must match.
+     */
+    public function addManualInvoiceOrdenAssociation(int $invoiceId, int $ordenId): bool
+    {
+        if ($invoiceId <= 0 || $ordenId <= 0 || !$this->isTableAvailable()) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv || ($inv->invoice_source ?? '') !== 'fel_import') {
+            return false;
+        }
+
+        $exprs = $this->getOrdenColumnExprs($db);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select(['o.id', 'o.nit', $exprs['invoiceValue'] . ' AS orden_invoice_value', $exprs['workDesc'] . ' AS orden_work_description'])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->where('o.' . $db->quoteName('id') . ' = ' . (int) $ordenId)
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+        );
+        $ord = $db->loadObject();
+        if (!$ord) {
+            return false;
+        }
+
+        $dInv = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+        $dOrd = self::normalizeNitDigits($ord->nit ?? '');
+        if ($dInv === '' || $dOrd === '' || $dInv !== $dOrd) {
+            return false;
+        }
+
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $reasonsJson = json_encode(['manual'], JSON_UNESCAPED_UNICODE);
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('id, status')
+                ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('orden_id') . ' = ' . $ordenId)
+        );
+        $ex = $db->loadObject();
+
+        if ($ex) {
+            if (($ex->status ?? '') === 'approved') {
+                return false;
+            }
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                    ->set($db->quoteName('status') . ' = ' . $db->quote('approved'))
+                    ->set($db->quoteName('score') . ' = 100')
+                    ->set($db->quoteName('reasons') . ' = ' . $db->quote($reasonsJson))
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                    ->where($db->quoteName('id') . ' = ' . (int) $ex->id)
+            );
+            $db->execute();
+
+            return $db->getAffectedRows() > 0;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->columns([
+                    $db->quoteName('invoice_id'),
+                    $db->quoteName('orden_id'),
+                    $db->quoteName('status'),
+                    $db->quoteName('score'),
+                    $db->quoteName('reasons'),
+                    $db->quoteName('created'),
+                    $db->quoteName('created_by'),
+                    $db->quoteName('state'),
+                ])
+                ->values(implode(',', [
+                    $invoiceId,
+                    $ordenId,
+                    $db->quote('approved'),
+                    '100',
+                    $db->quote($reasonsJson),
+                    $db->quote($now),
+                    (int) $user->id,
+                    '1',
+                ]))
+        );
+        $db->execute();
+
+        return true;
+    }
+
+    /**
+     * Delete a suggestion row (e.g. manual unlink).
+     */
+    public function deleteSuggestion(int $suggestionId): bool
+    {
+        if ($suggestionId <= 0 || !$this->isTableAvailable()) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->where($db->quoteName('id') . ' = ' . $suggestionId)
+        );
+        $db->execute();
+
+        return $db->getAffectedRows() > 0;
+    }
 }

@@ -348,6 +348,30 @@ class HtmlView extends BaseHtmlView
     protected $invoiceOrdenMatchStatusFilter = '';
 
     /**
+     * Conciliar subtab: FEL invoices grouped by client (super users only)
+     *
+     * @var    array
+     * @since  3.100.0
+     */
+    protected $invoiceOrdenMatchGrouped = [];
+
+    /**
+     * Whether current user may open Conciliar con órdenes (global Super Users / core.admin)
+     *
+     * @var    bool
+     * @since  3.100.0
+     */
+    protected $canAccessInvoiceMatchSubtab = false;
+
+    /**
+     * Per-invoice dropdown options for manual orden association (invoice id => options)
+     *
+     * @var    array<int, array<int, array{id: int, label: string}>>
+     * @since  3.100.0
+     */
+    protected $invoiceOrdenMatchDropdownOptions = [];
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -367,6 +391,9 @@ class HtmlView extends BaseHtmlView
                 'invoiceOrdenMatchRows' => is_array($this->invoiceOrdenMatchRows ?? null) ? $this->invoiceOrdenMatchRows : [],
                 'invoiceOrdenMatchTableAvailable' => (bool) ($this->invoiceOrdenMatchTableAvailable ?? false),
                 'invoiceOrdenMatchStatusFilter' => (string) ($this->invoiceOrdenMatchStatusFilter ?? ''),
+                'invoiceOrdenMatchGrouped' => is_array($this->invoiceOrdenMatchGrouped ?? null) ? $this->invoiceOrdenMatchGrouped : [],
+                'canAccessInvoiceMatchSubtab' => (bool) ($this->canAccessInvoiceMatchSubtab ?? false),
+                'invoiceOrdenMatchDropdownOptions' => is_array($this->invoiceOrdenMatchDropdownOptions ?? null) ? $this->invoiceOrdenMatchDropdownOptions : [],
             ]
         );
         return $data;
@@ -399,6 +426,15 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoiceOrdenMatchStatusFilter') {
             return (string) ($this->invoiceOrdenMatchStatusFilter ?? '');
+        }
+        if ($property === 'invoiceOrdenMatchGrouped') {
+            return is_array($this->invoiceOrdenMatchGrouped ?? null) ? $this->invoiceOrdenMatchGrouped : [];
+        }
+        if ($property === 'canAccessInvoiceMatchSubtab') {
+            return (bool) ($this->canAccessInvoiceMatchSubtab ?? false);
+        }
+        if ($property === 'invoiceOrdenMatchDropdownOptions') {
+            return is_array($this->invoiceOrdenMatchDropdownOptions ?? null) ? $this->invoiceOrdenMatchDropdownOptions : [];
         }
         return parent::get($property, $default);
     }
@@ -518,6 +554,9 @@ class HtmlView extends BaseHtmlView
         $this->invoiceOrdenMatchRows = [];
         $this->invoiceOrdenMatchTableAvailable = false;
         $this->invoiceOrdenMatchStatusFilter = '';
+        $this->invoiceOrdenMatchGrouped = [];
+        $this->canAccessInvoiceMatchSubtab = false;
+        $this->invoiceOrdenMatchDropdownOptions = [];
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -535,7 +574,14 @@ class HtmlView extends BaseHtmlView
                 $this->invoiceOrdenMatchStatusFilter = '';
             }
 
+            $this->canAccessInvoiceMatchSubtab = AccessHelper::isSuperUser();
+
             if ($this->invoicesSubtab === 'match') {
+                if (!$this->canAccessInvoiceMatchSubtab) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_SUPERUSER_ONLY'), 'warning');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista', false));
+                    return;
+                }
                 $this->invoices = [];
                 $this->invoicesPagination = null;
                 $this->state = new \Joomla\Registry\Registry();
@@ -548,9 +594,22 @@ class HtmlView extends BaseHtmlView
                     if ($matchModel) {
                         $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
                         $this->invoiceOrdenMatchRows = $matchModel->getSuggestionRows($this->invoiceOrdenMatchStatusFilter);
+                        $this->invoiceOrdenMatchGrouped = $matchModel->getConciliationGroupedByClient($this->invoiceOrdenMatchStatusFilter);
+                        $invIds = [];
+                        foreach ($this->invoiceOrdenMatchGrouped as $grp) {
+                            foreach (($grp['invoices'] ?? []) as $block) {
+                                $inv = $block['invoice'] ?? null;
+                                if ($inv && isset($inv->id)) {
+                                    $invIds[] = (int) $inv->id;
+                                }
+                            }
+                        }
+                        $invIds = array_values(array_unique(array_filter($invIds)));
+                        $this->invoiceOrdenMatchDropdownOptions = $matchModel->getOrdnesDropdownBatchForInvoices($invIds);
                     }
                 } catch (\Throwable $e) {
                     $this->invoiceOrdenMatchRows = [];
+                    $this->invoiceOrdenMatchGrouped = [];
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
                 }
             } else {
