@@ -45,6 +45,22 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * Validate GET/POST value for conciliation client filter (group key: NIT digits or _unknown_{invoice_id}).
+     */
+    public static function isValidMatchClientGroupKey(string $key): bool
+    {
+        $key = trim($key);
+        if ($key === '') {
+            return false;
+        }
+        if (preg_match('/^\d+$/', $key)) {
+            return true;
+        }
+
+        return (bool) preg_match('/^_unknown_\d+$/', $key);
+    }
+
+    /**
      * True if orden date falls within ±3 calendar months of invoice emission (fel_fecha_emision / invoice_date).
      * If either date is missing or unparsable, returns true (do not hide rows for lack of data).
      */
@@ -691,9 +707,11 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
      * FEL invoices grouped by client (NIT digits), each with suggestions and description.
      * Omits invoices that already have an approved orden association or a primary orden_id on the row.
      *
-     * @return  array<int, array{client_name: string, nit_display: string, nit_digits: string, invoices: array<int, array{invoice: object, description: string, suggestions: array}>}>
+     * @param   string  $clientGroupKey  Optional: only this client group (see {@see isValidMatchClientGroupKey} / group_key).
+     *
+     * @return  array<int, array{group_key: string, client_name: string, nit_display: string, nit_digits: string, invoices: array<int, array{invoice: object, description: string, suggestions: array}>}>
      */
-    public function getConciliationGroupedByClient(string $statusFilter = ''): array
+    public function getConciliationGroupedByClient(string $statusFilter = '', string $clientGroupKey = ''): array
     {
         if (!$this->isTableAvailable()) {
             return [];
@@ -744,6 +762,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             $gkey = $digits !== '' ? $digits : ('_unknown_' . (int) $inv->id);
             if (!isset($groups[$gkey])) {
                 $groups[$gkey] = [
+                    'group_key' => $gkey,
                     'client_name' => (string) ($inv->client_name ?? ''),
                     'nit_display' => trim((string) ($inv->client_nit ?? $inv->fel_receptor_id ?? '')),
                     'nit_digits' => $digits,
@@ -764,7 +783,88 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             }
         );
 
-        return array_values($groups);
+        $groups = array_values($groups);
+
+        if ($clientGroupKey !== '' && self::isValidMatchClientGroupKey($clientGroupKey)) {
+            $groups = array_values(
+                array_filter(
+                    $groups,
+                    static function (array $g) use ($clientGroupKey): bool {
+                        return ($g['group_key'] ?? '') === $clientGroupKey;
+                    }
+                )
+            );
+        }
+
+        return $groups;
+    }
+
+    /**
+     * Dropdown options for conciliation client filter (one entry per eligible FEL invoice group).
+     *
+     * @return  array<int, array{value: string, label: string}>
+     */
+    public function getConciliationClientFilterOptions(): array
+    {
+        if (!$this->isTableAvailable()) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $qInv = $db->getQuery(true)
+            ->select('i.*')
+            ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
+            ->where('i.' . $db->quoteName('state') . ' = 1')
+            ->where('i.' . $db->quoteName('invoice_source') . ' = ' . $db->quote('fel_import'))
+            ->order('i.' . $db->quoteName('client_name') . ' ASC')
+            ->order('i.id DESC');
+        $db->setQuery($qInv);
+        $invoices = $db->loadObjectList() ?: [];
+
+        $approvedLinkedInvoices = $this->getInvoiceIdsWithApprovedOrdenLink();
+
+        $seen = [];
+        $options = [];
+
+        foreach ($invoices as $inv) {
+            $iid = (int) $inv->id;
+            if (isset($approvedLinkedInvoices[$iid])) {
+                continue;
+            }
+            if ((int) ($inv->orden_id ?? 0) > 0) {
+                continue;
+            }
+
+            $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+            $gkey = $digits !== '' ? $digits : ('_unknown_' . $iid);
+            if (isset($seen[$gkey])) {
+                continue;
+            }
+            $seen[$gkey] = true;
+
+            $name = trim((string) ($inv->client_name ?? ''));
+            $nitDisp = trim((string) ($inv->client_nit ?? $inv->fel_receptor_id ?? ''));
+            if ($name !== '' && $nitDisp !== '') {
+                $label = $name . ' ' . $nitDisp;
+            } elseif ($name !== '') {
+                $label = $name;
+            } elseif ($nitDisp !== '') {
+                $label = $nitDisp;
+            } else {
+                $label = $gkey;
+            }
+
+            $options[] = ['value' => $gkey, 'label' => $label];
+        }
+
+        usort(
+            $options,
+            static function ($a, $b) {
+                return strcasecmp((string) ($a['label'] ?? ''), (string) ($b['label'] ?? ''));
+            }
+        );
+
+        return $options;
     }
 
     /**

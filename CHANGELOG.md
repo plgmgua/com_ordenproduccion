@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.100.7-STABLE] - 2026-03-24
+
+### Added
+- **Facturas > Conciliar con órdenes:** Client filter (dropdown) to show only facturas pending association for the selected client; works with the existing status filter. POST actions preserve `match_client` in the redirect URL.
+
 ## [3.100.6-STABLE] - 2026-03-24
 
 ### Changed

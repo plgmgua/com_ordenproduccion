@@ -35,6 +35,11 @@ if ($invoicesSubtab !== 'lista' && $invoicesSubtab !== 'match') {
 }
 $matchTableOk = (bool) $this->get('invoiceOrdenMatchTableAvailable');
 $matchStatusFilter = (string) $this->get('invoiceOrdenMatchStatusFilter');
+$matchClientFilter = (string) $this->get('invoiceOrdenMatchClientFilter');
+$matchClientOptions = $this->get('invoiceOrdenMatchClientOptions');
+if (!is_array($matchClientOptions)) {
+    $matchClientOptions = [];
+}
 $canAccessInvoiceMatchSubtab = (bool) $this->get('canAccessInvoiceMatchSubtab');
 $matchGrouped = $this->get('invoiceOrdenMatchGrouped');
 if (!is_array($matchGrouped)) {
@@ -47,6 +52,8 @@ if (!is_array($dropdownOpts)) {
 $matchFelInvoiceTotal = (int) $this->get('invoiceOrdenMatchFelInvoiceTotal');
 $listaUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista');
 $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match');
+$matchClientHidden = htmlspecialchars($matchClientFilter, ENT_QUOTES, 'UTF-8');
+$matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 ?>
 
 <style>
@@ -294,14 +301,16 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
     <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
         <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.analyzeInvoiceOrdenMatches'); ?>" class="d-inline">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+            <input type="hidden" name="match_status" value="<?php echo $matchStatusHidden; ?>" />
+            <input type="hidden" name="match_client" value="<?php echo $matchClientHidden; ?>" />
             <button type="submit" class="btn btn-primary btn-sm">
                 <i class="fas fa-sync-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_RUN_ANALYSIS'); ?>
             </button>
         </form>
         <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.approveAllInvoiceOrdenMatchesHighScore'); ?>" class="d-inline" onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE_HIGH_SCORE_CONFIRM')); ?>);">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+            <input type="hidden" name="match_status" value="<?php echo $matchStatusHidden; ?>" />
+            <input type="hidden" name="match_client" value="<?php echo $matchClientHidden; ?>" />
             <button type="submit" class="btn btn-success btn-sm">
                 <i class="fas fa-check-double"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE_HIGH_SCORE'); ?>
             </button>
@@ -319,6 +328,19 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
             <option value="pending"<?php echo $matchStatusFilter === 'pending' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_PENDING'); ?></option>
             <option value="approved"<?php echo $matchStatusFilter === 'approved' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_APPROVED'); ?></option>
             <option value="rejected"<?php echo $matchStatusFilter === 'rejected' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_REJECTED'); ?></option>
+        </select>
+        <label for="match_client" class="mb-0 small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_FILTER_CLIENT'); ?></label>
+        <select name="match_client" id="match_client" class="form-control form-control-sm" style="max-width: 320px;" onchange="this.form.submit()">
+            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_FILTER_CLIENT_ALL'); ?></option>
+            <?php foreach ($matchClientOptions as $mo):
+                $mv = (string) ($mo['value'] ?? '');
+                $ml = (string) ($mo['label'] ?? '');
+                if ($mv === '') {
+                    continue;
+                }
+                ?>
+            <option value="<?php echo htmlspecialchars($mv, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $matchClientFilter === $mv ? ' selected' : ''; ?>><?php echo htmlspecialchars($ml, ENT_QUOTES, 'UTF-8'); ?></option>
+            <?php endforeach; ?>
         </select>
     </form>
 
@@ -360,7 +382,8 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                 <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.associateSelectedInvoiceOrdenMatches'); ?>" class="match-invoice-associate-form mb-0" onsubmit="var c=this.querySelectorAll('.match-suggestion-cb:checked'); if(!c.length){window.alert(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ASSOCIATE_NONE')); ?>); return false;} return true;">
                     <?php echo HTMLHelper::_('form.token'); ?>
                     <input type="hidden" name="invoice_id" value="<?php echo $iid; ?>" />
-                    <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                    <input type="hidden" name="match_status" value="<?php echo $matchStatusHidden; ?>" />
+                    <input type="hidden" name="match_client" value="<?php echo $matchClientHidden; ?>" />
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                         <div>
                             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $iid); ?>" class="fw-bold">
@@ -457,7 +480,8 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                     <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.addManualInvoiceOrdenMatch'); ?>" class="d-flex flex-wrap align-items-end gap-2">
                         <?php echo HTMLHelper::_('form.token'); ?>
                         <input type="hidden" name="invoice_id" value="<?php echo $iid; ?>" />
-                        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                        <input type="hidden" name="match_status" value="<?php echo $matchStatusHidden; ?>" />
+                        <input type="hidden" name="match_client" value="<?php echo $matchClientHidden; ?>" />
                         <div>
                             <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_MANUAL_ADD_LABEL'); ?></label>
                             <select name="orden_id" class="form-control form-control-sm" style="min-width: 220px;">

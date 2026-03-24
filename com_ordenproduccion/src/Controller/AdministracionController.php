@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 /**
  * Administracion controller (reportes export).
@@ -733,6 +734,29 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Redirect URL for Facturas > Conciliar, preserving match filters from POST.
+     *
+     * @return  string
+     * @since   3.100.7
+     */
+    protected function getInvoiceMatchSubtabRedirectUrl(): string
+    {
+        $app = Factory::getApplication();
+        $matchStatus = $app->input->post->getString('match_status', '');
+        $matchClient = trim($app->input->post->getString('match_client', ''));
+
+        $url = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
+        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
+            $url .= '&match_status=' . rawurlencode($matchStatus);
+        }
+        if ($matchClient !== '' && InvoiceOrdenMatchModel::isValidMatchClientGroupKey($matchClient)) {
+            $url .= '&match_client=' . rawurlencode($matchClient);
+        }
+
+        return $url;
+    }
+
+    /**
      * Run automatic scoring for FEL invoices vs órdenes (same NIT + amount + description heuristics).
      *
      * @return  void
@@ -741,11 +765,7 @@ class AdministracionController extends BaseController
     public function analyzeInvoiceOrdenMatches()
     {
         $app = Factory::getApplication();
-        $matchStatus = $app->input->post->getString('match_status', '');
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
-        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
-            $redirect .= '&match_status=' . rawurlencode($matchStatus);
-        }
+        $redirect = $this->getInvoiceMatchSubtabRedirectUrl();
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -792,11 +812,7 @@ class AdministracionController extends BaseController
     public function approveAllInvoiceOrdenMatchesHighScore()
     {
         $app = Factory::getApplication();
-        $matchStatus = $app->input->post->getString('match_status', '');
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
-        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
-            $redirect .= '&match_status=' . rawurlencode($matchStatus);
-        }
+        $redirect = $this->getInvoiceMatchSubtabRedirectUrl();
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -860,11 +876,7 @@ class AdministracionController extends BaseController
     protected function processInvoiceOrdenMatchDecision(string $action)
     {
         $app = Factory::getApplication();
-        $matchStatus = $app->input->post->getString('match_status', '');
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
-        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
-            $redirect .= '&match_status=' . rawurlencode($matchStatus);
-        }
+        $redirect = $this->getInvoiceMatchSubtabRedirectUrl();
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -923,11 +935,7 @@ class AdministracionController extends BaseController
     public function addManualInvoiceOrdenMatch()
     {
         $app = Factory::getApplication();
-        $matchStatus = $app->input->post->getString('match_status', '');
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
-        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
-            $redirect .= '&match_status=' . rawurlencode($matchStatus);
-        }
+        $redirect = $this->getInvoiceMatchSubtabRedirectUrl();
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -981,11 +989,7 @@ class AdministracionController extends BaseController
     public function removeInvoiceOrdenMatch()
     {
         $app = Factory::getApplication();
-        $matchStatus = $app->input->post->getString('match_status', '');
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
-        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
-            $redirect .= '&match_status=' . rawurlencode($matchStatus);
-        }
+        $redirect = $this->getInvoiceMatchSubtabRedirectUrl();
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -1038,11 +1042,7 @@ class AdministracionController extends BaseController
     public function associateSelectedInvoiceOrdenMatches()
     {
         $app = Factory::getApplication();
-        $matchStatus = $app->input->post->getString('match_status', '');
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
-        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
-            $redirect .= '&match_status=' . rawurlencode($matchStatus);
-        }
+        $redirect = $this->getInvoiceMatchSubtabRedirectUrl();
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');

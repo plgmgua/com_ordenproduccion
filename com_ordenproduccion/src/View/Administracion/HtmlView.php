@@ -16,6 +16,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 /**
  * Administracion Dashboard View
@@ -348,6 +349,22 @@ class HtmlView extends BaseHtmlView
     protected $invoiceOrdenMatchStatusFilter = '';
 
     /**
+     * Conciliar subtab: filter by client group key (NIT digits or _unknown_{id}); empty = all
+     *
+     * @var    string
+     * @since  3.100.7
+     */
+    protected $invoiceOrdenMatchClientFilter = '';
+
+    /**
+     * Conciliar subtab: dropdown options for client filter
+     *
+     * @var    array<int, array{value: string, label: string}>
+     * @since  3.100.7
+     */
+    protected $invoiceOrdenMatchClientOptions = [];
+
+    /**
      * Conciliar subtab: FEL invoices grouped by client (super users only)
      *
      * @var    array
@@ -399,6 +416,8 @@ class HtmlView extends BaseHtmlView
                 'invoiceOrdenMatchRows' => is_array($this->invoiceOrdenMatchRows ?? null) ? $this->invoiceOrdenMatchRows : [],
                 'invoiceOrdenMatchTableAvailable' => (bool) ($this->invoiceOrdenMatchTableAvailable ?? false),
                 'invoiceOrdenMatchStatusFilter' => (string) ($this->invoiceOrdenMatchStatusFilter ?? ''),
+                'invoiceOrdenMatchClientFilter' => (string) ($this->invoiceOrdenMatchClientFilter ?? ''),
+                'invoiceOrdenMatchClientOptions' => is_array($this->invoiceOrdenMatchClientOptions ?? null) ? $this->invoiceOrdenMatchClientOptions : [],
                 'invoiceOrdenMatchGrouped' => is_array($this->invoiceOrdenMatchGrouped ?? null) ? $this->invoiceOrdenMatchGrouped : [],
                 'canAccessInvoiceMatchSubtab' => (bool) ($this->canAccessInvoiceMatchSubtab ?? false),
                 'invoiceOrdenMatchDropdownOptions' => is_array($this->invoiceOrdenMatchDropdownOptions ?? null) ? $this->invoiceOrdenMatchDropdownOptions : [],
@@ -435,6 +454,12 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoiceOrdenMatchStatusFilter') {
             return (string) ($this->invoiceOrdenMatchStatusFilter ?? '');
+        }
+        if ($property === 'invoiceOrdenMatchClientFilter') {
+            return (string) ($this->invoiceOrdenMatchClientFilter ?? '');
+        }
+        if ($property === 'invoiceOrdenMatchClientOptions') {
+            return is_array($this->invoiceOrdenMatchClientOptions ?? null) ? $this->invoiceOrdenMatchClientOptions : [];
         }
         if ($property === 'invoiceOrdenMatchGrouped') {
             return is_array($this->invoiceOrdenMatchGrouped ?? null) ? $this->invoiceOrdenMatchGrouped : [];
@@ -566,6 +591,8 @@ class HtmlView extends BaseHtmlView
         $this->invoiceOrdenMatchRows = [];
         $this->invoiceOrdenMatchTableAvailable = false;
         $this->invoiceOrdenMatchStatusFilter = '';
+        $this->invoiceOrdenMatchClientFilter = '';
+        $this->invoiceOrdenMatchClientOptions = [];
         $this->invoiceOrdenMatchGrouped = [];
         $this->canAccessInvoiceMatchSubtab = false;
         $this->invoiceOrdenMatchDropdownOptions = [];
@@ -585,6 +612,12 @@ class HtmlView extends BaseHtmlView
             $this->invoiceOrdenMatchStatusFilter = $input->getString('match_status', '');
             if (!in_array($this->invoiceOrdenMatchStatusFilter, ['', 'pending', 'approved', 'rejected'], true)) {
                 $this->invoiceOrdenMatchStatusFilter = '';
+            }
+
+            $rawClientKey = trim($input->getString('match_client', ''));
+            $this->invoiceOrdenMatchClientFilter = '';
+            if ($rawClientKey !== '' && InvoiceOrdenMatchModel::isValidMatchClientGroupKey($rawClientKey)) {
+                $this->invoiceOrdenMatchClientFilter = $rawClientKey;
             }
 
             $this->canAccessInvoiceMatchSubtab = AccessHelper::isSuperUser();
@@ -608,7 +641,11 @@ class HtmlView extends BaseHtmlView
                         $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
                         $this->invoiceOrdenMatchFelInvoiceTotal = $matchModel->countFelImportInvoices();
                         $this->invoiceOrdenMatchRows = $matchModel->getSuggestionRows($this->invoiceOrdenMatchStatusFilter);
-                        $this->invoiceOrdenMatchGrouped = $matchModel->getConciliationGroupedByClient($this->invoiceOrdenMatchStatusFilter);
+                        $this->invoiceOrdenMatchClientOptions = $matchModel->getConciliationClientFilterOptions();
+                        $this->invoiceOrdenMatchGrouped = $matchModel->getConciliationGroupedByClient(
+                            $this->invoiceOrdenMatchStatusFilter,
+                            $this->invoiceOrdenMatchClientFilter
+                        );
                         $invIds = [];
                         foreach ($this->invoiceOrdenMatchGrouped as $grp) {
                             foreach (($grp['invoices'] ?? []) as $block) {
