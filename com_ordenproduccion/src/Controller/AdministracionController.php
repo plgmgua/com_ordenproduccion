@@ -753,7 +753,8 @@ class AdministracionController extends BaseController
             return;
         }
 
-        if ($app->getUser()->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
             $app->redirect($redirect);
             return;
@@ -824,7 +825,8 @@ class AdministracionController extends BaseController
             return;
         }
 
-        if ($app->getUser()->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
             $app->redirect($redirect);
             return;
