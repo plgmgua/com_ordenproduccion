@@ -212,6 +212,55 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
             <?php endif; ?>
         </div>
         <?php endif; ?>
+
+        <?php
+        $assocLinks = is_array($this->associatedOrdenLinks ?? null) ? $this->associatedOrdenLinks : [];
+        $detailDropdown = is_array($this->invoiceDetailOrdenDropdown ?? null) ? $this->invoiceDetailOrdenDropdown : [];
+        $matchTbl = (bool) ($this->invoiceOrdenMatchTableAvailable ?? false);
+        ?>
+        <div class="pt-3 mt-3 border-top invoice-work-orders-footer">
+            <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_WORK_ORDERS_SECTION'); ?></div>
+            <?php if (!empty($assocLinks)) : ?>
+                <ul class="mb-2 ps-3">
+                    <?php foreach ($assocLinks as $lnk) :
+                        $oid = (int) ($lnk['orden_id'] ?? 0);
+                        $onum = htmlspecialchars((string) ($lnk['orden_num'] ?? ''), ENT_QUOTES, 'UTF-8');
+                        $oUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $oid);
+                        ?>
+                    <li><a href="<?php echo $oUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo $onum !== '' ? $onum : ('#' . $oid); ?></a></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php else : ?>
+                <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NO_ORDEN_LINKED'); ?></p>
+            <?php endif; ?>
+
+            <?php if ($isFel && $matchTbl) : ?>
+                <?php if (!empty($detailDropdown)) : ?>
+                <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.associateOrden'); ?>" class="d-flex flex-wrap align-items-end gap-2">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+                    <div>
+                        <label for="invoice-detail-orden-id" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_LABEL'); ?></label>
+                        <select name="orden_id" id="invoice-detail-orden-id" class="form-select form-select-sm" style="min-width: 280px;">
+                            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_SELECT_ORDEN'); ?></option>
+                            <?php foreach ($detailDropdown as $opt) :
+                                $oid = (int) ($opt['id'] ?? 0);
+                                $lab = (string) ($opt['label'] ?? '');
+                                if ($oid <= 0) {
+                                    continue;
+                                }
+                                ?>
+                            <option value="<?php echo $oid; ?>"><?php echo htmlspecialchars($lab, ENT_QUOTES, 'UTF-8'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_BUTTON'); ?></button>
+                </form>
+                <?php else : ?>
+                <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_NONE_AVAILABLE'); ?></p>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
     </div>
 
     <?php if (!$isFel) : ?>

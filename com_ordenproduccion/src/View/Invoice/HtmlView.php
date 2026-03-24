@@ -22,6 +22,21 @@ class HtmlView extends BaseHtmlView
     protected $item;
 
     /**
+     * @var array<int, array{orden_id: int, orden_num: string}>
+     */
+    protected $associatedOrdenLinks = [];
+
+    /**
+     * @var array<int, array{id: int, label: string}>
+     */
+    protected $invoiceDetailOrdenDropdown = [];
+
+    /**
+     * @var bool
+     */
+    protected $invoiceOrdenMatchTableAvailable = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -68,6 +83,28 @@ class HtmlView extends BaseHtmlView
 
         if (!is_array($this->item->line_items ?? null)) {
             $this->item->line_items = json_decode($this->item->line_items ?? '[]', true) ?: [];
+        }
+
+        $this->associatedOrdenLinks = [];
+        $this->invoiceDetailOrdenDropdown = [];
+        $this->invoiceOrdenMatchTableAvailable = false;
+
+        try {
+            $matchModel = $this->getModel('InvoiceOrdenMatch');
+            if (!$matchModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel::class)) {
+                $matchModel = $app->bootComponent('com_ordenproduccion')
+                    ->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            }
+            if ($matchModel) {
+                $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
+                $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
+                if ($this->invoiceOrdenMatchTableAvailable) {
+                    $this->invoiceDetailOrdenDropdown = $matchModel->getOrdnesForInvoiceDetailDropdown($id);
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->associatedOrdenLinks = [];
+            $this->invoiceDetailOrdenDropdown = [];
         }
 
         $this->_prepareDocument();

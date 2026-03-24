@@ -149,6 +149,58 @@ class InvoiceController extends BaseController
     }
 
     /**
+     * Associate a work order to the current FEL invoice (same NIT). Redirects back to invoice detail.
+     *
+     * @return  void
+     * @since   3.100.4
+     */
+    public function associateOrden()
+    {
+        if (!Session::checkToken('post')) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        $invoiceId = $this->input->post->getInt('invoice_id', 0);
+        $ordenId = $this->input->post->getInt('orden_id', 0);
+        $back = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoiceId, false);
+
+        if ($invoiceId <= 0 || $ordenId <= 0) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_INVALID'), 'warning');
+            $this->setRedirect($back);
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if (!$model) {
+                $model = $this->app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !$model->isTableAvailable()) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $this->setRedirect($back);
+                return;
+            }
+            $ok = $model->addManualInvoiceOrdenAssociation($invoiceId, $ordenId);
+            $this->app->enqueueMessage(
+                $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_NOOP'),
+                $ok ? 'success' : 'notice'
+            );
+        } catch (\Throwable $e) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $this->setRedirect($back);
+    }
+
+    /**
      * Generate autonumeric invoice number based on table ID
      */
     private function generateInvoiceNumber()

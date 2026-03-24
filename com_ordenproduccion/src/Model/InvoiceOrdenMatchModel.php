@@ -822,6 +822,164 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * Orden IDs linked to any *other* invoice (column orden_id or active suggestion row).
+     *
+     * @return  int[]
+     */
+    public function getOrdenIdsClaimedByOtherInvoices(int $invoiceId): array
+    {
+        if ($invoiceId <= 0) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $ids = [];
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('DISTINCT ' . $db->quoteName('orden_id'))
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('orden_id') . ' IS NOT NULL')
+                ->where($db->quoteName('orden_id') . ' > 0')
+                ->where($db->quoteName('id') . ' != ' . (int) $invoiceId)
+        );
+        $ids = array_merge($ids, array_map('intval', $db->loadColumn() ?: []));
+
+        if ($this->isTableAvailable()) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('DISTINCT ' . $db->quoteName('orden_id'))
+                    ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('invoice_id') . ' != ' . (int) $invoiceId)
+            );
+            $ids = array_merge($ids, array_map('intval', $db->loadColumn() ?: []));
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Same client as getOrdnesForInvoiceDropdown, excluding órdenes linked to this invoice or claimed elsewhere.
+     *
+     * @return  array<int, array{id: int, label: string}>
+     */
+    public function getOrdnesForInvoiceDetailDropdown(int $invoiceId): array
+    {
+        if ($invoiceId <= 0) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return [];
+        }
+
+        $exclude = $this->getLinkedOrdenIdsForInvoice($invoiceId);
+        $exclude = array_merge($exclude, $this->getOrdenIdsClaimedByOtherInvoices($invoiceId));
+        if ((int) ($inv->orden_id ?? 0) > 0) {
+            $exclude[] = (int) $inv->orden_id;
+        }
+        $exclude = array_values(array_unique(array_filter(array_map('intval', $exclude))));
+
+        return $this->getOrdnesForInvoiceDropdown($invoiceId, $exclude);
+    }
+
+    /**
+     * Work orders associated with this invoice (approved suggestions and/or legacy orden_id on invoice row).
+     *
+     * @return  array<int, array{orden_id: int, orden_num: string}>
+     */
+    public function getAssociatedOrdenLinksForInvoice(int $invoiceId): array
+    {
+        if ($invoiceId <= 0) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return [];
+        }
+
+        $exprs = $this->getOrdenColumnExprs($db);
+        $orderNumExpr = $exprs['orderNumber'];
+        $links = [];
+        $seen = [];
+
+        if ($this->isTableAvailable()) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select(['o.' . $db->quoteName('id') . ' AS oid', $orderNumExpr . ' AS orden_num'])
+                    ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions', 's'))
+                    ->innerJoin(
+                        $db->quoteName('#__ordenproduccion_ordenes', 'o')
+                        . ' ON o.' . $db->quoteName('id') . ' = s.' . $db->quoteName('orden_id')
+                    )
+                    ->where('s.' . $db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                    ->where('s.' . $db->quoteName('status') . ' = ' . $db->quote('approved'))
+                    ->where('s.' . $db->quoteName('state') . ' = 1')
+                    ->where('o.' . $db->quoteName('state') . ' = 1')
+            );
+            $rows = $db->loadObjectList() ?: [];
+            foreach ($rows as $r) {
+                $oid = (int) ($r->oid ?? 0);
+                if ($oid <= 0 || isset($seen[$oid])) {
+                    continue;
+                }
+                $num = trim((string) ($r->orden_num ?? ''));
+                if ($num === '') {
+                    $num = 'ORD-' . str_pad((string) $oid, 6, '0', STR_PAD_LEFT);
+                }
+                $links[] = ['orden_id' => $oid, 'orden_num' => $num];
+                $seen[$oid] = true;
+            }
+        }
+
+        $legacyOid = (int) ($inv->orden_id ?? 0);
+        if ($legacyOid > 0 && empty($seen[$legacyOid])) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([$orderNumExpr . ' AS orden_num'])
+                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                    ->where('o.' . $db->quoteName('id') . ' = ' . $legacyOid)
+                    ->where('o.' . $db->quoteName('state') . ' = 1')
+            );
+            $one = $db->loadObject();
+            $num = $one ? trim((string) ($one->orden_num ?? '')) : '';
+            if ($num === '') {
+                $num = 'ORD-' . str_pad((string) $legacyOid, 6, '0', STR_PAD_LEFT);
+            }
+            $links[] = ['orden_id' => $legacyOid, 'orden_num' => $num];
+        }
+
+        usort(
+            $links,
+            static function ($a, $b) {
+                return strcasecmp((string) ($a['orden_num'] ?? ''), (string) ($b['orden_num'] ?? ''));
+            }
+        );
+
+        return $links;
+    }
+
+    /**
      * Manually link an orden to an invoice (approved, score 100). NIT must match.
      */
     public function addManualInvoiceOrdenAssociation(int $invoiceId, int $ordenId): bool
