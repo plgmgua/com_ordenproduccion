@@ -570,7 +570,60 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * Count active FEL-import invoices (for empty-state messaging).
+     */
+    public function countFelImportInvoices(): int
+    {
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
+                    ->where('i.' . $db->quoteName('state') . ' = 1')
+                    ->where('i.' . $db->quoteName('invoice_source') . ' = ' . $db->quote('fel_import'))
+            );
+
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Invoice IDs that already have at least one approved link to an orden (conciliation done).
+     *
+     * @return  array<int, int>  invoice_id => 1
+     */
+    public function getInvoiceIdsWithApprovedOrdenLink(): array
+    {
+        if (!$this->isTableAvailable()) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('DISTINCT ' . $db->quoteName('invoice_id'))
+                ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->where($db->quoteName('status') . ' = ' . $db->quote('approved'))
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $cols = $db->loadColumn() ?: [];
+        $out = [];
+        foreach ($cols as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $out[$id] = 1;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * FEL invoices grouped by client (NIT digits), each with suggestions and description.
+     * Omits invoices that already have an approved orden association or a primary orden_id on the row.
      *
      * @return  array<int, array{client_name: string, nit_display: string, nit_digits: string, invoices: array<int, array{invoice: object, description: string, suggestions: array}>}>
      */
@@ -591,6 +644,8 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $db->setQuery($qInv);
         $invoices = $db->loadObjectList() ?: [];
 
+        $approvedLinkedInvoices = $this->getInvoiceIdsWithApprovedOrdenLink();
+
         $allSuggestions = $this->getSuggestionRows($statusFilter);
         $byInvoice = [];
         foreach ($allSuggestions as $row) {
@@ -606,6 +661,14 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         $groups = [];
         foreach ($invoices as $inv) {
+            $iid = (int) $inv->id;
+            if (isset($approvedLinkedInvoices[$iid])) {
+                continue;
+            }
+            if ((int) ($inv->orden_id ?? 0) > 0) {
+                continue;
+            }
+
             $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
             $gkey = $digits !== '' ? $digits : ('_unknown_' . (int) $inv->id);
             if (!isset($groups[$gkey])) {
@@ -616,7 +679,6 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                     'invoices' => [],
                 ];
             }
-            $iid = (int) $inv->id;
             $groups[$gkey]['invoices'][] = [
                 'invoice' => $inv,
                 'description' => self::getInvoiceLinesDescription($inv),

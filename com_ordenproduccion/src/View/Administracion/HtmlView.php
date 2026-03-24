@@ -372,6 +372,14 @@ class HtmlView extends BaseHtmlView
     protected $invoiceOrdenMatchDropdownOptions = [];
 
     /**
+     * Total FEL invoices in DB (for conciliation empty state when all are already linked)
+     *
+     * @var    int
+     * @since  3.100.3
+     */
+    protected $invoiceOrdenMatchFelInvoiceTotal = 0;
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -394,6 +402,7 @@ class HtmlView extends BaseHtmlView
                 'invoiceOrdenMatchGrouped' => is_array($this->invoiceOrdenMatchGrouped ?? null) ? $this->invoiceOrdenMatchGrouped : [],
                 'canAccessInvoiceMatchSubtab' => (bool) ($this->canAccessInvoiceMatchSubtab ?? false),
                 'invoiceOrdenMatchDropdownOptions' => is_array($this->invoiceOrdenMatchDropdownOptions ?? null) ? $this->invoiceOrdenMatchDropdownOptions : [],
+                'invoiceOrdenMatchFelInvoiceTotal' => (int) ($this->invoiceOrdenMatchFelInvoiceTotal ?? 0),
             ]
         );
         return $data;
@@ -435,6 +444,9 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoiceOrdenMatchDropdownOptions') {
             return is_array($this->invoiceOrdenMatchDropdownOptions ?? null) ? $this->invoiceOrdenMatchDropdownOptions : [];
+        }
+        if ($property === 'invoiceOrdenMatchFelInvoiceTotal') {
+            return (int) ($this->invoiceOrdenMatchFelInvoiceTotal ?? 0);
         }
         return parent::get($property, $default);
     }
@@ -557,6 +569,7 @@ class HtmlView extends BaseHtmlView
         $this->invoiceOrdenMatchGrouped = [];
         $this->canAccessInvoiceMatchSubtab = false;
         $this->invoiceOrdenMatchDropdownOptions = [];
+        $this->invoiceOrdenMatchFelInvoiceTotal = 0;
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -593,6 +606,7 @@ class HtmlView extends BaseHtmlView
                     }
                     if ($matchModel) {
                         $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
+                        $this->invoiceOrdenMatchFelInvoiceTotal = $matchModel->countFelImportInvoices();
                         $this->invoiceOrdenMatchRows = $matchModel->getSuggestionRows($this->invoiceOrdenMatchStatusFilter);
                         $this->invoiceOrdenMatchGrouped = $matchModel->getConciliationGroupedByClient($this->invoiceOrdenMatchStatusFilter);
                         $invIds = [];
@@ -610,6 +624,7 @@ class HtmlView extends BaseHtmlView
                 } catch (\Throwable $e) {
                     $this->invoiceOrdenMatchRows = [];
                     $this->invoiceOrdenMatchGrouped = [];
+                    $this->invoiceOrdenMatchFelInvoiceTotal = 0;
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
                 }
             } else {

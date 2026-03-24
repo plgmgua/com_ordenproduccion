@@ -44,6 +44,7 @@ $dropdownOpts = $this->get('invoiceOrdenMatchDropdownOptions');
 if (!is_array($dropdownOpts)) {
     $dropdownOpts = [];
 }
+$matchFelInvoiceTotal = (int) $this->get('invoiceOrdenMatchFelInvoiceTotal');
 $listaUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista');
 $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match');
 ?>
@@ -324,7 +325,9 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
     <?php if (empty($matchGrouped)): ?>
         <div class="empty-state">
             <i class="fas fa-link"></i>
-            <p><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_EMPTY_GROUPS'); ?></p>
+            <p><?php echo Text::_($matchFelInvoiceTotal > 0
+                ? 'COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_EMPTY_ALL_LINKED'
+                : 'COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_EMPTY_GROUPS'); ?></p>
         </div>
     <?php else: ?>
         <?php foreach ($matchGrouped as $grp):
