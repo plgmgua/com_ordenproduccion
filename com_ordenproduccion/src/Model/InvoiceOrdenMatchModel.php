@@ -449,4 +449,36 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         return $db->getAffectedRows() > 0;
     }
+
+    /**
+     * Approve all pending suggestions with score at or above the threshold (default 90%).
+     *
+     * @param   float  $minScore  Minimum score inclusive (e.g. 90.0 for 90%)
+     *
+     * @return  int  Number of rows updated
+     */
+    public function approveAllPendingAboveScore(float $minScore = 90.0): int
+    {
+        if (!$this->isTableAvailable()) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->set($db->quoteName('status') . ' = ' . $db->quote('approved'))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('status') . ' = ' . $db->quote('pending'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('score') . ' >= ' . (float) $minScore)
+        );
+        $db->execute();
+
+        return (int) $db->getAffectedRows();
+    }
 }

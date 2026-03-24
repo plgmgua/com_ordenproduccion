@@ -277,13 +277,22 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
 
     <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INTRO'); ?></p>
 
-    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.analyzeInvoiceOrdenMatches'); ?>" class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-        <?php echo HTMLHelper::_('form.token'); ?>
-        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
-        <button type="submit" class="btn btn-primary btn-sm">
-            <i class="fas fa-sync-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_RUN_ANALYSIS'); ?>
-        </button>
-    </form>
+    <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+        <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.analyzeInvoiceOrdenMatches'); ?>" class="d-inline">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-sync-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_RUN_ANALYSIS'); ?>
+            </button>
+        </form>
+        <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.approveAllInvoiceOrdenMatchesHighScore'); ?>" class="d-inline" onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE_HIGH_SCORE_CONFIRM')); ?>);">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="fas fa-check-double"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE_HIGH_SCORE'); ?>
+            </button>
+        </form>
+    </div>
 
     <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion'); ?>" class="mb-3 d-flex flex-wrap gap-2 align-items-center">
         <input type="hidden" name="option" value="com_ordenproduccion" />

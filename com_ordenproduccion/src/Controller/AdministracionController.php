@@ -784,6 +784,53 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Approve all pending invoice ↔ orden suggestions with score ≥ 90%.
+     *
+     * @return  void
+     * @since   3.99.2
+     */
+    public function approveAllInvoiceOrdenMatchesHighScore()
+    {
+        $app = Factory::getApplication();
+        $matchStatus = $app->input->post->getString('match_status', '');
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
+        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
+            $redirect .= '&match_status=' . rawurlencode($matchStatus);
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch');
+            if (!$model) {
+                $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !$model->isTableAvailable()) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $app->redirect($redirect);
+                return;
+            }
+            $count = $model->approveAllPendingAboveScore(90.0);
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE_HIGH_SCORE_DONE', $count), 'success');
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ACTION_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
      * Approve a pending invoice ↔ orden suggestion.
      *
      * @return  void
