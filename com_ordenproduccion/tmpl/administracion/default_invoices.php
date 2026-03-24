@@ -366,6 +366,14 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $iid); ?>" class="fw-bold">
                                 <?php echo htmlspecialchars($inv->invoice_number ?? ('#' . $iid), ENT_QUOTES, 'UTF-8'); ?>
                             </a>
+                            <?php
+                            $invDateRaw = $inv->fel_fecha_emision ?? $inv->invoice_date ?? null;
+                            if (!empty($invDateRaw)) :
+                                ?>
+                            <span class="text-muted small ms-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INVOICE_DATE_LABEL'); ?>:
+                                <strong><?php echo HTMLHelper::_('date', $invDateRaw, Text::_('DATE_FORMAT_LC4')); ?></strong>
+                            </span>
+                            <?php endif; ?>
                             <span class="text-muted small ms-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INV_TOTAL'); ?>: <strong><?php echo number_format((float) ($inv->invoice_amount ?? 0), 2); ?></strong> Q</span>
                         </div>
                         <?php if ($hasPendingSuggestions): ?>
@@ -385,6 +393,7 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_SCORE'); ?></th>
                                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_STATUS'); ?></th>
                                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ORDER'); ?></th>
+                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ORDER_DATE'); ?></th>
                                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_AMOUNTS'); ?></th>
                                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_REASONS'); ?></th>
                                     <th class="text-center" style="width: 1%;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_SELECT'); ?></th>
@@ -393,7 +402,7 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                             <tbody>
                                 <?php if (empty($sugs)): ?>
                                 <tr>
-                                    <td colspan="6" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_SUGGESTIONS_FOR_INVOICE'); ?></td>
+                                    <td colspan="7" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_SUGGESTIONS_FOR_INVOICE'); ?></td>
                                 </tr>
                                 <?php else: ?>
                                 <?php foreach ($sugs as $row):
@@ -418,6 +427,12 @@ $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&t
                                             $wd = (string) ($row->orden_work_description ?? '');
                                             echo htmlspecialchars(function_exists('mb_strimwidth') ? mb_strimwidth($wd, 0, 120, '…') : substr($wd, 0, 120), ENT_QUOTES, 'UTF-8');
                                         ?></div>
+                                    </td>
+                                    <td class="text-nowrap small">
+                                        <?php
+                                        $of = $row->orden_fecha ?? null;
+                                        echo !empty($of) ? HTMLHelper::_('date', $of, Text::_('DATE_FORMAT_LC4')) : '—';
+                                        ?>
                                     </td>
                                     <td>
                                         <div class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ORD_VALUE'); ?>: <?php echo number_format((float) ($row->orden_valor_facturar ?? 0), 2); ?> Q</div>

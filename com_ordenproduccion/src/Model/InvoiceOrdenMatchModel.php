@@ -89,6 +89,37 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * SQL expression for work order date column (created / fecha / request_date, etc.).
+     */
+    protected function getOrdenDateColumnExpr($db): string
+    {
+        $cols = [];
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        } catch (\Throwable $e) {
+        }
+
+        $candidates = [
+            'fecha_de_solicitud',
+            'marca_temporal',
+            'created',
+            'fecha',
+            'fecha_orden',
+            'request_date',
+            'order_date',
+            'fecha_creacion',
+        ];
+        foreach ($candidates as $c) {
+            if (isset($cols[$c])) {
+                return 'o.' . $db->quoteName($c);
+            }
+        }
+
+        return 'NULL';
+    }
+
+    /**
      * Compute match score and reason codes.
      *
      * @param   object  $invoice  Row from #__ordenproduccion_invoices
@@ -340,6 +371,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $workDescExpr = $exprs['workDesc'];
         $clientCol = $exprs['clientName'];
         $orderNumCol = $exprs['orderNumber'];
+        $ordenDateExpr = $this->getOrdenDateColumnExpr($db);
 
         $orderStatusExpr = 'CASE s.' . $db->quoteName('status') . ' WHEN ' . $db->quote('pending') . ' THEN 0 WHEN ' . $db->quote('approved') . ' THEN 1 ELSE 2 END';
 
@@ -363,6 +395,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                 'o.nit AS orden_nit',
                 $invoiceValueExpr . ' AS orden_valor_facturar',
                 $workDescExpr . ' AS orden_work_description',
+                $ordenDateExpr . ' AS orden_fecha',
             ])
             ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions', 's'))
             ->innerJoin(
