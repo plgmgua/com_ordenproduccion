@@ -155,12 +155,14 @@ class OrdenesModel extends ListModel
             $item->shipping_count = 0;
         }
 
-        // Batch-fetch shipping counts for all orders on this page
+        // Batch-fetch shipping counts and linked invoice ids for all orders on this page
         if (!empty($items)) {
             $orderIds = array_map(static function ($i) { return (int) $i->id; }, $items);
             $shippingCounts = $this->getShippingCounts($orderIds);
+            $invoiceIds = $this->getLinkedInvoiceIdsForOrders($orderIds);
             foreach ($items as &$item) {
                 $item->shipping_count = $shippingCounts[(int) $item->id] ?? 0;
+                $item->linked_invoice_id = $invoiceIds[(int) $item->id] ?? 0;
             }
         }
 
@@ -207,6 +209,100 @@ class OrdenesModel extends ListModel
             // Table does not exist in this installation — treat as zero
             return [];
         }
+    }
+
+    /**
+     * For each order id, resolve a linked invoice id: direct link on invoice row (orden_id),
+     * else approved row in invoice_orden_suggestions (FEL imports without orden_id on invoice).
+     *
+     * @param   int[]  $orderIds
+     *
+     * @return  array<int, int>  order_id => invoice_id
+     */
+    protected function getLinkedInvoiceIdsForOrders(array $orderIds): array
+    {
+        if (empty($orderIds)) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $ids = implode(',', array_map('intval', $orderIds));
+        $map = [];
+
+        try {
+            $query = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('orden_id'),
+                    'MAX(' . $db->quoteName('id') . ') AS invoice_id',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('orden_id') . ' IN (' . $ids . ')')
+                ->where($db->quoteName('orden_id') . ' > 0')
+                ->group($db->quoteName('orden_id'));
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+            foreach ($rows as $row) {
+                $oid = (int) ($row->orden_id ?? 0);
+                $iid = (int) ($row->invoice_id ?? 0);
+                if ($oid > 0 && $iid > 0) {
+                    $map[$oid] = $iid;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $missing = [];
+        foreach ($orderIds as $oid) {
+            $oid = (int) $oid;
+            if ($oid > 0 && !isset($map[$oid])) {
+                $missing[] = $oid;
+            }
+        }
+
+        if ($missing === []) {
+            return $map;
+        }
+
+        try {
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $want = $prefix . 'ordenproduccion_invoice_orden_suggestions';
+            $hasSug = false;
+            foreach ($tables as $t) {
+                if (strcasecmp((string) $t, $want) === 0) {
+                    $hasSug = true;
+                    break;
+                }
+            }
+            if (!$hasSug) {
+                return $map;
+            }
+
+            $m = implode(',', array_map('intval', $missing));
+            $query = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('orden_id'),
+                    'MAX(' . $db->quoteName('invoice_id') . ') AS invoice_id',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                ->where($db->quoteName('status') . ' = ' . $db->quote('approved'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('orden_id') . ' IN (' . $m . ')')
+                ->group($db->quoteName('orden_id'));
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+            foreach ($rows as $row) {
+                $oid = (int) ($row->orden_id ?? 0);
+                $iid = (int) ($row->invoice_id ?? 0);
+                if ($oid > 0 && $iid > 0) {
+                    $map[$oid] = $iid;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $map;
     }
 
     /**

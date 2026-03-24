@@ -257,6 +257,17 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-file-pdf fa-sm" aria-hidden="true"></i>
                                                 </span>
                                                 <?php endif; ?>
+                                                <?php
+                                                $linkedInvoiceId = (int) ($item->linked_invoice_id ?? 0);
+                                                if ($linkedInvoiceId > 0 && $this->canOpenInvoiceFromOrdenesList()) :
+                                                ?>
+                                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId); ?>"
+                                                   class="btn btn-sm btn-outline-dark"
+                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE'); ?>"
+                                                   aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE'); ?>">
+                                                    <i class="fas fa-file-invoice-dollar fa-sm" aria-hidden="true"></i>
+                                                </a>
+                                                <?php endif; ?>
                                                 <!-- Solicitar anulación - groups from Settings or super user / order owner -->
                                                 <?php if ($this->canShowSolicitarAnulacion($item)) :
                                                     $isAnulada    = (strtolower((string) ($item->status ?? '')) === 'anulada');

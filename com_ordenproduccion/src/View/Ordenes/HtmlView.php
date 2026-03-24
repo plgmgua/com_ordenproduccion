@@ -302,6 +302,18 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * Whether the user may open the invoice detail view (same ACL as site Invoice view).
+     *
+     * @return  bool
+     *
+     * @since   3.99.3
+     */
+    public function canOpenInvoiceFromOrdenesList()
+    {
+        return AccessHelper::isInAdministracionOrAdmonGroup();
+    }
+
+    /**
      * Load allowed user group IDs per ordenes list action button from #__ordenproduccion_config.
      *
      * @return  array  Keys: crear_factura, registrar_pago, payment_info, solicitar_anulacion. Values: int[].
