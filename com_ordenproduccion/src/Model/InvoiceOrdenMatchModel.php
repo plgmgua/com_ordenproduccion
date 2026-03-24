@@ -483,7 +483,30 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
-     * Concatenate FEL line item descriptions for list display.
+     * Quantity prefix for one line item (FEL: cantidad; legacy: quantity).
+     */
+    protected static function getLineItemQuantityPrefix(array $li): string
+    {
+        $qty = null;
+        if (isset($li['cantidad'])) {
+            $qty = (float) $li['cantidad'];
+        } elseif (isset($li['quantity'])) {
+            $qty = (float) $li['quantity'];
+        }
+        if ($qty === null || $qty <= 0) {
+            return '';
+        }
+        if (abs($qty - round($qty)) < 0.0001) {
+            $s = (string) (int) round($qty);
+        } else {
+            $s = rtrim(rtrim(number_format($qty, 4, '.', ''), '0'), '.');
+        }
+
+        return $s . 'x ';
+    }
+
+    /**
+     * Concatenate FEL line item descriptions for list display (quantity left of each description).
      */
     public static function getInvoiceLinesDescription(object $invoice): string
     {
@@ -497,7 +520,8 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $parts = [];
         foreach ($lineItems as $li) {
             if (is_array($li) && !empty($li['descripcion'])) {
-                $parts[] = trim((string) $li['descripcion']);
+                $desc = trim((string) $li['descripcion']);
+                $parts[] = self::getLineItemQuantityPrefix($li) . $desc;
             }
         }
         $out = trim(implode(' ', $parts));
