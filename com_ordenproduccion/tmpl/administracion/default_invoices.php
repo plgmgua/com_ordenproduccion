@@ -27,6 +27,19 @@ $importReport = Factory::getApplication()->getSession()->get('com_ordenproduccio
 if ($importReport !== null) {
     Factory::getApplication()->getSession()->set('com_ordenproduccion.import_report', null);
 }
+
+$invoicesSubtab = $this->get('invoicesSubtab');
+if ($invoicesSubtab !== 'lista' && $invoicesSubtab !== 'match') {
+    $invoicesSubtab = 'lista';
+}
+$matchRows = $this->get('invoiceOrdenMatchRows');
+if (!is_array($matchRows)) {
+    $matchRows = [];
+}
+$matchTableOk = (bool) $this->get('invoiceOrdenMatchTableAvailable');
+$matchStatusFilter = (string) $this->get('invoiceOrdenMatchStatusFilter');
+$listaUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista');
+$matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match');
 ?>
 
 <style>
@@ -223,6 +236,20 @@ if ($importReport !== null) {
 .invoices-cliente-suggestions .list-group-item { cursor: pointer; padding: 8px 12px; border: none; border-bottom: 1px solid #eee; }
 .invoices-cliente-suggestions .list-group-item:last-child { border-bottom: none; }
 .invoices-cliente-suggestions .list-group-item:hover { background-color: #f0f0f0; }
+.invoices-subtabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.invoices-subtabs a {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    border: 1px solid #dee2e6;
+    color: #555;
+    background: #fff;
+}
+.invoices-subtabs a:hover { color: #667eea; border-color: #667eea; }
+.invoices-subtabs a.active { background: #667eea; color: #fff; border-color: #667eea; }
+.match-reasons { font-size: 0.75rem; color: #666; }
 </style>
 
 <div class="invoices-section">
@@ -232,6 +259,127 @@ if ($importReport !== null) {
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_TITLE'); ?>
         </h2>
     </div>
+
+    <div class="invoices-subtabs" role="tablist">
+        <a href="<?php echo $listaUrl; ?>" class="<?php echo $invoicesSubtab === 'lista' ? 'active' : ''; ?>">
+            <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_LISTA'); ?>
+        </a>
+        <a href="<?php echo $matchUrl; ?>" class="<?php echo $invoicesSubtab === 'match' ? 'active' : ''; ?>">
+            <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_MATCH'); ?>
+        </a>
+    </div>
+
+    <?php if ($invoicesSubtab === 'match'): ?>
+
+    <?php if (!$matchTableOk): ?>
+        <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'); ?></div>
+    <?php else: ?>
+
+    <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INTRO'); ?></p>
+
+    <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.analyzeInvoiceOrdenMatches'); ?>" class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+        <?php echo HTMLHelper::_('form.token'); ?>
+        <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-sync-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_RUN_ANALYSIS'); ?>
+        </button>
+    </form>
+
+    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion'); ?>" class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+        <input type="hidden" name="option" value="com_ordenproduccion" />
+        <input type="hidden" name="view" value="administracion" />
+        <input type="hidden" name="tab" value="invoices" />
+        <input type="hidden" name="invoices_subtab" value="match" />
+        <label for="match_status" class="mb-0 small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_FILTER_STATUS'); ?></label>
+        <select name="match_status" id="match_status" class="form-control form-control-sm" style="max-width: 200px;" onchange="this.form.submit()">
+            <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_ALL'); ?></option>
+            <option value="pending"<?php echo $matchStatusFilter === 'pending' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_PENDING'); ?></option>
+            <option value="approved"<?php echo $matchStatusFilter === 'approved' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_APPROVED'); ?></option>
+            <option value="rejected"<?php echo $matchStatusFilter === 'rejected' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_STATUS_REJECTED'); ?></option>
+        </select>
+    </form>
+
+    <?php if (empty($matchRows)): ?>
+        <div class="empty-state">
+            <i class="fas fa-link"></i>
+            <p><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_EMPTY'); ?></p>
+        </div>
+    <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle" style="font-size: 0.8125rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_SCORE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_STATUS'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_INVOICE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ORDER'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_AMOUNTS'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_REASONS'); ?></th>
+                        <th style="width: 1%;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_COL_ACTIONS'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($matchRows as $row):
+                        $reasons = isset($row->reasons_list) && is_array($row->reasons_list) ? $row->reasons_list : [];
+                        $reasonLabels = [];
+                        foreach ($reasons as $code) {
+                            $key = 'COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REASON_' . strtoupper((string) $code);
+                            $reasonLabels[] = Text::_($key) !== $key ? Text::_($key) : (string) $code;
+                        }
+                        $st = (string) ($row->status ?? '');
+                        $badgeClass = $st === 'approved' ? 'success' : ($st === 'rejected' ? 'secondary' : 'warning');
+                    ?>
+                    <tr>
+                        <td><strong><?php echo number_format((float) ($row->score ?? 0), 1); ?></strong></td>
+                        <td><span class="badge bg-<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($st); ?></span></td>
+                        <td>
+                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) ($row->invoice_id ?? 0)); ?>">
+                                <?php echo htmlspecialchars($row->invoice_number ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                            </a>
+                            <div class="small text-muted"><?php echo htmlspecialchars(trim($row->client_nit ?? $row->fel_receptor_id ?? ''), ENT_QUOTES, 'UTF-8'); ?> — <?php echo htmlspecialchars($row->client_name ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+                        </td>
+                        <td>
+                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) ($row->orden_id ?? 0)); ?>">
+                                <?php echo htmlspecialchars($row->orden_de_trabajo ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                            </a>
+                            <div class="small"><?php
+                                $wd = (string) ($row->orden_work_description ?? '');
+                                echo htmlspecialchars(function_exists('mb_strimwidth') ? mb_strimwidth($wd, 0, 120, '…') : substr($wd, 0, 120), ENT_QUOTES, 'UTF-8');
+                            ?></div>
+                        </td>
+                        <td>
+                            <div><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INV_TOTAL'); ?>: <strong><?php echo number_format((float) ($row->invoice_amount ?? 0), 2); ?></strong> Q</div>
+                            <div class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ORD_VALUE'); ?>: <?php echo number_format((float) ($row->orden_valor_facturar ?? 0), 2); ?> Q</div>
+                        </td>
+                        <td class="match-reasons"><?php echo htmlspecialchars(implode(', ', $reasonLabels), ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td>
+                            <?php if ($st === 'pending'): ?>
+                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.approveInvoiceOrdenMatch'); ?>" class="d-inline">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
+                                <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                                <button type="submit" class="btn btn-success btn-sm mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE'); ?></button>
+                            </form>
+                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectInvoiceOrdenMatch'); ?>" class="d-inline">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="cid" value="<?php echo (int) ($row->id ?? 0); ?>" />
+                                <input type="hidden" name="match_status" value="<?php echo htmlspecialchars($matchStatusFilter); ?>" />
+                                <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REJECT'); ?></button>
+                            </form>
+                            <?php else: ?>
+                            —
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+
+    <?php endif; ?>
+
+    <?php else: ?>
 
     <!-- Filters: NIT, Cliente, Fecha, Total (id="adminForm" and limit/limitstart for pagination) -->
     <?php
@@ -250,6 +398,7 @@ if ($importReport !== null) {
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="invoices" />
+        <input type="hidden" name="invoices_subtab" value="lista" />
         <input type="hidden" name="limit" value="<?php echo (int) $listLimit; ?>" />
         <input type="hidden" name="limitstart" value="0" />
         <input type="text" name="filter_nit" placeholder="NIT" value="<?php echo htmlspecialchars($filterNit); ?>" />
@@ -387,7 +536,7 @@ if ($importReport !== null) {
                         $start   = (int) $pagination->limitstart;
                         $pagesTotal = $limit > 0 ? (int) ceil($total / $limit) : 1;
                         $currentPage = $pagesTotal > 0 ? (int) floor($start / $limit) + 1 : 1;
-                        $baseUrl = 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices&limit=' . $limit;
+                        $baseUrl = 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista&limit=' . $limit;
                         $baseUrl .= '&filter_nit=' . rawurlencode($state->get('filter.nit', ''));
                         $baseUrl .= '&filter_cliente=' . rawurlencode($state->get('filter.cliente', ''));
                         $baseUrl .= '&filter_fecha_from=' . rawurlencode($state->get('filter.fecha_from', ''));
@@ -493,5 +642,8 @@ if ($importReport !== null) {
         });
     })();
     </script>
+
+    <?php endif; ?>
+
 </div>
 

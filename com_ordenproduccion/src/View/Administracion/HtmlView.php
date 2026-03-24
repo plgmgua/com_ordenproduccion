@@ -316,6 +316,38 @@ class HtmlView extends BaseHtmlView
     protected $solicitudOrdenUrl = '';
 
     /**
+     * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
+     *
+     * @var    string
+     * @since  3.99.0
+     */
+    protected $invoicesSubtab = 'lista';
+
+    /**
+     * Rows for invoice ↔ orden match UI
+     *
+     * @var    array
+     * @since  3.99.0
+     */
+    protected $invoiceOrdenMatchRows = [];
+
+    /**
+     * Whether #__ordenproduccion_invoice_orden_suggestions exists
+     *
+     * @var    bool
+     * @since  3.99.0
+     */
+    protected $invoiceOrdenMatchTableAvailable = false;
+
+    /**
+     * Filter for match list: '', pending, approved, rejected
+     *
+     * @var    string
+     * @since  3.99.0
+     */
+    protected $invoiceOrdenMatchStatusFilter = '';
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -331,6 +363,10 @@ class HtmlView extends BaseHtmlView
             [
                 'invoices' => is_array($this->invoices) ? $this->invoices : [],
                 'invoicesPagination' => $this->invoicesPagination ?? null,
+                'invoicesSubtab' => $this->invoicesSubtab ?? 'lista',
+                'invoiceOrdenMatchRows' => is_array($this->invoiceOrdenMatchRows ?? null) ? $this->invoiceOrdenMatchRows : [],
+                'invoiceOrdenMatchTableAvailable' => (bool) ($this->invoiceOrdenMatchTableAvailable ?? false),
+                'invoiceOrdenMatchStatusFilter' => (string) ($this->invoiceOrdenMatchStatusFilter ?? ''),
             ]
         );
         return $data;
@@ -351,6 +387,18 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoicesPagination') {
             return $this->invoicesPagination ?? null;
+        }
+        if ($property === 'invoicesSubtab') {
+            return $this->invoicesSubtab ?? 'lista';
+        }
+        if ($property === 'invoiceOrdenMatchRows') {
+            return is_array($this->invoiceOrdenMatchRows ?? null) ? $this->invoiceOrdenMatchRows : [];
+        }
+        if ($property === 'invoiceOrdenMatchTableAvailable') {
+            return (bool) ($this->invoiceOrdenMatchTableAvailable ?? false);
+        }
+        if ($property === 'invoiceOrdenMatchStatusFilter') {
+            return (string) ($this->invoiceOrdenMatchStatusFilter ?? '');
         }
         return parent::get($property, $default);
     }
@@ -466,47 +514,81 @@ class HtmlView extends BaseHtmlView
         $this->enviosFilterTipo = '';
         $this->enviosFilterDateFrom = '';
         $this->enviosFilterDateTo = '';
+        $this->invoicesSubtab = 'lista';
+        $this->invoiceOrdenMatchRows = [];
+        $this->invoiceOrdenMatchTableAvailable = false;
+        $this->invoiceOrdenMatchStatusFilter = '';
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
             $this->banks = [];
         }
 
-        // Load invoices data if invoices tab is active
+        // Load invoices data if invoices tab is active (lista) or match data for conciliar subtab
         if ($activeTab === 'invoices') {
-            try {
-                $invoicesModel = $this->getModel('Invoices');
-                if (!$invoicesModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoicesModel::class)) {
-                    $invoicesModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
-                        ->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => false]);
-                }
-                if ($invoicesModel) {
-                    if ($salesAgentFilter !== null) {
-                        $invoicesModel->setState('filter.sales_agent', $salesAgentFilter);
-                    }
-                    $this->invoices = $invoicesModel->getItems();
-                    $this->invoicesPagination = $invoicesModel->getPagination();
-                    $this->state = $invoicesModel->getState();
-                    // Preserve option, view, tab, limit and filter params in pagination links (default 20 per page)
-                    if ($this->invoicesPagination) {
-                        $st = $this->state;
-                        $this->invoicesPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
-                        $this->invoicesPagination->setAdditionalUrlParam('view', 'administracion');
-                        $this->invoicesPagination->setAdditionalUrlParam('tab', 'invoices');
-                        $this->invoicesPagination->setAdditionalUrlParam('limit', (int) $st->get('list.limit', 20) ?: 20);
-                        $this->invoicesPagination->setAdditionalUrlParam('filter_nit', $st->get('filter.nit', ''));
-                        $this->invoicesPagination->setAdditionalUrlParam('filter_cliente', $st->get('filter.cliente', ''));
-                        $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_from', $st->get('filter.fecha_from', ''));
-                        $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_to', $st->get('filter.fecha_to', ''));
-                        $this->invoicesPagination->setAdditionalUrlParam('filter_total_min', $st->get('filter.total_min', ''));
-                        $this->invoicesPagination->setAdditionalUrlParam('filter_total_max', $st->get('filter.total_max', ''));
-                    }
-                } else {
-                    $this->invoices = [];
-                }
-            } catch (\Throwable $e) {
+            $this->invoicesSubtab = $input->getString('invoices_subtab', 'lista');
+            if (!in_array($this->invoicesSubtab, ['lista', 'match'], true)) {
+                $this->invoicesSubtab = 'lista';
+            }
+            $this->invoiceOrdenMatchStatusFilter = $input->getString('match_status', '');
+            if (!in_array($this->invoiceOrdenMatchStatusFilter, ['', 'pending', 'approved', 'rejected'], true)) {
+                $this->invoiceOrdenMatchStatusFilter = '';
+            }
+
+            if ($this->invoicesSubtab === 'match') {
                 $this->invoices = [];
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                $this->invoicesPagination = null;
+                $this->state = new \Joomla\Registry\Registry();
+                try {
+                    $matchModel = $this->getModel('InvoiceOrdenMatch');
+                    if (!$matchModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel::class)) {
+                        $matchModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                            ->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => false]);
+                    }
+                    if ($matchModel) {
+                        $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
+                        $this->invoiceOrdenMatchRows = $matchModel->getSuggestionRows($this->invoiceOrdenMatchStatusFilter);
+                    }
+                } catch (\Throwable $e) {
+                    $this->invoiceOrdenMatchRows = [];
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                }
+            } else {
+                try {
+                    $invoicesModel = $this->getModel('Invoices');
+                    if (!$invoicesModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoicesModel::class)) {
+                        $invoicesModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                            ->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => false]);
+                    }
+                    if ($invoicesModel) {
+                        if ($salesAgentFilter !== null) {
+                            $invoicesModel->setState('filter.sales_agent', $salesAgentFilter);
+                        }
+                        $this->invoices = $invoicesModel->getItems();
+                        $this->invoicesPagination = $invoicesModel->getPagination();
+                        $this->state = $invoicesModel->getState();
+                        // Preserve option, view, tab, limit and filter params in pagination links (default 20 per page)
+                        if ($this->invoicesPagination) {
+                            $st = $this->state;
+                            $this->invoicesPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                            $this->invoicesPagination->setAdditionalUrlParam('view', 'administracion');
+                            $this->invoicesPagination->setAdditionalUrlParam('tab', 'invoices');
+                            $this->invoicesPagination->setAdditionalUrlParam('invoices_subtab', 'lista');
+                            $this->invoicesPagination->setAdditionalUrlParam('limit', (int) $st->get('list.limit', 20) ?: 20);
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_nit', $st->get('filter.nit', ''));
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_cliente', $st->get('filter.cliente', ''));
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_from', $st->get('filter.fecha_from', ''));
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_to', $st->get('filter.fecha_to', ''));
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_total_min', $st->get('filter.total_min', ''));
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_total_max', $st->get('filter.total_max', ''));
+                        }
+                    } else {
+                        $this->invoices = [];
+                    }
+                } catch (\Throwable $e) {
+                    $this->invoices = [];
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                }
             }
         }
 

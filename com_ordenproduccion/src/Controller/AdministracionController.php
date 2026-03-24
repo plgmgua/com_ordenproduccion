@@ -733,6 +733,139 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Run automatic scoring for FEL invoices vs órdenes (same NIT + amount + description heuristics).
+     *
+     * @return  void
+     * @since   3.99.0
+     */
+    public function analyzeInvoiceOrdenMatches()
+    {
+        $app = Factory::getApplication();
+        $matchStatus = $app->input->post->getString('match_status', '');
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
+        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
+            $redirect .= '&match_status=' . rawurlencode($matchStatus);
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        if ($app->getUser()->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch');
+            if (!$model) {
+                $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !$model->isTableAvailable()) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $app->redirect($redirect);
+                return;
+            }
+            $res = $model->runAnalysis();
+            $app->enqueueMessage(Text::sprintf(
+                'COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ANALYZE_DONE',
+                (int) $res['invoices_processed'],
+                (int) $res['suggestions_upserted']
+            ), 'success');
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ANALYZE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
+     * Approve a pending invoice ↔ orden suggestion.
+     *
+     * @return  void
+     * @since   3.99.0
+     */
+    public function approveInvoiceOrdenMatch()
+    {
+        $this->processInvoiceOrdenMatchDecision('approve');
+    }
+
+    /**
+     * Reject a pending invoice ↔ orden suggestion.
+     *
+     * @return  void
+     * @since   3.99.0
+     */
+    public function rejectInvoiceOrdenMatch()
+    {
+        $this->processInvoiceOrdenMatchDecision('reject');
+    }
+
+    /**
+     * @param   string  $action  approve|reject
+     *
+     * @return  void
+     */
+    protected function processInvoiceOrdenMatchDecision(string $action)
+    {
+        $app = Factory::getApplication();
+        $matchStatus = $app->input->post->getString('match_status', '');
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match', false);
+        if ($matchStatus !== '' && in_array($matchStatus, ['pending', 'approved', 'rejected'], true)) {
+            $redirect .= '&match_status=' . rawurlencode($matchStatus);
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        if ($app->getUser()->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $id = $app->input->post->getInt('cid', 0);
+        if ($id <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INVALID_ID'), 'warning');
+            $app->redirect($redirect);
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch');
+            if (!$model) {
+                $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !$model->isTableAvailable()) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $app->redirect($redirect);
+                return;
+            }
+            $ok = $action === 'approve' ? $model->approveSuggestion($id) : $model->rejectSuggestion($id);
+            if ($ok) {
+                $app->enqueueMessage(
+                    $action === 'approve'
+                        ? Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVED')
+                        : Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_REJECTED'),
+                    'success'
+                );
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_CHANGE'), 'warning');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ACTION_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
      * Import invoices from SAT Guatemala FEL XML file(s).
      * Expects POST with invoice_xml (file) or invoice_xml[] (multiple files).
      *
