@@ -451,13 +451,13 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
-     * Approve all pending suggestions with score at or above the threshold (default 90%).
+     * Approve all pending suggestions with score at or above the threshold (default 95%).
      *
-     * @param   float  $minScore  Minimum score inclusive (e.g. 90.0 for 90%)
+     * @param   float  $minScore  Minimum score inclusive (e.g. 95.0 for 95%)
      *
      * @return  int  Number of rows updated
      */
-    public function approveAllPendingAboveScore(float $minScore = 90.0): int
+    public function approveAllPendingAboveScore(float $minScore = 95.0): int
     {
         if (!$this->isTableAvailable()) {
             return 0;

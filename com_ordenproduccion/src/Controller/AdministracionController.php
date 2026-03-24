@@ -784,7 +784,7 @@ class AdministracionController extends BaseController
     }
 
     /**
-     * Approve all pending invoice ↔ orden suggestions with score ≥ 90%.
+     * Approve all pending invoice ↔ orden suggestions with score ≥ 95%.
      *
      * @return  void
      * @since   3.99.2
@@ -821,7 +821,7 @@ class AdministracionController extends BaseController
                 $app->redirect($redirect);
                 return;
             }
-            $count = $model->approveAllPendingAboveScore(90.0);
+            $count = $model->approveAllPendingAboveScore(95.0);
             $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_APPROVE_HIGH_SCORE_DONE', $count), 'success');
         } catch (\Throwable $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_ACTION_ERROR') . ': ' . $e->getMessage(), 'error');
