@@ -263,6 +263,8 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId); ?>"
                                                    class="btn btn-sm btn-outline-dark"
+                                                   target="_blank"
+                                                   rel="noopener noreferrer"
                                                    title="<?php echo Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE'); ?>"
                                                    aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE'); ?>">
                                                     <i class="fas fa-file-invoice-dollar fa-sm" aria-hidden="true"></i>
