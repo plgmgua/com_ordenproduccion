@@ -45,6 +45,31 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * True if orden date falls within ±3 calendar months of invoice emission (fel_fecha_emision / invoice_date).
+     * If either date is missing or unparsable, returns true (do not hide rows for lack of data).
+     */
+    public static function isOrdenDateWithinThreeMonthsOfInvoice(?string $invoiceEmission, ?string $ordenFecha): bool
+    {
+        $invoiceEmission = is_string($invoiceEmission) ? trim($invoiceEmission) : '';
+        $ordenFecha = is_string($ordenFecha) ? trim($ordenFecha) : '';
+        if ($invoiceEmission === '' || $ordenFecha === '') {
+            return true;
+        }
+
+        try {
+            $inv = new \DateTimeImmutable($invoiceEmission);
+            $ord = new \DateTimeImmutable($ordenFecha);
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        $min = $inv->sub(new \DateInterval('P3M'));
+        $max = $inv->add(new \DateInterval('P3M'));
+
+        return $ord >= $min && $ord <= $max;
+    }
+
+    /**
      * @return array{invoiceValue: string, workDesc: string, clientName: string, orderNumber: string}
      */
     protected function getOrdenColumnExprs($db): array
@@ -213,6 +238,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $exprs = $this->getOrdenColumnExprs($db);
         $invoiceValueExpr = $exprs['invoiceValue'];
         $workDescExpr = $exprs['workDesc'];
+        $ordenDateExpr = $this->getOrdenDateColumnExpr($db);
 
         $qOrd = $db->getQuery(true)
             ->select([
@@ -220,6 +246,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                 'o.nit',
                 $invoiceValueExpr . ' AS orden_invoice_value',
                 $workDescExpr . ' AS orden_work_description',
+                $ordenDateExpr . ' AS orden_fecha',
             ])
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where('o.' . $db->quoteName('state') . ' = 1')
@@ -248,6 +275,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                 'i.invoice_amount',
                 'i.line_items',
                 'i.invoice_source',
+                'COALESCE(i.fel_fecha_emision, i.invoice_date) AS invoice_emission',
             ])
             ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
             ->where('i.' . $db->quoteName('state') . ' = 1')
@@ -276,7 +304,12 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             }
 
             $candidates = [];
+            $invEm = (string) ($inv->invoice_emission ?? '');
             foreach ($byNit[$invNitDigits] as $o) {
+                $oFe = (string) ($o->orden_fecha ?? '');
+                if ($invEm !== '' && $oFe !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($invEm, $oFe)) {
+                    continue;
+                }
                 [$sc, $reasons] = $this->scorePair($inv, $o);
                 if ($sc >= $minScore) {
                     $candidates[] = ['order' => $o, 'score' => $sc, 'reasons' => $reasons];
@@ -682,6 +715,11 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $allSuggestions = $this->getSuggestionRows($statusFilter);
         $byInvoice = [];
         foreach ($allSuggestions as $row) {
+            $iEm = (string) ($row->invoice_emission ?? '');
+            $oFe = (string) ($row->orden_fecha ?? '');
+            if ($iEm !== '' && $oFe !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($iEm, $oFe)) {
+                continue;
+            }
             $iid = (int) ($row->invoice_id ?? 0);
             if ($iid <= 0) {
                 continue;
@@ -809,6 +847,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $exprs = $this->getOrdenColumnExprs($db);
         $invoiceValExpr = $exprs['invoiceValue'];
         $orderNumExpr = $exprs['orderNumber'];
+        $ordenDateExpr = $this->getOrdenDateColumnExpr($db);
 
         $db->setQuery(
             $db->getQuery(true)
@@ -817,6 +856,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                     'o.nit',
                     $orderNumExpr . ' AS orden_num',
                     $invoiceValExpr . ' AS orden_valor',
+                    $ordenDateExpr . ' AS orden_fecha',
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where('o.' . $db->quoteName('state') . ' = 1')
@@ -826,6 +866,8 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         );
         $orders = $db->loadObjectList() ?: [];
 
+        $invoiceEmission = (string) ($inv->fel_fecha_emision ?? $inv->invoice_date ?? '');
+
         $exclude = array_flip(array_map('intval', $excludeOrdenIds));
         $out = [];
         foreach ($orders as $o) {
@@ -834,6 +876,10 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             }
             $oid = (int) $o->id;
             if (isset($exclude[$oid])) {
+                continue;
+            }
+            $oFe = (string) ($o->orden_fecha ?? '');
+            if ($invoiceEmission !== '' && $oFe !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($invoiceEmission, $oFe)) {
                 continue;
             }
             $num = trim((string) ($o->orden_num ?? ''));
@@ -1035,9 +1081,16 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         }
 
         $exprs = $this->getOrdenColumnExprs($db);
+        $ordenDateExpr = $this->getOrdenDateColumnExpr($db);
         $db->setQuery(
             $db->getQuery(true)
-                ->select(['o.id', 'o.nit', $exprs['invoiceValue'] . ' AS orden_invoice_value', $exprs['workDesc'] . ' AS orden_work_description'])
+                ->select([
+                    'o.id',
+                    'o.nit',
+                    $exprs['invoiceValue'] . ' AS orden_invoice_value',
+                    $exprs['workDesc'] . ' AS orden_work_description',
+                    $ordenDateExpr . ' AS orden_fecha_for_window',
+                ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where('o.' . $db->quoteName('id') . ' = ' . (int) $ordenId)
                 ->where('o.' . $db->quoteName('state') . ' = 1')
@@ -1050,6 +1103,12 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $dInv = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
         $dOrd = self::normalizeNitDigits($ord->nit ?? '');
         if ($dInv === '' || $dOrd === '' || $dInv !== $dOrd) {
+            return false;
+        }
+
+        $invEm = (string) ($inv->fel_fecha_emision ?? $inv->invoice_date ?? '');
+        $ordEm = (string) ($ord->orden_fecha_for_window ?? '');
+        if ($invEm !== '' && $ordEm !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($invEm, $ordEm)) {
             return false;
         }
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.100.6-STABLE] - 2026-03-24
+
+### Changed
+- **Conciliación factura–orden:** `runAnalysis` now applies the same ±3‑month window (orden fecha vs `COALESCE(fel_fecha_emision, invoice_date)`) before scoring. Pending suggestions are no longer inserted for NIT matches when the orden date falls outside that window.
+
 ## [3.92.0-STABLE] - 2026-02-24
 
 ### Added
