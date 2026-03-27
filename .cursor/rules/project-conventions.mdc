@@ -1,0 +1,11 @@
+---
+description: Project-specific conventions (DB prefix, etc.)
+globs:
+alwaysApply: true
+---
+
+# com_ordenproduccion project conventions
+
+- **Joomla database table prefix:** `joomla_`  
+  Example: `joomla_ordenproduccion_pre_cotizacion`, `joomla_ordenproduccion_ordenes`.  
+  When writing SQL for phpMyAdmin, manual migrations, or examples, use this prefix unless the user states otherwise.
