@@ -227,19 +227,16 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
     if (strpos($placeholderMedidas, 'COM_ORDENPRODUCCION_') === 0) {
         $placeholderMedidas = 'ingrese medidas en pulgadas';
     }
-    $medidasValue = property_exists($item, 'medidas') ? (string) $item->medidas : '';
-    $hasMedidasCol = property_exists($item, 'medidas');
+    $medidasValue = isset($item->medidas) ? (string) $item->medidas : '';
     ?>
     <div class="precotizacion-descripcion mb-3">
         <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
         <?php if ($precotizacionLocked) : ?>
             <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
-            <?php if ($hasMedidasCol) : ?>
             <div class="mt-2">
                 <span class="small text-muted fw-bold"><?php echo htmlspecialchars($labelMedidas); ?></span>
                 <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
             </div>
-            <?php endif; ?>
         <?php else : ?>
         <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex flex-wrap gap-2 align-items-end mb-0" style="min-width: 0;">
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
@@ -247,14 +244,12 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
             <div class="flex-grow-1" style="min-width: 200px;">
                 <textarea id="precotizacion-descripcion" name="descripcion" class="form-control" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
             </div>
-            <?php if ($hasMedidasCol) : ?>
             <div style="min-width: 200px; max-width: 320px;">
                 <label class="form-label small mb-0" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
                 <input type="text" name="medidas" id="precotizacion-medidas" class="form-control" autocomplete="off" maxlength="512"
                        placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
                        value="<?php echo htmlspecialchars($medidasValue); ?>">
             </div>
-            <?php endif; ?>
             <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
         </form>
         <?php endif; ?>

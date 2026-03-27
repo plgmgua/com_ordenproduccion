@@ -567,6 +567,10 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($medidas !== '' && !isset($tableCols['medidas'])) {
+            Factory::getApplication()->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS_RUN_SQL'), 'warning');
+        }
+
         $obj = (object) [
             'id' => $id,
             'descripcion' => $descripcion,

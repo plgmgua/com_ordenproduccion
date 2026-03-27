@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.10-STABLE] - 2026-03-27
+
+### Fixed
+- **Pre-cotización Medidas:** El campo **Medidas** se muestra siempre (no depende de que la columna exista ya en BD). Si se escribe medidas y la columna no existe, se muestra aviso para ejecutar el SQL 3.101.9.
+
 ## [3.101.9-STABLE] - 2026-03-27
 
 ### Added
