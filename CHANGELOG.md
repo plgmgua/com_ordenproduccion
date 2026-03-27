@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.4-STABLE] - 2026-03-26
+
+### Fixed
+- **PDF de cotización:** La fecha del PDF usaba `strtotime()` sobre `quote_date` (interpretación distinta a la lista y la vista). Ahora se usa `HTMLHelper::_('date', …, 'Y-m-d')` igual que en la tabla y en “Fecha de Cotización”, y a partir de ese día se arma el texto largo en español, para que no haya diferencia de un día respecto a la UI (p. ej. Guatemala vs UTC).
+
 ## [3.101.3-STABLE] - 2026-03-24
 
 ### Changed
