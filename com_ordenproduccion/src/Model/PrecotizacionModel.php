@@ -181,6 +181,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['descripcion'])) {
             $cols[] = 'a.descripcion';
         }
+        if (isset($tableCols['medidas'])) {
+            $cols[] = 'a.medidas';
+        }
         if (isset($tableCols['facturar'])) {
             $cols[] = 'a.facturar';
         }
@@ -874,6 +877,9 @@ class PrecotizacionModel extends ListModel
         ];
         if (isset($tableCols['facturar'])) {
             $newRow->facturar = isset($template->facturar) ? (int) $template->facturar : 1;
+        }
+        if (isset($tableCols['medidas'])) {
+            $newRow->medidas = isset($template->medidas) ? (string) $template->medidas : '';
         }
         try {
             $db->insertObject('#__ordenproduccion_pre_cotizacion', $newRow, 'id');

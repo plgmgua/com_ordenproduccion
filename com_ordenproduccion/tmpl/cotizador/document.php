@@ -219,90 +219,135 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
     $ofertaExpiresValue = isset($item->oferta_expires) && $item->oferta_expires !== '' && $item->oferta_expires !== null
         ? (new \DateTime($item->oferta_expires))->format('Y-m-d') : '';
     $saveOfertaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOferta');
+    $labelMedidas = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS');
+    if (strpos($labelMedidas, 'COM_ORDENPRODUCCION_') === 0) {
+        $labelMedidas = 'Medidas';
+    }
+    $placeholderMedidas = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS_PLACEHOLDER');
+    if (strpos($placeholderMedidas, 'COM_ORDENPRODUCCION_') === 0) {
+        $placeholderMedidas = 'ingrese medidas en pulgadas';
+    }
+    $medidasValue = property_exists($item, 'medidas') ? (string) $item->medidas : '';
+    $hasMedidasCol = property_exists($item, 'medidas');
     ?>
-    <div class="precotizacion-descripcion mb-4">
+    <div class="precotizacion-descripcion mb-3">
         <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
         <?php if ($precotizacionLocked) : ?>
             <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
+            <?php if ($hasMedidasCol) : ?>
+            <div class="mt-2">
+                <span class="small text-muted fw-bold"><?php echo htmlspecialchars($labelMedidas); ?></span>
+                <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
+            </div>
+            <?php endif; ?>
         <?php else : ?>
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex gap-2 align-items-center flex-grow-1 mb-0" style="min-width: 0;">
-                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical; min-width: 0;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
-                <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
-            </form>
-            <?php if (!empty($this->showOfertaCheckbox)) : ?>
-            <!-- Hidden trigger for Bootstrap data-api: opening modal when checkbox is checked -->
-            <button type="button" class="d-none" id="trigger-modal-oferta-expires" data-bs-toggle="modal" data-bs-target="#modal-oferta-expires" aria-hidden="true"></button>
-            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
-                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <div class="form-check mb-0 d-inline-block">
-                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>>
-                    <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
-                </div>
-            </form>
-            <!-- Modal: Vencimiento de la oferta -->
-            <div class="modal fade" id="modal-oferta-expires" tabindex="-1" aria-labelledby="modal-oferta-expires-label" aria-hidden="true" data-bs-backdrop="static">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="modal-oferta-expires-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>" id="modal-oferta-expires-btn-close"></button>
-                        </div>
-                        <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" id="form-oferta-modal">
-                            <div class="modal-body">
-                                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-                                <input type="hidden" name="oferta" value="1">
-                                <?php echo HTMLHelper::_('form.token'); ?>
-                                <div class="mb-0">
-                                    <label for="precotizacion-oferta-expires" class="form-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></label>
-                                    <input type="date" name="oferta_expires" id="precotizacion-oferta-expires" class="form-control" required
-                                           value="<?php echo htmlspecialchars($ofertaExpiresValue); ?>"
-                                           min="<?php echo (new \DateTime('today'))->format('Y-m-d'); ?>">
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal-oferta-expires-btn-cancel"><?php echo Text::_('JCANCEL'); ?></button>
-                                <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
-                            </div>
-                        </form>
+        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex flex-wrap gap-2 align-items-end mb-0" style="min-width: 0;">
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <div class="flex-grow-1" style="min-width: 200px;">
+                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
+            </div>
+            <?php if ($hasMedidasCol) : ?>
+            <div style="min-width: 200px; max-width: 320px;">
+                <label class="form-label small mb-0" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
+                <input type="text" name="medidas" id="precotizacion-medidas" class="form-control" autocomplete="off" maxlength="512"
+                       placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
+                       value="<?php echo htmlspecialchars($medidasValue); ?>">
+            </div>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
+        </form>
+        <?php endif; ?>
+    </div>
+
+    <div class="precotizacion-oferta-facturar mb-3 d-flex flex-wrap align-items-center gap-4">
+        <?php if (!$precotizacionLocked && !empty($this->showOfertaCheckbox)) : ?>
+        <button type="button" class="d-none" id="trigger-modal-oferta-expires" data-bs-toggle="modal" data-bs-target="#modal-oferta-expires" aria-hidden="true"></button>
+        <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <div class="form-check mb-0">
+                <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>>
+                <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
+            </div>
+        </form>
+        <div class="modal fade" id="modal-oferta-expires" tabindex="-1" aria-labelledby="modal-oferta-expires-label" aria-hidden="true" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modal-oferta-expires-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>" id="modal-oferta-expires-btn-close"></button>
                     </div>
+                    <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" id="form-oferta-modal">
+                        <div class="modal-body">
+                            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                            <input type="hidden" name="oferta" value="1">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <div class="mb-0">
+                                <label for="precotizacion-oferta-expires" class="form-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></label>
+                                <input type="date" name="oferta_expires" id="precotizacion-oferta-expires" class="form-control" required
+                                       value="<?php echo htmlspecialchars($ofertaExpiresValue); ?>"
+                                       min="<?php echo (new \DateTime('today'))->format('Y-m-d'); ?>">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal-oferta-expires-btn-cancel"><?php echo Text::_('JCANCEL'); ?></button>
+                            <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            <script>
-            (function() {
-                var chk = document.getElementById('precotizacion-oferta');
-                var triggerBtn = document.getElementById('trigger-modal-oferta-expires');
-                var modalEl = document.getElementById('modal-oferta-expires');
-                if (!chk || !modalEl) return;
-                chk.addEventListener('change', function() {
-                    if (this.checked) {
-                        if (triggerBtn) triggerBtn.click();
-                    } else {
-                        document.getElementById('form-oferta').submit();
-                    }
-                });
-                function closeAndUncheck() {
-                    chk.checked = false;
-                    var fm = document.getElementById('form-oferta');
-                    if (fm) fm.submit();
-                }
-                modalEl.addEventListener('hide.bs.modal', function() {
-                    if (!chk.checked) return;
-                    chk.checked = false;
-                    var fm = document.getElementById('form-oferta');
-                    if (fm) fm.submit();
-                });
-                var cancelBtn = document.getElementById('modal-oferta-expires-btn-cancel');
-                var closeBtn = document.getElementById('modal-oferta-expires-btn-close');
-                if (cancelBtn) cancelBtn.addEventListener('click', closeAndUncheck);
-                if (closeBtn) closeBtn.addEventListener('click', closeAndUncheck);
-            })();
-            </script>
-            <?php endif; ?>
         </div>
+        <script>
+        (function() {
+            var chk = document.getElementById('precotizacion-oferta');
+            var triggerBtn = document.getElementById('trigger-modal-oferta-expires');
+            var modalEl = document.getElementById('modal-oferta-expires');
+            if (!chk || !modalEl) return;
+            chk.addEventListener('change', function() {
+                if (this.checked) {
+                    if (triggerBtn) triggerBtn.click();
+                } else {
+                    document.getElementById('form-oferta').submit();
+                }
+            });
+            function closeAndUncheck() {
+                chk.checked = false;
+                var fm = document.getElementById('form-oferta');
+                if (fm) fm.submit();
+            }
+            modalEl.addEventListener('hide.bs.modal', function() {
+                if (!chk.checked) return;
+                chk.checked = false;
+                var fm = document.getElementById('form-oferta');
+                if (fm) fm.submit();
+            });
+            var cancelBtn = document.getElementById('modal-oferta-expires-btn-cancel');
+            var closeBtn = document.getElementById('modal-oferta-expires-btn-close');
+            if (cancelBtn) cancelBtn.addEventListener('click', closeAndUncheck);
+            if (closeBtn) closeBtn.addEventListener('click', closeAndUncheck);
+        })();
+        </script>
+        <?php elseif ($precotizacionLocked && !empty($this->showOfertaCheckbox)) : ?>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="precotizacion-oferta-display" disabled <?php echo $ofertaChecked ? ' checked' : ''; ?>>
+            <label class="form-check-label text-muted" for="precotizacion-oferta-display"><?php echo htmlspecialchars($labelOferta); ?></label>
+        </div>
+        <?php endif; ?>
+        <?php if ($precotizacionLocked) : ?>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>
+            <label class="form-check-label" for="precotizacion-facturar-display"><?php echo htmlspecialchars($labelFacturar); ?></label>
+        </div>
+        <?php else : ?>
+        <form action="<?php echo htmlspecialchars($saveFacturarUrl); ?>" method="post" class="d-inline mb-0" id="form-facturar">
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <div class="form-check mb-0">
+                <input type="checkbox" class="form-check-input" name="facturar" id="precotizacion-facturar" value="1" <?php echo $facturarChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
+                <label class="form-check-label" for="precotizacion-facturar"><?php echo htmlspecialchars($labelFacturar); ?></label>
+            </div>
+        </form>
         <?php endif; ?>
     </div>
 
@@ -341,23 +386,6 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         </button>
         <?php endif; ?>
         <?php endif; ?>
-        <div class="ms-auto d-flex flex-wrap align-items-center gap-3">
-            <?php if ($precotizacionLocked) : ?>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>
-                    <label class="form-check-label" for="precotizacion-facturar-display"><?php echo htmlspecialchars($labelFacturar); ?></label>
-                </div>
-            <?php else : ?>
-            <form action="<?php echo htmlspecialchars($saveFacturarUrl); ?>" method="post" class="d-inline" id="form-facturar">
-                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" name="facturar" id="precotizacion-facturar" value="1" <?php echo $facturarChecked ? ' checked' : ''; ?> onchange="this.form.submit();">
-                    <label class="form-check-label" for="precotizacion-facturar"><?php echo htmlspecialchars($labelFacturar); ?></label>
-                </div>
-            </form>
-            <?php endif; ?>
-        </div>
     </div>
 
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINES'); ?></h2>

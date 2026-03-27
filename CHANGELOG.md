@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.9-STABLE] - 2026-03-27
+
+### Added
+- **Pre-cotización (documento):** Campo **Medidas** (texto, hasta 512 caracteres) entre descripción y **Guardar**; columna `medidas` en `#__ordenproduccion_pre_cotizacion` (SQL `admin/sql/updates/mysql/3.101.9_pre_cotizacion_medidas.sql`). Se guarda con **Guardar** junto a la descripción.
+
+### Changed
+- **Pre-cotización (documento):** Las casillas **Oferta** y **Facturar** pasan a una fila debajo de descripción/medidas y encima de **Cálculo de folios** / **Otros elementos**.
+
 ## [3.101.8-STABLE] - 2026-03-27
 
 ### Added

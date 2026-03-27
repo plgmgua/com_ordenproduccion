@@ -535,6 +535,10 @@ class PrecotizacionController extends BaseController
         // Use raw filter so long/special text (e.g. newlines) is saved correctly
         $descripcion = (string) $this->input->get('descripcion', '', 'raw');
         $descripcion = trim($descripcion);
+        $medidas = trim((string) $this->input->get('medidas', '', 'string'));
+        if (strlen($medidas) > 512) {
+            $medidas = substr($medidas, 0, 512);
+        }
 
         if ($id < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
@@ -569,6 +573,9 @@ class PrecotizacionController extends BaseController
             'modified' => Factory::getDate()->toSql(),
             'modified_by' => $user->id,
         ];
+        if (isset($tableCols['medidas'])) {
+            $obj->medidas = $medidas;
+        }
         $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
 
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION_SAVED'));
