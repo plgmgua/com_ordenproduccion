@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.11-STABLE] - 2026-03-27
+
+### Changed
+- **Pre-cotización (documento):** El botón **Guardar** pasa a la derecha del título principal. **Descripción** y **Medidas** comparten altura mínima simétrica; la etiqueta **Medidas** usa el mismo énfasis que **Descripción** (`fw-bold`).
+
 ## [3.101.10-STABLE] - 2026-03-27
 
 ### Fixed

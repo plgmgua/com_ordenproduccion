@@ -159,7 +159,14 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         <a href="<?php echo $listUrl; ?>" class="btn btn-outline-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BACK'); ?></a>
     </nav>
 
+    <?php if (!$precotizacionLocked) : ?>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="page-title mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>
+        <button type="submit" form="precotizacion-desc-medidas-form" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
+    </div>
+    <?php else : ?>
     <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>
+    <?php endif; ?>
 
     <?php
     $associatedQuotations = $this->associatedQuotations ?? [];
@@ -234,23 +241,22 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
         <?php if ($precotizacionLocked) : ?>
             <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
             <div class="mt-2">
-                <span class="small text-muted fw-bold"><?php echo htmlspecialchars($labelMedidas); ?></span>
+                <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelMedidas); ?></span>
                 <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
             </div>
         <?php else : ?>
-        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" class="d-flex flex-wrap gap-2 align-items-end mb-0" style="min-width: 0;">
+        <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" id="precotizacion-desc-medidas-form" class="d-flex flex-wrap gap-2 align-items-stretch mb-0" style="min-width: 0;">
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <div class="flex-grow-1" style="min-width: 200px;">
-                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
+            <div class="flex-grow-1 d-flex" style="min-width: 200px;">
+                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="3" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="min-height: 5.5rem; resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
             </div>
-            <div style="min-width: 200px; max-width: 320px;">
-                <label class="form-label small mb-0" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
-                <input type="text" name="medidas" id="precotizacion-medidas" class="form-control" autocomplete="off" maxlength="512"
-                       placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
-                       value="<?php echo htmlspecialchars($medidasValue); ?>">
+            <div class="d-flex flex-column flex-grow-1" style="min-width: 200px; max-width: 360px;">
+                <label class="form-label fw-bold mb-1" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
+                <textarea name="medidas" id="precotizacion-medidas" class="form-control flex-grow-1" rows="3" autocomplete="off" maxlength="512"
+                          placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
+                          style="min-height: 5.5rem; resize:vertical;"><?php echo htmlspecialchars($medidasValue); ?></textarea>
             </div>
-            <button type="submit" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
         </form>
         <?php endif; ?>
     </div>
