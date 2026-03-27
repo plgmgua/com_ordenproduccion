@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.8-STABLE] - 2026-03-27
+
+### Added
+- **Control de ventas → Estado de cuenta → Rango de días:** Ordenación por cualquier columna (Cliente / cada rango de días / Total). Misma columna alterna ascendente/descendente; el listado por agente y el detalle por cliente usan el mismo criterio; el formulario de filtro conserva el orden.
+
 ## [3.101.7-STABLE] - 2026-03-27
 
 ### Changed

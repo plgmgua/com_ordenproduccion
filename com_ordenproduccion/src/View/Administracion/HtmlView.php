@@ -300,6 +300,15 @@ class HtmlView extends BaseHtmlView
     /** Orders without payment proof summarized by sales agent for Rango de días summary level */
     protected $clientesDiasCreditoByAgent = [];
 
+    /** Rango de días: sort column (client, 0_15, …, total) */
+    protected $clientesDiasCreditoOrdering = 'client';
+
+    /** Rango de días: asc | desc */
+    protected $clientesDiasCreditoDirection = 'asc';
+
+    /** Rango de días: clients grouped by sales_agent key, each list sorted (for agent expand rows) */
+    protected $clientesDiasCreditoGroupedByAgent = [];
+
     /**
      * Cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página) for Ajustes > Ajustes de Cotización
      *
@@ -732,10 +741,46 @@ class HtmlView extends BaseHtmlView
                     $this->clientesDiasCreditoBuckets = $statsModel->getOrdersWithoutPaymentProofByAgeBuckets($agentFilter);
                     $this->clientesDiasCreditoByAgent = $statsModel->getOrdersWithoutPaymentProofSummaryByAgent($agentFilter);
                     $this->clientesDiasCreditoByClient = $statsModel->getOrdersWithoutPaymentProofSummaryByClient($agentFilter);
+                    $diasCreditoOrdering = $input->getString('filter_dias_credito_ordering', 'client');
+                    if (!in_array($diasCreditoOrdering, ['client', '0_15', '16_30', '31_45', '45_plus', 'total'], true)) {
+                        $diasCreditoOrdering = 'client';
+                    }
+                    $diasCreditoDirection = $input->getString('filter_dias_credito_direction', 'asc');
+                    if (!in_array($diasCreditoDirection, ['asc', 'desc'], true)) {
+                        $diasCreditoDirection = 'asc';
+                    }
+                    $this->clientesDiasCreditoOrdering = $diasCreditoOrdering;
+                    $this->clientesDiasCreditoDirection = $diasCreditoDirection;
+                    $rawClients = $this->clientesDiasCreditoByClient;
+                    $grouped = [];
+                    foreach ($rawClients as $row) {
+                        $key = isset($row->sales_agent) ? (string) $row->sales_agent : (string) $this->clientesSalesAgent;
+                        if (!isset($grouped[$key])) {
+                            $grouped[$key] = [];
+                        }
+                        $grouped[$key][] = $row;
+                    }
+                    foreach ($grouped as $k => $list) {
+                        $grouped[$k] = $statsModel->sortDiasCreditoRows($list, $diasCreditoOrdering, $diasCreditoDirection, false);
+                    }
+                    $this->clientesDiasCreditoGroupedByAgent = $grouped;
+                    $this->clientesDiasCreditoByAgent = $statsModel->sortDiasCreditoRows(
+                        $this->clientesDiasCreditoByAgent,
+                        $diasCreditoOrdering,
+                        $diasCreditoDirection,
+                        true
+                    );
+                    $this->clientesDiasCreditoByClient = $statsModel->sortDiasCreditoRows(
+                        $rawClients,
+                        $diasCreditoOrdering,
+                        $diasCreditoDirection,
+                        false
+                    );
                 } else {
                     $this->clientesDiasCreditoBuckets = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
                     $this->clientesDiasCreditoByAgent = [];
                     $this->clientesDiasCreditoByClient = [];
+                    $this->clientesDiasCreditoGroupedByAgent = [];
                 }
                 if ($clientesSubtab === 'estado_cuenta') {
                     $fullList = $statsModel->getClientsWithTotals(

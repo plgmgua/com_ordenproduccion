@@ -850,6 +850,51 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Sort Rango de días / días de crédito summary rows (by client name or sales agent, or by bucket/total value).
+     *
+     * @param   array   $rows         List of stdClass rows from getOrdersWithoutPaymentProofSummaryByClient/ByAgent
+     * @param   string  $ordering     client | 0_15 | 16_30 | 31_45 | 45_plus | total
+     * @param   string  $direction    asc | desc
+     * @param   bool    $isAgentRow   true: first column uses sales_agent; false: uses client_name
+     *
+     * @return  array
+     *
+     * @since   3.101.8
+     */
+    public function sortDiasCreditoRows(array $rows, string $ordering, string $direction, bool $isAgentRow = false): array
+    {
+        $dir = strtolower($direction ?? 'asc') === 'desc' ? -1 : 1;
+        $ordering = strtolower($ordering ?? 'client');
+        $allowed = ['client', '0_15', '16_30', '31_45', '45_plus', 'total'];
+        if (!in_array($ordering, $allowed, true)) {
+            $ordering = 'client';
+        }
+        $rows = array_values($rows);
+        usort($rows, function ($a, $b) use ($ordering, $dir, $isAgentRow) {
+            if ($ordering === 'client') {
+                $ka = $isAgentRow ? (string) ($a->sales_agent ?? '') : (string) ($a->client_name ?? '');
+                $kb = $isAgentRow ? (string) ($b->sales_agent ?? '') : (string) ($b->client_name ?? '');
+
+                return $dir * strcasecmp($ka, $kb);
+            }
+            $map = [
+                '0_15' => 'total_value_0_15',
+                '16_30' => 'total_value_16_30',
+                '31_45' => 'total_value_31_45',
+                '45_plus' => 'total_value_45_plus',
+                'total' => 'total_value',
+            ];
+            $field = $map[$ordering] ?? 'total_value';
+            $va = (float) ($a->{$field} ?? 0);
+            $vb = (float) ($b->{$field} ?? 0);
+
+            return $dir * ($va <=> $vb);
+        });
+
+        return $rows;
+    }
+
+    /**
      * Build clients list with calculated balances (used internally and for sync).
      *
      * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)

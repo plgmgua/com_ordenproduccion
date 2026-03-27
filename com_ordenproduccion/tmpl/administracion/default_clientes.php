@@ -37,6 +37,9 @@ $emptyBucketSummary = ['count' => 0, 'total_value' => 0.0];
 $clientesDiasCreditoBuckets = $this->clientesDiasCreditoBuckets ?? ['0_15' => $emptyBucketSummary, '16_30' => $emptyBucketSummary, '31_45' => $emptyBucketSummary, '45_plus' => $emptyBucketSummary];
 $clientesDiasCreditoByClient = $this->clientesDiasCreditoByClient ?? [];
 $clientesDiasCreditoByAgent = $this->clientesDiasCreditoByAgent ?? [];
+$clientesDiasCreditoGroupedByAgent = $this->clientesDiasCreditoGroupedByAgent ?? [];
+$clientesDiasCreditoOrdering = $this->clientesDiasCreditoOrdering ?? 'client';
+$clientesDiasCreditoDirection = $this->clientesDiasCreditoDirection ?? 'asc';
 
 function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, $subtab = 'estado_cuenta') {
     $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'subtab' => $subtab, 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
@@ -57,6 +60,33 @@ function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHide
 function clientesSortUrl($col, $currentOrdering, $currentDirection, $currentHideZero, $clientesSalesAgent = '', $clientesClientName = '', $clientesNit = '', $clientesLimit = 20, $subtab = 'estado_cuenta') {
     $dir = ($col === $currentOrdering && $currentDirection === 'asc') ? 'desc' : 'asc';
     $params = clientesBaseParams($col, $dir, $currentHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, $subtab);
+    return \Joomla\CMS\Router\Route::_('index.php?' . http_build_query($params));
+}
+
+/**
+ * Query params for Rango de días — preserves sort and agent filter.
+ */
+function diasCreditoBaseParams($ordering, $direction, $clientesSalesAgent)
+{
+    $params = [
+        'option' => 'com_ordenproduccion',
+        'view' => 'administracion',
+        'tab' => 'clientes',
+        'subtab' => 'dias_credito',
+        'filter_dias_credito_ordering' => $ordering,
+        'filter_dias_credito_direction' => $direction,
+    ];
+    if ($clientesSalesAgent !== '') {
+        $params['filter_clientes_sales_agent'] = $clientesSalesAgent;
+    }
+    return $params;
+}
+
+function diasCreditoSortUrl($col, $currentOrdering, $currentDirection, $clientesSalesAgent = '')
+{
+    $dir = ($col === $currentOrdering && $currentDirection === 'asc') ? 'desc' : 'asc';
+    $params = diasCreditoBaseParams($col, $dir, $clientesSalesAgent);
+
     return \Joomla\CMS\Router\Route::_('index.php?' . http_build_query($params));
 }
 
@@ -262,6 +292,15 @@ function safeEscape($value, $default = '')
     text-align: center;
     border: 1px solid #e9ecef;
 }
+.dias-credito-summary-table th a.dias-credito-sort-link {
+    color: #0d6efd;
+    cursor: pointer;
+}
+.dias-credito-summary-table th a.dias-credito-sort-link:hover {
+    color: #0a58ca;
+    text-decoration: underline !important;
+}
+
 .dias-credito-summary-table th {
     background: #f8f9fa;
     font-weight: 600;
@@ -554,6 +593,8 @@ function safeEscape($value, $default = '')
             <input type="hidden" name="view" value="administracion" />
             <input type="hidden" name="tab" value="clientes" />
             <input type="hidden" name="subtab" value="dias_credito" />
+            <input type="hidden" name="filter_dias_credito_ordering" value="<?php echo safeEscape($clientesDiasCreditoOrdering); ?>" />
+            <input type="hidden" name="filter_dias_credito_direction" value="<?php echo safeEscape($clientesDiasCreditoDirection); ?>" />
             <?php if ($showClientesSalesAgentFilter) : ?>
             <label class="clientes-filter-item d-inline-block me-3">
                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_SALES_AGENT'); ?>
@@ -585,14 +626,18 @@ function safeEscape($value, $default = '')
         $totalValue = (float)$b0['total_value'] + (float)$b1['total_value'] + (float)$b2['total_value'] + (float)$b3['total_value'];
         $totalCount = (int)$b0['count'] + (int)$b1['count'] + (int)$b2['count'] + (int)$b3['count'];
         $hasAny = $totalCount > 0;
-        // Group client rows by sales agent (when filter is one agent, rows have no sales_agent so use $clientesSalesAgent)
-        $clientsByAgent = [];
-        foreach ($clientesDiasCreditoByClient as $row) {
-            $key = isset($row->sales_agent) ? (string) $row->sales_agent : (string) $clientesSalesAgent;
-            if (!isset($clientsByAgent[$key])) {
-                $clientsByAgent[$key] = [];
+        // Group client rows by sales agent (pre-sorted per agent in the view)
+        $clientsByAgent = !empty($clientesDiasCreditoGroupedByAgent)
+            ? $clientesDiasCreditoGroupedByAgent
+            : [];
+        if (empty($clientsByAgent)) {
+            foreach ($clientesDiasCreditoByClient as $row) {
+                $key = isset($row->sales_agent) ? (string) $row->sales_agent : (string) $clientesSalesAgent;
+                if (!isset($clientsByAgent[$key])) {
+                    $clientsByAgent[$key] = [];
+                }
+                $clientsByAgent[$key][] = $row;
             }
-            $clientsByAgent[$key][] = $row;
         }
         $showAgentLevel = !empty($clientesDiasCreditoByAgent);
         ?>
@@ -600,12 +645,42 @@ function safeEscape($value, $default = '')
             <table class="dias-credito-summary-table" id="dias-credito-unified-table">
                 <thead>
                     <tr>
-                        <th class="dias-credito-col-toggle"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?></th>
-                        <th><?php echo $bucketLabels['0_15']; ?></th>
-                        <th><?php echo $bucketLabels['16_30']; ?></th>
-                        <th><?php echo $bucketLabels['31_45']; ?></th>
-                        <th><?php echo $bucketLabels['45_plus']; ?></th>
-                        <th class="dias-credito-total-col"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?></th>
+                        <th class="dias-credito-col-toggle">
+                            <a href="<?php echo diasCreditoSortUrl('client', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'client' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_CLIENT')); ?>">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?>
+                                <?php if ($clientesDiasCreditoOrdering === 'client') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="<?php echo diasCreditoSortUrl('0_15', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '0_15' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
+                                <?php echo $bucketLabels['0_15']; ?>
+                                <?php if ($clientesDiasCreditoOrdering === '0_15') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="<?php echo diasCreditoSortUrl('16_30', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '16_30' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
+                                <?php echo $bucketLabels['16_30']; ?>
+                                <?php if ($clientesDiasCreditoOrdering === '16_30') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="<?php echo diasCreditoSortUrl('31_45', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '31_45' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
+                                <?php echo $bucketLabels['31_45']; ?>
+                                <?php if ($clientesDiasCreditoOrdering === '31_45') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="<?php echo diasCreditoSortUrl('45_plus', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '45_plus' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
+                                <?php echo $bucketLabels['45_plus']; ?>
+                                <?php if ($clientesDiasCreditoOrdering === '45_plus') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            </a>
+                        </th>
+                        <th class="dias-credito-total-col">
+                            <a href="<?php echo diasCreditoSortUrl('total', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'total' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_TOTAL')); ?>">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?>
+                                <?php if ($clientesDiasCreditoOrdering === 'total') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            </a>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
