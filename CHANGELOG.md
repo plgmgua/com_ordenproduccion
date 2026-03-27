@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.3-STABLE] - 2026-03-24
+
+### Changed
+- **Cotización (editar):** Al guardar, `quote_date` se actualiza siempre a la **fecha actual** (zona horaria del sitio), en lugar de conservar la fecha del formulario.
+
 ## [3.101.2-STABLE] - 2026-03-24
 
 ### Fixed

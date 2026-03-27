@@ -579,11 +579,12 @@ class AjaxController extends BaseController
         $clientAddress = $input->getString('client_address', '');
         $contactName = $input->getString('contact_name', '');
         $contactPhone = $input->getString('contact_phone', '');
-        $quoteDate = $input->getString('quote_date', '');
+        // Edited quotations: always store today's date as the cotización date (site timezone).
+        $quoteDate = Factory::getDate()->format('Y-m-d');
         $clientId = $input->getString('client_id', '');
         $salesAgent = $input->getString('sales_agent', '');
         $lines = $input->get('lines', [], 'array');
-        if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
+        if (empty($clientName) || empty($clientNit)) {
             echo json_encode(['success' => false, 'message' => 'Missing required fields']);
             exit;
         }
