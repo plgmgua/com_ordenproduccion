@@ -587,6 +587,8 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => 'Missing required fields']);
             exit;
         }
+
+        try {
         $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
         $lineItems = [];
         $totalAmount = 0;
@@ -641,7 +643,6 @@ class AjaxController extends BaseController
         ];
         if (isset($cols['client_id'])) $updateData->client_id = $clientId !== '' ? $clientId : null;
         if (isset($cols['sales_agent'])) $updateData->sales_agent = $salesAgent !== '' ? $salesAgent : null;
-        try {
             $db->updateObject('#__ordenproduccion_quotations', $updateData, 'id');
             $db->setQuery(
                 $db->getQuery(true)
@@ -715,7 +716,7 @@ class AjaxController extends BaseController
                 'quotation_number' => $quotation->quotation_number,
                 'quotation_id' => $quotationId,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => 'Error updating quotation: ' . $e->getMessage()]);
         }
         exit;

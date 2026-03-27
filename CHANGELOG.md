@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.2-STABLE] - 2026-03-24
+
+### Fixed
+- **Cotización guardar (AJAX):** `updateQuotation` wrapped the DB block in `try/catch` but not the pre-cotización line validation (including `getMinimumValorFinalForPreCotizacion`). Any PHP exception there returned Joomla’s HTML error page, so the browser showed `Unexpected token '<' … is not valid JSON`. The whole save path is now caught with `catch (\Throwable)` so errors return JSON.
+
 ## [3.101.1-STABLE] - 2026-03-24
 
 ### Fixed
