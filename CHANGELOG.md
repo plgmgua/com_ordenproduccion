@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.0-STABLE] - 2026-03-24
+
+### Added
+- **Administración de Imprenta:** Tab **Tarjeta de Crédito** with editable **Comisión por cuotas** table (plazo en meses y tasa %). Default rows match the provided commission schedule. SQL: `admin/sql/updates/mysql/3.101.0_tarjeta_credito.sql`.
+- **Pre-cotización (vista documento):** Dropdown left of **Añadir envío** to choose a plazo; **cargo** = tasa % × (total con impuestos y comisiones + margen adicional). Shows **Total con tarjeta de crédito** in the lines footer. Values stored on `#__ordenproduccion_pre_cotizacion` (`tarjeta_credito_*`, `total_con_tarjeta`).
+
 ## [3.100.7-STABLE] - 2026-03-24
 
 ### Added

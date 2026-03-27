@@ -1208,4 +1208,129 @@ class ProductosModel extends BaseDatabaseModel
             return false;
         }
     }
+
+    /**
+     * Whether tarjeta de crédito rates table exists.
+     *
+     * @return  bool
+     * @since   3.101.0
+     */
+    public function tarjetaCreditoTableExists()
+    {
+        $db = $this->getDatabase();
+        $tables = $db->getTableList();
+        $prefix = $db->getPrefix();
+        $need = $prefix . 'ordenproduccion_tarjeta_credito_rates';
+        foreach ($tables as $name) {
+            if (strcasecmp($name, $need) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Active tarjeta de crédito rates (ordered).
+     *
+     * @return  \stdClass[]  Rows with cuotas, tasa_percent
+     * @since   3.101.0
+     */
+    public function getTarjetaCreditoRates()
+    {
+        if (!$this->tarjetaCreditoTableExists()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_tarjeta_credito_rates'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('cuotas') . ' ASC');
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Tasa % for a given plazo (cuotas), or null if not configured.
+     *
+     * @since   3.101.0
+     */
+    public function getTarjetaCreditoTasaForCuotas(int $cuotas): ?float
+    {
+        if ($cuotas < 1 || !$this->tarjetaCreditoTableExists()) {
+            return null;
+        }
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('tasa_percent'))
+                ->from($db->quoteName('#__ordenproduccion_tarjeta_credito_rates'))
+                ->where($db->quoteName('cuotas') . ' = ' . $cuotas)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $v = $db->loadResult();
+        if ($v === null) {
+            return null;
+        }
+
+        return round((float) $v, 2);
+    }
+
+    /**
+     * Save rates from POST tasas[cuotas] = percent.
+     *
+     * @param   array  $tasasByCuotas  Map cuotas (int|string) => tasa (float)
+     *
+     * @return  bool
+     * @since   3.101.0
+     */
+    public function saveTarjetaCreditoRates(array $tasasByCuotas)
+    {
+        if (!$this->tarjetaCreditoTableExists()) {
+            $this->setError('Tarjeta de crédito: tabla no instalada. Ejecute admin/sql/updates/mysql/3.101.0_tarjeta_credito.sql');
+
+            return false;
+        }
+        $db = $this->getDatabase();
+
+        foreach ($tasasByCuotas as $cuotasKey => $tasaVal) {
+            $cuotas = (int) $cuotasKey;
+            if ($cuotas < 1) {
+                continue;
+            }
+            $tasa = round((float) $tasaVal, 2);
+            if ($tasa < 0 || $tasa > 100) {
+                continue;
+            }
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('id')
+                    ->from($db->quoteName('#__ordenproduccion_tarjeta_credito_rates'))
+                    ->where($db->quoteName('cuotas') . ' = ' . $cuotas)
+            );
+            $id = (int) $db->loadResult();
+            $obj = (object) [
+                'cuotas' => $cuotas,
+                'tasa_percent' => $tasa,
+                'ordering' => $cuotas,
+                'state' => 1,
+            ];
+            try {
+                if ($id > 0) {
+                    $obj->id = $id;
+                    $db->updateObject('#__ordenproduccion_tarjeta_credito_rates', $obj, 'id');
+                } else {
+                    $db->insertObject('#__ordenproduccion_tarjeta_credito_rates', $obj, 'id');
+                }
+            } catch (\Exception $e) {
+                $this->setError($e->getMessage());
+
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

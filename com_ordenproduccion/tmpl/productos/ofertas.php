@@ -21,6 +21,8 @@ $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
 $baseOfertas = $baseUrl . '&section=ofertas';
 $baseEnvios = $baseUrl . '&section=envios';
+$baseAjustes = $baseUrl . '&section=ajustes&tab=cotizaciones';
+$baseTarjetaCredito = $baseUrl . '&section=tarjeta_credito';
 
 $l = function ($key, $fallback) {
     $t = Text::_($key);
@@ -58,6 +60,16 @@ $usersList = $this->ofertasUsersList ?? [];
             <li class="nav-item">
                 <a class="nav-link" href="<?php echo Route::_($baseEnvios); ?>">
                     <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_ENVIOS', 'Envíos'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?php echo Route::_($baseAjustes); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_TAB_AJUSTES', 'Ajustes'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?php echo Route::_($baseTarjetaCredito); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_SECTION_TARJETA_CREDITO', 'Tarjeta de Crédito'); ?>
                 </a>
             </li>
         </ul>

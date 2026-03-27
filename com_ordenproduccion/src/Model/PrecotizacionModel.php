@@ -17,7 +17,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
 
 /**
- * Pre-Cotización model: list (user-scoped), single item, lines, add line, next number.
+ * Pre-Cotizaci?n model: list (user-scoped), single item, lines, add line, next number.
  *
  * @since  3.70.0
  */
@@ -158,9 +158,9 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get one Pre-Cotización by id (only if owned by current user).
+     * Get one Pre-Cotizaci?n by id (only if owned by current user).
      *
-     * @param   int  $id  Pre-Cotización id.
+     * @param   int  $id  Pre-Cotizaci?n id.
      *
      * @return  \stdClass|null
      *
@@ -193,6 +193,11 @@ class PrecotizacionModel extends ListModel
         foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
                 $cols[] = 'a.' . $snapCol;
+            }
+        }
+        foreach (['tarjeta_credito_cuotas', 'tarjeta_credito_tasa', 'tarjeta_credito_monto', 'total_con_tarjeta'] as $tcCol) {
+            if (isset($tableCols[$tcCol])) {
+                $cols[] = 'a.' . $tcCol;
             }
         }
         $query = $db->getQuery(true)
@@ -231,10 +236,10 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Check if this pre-cotización is used in any quotation (quotation_items.pre_cotizacion_id).
-     * When true, the pre-cotización must not be modified or deleted.
+     * Check if this pre-cotizaci?n is used in any quotation (quotation_items.pre_cotizacion_id).
+     * When true, the pre-cotizaci?n must not be modified or deleted.
      *
-     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
      * @return  bool
      * @since   3.75.0
      */
@@ -304,10 +309,10 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get total amount for a Pre-Cotización: subtotal (lines excluding envio) + params (Margen, IVA, ISR, Comisión).
+     * Get total amount for a Pre-Cotizaci?n: subtotal (lines excluding envio) + params (Margen, IVA, ISR, Comisi?n).
      * When facturar=1, IVA and ISR are included; when 0, they are excluded.
      *
-     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
      * @return  float
      * @since   3.74.0
      */
@@ -343,7 +348,7 @@ class PrecotizacionModel extends ListModel
      * Refresh and save the totals snapshot on the pre_cotizacion (lines_subtotal, margen_amount, iva_amount, isr_amount, comision_amount, total, total_final).
      * Call after addLine, updateLine, deleteLine, or saveFacturar so stored totals stay in sync and remain historical if prices change later.
      *
-     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
      * @return  bool  True if snapshot columns exist and were updated.
      * @since   3.86.0
      */
@@ -399,16 +404,111 @@ class PrecotizacionModel extends ListModel
 
         try {
             $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
-            return true;
         } catch (\Exception $e) {
             return false;
         }
+
+        // Tarjeta de credito: % sobre total con impuestos/comisiones + margen adicional (igual que total en document.php).
+        if (isset($tableCols['tarjeta_credito_cuotas']) && isset($tableCols['tarjeta_credito_monto']) && isset($tableCols['total_con_tarjeta'])) {
+            $productosModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Productos', 'Site', ['ignore_request' => true]);
+            $cuotasTc = isset($item->tarjeta_credito_cuotas) && $item->tarjeta_credito_cuotas !== null && $item->tarjeta_credito_cuotas !== ''
+                ? (int) $item->tarjeta_credito_cuotas
+                : 0;
+            $margenAdic = isset($tableCols['margen_adicional']) && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== ''
+                ? (float) $item->margen_adicional
+                : 0.0;
+            $baseSinTarjeta = round((float) $total + $margenAdic, 2);
+            $qTc = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $preCotizacionId);
+            if ($cuotasTc > 0 && $productosModel->tarjetaCreditoTableExists()) {
+                $tasaTc = $productosModel->getTarjetaCreditoTasaForCuotas($cuotasTc);
+                if ($tasaTc !== null) {
+                    $montoTc = round($baseSinTarjeta * ($tasaTc / 100.0), 2);
+                    $totalConTc = round($baseSinTarjeta + $montoTc, 2);
+                    if (isset($tableCols['tarjeta_credito_tasa'])) {
+                        $qTc->set($db->quoteName('tarjeta_credito_tasa') . ' = ' . $db->quote($tasaTc));
+                    }
+                    $qTc->set($db->quoteName('tarjeta_credito_monto') . ' = ' . $db->quote($montoTc));
+                    $qTc->set($db->quoteName('total_con_tarjeta') . ' = ' . $db->quote($totalConTc));
+                } else {
+                    if (isset($tableCols['tarjeta_credito_tasa'])) {
+                        $qTc->set($db->quoteName('tarjeta_credito_tasa') . ' = NULL');
+                    }
+                    $qTc->set($db->quoteName('tarjeta_credito_monto') . ' = NULL');
+                    $qTc->set($db->quoteName('total_con_tarjeta') . ' = NULL');
+                }
+            } else {
+                if (isset($tableCols['tarjeta_credito_tasa'])) {
+                    $qTc->set($db->quoteName('tarjeta_credito_tasa') . ' = NULL');
+                }
+                $qTc->set($db->quoteName('tarjeta_credito_monto') . ' = NULL');
+                $qTc->set($db->quoteName('total_con_tarjeta') . ' = NULL');
+            }
+            try {
+                $db->setQuery($qTc);
+                $db->execute();
+            } catch (\Exception $e) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
-     * Get lines for a Pre-Cotización (only if document is owned by current user).
+     * Set plazo tarjeta de credito (cuotas) and refresh montos. Null/0 clears selection.
      *
-     * @param   int  $preCotizacionId  Pre-Cotización id.
+     * @return  bool
+     * @since   3.101.0
+     */
+    public function saveTarjetaCreditoCuotas(int $preCotizacionId, ?int $cuotas)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['tarjeta_credito_cuotas'])) {
+            return false;
+        }
+        $now = Factory::getDate()->toSql();
+        $uid = (int) Factory::getUser()->id;
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'));
+        if ($cuotas !== null && $cuotas > 0) {
+            $query->set($db->quoteName('tarjeta_credito_cuotas') . ' = ' . (int) $cuotas);
+        } else {
+            $query->set($db->quoteName('tarjeta_credito_cuotas') . ' = NULL');
+        }
+        if (isset($tableCols['modified'])) {
+            $query->set($db->quoteName('modified') . ' = ' . $db->quote($now));
+        }
+        if (isset($tableCols['modified_by'])) {
+            $query->set($db->quoteName('modified_by') . ' = ' . $uid);
+        }
+        $query->where($db->quoteName('id') . ' = ' . $preCotizacionId);
+        try {
+            $db->setQuery($query);
+            $db->execute();
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        return $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+    }
+
+    /**
+     * Get lines for a Pre-Cotizaci?n (only if document is owned by current user).
+     *
+     * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
      *
      * @return  \stdClass[]
      *
@@ -509,7 +609,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get one line by id (only if its Pre-Cotización is owned by current user).
+     * Get one line by id (only if its Pre-Cotizaci?n is owned by current user).
      *
      * @param   int  $lineId  Line id.
      *
@@ -558,7 +658,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Update a line (only if its Pre-Cotización is owned by current user).
+     * Update a line (only if its Pre-Cotizaci?n is owned by current user).
      *
      * @param   int    $lineId  Line id.
      * @param   array  $data   Same structure as addLine.
@@ -618,7 +718,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Create a new Pre-Cotización (assign next number, set created_by to current user).
+     * Create a new Pre-Cotizaci?n (assign next number, set created_by to current user).
      *
      * @return  int|false  New id on success, false on failure.
      *
@@ -652,7 +752,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get pre-cotizaciones marked as template (oferta=1) for "Nueva Pre-Cotización" template selector.
+     * Get pre-cotizaciones marked as template (oferta=1) for "Nueva Pre-Cotizaci?n" template selector.
      *
      * @return  \stdClass[]  List with id, number, descripcion, oferta_expires
      * @since   3.95.0
@@ -684,11 +784,11 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Create a new Pre-Cotización by copying a template (oferta=1). Copies header and all lines.
-     * New pre-cotización has current user as created_by and oferta=0.
+     * Create a new Pre-Cotizaci?n by copying a template (oferta=1). Copies header and all lines.
+     * New pre-cotizaci?n has current user as created_by and oferta=0.
      *
-     * @param   int  $templateId  Template pre-cotización id (must have oferta=1).
-     * @return  int|false  New pre-cotización id on success, false on failure.
+     * @param   int  $templateId  Template pre-cotizaci?n id (must have oferta=1).
+     * @return  int|false  New pre-cotizaci?n id on success, false on failure.
      * @since   3.95.0
      */
     public function createFromTemplate($templateId)
@@ -760,9 +860,9 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Add a line to a Pre-Cotización (only if document is owned by current user).
+     * Add a line to a Pre-Cotizaci?n (only if document is owned by current user).
      *
-     * @param   int    $preCotizacionId  Pre-Cotización id.
+     * @param   int    $preCotizacionId  Pre-Cotizaci?n id.
      * @param   array  $data             Line data: quantity, paper_type_id, size_id, tiro_retiro,
      *                                   lamination_type_id, lamination_tiro_retiro, process_ids (array),
      *                                   price_per_sheet, total, calculation_breakdown (array of rows).
@@ -868,9 +968,9 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Delete a Pre-Cotización (only if owned by current user). Lines are deleted by application logic or CASCADE.
+     * Delete a Pre-Cotizaci?n (only if owned by current user). Lines are deleted by application logic or CASCADE.
      *
-     * @param   int  $id  Pre-Cotización id.
+     * @param   int  $id  Pre-Cotizaci?n id.
      *
      * @return  bool
      *
@@ -910,7 +1010,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Delete a single line (only if its Pre-Cotización is owned by current user).
+     * Delete a single line (only if its Pre-Cotizaci?n is owned by current user).
      *
      * @param   int  $lineId  Line id.
      *
@@ -954,7 +1054,7 @@ class PrecotizacionModel extends ListModel
 
     /**
      * Get concepts (element labels) that require "Detalles" for a given line.
-     * Pliego: one per breakdown row (label). Elementos/Envío: one single "Detalles" input per line (each is a single element).
+     * Pliego: one per breakdown row (label). Elementos/Env?o: one single "Detalles" input per line (each is a single element).
      *
      * @param   \stdClass  $line  Line object (breakdown, line_type)
      * @return  array  List of [concepto_key => concepto_label]
@@ -964,7 +1064,7 @@ class PrecotizacionModel extends ListModel
     {
         $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
         if ($lineType === 'envio') {
-            return ['detalle_envio' => 'Detalles envío'];
+            return ['detalle_envio' => 'Detalles env?o'];
         }
         if ($lineType === 'elementos') {
             return ['detalle' => 'Detalles'];

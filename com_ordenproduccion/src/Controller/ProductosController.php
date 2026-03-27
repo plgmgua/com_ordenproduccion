@@ -661,4 +661,38 @@ class ProductosController extends BaseController
         Factory::getApplication()->enqueueMessage($msg, $type);
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=envios', false));
     }
+
+    /**
+     * Save tarjeta de crédito commission table (tasas por plazo).
+     *
+     * @return  void
+     * @since   3.101.0
+     */
+    public function saveTarjetaCredito()
+    {
+        if (!Session::checkToken('post')) {
+            Factory::getApplication()->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=tarjeta_credito', false));
+
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            Factory::getApplication()->enqueueMessage(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=tarjeta_credito', false));
+
+            return;
+        }
+        $tasas = Factory::getApplication()->input->post->get('tasas', [], 'array');
+        if (!is_array($tasas)) {
+            $tasas = [];
+        }
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->saveTarjetaCreditoRates($tasas)) {
+            Factory::getApplication()->enqueueMessage($model->getError() ?: Text::_('COM_ORDENPRODUCCION_TARJETA_CREDITO_SAVE_ERROR'), 'error');
+        } else {
+            Factory::getApplication()->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TARJETA_CREDITO_SAVED'));
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=tarjeta_credito', false));
+    }
 }

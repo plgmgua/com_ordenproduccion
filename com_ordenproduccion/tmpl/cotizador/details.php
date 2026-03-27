@@ -67,6 +67,24 @@ $paramComisionMargenAdicional = isset($this->paramComisionMargenAdicional) ? (fl
 $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== '') ? (float) $item->margen_adicional : 0;
 $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '') ? (float) $item->comision_margen_adicional : 0;
 $displayTotal = $linesTotalFinal + $margenAdicional;
+$tcCuotasSel = 0;
+$tcMonto = 0.0;
+$tcTasa = 0.0;
+$totalConTarjeta = null;
+if ($item) {
+    $tcCuotasSel = isset($item->tarjeta_credito_cuotas) && $item->tarjeta_credito_cuotas !== null && $item->tarjeta_credito_cuotas !== ''
+        ? (int) $item->tarjeta_credito_cuotas
+        : 0;
+    $tcMonto = isset($item->tarjeta_credito_monto) && $item->tarjeta_credito_monto !== null && $item->tarjeta_credito_monto !== ''
+        ? (float) $item->tarjeta_credito_monto
+        : 0.0;
+    $tcTasa = isset($item->tarjeta_credito_tasa) && $item->tarjeta_credito_tasa !== null && $item->tarjeta_credito_tasa !== ''
+        ? (float) $item->tarjeta_credito_tasa
+        : 0.0;
+    $totalConTarjeta = isset($item->total_con_tarjeta) && $item->total_con_tarjeta !== null && $item->total_con_tarjeta !== ''
+        ? (float) $item->total_con_tarjeta
+        : null;
+}
 $clickAncho  = isset($this->clickAncho)  ? (float) $this->clickAncho  : 0.0;
 $clickAlto   = isset($this->clickAlto)   ? (float) $this->clickAlto   : 0.0;
 $clickPrecio = isset($this->clickPrecio) ? (float) $this->clickPrecio : 0.0;
@@ -235,6 +253,18 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($displayTotal, 2); ?></td>
                     </tr>
+                    <?php if ($tcCuotasSel > 0 && $totalConTarjeta !== null && $totalConTarjeta > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">
+                            <?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_CARGO_ROW', $tcCuotasSel, number_format($tcTasa, 2)); ?>
+                        </td>
+                        <td class="text-end">Q <?php echo number_format($tcMonto, 2); ?></td>
+                    </tr>
+                    <tr class="table-primary fw-bold">
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_CON_TARJETA'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($totalConTarjeta, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
                     <?php if ($comisionMargenAdicionalAmount > 0) : ?>
                     <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                     <tr class="comision-margen-adicional-row">

@@ -740,6 +740,50 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Save tarjeta de crédito plazo (cuotas) for pre-cotización; recalculates cargo and total con tarjeta.
+     *
+     * @return  bool
+     * @since   3.101.0
+     */
+    public function saveTarjetaCredito()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+        $id = (int) $this->input->post->getInt('id', 0);
+        $cuotas = $this->input->post->getInt('tarjeta_cuotas', 0);
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+        $model = $this->getModel('Precotizacion', 'Site');
+        $cuotasVal = $cuotas > 0 ? $cuotas : null;
+        if (!$model->saveTarjetaCreditoCuotas($id, $cuotasVal)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_SAVE_ERROR'), 'notice');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_SAVED'));
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+        return true;
+    }
+
+    /**
      * If this pre-cotización is associated with a quotation, set error message, redirect (or JSON), and return true.
      * Caller should return false when this returns true.
      *

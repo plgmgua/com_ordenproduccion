@@ -249,6 +249,22 @@ class HtmlView extends BaseHtmlView
     protected $ofertasUsersList = [];
 
     /**
+     * Tarjeta de crédito rates (section=tarjeta_credito)
+     *
+     * @var    \stdClass[]
+     * @since  3.101.0
+     */
+    protected $tarjetaCreditoRates = [];
+
+    /**
+     * Whether tarjeta de crédito table exists
+     *
+     * @var    bool
+     * @since  3.101.0
+     */
+    protected $tarjetaCreditoTableExists = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -267,11 +283,22 @@ class HtmlView extends BaseHtmlView
 
         $input = $app->input;
         $this->section = $input->get('section', 'pliegos', 'cmd');
-        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios', 'ofertas', 'ajustes'], true)) {
+        if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios', 'ofertas', 'ajustes', 'tarjeta_credito'], true)) {
             $this->section = 'pliegos';
         }
         $defaultTab = ($this->section === 'ajustes') ? 'cotizaciones' : 'sizes';
         $this->activeTab = $input->get('tab', $defaultTab, 'cmd');
+
+        if ($this->section === 'tarjeta_credito') {
+            $this->setLayout('tarjeta_credito');
+            $model = $this->getModel('Productos');
+            $this->tarjetaCreditoTableExists = $model->tarjetaCreditoTableExists();
+            $this->tarjetaCreditoRates = $this->tarjetaCreditoTableExists ? $model->getTarjetaCreditoRates() : [];
+            $this->_prepareDocument();
+            parent::display($tpl);
+
+            return;
+        }
 
         if ($this->section === 'envios') {
             $this->setLayout('envios');

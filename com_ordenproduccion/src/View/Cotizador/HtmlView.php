@@ -30,6 +30,22 @@ use Joomla\CMS\Router\Route;
 class HtmlView extends BaseHtmlView
 {
     /**
+     * Tarjeta de crédito rates for pre-cotización dropdown (document layout).
+     *
+     * @var    \stdClass[]
+     * @since  3.101.0
+     */
+    protected $tarjetaCreditoRates = [];
+
+    /**
+     * Whether tarjeta de crédito table is installed.
+     *
+     * @var    bool
+     * @since  3.101.0
+     */
+    protected $tarjetaCreditoTableExists = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -101,6 +117,8 @@ class HtmlView extends BaseHtmlView
                 $this->lines = [];
                 $this->elementos = [];
                 $this->envios = [];
+                $this->tarjetaCreditoTableExists = $productosModel->tarjetaCreditoTableExists();
+                $this->tarjetaCreditoRates = $this->tarjetaCreditoTableExists ? $productosModel->getTarjetaCreditoRates() : [];
             } else {
                 $this->lines = $precotModel->getLines($id);
                 $this->elementos = [];
@@ -111,6 +129,8 @@ class HtmlView extends BaseHtmlView
                 if ($productosModel->enviosTableExists()) {
                     $this->envios = $productosModel->getEnvios();
                 }
+                $this->tarjetaCreditoTableExists = $productosModel->tarjetaCreditoTableExists();
+                $this->tarjetaCreditoRates = $this->tarjetaCreditoTableExists ? $productosModel->getTarjetaCreditoRates() : [];
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
                     $this->precotizacionLocked = !empty($this->associatedQuotations);
