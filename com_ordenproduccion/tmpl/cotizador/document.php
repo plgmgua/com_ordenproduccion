@@ -184,8 +184,9 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
 
     <?php if ($precotizacionLocked) :
         $msgLocked = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY');
-        if (strpos($msgLocked, 'COM_ORDENPRODUCCION_') === 0) {
-            $msgLocked = 'This pre-quote is linked to a quotation and cannot be modified.';
+        if ($msgLocked === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY'
+            || (is_string($msgLocked) && strpos($msgLocked, 'COM_ORDENPRODUCCION_') === 0)) {
+            $msgLocked = 'Esta pre-cotización ya forma parte de una cotización formal, por eso no se puede editar aquí. Si necesita cambios, cree una nueva pre-cotización o revise la cotización vinculada.';
         }
     ?>
     <div class="alert alert-info mb-3"><?php echo htmlspecialchars($msgLocked); ?></div>

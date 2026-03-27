@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.6-STABLE] - 2026-03-27
+
+### Changed
+- **Pre-cotización (mensajes):** Textos en español más claros y cercanos (bloqueo por cotización vinculada, listado, confirmaciones y errores). El aviso de bloqueo en plantilla y controlador ya no usa un texto de respaldo en inglés si falta la traducción. Al intentar eliminar una pre-cotización bloqueada se muestra el mensaje de “no eliminar” en lugar del de “no modificar”.
+
 ## [3.101.5-STABLE] - 2026-03-24
 
 ### Fixed
