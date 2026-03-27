@@ -38,17 +38,25 @@ $clientesDiasCreditoBuckets = $this->clientesDiasCreditoBuckets ?? ['0_15' => $e
 $clientesDiasCreditoByClient = $this->clientesDiasCreditoByClient ?? [];
 $clientesDiasCreditoByAgent = $this->clientesDiasCreditoByAgent ?? [];
 
-function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit) {
-    $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
-    if ($clientesHideZero) $params['filter_clientes_hide_zero'] = 1;
-    if ($clientesSalesAgent !== '') $params['filter_clientes_sales_agent'] = $clientesSalesAgent;
-    if ($clientesClientName !== '') $params['filter_clientes_client'] = $clientesClientName;
-    if ($clientesNit !== '') $params['filter_clientes_nit'] = $clientesNit;
+function clientesBaseParams($clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, $subtab = 'estado_cuenta') {
+    $params = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes', 'subtab' => $subtab, 'filter_clientes_ordering' => $clientesOrdering, 'filter_clientes_direction' => $clientesDirection, 'clientes_limit' => $clientesLimit];
+    if ($clientesHideZero) {
+        $params['filter_clientes_hide_zero'] = 1;
+    }
+    if ($clientesSalesAgent !== '') {
+        $params['filter_clientes_sales_agent'] = $clientesSalesAgent;
+    }
+    if ($clientesClientName !== '') {
+        $params['filter_clientes_client'] = $clientesClientName;
+    }
+    if ($clientesNit !== '') {
+        $params['filter_clientes_nit'] = $clientesNit;
+    }
     return $params;
 }
-function clientesSortUrl($col, $currentOrdering, $currentDirection, $currentHideZero, $clientesSalesAgent = '', $clientesClientName = '', $clientesNit = '', $clientesLimit = 20) {
+function clientesSortUrl($col, $currentOrdering, $currentDirection, $currentHideZero, $clientesSalesAgent = '', $clientesClientName = '', $clientesNit = '', $clientesLimit = 20, $subtab = 'estado_cuenta') {
     $dir = ($col === $currentOrdering && $currentDirection === 'asc') ? 'desc' : 'asc';
-    $params = clientesBaseParams($col, $dir, $currentHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit);
+    $params = clientesBaseParams($col, $dir, $currentHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, $subtab);
     return \Joomla\CMS\Router\Route::_('index.php?' . http_build_query($params));
 }
 
@@ -99,6 +107,15 @@ function safeEscape($value, $default = '')
     background: #f8f9fa;
     font-weight: 600;
     color: #495057;
+}
+
+.clientes-table th a.clientes-sort-link {
+    color: #0d6efd;
+    cursor: pointer;
+}
+.clientes-table th a.clientes-sort-link:hover {
+    color: #0a58ca;
+    text-decoration: underline !important;
 }
 
 .clientes-table tbody tr:hover {
@@ -439,9 +456,9 @@ function safeEscape($value, $default = '')
                     <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_BTN'); ?>
                 </button>
                 <?php
-                $baseParams = clientesBaseParams($clientesOrdering, $clientesDirection, false, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit);
+                $baseParams = clientesBaseParams($clientesOrdering, $clientesDirection, false, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, 'estado_cuenta');
                 $hideZeroUrl = Route::_('index.php?' . http_build_query($baseParams + ['filter_clientes_hide_zero' => 1]));
-                $showAllParams = clientesBaseParams($clientesOrdering, $clientesDirection, false, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit);
+                $showAllParams = clientesBaseParams($clientesOrdering, $clientesDirection, false, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, 'estado_cuenta');
                 $showAllUrl = Route::_('index.php?' . http_build_query($showAllParams));
                 ?>
                 <a href="<?php echo $clientesHideZero ? $showAllUrl : $hideZeroUrl; ?>"
@@ -485,11 +502,11 @@ function safeEscape($value, $default = '')
                             <?php if ($canMerge) : ?>
                             <th class="col-select"><input type="checkbox" id="select-all-clients" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_SELECT_ALL'); ?>"></th>
                             <?php endif; ?>
-                            <th class="col-client-name"><a href="<?php echo clientesSortUrl('name', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'name' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?><?php if ($clientesOrdering === 'name') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
-                            <th class="col-compras"><a href="<?php echo clientesSortUrl('compras', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'compras' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_COMPRAS'); ?><?php if ($clientesOrdering === 'compras') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
+                            <th class="col-client-name"><a href="<?php echo clientesSortUrl('name', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, 'estado_cuenta'); ?>" class="clientes-sort-link text-decoration-none<?php echo $clientesOrdering === 'name' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_SORT_BY_NAME')); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_CLIENT_NAME'); ?><?php if ($clientesOrdering === 'name') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?></a></th>
+                            <th class="col-compras"><a href="<?php echo clientesSortUrl('compras', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, 'estado_cuenta'); ?>" class="clientes-sort-link text-decoration-none<?php echo $clientesOrdering === 'compras' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_SORT_BY_COMPRAS')); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_COMPRAS'); ?><?php if ($clientesOrdering === 'compras') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?></a></th>
                             <th class="col-registrado"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_REGISTRADO'); ?></th>
                             <th class="col-verificado"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_VERIFICADO'); ?></th>
-                            <th class="col-saldo"><a href="<?php echo clientesSortUrl('saldo', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit); ?>" class="text-decoration-none<?php echo $clientesOrdering === 'saldo' ? ' fw-bold' : ''; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_SALDO'); ?><?php if ($clientesOrdering === 'saldo') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1"></i><?php endif; ?></a></th>
+                            <th class="col-saldo"><a href="<?php echo clientesSortUrl('saldo', $clientesOrdering, $clientesDirection, $clientesHideZero, $clientesSalesAgent, $clientesClientName, $clientesNit, $clientesLimit, 'estado_cuenta'); ?>" class="clientes-sort-link text-decoration-none<?php echo $clientesOrdering === 'saldo' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_SORT_BY_SALDO')); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_COL_SALDO'); ?><?php if ($clientesOrdering === 'saldo') : ?><i class="fas fa-sort-<?php echo $clientesDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?></a></th>
                         </tr>
                     </thead>
                     <tbody>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.7-STABLE] - 2026-03-27
+
+### Changed
+- **Control de ventas → Estado de cuenta:** Ordenación por **Saldo** alineada con el importe mostrado en columna (Q.); enlaces de ordenación incluyen `subtab=estado_cuenta`, `clientes_limit` en paginación y cabeceras con estilo de enlace + icono neutro cuando la columna no está activa. Validación de `filter_clientes_ordering` (name, compras, saldo). La lista de clientes solo se carga en la subpestaña Estado de cuenta.
+
 ## [3.101.6-STABLE] - 2026-03-27
 
 ### Changed

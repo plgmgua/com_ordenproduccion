@@ -560,7 +560,7 @@ class AdministracionModel extends BaseDatabaseModel
      * Get clients with totals (and optional filters / pagination).
      * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
      *
-     * @param   string   $ordering         Sort column: name, compras, saldo
+     * @param   string   $ordering         Sort column: name, compras, saldo (saldo uses the displayed amount, i.e. negated balance)
      * @param   string   $direction        Sort direction: asc, desc
      * @param   boolean  $hideZeroSaldo    Hide clients with Saldo = 0
      * @param   string|null  $salesAgent   Optional sales agent filter
@@ -608,8 +608,9 @@ class AdministracionModel extends BaseDatabaseModel
                 return $dir * ($va <=> $vb);
             }
             if ($o === 'saldo') {
-                $va = (float) ($a->saldo ?? 0);
-                $vb = (float) ($b->saldo ?? 0);
+                // Match the column display (template uses -saldo for Q. amounts)
+                $va = (float) -($a->saldo ?? 0);
+                $vb = (float) -($b->saldo ?? 0);
                 return $dir * ($va <=> $vb);
             }
             $na = trim($a->client_name ?? '') . '|' . trim($a->nit ?? '');
