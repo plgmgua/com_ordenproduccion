@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.5-STABLE] - 2026-03-24
+
+### Fixed
+- **Fecha de cotización (lista, vista, formulario y PDF):** `quote_date` es una fecha de calendario en BD (`DATE`). Mostrarla con `HTMLHelper::_('date', …)` aplicaba conversión UTC→zona del sitio y podía mostrar **un día menos** que el valor guardado (p. ej. `2026-03-27` → “26” en pantalla). Se añade `CotizacionHelper::formatQuoteDateYmd()` para usar el `Y-m-d` literal cuando el valor empieza con ese patrón; lista, detalle, campo de edición y PDF usan el mismo criterio, alineado con el día real guardado.
+
 ## [3.101.4-STABLE] - 2026-03-26
 
 ### Fixed

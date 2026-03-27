@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
@@ -116,7 +117,7 @@ $currency = $quotation->currency ?? 'Q';
                 <tr>
                     <td><?php echo htmlspecialchars($quotation->contact_name ?? ''); ?></td>
                     <td><?php echo htmlspecialchars($quotation->contact_phone ?? ''); ?></td>
-                    <td><?php echo $quotation->quote_date ? HTMLHelper::_('date', $quotation->quote_date, 'Y-m-d') : '—'; ?></td>
+                    <td><?php echo $quotation->quote_date ? htmlspecialchars(CotizacionHelper::formatQuoteDateYmd($quotation->quote_date)) : '—'; ?></td>
                 </tr>
             </tbody>
         </table>

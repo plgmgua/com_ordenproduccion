@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
@@ -91,7 +92,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                         </td>
                         <td><?php echo htmlspecialchars($quotation->client_name); ?></td>
                         <td><?php echo htmlspecialchars($quotation->client_nit); ?></td>
-                        <td><?php echo HTMLHelper::_('date', $quotation->quote_date, 'Y-m-d'); ?></td>
+                        <td><?php echo htmlspecialchars(CotizacionHelper::formatQuoteDateYmd($quotation->quote_date ?? '')); ?></td>
                         <td class="amount">
                             <?php echo $quotation->currency . ' ' . number_format($quotation->total_amount, 2); ?>
                         </td>

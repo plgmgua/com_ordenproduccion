@@ -9,8 +9,8 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\Factory;
@@ -166,7 +166,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                             <input type="date" 
                                    id="quote_date" 
                                    name="quote_date" 
-                                   value="<?php echo $isEdit && !empty($this->quotation->quote_date) ? htmlspecialchars($this->quotation->quote_date) : $today; ?>" 
+                                   value="<?php echo $isEdit && !empty($this->quotation->quote_date) ? htmlspecialchars(CotizacionHelper::formatQuoteDateYmd($this->quotation->quote_date)) : $today; ?>" 
                                    required>
                         </td>
                     </tr>

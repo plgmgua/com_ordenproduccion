@@ -13,8 +13,8 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\File;
-use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -237,26 +237,23 @@ class CotizacionController extends BaseController
 
         $numeroCotizacion = $quotation->quotation_number ?? ('COT-' . $quotationId);
         $salesAgentName = trim((string) ($quotation->sales_agent ?? ''));
-        // Same calendar day as list/detail (HTMLHelper::date applies site TZ to SQL DATE / UTC).
-        // Raw strtotime($quote_date) used local midnight and could be one day ahead of the UI.
+        // Calendar date (same as list/detail): SQL DATE must not be shifted by HTMLHelper UTC→TZ.
         $fechaFormatted = '';
-        if (!empty($quotation->quote_date)) {
-            $dateYmd = HTMLHelper::_('date', $quotation->quote_date, 'Y-m-d');
-            if ($dateYmd !== '') {
-                $parts = explode('-', $dateYmd);
-                if (count($parts) === 3) {
-                    $y = (int) $parts[0];
-                    $m = (int) $parts[1];
-                    $d = (int) $parts[2];
-                    $meses = [
-                        1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo',
-                        4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
-                        7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre',
-                        10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
-                    ];
-                    if (isset($meses[$m]) && $y > 0 && $d > 0) {
-                        $fechaFormatted = $d . ' de ' . $meses[$m] . ' de ' . $y;
-                    }
+        $dateYmd = CotizacionHelper::formatQuoteDateYmd($quotation->quote_date ?? '');
+        if ($dateYmd !== '') {
+            $parts = explode('-', $dateYmd);
+            if (count($parts) === 3) {
+                $y = (int) $parts[0];
+                $m = (int) $parts[1];
+                $d = (int) $parts[2];
+                $meses = [
+                    1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo',
+                    4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+                    7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre',
+                    10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+                ];
+                if (isset($meses[$m]) && $y > 0 && $d > 0) {
+                    $fechaFormatted = $d . ' de ' . $meses[$m] . ' de ' . $y;
                 }
             }
         }
