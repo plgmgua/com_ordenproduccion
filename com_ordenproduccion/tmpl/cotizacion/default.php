@@ -198,8 +198,12 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                             if (mb_strlen($label) > 120) {
                                 $label = mb_substr($label, 0, 117) . '...';
                             }
+                            $tcAttr = '';
+                            if (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== '') {
+                                $tcAttr = ' data-total-con-tarjeta="' . htmlspecialchars(number_format((float) $pre->total_con_tarjeta, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
+                            }
                         ?>
-                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>">
+                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
@@ -246,13 +250,22 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
                         if ($qty < 1) $qty = 1;
                         $preTotal = isset($item->pre_cotizacion_total) ? (float) $item->pre_cotizacion_total : null;
+                        $preTc = (isset($item->pre_cotizacion_total_con_tarjeta) && $item->pre_cotizacion_total_con_tarjeta !== null && $item->pre_cotizacion_total_con_tarjeta !== '')
+                            ? (float) $item->pre_cotizacion_total_con_tarjeta
+                            : null;
                         $subtotalRef = ($preId > 0 && $preTotal !== null) ? $preTotal : (isset($item->subtotal) ? (float) $item->subtotal : 0);
-                        $valorFinal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : $subtotalRef;
+                        $minValor = ($preId > 0 && $preTc !== null) ? $preTc : $subtotalRef;
+                        $storedVf = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : null;
+                        if ($storedVf === null) {
+                            $valorFinal = $minValor;
+                        } else {
+                            $valorFinal = ($storedVf < $minValor - 0.005) ? $minValor : $storedVf;
+                        }
                         $lineTotal = $valorFinal;
                         $unitPriceDisplay = $qty > 0 ? ($lineTotal / $qty) : 0;
                         $desc = isset($item->descripcion) ? $item->descripcion : '';
                     ?>
-                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>">
+                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
@@ -261,7 +274,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <td class="text-end align-middle">Q
                             <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>">
                             <div class="d-inline-block ms-1">
-                                <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" data-min="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" placeholder="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
+                                <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" data-min="<?php echo number_format($minValor, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValor, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
                                 <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
                             </div>
                         </td>
@@ -347,6 +360,17 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function rowMinValor(row) {
+        var m = row.getAttribute('data-min-valor');
+        if (m !== null && m !== '') {
+            var mv = parseFloat(String(m).trim().replace(',', '.'), 10);
+            if (!isNaN(mv)) {
+                return mv;
+            }
+        }
+        return parseFloat(row.getAttribute('data-subtotal-ref') || row.getAttribute('data-unit') || 0, 10) || 0;
+    }
+
     function updateTotal() {
         var total = 0;
         tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
@@ -377,7 +401,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     function onValorFinalChange(row) {
         var valueInp = row.querySelector('input[name*="[value]"]');
         var errEl = row.querySelector('.line-valor-final-error');
-        var minVal = parseFloat(row.getAttribute('data-subtotal-ref') || row.getAttribute('data-unit') || 0, 10);
+        var minVal = rowMinValor(row);
         if (!valueInp || minVal < 0) return;
         var raw = String(valueInp.value).trim().replace(',', '.');
         var v = parseFloat(raw, 10);
@@ -400,7 +424,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     function onValorFinalBlur(row) {
         var valueInp = row.querySelector('input[name*="[value]"]');
         var errEl = row.querySelector('.line-valor-final-error');
-        var minVal = parseFloat(row.getAttribute('data-subtotal-ref') || row.getAttribute('data-unit') || 0, 10);
+        var minVal = rowMinValor(row);
         if (!valueInp || minVal < 0) return;
         var raw = String(valueInp.value).trim().replace(',', '.');
         var v = parseFloat(raw, 10);
@@ -467,23 +491,26 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 return;
             }
             var preId = opt.value;
-            var unitTotal = parseFloat(opt.getAttribute('data-total') || '0');
+            var baseTotal = parseFloat(opt.getAttribute('data-total') || '0');
+            var tcRaw = opt.getAttribute('data-total-con-tarjeta');
+            var minValorLine = (tcRaw !== null && tcRaw !== '' && !isNaN(parseFloat(tcRaw))) ? parseFloat(tcRaw) : baseTotal;
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
-            var value = unitTotal.toFixed(2);
+            var value = minValorLine.toFixed(2);
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
             tr.setAttribute('data-pre-id', preId);
-            tr.setAttribute('data-unit', unitTotal);
-            var unitPrice = (qty > 0 && unitTotal > 0) ? (unitTotal / qty).toFixed(4) : '0.0000';
+            tr.setAttribute('data-unit', String(baseTotal));
+            tr.setAttribute('data-subtotal-ref', String(baseTotal));
+            tr.setAttribute('data-min-valor', String(minValorLine));
+            var unitPrice = (qty > 0 && minValorLine > 0) ? (minValorLine / qty).toFixed(4) : '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
-            tr.setAttribute('data-subtotal-ref', String(unitTotal));
             tr.innerHTML = '<td>' + firstCell + '</td>' +
                 '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
-                '<td class="text-end">Q <span class="line-subtotal-ref">' + parseFloat(value).toFixed(2) + '</span></td>' +
-                '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + unitTotal + '" placeholder="' + unitTotal + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
+                '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
+                '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)"><i class="fas fa-save"></i></button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);
             var qtyInput = tr.querySelector('.line-cantidad-input');

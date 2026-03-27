@@ -284,6 +284,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['total'])) {
             $cols[] = 'a.total AS total_snapshot';
         }
+        if (isset($tableCols['total_con_tarjeta'])) {
+            $cols[] = 'a.total_con_tarjeta AS total_con_tarjeta_snapshot';
+        }
         $query = $db->getQuery(true)
             ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
@@ -297,12 +300,18 @@ class PrecotizacionModel extends ListModel
             $total = isset($row->total_snapshot) && $row->total_snapshot !== null && $row->total_snapshot !== ''
                 ? round((float) $row->total_snapshot, 2)
                 : $this->getTotalForPreCotizacion((int) $row->id);
+            $totalConTarjeta = null;
+            if (isset($row->total_con_tarjeta_snapshot) && $row->total_con_tarjeta_snapshot !== null && $row->total_con_tarjeta_snapshot !== '') {
+                $tc = round((float) $row->total_con_tarjeta_snapshot, 2);
+                $totalConTarjeta = $tc > 0 ? $tc : null;
+            }
             $list[] = (object) [
-                'id'          => (int) $row->id,
-                'number'      => $row->number ?? ('PRE-' . $row->id),
-                'total'       => $total,
-                'descripcion' => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
-                'oferta'      => !empty($row->oferta),
+                'id'                  => (int) $row->id,
+                'number'              => $row->number ?? ('PRE-' . $row->id),
+                'total'               => $total,
+                'total_con_tarjeta'   => $totalConTarjeta,
+                'descripcion'         => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
+                'oferta'              => !empty($row->oferta),
             ];
         }
         return $list;
@@ -342,6 +351,43 @@ class PrecotizacionModel extends ListModel
             $total = $subtotal + $subtotal * ($margen + $comision) / 100;
         }
         return round($total, 2);
+    }
+
+    /**
+     * Stored total including credit card charge when a plazo is selected; null if no TC or not persisted.
+     *
+     * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
+     *
+     * @return  float|null  Rounded amount or null.
+     *
+     * @since   3.101.1
+     */
+    public function getTotalConTarjetaForPreCotizacion($preCotizacionId)
+    {
+        $item = $this->getItem((int) $preCotizacionId);
+        if (!$item || !isset($item->total_con_tarjeta) || $item->total_con_tarjeta === null || $item->total_con_tarjeta === '') {
+            return null;
+        }
+        $v = round((float) $item->total_con_tarjeta, 2);
+
+        return $v > 0 ? $v : null;
+    }
+
+    /**
+     * Minimum allowed "valor final" for a cotizaci?n line tied to this pre-cotizaci?n:
+     * total with card when TC applies, otherwise base {@see getTotalForPreCotizacion}.
+     *
+     * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
+     *
+     * @return  float
+     *
+     * @since   3.101.1
+     */
+    public function getMinimumValorFinalForPreCotizacion($preCotizacionId)
+    {
+        $tc = $this->getTotalConTarjetaForPreCotizacion((int) $preCotizacionId);
+
+        return $tc !== null ? $tc : $this->getTotalForPreCotizacion((int) $preCotizacionId);
     }
 
     /**

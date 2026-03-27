@@ -369,7 +369,8 @@ class AjaxController extends BaseController
                     }
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
-                        $minTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
+                        $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
+                        $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
                         if ($value < $minTotal) {
                             $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                             echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
@@ -384,7 +385,7 @@ class AjaxController extends BaseController
                             'subtotal' => $value,
                             'valor_final' => $value,
                             'pre_cotizacion_id' => $preId,
-                            'pre_cotizacion_total' => $minTotal,
+                            'pre_cotizacion_total' => $baseTotal,
                         ];
                         $totalAmount += $value;
                     }
@@ -596,9 +597,10 @@ class AjaxController extends BaseController
             if ($cantidad < 0.001) $cantidad = 1;
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
-                $minTotal = null;
+                $baseTotal = null;
                 if ($preId > 0 && $precotModel) {
-                    $minTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
+                    $baseTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
+                    $minTotal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId);
                     if ($value < $minTotal) {
                         $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                         echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
@@ -614,7 +616,7 @@ class AjaxController extends BaseController
                     'subtotal' => $value,
                     'valor_final' => $value,
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
-                    'pre_cotizacion_total' => $minTotal,
+                    'pre_cotizacion_total' => $baseTotal,
                 ];
                 $totalAmount += $value;
             }

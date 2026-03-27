@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.1-STABLE] - 2026-03-24
+
+### Fixed
+- **Cotización (editar):** When a pre-cotización has **total con tarjeta de crédito** stored (`total_con_tarjeta`), the line **Valor final** and footer **Total** use that amount (not only the base `total`). The **Subtotal** column still shows the pre-cotización base total. New lines from the dropdown pick up `data-total-con-tarjeta` when present. Server validation uses the same minimum as the UI; **margen adicional** on the pre-cotización still compares against the base total.
+
 ## [3.101.0-STABLE] - 2026-03-24
 
 ### Added

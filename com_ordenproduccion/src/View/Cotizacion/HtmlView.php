@@ -163,8 +163,10 @@ class HtmlView extends BaseHtmlView
                         }
                         if ($preId > 0 && $precotModel) {
                             $item->pre_cotizacion_total = $precotModel->getTotalForPreCotizacion($preId);
+                            $item->pre_cotizacion_total_con_tarjeta = $precotModel->getTotalConTarjetaForPreCotizacion($preId);
                         } else {
                             $item->pre_cotizacion_total = null;
+                            $item->pre_cotizacion_total_con_tarjeta = null;
                         }
                     }
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
@@ -277,10 +279,11 @@ class HtmlView extends BaseHtmlView
                         continue;
                     }
                     $list[] = (object) [
-                        'id'          => (int) $item->id,
-                        'number'      => $item->number ?? ('PRE-' . $item->id),
-                        'total'       => $item->total,
-                        'descripcion' => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
+                        'id'                  => (int) $item->id,
+                        'number'              => $item->number ?? ('PRE-' . $item->id),
+                        'total'               => $item->total,
+                        'total_con_tarjeta'   => isset($item->total_con_tarjeta) ? $item->total_con_tarjeta : null,
+                        'descripcion'         => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
                     ];
                 }
                 $this->preCotizacionesList = $list;
