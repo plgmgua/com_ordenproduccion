@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Paymentproof\HtmlView $this */
@@ -372,11 +373,20 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-history"></i>
                             <?php echo htmlspecialchars($this->labelExistingPayments ?? 'Pagos Existentes para Esta Orden'); ?>
                         </h5>
+                        <?php if (!empty($this->mismatchTicketHeaderProofId)) : ?>
+                            <button type="button"
+                                    class="btn btn-sm btn-primary py-1 px-2 btn-mismatch-ticket flex-shrink-0"
+                                    data-proof-id="<?php echo (int) $this->mismatchTicketHeaderProofId; ?>"
+                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>"
+                                    aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>">
+                                <i class="fas fa-comments" aria-hidden="true"></i>
+                            </button>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <p class="small text-muted mb-2"><?php echo htmlspecialchars($this->labelPaymentProofNoEdit ?? 'Los comprobantes guardados no se pueden modificar, solo eliminar (desde Control de Pagos).'); ?></p>
@@ -835,6 +845,230 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
             }
         })();
         </script>
+        <?php if (!empty($this->mismatchTicketHeaderProofId)) :
+            $mismatchTicketJsonUrl   = Route::_('index.php?option=com_ordenproduccion&task=payments.getMismatchTicket&format=json', false);
+            $mismatchCommentPostUrl  = Route::_('index.php?option=com_ordenproduccion&task=payments.addMismatchTicketComment', false);
+            $mismatchStatusPostUrl   = Route::_('index.php?option=com_ordenproduccion&task=payments.setMismatchTicketStatus', false);
+            $mismatchTicketFormToken = Session::getFormToken();
+            ?>
+        <div class="modal fade" id="mismatchTicketModal" tabindex="-1" aria-labelledby="mismatchTicketModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content mismatch-ticket-modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title small" id="mismatchTicketModalLabel"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_TITLE')); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+                    </div>
+                    <div class="modal-body py-2 mismatch-ticket-modal-body">
+                        <div id="mismatchTicketLoading" class="text-center py-3 small text-muted"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_LOADING')); ?></div>
+                        <div id="mismatchTicketBody" class="d-none">
+                            <p class="small mb-1"><strong><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS')); ?></strong></p>
+                            <select id="mismatchTicketStatusSelect" class="form-select form-select-sm mb-2" disabled></select>
+                            <p id="mismatchTicketStatusHint" class="small text-warning mb-2 d-none"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS_DISABLED')); ?></p>
+                            <p id="mismatchTicketStatusHintAdmin" class="small text-muted mb-2 d-none"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS_ADMIN_ONLY')); ?></p>
+                            <div class="small border rounded p-2 mb-2 bg-light">
+                                <div class="mb-1"><strong><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_INITIAL')); ?></strong> <span id="mismatchTicketCreator" class="text-muted"></span></div>
+                                <div id="mismatchTicketInitialNote" class="mb-0 text-break"></div>
+                                <div id="mismatchTicketDiffRow" class="mt-1 text-muted"></div>
+                            </div>
+                            <p class="small mb-1"><strong><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_THREAD')); ?></strong></p>
+                            <p id="mismatchTicketCommentsDisabled" class="small text-warning d-none mb-2"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_COMMENTS_DISABLED')); ?></p>
+                            <div id="mismatchTicketComments" class="mb-2 mismatch-ticket-comments"></div>
+                            <label for="mismatchTicketNewComment" class="form-label small mb-0"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_NEW_COMMENT')); ?></label>
+                            <textarea id="mismatchTicketNewComment" class="form-control form-control-sm mb-1" rows="2" maxlength="8000" disabled></textarea>
+                            <button type="button" class="btn btn-primary btn-sm" id="mismatchTicketBtnSendComment" disabled><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_SEND')); ?></button>
+                        </div>
+                        <div id="mismatchTicketError" class="alert alert-danger small py-2 mb-0 d-none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <style>
+        .mismatch-ticket-modal-content { font-size: 0.8rem; }
+        .mismatch-ticket-modal-body .form-select,
+        .mismatch-ticket-modal-body .form-control { font-size: 0.8rem; }
+        .mismatch-ticket-comments { max-height: 220px; overflow-y: auto; font-size: 0.78rem; }
+        .mismatch-ticket-comment-item {
+            border-left: 2px solid #dee2e6;
+            padding-left: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .mismatch-ticket-comment-meta { color: #6c757d; font-size: 0.72rem; }
+        </style>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var mismatchModalEl = document.getElementById('mismatchTicketModal');
+            var mismatchTicketJsonUrl = <?php echo json_encode($mismatchTicketJsonUrl); ?>;
+            var mismatchCommentPostUrl = <?php echo json_encode($mismatchCommentPostUrl); ?>;
+            var mismatchStatusPostUrl = <?php echo json_encode($mismatchStatusPostUrl); ?>;
+            var mismatchFormToken = <?php echo json_encode($mismatchTicketFormToken); ?>;
+            var currentMismatchProofId = 0;
+            var skipMismatchStatusChange = false;
+
+            function escapeMismatchHtml(s) {
+                if (!s) { return ''; }
+                var d = document.createElement('div');
+                d.textContent = s;
+                return d.innerHTML;
+            }
+
+            function updateMismatchStatusCells(proofId, label) {
+                document.querySelectorAll('.mismatch-ticket-status-cell[data-proof-id="' + proofId + '"]').forEach(function(td) {
+                    td.textContent = label;
+                });
+            }
+
+            function renderMismatchComments(comments) {
+                var box = document.getElementById('mismatchTicketComments');
+                box.innerHTML = '';
+                if (!comments || comments.length === 0) {
+                    var p = document.createElement('p');
+                    p.className = 'text-muted mb-0';
+                    p.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_NO_COMMENTS')); ?>;
+                    box.appendChild(p);
+                    return;
+                }
+                comments.forEach(function(c) {
+                    var div = document.createElement('div');
+                    div.className = 'mismatch-ticket-comment-item';
+                    var meta = document.createElement('div');
+                    meta.className = 'mismatch-ticket-comment-meta';
+                    meta.textContent = (c.user_name || '') + ' · ' + (c.created ? new Date(c.created).toLocaleString() : '');
+                    var body = document.createElement('div');
+                    body.className = 'text-break';
+                    body.innerHTML = escapeMismatchHtml(c.body || '').replace(/\n/g, '<br>');
+                    div.appendChild(meta);
+                    div.appendChild(body);
+                    box.appendChild(div);
+                });
+            }
+
+            function loadMismatchTicket(proofId) {
+                if (!mismatchModalEl) { return; }
+                currentMismatchProofId = proofId;
+                document.getElementById('mismatchTicketLoading').classList.remove('d-none');
+                document.getElementById('mismatchTicketBody').classList.add('d-none');
+                document.getElementById('mismatchTicketError').classList.add('d-none');
+                var url = mismatchTicketJsonUrl + (mismatchTicketJsonUrl.indexOf('?') >= 0 ? '&' : '?') +
+                    'proof_id=' + encodeURIComponent(proofId) + '&' + encodeURIComponent(mismatchFormToken) + '=1';
+                fetch(url, { headers: { 'Accept': 'application/json' } }).then(function(r) { return r.json(); }).then(function(d) {
+                    document.getElementById('mismatchTicketLoading').classList.add('d-none');
+                    if (d.error) {
+                        var er = document.getElementById('mismatchTicketError');
+                        er.textContent = d.message || 'Error';
+                        er.classList.remove('d-none');
+                        return;
+                    }
+                    document.getElementById('mismatchTicketBody').classList.remove('d-none');
+                    document.getElementById('mismatchTicketModalLabel').textContent =
+                        <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_TITLE')); ?> + ' — ' + (d.payment_label || '');
+
+                    var sel = document.getElementById('mismatchTicketStatusSelect');
+                    sel.innerHTML = '';
+                    (d.status_options || []).forEach(function(opt) {
+                        var o = document.createElement('option');
+                        o.value = opt.value;
+                        o.textContent = opt.label;
+                        sel.appendChild(o);
+                    });
+                    skipMismatchStatusChange = true;
+                    sel.value = d.status || 'nuevo';
+                    setTimeout(function() { skipMismatchStatusChange = false; }, 0);
+                    var canSt = !!d.can_change_status;
+                    sel.disabled = !d.status_enabled || !canSt;
+                    document.getElementById('mismatchTicketStatusHint').classList.toggle('d-none', d.status_enabled);
+                    document.getElementById('mismatchTicketStatusHintAdmin').classList.toggle('d-none', !d.status_enabled || canSt);
+
+                    document.getElementById('mismatchTicketCreator').textContent = d.created_by_name ? '(' + d.created_by_name + ')' : '';
+                    var initN = document.getElementById('mismatchTicketInitialNote');
+                    initN.innerHTML = d.initial_note
+                        ? escapeMismatchHtml(d.initial_note).replace(/\n/g, '<br>')
+                        : '—';
+                    var diffRow = document.getElementById('mismatchTicketDiffRow');
+                    var diffPart = (d.difference !== '' && d.difference != null)
+                        ? (<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?> + ': ' + escapeMismatchHtml(String(d.difference)))
+                        : '';
+                    var amt = (typeof d.payment_amount === 'number')
+                        ? d.payment_amount.toLocaleString('es-GT', { minimumFractionDigits: 2 })
+                        : '';
+                    diffRow.innerHTML = [diffPart, amt ? (<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?> + ': ' + amt) : ''].filter(Boolean).join(' · ');
+
+                    document.getElementById('mismatchTicketCommentsDisabled').classList.toggle('d-none', d.comments_enabled);
+                    var ta = document.getElementById('mismatchTicketNewComment');
+                    var btnS = document.getElementById('mismatchTicketBtnSendComment');
+                    ta.disabled = !d.comments_enabled;
+                    btnS.disabled = !d.comments_enabled;
+                    ta.value = '';
+
+                    renderMismatchComments(d.comments);
+                }).catch(function() {
+                    document.getElementById('mismatchTicketLoading').classList.add('d-none');
+                    var er = document.getElementById('mismatchTicketError');
+                    er.textContent = 'Error de red';
+                    er.classList.remove('d-none');
+                });
+            }
+
+            document.querySelectorAll('.btn-mismatch-ticket').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var pid = this.getAttribute('data-proof-id');
+                    if (!pid || !mismatchModalEl) { return; }
+                    var mm = bootstrap.Modal.getInstance(mismatchModalEl);
+                    if (!mm) { mm = new bootstrap.Modal(mismatchModalEl); }
+                    mm.show();
+                    loadMismatchTicket(pid);
+                });
+            });
+
+            var statusSel = document.getElementById('mismatchTicketStatusSelect');
+            if (statusSel) {
+                statusSel.addEventListener('change', function() {
+                    if (skipMismatchStatusChange) { return; }
+                    if (!currentMismatchProofId) { return; }
+                    var fd = new FormData();
+                    fd.append(mismatchFormToken, '1');
+                    fd.append('proof_id', String(currentMismatchProofId));
+                    fd.append('status', this.value);
+                    fetch(mismatchStatusPostUrl, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r) { return r.json(); }).then(function(d) {
+                            if (d.error) {
+                                alert(d.message || 'Error');
+                                return;
+                            }
+                            updateMismatchStatusCells(currentMismatchProofId, d.status_label || '');
+                        }).catch(function() { alert('Error de red'); });
+                });
+            }
+
+            var btnSendMismatch = document.getElementById('mismatchTicketBtnSendComment');
+            if (btnSendMismatch) {
+                btnSendMismatch.addEventListener('click', function() {
+                    if (!currentMismatchProofId) { return; }
+                    var ta = document.getElementById('mismatchTicketNewComment');
+                    var body = (ta && ta.value) ? ta.value.trim() : '';
+                    if (!body) { return; }
+                    var fd = new FormData();
+                    fd.append(mismatchFormToken, '1');
+                    fd.append('proof_id', String(currentMismatchProofId));
+                    fd.append('body', body);
+                    btnSendMismatch.disabled = true;
+                    fetch(mismatchCommentPostUrl, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r) { return r.json(); }).then(function(d) {
+                            btnSendMismatch.disabled = false;
+                            if (d.error) {
+                                alert(d.message || 'Error');
+                                return;
+                            }
+                            ta.value = '';
+                            loadMismatchTicket(String(currentMismatchProofId));
+                        }).catch(function() {
+                            btnSendMismatch.disabled = false;
+                            alert('Error de red');
+                        });
+                });
+            }
+        });
+        </script>
+        <?php endif; ?>
         <?php endif; ?>
 
         <!-- Payment Proof Form -->

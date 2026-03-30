@@ -27,6 +27,16 @@ class HtmlView extends BaseHtmlView
     /** @var int|null When opening from Control de Pagos with proof_id in URL, scroll to this proof row */
     protected $highlightProofId;
 
+    /** @var bool Payment proofs have mismatch_note / mismatch_difference columns */
+    protected $hasMismatchTicketFeature = false;
+
+    /**
+     * When &proof_id= points to a proof with a non-empty mismatch note, open mismatch ticket modal from header.
+     *
+     * @var int
+     */
+    protected $mismatchTicketHeaderProofId = 0;
+
     public function display($tpl = null)
     {
         $app = Factory::getApplication();
@@ -109,6 +119,28 @@ class HtmlView extends BaseHtmlView
         }
         $this->existingPayments = $this->mergePaymentsByDocumentNumber($rawPayments);
         $this->highlightProofId = $requestedProofId > 0 ? $requestedProofId : null;
+
+        $this->hasMismatchTicketFeature = false;
+        $this->mismatchTicketHeaderProofId = 0;
+        try {
+            /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentsModel $payModel */
+            $payModel                          = $app->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Payments', 'Site', ['ignore_request' => true]);
+            $this->hasMismatchTicketFeature = $payModel->hasMismatchTrackingSchema();
+        } catch (\Throwable $e) {
+        }
+        $hid = (int) ($this->highlightProofId ?? 0);
+        if ($this->hasMismatchTicketFeature && $hid > 0) {
+            foreach ($rawPayments as $rp) {
+                if ((int) ($rp->id ?? 0) !== $hid) {
+                    continue;
+                }
+                if (trim((string) ($rp->mismatch_note ?? '')) !== '') {
+                    $this->mismatchTicketHeaderProofId = $hid;
+                }
+                break;
+            }
+        }
 
         // Get component params
         $this->params = $app->getParams('com_ordenproduccion');

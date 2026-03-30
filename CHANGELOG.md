@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.20-STABLE] - 2026-04-01
+
+### Added
+- **Registro de comprobante:** Si la URL incluye `proof_id` y ese comprobante tiene **nota de diferencia** (`mismatch_note`), en la barra «Pagos existentes para esta orden» aparece el icono de conversación (mismo caso/modal que en Control de Pagos → Notas de diferencia).
+
 ## [3.101.19-STABLE] - 2026-04-01
 
 ### Changed
