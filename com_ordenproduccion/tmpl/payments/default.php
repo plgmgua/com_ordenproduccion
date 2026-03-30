@@ -18,7 +18,14 @@ use Joomla\CMS\Session\Session;
 ?>
 <div class="com-ordenproduccion-payments">
     <div class="container-fluid">
-        <?php $isDeletedView = (int) $this->state->get('filter.state', 1) === 0; ?>
+        <?php
+        $isDeletedView = (int) $this->state->get('filter.state', 1) === 0;
+        $paymentsTab = $this->paymentsTab ?? 'list';
+        $showPaymentsList = $isDeletedView || $paymentsTab === 'list';
+        $paymentsListUrl = Route::_('index.php?option=com_ordenproduccion&view=payments');
+        $paymentsNotesTabUrl = Route::_('index.php?option=com_ordenproduccion&view=payments&tab=notes');
+        $paymentsClearUrl = Route::_('index.php?option=com_ordenproduccion&view=payments' . ($isDeletedView ? '&filter_state=0' : ''));
+        ?>
         <div class="row mb-2">
             <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h1 class="page-title h4 mb-0"><?php echo $isDeletedView ? 'Pagos eliminados' : 'Control de Pagos'; ?></h1>
@@ -42,6 +49,26 @@ use Joomla\CMS\Session\Session;
         </div>
         <?php endif; ?>
 
+        <?php if (!$isDeletedView) : ?>
+        <ul class="nav nav-tabs mb-3 flex-wrap gap-1" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link<?php echo $paymentsTab === 'list' ? ' active' : ''; ?>"
+                   href="<?php echo htmlspecialchars($paymentsListUrl); ?>"
+                   <?php echo $paymentsTab === 'list' ? ' aria-current="page"' : ''; ?>>
+                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_TAB_LIST')); ?>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link<?php echo $paymentsTab === 'notes' ? ' active' : ''; ?>"
+                   href="<?php echo htmlspecialchars($paymentsNotesTabUrl); ?>"
+                   <?php echo $paymentsTab === 'notes' ? ' aria-current="page"' : ''; ?>>
+                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_TAB_MISMATCH_NOTES')); ?>
+                </a>
+            </li>
+        </ul>
+        <?php endif; ?>
+
+        <?php if ($showPaymentsList) : ?>
         <!-- Filters - compact -->
         <div class="row mb-2">
             <div class="col-12">
@@ -110,7 +137,7 @@ use Joomla\CMS\Session\Session;
                                     <button type="submit" class="btn btn-primary btn-sm">
                                         <i class="fas fa-search"></i> Aplicar
                                     </button>
-                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=payments&filter_doc_number=' . ($isDeletedView ? '&filter_state=0' : '')); ?>" class="btn btn-outline-secondary btn-sm">
+                                    <a href="<?php echo htmlspecialchars($paymentsClearUrl); ?>" class="btn btn-outline-secondary btn-sm">
                                         <i class="fas fa-times"></i> Limpiar
                                     </a>
                                 </div>
@@ -232,7 +259,7 @@ use Joomla\CMS\Session\Session;
                 </div>
             </div>
 
-            <?php if ($this->pagination->pagesTotal > 1) : ?>
+            <?php if ($this->pagination && $this->pagination->pagesTotal > 1) : ?>
                 <div class="row mt-2">
                     <div class="col-12">
                         <nav aria-label="Paginación" class="small">
@@ -244,6 +271,103 @@ use Joomla\CMS\Session\Session;
                     </div>
                 </div>
             <?php endif; ?>
+        <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if (!$isDeletedView && $paymentsTab === 'notes') : ?>
+        <div class="row mb-2">
+            <div class="col-12">
+                <?php if (!$this->hasMismatchNotesFeature) : ?>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_NOTES_NO_SCHEMA')); ?>
+                    </div>
+                <?php else : ?>
+                    <div class="alert alert-info py-2 small mb-0">
+                        <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_NOTES_INTRO')); ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php if ($this->hasMismatchNotesFeature && empty($this->mismatchNotesItems)) : ?>
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-secondary py-2 text-center small mb-0">
+                        <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_NOTES_EMPTY')); ?>
+                    </div>
+                </div>
+            </div>
+        <?php elseif ($this->hasMismatchNotesFeature) : ?>
+            <div class="row">
+                <div class="col-12">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover com-ordenproduccion-payments-mismatch-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ID')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_DATE')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_CLIENT')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ORDER')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_NOTE')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_SALES_AGENT')); ?></th>
+                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_RECORDED_BY')); ?></th>
+                                    <th scope="col"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($this->mismatchNotesItems as $mItem) : ?>
+                                    <?php
+                                    $mPid = (int) ($mItem->id ?? 0);
+                                    $mOid = (int) ($mItem->order_id ?? 0);
+                                    $payFmt = 'PA-' . str_pad((string) $mPid, 6, '0', STR_PAD_LEFT);
+                                    $diffRaw = isset($mItem->mismatch_difference) ? trim((string) $mItem->mismatch_difference) : '';
+                                    ?>
+                                    <tr>
+                                        <td><?php echo $mOid > 0
+                                            ? '<a href="' . htmlspecialchars($this->getPaymentProofRoute($mOid, $mPid)) . '" class="text-primary text-decoration-none">' . htmlspecialchars($payFmt) . '</a>'
+                                            : htmlspecialchars($payFmt); ?></td>
+                                        <td><?php echo $this->formatDate($mItem->created ?? ''); ?></td>
+                                        <td><?php echo htmlspecialchars($mItem->client_name ?? '-'); ?></td>
+                                        <td><?php if ($mOid > 0) : ?>
+                                            <a href="<?php echo htmlspecialchars($this->getOrderRoute($mOid)); ?>" class="text-primary">
+                                                <?php echo htmlspecialchars($mItem->order_number ?? $mItem->orden_de_trabajo ?? '#' . $mOid); ?>
+                                            </a>
+                                        <?php else : ?>-<?php endif; ?></td>
+                                        <td><?php echo number_format((float) ($mItem->payment_amount ?? 0), 2); ?></td>
+                                        <td><?php echo $diffRaw !== '' ? htmlspecialchars($diffRaw) : '—'; ?></td>
+                                        <td class="small text-break" style="max-width: 280px;"><?php
+                                            $note = isset($mItem->mismatch_note) ? trim((string) $mItem->mismatch_note) : '';
+                                            echo $note !== '' ? nl2br(htmlspecialchars($note)) : '—';
+                                        ?></td>
+                                        <td><?php echo htmlspecialchars($mItem->sales_agent ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($mItem->created_by_name ?? '-'); ?></td>
+                                        <td><?php if ($mOid > 0) : ?>
+                                            <a href="<?php echo htmlspecialchars($this->getPaymentProofRoute($mOid, $mPid)); ?>"
+                                               class="btn btn-sm btn-outline-primary py-0 px-1" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION')); ?>">
+                                                <i class="fas fa-credit-card"></i>
+                                            </a>
+                                        <?php endif; ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php if ($this->mismatchNotesPagination && $this->mismatchNotesPagination->pagesTotal > 1) : ?>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <nav aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAGINATION')); ?>" class="small">
+                            <?php echo $this->mismatchNotesPagination->getPagesLinks(); ?>
+                        </nav>
+                        <div class="pagination-info text-center small mt-1">
+                            <?php echo $this->mismatchNotesPagination->getResultsCounter(); ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
 

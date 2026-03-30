@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Pagination\Pagination;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
@@ -58,6 +59,38 @@ class HtmlView extends BaseHtmlView
     protected $params;
 
     /**
+     * Active sub-view on payments page: list | notes
+     *
+     * @var    string
+     * @since  3.101.12
+     */
+    protected $paymentsTab = 'list';
+
+    /**
+     * Rows for mismatch notes tab
+     *
+     * @var    array
+     * @since  3.101.12
+     */
+    protected $mismatchNotesItems = [];
+
+    /**
+     * Pagination for mismatch notes tab
+     *
+     * @var    Pagination|null
+     * @since  3.101.12
+     */
+    protected $mismatchNotesPagination = null;
+
+    /**
+     * DB has mismatch_note / mismatch_difference columns (notes tab)
+     *
+     * @var    bool
+     * @since  3.101.12
+     */
+    protected $hasMismatchNotesFeature = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse.
@@ -83,8 +116,40 @@ class HtmlView extends BaseHtmlView
         }
 
         $this->state = $this->get('State');
-        $this->items = $this->get('Items');
-        $this->pagination = $this->get('Pagination');
+
+        $isDeletedView = (int) $this->state->get('filter.state', 1) === 0;
+        $tab           = $app->input->getCmd('tab', 'list');
+        if (!\in_array($tab, ['list', 'notes'], true)) {
+            $tab = 'list';
+        }
+        if ($isDeletedView) {
+            $tab = 'list';
+        }
+        $this->paymentsTab = $tab;
+
+        $this->mismatchNotesItems      = [];
+        $this->mismatchNotesPagination = null;
+
+        if (!$isDeletedView && $tab === 'notes') {
+            $this->items = [];
+            /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentsModel $model */
+            $model = $this->getModel('Payments', '', ['ignore_request' => false]);
+            $notesLimit  = (int) $this->state->get('list.limit', $app->get('list_limit', 20));
+            $notesStart  = $app->input->getUint('notes_limitstart', 0);
+            $total       = $model->getMismatchNotesTotal();
+            $this->mismatchNotesItems = $model->getMismatchNotesItems($notesStart, $notesLimit);
+            $this->hasMismatchNotesFeature = $model->hasMismatchTrackingSchema();
+            $this->mismatchNotesPagination = new Pagination($total, $notesStart, $notesLimit, 'notes_');
+            $this->mismatchNotesPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+            $this->mismatchNotesPagination->setAdditionalUrlParam('view', 'payments');
+            $this->mismatchNotesPagination->setAdditionalUrlParam('tab', 'notes');
+            $this->pagination = null;
+        } else {
+            $this->hasMismatchNotesFeature = false;
+            $this->items      = $this->get('Items');
+            $this->pagination = $this->get('Pagination');
+        }
+
         $this->params = $app->getParams('com_ordenproduccion');
 
         if (count($errors = $this->get('Errors'))) {

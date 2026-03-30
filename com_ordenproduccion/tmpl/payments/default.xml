@@ -2,7 +2,7 @@
 <metadata>
     <layout title="Listado de Pagos">
         <message>
-            <![CDATA[Muestra la lista de todos los pagos con filtros por cliente, fecha o agente de ventas]]>
+            <![CDATA[Listado de pagos con filtros y pestaña de notas registradas cuando hay diferencia entre el monto del comprobante y el total aplicado a órdenes.]]>
         </message>
     </layout>
 </metadata>

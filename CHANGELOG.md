@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.12-STABLE] - 2026-03-27
+
+### Added
+- **Control de pagos:** Pestañas **Listado de pagos** y **Notas por diferencia**. La segunda lista los comprobantes activos con `mismatch_note` o `mismatch_difference` (misma regla de acceso por agente que el listado), con enlace al comprobante y paginación (`notes_limitstart`).
+
 ## [3.101.11-STABLE] - 2026-03-27
 
 ### Changed

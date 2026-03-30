@@ -681,4 +681,179 @@ class PaymentsModel extends ListModel
             return false;
         }
     }
+
+    /**
+     * Whether mismatch note tracking columns exist (3.82.0+).
+     *
+     * @return  bool
+     */
+    public function hasMismatchTrackingSchema(): bool
+    {
+        return $this->hasMismatchNoteColumns();
+    }
+
+    /**
+     * Payment proofs table has mismatch note columns (3.82.0+).
+     *
+     * @return  bool
+     */
+    protected function hasMismatchNoteColumns(): bool
+    {
+        try {
+            $db   = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $hasNote = isset($cols['mismatch_note']);
+            $hasDiff = isset($cols['mismatch_difference']);
+
+            return $hasNote || $hasDiff;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Build base query for payment proofs that have a mismatch note or stored difference.
+     *
+     * @return  \Joomla\Database\DatabaseQuery|null
+     */
+    protected function buildMismatchNotesBaseQuery()
+    {
+        if (!$this->hasMismatchNoteColumns()) {
+            return null;
+        }
+
+        $db        = $this->getDatabase();
+        $clientCol = 'o.' . $this->getOrdenesClientColumn();
+        $ppCols    = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppCols    = \is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+
+        $parts = [];
+        if (isset($ppCols['mismatch_note'])) {
+            $parts[] = '(' . $db->quoteName('pp.mismatch_note') . ' IS NOT NULL AND LENGTH(TRIM(' .
+                $db->quoteName('pp.mismatch_note') . ')) > 0)';
+        }
+        if (isset($ppCols['mismatch_difference'])) {
+            $parts[] = '(' . $db->quoteName('pp.mismatch_difference') . ' IS NOT NULL AND LENGTH(TRIM(' .
+                $db->quoteName('pp.mismatch_difference') . ')) > 0)';
+        }
+        if ($parts === []) {
+            return null;
+        }
+
+        $selectCols = [
+            'pp.id',
+            'pp.payment_type',
+            'pp.document_number',
+            'pp.payment_amount',
+            'pp.created',
+            'pp.created_by',
+            $clientCol . ' AS client_name',
+            'o.sales_agent',
+            'o.orden_de_trabajo',
+            'o.order_number',
+            'creator.name AS created_by_name',
+        ];
+        if (isset($ppCols['mismatch_note'])) {
+            $selectCols[] = 'pp.mismatch_note';
+        } else {
+            $selectCols[] = $db->quote('') . ' AS mismatch_note';
+        }
+        if (isset($ppCols['mismatch_difference'])) {
+            $selectCols[] = 'pp.mismatch_difference';
+        } else {
+            $selectCols[] = $db->quote('') . ' AS mismatch_difference';
+        }
+
+        if ($this->hasPaymentOrdersTable()) {
+            $selectCols = array_merge(
+                ['COALESCE(pp.order_id, first_po.first_order_id) AS order_id'],
+                $selectCols
+            );
+        } else {
+            $selectCols = array_merge(['pp.order_id'], $selectCols);
+        }
+
+        $query = $db->getQuery(true)
+            ->select($selectCols)
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->leftJoin(
+                $db->quoteName('#__users', 'creator') . ' ON creator.id = pp.created_by'
+            );
+
+        if ($this->hasPaymentOrdersTable()) {
+            $subQuery = $db->getQuery(true)
+                ->select('po.payment_proof_id, MIN(po.order_id) AS first_order_id')
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->group('po.payment_proof_id');
+
+            $query->leftJoin(
+                '(' . (string) $subQuery . ') AS first_po ON first_po.payment_proof_id = pp.id'
+            )
+                ->leftJoin(
+                    $db->quoteName('#__ordenproduccion_ordenes', 'o') .
+                    ' ON o.id = COALESCE(pp.order_id, first_po.first_order_id)'
+                );
+        } else {
+            $query->leftJoin(
+                $db->quoteName('#__ordenproduccion_ordenes', 'o') .
+                ' ON o.id = pp.order_id'
+            );
+        }
+
+        $stateFilter = (int) $this->getState('filter.state', 1);
+        $query->where($db->quoteName('pp.state') . ' = ' . $stateFilter)
+            ->where('(' . implode(' OR ', $parts) . ')');
+
+        $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Count payment proofs with mismatch note / difference (same access rules as list).
+     *
+     * @return  int
+     */
+    public function getMismatchNotesTotal(): int
+    {
+        $query = $this->buildMismatchNotesBaseQuery();
+        if ($query === null) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $query->clear('select')->clear('order')
+            ->select('COUNT(' . $db->quoteName('pp.id') . ')');
+
+        $db->setQuery($query);
+
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * List rows for mismatch notes tracking (newest first).
+     *
+     * @param   int  $start  Offset
+     * @param   int  $limit  Page size
+     *
+     * @return  array<int, object>
+     */
+    public function getMismatchNotesItems(int $start, int $limit): array
+    {
+        $query = $this->buildMismatchNotesBaseQuery();
+        if ($query === null) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $query->order($db->quoteName('pp.created') . ' DESC');
+
+        $db->setQuery($query, $start, $limit);
+
+        return $db->loadObjectList() ?: [];
+    }
 }
