@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.15-STABLE] - 2026-04-01
+
+### Added
+- **Notas de diferencia (pagos):** Cada registro funciona como ticket: columna **Estado** (Nuevo, Esperando respuesta, Resuelto), modal de seguimiento con cambio de estado y **hilo de comentarios** (misma visibilidad que el listado: Administración ve todo; otros solo sus órdenes). Requiere migración SQL `admin/sql/updates/mysql/3.101.15_payment_mismatch_ticket.sql` (columna `mismatch_ticket_status` + tabla `#__ordenproduccion_payment_mismatch_ticket_comments`).
+
 ## [3.101.14-STABLE] - 2026-03-31
 
 ### Changed

@@ -518,4 +518,210 @@ class PaymentsController extends BaseController
         fclose($out);
         $app->close();
     }
+
+    /**
+     * JSON payload for mismatch ticket modal (status + comments).
+     *
+     * @return  void
+     */
+    public function getMismatchTicket()
+    {
+        $this->sendMismatchTicketJsonResponse(function () {
+            $app       = Factory::getApplication();
+            $proofId   = $app->input->getInt('proof_id', 0);
+            $lang      = $app->getLanguage();
+            $lang->load('com_ordenproduccion', JPATH_SITE);
+            $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
+            if ($proofId <= 0) {
+                return ['error' => true, 'message' => 'Invalid proof ID'];
+            }
+
+            /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentsModel $model */
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Payments', 'Site', ['ignore_request' => true]);
+
+            $ctx = $model->loadMismatchTicketContext($proofId);
+            if (!$ctx) {
+                return ['error' => true, 'message' => 'Not found or access denied'];
+            }
+
+            $status = isset($ctx->mismatch_ticket_status) ? trim((string) $ctx->mismatch_ticket_status) : 'nuevo';
+            if ($status === '') {
+                $status = 'nuevo';
+            }
+
+            $commentsRaw = $model->getMismatchTicketComments($proofId);
+            $comments    = [];
+            foreach ($commentsRaw as $c) {
+                $comments[] = [
+                    'id'         => (int) ($c->id ?? 0),
+                    'body'       => (string) ($c->body ?? ''),
+                    'created'    => (string) ($c->created ?? ''),
+                    'created_by' => (int) ($c->created_by ?? 0),
+                    'user_name'  => (string) ($c->user_name ?? ''),
+                ];
+            }
+
+            return [
+                'error'            => false,
+                'proof_id'         => $proofId,
+                'payment_label'    => 'PA-' . str_pad((string) $proofId, 6, '0', STR_PAD_LEFT),
+                'status'           => $status,
+                'status_label'     => $this->translateMismatchTicketStatus($status),
+                'status_options'   => $this->getMismatchTicketStatusOptionsForJson(),
+                'initial_note'     => (string) ($ctx->mismatch_note ?? ''),
+                'difference'       => (string) ($ctx->mismatch_difference ?? ''),
+                'payment_amount'   => (float) ($ctx->payment_amount ?? 0),
+                'created_by_name'  => (string) ($ctx->created_by_name ?? ''),
+                'comments'         => $comments,
+                'comments_enabled' => $model->hasMismatchTicketCommentsTable(),
+                'status_enabled'   => $model->hasMismatchTicketStatusColumn(),
+            ];
+        }, true);
+    }
+
+    /**
+     * POST: add threaded comment on mismatch ticket.
+     *
+     * @return  void
+     */
+    public function addMismatchTicketComment()
+    {
+        $this->sendMismatchTicketJsonResponse(function () {
+            $app = Factory::getApplication();
+            if (!Session::checkToken('post')) {
+                return ['error' => true, 'message' => Text::_('JINVALID_TOKEN')];
+            }
+            $proofId = $app->input->post->getInt('proof_id', 0);
+            $body    = $app->input->post->get('body', '', 'raw');
+            $body    = \is_string($body) ? trim($body) : '';
+
+            /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentsModel $model */
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Payments', 'Site', ['ignore_request' => true]);
+
+            if (!$model->addMismatchTicketComment($proofId, $body)) {
+                return ['error' => true, 'message' => $model->getError() ?: 'Save failed'];
+            }
+
+            return ['error' => false, 'ok' => true];
+        });
+    }
+
+    /**
+     * POST: set mismatch ticket status.
+     *
+     * @return  void
+     */
+    public function setMismatchTicketStatus()
+    {
+        $this->sendMismatchTicketJsonResponse(function () {
+            $app = Factory::getApplication();
+            if (!Session::checkToken('post')) {
+                return ['error' => true, 'message' => Text::_('JINVALID_TOKEN')];
+            }
+            $proofId = $app->input->post->getInt('proof_id', 0);
+            $status  = $app->input->post->getCmd('status', '');
+
+            /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentsModel $model */
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Payments', 'Site', ['ignore_request' => true]);
+
+            if (!$model->setMismatchTicketStatus($proofId, $status)) {
+                return ['error' => true, 'message' => $model->getError() ?: 'Save failed'];
+            }
+
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
+            return [
+                'error'        => false,
+                'ok'           => true,
+                'status'       => strtolower(trim($status)),
+                'status_label' => $this->translateMismatchTicketStatus($status),
+            ];
+        });
+    }
+
+    /**
+     * @param   callable  $callback  Returns array (must include error key).
+     *
+     * @return  void
+     */
+    protected function sendMismatchTicketJsonResponse(callable $callback, bool $requireRequestToken = false): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest || !AccessHelper::hasOrderAccess()) {
+            $app->setHeader('Content-Type', 'application/json; charset=utf-8');
+            echo json_encode(['error' => true, 'message' => 'Access denied']);
+            $app->close();
+
+            return;
+        }
+
+        if ($requireRequestToken && !Session::checkToken('get') && !Session::checkToken('post')) {
+            $app->setHeader('Content-Type', 'application/json; charset=utf-8');
+            echo json_encode(['error' => true, 'message' => 'Invalid token']);
+            $app->close();
+
+            return;
+        }
+
+        try {
+            $data = $callback();
+        } catch (\Throwable $e) {
+            $app->setHeader('Content-Type', 'application/json; charset=utf-8');
+            echo json_encode(['error' => true, 'message' => $e->getMessage()]);
+            $app->close();
+
+            return;
+        }
+
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8');
+        echo json_encode($data);
+        $app->close();
+    }
+
+    /**
+     * @return  array<int, array{value: string, label: string}>
+     */
+    protected function getMismatchTicketStatusOptionsForJson(): array
+    {
+        $opts = [];
+        foreach (\Grimpsa\Component\Ordenproduccion\Site\Model\PaymentsModel::getMismatchTicketStatusAllowlist() as $code) {
+            $opts[] = [
+                'value' => $code,
+                'label' => $this->translateMismatchTicketStatus($code),
+            ];
+        }
+
+        return $opts;
+    }
+
+    protected function translateMismatchTicketStatus(string $code): string
+    {
+        $code = strtolower(trim($code));
+        $map  = [
+            'nuevo'                => 'COM_ORDENPRODUCCION_PAYMENT_MISMATCH_STATUS_NUEVO',
+            'esperando_respuesta'  => 'COM_ORDENPRODUCCION_PAYMENT_MISMATCH_STATUS_ESPERANDO',
+            'resuelto'             => 'COM_ORDENPRODUCCION_PAYMENT_MISMATCH_STATUS_RESUELTO',
+        ];
+        $key = $map[$code] ?? null;
+        if ($key) {
+            $t = Text::_($key);
+            if ($t !== $key) {
+                return $t;
+            }
+        }
+        $fallback = [
+            'nuevo' => 'Nuevo',
+            'esperando_respuesta' => 'Esperando respuesta',
+            'resuelto' => 'Resuelto',
+        ];
+
+        return $fallback[$code] ?? $code;
+    }
 }

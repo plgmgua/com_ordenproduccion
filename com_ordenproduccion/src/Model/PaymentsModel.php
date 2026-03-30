@@ -713,11 +713,23 @@ class PaymentsModel extends ListModel
     }
 
     /**
+     * Allowed values for mismatch ticket status (helpdesk-style workflow).
+     *
+     * @return  string[]
+     */
+    public static function getMismatchTicketStatusAllowlist(): array
+    {
+        return ['nuevo', 'esperando_respuesta', 'resuelto'];
+    }
+
+    /**
      * Build base query for payment proofs that have a mismatch note or stored difference.
+     *
+     * @param   int|null  $restrictProofId  When set, restrict to this payment proof id (access rules still apply).
      *
      * @return  \Joomla\Database\DatabaseQuery|null
      */
-    protected function buildMismatchNotesBaseQuery()
+    protected function buildMismatchNotesBaseQuery(?int $restrictProofId = null)
     {
         if (!$this->hasMismatchNoteColumns()) {
             return null;
@@ -763,6 +775,12 @@ class PaymentsModel extends ListModel
             $selectCols[] = 'pp.mismatch_difference';
         } else {
             $selectCols[] = $db->quote('') . ' AS mismatch_difference';
+        }
+        if (isset($ppCols['mismatch_ticket_status'])) {
+            $selectCols[] = 'COALESCE(NULLIF(TRIM(' . $db->quoteName('pp.mismatch_ticket_status') . '), ' .
+                $db->quote('') . '), ' . $db->quote('nuevo') . ') AS mismatch_ticket_status';
+        } else {
+            $selectCols[] = $db->quote('nuevo') . ' AS mismatch_ticket_status';
         }
 
         if ($this->hasPaymentOrdersTable()) {
@@ -810,7 +828,201 @@ class PaymentsModel extends ListModel
             $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
 
+        if ($restrictProofId !== null && $restrictProofId > 0) {
+            $query->where($db->quoteName('pp.id') . ' = ' . (int) $restrictProofId);
+        }
+
         return $query;
+    }
+
+    /**
+     * Single mismatch ticket row if current user may see it (same rules as list).
+     *
+     * @param   int  $proofId  Payment proof id
+     *
+     * @return  object|null
+     */
+    public function loadMismatchTicketContext(int $proofId): ?object
+    {
+        $query = $this->buildMismatchNotesBaseQuery($proofId);
+        if ($query === null) {
+            return null;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery($query, 0, 1);
+
+        $row = $db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Whether the current user may view or update this mismatch ticket.
+     */
+    public function userCanAccessMismatchTicket(int $proofId): bool
+    {
+        return $this->loadMismatchTicketContext($proofId) !== null;
+    }
+
+    /**
+     * Comments table for mismatch ticket thread (3.101.15+).
+     */
+    public function hasMismatchTicketCommentsTable(): bool
+    {
+        try {
+            $db     = $this->getDatabase();
+            $tables = $db->getTableList();
+            $target = $db->getPrefix() . 'ordenproduccion_payment_mismatch_ticket_comments';
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $target) === 0) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether payment_proofs has mismatch_ticket_status column.
+     */
+    public function hasMismatchTicketStatusColumn(): bool
+    {
+        try {
+            $db   = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+            return isset($cols['mismatch_ticket_status']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @return  array<int, object>
+     */
+    public function getMismatchTicketComments(int $proofId): array
+    {
+        if (!$this->hasMismatchTicketCommentsTable() || $proofId <= 0) {
+            return [];
+        }
+
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('c.id'),
+                $db->quoteName('c.body'),
+                $db->quoteName('c.created'),
+                $db->quoteName('c.created_by'),
+                $db->quoteName('u.name', 'user_name'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_mismatch_ticket_comments', 'c'))
+            ->leftJoin($db->quoteName('#__users', 'u') . ' ON u.id = c.created_by')
+            ->where($db->quoteName('c.payment_proof_id') . ' = ' . (int) $proofId)
+            ->order($db->quoteName('c.created') . ' ASC,' . $db->quoteName('c.id') . ' ASC');
+
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Append a comment to the ticket thread.
+     */
+    public function addMismatchTicketComment(int $proofId, string $body): bool
+    {
+        if (!$this->hasMismatchTicketCommentsTable() || !$this->userCanAccessMismatchTicket($proofId)) {
+            $this->setError('Access denied or comments table missing');
+
+            return false;
+        }
+
+        $body = trim(strip_tags($body));
+        if ($body === '') {
+            $this->setError('Comment is empty');
+
+            return false;
+        }
+        if (strlen($body) > 8000) {
+            $this->setError('Comment too long');
+
+            return false;
+        }
+
+        $db   = $this->getDatabase();
+        $date = Factory::getDate()->toSql();
+        $uid  = (int) Factory::getUser()->id;
+
+        $query = $db->getQuery(true)
+            ->insert($db->quoteName('#__ordenproduccion_payment_mismatch_ticket_comments'))
+            ->columns($db->quoteName(['payment_proof_id', 'body', 'created', 'created_by']))
+            ->values(
+                (int) $proofId . ',' .
+                $db->quote($body) . ',' .
+                $db->quote($date) . ',' .
+                (int) $uid
+            );
+
+        $db->setQuery($query);
+
+        try {
+            $db->execute();
+        } catch (\Throwable $e) {
+            $this->setError($e->getMessage());
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Set ticket status (nuevo | esperando_respuesta | resuelto).
+     */
+    public function setMismatchTicketStatus(int $proofId, string $status): bool
+    {
+        $status = strtolower(trim($status));
+        if (!\in_array($status, self::getMismatchTicketStatusAllowlist(), true)) {
+            $this->setError('Invalid status');
+
+            return false;
+        }
+
+        if (!$this->hasMismatchTicketStatusColumn() || !$this->userCanAccessMismatchTicket($proofId)) {
+            $this->setError('Access denied or status column missing');
+
+            return false;
+        }
+
+        $db  = $this->getDatabase();
+        $ppC = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppC = \is_array($ppC) ? array_change_key_case($ppC, CASE_LOWER) : [];
+
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+            ->set($db->quoteName('mismatch_ticket_status') . ' = ' . $db->quote($status));
+        if (isset($ppC['modified'])) {
+            $query->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()));
+        }
+        if (isset($ppC['modified_by'])) {
+            $query->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id);
+        }
+        $query->where($db->quoteName('id') . ' = ' . (int) $proofId);
+
+        $db->setQuery($query);
+
+        try {
+            $db->execute();
+        } catch (\Throwable $e) {
+            $this->setError($e->getMessage());
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
