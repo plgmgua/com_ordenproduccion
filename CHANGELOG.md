@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.19-STABLE] - 2026-04-01
+
+### Changed
+- **Notas de diferencia:** Columna **Estado** al final; columna de caso con el mismo icono de conversación en cabecera y filas (sin texto «Seguimiento»).
+
 ## [3.101.18-STABLE] - 2026-04-01
 
 ### Changed

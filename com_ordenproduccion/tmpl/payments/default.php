@@ -358,8 +358,12 @@ use Joomla\CMS\Session\Session;
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?></th>
                                     <th scope="col" class="text-end"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_RECORDED_BY')); ?></th>
+                                    <th scope="col" class="text-center text-nowrap px-2 com-ordenproduccion-payments-mismatch-th-case"
+                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>"
+                                        aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>">
+                                        <i class="fas fa-comments" aria-hidden="true"></i>
+                                    </th>
                                     <th scope="col" class="text-nowrap"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_STATUS')); ?></th>
-                                    <th scope="col" class="text-nowrap"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_ACTIONS')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -394,8 +398,7 @@ use Joomla\CMS\Session\Session;
                                             $mSt = 'nuevo';
                                         }
                                         ?>
-                                        <td class="small mismatch-ticket-status-cell text-nowrap fw-semibold" data-proof-id="<?php echo (int) $mPid; ?>"><?php echo htmlspecialchars($mismatchStatusLabel($mSt)); ?></td>
-                                        <td class="text-nowrap align-middle mismatch-ticket-actions-cell">
+                                        <td class="text-center text-nowrap align-middle mismatch-ticket-actions-cell">
                                             <button type="button" class="btn btn-sm btn-primary py-1 px-2 btn-mismatch-ticket"
                                                     data-proof-id="<?php echo (int) $mPid; ?>"
                                                     title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>"
@@ -403,6 +406,7 @@ use Joomla\CMS\Session\Session;
                                                 <i class="fas fa-comments" aria-hidden="true"></i>
                                             </button>
                                         </td>
+                                        <td class="small mismatch-ticket-status-cell text-nowrap fw-semibold" data-proof-id="<?php echo (int) $mPid; ?>"><?php echo htmlspecialchars($mismatchStatusLabel($mSt)); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -536,6 +540,8 @@ use Joomla\CMS\Session\Session;
     margin-bottom: 0.5rem;
 }
 .mismatch-ticket-comment-meta { color: #6c757d; font-size: 0.72rem; }
+.com-ordenproduccion-payments-mismatch-th-case { width: 1%; }
+.com-ordenproduccion-payments-mismatch-th-case .fa-comments { opacity: 0.95; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
