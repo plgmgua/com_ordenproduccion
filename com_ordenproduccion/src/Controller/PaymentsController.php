@@ -575,8 +575,9 @@ class PaymentsController extends BaseController
                 'payment_amount'   => (float) ($ctx->payment_amount ?? 0),
                 'created_by_name'  => (string) ($ctx->created_by_name ?? ''),
                 'comments'         => $comments,
-                'comments_enabled' => $model->hasMismatchTicketCommentsTable(),
-                'status_enabled'   => $model->hasMismatchTicketStatusColumn(),
+                'comments_enabled'   => $model->hasMismatchTicketCommentsTable(),
+                'status_enabled'     => $model->hasMismatchTicketStatusColumn(),
+                'can_change_status'  => AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser(),
             ];
         }, true);
     }

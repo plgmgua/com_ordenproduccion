@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.16-STABLE] - 2026-04-01
+
+### Changed
+- **Tickets de diferencia (pagos):** Solo miembros de **Administración/Admon** o **superusuarios** (`core.admin`) pueden cambiar el estado; el resto sigue pudiendo leer el caso y añadir comentarios si tiene acceso al listado.
+
 ## [3.101.15-STABLE] - 2026-04-01
 
 ### Added

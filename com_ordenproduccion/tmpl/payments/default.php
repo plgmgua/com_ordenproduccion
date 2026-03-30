@@ -444,6 +444,7 @@ use Joomla\CMS\Session\Session;
                         <p class="small mb-1"><strong><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS')); ?></strong></p>
                         <select id="mismatchTicketStatusSelect" class="form-select form-select-sm mb-2" disabled></select>
                         <p id="mismatchTicketStatusHint" class="small text-warning mb-2 d-none"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS_DISABLED')); ?></p>
+                        <p id="mismatchTicketStatusHintAdmin" class="small text-muted mb-2 d-none"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS_ADMIN_ONLY')); ?></p>
                         <div class="small border rounded p-2 mb-2 bg-light">
                             <div class="mb-1"><strong><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_INITIAL')); ?></strong> <span id="mismatchTicketCreator" class="text-muted"></span></div>
                             <div id="mismatchTicketInitialNote" class="mb-0 text-break"></div>
@@ -719,8 +720,10 @@ document.addEventListener('DOMContentLoaded', function() {
             skipMismatchStatusChange = true;
             sel.value = d.status || 'nuevo';
             setTimeout(function() { skipMismatchStatusChange = false; }, 0);
-            sel.disabled = !d.status_enabled;
+            var canSt = !!d.can_change_status;
+            sel.disabled = !d.status_enabled || !canSt;
             document.getElementById('mismatchTicketStatusHint').classList.toggle('d-none', d.status_enabled);
+            document.getElementById('mismatchTicketStatusHintAdmin').classList.toggle('d-none', !d.status_enabled || canSt);
 
             document.getElementById('mismatchTicketCreator').textContent = d.created_by_name ? '(' + d.created_by_name + ')' : '';
             var initN = document.getElementById('mismatchTicketInitialNote');

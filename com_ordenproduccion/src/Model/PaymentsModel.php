@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
@@ -993,6 +994,12 @@ class PaymentsModel extends ListModel
 
         if (!$this->hasMismatchTicketStatusColumn() || !$this->userCanAccessMismatchTicket($proofId)) {
             $this->setError('Access denied or status column missing');
+
+            return false;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_STATUS_FORBIDDEN'));
 
             return false;
         }
