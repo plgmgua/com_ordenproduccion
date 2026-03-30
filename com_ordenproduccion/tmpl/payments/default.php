@@ -25,6 +25,27 @@ use Joomla\CMS\Session\Session;
         $paymentsListUrl = Route::_('index.php?option=com_ordenproduccion&view=payments');
         $paymentsNotesTabUrl = Route::_('index.php?option=com_ordenproduccion&view=payments&tab=notes');
         $paymentsClearUrl = Route::_('index.php?option=com_ordenproduccion&view=payments' . ($isDeletedView ? '&filter_state=0' : ''));
+        $formatMismatchDifference = static function ($raw) {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return '—';
+            }
+            if (is_numeric($raw)) {
+                return number_format((float) $raw, 2);
+            }
+            $stripped = preg_replace('/[^0-9.,\-]/', '', $raw);
+            if (strpos($stripped, ',') !== false && strpos($stripped, '.') === false) {
+                $stripped = str_replace(',', '.', $stripped);
+            } elseif (substr_count($stripped, ',') === 1 && substr_count($stripped, '.') === 1) {
+                $stripped = str_replace(',', '', $stripped);
+            } else {
+                $stripped = str_replace(',', '.', $stripped);
+            }
+            if ($stripped !== '' && is_numeric($stripped)) {
+                return number_format((float) $stripped, 2);
+            }
+            return htmlspecialchars($raw);
+        };
         ?>
         <div class="row mb-2">
             <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -185,10 +206,10 @@ use Joomla\CMS\Session\Session;
                         <table class="table table-sm table-striped table-hover com-ordenproduccion-payments-table">
                             <thead class="table-dark">
                                 <tr>
-                                    <th scope="col">Nº Pago</th>
+                                    <th scope="col" class="com-ordenproduccion-payments-th-id">Nº Pago</th>
                                     <th scope="col">Fecha</th>
                                     <th scope="col">Cliente</th>
-                                    <th scope="col">Orden</th>
+                                    <th scope="col" class="com-ordenproduccion-payments-th-id">Orden</th>
                                     <th scope="col">Monto</th>
                                     <th scope="col">Estado</th>
                                     <th scope="col">Agente</th>
@@ -203,7 +224,7 @@ use Joomla\CMS\Session\Session;
                             <tbody>
                                 <?php foreach ($this->items as $item) : ?>
                                     <tr>
-                                        <td>
+                                        <td class="com-ordenproduccion-payments-cell-id">
                                             <?php
                                             $paymentIdFormatted = 'PA-' . str_pad((int) ($item->id ?? 0), 6, '0', STR_PAD_LEFT);
                                             if (!empty($item->order_id)) :
@@ -215,7 +236,7 @@ use Joomla\CMS\Session\Session;
                                         </td>
                                         <td><?php echo $this->formatDate($item->created); ?></td>
                                         <td><?php echo htmlspecialchars($item->client_name ?? '-'); ?></td>
-                                        <td>
+                                        <td class="com-ordenproduccion-payments-cell-id">
                                             <?php if (!empty($item->order_id)) : ?>
                                                 <a href="<?php echo $this->getOrderRoute($item->order_id); ?>" class="text-primary">
                                                     <?php echo htmlspecialchars($item->order_number ?? $item->orden_de_trabajo ?? '#' . $item->order_id); ?>
@@ -299,14 +320,13 @@ use Joomla\CMS\Session\Session;
                         <table class="table table-sm table-striped table-hover com-ordenproduccion-payments-mismatch-table">
                             <thead class="table-dark">
                                 <tr>
-                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ID')); ?></th>
+                                    <th scope="col" class="com-ordenproduccion-payments-mismatch-col-note"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_NOTE')); ?></th>
+                                    <th scope="col" class="com-ordenproduccion-payments-th-id"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ID')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_DATE')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_CLIENT')); ?></th>
-                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ORDER')); ?></th>
+                                    <th scope="col" class="com-ordenproduccion-payments-th-id"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ORDER')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?></th>
-                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?></th>
-                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_NOTE')); ?></th>
-                                    <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_SALES_AGENT')); ?></th>
+                                    <th scope="col" class="text-end"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_RECORDED_BY')); ?></th>
                                     <th scope="col"></th>
                                 </tr>
@@ -320,23 +340,22 @@ use Joomla\CMS\Session\Session;
                                     $diffRaw = isset($mItem->mismatch_difference) ? trim((string) $mItem->mismatch_difference) : '';
                                     ?>
                                     <tr>
-                                        <td><?php echo $mOid > 0
+                                        <td class="com-ordenproduccion-payments-mismatch-col-note small text-break"><?php
+                                            $note = isset($mItem->mismatch_note) ? trim((string) $mItem->mismatch_note) : '';
+                                            echo $note !== '' ? nl2br(htmlspecialchars($note)) : '—';
+                                        ?></td>
+                                        <td class="com-ordenproduccion-payments-cell-id"><?php echo $mOid > 0
                                             ? '<a href="' . htmlspecialchars($this->getPaymentProofRoute($mOid, $mPid)) . '" class="text-primary text-decoration-none">' . htmlspecialchars($payFmt) . '</a>'
                                             : htmlspecialchars($payFmt); ?></td>
                                         <td><?php echo $this->formatDate($mItem->created ?? ''); ?></td>
                                         <td><?php echo htmlspecialchars($mItem->client_name ?? '-'); ?></td>
-                                        <td><?php if ($mOid > 0) : ?>
+                                        <td class="com-ordenproduccion-payments-cell-id"><?php if ($mOid > 0) : ?>
                                             <a href="<?php echo htmlspecialchars($this->getOrderRoute($mOid)); ?>" class="text-primary">
                                                 <?php echo htmlspecialchars($mItem->order_number ?? $mItem->orden_de_trabajo ?? '#' . $mOid); ?>
                                             </a>
                                         <?php else : ?>-<?php endif; ?></td>
                                         <td><?php echo number_format((float) ($mItem->payment_amount ?? 0), 2); ?></td>
-                                        <td><?php echo $diffRaw !== '' ? htmlspecialchars($diffRaw) : '—'; ?></td>
-                                        <td class="small text-break" style="max-width: 280px;"><?php
-                                            $note = isset($mItem->mismatch_note) ? trim((string) $mItem->mismatch_note) : '';
-                                            echo $note !== '' ? nl2br(htmlspecialchars($note)) : '—';
-                                        ?></td>
-                                        <td><?php echo htmlspecialchars($mItem->sales_agent ?? '-'); ?></td>
+                                        <td class="text-end com-ordenproduccion-payments-cell-id"><?php echo $formatMismatchDifference($diffRaw); ?></td>
                                         <td><?php echo htmlspecialchars($mItem->created_by_name ?? '-'); ?></td>
                                         <td><?php if ($mOid > 0) : ?>
                                             <a href="<?php echo htmlspecialchars($this->getPaymentProofRoute($mOid, $mPid)); ?>"
@@ -422,6 +441,18 @@ use Joomla\CMS\Session\Session;
 .com-ordenproduccion-payments .card-compact .card-body { padding: 0.5rem 1rem; }
 .com-ordenproduccion-payments .table-responsive .table { font-size: 0.8rem; }
 .com-ordenproduccion-payments .table th, .com-ordenproduccion-payments .table td { vertical-align: middle; }
+.com-ordenproduccion-payments .com-ordenproduccion-payments-th-id,
+.com-ordenproduccion-payments .com-ordenproduccion-payments-cell-id {
+    white-space: nowrap;
+    font-size: 0.72rem;
+    max-width: 1%;
+}
+.com-ordenproduccion-payments .com-ordenproduccion-payments-mismatch-col-note {
+    min-width: 22rem;
+    width: 38%;
+    white-space: normal;
+    font-size: 0.85rem;
+}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

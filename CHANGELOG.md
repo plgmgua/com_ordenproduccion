@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.14-STABLE] - 2026-03-31
+
+### Changed
+- **Control de pagos:** En ambas tablas, Nº de pago y orden sin saltos de línea (tipografía más compacta). **Notas de Diferencia:** columna **Nota** primera y más ancha; sin columna de agente; **Diferencia** con dos decimales; encabezado **Pago** (antes monto comprobante).
+
 ## [3.101.13-STABLE] - 2026-03-31
 
 ### Fixed
