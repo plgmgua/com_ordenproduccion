@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.17-STABLE] - 2026-04-01
+
+### Fixed / Changed
+- **Notas de diferencia:** Columnas **Estado** y **Seguimiento** movidas justo después de **Nota** para que no queden fuera de vista al hacer scroll horizontal; botón azul **Abrir caso** con texto visible; texto de ayuda bajo el aviso informativo.
+
 ## [3.101.16-STABLE] - 2026-04-01
 
 ### Changed
