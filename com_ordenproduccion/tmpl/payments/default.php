@@ -55,14 +55,14 @@ use Joomla\CMS\Session\Session;
                 <a class="nav-link<?php echo $paymentsTab === 'list' ? ' active' : ''; ?>"
                    href="<?php echo htmlspecialchars($paymentsListUrl); ?>"
                    <?php echo $paymentsTab === 'list' ? ' aria-current="page"' : ''; ?>>
-                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_TAB_LIST')); ?>
+                    <?php echo htmlspecialchars($this->paymentsTabLabelList ?: Text::_('COM_ORDENPRODUCCION_PAYMENTS_TAB_LIST')); ?>
                 </a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link<?php echo $paymentsTab === 'notes' ? ' active' : ''; ?>"
                    href="<?php echo htmlspecialchars($paymentsNotesTabUrl); ?>"
                    <?php echo $paymentsTab === 'notes' ? ' aria-current="page"' : ''; ?>>
-                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_TAB_MISMATCH_NOTES')); ?>
+                    <?php echo htmlspecialchars($this->paymentsTabLabelNotes ?: Text::_('COM_ORDENPRODUCCION_PAYMENTS_TAB_MISMATCH_NOTES')); ?>
                 </a>
             </li>
         </ul>
@@ -189,8 +189,6 @@ use Joomla\CMS\Session\Session;
                                     <th scope="col">Fecha</th>
                                     <th scope="col">Cliente</th>
                                     <th scope="col">Orden</th>
-                                    <th scope="col">Tipo</th>
-                                    <th scope="col">Nº Doc.</th>
                                     <th scope="col">Monto</th>
                                     <th scope="col">Estado</th>
                                     <th scope="col">Agente</th>
@@ -224,8 +222,6 @@ use Joomla\CMS\Session\Session;
                                                 </a>
                                             <?php else : ?>-<?php endif; ?>
                                         </td>
-                                        <td><?php echo $this->translatePaymentType($item->payment_type ?? ''); ?></td>
-                                        <td><?php echo htmlspecialchars($item->document_number ?? '-'); ?></td>
                                         <td><?php echo number_format((float) ($item->payment_amount ?? 0), 2); ?></td>
                                         <td><?php
                                             $status = isset($item->verification_status) ? trim((string) $item->verification_status) : '';

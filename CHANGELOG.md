@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.13-STABLE] - 2026-03-31
+
+### Fixed
+- **Control de pagos:** Carga explícita del idioma del componente en la vista para que las pestañas muestren texto legible (no la constante). Etiquetas **Listado de Pagos** / **Notas de Diferencia** (es-ES).
+
+### Changed
+- **Control de pagos:** La tabla del primer pestaña deja de mostrar columnas **Tipo** y **Nº Doc.**; la exportación a Excel sigue las mismas columnas visibles.
+
 ## [3.101.12-STABLE] - 2026-03-27
 
 ### Added

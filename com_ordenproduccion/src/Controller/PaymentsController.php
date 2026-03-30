@@ -65,7 +65,7 @@ class PaymentsController extends BaseController
             return;
         }
 
-        $cols = ['Nº Pago', 'Fecha', 'Cliente', 'Orden', 'Tipo', 'Nº Doc.', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
+        $cols = ['Nº Pago', 'Fecha', 'Cliente', 'Orden', 'Monto', 'Agente de Ventas', 'Registrado por', 'Banco'];
 
         $rows = [];
         foreach ($items as $item) {
@@ -76,8 +76,6 @@ class PaymentsController extends BaseController
                 $created,
                 $item->client_name ?? '',
                 $item->order_number ?? $item->orden_de_trabajo ?? '',
-                $this->translatePaymentType($item->payment_type ?? ''),
-                $item->document_number ?? '',
                 number_format((float) ($item->payment_amount ?? 0), 2),
                 $item->sales_agent ?? '',
                 $item->created_by_name ?? '',

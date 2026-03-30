@@ -91,6 +91,20 @@ class HtmlView extends BaseHtmlView
     protected $hasMismatchNotesFeature = false;
 
     /**
+     * Tab link labels (resolved after language load)
+     *
+     * @var    string
+     * @since  3.101.13
+     */
+    protected $paymentsTabLabelList = '';
+
+    /**
+     * @var    string
+     * @since  3.101.13
+     */
+    protected $paymentsTabLabelNotes = '';
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse.
@@ -168,6 +182,8 @@ class HtmlView extends BaseHtmlView
         $this->modalDeleteDesc = $t('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_DESC', 'Revise los datos del pago antes de eliminar. Se generará un PDF como comprobante de eliminación.');
         $this->modalConfirmDelete = $t('COM_ORDENPRODUCCION_CONFIRM_DELETE', 'Confirmar eliminación');
         $this->modalCancel = $t('COM_ORDENPRODUCCION_CANCEL', 'Cancelar');
+        $this->paymentsTabLabelList = $t('COM_ORDENPRODUCCION_PAYMENTS_TAB_LIST', 'Listado de Pagos');
+        $this->paymentsTabLabelNotes = $t('COM_ORDENPRODUCCION_PAYMENTS_TAB_MISMATCH_NOTES', 'Notas de Diferencia');
 
         parent::display($tpl);
     }
@@ -182,6 +198,10 @@ class HtmlView extends BaseHtmlView
     protected function _prepareDocument()
     {
         $app = Factory::getApplication();
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
         $menus = $app->getMenu();
         $menu = $menus->getActive();
 
