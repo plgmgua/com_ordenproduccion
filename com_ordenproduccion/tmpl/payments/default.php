@@ -351,8 +351,6 @@ use Joomla\CMS\Session\Session;
                             <thead class="table-dark">
                                 <tr>
                                     <th scope="col" class="com-ordenproduccion-payments-mismatch-col-note"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_NOTE')); ?></th>
-                                    <th scope="col" class="text-nowrap"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_STATUS')); ?></th>
-                                    <th scope="col" class="text-nowrap"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_ACTIONS')); ?></th>
                                     <th scope="col" class="com-ordenproduccion-payments-th-id"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_ID')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_COL_DATE')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_FILTER_CLIENT')); ?></th>
@@ -360,6 +358,8 @@ use Joomla\CMS\Session\Session;
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?></th>
                                     <th scope="col" class="text-end"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?></th>
                                     <th scope="col"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_RECORDED_BY')); ?></th>
+                                    <th scope="col" class="text-nowrap"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_STATUS')); ?></th>
+                                    <th scope="col" class="text-nowrap"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_ACTIONS')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -375,27 +375,6 @@ use Joomla\CMS\Session\Session;
                                             $note = isset($mItem->mismatch_note) ? trim((string) $mItem->mismatch_note) : '';
                                             echo $note !== '' ? nl2br(htmlspecialchars($note)) : '—';
                                         ?></td>
-                                        <?php
-                                        $mSt = isset($mItem->mismatch_ticket_status) ? trim((string) $mItem->mismatch_ticket_status) : 'nuevo';
-                                        if ($mSt === '') {
-                                            $mSt = 'nuevo';
-                                        }
-                                        ?>
-                                        <td class="small mismatch-ticket-status-cell text-nowrap fw-semibold" data-proof-id="<?php echo (int) $mPid; ?>"><?php echo htmlspecialchars($mismatchStatusLabel($mSt)); ?></td>
-                                        <td class="text-nowrap align-middle mismatch-ticket-actions-cell">
-                                            <button type="button" class="btn btn-sm btn-primary py-1 px-2 btn-mismatch-ticket"
-                                                    data-proof-id="<?php echo (int) $mPid; ?>"
-                                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_BTN')); ?>">
-                                                <i class="fas fa-comments"></i>
-                                                <span class="small ms-1"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?></span>
-                                            </button>
-                                            <?php if ($mOid > 0) : ?>
-                                            <a href="<?php echo htmlspecialchars($this->getPaymentProofRoute($mOid, $mPid)); ?>"
-                                               class="btn btn-sm btn-outline-secondary py-1 px-2 mt-1 mt-sm-0" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_REGISTRATION')); ?>">
-                                                <i class="fas fa-credit-card"></i>
-                                            </a>
-                                            <?php endif; ?>
-                                        </td>
                                         <td class="com-ordenproduccion-payments-cell-id"><?php echo $mOid > 0
                                             ? '<a href="' . htmlspecialchars($this->getPaymentProofRoute($mOid, $mPid)) . '" class="text-primary text-decoration-none">' . htmlspecialchars($payFmt) . '</a>'
                                             : htmlspecialchars($payFmt); ?></td>
@@ -409,6 +388,21 @@ use Joomla\CMS\Session\Session;
                                         <td><?php echo number_format((float) ($mItem->payment_amount ?? 0), 2); ?></td>
                                         <td class="text-end com-ordenproduccion-payments-cell-id"><?php echo $formatMismatchDifference($diffRaw); ?></td>
                                         <td><?php echo htmlspecialchars($mItem->created_by_name ?? '-'); ?></td>
+                                        <?php
+                                        $mSt = isset($mItem->mismatch_ticket_status) ? trim((string) $mItem->mismatch_ticket_status) : 'nuevo';
+                                        if ($mSt === '') {
+                                            $mSt = 'nuevo';
+                                        }
+                                        ?>
+                                        <td class="small mismatch-ticket-status-cell text-nowrap fw-semibold" data-proof-id="<?php echo (int) $mPid; ?>"><?php echo htmlspecialchars($mismatchStatusLabel($mSt)); ?></td>
+                                        <td class="text-nowrap align-middle mismatch-ticket-actions-cell">
+                                            <button type="button" class="btn btn-sm btn-primary py-1 px-2 btn-mismatch-ticket"
+                                                    data-proof-id="<?php echo (int) $mPid; ?>"
+                                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>"
+                                                    aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_OPEN')); ?>">
+                                                <i class="fas fa-comments" aria-hidden="true"></i>
+                                            </button>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

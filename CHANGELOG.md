@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.18-STABLE] - 2026-04-01
+
+### Changed
+- **Notas de diferencia:** Columnas **Estado** y **Seguimiento** al final de la tabla; sin icono de comprobante de pago en la fila; botón de seguimiento solo con icono (sin texto «Abrir caso»).
+
 ## [3.101.17-STABLE] - 2026-04-01
 
 ### Fixed / Changed
