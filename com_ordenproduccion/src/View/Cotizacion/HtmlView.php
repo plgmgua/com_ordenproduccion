@@ -221,6 +221,15 @@ class HtmlView extends BaseHtmlView
             // Layout: edit, instrucciones_orden, or display (read-only)
             $layout = $input->get('layout', '', 'cmd');
             if ($layout === 'instrucciones_orden') {
+                $dbGate = Factory::getDbo();
+                $qtcGate = $dbGate->getTableColumns('#__ordenproduccion_quotations', false);
+                $qtcGate = is_array($qtcGate) ? array_change_key_case($qtcGate, CASE_LOWER) : [];
+                if (isset($qtcGate['cotizacion_confirmada']) && $this->quotation
+                    && (int) ($this->quotation->cotizacion_confirmada ?? 0) !== 1) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_REQUIRES_CONFIRM'), 'warning');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
+                    return;
+                }
                 $preCotizacionId = $input->getInt('pre_cotizacion_id', 0);
                 $quotationIdForOrden = $input->getInt('quotation_id', $quotationId);
                 if ($preCotizacionId > 0 && ($quotationIdForOrden > 0 || $quotationId > 0)) {

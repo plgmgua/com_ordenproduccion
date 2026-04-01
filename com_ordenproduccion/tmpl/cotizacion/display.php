@@ -36,6 +36,9 @@ if (!$quotation) {
 
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
+$quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
+$pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
+$pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -169,6 +172,70 @@ $currency = $quotation->currency ?? 'Q';
         <?php endif; ?>
     </div>
 
+    <!-- Instrucciones de facturación (página principal) -->
+    <div class="card mb-4">
+        <div class="card-header py-2">
+            <h5 class="mb-0 small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_DESC', 'Enter billing instructions for this quotation.', 'Indique las instrucciones de facturación para esta cotización.'); ?></p>
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="formInstruccionesFacturacionDisplay">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                <div class="mb-2">
+                    <label for="instrucciones_facturacion_display" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
+                    <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_display" class="form-control" rows="4"><?php echo htmlspecialchars(isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : ''); ?></textarea>
+                </div>
+                <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
+            </form>
+        </div>
+    </div>
+
+    <?php if ($quotationConfirmed && !empty($items)) : ?>
+    <div class="card mb-4 border-success">
+        <div class="card-header py-2 bg-success text-white">
+            <h5 class="mb-0 small"><i class="fas fa-tasks"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_DESC', 'Generate work order for each pre-quotation.', 'Generar orden de trabajo para cada pre-cotización.'); ?></p>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                            <th style="width: 48%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                            <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                            <th style="width: 22%;" class="text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($items as $item) :
+                            $preIdRow = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+                            $preNumRow = $preIdRow > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preIdRow) : '—';
+                            $descRow = isset($item->descripcion) ? (string) $item->descripcion : '';
+                            $subtotalRow = isset($item->subtotal) ? (float) $item->subtotal : 0;
+                            $instrUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId . '&layout=instrucciones_orden&pre_cotizacion_id=' . (int) $preIdRow);
+                            ?>
+                        <tr>
+                            <td class="align-middle"><strong><?php echo htmlspecialchars($preNumRow); ?></strong></td>
+                            <td class="align-middle small text-muted"><?php echo htmlspecialchars($descRow !== '' ? $descRow : '—'); ?></td>
+                            <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotalRow, 2); ?></td>
+                            <td class="align-middle text-center">
+                                <?php if ($preIdRow > 0) : ?>
+                                    <a href="<?php echo htmlspecialchars($instrUrl); ?>" class="btn btn-sm btn-primary"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></a>
+                                <?php else : ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="mt-4 pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div class="d-flex gap-2">
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'); ?>" class="btn btn-outline-secondary">
@@ -192,15 +259,19 @@ $currency = $quotation->currency ?? 'Q';
                     <span class="small text-success"><i class="fas fa-file"></i> <?php echo htmlspecialchars(basename($signedPath)); ?> <a href="<?php echo htmlspecialchars(Uri::root() . $signedPath); ?>" target="_blank" class="ms-1"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></a></span>
                 <?php endif; ?>
             </form>
+            <?php if ($quotationConfirmed) : ?>
+                <span class="badge bg-success"><i class="fas fa-check"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_YA_FINALIZADA', 'Confirmation completed', 'Confirmación finalizada'); ?></span>
+            <?php else : ?>
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarCotizacionModal" id="btnConfirmarCotizacion">
                 <i class="fas fa-check-circle"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_COTIZACION', 'Confirm Quotation', 'Confirmar Cotización'); ?>
             </button>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 
-<!-- Modal: Confirmar Cotización (3 steps: billing, line details, generate order) -->
+<!-- Modal: archivos opcionales + Finalizar confirmación -->
 <div class="modal fade" id="confirmarCotizacionModal" tabindex="-1" aria-labelledby="confirmarCotizacionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -208,243 +279,77 @@ $currency = $quotation->currency ?? 'Q';
                 <h5 class="modal-title" id="confirmarCotizacionModalLabel"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_COTIZACION', 'Confirm Quotation', 'Confirmar Cotización'); ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="confirmar-steps mb-3">
-                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="1"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1</span>
-                    <span class="badge bg-secondary me-1 confirmar-step-dot" data-step="2"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2</span>
-                    <span class="badge bg-secondary confirmar-step-dot" data-step="3"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3</span>
-                </div>
-
-                <!-- Step 1: Instrucciones de Facturación -->
-                <div class="confirmar-step-pane" id="confirmarStep1" data-step="1">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 1:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h6>
-                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_DESC', 'Enter billing instructions for this quotation.', 'Indique las instrucciones de facturación para esta cotización.'); ?></p>
-                    <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="confirmarFormStep1">
-                        <?php echo HTMLHelper::_('form.token'); ?>
-                        <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
-                        <input type="hidden" name="next_step" value="">
-                        <div class="mb-3">
-                            <label for="instrucciones_facturacion" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
-                            <textarea name="instrucciones_facturacion" id="instrucciones_facturacion" class="form-control" rows="4" placeholder=""><?php echo htmlspecialchars(isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : ''); ?></textarea>
-                        </div>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button type="submit" class="btn btn-outline-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-                            <button type="button" class="btn btn-primary btn-confirmar-next" data-next="2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Step 2: Detalles / Instrucciones por línea (para orden de trabajo) -->
-                <div class="confirmar-step-pane" id="confirmarStep2" data-step="2" style="display:none;">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 2:</span> <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?></h6>
-                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?></p>
-                    <?php
-                    $itemsWithLineDetalles = isset($this->itemsWithLineDetalles) ? $this->itemsWithLineDetalles : [];
-                    $paperNamesModal = [];
-                    $sizeNamesModal = [];
-                    $elementosByIdModal = [];
-                    if (!empty($this->pliegoPaperTypesModal)) {
-                        foreach ($this->pliegoPaperTypesModal as $p) {
-                            $paperNamesModal[(int) $p->id] = $p->name ?? '';
-                        }
-                    }
-                    if (!empty($this->pliegoSizesModal)) {
-                        foreach ($this->pliegoSizesModal as $s) {
-                            $sizeNamesModal[(int) $s->id] = $s->name ?? '';
-                        }
-                    }
-                    if (!empty($this->elementosModal)) {
-                        foreach ($this->elementosModal as $el) {
-                            $elementosByIdModal[(int) $el->id] = $el;
-                        }
-                    }
-                    if (empty($itemsWithLineDetalles)) : ?>
-                        <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
-                        <button type="button" class="btn btn-primary btn-confirmar-next" data-next="3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
-                    <?php else : ?>
-                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden'); ?>" method="post" id="confirmarFormStep2">
-                            <?php echo HTMLHelper::_('form.token'); ?>
-                            <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>">
-                            <input type="hidden" name="next_step" value="">
-                            <div class="overflow-auto mb-3" style="max-height: 45vh;">
-                                <?php foreach ($itemsWithLineDetalles as $preItem) :
-                                    $preNum = $preItem->pre_cotizacion_number ?? ('PRE-' . $preItem->pre_cotizacion_id);
-                                    foreach ($preItem->linesWithConcepts as $row) :
-                                        $line = $row->line;
-                                        $concepts = $row->concepts;
-                                        $detalles = $row->detalles;
-                                        $lineId = (int) $line->id;
-                                        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
-                                        $lineLabel = '—';
-                                        if ($lineType === 'envio') {
-                                            $lineLabel = isset($line->envio_name) ? $line->envio_name : 'Envío';
-                                        } elseif ($lineType === 'elementos' && !empty($line->elemento_id) && isset($elementosByIdModal[(int) $line->elemento_id])) {
-                                            $lineLabel = $elementosByIdModal[(int) $line->elemento_id]->name ?? ('ID ' . $line->elemento_id);
-                                        } else {
-                                            $pn = $paperNamesModal[$line->paper_type_id ?? 0] ?? '';
-                                            $sn = $sizeNamesModal[$line->size_id ?? 0] ?? '';
-                                            $lineLabel = ($pn ?: '') . ($pn && $sn ? ' · ' : '') . ($sn ?: '') . (($pn || $sn) ? ' · ' : '') . (int) ($line->quantity ?? 0);
-                                        }
-                                        $tipoElemento = isset($line->tipo_elemento) && trim((string) $line->tipo_elemento) !== '' ? trim((string) $line->tipo_elemento) : $lineLabel;
-                                        if (empty($concepts)) {
-                                            continue;
-                                        }
-                                    ?>
-                                    <div class="card mb-2">
-                                        <div class="card-header py-1 px-2 small bg-light"><strong><?php echo htmlspecialchars($tipoElemento); ?></strong> <span class="text-muted"><?php echo htmlspecialchars($preNum); ?></span></div>
-                                        <div class="card-body py-2 px-2">
-                                            <?php foreach ($concepts as $conceptoKey => $conceptoLabel) :
-                                                $value = isset($detalles[$conceptoKey]) ? htmlspecialchars((string) $detalles[$conceptoKey], ENT_QUOTES, 'UTF-8') : '';
-                                                $name = 'detalle[' . $lineId . '][' . htmlspecialchars($conceptoKey, ENT_QUOTES, 'UTF-8') . ']';
-                                                $id = 'detalle_' . $lineId . '_' . preg_replace('/[^a-z0-9_]/', '_', $conceptoKey);
-                                            ?>
-                                            <div class="mb-2">
-                                                <label for="<?php echo $id; ?>" class="form-label small mb-0"><?php echo htmlspecialchars($conceptoLabel); ?></label>
-                                                <textarea name="<?php echo $name; ?>" id="<?php echo $id; ?>" class="form-control form-control-sm" rows="2" placeholder="<?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_PLACEHOLDER', 'Details / instructions', 'Detalles / instrucciones'); ?>"><?php echo $value; ?></textarea>
-                                            </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; endforeach; ?>
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.finalizeConfirmacionCotizacion'); ?>" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Optional files. You can finish without attaching documents.', 'Archivos opcionales. Puede finalizar sin adjuntar documentos.'); ?></p>
+                    <div class="mb-3">
+                        <label for="cotizacion_aprobada_file" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_COTIZACION_APROBADA_FILE', 'Approved quotation', 'Cotización aprobada'); ?></label>
+                        <input type="file" name="cotizacion_aprobada" id="cotizacion_aprobada_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                        <?php if ($pathCotAprobada !== '') :
+                            $uA = (strpos($pathCotAprobada, 'http') === 0) ? $pathCotAprobada : Uri::root() . ltrim($pathCotAprobada, '/');
+                            ?>
+                            <div class="small mt-1">
+                                <i class="fas fa-paperclip text-success"></i> <?php echo htmlspecialchars(basename($pathCotAprobada)); ?>
+                                <button type="button" class="btn btn-link btn-sm py-0 cotizacion-confirm-file-view" data-file-url="<?php echo htmlspecialchars($uA); ?>"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></button>
                             </div>
-                            <div class="d-flex gap-2 flex-wrap">
-                                <button type="submit" class="btn btn-outline-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-                                <button type="button" class="btn btn-primary btn-confirmar-next" data-next="3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mb-3">
+                        <label for="orden_compra_file" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_ORDEN_COMPRA_FILE', 'Purchase order', 'Orden de compra'); ?></label>
+                        <input type="file" name="orden_compra" id="orden_compra_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                        <?php if ($pathOrdenCompra !== '') :
+                            $uO = (strpos($pathOrdenCompra, 'http') === 0) ? $pathOrdenCompra : Uri::root() . ltrim($pathOrdenCompra, '/');
+                            ?>
+                            <div class="small mt-1">
+                                <i class="fas fa-paperclip text-success"></i> <?php echo htmlspecialchars(basename($pathOrdenCompra)); ?>
+                                <button type="button" class="btn btn-link btn-sm py-0 cotizacion-confirm-file-view" data-file-url="<?php echo htmlspecialchars($uO); ?>"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></button>
                             </div>
-                        </form>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
-
-                <!-- Step 3: Pre-cotizaciones + Generar Orden de Trabajo -->
-                <div class="confirmar-step-pane" id="confirmarStep3" data-step="3" style="display:none;">
-                    <h6 class="mb-2"><span class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_STEP', 'Step', 'Paso'); ?> 3:</span> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h6>
-                    <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_DESC', 'Generate work order for each pre-quotation.', 'Generar orden de trabajo para cada pre-cotización.'); ?></p>
-                    <?php if (empty($items)) : ?>
-                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
-                    <?php else : ?>
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-sm mb-0">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                                        <th style="width: 48%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                                        <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                                        <th style="width: 22%;" class="text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($items as $item) :
-                                        $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-                                        $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
-                                        $desc = isset($item->descripcion) ? (string) $item->descripcion : '';
-                                        $subtotal = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                                    ?>
-                                        <tr>
-                                            <td class="align-middle"><strong><?php echo htmlspecialchars($preNum); ?></strong></td>
-                                            <td class="align-middle small text-muted"><?php echo htmlspecialchars($desc !== '' ? $desc : '—'); ?></td>
-                                            <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotal, 2); ?></td>
-                                            <td class="align-middle text-center">
-                                                <?php if ($preId > 0) : ?>
-                                                    <?php $notifyActionUrl = Uri::base() . 'index.php?option=com_ordenproduccion&task=cotizacion.notifySolicitudOrden'; ?>
-                                                    <form action="<?php echo htmlspecialchars($notifyActionUrl); ?>" method="post" class="d-inline">
-                                                        <?php echo HTMLHelper::_('form.token'); ?>
-                                                        <input type="hidden" name="option" value="com_ordenproduccion">
-                                                        <input type="hidden" name="task" value="cotizacion.notifySolicitudOrden">
-                                                        <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preId; ?>">
-                                                        <input type="hidden" name="quotation_id" value="<?php echo $quotationId; ?>">
-                                                        <button type="submit" class="btn btn-sm btn-primary"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></button>
-                                                    </form>
-                                                <?php else : ?>
-                                                    —
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
 
-<?php
-$app = Factory::getApplication();
-$confirmarStepOnLoad = (int) $app->input->getInt('confirmar_step', 0);
-if ($confirmarStepOnLoad === 0) {
-    $confirmarStepOnLoad = (int) $app->getSession()->get('com_ordenproduccion.confirmar_step', 0);
-    if ($confirmarStepOnLoad > 0) {
-        $app->getSession()->clear('com_ordenproduccion.confirmar_step');
-    }
-}
-?>
+<div class="modal fade" id="cotizacionConfirmFileModal" tabindex="-1" aria-labelledby="cotizacionConfirmFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cotizacionConfirmFileModalLabel"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo $l('JCLOSE', 'Close', 'Cerrar'); ?>"></button>
+            </div>
+            <div class="modal-body p-0" style="min-height: 70vh;">
+                <iframe id="cotizacionConfirmFileIframe" style="width:100%; height:70vh; border:0;" title=""></iframe>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
 (function() {
-    var modal = document.getElementById('confirmarCotizacionModal');
-    if (!modal) return;
-    var steps = [1, 2, 3];
-    var confirmarStepOnLoad = <?php echo json_encode($confirmarStepOnLoad); ?>;
-    function showStep(step) {
-        steps.forEach(function(s) {
-            var pane = document.getElementById('confirmarStep' + s);
-            var dot = document.querySelector('.confirmar-step-dot[data-step="' + s + '"]');
-            if (pane) pane.style.display = (s === step) ? 'block' : 'none';
-            if (dot) {
-                dot.classList.remove('bg-primary', 'bg-secondary');
-                dot.classList.add(s === step ? 'bg-primary' : 'bg-secondary');
-            }
-        });
-    }
-    modal.addEventListener('show.bs.modal', function() { showStep(confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 3 ? confirmarStepOnLoad : 1); });
-    modal.addEventListener('hidden.bs.modal', function() { showStep(1); });
-    modal.addEventListener('click', function(e) {
-        var nextBtn = e.target && e.target.closest && e.target.closest('.btn-confirmar-next');
-        if (nextBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            var form = nextBtn.closest('form');
-            var next = parseInt(nextBtn.getAttribute('data-next'), 10);
-            if (next < 1 || next > 3) return;
-            if (!form) {
-                showStep(next);
-                return;
-            }
-            if (next < 2 || next > 3) {
-                showStep(next);
-                return;
-            }
-            var hidden = form.querySelector('input[name="next_step"]');
-            if (hidden) hidden.value = next;
-            var url = form.getAttribute('action') || '';
-            if (url.indexOf('format=json') === -1) url += (url.indexOf('?') !== -1 ? '&' : '?') + 'format=json';
-            var submitBtn = nextBtn;
-            var originalHtml = submitBtn.innerHTML;
-            var btnText = submitBtn.textContent.trim() || '';
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> ' + btnText;
-            fetch(url, { method: 'POST', body: new FormData(form) })
-                .then(function(r) { return r.json().catch(function() { return { success: false }; }); })
-                .then(function(data) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalHtml;
-                    if (data && data.success && data.next_step === next) {
-                        showStep(next);
-                    } else {
-                        form.submit();
+    var modalFile = document.getElementById('cotizacionConfirmFileModal');
+    var iframeFile = document.getElementById('cotizacionConfirmFileIframe');
+    if (modalFile && iframeFile) {
+        document.querySelectorAll('.cotizacion-confirm-file-view').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var url = this.getAttribute('data-file-url');
+                if (url) {
+                    iframeFile.src = url;
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        bootstrap.Modal.getOrCreateInstance(modalFile).show();
                     }
-                })
-                .catch(function() {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalHtml;
-                    form.submit();
-                });
-        }
-    });
-    if (confirmarStepOnLoad >= 1 && confirmarStepOnLoad <= 3 && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        var m = document.getElementById('confirmarCotizacionModal');
-        if (m) bootstrap.Modal.getOrCreateInstance(m).show();
+                }
+            });
+        });
+        modalFile.addEventListener('hidden.bs.modal', function() {
+            iframeFile.src = 'about:blank';
+        });
     }
 })();
 </script>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.21-STABLE] - 2026-04-01
+
+### Changed
+- **Confirmar cotización:** El modal inicial solo pide archivos opcionales **Cotización aprobada** y **Orden de compra** y el botón **Finalizar confirmación** (guarda rutas en la cotización y marca `cotizacion_confirmada`). Vista previa en modal tipo iframe (como lista de órdenes). **Instrucciones de facturación** pasan a la página principal. Tras finalizar, la tabla **Pre-cotizaciones** en la vista permite **Generar orden de trabajo** por fila (enlace a `layout=instrucciones_orden` con instrucciones por elemento). Migración SQL `3.101.21_quotation_confirmacion_docs.sql`. Generar orden / instrucciones requieren confirmación finalizada.
+
 ## [3.101.20-STABLE] - 2026-04-01
 
 ### Added

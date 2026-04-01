@@ -513,6 +513,138 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Finalize quotation confirmation: optional "Cotización aprobada" and "Orden de compra" files + flag cotizacion_confirmada.
+     *
+     * @return  void
+     * @since   3.101.21
+     */
+    public function finalizeConfirmacionCotizacion()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $quotationId = (int) $app->input->post->getInt('id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $db->setQuery($db->getQuery(true)->select('*')->from($db->quoteName('#__ordenproduccion_quotations'))->where($db->quoteName('id') . ' = ' . $quotationId)->where($db->quoteName('state') . ' = 1'));
+        $row = $db->loadObject();
+        if (!$row) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+        $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['cotizacion_confirmada'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DB_UPDATE_REQUIRED'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+
+        $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/cotizacion_confirmacion';
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0755, true);
+        }
+        if (!is_writable($uploadDir)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_UPLOAD_DIR_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+
+        $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
+        $maxSize = 5 * 1024 * 1024;
+
+        $pathAprobada = $this->getObjectProperty($row, 'cotizacion_aprobada_path');
+        $pathOrden    = $this->getObjectProperty($row, 'orden_compra_path');
+
+        $pathAprobada = $this->processOptionalQuotationConfirmUpload(
+            $app->input->files->get('cotizacion_aprobada', [], 'array'),
+            $quotationId,
+            'aprobada',
+            $uploadDir,
+            $allowed,
+            $maxSize
+        ) ?? $pathAprobada;
+
+        $pathOrden = $this->processOptionalQuotationConfirmUpload(
+            $app->input->files->get('orden_compra', [], 'array'),
+            $quotationId,
+            'orden_compra',
+            $uploadDir,
+            $allowed,
+            $maxSize
+        ) ?? $pathOrden;
+
+        $sets = [
+            $db->quoteName('cotizacion_confirmada') . ' = 1',
+            $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
+            $db->quoteName('modified_by') . ' = ' . (int) $user->id,
+        ];
+        if (isset($cols['cotizacion_aprobada_path'])) {
+            $sets[] = $db->quoteName('cotizacion_aprobada_path') . ' = ' . $db->quote($pathAprobada);
+        }
+        if (isset($cols['orden_compra_path'])) {
+            $sets[] = $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden);
+        }
+
+        $update = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_quotations'))
+            ->set($sets)
+            ->where($db->quoteName('id') . ' = ' . $quotationId);
+        $db->setQuery($update);
+        $db->execute();
+
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
+     * @param   array   $file      $_FILES-style
+     * @param   int     $quotationId
+     * @param   string  $suffix    filename part
+     * @param   string  $uploadDir Absolute dir
+     * @param   array   $allowed   extensions
+     * @param   int     $maxSize   bytes
+     * @return  string|null  Relative path from site root, or null if no new file
+     */
+    private function processOptionalQuotationConfirmUpload($file, $quotationId, $suffix, $uploadDir, $allowed, $maxSize)
+    {
+        if (empty($file) || !is_array($file) || empty($file['name']) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ((int) ($file['error'] ?? 0) !== UPLOAD_ERR_OK) {
+            return null;
+        }
+        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed, true)) {
+            return null;
+        }
+        if ((int) ($file['size'] ?? 0) > $maxSize) {
+            return null;
+        }
+        $uniqueName = 'cot_' . (int) $quotationId . '_' . $suffix . '_' . date('Y-m-d_His') . '.' . $ext;
+        $fullPath = $uploadDir . '/' . $uniqueName;
+        if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            return null;
+        }
+
+        return 'media/com_ordenproduccion/cotizacion_confirmacion/' . $uniqueName;
+    }
+
+    /**
      * Save "Detalles" (instructions) per line/concept.
      * POST: quotation_id (required), optional pre_cotizacion_id, detalle[line_id][concepto_key] = value.
      * If pre_cotizacion_id is set: save only that pre-cotizacion's lines and redirect to orden.
@@ -641,6 +773,9 @@ class CotizacionController extends BaseController
         if (!isset($qTableCols['instrucciones_facturacion'])) {
             $qCols = array_values(array_diff($qCols, ['instrucciones_facturacion']));
         }
+        if (isset($qTableCols['cotizacion_confirmada'])) {
+            $qCols[] = 'cotizacion_confirmada';
+        }
         $selectList = implode(', ', array_map(function ($c) use ($db) {
             return $db->quoteName($c);
         }, $qCols));
@@ -653,6 +788,12 @@ class CotizacionController extends BaseController
         $quotation = $db->loadObject();
         if (!$quotation) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+
+        if (isset($qTableCols['cotizacion_confirmada']) && (int) $this->getObjectProperty($quotation, 'cotizacion_confirmada') !== 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GENERAR_ORDEN_REQUIRES_CONFIRM'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
             return;
         }
 
