@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.26-STABLE] - 2026-04-01
+
+### Fixed
+- **Instrucciones modal / orden:** Si una línea pliego no tenía filas en `calculation_breakdown`, `getConceptsForLine` devolvía cero conceptos y no se mostraban textareas. Ahora hay un campo **Detalles** por defecto. El modal también fija la pre-cotización visible con `click` + `closest`/`shown` para que el bloque correcto no quede oculto.
+
 ## [3.101.25-STABLE] - 2026-04-01
 
 ### Added

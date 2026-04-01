@@ -442,21 +442,40 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
     if (!instrModal || !instrNext) {
         return;
     }
+    function syncInstruccionesBlocksVisible() {
+        var preId = String(instrModal.dataset.preCotizacionId || '');
+        document.querySelectorAll('.instrucciones-orden-block').forEach(function(el) {
+            var pid = String(el.getAttribute('data-pre-cotizacion-id') || '');
+            el.classList.toggle('d-none', pid !== preId);
+        });
+    }
+    document.querySelectorAll('[data-bs-target="#instruccionesOrdenModal"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            instrModal.dataset.preCotizacionId = this.getAttribute('data-pre-cotizacion-id') || '';
+            instrModal.dataset.quotationId = this.getAttribute('data-quotation-id') || '';
+        });
+    });
     instrModal.addEventListener('show.bs.modal', function(e) {
-        var t = e.relatedTarget;
         var ja = document.getElementById('instruccionesOrdenJsAlert');
         if (ja) {
             ja.classList.add('d-none');
             ja.textContent = '';
         }
-        if (t && typeof t.getAttribute === 'function') {
+        var t = e.relatedTarget;
+        if (t && typeof t.closest === 'function') {
+            var opener = t.closest('[data-pre-cotizacion-id]');
+            if (opener) {
+                instrModal.dataset.preCotizacionId = opener.getAttribute('data-pre-cotizacion-id') || '';
+                instrModal.dataset.quotationId = opener.getAttribute('data-quotation-id') || '';
+            }
+        } else if (t && typeof t.getAttribute === 'function' && t.getAttribute('data-pre-cotizacion-id')) {
             instrModal.dataset.preCotizacionId = t.getAttribute('data-pre-cotizacion-id') || '';
             instrModal.dataset.quotationId = t.getAttribute('data-quotation-id') || '';
         }
-        var preId = instrModal.dataset.preCotizacionId || '';
-        document.querySelectorAll('.instrucciones-orden-block').forEach(function(el) {
-            el.classList.toggle('d-none', el.getAttribute('data-pre-cotizacion-id') !== preId);
-        });
+        syncInstruccionesBlocksVisible();
+    });
+    instrModal.addEventListener('shown.bs.modal', function() {
+        syncInstruccionesBlocksVisible();
     });
     instrNext.addEventListener('click', function() {
         if (instrNext.disabled) {

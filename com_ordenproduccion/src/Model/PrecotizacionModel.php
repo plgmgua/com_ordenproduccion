@@ -1106,7 +1106,7 @@ class PrecotizacionModel extends ListModel
 
     /**
      * Get concepts (element labels) that require "Detalles" for a given line.
-     * Pliego: one per breakdown row (label). Elementos/Env?o: one single "Detalles" input per line (each is a single element).
+     * Pliego: one per breakdown row (label); if breakdown is empty, a single "Detalles" field is used. Elementos/Env?o: one single "Detalles" input per line (each is a single element).
      *
      * @param   \stdClass  $line  Line object (breakdown, line_type)
      * @return  array  List of [concepto_key => concepto_label]
@@ -1135,6 +1135,10 @@ class PrecotizacionModel extends ListModel
             }
             $concepts[$key] = $label;
         }
+        if (empty($concepts)) {
+            return ['detalle' => 'Detalles'];
+        }
+
         return $concepts;
     }
 
