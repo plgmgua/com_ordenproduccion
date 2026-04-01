@@ -40,6 +40,36 @@ $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotati
 $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
 $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
+
+$itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
+$pliegoPaperTypesIo = $this->pliegoPaperTypesModal ?? [];
+$pliegoSizesIo = $this->pliegoSizesModal ?? [];
+$elementosIo = $this->elementosModal ?? [];
+$lineDetallesTableOk = true;
+$precotMdlInstr = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+    ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+if ($precotMdlInstr) {
+    $lineDetallesTableOk = $precotMdlInstr->lineDetallesTableExists();
+}
+$instruccionesSaveJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden&format=json', false);
+$instruccionesSavedMsgJs = json_encode(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED_FOR_LATER'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+$instruccionesJsErrNoForm = json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NO_FORM', 'Could not find the form for this pre-quotation.', 'No se encontró el formulario para esta pre-cotización.'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+$instruccionesJsErrSave = json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_SAVE_ERROR', 'Could not save instructions.', 'No se pudieron guardar las instrucciones.'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+$instruccionesJsErrNet = json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+$paperNamesIo = [];
+foreach ($pliegoPaperTypesIo as $p) {
+    $paperNamesIo[(int) $p->id] = $p->name ?? '';
+}
+$sizeNamesIo = [];
+foreach ($pliegoSizesIo as $s) {
+    $sizeNamesIo[(int) $s->id] = $s->name ?? '';
+}
+$elementosByIdIo = [];
+foreach ($elementosIo as $el) {
+    $elementosByIdIo[(int) $el->id] = $el;
+}
+$instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetalles);
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -309,9 +339,9 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
     </div>
 </div>
 
-<!-- Modal: Instrucciones para orden de trabajo (pre-cotización) -->
+<!-- Modal: Instrucciones para orden de trabajo (pre-cotización) — saved via saveInstruccionesOrden + instrucciones_save_only -->
 <div class="modal fade" id="instruccionesOrdenModal" tabindex="-1" aria-labelledby="instruccionesOrdenModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="instruccionesOrdenModalLabel">
@@ -321,13 +351,70 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo $l('JCLOSE', 'Close', 'Cerrar'); ?>"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted mb-0">
+                <div id="instruccionesOrdenJsAlert" class="alert alert-danger py-2 small d-none" role="alert"></div>
+                <p class="text-muted small">
                     <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?>
                 </p>
+                <?php if (!$lineDetallesTableOk) : ?>
+                    <p class="text-warning mb-0"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TABLE_MISSING', 'Detalles table is missing. Run migration 3.91.0.', 'Falta la tabla de detalles. Ejecute la migración 3.91.0.'); ?></p>
+                <?php elseif (empty($itemsWithLineDetalles)) : ?>
+                    <p class="text-muted mb-0"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_EMPTY', 'No instruction fields are loaded for this quotation.', 'No hay campos de instrucción cargados para esta cotización.'); ?></p>
+                <?php else : ?>
+                    <?php foreach ($itemsWithLineDetalles as $blockIo) :
+                        $preIdBlock = (int) $blockIo->pre_cotizacion_id;
+                        $linesWithConceptsIo = $blockIo->linesWithConcepts ?? [];
+                        ?>
+                    <div class="instrucciones-orden-block d-none" data-pre-cotizacion-id="<?php echo $preIdBlock; ?>">
+                        <form method="post" class="instrucciones-orden-form-inner" id="instrucciones-orden-form-<?php echo $preIdBlock; ?>" action="#">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>">
+                            <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preIdBlock; ?>">
+                            <input type="hidden" name="instrucciones_save_only" value="1">
+                            <?php foreach ($linesWithConceptsIo as $rowIo) :
+                                $lineIo = $rowIo->line;
+                                $conceptsIo = $rowIo->concepts;
+                                $detallesIo = $rowIo->detalles;
+                                $lineIdIo = (int) $lineIo->id;
+                                $lineTypeIo = isset($lineIo->line_type) ? (string) $lineIo->line_type : 'pliego';
+                                $lineLabelIo = '—';
+                                if ($lineTypeIo === 'envio') {
+                                    $lineLabelIo = isset($lineIo->envio_name) ? 'Envío: ' . $lineIo->envio_name : 'Envío';
+                                } elseif ($lineTypeIo === 'elementos' && !empty($lineIo->elemento_id) && isset($elementosByIdIo[(int) $lineIo->elemento_id])) {
+                                    $lineLabelIo = $elementosByIdIo[(int) $lineIo->elemento_id]->name ?? ('ID ' . $lineIo->elemento_id);
+                                } else {
+                                    $paperNameIo = $paperNamesIo[$lineIo->paper_type_id ?? 0] ?? ('ID ' . (int) ($lineIo->paper_type_id ?? 0));
+                                    $sizeNameIo = $sizeNamesIo[$lineIo->size_id ?? 0] ?? ('ID ' . (int) ($lineIo->size_id ?? 0));
+                                    $lineLabelIo = $paperNameIo . ' · ' . $sizeNameIo . ' · ' . (int) $lineIo->quantity;
+                                }
+                                $tipoElementoIo = isset($lineIo->tipo_elemento) && trim((string) $lineIo->tipo_elemento) !== '' ? trim((string) $lineIo->tipo_elemento) : $lineLabelIo;
+                                ?>
+                            <div class="card mb-3">
+                                <div class="card-header bg-light py-2">
+                                    <strong><?php echo htmlspecialchars($tipoElementoIo); ?></strong>
+                                    <span class="text-muted small ms-2"><?php echo $lineLabelIo !== $tipoElementoIo ? htmlspecialchars($lineLabelIo) : ''; ?></span>
+                                </div>
+                                <div class="card-body py-2">
+                                    <?php foreach ($conceptsIo as $conceptoKeyIo => $conceptoLabelIo) :
+                                        $valueIo = isset($detallesIo[$conceptoKeyIo]) ? htmlspecialchars((string) $detallesIo[$conceptoKeyIo], ENT_QUOTES, 'UTF-8') : '';
+                                        $nameIo = 'detalle[' . $lineIdIo . '][' . $conceptoKeyIo . ']';
+                                        $idIo = 'detalle_pre' . $preIdBlock . '_' . $lineIdIo . '_' . preg_replace('/[^a-z0-9_]/', '_', (string) $conceptoKeyIo);
+                                        ?>
+                                    <div class="mb-2">
+                                        <label for="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-label small mb-1"><?php echo htmlspecialchars($conceptoLabelIo); ?></label>
+                                        <textarea name="<?php echo htmlspecialchars($nameIo, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm" rows="2" placeholder="<?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_PLACEHOLDER', 'Details / instructions', 'Detalles / instrucciones'); ?>"><?php echo $valueIo; ?></textarea>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </form>
+                    </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>
-                <button type="button" class="btn btn-primary" id="instruccionesOrdenNextBtn"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+                <button type="button" class="btn btn-primary" id="instruccionesOrdenNextBtn"<?php echo $instruccionesModalCanSave ? '' : ' disabled'; ?>><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
             </div>
         </div>
     </div>
@@ -350,18 +437,93 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
 (function() {
     var instrModal = document.getElementById('instruccionesOrdenModal');
     var instrNext = document.getElementById('instruccionesOrdenNextBtn');
-    if (instrModal && instrNext) {
-        instrModal.addEventListener('show.bs.modal', function(e) {
-            var t = e.relatedTarget;
-            if (t && typeof t.getAttribute === 'function') {
-                instrModal.dataset.preCotizacionId = t.getAttribute('data-pre-cotizacion-id') || '';
-                instrModal.dataset.quotationId = t.getAttribute('data-quotation-id') || '';
-            }
-        });
-        instrNext.addEventListener('click', function() {
-            /* Next: reserved for save + continue to work order */
-        });
+    var saveUrl = <?php echo json_encode($instruccionesSaveJsonUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var savedMsg = <?php echo $instruccionesSavedMsgJs; ?>;
+    if (!instrModal || !instrNext) {
+        return;
     }
+    instrModal.addEventListener('show.bs.modal', function(e) {
+        var t = e.relatedTarget;
+        var ja = document.getElementById('instruccionesOrdenJsAlert');
+        if (ja) {
+            ja.classList.add('d-none');
+            ja.textContent = '';
+        }
+        if (t && typeof t.getAttribute === 'function') {
+            instrModal.dataset.preCotizacionId = t.getAttribute('data-pre-cotizacion-id') || '';
+            instrModal.dataset.quotationId = t.getAttribute('data-quotation-id') || '';
+        }
+        var preId = instrModal.dataset.preCotizacionId || '';
+        document.querySelectorAll('.instrucciones-orden-block').forEach(function(el) {
+            el.classList.toggle('d-none', el.getAttribute('data-pre-cotizacion-id') !== preId);
+        });
+    });
+    instrNext.addEventListener('click', function() {
+        if (instrNext.disabled) {
+            return;
+        }
+        var preId = instrModal.dataset.preCotizacionId || '';
+        var form = document.getElementById('instrucciones-orden-form-' + preId);
+        var ja = document.getElementById('instruccionesOrdenJsAlert');
+        if (!form) {
+            if (ja) {
+                ja.textContent = <?php echo $instruccionesJsErrNoForm; ?>;
+                ja.classList.remove('d-none');
+            }
+            return;
+        }
+        instrNext.disabled = true;
+        var fd = new FormData(form);
+        fetch(saveUrl, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) {
+                return r.text().then(function(text) {
+                    try {
+                        return JSON.parse(text);
+                    } catch (err) {
+                        return { success: false, message: text ? text.substring(0, 200) : 'Error' };
+                    }
+                });
+            })
+            .then(function(data) {
+                if (data && data.success) {
+                    var bs = typeof bootstrap !== 'undefined' && bootstrap.Modal ? bootstrap.Modal.getInstance(instrModal) : null;
+                    if (bs) {
+                        bs.hide();
+                    }
+                    var el = document.createElement('div');
+                    el.className = 'alert alert-success alert-dismissible fade show';
+                    el.setAttribute('role', 'alert');
+                    el.innerHTML = '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
+                        + (data.message || savedMsg);
+                    var container = document.querySelector('.cotizacion-container');
+                    if (container) {
+                        container.insertBefore(el, container.firstChild);
+                    }
+                    window.setTimeout(function() {
+                        if (el && el.parentNode) {
+                            el.remove();
+                        }
+                    }, 8000);
+                } else if (ja) {
+                    ja.textContent = (data && data.message) ? data.message : <?php echo $instruccionesJsErrSave; ?>;
+                    ja.classList.remove('d-none');
+                }
+            })
+            .catch(function() {
+                if (ja) {
+                    ja.textContent = <?php echo $instruccionesJsErrNet; ?>;
+                    ja.classList.remove('d-none');
+                }
+            })
+            .finally(function() {
+                instrNext.disabled = false;
+            });
+    });
 })();
 </script>
 <script>

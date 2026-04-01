@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.25-STABLE] - 2026-04-01
+
+### Added
+- **Modal instrucciones orden:** Los detalles por línea/concepto se guardan en la misma tabla de detalles que la vista completa (`instrucciones_save_only` + `format=json` sin webhook). Mensaje `COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED_FOR_LATER`.
+
 ## [3.101.24-STABLE] - 2026-04-01
 
 ### Changed

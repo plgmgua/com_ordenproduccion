@@ -647,6 +647,7 @@ class CotizacionController extends BaseController
     /**
      * Save "Detalles" (instructions) per line/concept.
      * POST: quotation_id (required), optional pre_cotizacion_id, detalle[line_id][concepto_key] = value.
+     * Optional instrucciones_save_only=1 with format=json: persist detalles only (no notify/webhook); used by the quotation display modal.
      * If pre_cotizacion_id is set: save only that pre-cotizacion's lines and redirect to orden.
      * If only quotation_id: save all lines of all pre-cotizaciones in the quotation and redirect back to quotation display (modal).
      *
@@ -717,6 +718,22 @@ class CotizacionController extends BaseController
         }
         $nextStep = (int) $app->input->post->get('next_step', 0);
         $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+        $instruccionesSaveOnly = (int) $app->input->post->get('instrucciones_save_only', 0) === 1;
+        if ($preCotizacionId > 0 && $instruccionesSaveOnly) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            if ($isAjax) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode([
+                    'success' => true,
+                    'message' => Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED_FOR_LATER'),
+                ]);
+                $app->close();
+            }
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED_FOR_LATER'), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
         if ($preCotizacionId > 0) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
             // Same follow-up as legacy "Generar Orden de Trabajo": webhook + redirect (notifySolicitudOrden).
