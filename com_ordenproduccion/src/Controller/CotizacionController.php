@@ -719,7 +719,13 @@ class CotizacionController extends BaseController
         $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
         if ($preCotizacionId > 0) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_SAVED'), 'success');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false));
+            // Same follow-up as legacy "Generar Orden de Trabajo": webhook + redirect (notifySolicitudOrden).
+            $tok = Session::getFormToken();
+            $app->redirect(Route::_(
+                'index.php?option=com_ordenproduccion&task=cotizacion.notifySolicitudOrden'
+                . '&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId . '&' . $tok . '=1',
+                false
+            ));
         } elseif ($isAjax && $nextStep === 3) {
             $app->setHeader('Content-Type', 'application/json', true);
             echo json_encode(['success' => true, 'next_step' => 3]);
