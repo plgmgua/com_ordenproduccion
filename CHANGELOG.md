@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.36-STABLE] - 2026-04-01
+
+### Changed
+- **Pre-cotización líneas (detalle desplegable):** Eliminadas las columnas **Clicks** y **Costo Clicks** de la subtabla de desglose (vistas `cotizador/document` y `cotizador/details`). Los ajustes de clicks en Parámetros del componente se conservan por si se reutilizan en otro flujo.
+
 ## [3.101.35-STABLE] - 2026-04-01
 
 ### Changed
