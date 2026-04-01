@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.41-STABLE] - 2026-04-01
+
+### Changed
+- **Pre-cotización (documento):** La fecha de vencimiento de la oferta se muestra junto al checkbox **Oferta** (formato `dd/mm/aaaa`). En modo edición, enlace **Cambiar vencimiento** abre el modal sin desmarcar la oferta al cancelar. Usuarios sin permiso de plantilla ven solo insignia **Oferta** + vencimiento si aplica.
+
 ## [3.101.40-STABLE] - 2026-04-01
 
 ### Changed

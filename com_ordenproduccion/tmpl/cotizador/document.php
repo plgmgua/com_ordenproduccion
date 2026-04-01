@@ -194,6 +194,22 @@ $envios = $this->envios ?? [];
     $ofertaChecked = !empty($item->oferta);
     $ofertaExpiresValue = isset($item->oferta_expires) && $item->oferta_expires !== '' && $item->oferta_expires !== null
         ? (new \DateTime($item->oferta_expires))->format('Y-m-d') : '';
+    $canShowOfertaExpiry = property_exists($item, 'oferta_expires') && $ofertaChecked;
+    $ofertaExpiresDisplay = '';
+    if ($canShowOfertaExpiry && $ofertaExpiresValue !== '') {
+        try {
+            $ofertaExpiresDisplay = (new \DateTime($ofertaExpiresValue))->format('d/m/Y');
+        } catch (\Throwable $e) {
+            $ofertaExpiresDisplay = (string) $item->oferta_expires;
+        }
+    }
+    $todayMinDate = (new \DateTime('today'))->format('Y-m-d');
+    $labelOfertaChangeExpires = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_CHANGE_EXPIRES');
+    if (strpos($labelOfertaChangeExpires, 'COM_') === 0) {
+        $labelOfertaChangeExpires = 'Cambiar vencimiento';
+    }
+    $canEditOfertaExpiry = !$precotizacionLocked && !empty($this->showOfertaCheckbox)
+        && $ofertaChecked && property_exists($item, 'oferta_expires');
     $saveOfertaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOferta');
     $labelMedidas = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS');
     if (strpos($labelMedidas, 'COM_ORDENPRODUCCION_') === 0) {
@@ -233,14 +249,29 @@ $envios = $this->envios ?? [];
     <div class="precotizacion-oferta-facturar mb-3 d-flex flex-wrap align-items-center gap-4">
         <?php if (!$precotizacionLocked && !empty($this->showOfertaCheckbox)) : ?>
         <button type="button" class="d-none" id="trigger-modal-oferta-expires" data-bs-toggle="modal" data-bs-target="#modal-oferta-expires" aria-hidden="true"></button>
-        <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
-            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-            <?php echo HTMLHelper::_('form.token'); ?>
-            <div class="form-check mb-0">
-                <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>>
-                <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
-            </div>
-        </form>
+        <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
+            <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <div class="form-check mb-0">
+                    <input type="checkbox" class="form-check-input" name="oferta" id="precotizacion-oferta" value="1" <?php echo $ofertaChecked ? ' checked' : ''; ?>>
+                    <label class="form-check-label" for="precotizacion-oferta"><?php echo htmlspecialchars($labelOferta); ?></label>
+                </div>
+            </form>
+            <?php if ($canShowOfertaExpiry) : ?>
+            <span class="precotizacion-oferta-expires-preview small text-muted mb-0">
+                <span class="text-body-secondary"><?php echo htmlspecialchars($labelOfertaExpires); ?>:</span>
+                <?php if ($ofertaExpiresDisplay !== '') : ?>
+                    <strong class="text-body"><?php echo htmlspecialchars($ofertaExpiresDisplay); ?></strong>
+                <?php else : ?>
+                    <span class="text-muted">—</span>
+                <?php endif; ?>
+            </span>
+            <?php endif; ?>
+            <?php if ($canEditOfertaExpiry) : ?>
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="precotizacion-oferta-change-expires"><?php echo htmlspecialchars($labelOfertaChangeExpires); ?></button>
+            <?php endif; ?>
+        </div>
         <div class="modal fade" id="modal-oferta-expires" tabindex="-1" aria-labelledby="modal-oferta-expires-label" aria-hidden="true" data-bs-backdrop="static">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -257,7 +288,7 @@ $envios = $this->envios ?? [];
                                 <label for="precotizacion-oferta-expires" class="form-label"><?php echo htmlspecialchars($labelOfertaExpires); ?></label>
                                 <input type="date" name="oferta_expires" id="precotizacion-oferta-expires" class="form-control" required
                                        value="<?php echo htmlspecialchars($ofertaExpiresValue); ?>"
-                                       min="<?php echo (new \DateTime('today'))->format('Y-m-d'); ?>">
+                                       data-min-first="<?php echo htmlspecialchars($todayMinDate); ?>">
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -273,35 +304,86 @@ $envios = $this->envios ?? [];
             var chk = document.getElementById('precotizacion-oferta');
             var triggerBtn = document.getElementById('trigger-modal-oferta-expires');
             var modalEl = document.getElementById('modal-oferta-expires');
+            var modalForm = document.getElementById('form-oferta-modal');
+            var btnChange = document.getElementById('precotizacion-oferta-change-expires');
+            var dateInput = document.getElementById('precotizacion-oferta-expires');
             if (!chk || !modalEl) return;
-            chk.addEventListener('change', function() {
-                if (this.checked) {
-                    if (triggerBtn) triggerBtn.click();
-                } else {
-                    document.getElementById('form-oferta').submit();
+            var modalMode = 'first';
+            var savingFromModal = false;
+            var minFirst = dateInput && dateInput.getAttribute('data-min-first') ? dateInput.getAttribute('data-min-first') : '';
+
+            if (modalForm) {
+                modalForm.addEventListener('submit', function() {
+                    savingFromModal = true;
+                });
+            }
+            modalEl.addEventListener('show.bs.modal', function() {
+                if (!dateInput) return;
+                if (modalMode === 'edit') {
+                    dateInput.removeAttribute('min');
+                } else if (minFirst) {
+                    dateInput.setAttribute('min', minFirst);
                 }
             });
-            function closeAndUncheck() {
-                chk.checked = false;
-                var fm = document.getElementById('form-oferta');
-                if (fm) fm.submit();
-            }
             modalEl.addEventListener('hide.bs.modal', function() {
+                if (savingFromModal) {
+                    savingFromModal = false;
+                    return;
+                }
+                if (modalMode === 'edit') {
+                    modalMode = 'first';
+                    return;
+                }
                 if (!chk.checked) return;
                 chk.checked = false;
                 var fm = document.getElementById('form-oferta');
                 if (fm) fm.submit();
             });
-            var cancelBtn = document.getElementById('modal-oferta-expires-btn-cancel');
-            var closeBtn = document.getElementById('modal-oferta-expires-btn-close');
-            if (cancelBtn) cancelBtn.addEventListener('click', closeAndUncheck);
-            if (closeBtn) closeBtn.addEventListener('click', closeAndUncheck);
+            chk.addEventListener('change', function() {
+                if (this.checked) {
+                    modalMode = 'first';
+                    if (triggerBtn) triggerBtn.click();
+                } else {
+                    var fm = document.getElementById('form-oferta');
+                    if (fm) fm.submit();
+                }
+            });
+            if (btnChange) {
+                btnChange.addEventListener('click', function() {
+                    modalMode = 'edit';
+                    if (triggerBtn) triggerBtn.click();
+                });
+            }
         })();
         </script>
         <?php elseif ($precotizacionLocked && !empty($this->showOfertaCheckbox)) : ?>
-        <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="precotizacion-oferta-display" disabled <?php echo $ofertaChecked ? ' checked' : ''; ?>>
-            <label class="form-check-label text-muted" for="precotizacion-oferta-display"><?php echo htmlspecialchars($labelOferta); ?></label>
+        <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
+            <div class="form-check mb-0">
+                <input type="checkbox" class="form-check-input" id="precotizacion-oferta-display" disabled <?php echo $ofertaChecked ? ' checked' : ''; ?>>
+                <label class="form-check-label text-muted" for="precotizacion-oferta-display"><?php echo htmlspecialchars($labelOferta); ?></label>
+            </div>
+            <?php if ($canShowOfertaExpiry) : ?>
+            <span class="precotizacion-oferta-expires-preview small text-muted mb-0">
+                <span class="text-body-secondary"><?php echo htmlspecialchars($labelOfertaExpires); ?>:</span>
+                <?php if ($ofertaExpiresDisplay !== '') : ?>
+                    <strong class="text-body"><?php echo htmlspecialchars($ofertaExpiresDisplay); ?></strong>
+                <?php else : ?>
+                    <span class="text-muted">—</span>
+                <?php endif; ?>
+            </span>
+            <?php endif; ?>
+        </div>
+        <?php elseif (!empty($item->oferta) && property_exists($item, 'oferta_expires')) : ?>
+        <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
+            <span class="badge bg-info text-dark"><?php echo htmlspecialchars($labelOferta); ?></span>
+            <span class="precotizacion-oferta-expires-preview small text-muted mb-0">
+                <span class="text-body-secondary"><?php echo htmlspecialchars($labelOfertaExpires); ?>:</span>
+                <?php if ($ofertaExpiresDisplay !== '') : ?>
+                    <strong class="text-body"><?php echo htmlspecialchars($ofertaExpiresDisplay); ?></strong>
+                <?php else : ?>
+                    <span class="text-muted">—</span>
+                <?php endif; ?>
+            </span>
         </div>
         <?php endif; ?>
         <?php if ($precotizacionLocked) : ?>
