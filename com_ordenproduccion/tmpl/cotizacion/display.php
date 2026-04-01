@@ -333,9 +333,6 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
             </div>
             <div class="modal-body">
                 <div id="instruccionesOrdenJsAlert" class="alert alert-danger py-2 small d-none" role="alert"></div>
-                <p class="text-muted small">
-                    <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?>
-                </p>
                 <?php if (!$lineDetallesTableOk) : ?>
                     <p class="text-warning mb-0"><?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TABLE_MISSING', 'Detalles table is missing. Run migration 3.91.0.', 'Falta la tabla de detalles. Ejecute la migración 3.91.0.'); ?></p>
                 <?php elseif (empty($itemsWithLineDetalles)) : ?>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.33-STABLE] - 2026-04-01
+
+### Changed
+- **Instrucciones orden de trabajo:** Eliminado el párrafo introductorio (`INSTRUCCIONES_ORDEN_DESC`) en el modal y en la vista `instrucciones_orden`. Los textareas ya no tenían atributo `placeholder`.
+
 ## [3.101.32-STABLE] - 2026-04-01
 
 ### Changed

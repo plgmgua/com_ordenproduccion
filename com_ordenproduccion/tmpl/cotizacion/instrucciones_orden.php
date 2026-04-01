@@ -41,9 +41,6 @@ $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edi
         <i class="fas fa-clipboard-list"></i>
         <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?>
     </h2>
-    <p class="text-muted mb-4">
-        <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?>
-    </p>
 
     <form action="<?php echo htmlspecialchars($saveUrl); ?>" method="post" id="instrucciones-orden-form" class="form-horizontal">
         <?php echo HTMLHelper::_('form.token'); ?>
