@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.39-STABLE] - 2026-04-01
+
+### Added
+- **Lista pre-cotizaciones:** Segunda fila en cabeceras con filtros por columna (número, rango de fechas, agente, descripción, cotización vinculada, cliente, oferta, facturar, con/sin cotización vinculada). Botones **Aplicar filtros** y **Limpiar filtros** (`filter_reset=1`). Filtros persistidos en sesión de usuario (compatible con paginación).
+
+### Changed
+- **Acciones:** Eliminado el botón de ver (icono ojo); se mantiene solo eliminar cuando no hay cotización vinculada; si hay vinculación se muestra `—`.
+
 ## [3.101.38-STABLE] - 2026-04-01
 
 ### Added

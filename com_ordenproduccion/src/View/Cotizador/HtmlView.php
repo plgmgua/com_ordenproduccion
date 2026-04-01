@@ -62,6 +62,14 @@ class HtmlView extends BaseHtmlView
     protected $hasOfertaColumn = false;
 
     /**
+     * Sales agent id => name for list filter dropdown (admin list only).
+     *
+     * @var    array<int, string>
+     * @since  3.101.39
+     */
+    protected $salesAgentFilterOptions = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -197,6 +205,24 @@ class HtmlView extends BaseHtmlView
                 $ids[] = (int) $it->id;
             }
             $this->associatedQuotationNumbersByPreId = $this->getAssociatedQuotationNumbersByPreCotizacionIds($ids);
+            $this->salesAgentFilterOptions = [];
+            if ($this->showSalesAgentColumn) {
+                $db = Factory::getDbo();
+                $q = $db->getQuery(true)
+                    ->select('DISTINCT ' . $db->quoteName('a.created_by') . ', ' . $db->quoteName('u.name'))
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
+                    ->innerJoin(
+                        $db->quoteName('#__users', 'u'),
+                        $db->quoteName('u.id') . ' = ' . $db->quoteName('a.created_by')
+                    )
+                    ->where($db->quoteName('a.state') . ' = 1')
+                    ->order($db->quoteName('u.name') . ' ASC');
+                $db->setQuery($q);
+                $agentRows = $db->loadObjectList() ?: [];
+                foreach ($agentRows as $ar) {
+                    $this->salesAgentFilterOptions[(int) $ar->created_by] = (string) ($ar->name ?? '');
+                }
+            }
             $this->setLayout('default');
             $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_TITLE'));
             HTMLHelper::_('bootstrap.framework');

@@ -52,6 +52,10 @@ class PrecotizacionModel extends ListModel
     protected function getStoreId($id = '')
     {
         $id .= ':' . $this->getState('filter.search');
+        foreach (['number', 'descripcion', 'oferta', 'facturar', 'created_from', 'created_to', 'created_by', 'has_cotizacion', 'quotation', 'client'] as $fk) {
+            $id .= ':' . (string) $this->getState('filter.' . $fk, '');
+        }
+
         return parent::getStoreId($id);
     }
 
@@ -97,8 +101,56 @@ class PrecotizacionModel extends ListModel
         }
         $this->setState('list.direction', $listOrder);
 
+        if ((int) $app->input->get('filter_reset', 0) === 1) {
+            foreach (['search', 'number', 'descripcion', 'oferta', 'facturar', 'created_from', 'created_to', 'has_cotizacion', 'quotation', 'client'] as $fk) {
+                $app->setUserState($this->context . '.filter.' . $fk, '');
+            }
+            $app->setUserState($this->context . '.filter.created_by', 0);
+        }
+
         $search = $app->getUserStateFromRequest($this->context . '.filter.search', 'filter_search', '', 'string');
         $this->setState('filter.search', $search);
+
+        $this->setState(
+            'filter.number',
+            $app->getUserStateFromRequest($this->context . '.filter.number', 'filter_number', '', 'string')
+        );
+        $this->setState(
+            'filter.descripcion',
+            $app->getUserStateFromRequest($this->context . '.filter.descripcion', 'filter_descripcion', '', 'string')
+        );
+        $this->setState(
+            'filter.oferta',
+            $app->getUserStateFromRequest($this->context . '.filter.oferta', 'filter_oferta', '', 'string')
+        );
+        $this->setState(
+            'filter.facturar',
+            $app->getUserStateFromRequest($this->context . '.filter.facturar', 'filter_facturar', '', 'string')
+        );
+        $this->setState(
+            'filter.created_from',
+            $app->getUserStateFromRequest($this->context . '.filter.created_from', 'filter_created_from', '', 'string')
+        );
+        $this->setState(
+            'filter.created_to',
+            $app->getUserStateFromRequest($this->context . '.filter.created_to', 'filter_created_to', '', 'string')
+        );
+        $this->setState(
+            'filter.created_by',
+            $app->getUserStateFromRequest($this->context . '.filter.created_by', 'filter_created_by', 0, 'int')
+        );
+        $this->setState(
+            'filter.has_cotizacion',
+            $app->getUserStateFromRequest($this->context . '.filter.has_cotizacion', 'filter_has_cotizacion', '', 'string')
+        );
+        $this->setState(
+            'filter.quotation',
+            $app->getUserStateFromRequest($this->context . '.filter.quotation', 'filter_quotation', '', 'string')
+        );
+        $this->setState(
+            'filter.client',
+            $app->getUserStateFromRequest($this->context . '.filter.client', 'filter_client', '', 'string')
+        );
     }
 
     /**
@@ -143,14 +195,90 @@ class PrecotizacionModel extends ListModel
             $query->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
         }
 
-        $search = $this->getState('filter.search');
-        if (!empty($search)) {
-            if (stripos($search, 'id:') === 0) {
-                $query->where('a.id = ' . (int) substr($search, 3));
+        $numberFilter = trim((string) $this->getState('filter.number', ''));
+        if ($numberFilter === '') {
+            $numberFilter = trim((string) $this->getState('filter.search', ''));
+        }
+        if ($numberFilter !== '') {
+            if (stripos($numberFilter, 'id:') === 0) {
+                $query->where('a.id = ' . (int) substr($numberFilter, 3));
             } else {
-                $search = $db->quote('%' . $db->escape($search, true) . '%');
-                $query->where('(' . $db->quoteName('a.number') . ' LIKE ' . $search . ')');
+                $like = $db->quote('%' . $db->escape($numberFilter, true) . '%');
+                $query->where($db->quoteName('a.number') . ' LIKE ' . $like);
             }
+        }
+
+        $descFilter = trim((string) $this->getState('filter.descripcion', ''));
+        if ($descFilter !== '' && isset($tableColsLc['descripcion'])) {
+            $like = $db->quote('%' . $db->escape($descFilter, true) . '%');
+            $query->where($db->quoteName('a.descripcion') . ' LIKE ' . $like);
+        }
+
+        $ofertaF = (string) $this->getState('filter.oferta', '');
+        if ($ofertaF !== '' && $ofertaF !== '*' && isset($tableColsLc['oferta'])) {
+            $query->where($db->quoteName('a.oferta') . ' = ' . (int) $ofertaF);
+        }
+
+        $facturarF = (string) $this->getState('filter.facturar', '');
+        if ($facturarF !== '' && $facturarF !== '*' && isset($tableColsLc['facturar'])) {
+            $query->where($db->quoteName('a.facturar') . ' = ' . (int) $facturarF);
+        }
+
+        $from = trim((string) $this->getState('filter.created_from', ''));
+        if ($from !== '') {
+            $query->where($db->quoteName('a.created') . ' >= ' . $db->quote($from . ' 00:00:00'));
+        }
+        $to = trim((string) $this->getState('filter.created_to', ''));
+        if ($to !== '') {
+            $query->where($db->quoteName('a.created') . ' <= ' . $db->quote($to . ' 23:59:59'));
+        }
+
+        $createdByF = (int) $this->getState('filter.created_by', 0);
+        if ($isAdministracion && $createdByF > 0) {
+            $query->where($db->quoteName('a.created_by') . ' = ' . $createdByF);
+        }
+
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        $hasPreLink = isset($itemCols['pre_cotizacion_id']);
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        $hasClientName = isset($qCols['client_name']);
+
+        $hasCotF = (string) $this->getState('filter.has_cotizacion', '');
+        if ($hasPreLink && ($hasCotF === '1' || $hasCotF === '0')) {
+            $qi = $db->quoteName('#__ordenproduccion_quotation_items', 'qi');
+            if ($hasCotF === '1') {
+                $query->where('EXISTS (SELECT 1 FROM ' . $qi . ' WHERE qi.pre_cotizacion_id = a.id)');
+            } else {
+                $query->where('NOT EXISTS (SELECT 1 FROM ' . $qi . ' WHERE qi.pre_cotizacion_id = a.id)');
+            }
+        }
+
+        $quotF = trim((string) $this->getState('filter.quotation', ''));
+        if ($quotF !== '' && $hasPreLink && isset($qCols['quotation_number'])) {
+            $like = $db->quote('%' . $db->escape($quotF, true) . '%');
+            $qi = $db->quoteName('#__ordenproduccion_quotation_items', 'qi');
+            $qt = $db->quoteName('#__ordenproduccion_quotations', 'q');
+            $query->where(
+                'EXISTS (SELECT 1 FROM ' . $qi
+                . ' INNER JOIN ' . $qt . ' ON ' . $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+                . ' AND ' . $db->quoteName('q.state') . ' = 1'
+                . ' WHERE ' . $db->quoteName('qi.pre_cotizacion_id') . ' = a.id AND ' . $db->quoteName('q.quotation_number') . ' LIKE ' . $like . ')'
+            );
+        }
+
+        $clientF = trim((string) $this->getState('filter.client', ''));
+        if ($clientF !== '' && $hasPreLink && $hasClientName) {
+            $like = $db->quote('%' . $db->escape($clientF, true) . '%');
+            $qi = $db->quoteName('#__ordenproduccion_quotation_items', 'qi');
+            $qt = $db->quoteName('#__ordenproduccion_quotations', 'q');
+            $query->where(
+                'EXISTS (SELECT 1 FROM ' . $qi
+                . ' INNER JOIN ' . $qt . ' ON ' . $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+                . ' AND ' . $db->quoteName('q.state') . ' = 1'
+                . ' WHERE ' . $db->quoteName('qi.pre_cotizacion_id') . ' = a.id AND ' . $db->quoteName('q.client_name') . ' LIKE ' . $like . ')'
+            );
         }
 
         $orderCol = $this->state->get('list.ordering', 'id');
