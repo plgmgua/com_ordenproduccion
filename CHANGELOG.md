@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.38-STABLE] - 2026-04-01
+
+### Added
+- **Lista pre-cotizaciones:** Columna **Oferta** (Sí/No) antes de **Facturar**, cuando existe la columna `oferta` en `#__ordenproduccion_pre_cotizacion` (el listado ya cargaba `a.oferta`).
+
 ## [3.101.37-STABLE] - 2026-04-01
 
 ### Added

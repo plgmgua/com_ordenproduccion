@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 $items      = $this->items ?? [];
 $pagination = $this->pagination ?? null;
 $templates  = $this->templates ?? [];
+$showOfertaColumn   = !empty($this->hasOfertaColumn);
 $showFacturarColumn = !empty($this->hasFacturarColumn);
 $addFromTemplateUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addFromTemplate', false);
 $labelNewBlank = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW_BLANK');
@@ -77,6 +78,9 @@ if (strpos($labelNewBlank, 'COM_ORDENPRODUCCION_') === 0) {
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CLIENT'); ?></th>
+                        <?php if ($showOfertaColumn) : ?>
+                        <th scope="col" class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA'); ?></th>
+                        <?php endif; ?>
                         <?php if ($showFacturarColumn) : ?>
                         <th scope="col" class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR'); ?></th>
                         <?php endif; ?>
@@ -132,6 +136,16 @@ if (strpos($labelNewBlank, 'COM_ORDENPRODUCCION_') === 0) {
                                 echo $clientNames !== [] ? htmlspecialchars(implode(', ', $clientNames)) : '—';
                                 ?>
                             </td>
+                            <?php if ($showOfertaColumn) : ?>
+                            <td class="text-center">
+                                <?php
+                                $ofertaOn = !empty($item->oferta);
+                                echo $ofertaOn
+                                    ? '<span class="text-success">' . htmlspecialchars(Text::_('JYES')) . '</span>'
+                                    : '<span class="text-muted">' . htmlspecialchars(Text::_('JNO')) . '</span>';
+                                ?>
+                            </td>
+                            <?php endif; ?>
                             <?php if ($showFacturarColumn) : ?>
                             <td class="text-center">
                                 <?php

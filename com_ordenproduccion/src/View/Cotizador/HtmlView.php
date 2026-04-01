@@ -54,6 +54,14 @@ class HtmlView extends BaseHtmlView
     protected $hasFacturarColumn = false;
 
     /**
+     * Whether pre_cotizacion has oferta column (list column Oferta Sí/No).
+     *
+     * @var    bool
+     * @since  3.101.38
+     */
+    protected $hasOfertaColumn = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -181,6 +189,7 @@ class HtmlView extends BaseHtmlView
             $pcCols = Factory::getDbo()->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
             $pcColsLc = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
             $this->hasFacturarColumn = isset($pcColsLc['facturar']);
+            $this->hasOfertaColumn   = isset($pcColsLc['oferta']);
             $this->showSalesAgentColumn = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
             $this->templates = $precotModel->getTemplates();
             $ids = [];
