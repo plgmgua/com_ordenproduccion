@@ -352,13 +352,22 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                                 $preNumBlock = 'PRE-' . $preIdBlock;
                             }
                             $preDescBlock = trim((string) ($blockIo->descripcion ?? ''));
+                            $preMedidasBlock = trim((string) ($blockIo->medidas ?? ''));
                             ?>
                             <div class="border rounded bg-light p-3 mb-3">
                                 <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
                                     <span class="badge bg-secondary"><?php echo htmlspecialchars($preNumBlock); ?></span>
                                 </div>
-                                <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION', 'Description', 'Descripción'); ?></div>
-                                <div class="small mb-0 instrucciones-pre-descripcion"><?php echo $preDescBlock !== '' ? nl2br(htmlspecialchars($preDescBlock, ENT_QUOTES, 'UTF-8')) : '<span class="text-muted">—</span>'; ?></div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION', 'Description', 'Descripción'); ?></div>
+                                        <div class="small mb-0 instrucciones-pre-descripcion"><?php echo $preDescBlock !== '' ? nl2br(htmlspecialchars($preDescBlock, ENT_QUOTES, 'UTF-8')) : '<span class="text-muted">—</span>'; ?></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS', 'Dimensions', 'Medidas'); ?></div>
+                                        <div class="small mb-0 instrucciones-pre-medidas"><?php echo $preMedidasBlock !== '' ? nl2br(htmlspecialchars($preMedidasBlock, ENT_QUOTES, 'UTF-8')) : '<span class="text-muted">—</span>'; ?></div>
+                                    </div>
+                                </div>
                             </div>
                             <?php foreach ($linesWithConceptsIo as $rowIo) :
                                 $lineIo = $rowIo->line;

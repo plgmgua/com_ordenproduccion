@@ -196,10 +196,16 @@ class HtmlView extends BaseHtmlView
                                     'detalles' => $existing,
                                 ];
                             }
+                            $preSnap = $precotModel->getItem($preId);
+                            $medidasBlock = '';
+                            if ($preSnap && isset($preSnap->medidas)) {
+                                $medidasBlock = trim((string) $preSnap->medidas);
+                            }
                             $this->itemsWithLineDetalles[] = (object) [
                                 'pre_cotizacion_id'   => $preId,
                                 'pre_cotizacion_number' => $item->pre_cotizacion_number ?? ('PRE-' . $preId),
                                 'descripcion'         => $item->descripcion ?? '',
+                                'medidas'             => $medidasBlock,
                                 'subtotal'            => isset($item->subtotal) ? (float) $item->subtotal : 0,
                                 'linesWithConcepts'   => $linesWithConcepts,
                             ];

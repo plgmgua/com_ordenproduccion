@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.29-STABLE] - 2026-04-01
+
+### Added
+- **Modal instrucciones:** Muestra **medidas** de la pre-cotización (columna `medidas`) junto a la descripción en dos columnas (`col-md-6`).
+
 ## [3.101.28-STABLE] - 2026-04-01
 
 ### Changed
