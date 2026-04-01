@@ -40,6 +40,7 @@ $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotati
 $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
 $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
+$instruccionesFacturacionValue = isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : '';
 
 $itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
 $pliegoPaperTypesIo = $this->pliegoPaperTypesModal ?? [];
@@ -304,6 +305,11 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                                 <button type="button" class="btn btn-link btn-sm py-0 cotizacion-confirm-file-view" data-file-url="<?php echo htmlspecialchars($uO); ?>"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></button>
                             </div>
                         <?php endif; ?>
+                    </div>
+                    <div class="mb-3">
+                        <label for="instrucciones_facturacion_confirm" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
+                        <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_confirm" class="form-control form-control-sm" rows="3" maxlength="65535"><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <p class="form-text small text-muted mb-0"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_DESC', 'Enter billing instructions for this quotation.', 'Indique las instrucciones de facturación para esta cotización.'); ?></p>
                     </div>
                 </div>
                 <div class="modal-footer">

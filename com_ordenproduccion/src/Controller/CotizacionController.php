@@ -513,7 +513,7 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * Finalize quotation confirmation: optional "Cotización aprobada" and "Orden de compra" files + flag cotizacion_confirmada.
+     * Finalize quotation confirmation: optional "Cotización aprobada" and "Orden de compra" files, optional instrucciones_facturacion, + flag cotizacion_confirmada.
      *
      * @return  void
      * @since   3.101.21
@@ -588,6 +588,11 @@ class CotizacionController extends BaseController
             $maxSize
         ) ?? $pathOrden;
 
+        $instruccionesFacturacion = $app->input->post->getString('instrucciones_facturacion', '');
+        if (strlen($instruccionesFacturacion) > 65535) {
+            $instruccionesFacturacion = substr($instruccionesFacturacion, 0, 65535);
+        }
+
         $sets = [
             $db->quoteName('cotizacion_confirmada') . ' = 1',
             $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
@@ -598,6 +603,9 @@ class CotizacionController extends BaseController
         }
         if (isset($cols['orden_compra_path'])) {
             $sets[] = $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden);
+        }
+        if (isset($cols['instrucciones_facturacion'])) {
+            $sets[] = $db->quoteName('instrucciones_facturacion') . ' = ' . $db->quote($instruccionesFacturacion);
         }
 
         $update = $db->getQuery(true)

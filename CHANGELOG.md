@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.31-STABLE] - 2026-04-01
+
+### Added
+- **Confirmar cotización (modal):** Campo **Instrucciones de Facturación** (`instrucciones_facturacion`) junto a los adjuntos; se guarda al finalizar confirmación si la columna existe en `#__ordenproduccion_quotations`.
+
 ## [3.101.30-STABLE] - 2026-04-01
 
 ### Changed
