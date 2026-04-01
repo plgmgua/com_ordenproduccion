@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.32-STABLE] - 2026-04-01
+
+### Changed
+- **Confirmar cotización:** Eliminado el texto de ayuda bajo el campo de instrucciones de facturación (`CONFIRMAR_STEP2_DESC`).
+
 ## [3.101.31-STABLE] - 2026-04-01
 
 ### Added
