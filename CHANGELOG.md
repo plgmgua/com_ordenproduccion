@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.40-STABLE] - 2026-04-01
+
+### Changed
+- **Lista pre-cotizaciones:** Filtros movidos **fuera de la tabla** a un bloque tipo tarjeta encima de la grilla (Bootstrap `row`/`col`), con etiquetas visibles; la tabla solo muestra cabeceras de columnas y datos.
+
 ## [3.101.39-STABLE] - 2026-04-01
 
 ### Added
