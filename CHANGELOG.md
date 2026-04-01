@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.22-STABLE] - 2026-04-01
+
+### Changed
+- **Vista cotización (display):** Eliminados de la vista principal el bloque **Instrucciones de facturación** y el formulario **Comprobante de aceptación**; permanecen confirmación (modal) y pre-cotizaciones tras finalizar.
+
 ## [3.101.21-STABLE] - 2026-04-01
 
 ### Changed

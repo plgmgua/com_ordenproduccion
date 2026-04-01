@@ -172,25 +172,6 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
         <?php endif; ?>
     </div>
 
-    <!-- Instrucciones de facturación (página principal) -->
-    <div class="card mb-4">
-        <div class="card-header py-2">
-            <h5 class="mb-0 small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></h5>
-        </div>
-        <div class="card-body">
-            <p class="text-muted small mb-2"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_DESC', 'Enter billing instructions for this quotation.', 'Indique las instrucciones de facturación para esta cotización.'); ?></p>
-            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep2'); ?>" method="post" id="formInstruccionesFacturacionDisplay">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
-                <div class="mb-2">
-                    <label for="instrucciones_facturacion_display" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
-                    <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_display" class="form-control" rows="4"><?php echo htmlspecialchars(isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : ''); ?></textarea>
-                </div>
-                <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-            </form>
-        </div>
-    </div>
-
     <?php if ($quotationConfirmed && !empty($items)) : ?>
     <div class="card mb-4 border-success">
         <div class="card-header py-2 bg-success text-white">
@@ -248,17 +229,6 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
             </a>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-3">
-            <?php $signedPath = isset($quotation->signed_document_path) ? trim((string) $quotation->signed_document_path) : ''; ?>
-            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveConfirmarStep1'); ?>" method="post" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
-                <?php echo HTMLHelper::_('form.token'); ?>
-                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
-                <label for="signed_document_view" class="form-label mb-0 small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP1_TITLE', 'Proof of acceptance', 'Comprobante de aceptación'); ?></label>
-                <input type="file" name="signed_document" id="signed_document_view" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png" style="max-width: 12rem;">
-                <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_SAVE', 'Save', 'Guardar'); ?></button>
-                <?php if ($signedPath !== '') : ?>
-                    <span class="small text-success"><i class="fas fa-file"></i> <?php echo htmlspecialchars(basename($signedPath)); ?> <a href="<?php echo htmlspecialchars(Uri::root() . $signedPath); ?>" target="_blank" class="ms-1"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></a></span>
-                <?php endif; ?>
-            </form>
             <?php if ($quotationConfirmed) : ?>
                 <span class="badge bg-success"><i class="fas fa-check"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_YA_FINALIZADA', 'Confirmation completed', 'Confirmación finalizada'); ?></span>
             <?php else : ?>
