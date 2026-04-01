@@ -178,9 +178,12 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                     <tr>
                         <th><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
                         <th style="width: 10%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
-                        <th style="width: 40%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                        <th style="width: 15%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
-                        <th style="width: 15%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th style="width: 34%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
+                        <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <?php if ($quotationConfirmed) : ?>
+                        <th style="width: 8%;" class="text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -197,69 +200,42 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                             <td><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
                             <td class="text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
                             <td class="text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
+                            <?php if ($quotationConfirmed) : ?>
+                            <td class="text-center align-middle">
+                                <?php if ($preId > 0) : ?>
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-success instrucciones-orden-trigger px-2 py-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#instruccionesOrdenModal"
+                                        data-pre-cotizacion-id="<?php echo (int) $preId; ?>"
+                                        data-quotation-id="<?php echo (int) $quotationId; ?>"
+                                        title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?>">
+                                        <i class="fas fa-print" aria-hidden="true"></i>
+                                        <span class="visually-hidden"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?></span>
+                                    </button>
+                                <?php else : ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr class="table-secondary fw-bold">
+                        <?php if ($quotationConfirmed) : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                        <td></td>
+                        <?php else : ?>
+                        <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
+                        <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                        <?php endif; ?>
                     </tr>
                 </tfoot>
             </table>
         <?php endif; ?>
     </div>
-
-    <?php if ($quotationConfirmed && !empty($items)) : ?>
-    <div class="card mb-4 border-success">
-        <div class="card-header py-2 bg-success text-white">
-            <h5 class="mb-0 small"><i class="fas fa-tasks"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_TITLE', 'Pre-Quotations', 'Pre-Cotizaciones'); ?></h5>
-        </div>
-        <div class="card-body">
-            <p class="text-muted small mb-3"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP3_DESC', 'Generate work order for each pre-quotation.', 'Generar orden de trabajo para cada pre-cotización.'); ?></p>
-            <div class="table-responsive">
-                <table class="table table-bordered table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                            <th style="width: 48%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                            <th style="width: 18%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                            <th style="width: 22%;" class="text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($items as $item) :
-                            $preIdRow = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-                            $preNumRow = $preIdRow > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preIdRow) : '—';
-                            $descRow = isset($item->descripcion) ? (string) $item->descripcion : '';
-                            $subtotalRow = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                            ?>
-                        <tr>
-                            <td class="align-middle"><strong><?php echo htmlspecialchars($preNumRow); ?></strong></td>
-                            <td class="align-middle small text-muted"><?php echo htmlspecialchars($descRow !== '' ? $descRow : '—'); ?></td>
-                            <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotalRow, 2); ?></td>
-                            <td class="align-middle text-center">
-                                <?php if ($preIdRow > 0) : ?>
-                                    <button type="button"
-                                        class="btn btn-sm btn-primary"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#instruccionesOrdenModal"
-                                        data-pre-cotizacion-id="<?php echo (int) $preIdRow; ?>"
-                                        data-quotation-id="<?php echo (int) $quotationId; ?>">
-                                        <?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?>
-                                    </button>
-                                <?php else : ?>
-                                    —
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
 
     <div class="mt-4 pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div class="d-flex gap-2">

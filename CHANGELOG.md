@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.28-STABLE] - 2026-04-01
+
+### Changed
+- **Cotización display:** "Generar orden de trabajo" pasa a la tabla **Detalles de la cotización** (columna Acción, icono impresora `fa-print`, estilo `btn-outline-success`) cuando la cotización está confirmada; se elimina la tarjeta duplicada **Pre-Cotizaciones**.
+
 ## [3.101.27-STABLE] - 2026-04-01
 
 ### Changed
