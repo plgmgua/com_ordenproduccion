@@ -370,6 +370,20 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                             <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>">
                             <input type="hidden" name="pre_cotizacion_id" value="<?php echo $preIdBlock; ?>">
                             <input type="hidden" name="instrucciones_save_only" value="1">
+                            <?php
+                            $preNumBlock = trim((string) ($blockIo->pre_cotizacion_number ?? ''));
+                            if ($preNumBlock === '') {
+                                $preNumBlock = 'PRE-' . $preIdBlock;
+                            }
+                            $preDescBlock = trim((string) ($blockIo->descripcion ?? ''));
+                            ?>
+                            <div class="border rounded bg-light p-3 mb-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+                                    <span class="badge bg-secondary"><?php echo htmlspecialchars($preNumBlock); ?></span>
+                                </div>
+                                <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION', 'Description', 'Descripción'); ?></div>
+                                <div class="small mb-0 instrucciones-pre-descripcion"><?php echo $preDescBlock !== '' ? nl2br(htmlspecialchars($preDescBlock, ENT_QUOTES, 'UTF-8')) : '<span class="text-muted">—</span>'; ?></div>
+                            </div>
                             <?php foreach ($linesWithConceptsIo as $rowIo) :
                                 $lineIo = $rowIo->line;
                                 $conceptsIo = $rowIo->concepts;

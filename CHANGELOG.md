@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.27-STABLE] - 2026-04-01
+
+### Changed
+- **Modal instrucciones orden:** Muestra número de pre-cotización y **descripción** de la pre-cotización encima de los campos de instrucciones.
+
 ## [3.101.26-STABLE] - 2026-04-01
 
 ### Fixed
