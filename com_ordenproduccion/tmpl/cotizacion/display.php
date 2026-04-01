@@ -203,7 +203,6 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
                             $preNumRow = $preIdRow > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preIdRow) : '—';
                             $descRow = isset($item->descripcion) ? (string) $item->descripcion : '';
                             $subtotalRow = isset($item->subtotal) ? (float) $item->subtotal : 0;
-                            $instrUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId . '&layout=instrucciones_orden&pre_cotizacion_id=' . (int) $preIdRow);
                             ?>
                         <tr>
                             <td class="align-middle"><strong><?php echo htmlspecialchars($preNumRow); ?></strong></td>
@@ -211,7 +210,14 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
                             <td class="align-middle text-end"><?php echo $currency . ' ' . number_format($subtotalRow, 2); ?></td>
                             <td class="align-middle text-center">
                                 <?php if ($preIdRow > 0) : ?>
-                                    <a href="<?php echo htmlspecialchars($instrUrl); ?>" class="btn btn-sm btn-primary"><?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?></a>
+                                    <button type="button"
+                                        class="btn btn-sm btn-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#instruccionesOrdenModal"
+                                        data-pre-cotizacion-id="<?php echo (int) $preIdRow; ?>"
+                                        data-quotation-id="<?php echo (int) $quotationId; ?>">
+                                        <?php echo $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'); ?>
+                                    </button>
                                 <?php else : ?>
                                     —
                                 <?php endif; ?>
@@ -303,6 +309,30 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
     </div>
 </div>
 
+<!-- Modal: Instrucciones para orden de trabajo (pre-cotización) -->
+<div class="modal fade" id="instruccionesOrdenModal" tabindex="-1" aria-labelledby="instruccionesOrdenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="instruccionesOrdenModalLabel">
+                    <i class="fas fa-clipboard-list me-1"></i>
+                    <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TITLE', 'Instructions for work order', 'Instrucciones para orden de trabajo'); ?>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo $l('JCLOSE', 'Close', 'Cerrar'); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-0">
+                    <?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_DESC', 'Enter details/instructions for each element. These will be used when creating the work order.', 'Indique los detalles o instrucciones para cada elemento. Se usarán al crear la orden de trabajo.'); ?>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>
+                <button type="button" class="btn btn-primary" id="instruccionesOrdenNextBtn"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_NEXT', 'Next', 'Siguiente'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="cotizacionConfirmFileModal" tabindex="-1" aria-labelledby="cotizacionConfirmFileModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
@@ -316,6 +346,24 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
         </div>
     </div>
 </div>
+<script>
+(function() {
+    var instrModal = document.getElementById('instruccionesOrdenModal');
+    var instrNext = document.getElementById('instruccionesOrdenNextBtn');
+    if (instrModal && instrNext) {
+        instrModal.addEventListener('show.bs.modal', function(e) {
+            var t = e.relatedTarget;
+            if (t && typeof t.getAttribute === 'function') {
+                instrModal.dataset.preCotizacionId = t.getAttribute('data-pre-cotizacion-id') || '';
+                instrModal.dataset.quotationId = t.getAttribute('data-quotation-id') || '';
+            }
+        });
+        instrNext.addEventListener('click', function() {
+            /* Next: reserved for save + continue to work order */
+        });
+    }
+})();
+</script>
 <script>
 (function() {
     var modalFile = document.getElementById('cotizacionConfirmFileModal');

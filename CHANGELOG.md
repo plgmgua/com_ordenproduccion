@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.24-STABLE] - 2026-04-01
+
+### Changed
+- **Pre-cotizaciones / orden de trabajo:** "Generar Orden de Trabajo" abre un modal con el título y la descripción de instrucciones; pie con **Cancelar** y **Siguiente** (Siguiente aún sin lógica). La vista `layout=instrucciones_orden` sigue disponible por URL directa.
+
 ## [3.101.23-STABLE] - 2026-04-01
 
 ### Added
