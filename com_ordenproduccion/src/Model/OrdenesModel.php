@@ -24,6 +24,14 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 class OrdenesModel extends ListModel
 {
     /**
+     * Cached lowercase columns for #__ordenproduccion_ordenes
+     *
+     * @var    array<string, mixed>|null
+     * @since  3.101.2
+     */
+    protected $ordenesTableColumns = null;
+
+    /**
      * The prefix to use with controller messages.
      *
      * @var    string
@@ -317,19 +325,8 @@ class OrdenesModel extends ListModel
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        $quotationCol = 'a.adjuntar_cotizacion';
-        try {
-            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
-            if (!empty($cols) && isset($cols['quotation_files'])) {
-                $quotationCol = 'a.quotation_files';
-            }
-        } catch (\Exception $e) {
-        }
-        $baseSelect = 'a.id, a.orden_de_trabajo, a.order_number, a.client_name, a.nit, ' .
-            'a.invoice_value, a.work_description, a.print_color, a.dimensions, ' .
-            'a.delivery_date, a.material, a.request_date, a.sales_agent, a.status, ' .
-            'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version, ' .
-            $quotationCol . ' AS quotation_files';
+        $c = $this->getOrdenesTableColumns();
+        $baseSelect = $this->buildOrdenesListSelect($db);
 
         // Select the required fields from the table.
         $query->select($this->getState('list.select', $baseSelect));
@@ -402,6 +399,75 @@ class OrdenesModel extends ListModel
     }
 
     /**
+     * Lowercase column map for ordenes (English webhook schema vs legacy Spanish install).
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.101.2
+     */
+    protected function getOrdenesTableColumns(): array
+    {
+        if ($this->ordenesTableColumns !== null) {
+            return $this->ordenesTableColumns;
+        }
+
+        try {
+            $cols = $this->getDatabase()->getTableColumns('#__ordenproduccion_ordenes', false) ?: [];
+            $this->ordenesTableColumns = array_change_key_case($cols, CASE_LOWER);
+        } catch (\Throwable $e) {
+            $this->ordenesTableColumns = [];
+        }
+
+        return $this->ordenesTableColumns;
+    }
+
+    /**
+     * SELECT list fragment: English aliases so templates match both DB schemas.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database
+     *
+     * @return  string
+     *
+     * @since   3.101.2
+     */
+    protected function buildOrdenesListSelect($db): string
+    {
+        $c = $this->getOrdenesTableColumns();
+
+        $orderNum = isset($c['order_number']) ? 'a.order_number' : 'a.orden_de_trabajo AS order_number';
+        $client = isset($c['client_name']) ? 'a.client_name' : 'a.nombre_del_cliente AS client_name';
+
+        if (isset($c['invoice_value']) && isset($c['valor_a_facturar'])) {
+            $invoice = 'COALESCE(a.invoice_value, a.valor_a_facturar) AS invoice_value';
+        } elseif (isset($c['invoice_value'])) {
+            $invoice = 'a.invoice_value';
+        } elseif (isset($c['valor_a_facturar'])) {
+            $invoice = 'a.valor_a_facturar AS invoice_value';
+        } else {
+            $invoice = 'NULL AS invoice_value';
+        }
+
+        $work = isset($c['work_description']) ? 'a.work_description' : 'a.descripcion_de_trabajo AS work_description';
+        $print = isset($c['print_color']) ? 'a.print_color' : 'a.color_de_impresion AS print_color';
+        $dim = isset($c['dimensions']) ? 'a.dimensions' : 'a.medidas_en_pulgadas AS dimensions';
+        $del = isset($c['delivery_date']) ? 'a.delivery_date' : 'a.fecha_de_entrega AS delivery_date';
+        $req = isset($c['request_date']) ? 'a.request_date' : 'a.fecha_de_solicitud AS request_date';
+        $sales = isset($c['sales_agent']) ? 'a.sales_agent' : 'a.agente_de_ventas AS sales_agent';
+        $status = isset($c['status']) ? 'a.status' : "'Nueva' AS status";
+
+        $quotationCol = 'a.adjuntar_cotizacion';
+        if (!empty($c['quotation_files'])) {
+            $quotationCol = 'a.quotation_files';
+        }
+
+        return 'a.id, a.orden_de_trabajo, ' . $orderNum . ', ' . $client . ', a.nit, ' .
+            $invoice . ', ' . $work . ', ' . $print . ', ' . $dim . ', ' .
+            $del . ', a.material, ' . $req . ', ' . $sales . ', ' . $status . ', ' .
+            'a.created, a.created_by, a.modified, a.modified_by, a.state, a.version, ' .
+            $quotationCol . ' AS quotation_files';
+    }
+
+    /**
      * Apply user group-based filtering to the query
      *
      * @param   \Joomla\Database\DatabaseQuery  $query  The query object
@@ -417,8 +483,9 @@ class OrdenesModel extends ListModel
         $salesAgentFilter = AccessHelper::getSalesAgentFilter();
         
         if ($salesAgentFilter !== null) {
-            // User can only see their own orders
-            $query->where($db->quoteName('a.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+            $c = $this->getOrdenesTableColumns();
+            $salesExpr = isset($c['sales_agent']) ? 'a.sales_agent' : 'a.agente_de_ventas';
+            $query->where($salesExpr . ' = ' . $db->quote($salesAgentFilter));
         }
         // If no filter, user can see all orders
     }

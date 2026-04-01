@@ -152,6 +152,8 @@ class OrdenModel extends ItemModel
                     throw new \Exception(Text::sprintf('COM_ORDENPRODUCCION_ERROR_ORDEN_NOT_FOUND', $pk), 404);
                 }
 
+                $this->normalizeOrdenRecordForView($data);
+
                 // Check user access to this order
                 $this->checkUserAccess($data);
 
@@ -184,6 +186,52 @@ class OrdenModel extends ItemModel
      * @since   1.0.0
      * @throws  \Exception
      */
+    /**
+     * Map legacy Spanish column names onto the English properties the site templates expect.
+     * Webhook-created rows typically already use English names (invoice_value, client_name, …).
+     *
+     * @param   object  $data  Row from #__ordenproduccion_ordenes
+     *
+     * @return  void
+     *
+     * @since   3.101.2
+     */
+    protected function normalizeOrdenRecordForView($data): void
+    {
+        if (!\is_object($data)) {
+            return;
+        }
+
+        $pick = static function ($obj, string $primary, string $fallback): void {
+            $p = $obj->$primary ?? null;
+            if ($p !== null && $p !== '') {
+                return;
+            }
+            if (property_exists($obj, $fallback)) {
+                $f = $obj->$fallback;
+                if ($f !== null && $f !== '') {
+                    $obj->$primary = $f;
+                }
+            }
+        };
+
+        $pick($data, 'invoice_value', 'valor_a_facturar');
+        $pick($data, 'sales_agent', 'agente_de_ventas');
+        $pick($data, 'client_name', 'nombre_del_cliente');
+        $pick($data, 'work_description', 'descripcion_de_trabajo');
+        $pick($data, 'print_color', 'color_de_impresion');
+        $pick($data, 'dimensions', 'medidas_en_pulgadas');
+        $pick($data, 'delivery_date', 'fecha_de_entrega');
+        $pick($data, 'request_date', 'fecha_de_solicitud');
+        $pick($data, 'order_number', 'orden_de_trabajo');
+
+        $qf = property_exists($data, 'quotation_files') ? $data->quotation_files : null;
+        $adj = property_exists($data, 'adjuntar_cotizacion') ? $data->adjuntar_cotizacion : null;
+        if (($qf === null || $qf === '') && $adj !== null && $adj !== '') {
+            $data->quotation_files = $adj;
+        }
+    }
+
     protected function checkUserAccess($data)
     {
         // Check if user has any access to orders
@@ -220,8 +268,14 @@ class OrdenModel extends ItemModel
         $canSeeValorFactura = AccessHelper::canSeeValorFactura($data->sales_agent ?? '');
         
         if (!$canSeeValorFactura) {
-            // Hide the valor_factura field
-            unset($data->invoice_value);
+            unset($data->invoice_value, $data->valor_a_facturar);
+
+            return;
+        }
+
+        if ((!isset($data->invoice_value) || $data->invoice_value === null || $data->invoice_value === '')
+            && isset($data->valor_a_facturar) && $data->valor_a_facturar !== null && $data->valor_a_facturar !== '') {
+            $data->invoice_value = $data->valor_a_facturar;
         }
     }
 
