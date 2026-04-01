@@ -37,6 +37,7 @@ if (!$quotation) {
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
+$editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
 $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
 ?>
@@ -55,10 +56,17 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
                 <i class="fas fa-file-pdf"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_GENERATE_PDF', 'Generate PDF', 'Generar PDF'); ?>
             </a>
+            <?php if ($quotationConfirmed) : ?>
+            <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($editLockedHint); ?>">
+                <i class="fas fa-edit"></i>
+                <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
+            </span>
+            <?php else : ?>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . '&layout=edit'); ?>" class="btn btn-primary">
                 <i class="fas fa-edit"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
             </a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -223,10 +231,17 @@ $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotat
                 <i class="fas fa-arrow-left"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
             </a>
+            <?php if ($quotationConfirmed) : ?>
+            <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($editLockedHint); ?>">
+                <i class="fas fa-edit"></i>
+                <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
+            </span>
+            <?php else : ?>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId . '&layout=edit'); ?>" class="btn btn-primary">
                 <i class="fas fa-edit"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
             </a>
+            <?php endif; ?>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-3">
             <?php if ($quotationConfirmed) : ?>

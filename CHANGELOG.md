@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.23-STABLE] - 2026-04-01
+
+### Added
+- **Cotización confirmada:** Botón Editar deshabilitado (estilo gris) en la vista display; acceso directo a `layout=edit` redirige con aviso; `ajax.updateQuotation` rechaza guardados si la cotización ya está confirmada.
+
 ## [3.101.22-STABLE] - 2026-04-01
 
 ### Changed

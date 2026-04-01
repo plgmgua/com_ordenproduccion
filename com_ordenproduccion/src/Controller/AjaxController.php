@@ -573,6 +573,13 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => 'Access denied']);
             exit;
         }
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        if (isset($qCols['cotizacion_confirmada']) && (int) ($quotation->cotizacion_confirmada ?? 0) === 1) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT')]);
+            exit;
+        }
         $input = $app->input;
         $clientName = $input->getString('client_name', '');
         $clientNit = $input->getString('client_nit', '');

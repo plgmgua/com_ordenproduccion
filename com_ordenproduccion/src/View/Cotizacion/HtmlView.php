@@ -218,8 +218,16 @@ class HtmlView extends BaseHtmlView
                 }
             }
 
-            // Layout: edit, instrucciones_orden, or display (read-only)
             $layout = $input->get('layout', '', 'cmd');
+            if ($quotationId > 0 && $this->quotation && $layout === 'edit'
+                && (int) ($this->quotation->cotizacion_confirmada ?? 0) === 1) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT'), 'warning');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
+
+                return;
+            }
+
+            // Layout: edit, instrucciones_orden, or display (read-only)
             if ($layout === 'instrucciones_orden') {
                 $dbGate = Factory::getDbo();
                 $qtcGate = $dbGate->getTableColumns('#__ordenproduccion_quotations', false);
@@ -338,7 +346,6 @@ class HtmlView extends BaseHtmlView
             }
             
             // Set page title (fallback so we never show raw language key)
-            $layout = $input->get('layout', '', 'cmd');
             if ($this->quotation && $layout !== 'edit') {
                 $this->document->setTitle(($this->quotation->quotation_number ?? 'COT-' . (int) $this->quotation->id));
             } else {
