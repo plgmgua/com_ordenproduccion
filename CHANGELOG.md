@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.35-STABLE] - 2026-04-01
+
+### Changed
+- **Pre-cotización (resumen y modal):** Etiquetas de “Comisión” en totales sustituidas por **Bono** en español (`Bono por Venta`, `Total Bono:`, `Bono de margen adicional`); en inglés equivalentes (`Sales bonus`, `Total bonus:`, `Additional margin bonus`). Clave nueva `COM_ORDENPRODUCCION_PRE_COTIZACION_BONO_VENTA` para la fila de venta; la pantalla de parámetros del componente sigue usando `COM_ORDENPRODUCCION_PARAM_COMISION_VENTA` (“Comisión de venta”).
+
 ## [3.101.34-STABLE] - 2026-04-01
 
 ### Changed

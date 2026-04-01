@@ -568,7 +568,7 @@ $calcClicks = function ($sizeName, $quantity) use ($clickAncho, $clickAlto) {
                     <?php endif; ?>
                     <?php if ($paramComision != 0) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_COMISION_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BONO_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($comisionAmount, 2); ?></td>
                         <td></td>
                     </tr>
