@@ -100,7 +100,7 @@ $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edi
                 ?>
                 <div class="mb-3">
                     <label for="<?php echo $id; ?>" class="form-label"><?php echo htmlspecialchars($conceptoLabel); ?></label>
-                    <textarea name="<?php echo $name; ?>" id="<?php echo $id; ?>" class="form-control" rows="2" placeholder="<?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_PLACEHOLDER', 'Details / instructions', 'Detalles / instrucciones'); ?>"><?php echo $value; ?></textarea>
+                    <textarea name="<?php echo $name; ?>" id="<?php echo $id; ?>" class="form-control" rows="2"><?php echo $value; ?></textarea>
                 </div>
                 <?php endforeach; ?>
             </div>

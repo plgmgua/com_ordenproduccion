@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.30-STABLE] - 2026-04-01
+
+### Changed
+- **Instrucciones orden:** Los textareas de instrucciones ya no usan atributo `placeholder` (modal y vista `instrucciones_orden`).
+
 ## [3.101.29-STABLE] - 2026-04-01
 
 ### Added

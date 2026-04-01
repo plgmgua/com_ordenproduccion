@@ -400,7 +400,7 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                                         ?>
                                     <div class="mb-2">
                                         <label for="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-label small mb-1"><?php echo htmlspecialchars($conceptoLabelIo); ?></label>
-                                        <textarea name="<?php echo htmlspecialchars($nameIo, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm" rows="2" placeholder="<?php echo $l('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_PLACEHOLDER', 'Details / instructions', 'Detalles / instrucciones'); ?>"><?php echo $valueIo; ?></textarea>
+                                        <textarea name="<?php echo htmlspecialchars($nameIo, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm" rows="2"><?php echo $valueIo; ?></textarea>
                                     </div>
                                     <?php endforeach; ?>
                                 </div>
