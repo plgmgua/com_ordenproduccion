@@ -269,6 +269,63 @@
     transform: none;
 }
 
+/* Cotización display (read-only): Pre-Cotización only as wide as content; Descripción takes the rest */
+.cotizacion-display .cotizacion-display-lines-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-pre,
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-pre {
+    width: 1%;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-qty,
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-qty {
+    width: 5%;
+    white-space: nowrap;
+}
+
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-desc,
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-desc {
+    width: 67%;
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-unit,
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-unit {
+    width: 13%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-sub,
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-sub {
+    width: 14%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table--has-action th.col-cotizacion-desc,
+.cotizacion-display .cotizacion-display-lines-table--has-action td.col-cotizacion-desc {
+    width: 60%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table--has-action th.col-cotizacion-unit,
+.cotizacion-display .cotizacion-display-lines-table--has-action td.col-cotizacion-unit {
+    width: 12%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table--has-action th.col-cotizacion-sub,
+.cotizacion-display .cotizacion-display-lines-table--has-action td.col-cotizacion-sub {
+    width: 12%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table--has-action th.col-cotizacion-action,
+.cotizacion-display .cotizacion-display-lines-table--has-action td.col-cotizacion-action {
+    width: 10%;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .cotizacion-container {

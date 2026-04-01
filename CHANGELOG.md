@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.42-STABLE] - 2026-04-01
+
+### Changed
+- **Vista cotización (display):** Tabla **Detalles de la cotización** con `table-layout: fixed`: columna **Pre-Cotización** mínima (`width: 1%`, `white-space: nowrap`); **Descripción** ocupa la mayor parte del ancho; cantidad, precio unitario y subtotal acotados.
+
 ## [3.101.41-STABLE] - 2026-04-01
 
 ### Changed

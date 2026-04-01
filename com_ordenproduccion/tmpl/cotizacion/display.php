@@ -174,16 +174,16 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
         <?php if (empty($items)) : ?>
             <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
         <?php else : ?>
-            <table class="table table-bordered table-sm">
+            <table class="table table-bordered table-sm cotizacion-display-lines-table<?php echo $quotationConfirmed ? ' cotizacion-display-lines-table--has-action' : ''; ?>">
                 <thead>
                     <tr>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th style="width: 10%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
-                        <th style="width: 34%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                        <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
-                        <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th class="col-cotizacion-pre text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th class="col-cotizacion-qty text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
+                        <th class="col-cotizacion-desc"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th class="col-cotizacion-unit text-end text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
+                        <th class="col-cotizacion-sub text-end text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <?php if ($quotationConfirmed) : ?>
-                        <th style="width: 8%;" class="text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <th class="col-cotizacion-action text-center text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                         <?php endif; ?>
                     </tr>
                 </thead>
@@ -196,13 +196,13 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                         $unit = $qty > 0 ? ($lineTotal / $qty) : 0;
                     ?>
                         <tr>
-                            <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                            <td><?php echo (int) $qty; ?></td>
-                            <td><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
-                            <td class="text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
-                            <td class="text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
+                            <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
+                            <td class="col-cotizacion-qty text-center"><?php echo (int) $qty; ?></td>
+                            <td class="col-cotizacion-desc"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
+                            <td class="col-cotizacion-unit text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
+                            <td class="col-cotizacion-sub text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
                             <?php if ($quotationConfirmed) : ?>
-                            <td class="text-center align-middle">
+                            <td class="col-cotizacion-action text-center align-middle">
                                 <?php if ($preId > 0) : ?>
                                     <button type="button"
                                         class="btn btn-sm btn-outline-success instrucciones-orden-trigger px-2 py-1"
