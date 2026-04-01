@@ -118,11 +118,15 @@ class PrecotizacionModel extends ListModel
 
         $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-        if (is_array($tableCols) && array_key_exists('descripcion', array_change_key_case($tableCols, CASE_LOWER))) {
+        $tableColsLc = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (isset($tableColsLc['descripcion'])) {
             $cols[] = 'a.descripcion';
         }
-        if (is_array($tableCols) && array_key_exists('oferta', array_change_key_case($tableCols, CASE_LOWER))) {
+        if (isset($tableColsLc['oferta'])) {
             $cols[] = 'a.oferta';
+        }
+        if (isset($tableColsLc['facturar'])) {
+            $cols[] = 'a.facturar';
         }
         if ($isAdministracion) {
             $cols[] = 'u.name AS created_by_name';

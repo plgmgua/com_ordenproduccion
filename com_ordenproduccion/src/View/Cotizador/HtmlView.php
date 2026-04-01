@@ -46,6 +46,14 @@ class HtmlView extends BaseHtmlView
     protected $tarjetaCreditoTableExists = false;
 
     /**
+     * Whether pre_cotizacion has facturar column (list column Facturar Sí/No).
+     *
+     * @var    bool
+     * @since  3.101.37
+     */
+    protected $hasFacturarColumn = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -170,6 +178,9 @@ class HtmlView extends BaseHtmlView
             $this->items = $precotModel->getItems();
             $this->pagination = $precotModel->getPagination();
             $this->state = $precotModel->getState();
+            $pcCols = Factory::getDbo()->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+            $pcColsLc = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+            $this->hasFacturarColumn = isset($pcColsLc['facturar']);
             $this->showSalesAgentColumn = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
             $this->templates = $precotModel->getTemplates();
             $ids = [];

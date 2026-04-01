@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.37-STABLE] - 2026-04-01
+
+### Added
+- **Lista pre-cotizaciones:** Columna **Facturar** (Sí/No con `JYES`/`JNO`) entre Cliente y Acciones, si existe la columna `facturar` en `#__ordenproduccion_pre_cotizacion`. El listado carga `a.facturar` en la consulta del modelo.
+
 ## [3.101.36-STABLE] - 2026-04-01
 
 ### Changed
