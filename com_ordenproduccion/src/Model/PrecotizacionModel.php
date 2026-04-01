@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 
 /**
@@ -1116,10 +1117,10 @@ class PrecotizacionModel extends ListModel
     {
         $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
         if ($lineType === 'envio') {
-            return ['detalle_envio' => 'Detalles env?o'];
+            return ['detalle_envio' => Text::_('COM_ORDENPRODUCCION_LINE_DETALLE_ENVIO_LABEL')];
         }
         if ($lineType === 'elementos') {
-            return ['detalle' => 'Detalles'];
+            return ['detalle' => Text::_('COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC')];
         }
         $concepts = [];
         $breakdown = isset($line->breakdown) && is_array($line->breakdown) ? $line->breakdown : [];
@@ -1136,7 +1137,7 @@ class PrecotizacionModel extends ListModel
             $concepts[$key] = $label;
         }
         if (empty($concepts)) {
-            return ['detalle' => 'Detalles'];
+            return ['detalle' => Text::_('COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC')];
         }
 
         return $concepts;

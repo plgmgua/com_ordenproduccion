@@ -308,7 +308,7 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                     </div>
                     <div class="mb-3">
                         <label for="instrucciones_facturacion_confirm" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
-                        <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_confirm" class="form-control form-control-sm" rows="3" maxlength="65535"><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_confirm" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -402,7 +402,7 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                                         ?>
                                     <div class="mb-2">
                                         <label for="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-label small mb-1"><?php echo htmlspecialchars($conceptoLabelIo); ?></label>
-                                        <textarea name="<?php echo htmlspecialchars($nameIo, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm" rows="2"><?php echo $valueIo; ?></textarea>
+                                        <textarea name="<?php echo htmlspecialchars($nameIo, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($idIo, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm instrucciones-orden-detalle" rows="2" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo $valueIo; ?></textarea>
                                     </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -436,6 +436,21 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
 </div>
 <script>
 (function() {
+    function stripInputPlaceholders(container) {
+        if (!container) {
+            return;
+        }
+        container.querySelectorAll('textarea, input').forEach(function(el) {
+            el.removeAttribute('placeholder');
+        });
+    }
+    var confirmModalEl = document.getElementById('confirmarCotizacionModal');
+    if (confirmModalEl) {
+        stripInputPlaceholders(confirmModalEl);
+        confirmModalEl.addEventListener('show.bs.modal', function() {
+            stripInputPlaceholders(confirmModalEl);
+        });
+    }
     var instrModal = document.getElementById('instruccionesOrdenModal');
     var instrNext = document.getElementById('instruccionesOrdenNextBtn');
     var saveUrl = <?php echo json_encode($instruccionesSaveJsonUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -443,6 +458,7 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
     if (!instrModal || !instrNext) {
         return;
     }
+    stripInputPlaceholders(instrModal);
     function syncInstruccionesBlocksVisible() {
         var preId = String(instrModal.dataset.preCotizacionId || '');
         document.querySelectorAll('.instrucciones-orden-block').forEach(function(el) {
@@ -457,6 +473,7 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
         });
     });
     instrModal.addEventListener('show.bs.modal', function(e) {
+        stripInputPlaceholders(instrModal);
         var ja = document.getElementById('instruccionesOrdenJsAlert');
         if (ja) {
             ja.classList.add('d-none');

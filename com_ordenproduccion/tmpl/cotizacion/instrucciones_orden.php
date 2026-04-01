@@ -97,7 +97,7 @@ $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edi
                 ?>
                 <div class="mb-3">
                     <label for="<?php echo $id; ?>" class="form-label"><?php echo htmlspecialchars($conceptoLabel); ?></label>
-                    <textarea name="<?php echo $name; ?>" id="<?php echo $id; ?>" class="form-control" rows="2"><?php echo $value; ?></textarea>
+                    <textarea name="<?php echo $name; ?>" id="<?php echo $id; ?>" class="form-control" rows="2" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo $value; ?></textarea>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -120,3 +120,14 @@ $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edi
         </div>
     </form>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('instrucciones-orden-form');
+    if (!form) {
+        return;
+    }
+    form.querySelectorAll('textarea, input').forEach(function(el) {
+        el.removeAttribute('placeholder');
+    });
+});
+</script>

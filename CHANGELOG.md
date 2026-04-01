@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.34-STABLE] - 2026-04-01
+
+### Changed
+- **Confirmar / instrucciones modales:** Quitar atributo `placeholder` de textareas e inputs al abrir el modal (por si hay override o extensión que lo inyecte). Atributos `autocomplete="off"` y hints para gestores de contraseñas en campos de instrucciones.
+- **PrecotizacionModel::getConceptsForLine:** Etiquetas "Detalles" / "Detalles envío" vía cadenas de idioma (`LINE_DETALLE_*`); corregido texto corrupto `env?o`.
+
 ## [3.101.33-STABLE] - 2026-04-01
 
 ### Changed
