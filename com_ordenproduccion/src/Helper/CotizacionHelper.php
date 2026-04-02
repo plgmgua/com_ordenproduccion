@@ -47,4 +47,40 @@ abstract class CotizacionHelper
 
         return HTMLHelper::_('date', $quoteDate, 'Y-m-d');
     }
+
+    /**
+     * Business estado for Lista de Cotizaciones: Facturada (invoice linked) >
+     * Confirmada (cotizacion_confirmada) > Creada.
+     *
+     * @param   object  $row  Quotation row; may include `quotation_invoice_count` when invoices.quotation_id exists.
+     *
+     * @return  array{langKey: string, cssClass: string}
+     *
+     * @since   3.101.47
+     */
+    public static function resolveQuotationListEstado(object $row): array
+    {
+        $invoiceCount = isset($row->quotation_invoice_count) ? (int) $row->quotation_invoice_count : 0;
+
+        if ($invoiceCount > 0) {
+            return [
+                'langKey'  => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_FACTURADA',
+                'cssClass' => 'status-facturada status-badge--quotation',
+            ];
+        }
+
+        $confirmed = isset($row->cotizacion_confirmada) && (int) $row->cotizacion_confirmada === 1;
+
+        if ($confirmed) {
+            return [
+                'langKey'  => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_CONFIRMADA',
+                'cssClass' => 'status-confirmada status-badge--quotation',
+            ];
+        }
+
+        return [
+            'langKey'  => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_CREADA',
+            'cssClass' => 'status-creada status-badge--quotation',
+        ];
+    }
 }

@@ -97,8 +97,11 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                             <?php echo $quotation->currency . ' ' . number_format($quotation->total_amount, 2); ?>
                         </td>
                         <td>
-                            <span class="status-badge status-<?php echo strtolower($quotation->status); ?>">
-                                <?php echo htmlspecialchars($quotation->status); ?>
+                            <?php
+                            $estadoInfo = CotizacionHelper::resolveQuotationListEstado($quotation);
+                            ?>
+                            <span class="status-badge <?php echo htmlspecialchars($estadoInfo['cssClass']); ?>">
+                                <?php echo htmlspecialchars(Text::_($estadoInfo['langKey'])); ?>
                             </span>
                         </td>
                         <td class="actions">

@@ -61,14 +61,26 @@ class HtmlView extends BaseHtmlView
                 return;
             }
             
-            // Get quotations from database
+            // Get quotations from database (include invoice link count when column exists)
             $db = Factory::getDbo();
+            $invCols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+            $invCols = \is_array($invCols) ? array_change_key_case($invCols, CASE_LOWER) : [];
+
             $query = $db->getQuery(true)
-                ->select('*')
-                ->from($db->quoteName('#__ordenproduccion_quotations'))
-                ->where($db->quoteName('state') . ' = 1')
-                ->order($db->quoteName('created') . ' DESC');
-            
+                ->select($db->quoteName('q') . '.*')
+                ->from($db->quoteName('#__ordenproduccion_quotations', 'q'))
+                ->where($db->quoteName('q.state') . ' = 1')
+                ->order($db->quoteName('q.created') . ' DESC');
+
+            if (isset($invCols['quotation_id'])) {
+                $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+                    . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+                    . ' AND ' . $db->quoteName('i.state') . ' = 1)';
+                $query->select($sub . ' AS ' . $db->quoteName('quotation_invoice_count'));
+            } else {
+                $query->select('0 AS ' . $db->quoteName('quotation_invoice_count'));
+            }
+
             $db->setQuery($query);
             $this->quotations = $db->loadObjectList();
             
@@ -81,7 +93,7 @@ class HtmlView extends BaseHtmlView
                 'com_ordenproduccion.cotizaciones',
                 'media/com_ordenproduccion/css/cotizaciones.css',
                 [],
-                ['version' => '3.52.0']
+                ['version' => '3.101.47']
             );
             
         } catch (\Exception $e) {
