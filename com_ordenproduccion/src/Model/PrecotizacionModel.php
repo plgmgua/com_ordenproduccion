@@ -401,6 +401,58 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Pre-cotizaciones linked to this quotation's lines that have facturar = 1.
+     *
+     * @param   int  $quotationId  Quotation id.
+     *
+     * @return  array<int, array{id: int, number: string}>
+     *
+     * @since   3.101.44
+     */
+    public function getFacturarPreCotizacionesForQuotation(int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        if (!isset($itemCols['pre_cotizacion_id'])) {
+            return [];
+        }
+        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+        if (!isset($pcCols['facturar'])) {
+            return [];
+        }
+        $q = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('p.id') . ', ' . $db->quoteName('p.number'))
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'i'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p'),
+                $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id')
+            )
+            ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
+            ->where($db->quoteName('i.pre_cotizacion_id') . ' > 0')
+            ->where($db->quoteName('p.facturar') . ' = 1')
+            ->order($db->quoteName('p.id') . ' ASC');
+        $db->setQuery($q);
+        $rows = $db->loadObjectList() ?: [];
+        $out  = [];
+        foreach ($rows as $r) {
+            $id = (int) $r->id;
+            $num = trim((string) ($r->number ?? ''));
+            if ($num === '') {
+                $num = 'PRE-' . $id;
+            }
+            $out[] = ['id' => $id, 'number' => $num];
+        }
+
+        return $out;
+    }
+
+    /**
      * Get pre-cotizaciones for the quotation line selector: current user's + all with oferta=1.
      * Used so "Oferta" pre-cotizaciones can be selected by any user even if already in another quotation.
      *

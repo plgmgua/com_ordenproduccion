@@ -473,10 +473,25 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
-        $instrucciones = $app->input->post->getString('instrucciones_facturacion', '');
         $nextStep = (int) $app->input->post->get('next_step', 0);
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $instruccionesCollected = $this->collectInstruccionesFacturacionFromPost($quotationId);
+        if ($instruccionesCollected === null) {
+            $isAjaxCol = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+            if ($isAjaxCol && $nextStep === 2) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => true, 'next_step' => 2]);
+                $app->close();
+            }
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_SAVED'), 'success');
+            if ($nextStep === 2) {
+                $app->getSession()->set('com_ordenproduccion.confirmar_step', 2);
+            }
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+        $instrucciones = $instruccionesCollected;
         if (!isset($cols['instrucciones_facturacion'])) {
             $isAjaxCol = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
             if ($isAjaxCol && $nextStep === 2) {
@@ -588,8 +603,8 @@ class CotizacionController extends BaseController
             $maxSize
         ) ?? $pathOrden;
 
-        $instruccionesFacturacion = $app->input->post->getString('instrucciones_facturacion', '');
-        if (strlen($instruccionesFacturacion) > 65535) {
+        $instruccionesFacturacion = $this->collectInstruccionesFacturacionFromPost($quotationId);
+        if ($instruccionesFacturacion !== null && strlen($instruccionesFacturacion) > 65535) {
             $instruccionesFacturacion = substr($instruccionesFacturacion, 0, 65535);
         }
 
@@ -604,7 +619,7 @@ class CotizacionController extends BaseController
         if (isset($cols['orden_compra_path'])) {
             $sets[] = $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden);
         }
-        if (isset($cols['instrucciones_facturacion'])) {
+        if ($instruccionesFacturacion !== null && isset($cols['instrucciones_facturacion'])) {
             $sets[] = $db->quoteName('instrucciones_facturacion') . ' = ' . $db->quote($instruccionesFacturacion);
         }
 
@@ -1927,5 +1942,46 @@ class CotizacionController extends BaseController
         $dest = $forceDownload ? 'D' : 'I';
         $pdf->Output($dest, $filename);
         exit;
+    }
+
+    /**
+     * Billing instructions from POST for Confirmar flows. Returns null when no linked pre-cot has facturar
+     * (caller must not overwrite quotation.instrucciones_facturacion).
+     *
+     * @param   int  $quotationId
+     *
+     * @return  string|null
+     *
+     * @since   3.101.44
+     */
+    private function collectInstruccionesFacturacionFromPost(int $quotationId): ?string
+    {
+        $app = Factory::getApplication();
+        $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (!$precotModel) {
+            return null;
+        }
+        $facturarList = $precotModel->getFacturarPreCotizacionesForQuotation($quotationId);
+        if ($facturarList === []) {
+            return null;
+        }
+        if (\count($facturarList) === 1) {
+            return $app->input->post->getString('instrucciones_facturacion', '');
+        }
+        $arr = $app->input->post->get('instrucciones_facturacion', [], 'array');
+        $parts = [];
+        foreach ($facturarList as $f) {
+            $id = (int) $f['id'];
+            $text = '';
+            if (isset($arr[$id])) {
+                $text = trim((string) $arr[$id]);
+            } elseif (isset($arr[(string) $id])) {
+                $text = trim((string) $arr[(string) $id]);
+            }
+            $parts[] = '[' . $f['number'] . ']' . "\n\n" . $text;
+        }
+
+        return implode("\n\n---\n\n", $parts);
     }
 }

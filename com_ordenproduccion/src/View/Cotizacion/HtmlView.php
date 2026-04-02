@@ -105,6 +105,14 @@ class HtmlView extends BaseHtmlView
     protected $quotationItems = [];
 
     /**
+     * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
+     *
+     * @var    array<int, array{id: int, label: string}>
+     * @since  3.101.44
+     */
+    protected $confirmarInstruccionesFacturacionBlocks = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -215,12 +223,21 @@ class HtmlView extends BaseHtmlView
                         $this->pliegoSizesModal = [];
                         $this->elementosModal = [];
                     }
+                    $this->confirmarInstruccionesFacturacionBlocks = [];
+                    if ($precotModel) {
+                        $this->confirmarInstruccionesFacturacionBlocks = $this->buildConfirmarInstruccionesFacturacionBlocks(
+                            (int) $quotationId,
+                            $this->quotationItems,
+                            $precotModel
+                        );
+                    }
                 } else {
                     $this->quotationItems = [];
                     $this->itemsWithLineDetalles = [];
                     $this->pliegoPaperTypesModal = [];
                     $this->pliegoSizesModal = [];
                     $this->elementosModal = [];
+                    $this->confirmarInstruccionesFacturacionBlocks = [];
                 }
             }
 
@@ -385,6 +402,53 @@ class HtmlView extends BaseHtmlView
         }
 
         parent::display($tpl);
+    }
+
+    /**
+     * Labels for "Instrucciones de Facturación" in Confirmar modal: hidden when no pre-cot has facturar;
+     * suffix " - PRE-…" when multiple pre-cots on quote and only one has facturar, or when several have facturar.
+     *
+     * @param   int  $quotationId
+     * @param   \stdClass[]  $quotationItems
+     * @param   \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel  $precotModel
+     *
+     * @return  array<int, array{id: int, label: string}>
+     *
+     * @since   3.101.44
+     */
+    protected function buildConfirmarInstruccionesFacturacionBlocks(int $quotationId, array $quotationItems, $precotModel): array
+    {
+        $facturarList = $precotModel->getFacturarPreCotizacionesForQuotation($quotationId);
+        if ($facturarList === []) {
+            return [];
+        }
+        $distinctPreIds = [];
+        foreach ($quotationItems as $item) {
+            $pid = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
+            if ($pid > 0) {
+                $distinctPreIds[$pid] = true;
+            }
+        }
+        $numDistinct = \count($distinctPreIds);
+        $nFact         = \count($facturarList);
+        $baseTitle     = Text::_('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE');
+        $blocks        = [];
+        foreach ($facturarList as $f) {
+            $id  = (int) $f['id'];
+            $num = $f['number'];
+            $suffix = '';
+            if ($nFact === 1 && $numDistinct > 1) {
+                $suffix = ' - ' . $num;
+            } elseif ($nFact > 1) {
+                $suffix = ' - ' . $num;
+            }
+            $blocks[] = [
+                'id'    => $id,
+                'label' => $baseTitle . $suffix,
+            ];
+        }
+
+        return $blocks;
     }
 }
 

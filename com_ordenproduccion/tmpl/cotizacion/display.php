@@ -324,10 +324,25 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                             </div>
                         <?php endif; ?>
                     </div>
+                    <?php
+                    $instruccionesBlocks = $this->confirmarInstruccionesFacturacionBlocks ?? [];
+                    ?>
+                    <?php if (!empty($instruccionesBlocks)) : ?>
+                        <?php
+                        $instruccionesMulti = \count($instruccionesBlocks) > 1;
+                        foreach ($instruccionesBlocks as $instrBlock) :
+                            $ibId = (int) ($instrBlock['id'] ?? 0);
+                            $ibLabel = (string) ($instrBlock['label'] ?? '');
+                            $fieldId = 'instrucciones_facturacion_confirm' . ($instruccionesMulti ? '_' . $ibId : '');
+                            $fieldName = $instruccionesMulti ? ('instrucciones_facturacion[' . $ibId . ']') : 'instrucciones_facturacion';
+                            $fieldValue = (!$instruccionesMulti) ? $instruccionesFacturacionValue : '';
+                            ?>
                     <div class="mb-3">
-                        <label for="instrucciones_facturacion_confirm" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación'); ?></label>
-                        <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_confirm" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <label for="<?php echo htmlspecialchars($fieldId); ?>" class="form-label"><?php echo htmlspecialchars($ibLabel); ?></label>
+                        <textarea name="<?php echo htmlspecialchars($fieldName); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($fieldValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
                     </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>

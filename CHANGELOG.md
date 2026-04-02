@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.44-STABLE] - 2026-04-01
+
+### Added
+- **Confirmar cotización:** El campo **Instrucciones de Facturación** solo se muestra si alguna pre-cotización vinculada a la cotización tiene **Facturar** marcado (`facturar = 1`). Si hay varias pre-cots en la cotización y solo una tiene Facturar, la etiqueta incluye el número completo (`… - PRE-00012`). Si varias tienen Facturar, un bloque por pre-cot con etiqueta sufijada; el guardado concatena en `quotations.instrucciones_facturacion` con separadores.
+
+### Changed
+- `finalizeConfirmacionCotizacion` y `saveConfirmarStep2`: no actualizan `instrucciones_facturacion` cuando ninguna pre-cot asociada tiene Facturar (se conserva el valor previo en BD).
+
 ## [3.101.43-STABLE] - 2026-04-01
 
 ### Fixed
