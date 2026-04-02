@@ -19,6 +19,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 class InvoiceController extends BaseController
 {
@@ -198,6 +199,168 @@ class InvoiceController extends BaseController
         }
 
         $this->setRedirect($back);
+    }
+
+    /**
+     * Queue FEL mock invoice from cotización (JSON). Step 1: create pending row.
+     *
+     * @return  void
+     *
+     * @since   3.101.50
+     */
+    public function issueFromQuotation()
+    {
+        $app = $this->app;
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('request')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+            $app->close();
+        }
+
+        $quotationId = $this->input->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_QUOTATION_INVALID')]);
+            $app->close();
+        }
+
+        $service = new FelInvoiceIssuanceService();
+        if (!$service->isEngineAvailable() || !$service->hasQuotationIdColumn()) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_ENGINE_UNAVAILABLE')]);
+            $app->close();
+        }
+
+        $existing = $service->getInvoiceByQuotationId($quotationId);
+        if ($existing) {
+            echo json_encode([
+                'success'    => true,
+                'invoice_id' => (int) $existing->id,
+                'existing'   => true,
+                'status'     => (string) ($existing->fel_issue_status ?? ''),
+            ]);
+            $app->close();
+        }
+
+        $invoiceId = $service->createPendingInvoiceFromQuotation($quotationId, (int) $user->id);
+        if ($invoiceId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_CREATE_FAILED')]);
+            $app->close();
+        }
+
+        echo json_encode([
+            'success'    => true,
+            'invoice_id' => $invoiceId,
+            'existing'   => false,
+            'status'     => 'pending',
+        ]);
+        $app->close();
+    }
+
+    /**
+     * Process pending FEL mock invoice (JSON). Step 2: mock certify + files.
+     *
+     * @return  void
+     *
+     * @since   3.101.50
+     */
+    public function processFelIssuance()
+    {
+        $app = $this->app;
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('request')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+            $app->close();
+        }
+
+        $invoiceId = $this->input->getInt('invoice_id', 0);
+        if ($invoiceId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID')]);
+            $app->close();
+        }
+
+        $service = new FelInvoiceIssuanceService();
+        $result = $service->processInvoice($invoiceId);
+        if (!empty($result['success'])) {
+            $result['message'] = Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_SUCCESS');
+        }
+
+        echo json_encode($result);
+        $app->close();
+    }
+
+    /**
+     * JSON status for polling (fel_issue_*).
+     *
+     * @return  void
+     *
+     * @since   3.101.50
+     */
+    public function felIssuanceStatus()
+    {
+        $app = $this->app;
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('request')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+            $app->close();
+        }
+
+        $invoiceId = $this->input->getInt('invoice_id', 0);
+        if ($invoiceId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID')]);
+            $app->close();
+        }
+
+        $model = $this->getModel('Invoice');
+        $inv = $model ? $model->getItem($invoiceId) : null;
+        if (!$inv) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_NOT_FOUND')]);
+            $app->close();
+        }
+
+        echo json_encode([
+            'success'              => true,
+            'fel_issue_status'     => (string) ($inv->fel_issue_status ?? ''),
+            'fel_issue_error'      => (string) ($inv->fel_issue_error ?? ''),
+            'invoice_number'       => (string) ($inv->invoice_number ?? ''),
+            'fel_local_pdf_path'   => (string) ($inv->fel_local_pdf_path ?? ''),
+            'fel_local_xml_path'   => (string) ($inv->fel_local_xml_path ?? ''),
+        ]);
+        $app->close();
     }
 
     /**

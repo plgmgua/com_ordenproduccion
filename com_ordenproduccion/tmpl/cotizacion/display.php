@@ -16,6 +16,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 $l = function($key, $fallbackEn, $fallbackEs = null) {
     $t = Text::_($key);
@@ -87,6 +88,14 @@ foreach ($elementosIo as $el) {
     $elementosByIdIo[(int) $el->id] = $el;
 }
 $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetalles);
+
+$felEngineAvailable = !empty($this->felEngineAvailable);
+$felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation : null;
+$felStatus = $felInv ? (string) ($felInv->fel_issue_status ?? '') : '';
+$canFelIssue = $quotationConfirmed && $felEngineAvailable
+    && (AccessHelper::isInVentasGroup() || AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser());
+$felIssueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.issueFromQuotation&format=json', false);
+$felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -116,6 +125,131 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($canFelIssue) : ?>
+    <form id="fel-issue-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
+    <div class="alert alert-light border mb-3" id="fel-issue-panel">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <strong><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_PANEL_TITLE', 'Electronic invoice (test engine)', 'Factura electrónica (motor de pruebas)')); ?></strong>
+                <div class="small text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_PANEL_HELP', 'Creates a mock FELplex DTE (FACT), saves XML/PDF under media, one invoice per quotation.', 'Genera un DTE FACT simulado, guarda XML/PDF en media, una factura por cotización.')); ?></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <?php if (!$felInv) : ?>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="fel-issue-start-btn" data-quotation-id="<?php echo (int) $quotationId; ?>">
+                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_START', 'Queue mock invoice', 'Encolar factura de prueba')); ?>
+                </button>
+                <?php else : ?>
+                    <?php if ($felStatus === 'completed') : ?>
+                        <span class="badge bg-success"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_DONE', 'Issued', 'Emitida')); ?></span>
+                        <span class="small"><?php echo htmlspecialchars($felInv->invoice_number ?? ''); ?></span>
+                        <?php if (!empty($felInv->fel_local_pdf_path)) : ?>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Uri::root() . $felInv->fel_local_pdf_path); ?>">PDF</a>
+                        <?php endif; ?>
+                        <?php if (!empty($felInv->fel_local_xml_path)) : ?>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Uri::root() . $felInv->fel_local_xml_path); ?>">XML</a>
+                        <?php endif; ?>
+                        <a class="btn btn-sm btn-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $felInv->id); ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_OPEN_INVOICE', 'Open invoice', 'Abrir factura')); ?></a>
+                    <?php elseif ($felStatus === 'failed') : ?>
+                        <span class="badge bg-danger"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_FAILED', 'Failed', 'Falló')); ?></span>
+                        <span class="small text-danger"><?php echo htmlspecialchars((string) ($felInv->fel_issue_error ?? '')); ?></span>
+                        <button type="button" class="btn btn-sm btn-primary" id="fel-issue-process-btn" data-invoice-id="<?php echo (int) $felInv->id; ?>">
+                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_RETRY', 'Retry certification', 'Reintentar certificación')); ?>
+                        </button>
+                        <?php else : ?>
+                        <span class="badge bg-warning text-dark"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_PENDING', 'Pending / processing', 'Pendiente / procesando')); ?></span>
+                        <button type="button" class="btn btn-sm btn-primary" id="fel-issue-process-btn" data-invoice-id="<?php echo (int) $felInv->id; ?>">
+                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_RUN', 'Run certification now', 'Certificar ahora')); ?>
+                        </button>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div id="fel-issue-alert" class="small mt-2 d-none" role="status"></div>
+    </div>
+    <script>
+    (function() {
+        var issueUrl = <?php echo json_encode($felIssueUrl); ?>;
+        var processUrl = <?php echo json_encode($felProcessUrl); ?>;
+        var qid = <?php echo (int) $quotationId; ?>;
+        var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
+        function tokenFormData() {
+            var f = document.getElementById('fel-issue-token-form');
+            return f ? new FormData(f) : new FormData();
+        }
+        function runProcess(invoiceId, btn) {
+            var fd = tokenFormData();
+            fd.append('invoice_id', String(invoiceId));
+            if (btn) btn.disabled = true;
+            fetch(processUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data && data.success) {
+                        window.location.reload();
+                    } else {
+                        var el = document.getElementById('fel-issue-alert');
+                        if (el) {
+                            el.className = 'small mt-2 text-danger';
+                            el.textContent = (data && data.message) ? data.message : 'Error';
+                            el.classList.remove('d-none');
+                        }
+                    }
+                })
+                .catch(function() {
+                    var el = document.getElementById('fel-issue-alert');
+                    if (el) {
+                        el.className = 'small mt-2 text-danger';
+                        el.textContent = msgNet;
+                        el.classList.remove('d-none');
+                    }
+                })
+                .finally(function() { if (btn) btn.disabled = false; });
+        }
+        var startBtn = document.getElementById('fel-issue-start-btn');
+        if (startBtn) {
+            startBtn.addEventListener('click', function() {
+                var btn = this;
+                btn.disabled = true;
+                var fd = tokenFormData();
+                fd.append('quotation_id', String(qid));
+                var alertEl = document.getElementById('fel-issue-alert');
+                if (alertEl) { alertEl.classList.add('d-none'); alertEl.textContent = ''; }
+                fetch(issueUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data && data.success && data.invoice_id) {
+                            runProcess(data.invoice_id, null);
+                        } else {
+                            btn.disabled = false;
+                            if (alertEl) {
+                                alertEl.className = 'small mt-2 text-danger';
+                                alertEl.textContent = (data && data.message) ? data.message : 'Error';
+                                alertEl.classList.remove('d-none');
+                            }
+                        }
+                    })
+                    .catch(function() {
+                        btn.disabled = false;
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = msgNet;
+                            alertEl.classList.remove('d-none');
+                        }
+                    });
+            });
+        }
+        var procBtn = document.getElementById('fel-issue-process-btn');
+        if (procBtn) {
+            procBtn.addEventListener('click', function() {
+                var iid = parseInt(this.getAttribute('data-invoice-id') || '0', 10);
+                if (iid > 0) {
+                    runProcess(iid, this);
+                }
+            });
+        }
+    })();
+    </script>
+    <?php endif; ?>
 
     <!-- Client Information -->
     <div class="client-info-section mb-4">

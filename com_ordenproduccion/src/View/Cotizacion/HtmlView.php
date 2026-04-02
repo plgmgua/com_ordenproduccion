@@ -16,6 +16,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
  * View for creating new quotations
@@ -113,6 +114,22 @@ class HtmlView extends BaseHtmlView
     protected $confirmarInstruccionesFacturacionBlocks = [];
 
     /**
+     * True when DB has FEL issuance columns (migration 3.101.50) and quotation_id on invoices.
+     *
+     * @var    bool
+     * @since  3.101.50
+     */
+    protected $felEngineAvailable = false;
+
+    /**
+     * Invoice row linked to this quotation for mock FEL issuance, or null.
+     *
+     * @var    object|null
+     * @since  3.101.50
+     */
+    protected $felInvoiceForQuotation = null;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -139,7 +156,14 @@ class HtmlView extends BaseHtmlView
                     ->where($db->quoteName('state') . ' = 1');
                 $db->setQuery($query);
                 $this->quotation = $db->loadObject();
+                $this->felEngineAvailable = false;
+                $this->felInvoiceForQuotation = null;
                 if ($this->quotation) {
+                    $felSvc = new FelInvoiceIssuanceService();
+                    $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();
+                    if ($this->felEngineAvailable) {
+                        $this->felInvoiceForQuotation = $felSvc->getInvoiceByQuotationId($quotationId);
+                    }
                     $this->clientName    = $this->quotation->client_name ?? '';
                     $this->clientNit    = $this->quotation->client_nit ?? '';
                     $this->clientAddress = $this->quotation->client_address ?? '';
