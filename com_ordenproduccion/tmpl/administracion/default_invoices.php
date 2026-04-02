@@ -303,6 +303,7 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
     </div>
 
     <?php if ($invoicesSubtab === 'cola'): ?>
+    <?php $felProcessQueueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false); ?>
 
     <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_INTRO'); ?></p>
 
@@ -312,6 +313,7 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
             <p><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_EMPTY'); ?></p>
         </div>
     <?php else : ?>
+        <form id="fel-queue-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
         <div class="table-responsive">
             <table class="table table-striped table-hover align-middle">
                 <thead>
@@ -345,6 +347,7 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                         if (!empty($qr->fel_scheduled_at)) {
                             $sched = HTMLHelper::_('date', $qr->fel_scheduled_at, Text::_('DATE_FORMAT_LC2'));
                         }
+                        $canProcessNow = ($st === 'scheduled' || $st === 'pending');
                         ?>
                     <tr>
                         <td><?php echo htmlspecialchars($qnum); ?></td>
@@ -361,6 +364,11 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                             <?php if (!empty($qr->id)) : ?>
                             <a class="btn btn-sm btn-outline-secondary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $qr->id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_INVOICE'); ?></a>
                             <?php endif; ?>
+                            <?php if (!empty($qr->id) && $canProcessNow) : ?>
+                            <button type="button" class="btn btn-sm btn-primary fel-queue-process-now" data-invoice-id="<?php echo (int) $qr->id; ?>">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_PROCESS_NOW'); ?>
+                            </button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -370,6 +378,39 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
         <?php if ($invoiceFelQueuePagination && $invoiceFelQueuePagination->pagesTotal > 1) : ?>
             <div class="com-content-pagination"><?php echo $invoiceFelQueuePagination->getPagesLinks(); ?></div>
         <?php endif; ?>
+        <script>
+        (function() {
+            var url = <?php echo json_encode($felProcessQueueUrl); ?>;
+            var msgErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_PROCESS_ERROR')); ?>;
+            document.querySelectorAll('.fel-queue-process-now').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var id = parseInt(btn.getAttribute('data-invoice-id') || '0', 10);
+                    if (id < 1) {
+                        return;
+                    }
+                    var f = document.getElementById('fel-queue-token-form');
+                    var fd = f ? new FormData(f) : new FormData();
+                    fd.append('invoice_id', String(id));
+                    fd.append('force', '1');
+                    btn.disabled = true;
+                    fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data && data.success) {
+                                window.location.reload();
+                            } else {
+                                window.alert((data && data.message) ? data.message : msgErr);
+                                btn.disabled = false;
+                            }
+                        })
+                        .catch(function() {
+                            window.alert(msgErr);
+                            btn.disabled = false;
+                        });
+                });
+            });
+        })();
+        </script>
     <?php endif; ?>
 
     <?php elseif ($invoicesSubtab === 'match'): ?>

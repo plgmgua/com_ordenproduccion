@@ -346,7 +346,7 @@ class FelInvoiceIssuanceService
         $ok  = 0;
 
         foreach ($ids as $id) {
-            $r = $this->processInvoice((int) $id);
+            $r = $this->processInvoice((int) $id, false);
             if (!empty($r['success'])) {
                 $ok++;
             }
@@ -357,8 +357,10 @@ class FelInvoiceIssuanceService
 
     /**
      * Run mock certification for a pending/processing invoice (queue step 2).
+     *
+     * @param   bool  $forceScheduled  If true, run even when fel_issue_status is scheduled and fel_scheduled_at is in the future.
      */
-    public function processInvoice(int $invoiceId): array
+    public function processInvoice(int $invoiceId, bool $forceScheduled = false): array
     {
         if ($invoiceId < 1 || !$this->isEngineAvailable()) {
             return ['success' => false, 'message' => 'Engine unavailable'];
@@ -387,7 +389,7 @@ class FelInvoiceIssuanceService
             return ['success' => true, 'message' => 'Already completed', 'invoice_id' => $invoiceId];
         }
 
-        if ($status === 'scheduled') {
+        if ($status === 'scheduled' && !$forceScheduled) {
             $schedRaw = $inv->fel_scheduled_at ?? null;
             if ($schedRaw !== null && $schedRaw !== '') {
                 $due = Factory::getDate($schedRaw);
@@ -480,7 +482,12 @@ class FelInvoiceIssuanceService
                 $qty = 1.0;
             }
             $sub = isset($row->subtotal) ? (float) $row->subtotal : 0.0;
-            $price = $qty > 0 ? round($sub / $qty, 2) : $sub;
+            $vu  = isset($row->valor_unitario) ? (float) $row->valor_unitario : 0.0;
+            // Some rows store unit price in valor_unitario while subtotal is still 0; prefer DB unit price.
+            if ($sub <= 0.00001 && $vu > 0) {
+                $sub = round($vu * $qty, 2);
+            }
+            $price = $vu > 0.00001 ? round($vu, 4) : ($qty > 0 ? round($sub / $qty, 4) : 0.0);
             $desc = isset($row->descripcion) ? trim((string) $row->descripcion) : 'Item';
             if ($desc === '') {
                 $desc = 'Item';
@@ -730,11 +737,24 @@ class FelInvoiceIssuanceService
     {
         $out = [];
         foreach ($lines as $row) {
-            $out[] = [
-                'cantidad'     => isset($row->cantidad) ? (float) $row->cantidad : 1,
+            $qty = isset($row->cantidad) ? (float) $row->cantidad : 1.0;
+            if ($qty <= 0) {
+                $qty = 1.0;
+            }
+            $sub = isset($row->subtotal) ? (float) $row->subtotal : 0.0;
+            $vu  = isset($row->valor_unitario) ? (float) $row->valor_unitario : 0.0;
+            if ($sub <= 0.00001 && $vu > 0) {
+                $sub = round($vu * $qty, 2);
+            }
+            $line = [
+                'cantidad'     => $qty,
                 'descripcion'  => $row->descripcion ?? '',
-                'subtotal'     => isset($row->subtotal) ? (float) $row->subtotal : 0,
+                'subtotal'     => $sub,
             ];
+            if (isset($row->valor_unitario)) {
+                $line['valor_unitario'] = $vu;
+            }
+            $out[] = $line;
         }
 
         return $out;

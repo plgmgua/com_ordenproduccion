@@ -301,8 +301,10 @@ class InvoiceController extends BaseController
             $app->close();
         }
 
+        $forceScheduled = $this->input->getInt('force', 0) === 1;
+
         $service = new FelInvoiceIssuanceService();
-        $result = $service->processInvoice($invoiceId);
+        $result = $service->processInvoice($invoiceId, $forceScheduled);
         if (!empty($result['success'])) {
             $result['message'] = Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_SUCCESS');
         }

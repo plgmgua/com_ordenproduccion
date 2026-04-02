@@ -73,9 +73,27 @@ class HtmlView extends BaseHtmlView
                 ->order($db->quoteName('q.created') . ' DESC');
 
             if (isset($invCols['quotation_id'])) {
-                $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
-                    . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
-                    . ' AND ' . $db->quoteName('i.state') . ' = 1)';
+                // "Facturada" only when an invoice is actually issued, not while FEL is only queued/scheduled.
+                if (isset($invCols['fel_issue_status'])) {
+                    if (isset($invCols['invoice_source'])) {
+                        $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+                            . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+                            . ' AND ' . $db->quoteName('i.state') . ' = 1'
+                            . ' AND ('
+                            . $db->quoteName('i.fel_issue_status') . ' = ' . $db->quote('completed')
+                            . ' OR COALESCE(' . $db->quoteName('i.invoice_source') . ', ' . $db->quote('') . ') != ' . $db->quote('cotizacion_fel')
+                            . '))';
+                    } else {
+                        $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+                            . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+                            . ' AND ' . $db->quoteName('i.state') . ' = 1'
+                            . ' AND ' . $db->quoteName('i.fel_issue_status') . ' = ' . $db->quote('completed') . ')';
+                    }
+                } else {
+                    $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+                        . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+                        . ' AND ' . $db->quoteName('i.state') . ' = 1)';
+                }
                 $query->select($sub . ' AS ' . $db->quoteName('quotation_invoice_count'));
             } else {
                 $query->select('0 AS ' . $db->quoteName('quotation_invoice_count'));

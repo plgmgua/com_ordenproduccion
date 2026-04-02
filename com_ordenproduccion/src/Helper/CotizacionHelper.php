@@ -51,8 +51,11 @@ abstract class CotizacionHelper
     }
 
     /**
-     * Business estado for Lista de Cotizaciones: Facturada (invoice linked) >
+     * Business estado for Lista de Cotizaciones: Facturada (invoice issued) >
      * Confirmada (cotizacion_confirmada) > Creada.
+     *
+     * `quotation_invoice_count` counts invoices that are actually issued: FEL mock completed, or any
+     * non–cotización-queue import. Cotización FEL rows that are only scheduled/pending do not count.
      *
      * @param   object  $row  Quotation row; may include `quotation_invoice_count` when invoices.quotation_id exists.
      *
