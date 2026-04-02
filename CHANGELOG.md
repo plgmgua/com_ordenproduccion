@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.46-STABLE] - 2026-04-01
+
+### Added
+- **Confirmar cotización:** Casilla **Facturar cotización exacta** (por defecto marcada) bajo las opciones de facturación; si está marcada, el bloque de **Instrucciones de Facturación** queda oculto y al guardar se vacían las instrucciones. Columna `facturar_cotizacion_exacta` (migración `3.101.46_quotation_facturar_cotizacion_exacta.sql`).
+
 ## [3.101.45-STABLE] - 2026-04-01
 
 ### Added

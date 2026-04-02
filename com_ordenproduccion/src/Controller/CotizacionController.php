@@ -653,6 +653,11 @@ class CotizacionController extends BaseController
             $sets[] = $db->quoteName('facturacion_fecha') . ' = '
                 . ($facturacionFechaSql === null ? 'NULL' : $db->quote($facturacionFechaSql));
         }
+        if ($instruccionesFacturacion !== null && isset($cols['facturar_cotizacion_exacta'])) {
+            $facturarCotizacionExactaDb = (int) $app->input->post->get('facturar_cotizacion_exacta', 1);
+            $facturarCotizacionExactaDb = $facturarCotizacionExactaDb === 0 ? 0 : 1;
+            $sets[] = $db->quoteName('facturar_cotizacion_exacta') . ' = ' . $facturarCotizacionExactaDb;
+        }
 
         $update = $db->getQuery(true)
             ->update($db->quoteName('#__ordenproduccion_quotations'))
@@ -1977,7 +1982,8 @@ class CotizacionController extends BaseController
 
     /**
      * Billing instructions from POST for Confirmar flows. Returns null when no linked pre-cot has facturar
-     * (caller must not overwrite quotation.instrucciones_facturacion).
+     * (caller must not overwrite quotation.instrucciones_facturacion). When facturar_cotizacion_exacta is 1,
+     * returns empty string (custom instructions not used).
      *
      * @param   int  $quotationId
      *
@@ -1996,6 +2002,13 @@ class CotizacionController extends BaseController
         $facturarList = $precotModel->getFacturarPreCotizacionesForQuotation($quotationId);
         if ($facturarList === []) {
             return null;
+        }
+        $facturarCotizacionExacta = (int) $app->input->post->get('facturar_cotizacion_exacta', 1);
+        if ($facturarCotizacionExacta !== 0) {
+            $facturarCotizacionExacta = 1;
+        }
+        if ($facturarCotizacionExacta === 1) {
+            return '';
         }
         if (\count($facturarList) === 1) {
             return $app->input->post->getString('instrucciones_facturacion', '');

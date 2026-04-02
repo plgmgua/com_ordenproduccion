@@ -53,6 +53,10 @@ if (!empty($quotation->facturacion_fecha)) {
         $facturacionFechaValue = '';
     }
 }
+$facturarCotizacionExacta = isset($quotation->facturar_cotizacion_exacta) ? (int) $quotation->facturar_cotizacion_exacta : 1;
+if ($facturarCotizacionExacta !== 0) {
+    $facturarCotizacionExacta = 1;
+}
 
 $itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
 $pliegoPaperTypesIo = $this->pliegoPaperTypesModal ?? [];
@@ -354,6 +358,11 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                             <label for="facturacion_fecha" class="form-label small mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_FECHA_LABEL', 'Billing date', 'Fecha de facturación')); ?></label>
                             <input type="date" class="form-control form-control-sm" name="facturacion_fecha" id="facturacion_fecha" value="<?php echo htmlspecialchars($facturacionFechaValue); ?>">
                         </div>
+                        <div class="form-check mt-3">
+                            <input type="hidden" name="facturar_cotizacion_exacta" id="facturar_cotizacion_exacta_post" value="<?php echo $facturarCotizacionExacta === 1 ? '1' : '0'; ?>">
+                            <input class="form-check-input" type="checkbox" id="facturar_cotizacion_exacta_cb"<?php echo $facturarCotizacionExacta === 1 ? ' checked' : ''; ?>>
+                            <label class="form-check-label" for="facturar_cotizacion_exacta_cb"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURAR_COTIZACION_EXACTA', 'Bill exact quotation amount', 'Facturar cotización exacta')); ?></label>
+                        </div>
                     </div>
                     <script>
                     (function() {
@@ -368,6 +377,7 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                         if (rFecha) rFecha.addEventListener('change', sync);
                     })();
                     </script>
+                    <div id="confirmar-instrucciones-facturacion-wrapper" class="confirmar-instrucciones-facturacion-wrapper"<?php echo $facturarCotizacionExacta === 1 ? ' style="display:none;"' : ''; ?>>
                         <?php
                         $instruccionesMulti = \count($instruccionesBlocks) > 1;
                         $baseInstrLabel = $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación');
@@ -385,6 +395,30 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                         <textarea name="<?php echo htmlspecialchars($fieldName); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($fieldValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
                     </div>
                         <?php endforeach; ?>
+                    </div>
+                    <script>
+                    (function() {
+                        var hid = document.getElementById('facturar_cotizacion_exacta_post');
+                        var cb = document.getElementById('facturar_cotizacion_exacta_cb');
+                        var iWrap = document.getElementById('confirmar-instrucciones-facturacion-wrapper');
+                        var modalForm = document.querySelector('#confirmarCotizacionModal form');
+                        function syncExacta() {
+                            if (hid && cb) {
+                                hid.value = cb.checked ? '1' : '0';
+                            }
+                            if (iWrap) {
+                                iWrap.style.display = (cb && cb.checked) ? 'none' : '';
+                            }
+                        }
+                        if (cb) {
+                            cb.addEventListener('change', syncExacta);
+                            syncExacta();
+                        }
+                        if (modalForm) {
+                            modalForm.addEventListener('submit', function() { syncExacta(); });
+                        }
+                    })();
+                    </script>
                     <?php endif; ?>
                 </div>
                 <div class="modal-footer">
