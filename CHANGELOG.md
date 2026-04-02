@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.43-STABLE] - 2026-04-01
+
+### Fixed
+- **Vista cotización (display):** Corregido solapamiento de columnas en **Detalles de la cotización**: `width: 1%` en la primera columna + `nowrap` hacía que el contenido se dibujara encima de Cantidad/Descripción. Anchos definidos con `<colgroup>` + porcentajes coherentes; cabecera **Pre-Cotización** puede envolver líneas; celda de enlace con elipsis si no cabe.
+
 ## [3.101.42-STABLE] - 2026-04-01
 
 ### Changed

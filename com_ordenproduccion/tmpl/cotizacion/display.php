@@ -175,6 +175,24 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
             <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
         <?php else : ?>
             <table class="table table-bordered table-sm cotizacion-display-lines-table<?php echo $quotationConfirmed ? ' cotizacion-display-lines-table--has-action' : ''; ?>">
+                <?php if ($quotationConfirmed) : ?>
+                <colgroup>
+                    <col class="col-cotizacion-pre">
+                    <col class="col-cotizacion-qty">
+                    <col class="col-cotizacion-desc">
+                    <col class="col-cotizacion-unit">
+                    <col class="col-cotizacion-sub">
+                    <col class="col-cotizacion-action">
+                </colgroup>
+                <?php else : ?>
+                <colgroup>
+                    <col class="col-cotizacion-pre">
+                    <col class="col-cotizacion-qty">
+                    <col class="col-cotizacion-desc">
+                    <col class="col-cotizacion-unit">
+                    <col class="col-cotizacion-sub">
+                </colgroup>
+                <?php endif; ?>
                 <thead>
                     <tr>
                         <th class="col-cotizacion-pre text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
