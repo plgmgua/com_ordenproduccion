@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
  * Administracion Dashboard View
@@ -406,6 +407,26 @@ class HtmlView extends BaseHtmlView
     protected $invoiceOrdenMatchFelInvoiceTotal = 0;
 
     /**
+     * FEL cotización queue (pending / scheduled / processing)
+     *
+     * @var    array
+     * @since  3.101.51
+     */
+    protected $invoiceFelQueueRows = [];
+
+    /**
+     * @var    object|null
+     * @since  3.101.51
+     */
+    protected $invoiceFelQueuePagination = null;
+
+    /**
+     * @var    bool
+     * @since  3.101.51
+     */
+    protected $invoiceFelQueueAvailable = false;
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -431,6 +452,9 @@ class HtmlView extends BaseHtmlView
                 'canAccessInvoiceMatchSubtab' => (bool) ($this->canAccessInvoiceMatchSubtab ?? false),
                 'invoiceOrdenMatchDropdownOptions' => is_array($this->invoiceOrdenMatchDropdownOptions ?? null) ? $this->invoiceOrdenMatchDropdownOptions : [],
                 'invoiceOrdenMatchFelInvoiceTotal' => (int) ($this->invoiceOrdenMatchFelInvoiceTotal ?? 0),
+                'invoiceFelQueueRows' => is_array($this->invoiceFelQueueRows ?? null) ? $this->invoiceFelQueueRows : [],
+                'invoiceFelQueuePagination' => $this->invoiceFelQueuePagination ?? null,
+                'invoiceFelQueueAvailable' => (bool) ($this->invoiceFelQueueAvailable ?? false),
             ]
         );
         return $data;
@@ -481,6 +505,15 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoiceOrdenMatchFelInvoiceTotal') {
             return (int) ($this->invoiceOrdenMatchFelInvoiceTotal ?? 0);
+        }
+        if ($property === 'invoiceFelQueueRows') {
+            return is_array($this->invoiceFelQueueRows ?? null) ? $this->invoiceFelQueueRows : [];
+        }
+        if ($property === 'invoiceFelQueuePagination') {
+            return $this->invoiceFelQueuePagination ?? null;
+        }
+        if ($property === 'invoiceFelQueueAvailable') {
+            return (bool) ($this->invoiceFelQueueAvailable ?? false);
         }
         return parent::get($property, $default);
     }
@@ -606,6 +639,9 @@ class HtmlView extends BaseHtmlView
         $this->canAccessInvoiceMatchSubtab = false;
         $this->invoiceOrdenMatchDropdownOptions = [];
         $this->invoiceOrdenMatchFelInvoiceTotal = 0;
+        $this->invoiceFelQueueRows = [];
+        $this->invoiceFelQueuePagination = null;
+        $this->invoiceFelQueueAvailable = false;
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -615,7 +651,7 @@ class HtmlView extends BaseHtmlView
         // Load invoices data if invoices tab is active (lista) or match data for conciliar subtab
         if ($activeTab === 'invoices') {
             $this->invoicesSubtab = $input->getString('invoices_subtab', 'lista');
-            if (!in_array($this->invoicesSubtab, ['lista', 'match'], true)) {
+            if (!in_array($this->invoicesSubtab, ['lista', 'match', 'cola'], true)) {
                 $this->invoicesSubtab = 'lista';
             }
             $this->invoiceOrdenMatchStatusFilter = $input->getString('match_status', '');
@@ -672,6 +708,41 @@ class HtmlView extends BaseHtmlView
                     $this->invoiceOrdenMatchGrouped = [];
                     $this->invoiceOrdenMatchFelInvoiceTotal = 0;
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                }
+            } elseif ($this->invoicesSubtab === 'cola') {
+                $this->invoices = [];
+                $this->invoicesPagination = null;
+                $this->state = new \Joomla\Registry\Registry();
+                $felSvc = new FelInvoiceIssuanceService();
+                if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
+                    $felSvc->processDueScheduledInvoices(30);
+                    $this->invoiceFelQueueAvailable = true;
+                    try {
+                        $qModel = $this->getModel('InvoiceFelQueue');
+                        if (!$qModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceFelQueueModel::class)) {
+                            $qModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                                ->getMVCFactory()->createModel('InvoiceFelQueue', 'Site', ['ignore_request' => false]);
+                        }
+                        if ($qModel) {
+                            $this->invoiceFelQueueRows = $qModel->getItems();
+                            $this->invoiceFelQueuePagination = $qModel->getPagination();
+                            $this->state = $qModel->getState();
+                            if ($this->invoiceFelQueuePagination) {
+                                $st = $this->state;
+                                $this->invoiceFelQueuePagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                                $this->invoiceFelQueuePagination->setAdditionalUrlParam('view', 'administracion');
+                                $this->invoiceFelQueuePagination->setAdditionalUrlParam('tab', 'invoices');
+                                $this->invoiceFelQueuePagination->setAdditionalUrlParam('invoices_subtab', 'cola');
+                                $this->invoiceFelQueuePagination->setAdditionalUrlParam('limit', (int) $st->get('list.limit', 50) ?: 50);
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        $this->invoiceFelQueueRows = [];
+                        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                    }
+                } else {
+                    $this->invoiceFelQueueAvailable = false;
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_MIGRATION_REQUIRED'), 'notice');
                 }
             } else {
                 try {

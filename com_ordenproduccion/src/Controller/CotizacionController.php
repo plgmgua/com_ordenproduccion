@@ -20,6 +20,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
  * Cotizacion controller (pliego quote calculation).
@@ -608,10 +609,13 @@ class CotizacionController extends BaseController
             $instruccionesFacturacion = substr($instruccionesFacturacion, 0, 65535);
         }
 
-        $facturacionModo      = 'con_envio';
-        $facturacionFechaSql  = null;
+        $hasFacturacionConfig = isset($cols['facturacion_modo']);
+
+        $facturacionModo       = 'con_envio';
+        $facturacionFechaSql   = null;
         $facturacionFechaValid = true;
-        if ($instruccionesFacturacion !== null) {
+        $facturarCotizacionExactaDb = 1;
+        if ($hasFacturacionConfig) {
             $facturacionModo = $app->input->post->getString('facturacion_modo', 'con_envio');
             if (!\in_array($facturacionModo, ['con_envio', 'fecha_especifica'], true)) {
                 $facturacionModo = 'con_envio';
@@ -625,8 +629,26 @@ class CotizacionController extends BaseController
                     $facturacionFechaSql = $facturacionFechaRaw;
                 }
             }
+            $facturarCotizacionExactaDb = (int) $app->input->post->get('facturar_cotizacion_exacta', 1);
+            $facturarCotizacionExactaDb = $facturarCotizacionExactaDb === 0 ? 0 : 1;
+        } elseif ($instruccionesFacturacion !== null) {
+            $facturacionModo = $app->input->post->getString('facturacion_modo', 'con_envio');
+            if (!\in_array($facturacionModo, ['con_envio', 'fecha_especifica'], true)) {
+                $facturacionModo = 'con_envio';
+            }
+            if ($facturacionModo === 'fecha_especifica') {
+                $facturacionFechaRaw = trim($app->input->post->getString('facturacion_fecha', ''));
+                $d = \DateTime::createFromFormat('Y-m-d', $facturacionFechaRaw);
+                if ($facturacionFechaRaw === '' || !$d || $d->format('Y-m-d') !== $facturacionFechaRaw) {
+                    $facturacionFechaValid = false;
+                } else {
+                    $facturacionFechaSql = $facturacionFechaRaw;
+                }
+            }
+            $facturarCotizacionExactaDb = (int) $app->input->post->get('facturar_cotizacion_exacta', 1);
+            $facturarCotizacionExactaDb = $facturarCotizacionExactaDb === 0 ? 0 : 1;
         }
-        if ($instruccionesFacturacion !== null && !$facturacionFechaValid) {
+        if (($hasFacturacionConfig || $instruccionesFacturacion !== null) && $facturacionModo === 'fecha_especifica' && !$facturacionFechaValid) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_FECHA_REQUIRED'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
             return;
@@ -646,16 +668,14 @@ class CotizacionController extends BaseController
         if ($instruccionesFacturacion !== null && isset($cols['instrucciones_facturacion'])) {
             $sets[] = $db->quoteName('instrucciones_facturacion') . ' = ' . $db->quote($instruccionesFacturacion);
         }
-        if ($instruccionesFacturacion !== null && isset($cols['facturacion_modo'])) {
+        if (($hasFacturacionConfig || $instruccionesFacturacion !== null) && isset($cols['facturacion_modo'])) {
             $sets[] = $db->quoteName('facturacion_modo') . ' = ' . $db->quote($facturacionModo);
         }
-        if ($instruccionesFacturacion !== null && isset($cols['facturacion_fecha'])) {
+        if (($hasFacturacionConfig || $instruccionesFacturacion !== null) && isset($cols['facturacion_fecha'])) {
             $sets[] = $db->quoteName('facturacion_fecha') . ' = '
                 . ($facturacionFechaSql === null ? 'NULL' : $db->quote($facturacionFechaSql));
         }
-        if ($instruccionesFacturacion !== null && isset($cols['facturar_cotizacion_exacta'])) {
-            $facturarCotizacionExactaDb = (int) $app->input->post->get('facturar_cotizacion_exacta', 1);
-            $facturarCotizacionExactaDb = $facturarCotizacionExactaDb === 0 ? 0 : 1;
+        if (($hasFacturacionConfig || $instruccionesFacturacion !== null) && isset($cols['facturar_cotizacion_exacta'])) {
             $sets[] = $db->quoteName('facturar_cotizacion_exacta') . ' = ' . $facturarCotizacionExactaDb;
         }
 
@@ -665,6 +685,17 @@ class CotizacionController extends BaseController
             ->where($db->quoteName('id') . ' = ' . $quotationId);
         $db->setQuery($update);
         $db->execute();
+
+        if ($hasFacturacionConfig
+            && isset($cols['facturar_cotizacion_exacta'])
+            && $facturacionModo === 'fecha_especifica'
+            && $facturacionFechaSql !== null
+            && $facturarCotizacionExactaDb === 1) {
+            $felSvc = new FelInvoiceIssuanceService();
+            if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
+                $felSvc->scheduleOrUpdateInvoiceFromQuotation($quotationId, (int) $user->id, $facturacionFechaSql);
+            }
+        }
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));

@@ -30,7 +30,7 @@ if ($importReport !== null) {
 }
 
 $invoicesSubtab = $this->get('invoicesSubtab');
-if ($invoicesSubtab !== 'lista' && $invoicesSubtab !== 'match') {
+if ($invoicesSubtab !== 'lista' && $invoicesSubtab !== 'match' && $invoicesSubtab !== 'cola') {
     $invoicesSubtab = 'lista';
 }
 $matchTableOk = (bool) $this->get('invoiceOrdenMatchTableAvailable');
@@ -52,6 +52,15 @@ if (!is_array($dropdownOpts)) {
 $matchFelInvoiceTotal = (int) $this->get('invoiceOrdenMatchFelInvoiceTotal');
 $listaUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista');
 $matchUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=match');
+$colaUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola');
+$invoiceFelQueueRows = $this->get('invoiceFelQueueRows');
+if (!is_array($invoiceFelQueueRows)) {
+    $invoiceFelQueueRows = isset($this->invoiceFelQueueRows) && is_array($this->invoiceFelQueueRows) ? $this->invoiceFelQueueRows : [];
+}
+$invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
+if ($invoiceFelQueuePagination === null && isset($this->invoiceFelQueuePagination)) {
+    $invoiceFelQueuePagination = $this->invoiceFelQueuePagination;
+}
 $matchClientHidden = htmlspecialchars($matchClientFilter, ENT_QUOTES, 'UTF-8');
 $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 ?>
@@ -283,6 +292,9 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
         <a href="<?php echo $listaUrl; ?>" class="<?php echo $invoicesSubtab === 'lista' ? 'active' : ''; ?>">
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_LISTA'); ?>
         </a>
+        <a href="<?php echo $colaUrl; ?>" class="<?php echo $invoicesSubtab === 'cola' ? 'active' : ''; ?>">
+            <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_QUEUE'); ?>
+        </a>
         <?php if ($canAccessInvoiceMatchSubtab): ?>
         <a href="<?php echo $matchUrl; ?>" class="<?php echo $invoicesSubtab === 'match' ? 'active' : ''; ?>">
             <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SUBTAB_MATCH'); ?>
@@ -290,7 +302,77 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
         <?php endif; ?>
     </div>
 
-    <?php if ($invoicesSubtab === 'match'): ?>
+    <?php if ($invoicesSubtab === 'cola'): ?>
+
+    <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_INTRO'); ?></p>
+
+    <?php if (empty($invoiceFelQueueRows)) : ?>
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_EMPTY'); ?></p>
+        </div>
+    <?php else : ?>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_CLIENT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_INVOICE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_AMOUNT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_STATUS'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_SCHEDULED'); ?></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($invoiceFelQueueRows as $qr) :
+                        $qnum = trim((string) ($qr->quotation_number ?? ''));
+                        if ($qnum === '') {
+                            $qnum = 'COT-' . (int) ($qr->quotation_id ?? 0);
+                        }
+                        $st = (string) ($qr->fel_issue_status ?? '');
+                        $stLabel = $st;
+                        if ($st === 'scheduled') {
+                            $stLabel = Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_SCHEDULED');
+                        } elseif ($st === 'pending') {
+                            $stLabel = Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_PENDING_SHORT');
+                        } elseif ($st === 'processing') {
+                            $stLabel = Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_PROCESSING');
+                        }
+                        $sched = '';
+                        if (!empty($qr->fel_scheduled_at)) {
+                            $sched = HTMLHelper::_('date', $qr->fel_scheduled_at, Text::_('DATE_FORMAT_LC2'));
+                        }
+                        ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($qnum); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($qr->client_name ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($qr->client_nit ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($qr->invoice_number ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars(number_format((float) ($qr->invoice_amount ?? 0), 2)); ?></td>
+                        <td><?php echo htmlspecialchars($stLabel); ?></td>
+                        <td><?php echo htmlspecialchars($sched !== '' ? $sched : '—'); ?></td>
+                        <td class="text-nowrap">
+                            <?php if (!empty($qr->quotation_id)) : ?>
+                            <a class="btn btn-sm btn-outline-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $qr->quotation_id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></a>
+                            <?php endif; ?>
+                            <?php if (!empty($qr->id)) : ?>
+                            <a class="btn btn-sm btn-outline-secondary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $qr->id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_INVOICE'); ?></a>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php if ($invoiceFelQueuePagination && $invoiceFelQueuePagination->pagesTotal > 1) : ?>
+            <div class="com-content-pagination"><?php echo $invoiceFelQueuePagination->getPagesLinks(); ?></div>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <?php elseif ($invoicesSubtab === 'match'): ?>
 
     <?php if (!$matchTableOk): ?>
         <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'); ?></div>

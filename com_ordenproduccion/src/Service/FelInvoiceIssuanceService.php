@@ -24,6 +24,9 @@ use Joomla\Database\DatabaseInterface;
  */
 class FelInvoiceIssuanceService
 {
+    /** @var string Time (24h) for scheduled FEL run on the chosen billing date (site timezone) */
+    public const SCHEDULED_ISSUE_HOUR = '08:00:00';
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -53,6 +56,14 @@ class FelInvoiceIssuanceService
         $cols = $this->db->getTableColumns('#__ordenproduccion_invoices', false);
 
         return \is_array($cols) && isset($cols['quotation_id']);
+    }
+
+    /**
+     * Whether fel_scheduled_at exists (migration 3.101.51).
+     */
+    public function hasFelScheduledAtColumn(): bool
+    {
+        return $this->hasColumn('fel_scheduled_at');
     }
 
     /**
@@ -136,7 +147,7 @@ class FelInvoiceIssuanceService
             'status'             => 'draft',
             'notes'              => 'FEL mock queue (cotización)',
             'state'              => 1,
-            'version'            => '3.101.50',
+            'version'            => '3.101.51',
             'created'            => $now,
             'created_by'         => $userId,
             'quotation_id'       => $quotationId,
@@ -163,6 +174,185 @@ class FelInvoiceIssuanceService
         $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
 
         return (int) $o->id;
+    }
+
+    /**
+     * Build UTC SQL datetime for 08:00 on the given local date (Joomla site offset).
+     *
+     * @param   string  $dateYmd  Y-m-d
+     *
+     * @return  string|null  SQL datetime or null if invalid
+     */
+    public function buildScheduledAtSql(string $dateYmd): ?string
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateYmd)) {
+            return null;
+        }
+
+        $offset = Factory::getApplication()->get('offset');
+        if ($offset === null || $offset === '') {
+            $offset = 'UTC';
+        }
+
+        try {
+            $date = Factory::getDate($dateYmd . ' ' . self::SCHEDULED_ISSUE_HOUR, $offset);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $date->toSql();
+    }
+
+    /**
+     * Queue or update invoice row: issue FEL at fel_scheduled_at (08:00 local on billing date).
+     *
+     * @param   string  $billingDateYmd  Y-m-d from quotation facturación
+     *
+     * @return  int  Invoice id or 0
+     */
+    public function scheduleOrUpdateInvoiceFromQuotation(int $quotationId, int $userId, string $billingDateYmd): int
+    {
+        if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn() || !$this->hasFelScheduledAtColumn()) {
+            return 0;
+        }
+
+        if ($quotationId < 1) {
+            return 0;
+        }
+
+        $scheduledSql = $this->buildScheduledAtSql($billingDateYmd);
+        if ($scheduledSql === null) {
+            return 0;
+        }
+
+        $existing = $this->getInvoiceByQuotationId($quotationId);
+        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
+            return (int) $existing->id;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_quotations'))
+            ->where($this->db->quoteName('id') . ' = ' . $quotationId)
+            ->where($this->db->quoteName('state') . ' = 1');
+        $this->db->setQuery($q);
+        $quotation = $this->db->loadObject();
+        if (!$quotation) {
+            return 0;
+        }
+
+        $lines = $this->loadQuotationLines($quotationId);
+        $now     = Factory::getDate()->toSql();
+        $total   = (float) ($quotation->total_amount ?? 0);
+        $lineItemsJson = json_encode($this->buildLineItemsForStorage($lines));
+
+        if ($existing) {
+            $invoiceId = (int) $existing->id;
+            $update    = [
+                'fel_issue_status' => 'scheduled',
+                'fel_scheduled_at' => $scheduledSql,
+                'fel_issue_error'  => null,
+                'invoice_amount'   => $total,
+                'line_items'       => $lineItemsJson,
+                'work_description' => $this->summarizeLines($lines),
+                'notes'            => 'FEL scheduled queue (cotización, 08:00)',
+                'modified'         => $now,
+                'modified_by'      => $userId,
+            ];
+            $update = $this->filterToExistingColumns($update);
+            $this->updateInvoiceFields($invoiceId, $update);
+
+            return $invoiceId;
+        }
+
+        $invoiceNumber = $this->generateNextInvoiceNumber();
+
+        $row = [
+            'invoice_number'     => $invoiceNumber,
+            'orden_id'           => null,
+            'orden_de_trabajo'   => '',
+            'client_name'        => $quotation->client_name ?? '',
+            'client_nit'         => $quotation->client_nit ?? null,
+            'sales_agent'        => $quotation->sales_agent ?? null,
+            'request_date'       => !empty($quotation->quote_date) ? $quotation->quote_date : null,
+            'delivery_date'      => null,
+            'invoice_date'       => $now,
+            'invoice_amount'     => $total,
+            'currency'           => $quotation->currency ?? 'Q',
+            'work_description'   => $this->summarizeLines($lines),
+            'material'           => null,
+            'dimensions'         => null,
+            'print_color'        => null,
+            'line_items'         => $lineItemsJson,
+            'quotation_file'     => null,
+            'extraction_status'  => 'manual',
+            'status'             => 'draft',
+            'notes'              => 'FEL scheduled queue (cotización, 08:00)',
+            'state'              => 1,
+            'version'            => '3.101.51',
+            'created'            => $now,
+            'created_by'         => $userId,
+            'quotation_id'       => $quotationId,
+            'invoice_source'     => 'cotizacion_fel',
+            'fel_issue_status'   => 'scheduled',
+            'fel_issue_error'    => null,
+            'fel_request_json'   => null,
+            'fel_response_json'  => null,
+            'fel_local_pdf_path' => null,
+            'fel_local_xml_path' => null,
+            'felplex_uuid'       => null,
+            'fel_scheduled_at'   => $scheduledSql,
+        ];
+
+        $cols = $this->db->getTableColumns('#__ordenproduccion_invoices', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $filtered = [];
+        foreach ($row as $k => $v) {
+            if (isset($cols[strtolower($k)])) {
+                $filtered[$k] = $v;
+            }
+        }
+
+        $o = (object) $filtered;
+        $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+
+        return (int) $o->id;
+    }
+
+    /**
+     * Process invoices whose scheduled time has passed (e.g. called from Control de ventas → cola).
+     *
+     * @return  int  Number of invoices that completed successfully
+     */
+    public function processDueScheduledInvoices(int $limit = 30): int
+    {
+        if (!$this->isEngineAvailable() || !$this->hasFelScheduledAtColumn()) {
+            return 0;
+        }
+
+        $db = $this->db;
+        $now = Factory::getDate()->toSql();
+        $q   = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__ordenproduccion_invoices'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('fel_issue_status') . ' = ' . $db->quote('scheduled'))
+            ->where($db->quoteName('fel_scheduled_at') . ' IS NOT NULL')
+            ->where($db->quoteName('fel_scheduled_at') . ' <= ' . $db->quote($now))
+            ->order($db->quoteName('fel_scheduled_at') . ' ASC')
+            ->setLimit($limit);
+        $db->setQuery($q);
+        $ids = $db->loadColumn() ?: [];
+        $ok  = 0;
+
+        foreach ($ids as $id) {
+            $r = $this->processInvoice((int) $id);
+            if (!empty($r['success'])) {
+                $ok++;
+            }
+        }
+
+        return $ok;
     }
 
     /**
@@ -195,6 +385,17 @@ class FelInvoiceIssuanceService
 
         if ($status === 'processing' && !empty($inv->fel_response_json)) {
             return ['success' => true, 'message' => 'Already completed', 'invoice_id' => $invoiceId];
+        }
+
+        if ($status === 'scheduled') {
+            $schedRaw = $inv->fel_scheduled_at ?? null;
+            if ($schedRaw !== null && $schedRaw !== '') {
+                $due = Factory::getDate($schedRaw);
+                $now = Factory::getDate('now');
+                if ($due->getTimestamp() > $now->getTimestamp()) {
+                    return ['success' => false, 'message' => 'Scheduled for later'];
+                }
+            }
         }
 
         $quotationId = (int) ($inv->quotation_id ?? 0);
@@ -239,6 +440,7 @@ class FelInvoiceIssuanceService
                 'fel_moneda'             => 'GTQ',
                 'fel_issue_status'       => 'completed',
                 'fel_issue_error'        => null,
+                'fel_scheduled_at'       => null,
                 'fel_local_pdf_path'     => $paths['pdf'],
                 'fel_local_xml_path'     => $paths['xml'],
                 'status'                 => 'created',
@@ -617,8 +819,12 @@ class FelInvoiceIssuanceService
     protected function hasColumn(string $name): bool
     {
         $cols = $this->db->getTableColumns('#__ordenproduccion_invoices', false);
+        if (!\is_array($cols)) {
+            return false;
+        }
+        $cols = array_change_key_case($cols, CASE_LOWER);
 
-        return \is_array($cols) && isset($cols[$name]);
+        return isset($cols[strtolower($name)]);
     }
 
     protected function digitsOnly(string $s): string

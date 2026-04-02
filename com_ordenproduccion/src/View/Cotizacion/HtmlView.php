@@ -130,6 +130,14 @@ class HtmlView extends BaseHtmlView
     protected $felInvoiceForQuotation = null;
 
     /**
+     * Confirmar modal: show Facturación radios when quotations.facturacion_modo exists (not only when pre-cots have facturar).
+     *
+     * @var    bool
+     * @since  3.101.51
+     */
+    protected $facturacionUiAvailable = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -159,6 +167,9 @@ class HtmlView extends BaseHtmlView
                 $this->felEngineAvailable = false;
                 $this->felInvoiceForQuotation = null;
                 if ($this->quotation) {
+                    $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+                    $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
+                    $this->facturacionUiAvailable = isset($qcols['facturacion_modo']);
                     $felSvc = new FelInvoiceIssuanceService();
                     $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();
                     if ($this->felEngineAvailable) {

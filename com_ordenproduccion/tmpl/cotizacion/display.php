@@ -156,6 +156,14 @@ $felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.pro
                         <button type="button" class="btn btn-sm btn-primary" id="fel-issue-process-btn" data-invoice-id="<?php echo (int) $felInv->id; ?>">
                             <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_RETRY', 'Retry certification', 'Reintentar certificación')); ?>
                         </button>
+                    <?php elseif ($felStatus === 'scheduled') : ?>
+                        <span class="badge bg-info text-dark"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_SCHEDULED', 'Scheduled', 'Programada')); ?></span>
+                        <?php if (!empty($felInv->fel_scheduled_at)) :
+                            $schedDisp = Factory::getDate($felInv->fel_scheduled_at);
+                            ?>
+                        <span class="small text-muted"><?php echo htmlspecialchars($schedDisp->format(Text::_('DATE_FORMAT_LC2'))); ?></span>
+                        <?php endif; ?>
+                        <span class="small text-muted d-block"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_SCHEDULED_HELP', 'Certification runs automatically at the scheduled time (opens Sales → Invoices queue).', 'La certificación se ejecuta automáticamente a la hora programada (vea Cola en Facturas).')); ?></span>
                         <?php else : ?>
                         <span class="badge bg-warning text-dark"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_PENDING', 'Pending / processing', 'Pendiente / procesando')); ?></span>
                         <button type="button" class="btn btn-sm btn-primary" id="fel-issue-process-btn" data-invoice-id="<?php echo (int) $felInv->id; ?>">
@@ -476,8 +484,9 @@ $felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.pro
                     </div>
                     <?php
                     $instruccionesBlocks = $this->confirmarInstruccionesFacturacionBlocks ?? [];
+                    $facturacionUiAvailable = !empty($this->facturacionUiAvailable);
                     ?>
-                    <?php if (!empty($instruccionesBlocks)) : ?>
+                    <?php if ($facturacionUiAvailable) : ?>
                     <div class="mb-3 border rounded p-3 bg-light">
                         <div class="fw-semibold small text-uppercase text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_GROUP_LABEL', 'Billing', 'Facturación')); ?></div>
                         <div class="form-check">
@@ -511,6 +520,8 @@ $felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.pro
                         if (rFecha) rFecha.addEventListener('change', sync);
                     })();
                     </script>
+                    <?php endif; ?>
+                    <?php if (!empty($instruccionesBlocks)) : ?>
                     <div id="confirmar-instrucciones-facturacion-wrapper" class="confirmar-instrucciones-facturacion-wrapper"<?php echo $facturarCotizacionExacta === 1 ? ' style="display:none;"' : ''; ?>>
                         <?php
                         $instruccionesMulti = \count($instruccionesBlocks) > 1;
@@ -543,6 +554,25 @@ $felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.pro
                             if (iWrap) {
                                 iWrap.style.display = (cb && cb.checked) ? 'none' : '';
                             }
+                        }
+                        if (cb) {
+                            cb.addEventListener('change', syncExacta);
+                            syncExacta();
+                        }
+                        if (modalForm) {
+                            modalForm.addEventListener('submit', function() { syncExacta(); });
+                        }
+                    })();
+                    </script>
+                    <?php endif; ?>
+                    <?php if ($facturacionUiAvailable && empty($instruccionesBlocks)) : ?>
+                    <script>
+                    (function() {
+                        var hid = document.getElementById('facturar_cotizacion_exacta_post');
+                        var cb = document.getElementById('facturar_cotizacion_exacta_cb');
+                        var modalForm = document.querySelector('#confirmarCotizacionModal form');
+                        function syncExacta() {
+                            if (hid && cb) { hid.value = cb.checked ? '1' : '0'; }
                         }
                         if (cb) {
                             cb.addEventListener('change', syncExacta);
