@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 // Get invoices data from view (get() ensures value when layout data is used)
@@ -206,6 +207,21 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
     font-weight: bold;
     color: #28a745;
     text-align: right;
+}
+
+.invoice-fel-file-link {
+    line-height: 1;
+    vertical-align: middle;
+}
+.invoice-fel-file-link .fa-file-pdf {
+    color: #c0392b;
+}
+.invoice-fel-file-link .fa-file-code {
+    color: #2c3e50;
+}
+.invoice-fel-file-link:hover .fa-file-pdf,
+.invoice-fel-file-link:hover .fa-file-code {
+    opacity: 0.85;
 }
 
 .empty-state {
@@ -767,7 +783,38 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                             $lineDesc = InvoiceOrdenMatchModel::getInvoiceLinesDescription($invoice);
                             echo $lineDesc !== '' ? htmlspecialchars($lineDesc, ENT_QUOTES, 'UTF-8') : '—';
                         ?></td>
-                        <td class="invoice-amount"><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></td>
+                        <td class="invoice-amount text-end text-nowrap">
+                            <?php
+                            $pdfRel = trim((string) ($invoice->fel_local_pdf_path ?? ''));
+                            $xmlRel = trim((string) ($invoice->fel_local_xml_path ?? ''));
+                            $pdfAbs = $pdfRel !== '' ? JPATH_ROOT . '/' . ltrim(str_replace('\\', '/', $pdfRel), '/') : '';
+                            $xmlAbs = $xmlRel !== '' ? JPATH_ROOT . '/' . ltrim(str_replace('\\', '/', $xmlRel), '/') : '';
+                            $pdfOk  = $pdfAbs !== '' && is_file($pdfAbs);
+                            $xmlOk  = $xmlAbs !== '' && is_file($xmlAbs);
+                            $invNum = preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($invoice->invoice_number ?? (string) (int) ($invoice->id ?? 0)));
+                            $pdfHref = $pdfOk ? htmlspecialchars(Uri::root() . $pdfRel, ENT_QUOTES, 'UTF-8') : '';
+                            $xmlHref = $xmlOk ? htmlspecialchars(Uri::root() . $xmlRel, ENT_QUOTES, 'UTF-8') : '';
+                            ?>
+                            <div class="d-inline-flex align-items-center justify-content-end gap-1 flex-wrap">
+                                <span><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></span>
+                                <?php if ($pdfOk) : ?>
+                                <a href="<?php echo $pdfHref; ?>"
+                                   class="p-0 ms-1 text-decoration-none invoice-fel-file-link"
+                                   title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_PDF'), ENT_QUOTES, 'UTF-8'); ?>"
+                                   download="<?php echo htmlspecialchars($invNum . '-fel.pdf', ENT_QUOTES, 'UTF-8'); ?>"
+                                   target="_blank" rel="noopener noreferrer"
+                                   onclick="event.stopPropagation();"><i class="fas fa-file-pdf" aria-hidden="true"></i><span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_PDF'); ?></span></a>
+                                <?php endif; ?>
+                                <?php if ($xmlOk) : ?>
+                                <a href="<?php echo $xmlHref; ?>"
+                                   class="p-0 text-decoration-none invoice-fel-file-link"
+                                   title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_XML'), ENT_QUOTES, 'UTF-8'); ?>"
+                                   download="<?php echo htmlspecialchars($invNum . '-fel.xml', ENT_QUOTES, 'UTF-8'); ?>"
+                                   target="_blank" rel="noopener noreferrer"
+                                   onclick="event.stopPropagation();"><i class="fas fa-file-code" aria-hidden="true"></i><span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_XML'); ?></span></a>
+                                <?php endif; ?>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
