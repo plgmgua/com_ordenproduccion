@@ -110,12 +110,20 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
                 </thead>
                 <tbody>
                     <?php foreach ($lineItems as $idx => $row) : ?>
+                    <?php
+                    $qtyRow = (float) ($row['cantidad'] ?? 0);
+                    $subRow = (float) ($row['subtotal'] ?? 0);
+                    $puRow  = (float) ($row['precio_unitario'] ?? $row['valor_unitario'] ?? 0);
+                    if ($puRow <= 0.00001 && $qtyRow > 0 && $subRow > 0) {
+                        $puRow = $subRow / $qtyRow;
+                    }
+                    ?>
                     <tr>
                         <td><?php echo (int) ($row['numero_linea'] ?? $idx + 1); ?></td>
                         <td><?php echo htmlspecialchars($row['cantidad'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($row['descripcion'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
-                        <td class="text-end"><?php echo number_format((float) ($row['precio_unitario'] ?? 0), 2); ?></td>
-                        <td class="text-end"><?php echo number_format((float) ($row['subtotal'] ?? 0), 2); ?></td>
+                        <td class="text-end"><?php echo number_format($puRow, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($subRow, 2); ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

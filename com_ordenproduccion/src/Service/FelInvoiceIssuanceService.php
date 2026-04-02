@@ -477,17 +477,12 @@ class FelInvoiceIssuanceService
 
         $items = [];
         foreach ($lines as $row) {
-            $qty = isset($row->cantidad) ? (float) $row->cantidad : 1.0;
-            if ($qty <= 0) {
-                $qty = 1.0;
+            if (!\is_object($row)) {
+                continue;
             }
-            $sub = isset($row->subtotal) ? (float) $row->subtotal : 0.0;
-            $vu  = isset($row->valor_unitario) ? (float) $row->valor_unitario : 0.0;
-            // Some rows store unit price in valor_unitario while subtotal is still 0; prefer DB unit price.
-            if ($sub <= 0.00001 && $vu > 0) {
-                $sub = round($vu * $qty, 2);
-            }
-            $price = $vu > 0.00001 ? round($vu, 4) : ($qty > 0 ? round($sub / $qty, 4) : 0.0);
+            $r     = $this->resolveQuotationLineTotals($row);
+            $qty   = $r['qty'];
+            $price = $r['unit_price'];
             $desc = isset($row->descripcion) ? trim((string) $row->descripcion) : 'Item';
             if ($desc === '') {
                 $desc = 'Item';
@@ -733,28 +728,57 @@ class FelInvoiceIssuanceService
         return $row ?: null;
     }
 
+    /**
+     * Resolve quantity, line total, and unit price from a quotation line row.
+     * Prefer valor_final (pre-cot override) over subtotal; derive missing totals from valor_unitario * qty.
+     *
+     * @return  array{qty: float, line_total: float, unit_price: float}
+     */
+    protected function resolveQuotationLineTotals(object $row): array
+    {
+        $qty = isset($row->cantidad) ? (float) $row->cantidad : 1.0;
+        if ($qty <= 0) {
+            $qty = 1.0;
+        }
+        $sub = isset($row->subtotal) ? (float) $row->subtotal : 0.0;
+        $vf  = isset($row->valor_final) ? (float) $row->valor_final : 0.0;
+        $vu  = isset($row->valor_unitario) ? (float) $row->valor_unitario : 0.0;
+
+        $lineTotal = ($vf > 0.00001) ? $vf : $sub;
+        if ($lineTotal <= 0.00001 && $vu > 0) {
+            $lineTotal = round($vu * $qty, 2);
+        }
+        if ($lineTotal <= 0.00001 && $sub > 0) {
+            $lineTotal = $sub;
+        }
+
+        $unit = $vu > 0.00001 ? round($vu, 4) : ($qty > 0 ? round($lineTotal / $qty, 4) : 0.0);
+
+        return [
+            'qty'         => $qty,
+            'line_total'  => $lineTotal,
+            'unit_price'  => $unit,
+        ];
+    }
+
+    /**
+     * JSON stored on invoices.line_items: includes precio_unitario for invoice PDF/detail (template key).
+     */
     protected function buildLineItemsForStorage(array $lines): array
     {
         $out = [];
         foreach ($lines as $row) {
-            $qty = isset($row->cantidad) ? (float) $row->cantidad : 1.0;
-            if ($qty <= 0) {
-                $qty = 1.0;
+            if (!\is_object($row)) {
+                continue;
             }
-            $sub = isset($row->subtotal) ? (float) $row->subtotal : 0.0;
-            $vu  = isset($row->valor_unitario) ? (float) $row->valor_unitario : 0.0;
-            if ($sub <= 0.00001 && $vu > 0) {
-                $sub = round($vu * $qty, 2);
-            }
-            $line = [
-                'cantidad'     => $qty,
-                'descripcion'  => $row->descripcion ?? '',
-                'subtotal'     => $sub,
+            $r = $this->resolveQuotationLineTotals($row);
+            $out[] = [
+                'cantidad'          => $r['qty'],
+                'descripcion'       => $row->descripcion ?? '',
+                'subtotal'          => $r['line_total'],
+                'valor_unitario'    => $r['unit_price'],
+                'precio_unitario'   => $r['unit_price'],
             ];
-            if (isset($row->valor_unitario)) {
-                $line['valor_unitario'] = $vu;
-            }
-            $out[] = $line;
         }
 
         return $out;
