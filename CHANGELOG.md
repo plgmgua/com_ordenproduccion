@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.101.45-STABLE] - 2026-04-01
+
+### Added
+- **Confirmar cotización:** Opciones de facturación (radio): **Facturar con el Envío** / **Facturar en fecha Específica**; si aplica, selector de fecha. Guardado en `quotations.facturacion_modo` y `quotations.facturacion_fecha` (migración SQL `3.101.45_quotation_facturacion_modo.sql`).
+
+### Fixed
+- Etiqueta de instrucciones de facturación en el modal: texto legible usando el helper `$l()` con fallback (evita mostrar la clave `COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE` si la cadena no está cargada).
+
 ## [3.101.44-STABLE] - 2026-04-01
 
 ### Added

@@ -608,6 +608,30 @@ class CotizacionController extends BaseController
             $instruccionesFacturacion = substr($instruccionesFacturacion, 0, 65535);
         }
 
+        $facturacionModo      = 'con_envio';
+        $facturacionFechaSql  = null;
+        $facturacionFechaValid = true;
+        if ($instruccionesFacturacion !== null) {
+            $facturacionModo = $app->input->post->getString('facturacion_modo', 'con_envio');
+            if (!\in_array($facturacionModo, ['con_envio', 'fecha_especifica'], true)) {
+                $facturacionModo = 'con_envio';
+            }
+            if ($facturacionModo === 'fecha_especifica') {
+                $facturacionFechaRaw = trim($app->input->post->getString('facturacion_fecha', ''));
+                $d = \DateTime::createFromFormat('Y-m-d', $facturacionFechaRaw);
+                if ($facturacionFechaRaw === '' || !$d || $d->format('Y-m-d') !== $facturacionFechaRaw) {
+                    $facturacionFechaValid = false;
+                } else {
+                    $facturacionFechaSql = $facturacionFechaRaw;
+                }
+            }
+        }
+        if ($instruccionesFacturacion !== null && !$facturacionFechaValid) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_FECHA_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            return;
+        }
+
         $sets = [
             $db->quoteName('cotizacion_confirmada') . ' = 1',
             $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
@@ -621,6 +645,13 @@ class CotizacionController extends BaseController
         }
         if ($instruccionesFacturacion !== null && isset($cols['instrucciones_facturacion'])) {
             $sets[] = $db->quoteName('instrucciones_facturacion') . ' = ' . $db->quote($instruccionesFacturacion);
+        }
+        if ($instruccionesFacturacion !== null && isset($cols['facturacion_modo'])) {
+            $sets[] = $db->quoteName('facturacion_modo') . ' = ' . $db->quote($facturacionModo);
+        }
+        if ($instruccionesFacturacion !== null && isset($cols['facturacion_fecha'])) {
+            $sets[] = $db->quoteName('facturacion_fecha') . ' = '
+                . ($facturacionFechaSql === null ? 'NULL' : $db->quote($facturacionFechaSql));
         }
 
         $update = $db->getQuery(true)

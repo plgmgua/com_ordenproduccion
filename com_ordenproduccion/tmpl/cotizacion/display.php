@@ -41,6 +41,18 @@ $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot e
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
 $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
 $instruccionesFacturacionValue = isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : '';
+$facturacionModoValue = isset($quotation->facturacion_modo) ? trim((string) $quotation->facturacion_modo) : '';
+if ($facturacionModoValue !== 'fecha_especifica' && $facturacionModoValue !== 'con_envio') {
+    $facturacionModoValue = 'con_envio';
+}
+$facturacionFechaValue = '';
+if (!empty($quotation->facturacion_fecha)) {
+    try {
+        $facturacionFechaValue = (new \DateTime($quotation->facturacion_fecha))->format('Y-m-d');
+    } catch (\Throwable $e) {
+        $facturacionFechaValue = '';
+    }
+}
 
 $itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
 $pliegoPaperTypesIo = $this->pliegoPaperTypesModal ?? [];
@@ -328,11 +340,42 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
                     $instruccionesBlocks = $this->confirmarInstruccionesFacturacionBlocks ?? [];
                     ?>
                     <?php if (!empty($instruccionesBlocks)) : ?>
+                    <div class="mb-3 border rounded p-3 bg-light">
+                        <div class="fw-semibold small text-uppercase text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_GROUP_LABEL', 'Billing', 'Facturación')); ?></div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="facturacion_modo" id="facturacion_modo_con_envio" value="con_envio"<?php echo $facturacionModoValue === 'fecha_especifica' ? '' : ' checked'; ?>>
+                            <label class="form-check-label" for="facturacion_modo_con_envio"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MODO_CON_ENVIO', 'Bill with shipment', 'Facturar con el Envío')); ?></label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="facturacion_modo" id="facturacion_modo_fecha" value="fecha_especifica"<?php echo $facturacionModoValue === 'fecha_especifica' ? ' checked' : ''; ?>>
+                            <label class="form-check-label" for="facturacion_modo_fecha"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MODO_FECHA_ESPECIFICA', 'Bill on a specific date', 'Facturar en fecha Específica')); ?></label>
+                        </div>
+                        <div class="mt-2" id="facturacion-fecha-wrapper"<?php echo $facturacionModoValue === 'fecha_especifica' ? '' : ' style="display:none;"'; ?>>
+                            <label for="facturacion_fecha" class="form-label small mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_FECHA_LABEL', 'Billing date', 'Fecha de facturación')); ?></label>
+                            <input type="date" class="form-control form-control-sm" name="facturacion_fecha" id="facturacion_fecha" value="<?php echo htmlspecialchars($facturacionFechaValue); ?>">
+                        </div>
+                    </div>
+                    <script>
+                    (function() {
+                        var rEnvio = document.getElementById('facturacion_modo_con_envio');
+                        var rFecha = document.getElementById('facturacion_modo_fecha');
+                        var wrap = document.getElementById('facturacion-fecha-wrapper');
+                        function sync() {
+                            if (!wrap) return;
+                            wrap.style.display = (rFecha && rFecha.checked) ? '' : 'none';
+                        }
+                        if (rEnvio) rEnvio.addEventListener('change', sync);
+                        if (rFecha) rFecha.addEventListener('change', sync);
+                    })();
+                    </script>
                         <?php
                         $instruccionesMulti = \count($instruccionesBlocks) > 1;
+                        $baseInstrLabel = $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación');
                         foreach ($instruccionesBlocks as $instrBlock) :
                             $ibId = (int) ($instrBlock['id'] ?? 0);
-                            $ibLabel = (string) ($instrBlock['label'] ?? '');
+                            $ibNum = trim((string) ($instrBlock['number'] ?? ''));
+                            $ibShowSuffix = !empty($instrBlock['showSuffix']);
+                            $ibLabel = $baseInstrLabel . ($ibShowSuffix && $ibNum !== '' ? (' - ' . $ibNum) : '');
                             $fieldId = 'instrucciones_facturacion_confirm' . ($instruccionesMulti ? '_' . $ibId : '');
                             $fieldName = $instruccionesMulti ? ('instrucciones_facturacion[' . $ibId . ']') : 'instrucciones_facturacion';
                             $fieldValue = (!$instruccionesMulti) ? $instruccionesFacturacionValue : '';

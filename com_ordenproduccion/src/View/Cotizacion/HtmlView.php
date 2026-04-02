@@ -107,7 +107,7 @@ class HtmlView extends BaseHtmlView
     /**
      * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
      *
-     * @var    array<int, array{id: int, label: string}>
+     * @var    array<int, array{id: int, number: string, showSuffix: bool}>
      * @since  3.101.44
      */
     protected $confirmarInstruccionesFacturacionBlocks = [];
@@ -405,14 +405,14 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Labels for "Instrucciones de Facturación" in Confirmar modal: hidden when no pre-cot has facturar;
-     * suffix " - PRE-…" when multiple pre-cots on quote and only one has facturar, or when several have facturar.
+     * "Instrucciones de Facturación" blocks in Confirmar modal: hidden when no pre-cot has facturar;
+     * showSuffix when multiple pre-cots on quote and only one has facturar, or when several have facturar.
      *
      * @param   int  $quotationId
      * @param   \stdClass[]  $quotationItems
      * @param   \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel  $precotModel
      *
-     * @return  array<int, array{id: int, label: string}>
+     * @return  array<int, array{id: int, number: string, showSuffix: bool}>
      *
      * @since   3.101.44
      */
@@ -431,20 +431,15 @@ class HtmlView extends BaseHtmlView
         }
         $numDistinct = \count($distinctPreIds);
         $nFact         = \count($facturarList);
-        $baseTitle     = Text::_('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE');
         $blocks        = [];
         foreach ($facturarList as $f) {
             $id  = (int) $f['id'];
             $num = $f['number'];
-            $suffix = '';
-            if ($nFact === 1 && $numDistinct > 1) {
-                $suffix = ' - ' . $num;
-            } elseif ($nFact > 1) {
-                $suffix = ' - ' . $num;
-            }
-            $blocks[] = [
-                'id'    => $id,
-                'label' => $baseTitle . $suffix,
+            $showSuffix = ($nFact === 1 && $numDistinct > 1) || $nFact > 1;
+            $blocks[]   = [
+                'id'         => $id,
+                'number'     => $num,
+                'showSuffix' => $showSuffix,
             ];
         }
 
