@@ -12,9 +12,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
-use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 
 /**
@@ -1301,10 +1301,22 @@ class PrecotizacionModel extends ListModel
     {
         $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
         if ($lineType === 'envio') {
-            return ['detalle_envio' => Text::_('COM_ORDENPRODUCCION_LINE_DETALLE_ENVIO_LABEL')];
+            return [
+                'detalle_envio' => CotizacionHelper::labelOrFallback(
+                    'COM_ORDENPRODUCCION_LINE_DETALLE_ENVIO_LABEL',
+                    'Shipping details',
+                    'Detalles env?o'
+                ),
+            ];
         }
         if ($lineType === 'elementos') {
-            return ['detalle' => Text::_('COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC')];
+            return [
+                'detalle' => CotizacionHelper::labelOrFallback(
+                    'COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC',
+                    'Details',
+                    'Detalles'
+                ),
+            ];
         }
         $concepts = [];
         $breakdown = isset($line->breakdown) && is_array($line->breakdown) ? $line->breakdown : [];
@@ -1321,7 +1333,13 @@ class PrecotizacionModel extends ListModel
             $concepts[$key] = $label;
         }
         if (empty($concepts)) {
-            return ['detalle' => Text::_('COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC')];
+            return [
+                'detalle' => CotizacionHelper::labelOrFallback(
+                    'COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC',
+                    'Details',
+                    'Detalles'
+                ),
+            ];
         }
 
         return $concepts;

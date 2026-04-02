@@ -11,7 +11,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
 
 /**
  * Helpers for cotización (quotation) UI and PDF.
@@ -88,5 +90,27 @@ abstract class CotizacionHelper
             'fallbackEs' => 'Creada',
             'cssClass'   => 'status-creada status-badge--quotation',
         ];
+    }
+
+    /**
+     * Resolve a COM_* string for display when site language may not be loaded (e.g. from a model).
+     *
+     * @param   string  $langKey     Language constant, e.g. COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC
+     * @param   string  $fallbackEn  English label if translation is missing
+     * @param   string  $fallbackEs  Spanish label if translation is missing
+     *
+     * @return  string  Translated or fallback text (never the raw key)
+     *
+     * @since   3.101.49
+     */
+    public static function labelOrFallback(string $langKey, string $fallbackEn, string $fallbackEs): string
+    {
+        $t = Text::_($langKey);
+        if ($t !== $langKey) {
+            return $t;
+        }
+        $tag = Factory::getLanguage()->getTag();
+
+        return (strpos((string) $tag, 'es') === 0) ? $fallbackEs : $fallbackEn;
     }
 }
