@@ -54,7 +54,7 @@ abstract class CotizacionHelper
      *
      * @param   object  $row  Quotation row; may include `quotation_invoice_count` when invoices.quotation_id exists.
      *
-     * @return  array{langKey: string, cssClass: string}
+     * @return  array{langKey: string, fallbackEn: string, fallbackEs: string, cssClass: string}
      *
      * @since   3.101.47
      */
@@ -64,8 +64,10 @@ abstract class CotizacionHelper
 
         if ($invoiceCount > 0) {
             return [
-                'langKey'  => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_FACTURADA',
-                'cssClass' => 'status-facturada status-badge--quotation',
+                'langKey'    => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_FACTURADA',
+                'fallbackEn' => 'Invoiced',
+                'fallbackEs' => 'Facturada',
+                'cssClass'   => 'status-facturada status-badge--quotation',
             ];
         }
 
@@ -73,14 +75,18 @@ abstract class CotizacionHelper
 
         if ($confirmed) {
             return [
-                'langKey'  => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_CONFIRMADA',
-                'cssClass' => 'status-confirmada status-badge--quotation',
+                'langKey'    => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_CONFIRMADA',
+                'fallbackEn' => 'Confirmed',
+                'fallbackEs' => 'Confirmada',
+                'cssClass'   => 'status-confirmada status-badge--quotation',
             ];
         }
 
         return [
-            'langKey'  => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_CREADA',
-            'cssClass' => 'status-creada status-badge--quotation',
+            'langKey'    => 'COM_ORDENPRODUCCION_QUOTATION_ESTADO_CREADA',
+            'fallbackEn' => 'Created',
+            'fallbackEs' => 'Creada',
+            'cssClass'   => 'status-creada status-badge--quotation',
         ];
     }
 }

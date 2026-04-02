@@ -101,7 +101,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                             $estadoInfo = CotizacionHelper::resolveQuotationListEstado($quotation);
                             ?>
                             <span class="status-badge <?php echo htmlspecialchars($estadoInfo['cssClass']); ?>">
-                                <?php echo htmlspecialchars(Text::_($estadoInfo['langKey'])); ?>
+                                <?php echo htmlspecialchars($l($estadoInfo['langKey'], $estadoInfo['fallbackEn'], $estadoInfo['fallbackEs'])); ?>
                             </span>
                         </td>
                         <td class="actions">
