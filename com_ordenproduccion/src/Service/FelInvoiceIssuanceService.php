@@ -642,26 +642,132 @@ class FelInvoiceIssuanceService
 
     protected function buildMockPdf(string $absPath, object $quotation, array $lines, array $response): void
     {
-        if (!class_exists('FPDF')) {
-            file_put_contents($absPath, "%PDF-1.4 mock placeholder — install FPDF for full PDF\n");
+        if ($this->ensureFpdfLoaded()) {
+            $pdf = new \FPDF('P', 'mm', 'Letter');
+            $pdf->AddPage();
+            $pdf->SetFont('Arial', 'B', 14);
+            $pdf->Cell(0, 8, $this->fpdfText('Factura electrónica (MOCK / pruebas)'), 0, 1);
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->Cell(0, 6, $this->fpdfText('No documento legal — emulador FELplex'), 0, 1);
+            $pdf->Ln(2);
+            $pdf->Cell(0, 6, $this->fpdfText('Cliente: ' . ($quotation->client_name ?? '')), 0, 1);
+            $pdf->Cell(0, 6, $this->fpdfText('NIT: ' . ($quotation->client_nit ?? '')), 0, 1);
+            $pdf->Cell(0, 6, $this->fpdfText('Cotización: ' . ($quotation->quotation_number ?? '')), 0, 1);
+            $sat = $response['sat'] ?? [];
+            $pdf->Cell(0, 6, $this->fpdfText('UUID: ' . ($response['uuid'] ?? '')), 0, 1);
+            $pdf->Cell(0, 6, $this->fpdfText('Autorización: ' . ($sat['authorization'] ?? '')), 0, 1);
+            $pdf->Output('F', $absPath);
 
             return;
         }
 
-        $pdf = new \FPDF('P', 'mm', 'Letter');
-        $pdf->AddPage();
-        $pdf->SetFont('Arial', 'B', 14);
-        $pdf->Cell(0, 8, $this->fpdfText('Factura electrónica (MOCK / pruebas)'), 0, 1);
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 6, $this->fpdfText('No documento legal — emulador FELplex'), 0, 1);
-        $pdf->Ln(2);
-        $pdf->Cell(0, 6, $this->fpdfText('Cliente: ' . ($quotation->client_name ?? '')), 0, 1);
-        $pdf->Cell(0, 6, $this->fpdfText('NIT: ' . ($quotation->client_nit ?? '')), 0, 1);
-        $pdf->Cell(0, 6, $this->fpdfText('Cotización: ' . ($quotation->quotation_number ?? '')), 0, 1);
+        // No FPDF on server: write a minimal valid PDF (placeholder was not a real file — browsers reject it).
+        $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
+    }
+
+    /**
+     * Load FPDF from site root (same path as OrdenController / CotizacionController).
+     */
+    protected function ensureFpdfLoaded(): bool
+    {
+        if (\class_exists('FPDF', false)) {
+            return true;
+        }
+        $path = JPATH_ROOT . '/fpdf/fpdf.php';
+        if (\is_file($path)) {
+            require_once $path;
+        }
+
+        return \class_exists('FPDF', false);
+    }
+
+    /**
+     * Single-page PDF without external libs (Helvetica, ASCII-safe text).
+     *
+     * @param   list<object>  $lines  Quotation line rows
+     */
+    protected function writeMinimalValidFelMockPdf(string $absPath, object $quotation, array $lines, array $response): void
+    {
+        $ascii = static function (string $s): string {
+            $s = (string) \preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $s);
+            if (\function_exists('iconv')) {
+                $t = @\iconv('UTF-8', 'ASCII//TRANSLIT', $s);
+                if ($t !== false) {
+                    $s = $t;
+                }
+            }
+
+            return (string) \preg_replace('/[^\x20-\x7E]/', '?', $s);
+        };
+        $esc = static function (string $s): string {
+            return \str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $s);
+        };
+
+        $textLines = [
+            'Factura electronica (MOCK / pruebas)',
+            'No documento legal',
+            'Cliente: ' . $ascii((string) ($quotation->client_name ?? '')),
+            'NIT: ' . $ascii((string) ($quotation->client_nit ?? '')),
+            'Cotizacion: ' . $ascii((string) ($quotation->quotation_number ?? '')),
+            'UUID: ' . $ascii((string) ($response['uuid'] ?? '')),
+        ];
         $sat = $response['sat'] ?? [];
-        $pdf->Cell(0, 6, $this->fpdfText('UUID: ' . ($response['uuid'] ?? '')), 0, 1);
-        $pdf->Cell(0, 6, $this->fpdfText('Autorización: ' . ($sat['authorization'] ?? '')), 0, 1);
-        $pdf->Output('F', $absPath);
+        $textLines[] = 'Autorizacion: ' . $ascii((string) ($sat['authorization'] ?? ''));
+
+        foreach ($lines as $row) {
+            if (\count($textLines) >= 32) {
+                break;
+            }
+            $d = isset($row->descripcion) ? $ascii(\trim((string) $row->descripcion)) : '';
+            if ($d !== '') {
+                $textLines[] = '- ' . \substr($d, 0, 120);
+            }
+        }
+
+        $stream = "BT\n/F1 10 Tf\n";
+        foreach ($textLines as $i => $l) {
+            $line = \substr($l, 0, 220);
+            if ($i === 0) {
+                $stream .= \sprintf("50 750 Td (%s) Tj\n", $esc($line));
+            } else {
+                $stream .= \sprintf("0 -14 Td (%s) Tj\n", $esc($line));
+            }
+        }
+        $stream .= 'ET';
+
+        $streamBody = $stream . "\n";
+        $streamLen  = \strlen($streamBody);
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [];
+
+        $offsets[1] = \strlen($pdf);
+        $pdf .= "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
+
+        $offsets[2] = \strlen($pdf);
+        $pdf .= "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
+
+        $offsets[3] = \strlen($pdf);
+        $pdf .= "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n";
+
+        $offsets[4] = \strlen($pdf);
+        $pdf .= '4 0 obj' . "\n<< /Length {$streamLen} >>\nstream\n{$streamBody}endstream\nendobj\n";
+
+        $offsets[5] = \strlen($pdf);
+        $pdf .= "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n";
+
+        $xrefPos = \strlen($pdf);
+        $pdf .= "xref\n0 6\n";
+        $pdf .= "0000000000 65535 f \n";
+        for ($i = 1; $i <= 5; $i++) {
+            $pdf .= \sprintf("%010d 00000 n \n", $offsets[$i]);
+        }
+        $pdf .= "trailer\n<< /Size 6 /Root 1 0 R >>\n";
+        $pdf .= "startxref\n{$xrefPos}\n%%EOF";
+
+        if (\file_put_contents($absPath, $pdf) === false) {
+            throw new \RuntimeException('Cannot write mock PDF');
+        }
     }
 
     protected function fpdfText(string $utf8): string
