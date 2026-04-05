@@ -20,6 +20,8 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
@@ -699,6 +701,51 @@ class CotizacionController extends BaseController
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
+     * Mock ebi pay: create payment link for quotation (JSON). No invoice required.
+     *
+     * @return  void
+     *
+     * @since   3.101.55
+     */
+    public function createEbiPayLink()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if (!Session::checkToken('request')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')]);
+            $app->close();
+        }
+
+        $svc    = new EbiPayLinkService();
+        $result = $svc->createMockLinkForQuotation($quotationId);
+        if (!empty($result['success'])) {
+            $result['message'] = Text::_('COM_ORDENPRODUCCION_EBIPAY_LINK_CREATE_SUCCESS');
+        }
+
+        echo json_encode($result);
+        $app->close();
     }
 
     /**

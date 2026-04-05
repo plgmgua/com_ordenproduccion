@@ -16,6 +16,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
@@ -138,6 +139,14 @@ class HtmlView extends BaseHtmlView
     protected $facturacionUiAvailable = false;
 
     /**
+     * True when DB has ebipay_mock_json column (migration 3.101.55).
+     *
+     * @var    bool
+     * @since  3.101.55
+     */
+    protected $ebipayMockAvailable = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -170,6 +179,8 @@ class HtmlView extends BaseHtmlView
                     $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
                     $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
                     $this->facturacionUiAvailable = isset($qcols['facturacion_modo']);
+                    $ebipaySvc = new EbiPayLinkService();
+                    $this->ebipayMockAvailable = $ebipaySvc->isEngineAvailable();
                     $felSvc = new FelInvoiceIssuanceService();
                     $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();
                     if ($this->felEngineAvailable) {
