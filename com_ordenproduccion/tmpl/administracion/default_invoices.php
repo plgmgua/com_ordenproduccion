@@ -294,6 +294,37 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 .match-invoice-block { padding: 14px 16px; border-bottom: 1px solid #eee; }
 .match-invoice-block:last-child { border-bottom: none; }
 .invoice-lines-desc { font-size: 0.8125rem; color: #444; max-width: 42rem; word-break: break-word; }
+
+/* Cola de facturas: compact type + buttons to reduce horizontal scroll */
+.invoice-fel-queue-table {
+    font-size: 0.6875rem;
+    table-layout: auto;
+}
+.invoice-fel-queue-table thead th {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.3rem 0.4rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.invoice-fel-queue-table tbody td {
+    padding: 0.3rem 0.4rem;
+    vertical-align: middle;
+    line-height: 1.25;
+}
+.invoice-fel-queue-table tbody td:nth-child(2) {
+    max-width: 9rem;
+    word-break: break-word;
+}
+.invoice-fel-queue-table .btn {
+    font-size: 0.625rem;
+    padding: 0.15rem 0.4rem;
+    line-height: 1.2;
+    border-radius: 0.2rem;
+}
+.invoice-fel-queue-table .btn + .btn {
+    margin-left: 0.15rem;
+}
 </style>
 
 <div class="invoices-section">
@@ -331,7 +362,7 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
     <?php else : ?>
         <form id="fel-queue-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle">
+            <table class="table table-striped table-hover align-middle invoice-fel-queue-table">
                 <thead>
                     <tr>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
