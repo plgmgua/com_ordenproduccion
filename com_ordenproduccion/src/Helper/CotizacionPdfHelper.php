@@ -176,4 +176,30 @@ class CotizacionPdfHelper
         }
         return '';
     }
+
+    /**
+     * Encode UTF-8 text for FPDF core fonts (ISO-8859-1).
+     * Same logic as cotización PDF generation: strip NBSP, iconv TRANSLIT, fallback mb_convert.
+     *
+     * @param   string  $text  UTF-8 input
+     *
+     * @return  string  Safe for FPDF Cell/MultiCell
+     */
+    public static function encodeTextForFpdf(string $text): string
+    {
+        if ($text === '') {
+            return '';
+        }
+        $text = str_replace("\xc2\xa0", ' ', $text);
+        if (function_exists('iconv')) {
+            $converted = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
+            if ($converted !== false) {
+                return $converted;
+            }
+        }
+        if (function_exists('mb_convert_encoding')) {
+            return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+        }
+        return $text;
+    }
 }

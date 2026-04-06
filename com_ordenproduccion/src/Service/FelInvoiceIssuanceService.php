@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Uri\Uri;
@@ -642,66 +643,113 @@ class FelInvoiceIssuanceService
 
     protected function buildMockPdf(string $absPath, object $quotation, array $lines, array $response): void
     {
-        if ($this->ensureFpdfLoaded()) {
-            @\ob_start();
-            try {
-                // Helvetica is a core PDF font; "Arial" can break or warn on some FPDF builds.
-                $pdf = new \FPDF('P', 'mm', 'Letter');
-                $pdf->AddPage();
-                $pdf->SetFont('Helvetica', 'B', 14);
-                $pdf->Cell(0, 8, $this->fpdfText('Factura electrónica (MOCK / pruebas)'), 0, 1);
-                $pdf->SetFont('Helvetica', '', 10);
-                $pdf->Cell(0, 6, $this->fpdfText('No documento legal — emulador FELplex'), 0, 1);
-                $pdf->Ln(2);
-                $pdf->Cell(0, 6, $this->fpdfText('Cliente: ' . ($quotation->client_name ?? '')), 0, 1);
-                $pdf->Cell(0, 6, $this->fpdfText('NIT: ' . ($quotation->client_nit ?? '')), 0, 1);
-                $pdf->Cell(0, 6, $this->fpdfText('Cotización: ' . ($quotation->quotation_number ?? '')), 0, 1);
-                $sat = $response['sat'] ?? [];
-                $pdf->Cell(0, 6, $this->fpdfText('UUID: ' . ($response['uuid'] ?? '')), 0, 1);
-                $pdf->Cell(0, 6, $this->fpdfText('Autorización: ' . ($sat['authorization'] ?? '')), 0, 1);
-                $pdf->Output('F', $absPath);
-            } catch (\Throwable $e) {
-                @\ob_end_clean();
-                $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
-
-                return;
+        $fpdfPath = JPATH_ROOT . '/fpdf/fpdf.php';
+        if (!\is_file($fpdfPath)) {
+            $alt = JPATH_ROOT . '/libraries/fpdf/fpdf.php';
+            if (\is_file($alt)) {
+                $fpdfPath = $alt;
             }
-            @\ob_end_clean();
+        }
+        if (!\is_file($fpdfPath)) {
+            $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
 
-            $head = @\file_get_contents($absPath, false, null, 0, 5);
-            if ($head !== '%PDF-') {
-                $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
-            }
+            return;
+        }
+        require_once $fpdfPath;
+        if (!\class_exists('FPDF', false)) {
+            $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
 
             return;
         }
 
-        // No FPDF on server: write a minimal valid PDF (placeholder was not a real file — browsers reject it).
-        $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
-    }
+        $enc = static function (string $s): string {
+            return CotizacionPdfHelper::encodeTextForFpdf($s);
+        };
 
-    /**
-     * Load FPDF from site root (same path as OrdenController / CotizacionController).
-     */
-    protected function ensureFpdfLoaded(): bool
-    {
-        if (\class_exists('FPDF', false)) {
-            return true;
-        }
-        $paths = [
-            JPATH_ROOT . '/fpdf/fpdf.php',
-            JPATH_ROOT . '/libraries/fpdf/fpdf.php',
-        ];
-        foreach ($paths as $path) {
-            if (\is_file($path)) {
-                require_once $path;
-                if (\class_exists('FPDF', false)) {
-                    return true;
+        @\ob_start();
+        try {
+            // Same setup as CotizacionController cotización PDF (Letter mm, Arial, Latin-1 via helper).
+            $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
+            $pdf->AddPage();
+            $pdf->SetMargins(15, 15, 15);
+            $pdf->SetAutoPageBreak(true, 15);
+
+            $pdf->SetFont('Arial', 'B', 14);
+            $pdf->Cell(0, 8, $enc('Factura electrónica (MOCK / pruebas)'), 0, 1);
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->Cell(0, 6, $enc('No documento legal — emulador FELplex'), 0, 1);
+            $pdf->Ln(2);
+            $pdf->Cell(0, 6, $enc('Cliente: ' . ($quotation->client_name ?? '')), 0, 1);
+            $pdf->Cell(0, 6, $enc('NIT: ' . ($quotation->client_nit ?? '')), 0, 1);
+            $pdf->Cell(0, 6, $enc('Cotización: ' . ($quotation->quotation_number ?? '')), 0, 1);
+            $sat = $response['sat'] ?? [];
+            $pdf->Cell(0, 6, $enc('UUID: ' . ($response['uuid'] ?? '')), 0, 1);
+            $pdf->Cell(0, 6, $enc('Autorización: ' . ($sat['authorization'] ?? '')), 0, 1);
+            $pdf->Ln(4);
+
+            $currency = (string) ($quotation->currency ?? 'Q');
+            $colDesc   = 102;
+            $colCant   = 16;
+            $colUnit   = 28;
+            $colSub    = 28;
+            $lineH     = 6;
+
+            $pdf->SetFont('Arial', 'B', 8);
+            $pdf->Cell($colCant, $lineH, $enc('Cant.'), 1, 0, 'L');
+            $pdf->Cell($colDesc, $lineH, $enc('Descripción'), 1, 0, 'L');
+            $pdf->Cell($colUnit, $lineH, $enc('P. unit.'), 1, 0, 'R');
+            $pdf->Cell($colSub, $lineH, $enc('Subtotal'), 1, 1, 'R');
+            $pdf->SetFont('Arial', '', 9);
+
+            foreach ($lines as $row) {
+                if (!\is_object($row)) {
+                    continue;
                 }
-            }
-        }
+                $r    = $this->resolveQuotationLineTotals($row);
+                $desc = $enc(\trim((string) ($row->descripcion ?? '')));
+                $qty  = $r['qty'];
+                $qtyStr = (\abs($qty - \round($qty)) < 0.0001)
+                    ? (string) (int) \round($qty)
+                    : \number_format($qty, 2, '.', '');
+                $unitStr = $currency . ' ' . \number_format($r['unit_price'], 4);
+                $subStr  = $currency . ' ' . \number_format($r['line_total'], 2);
 
-        return \class_exists('FPDF', false);
+                $rowX = $pdf->GetX();
+                $rowY = $pdf->GetY();
+
+                $pdf->SetXY($rowX + $colCant, $rowY);
+                $pdf->MultiCell($colDesc, $lineH, $desc, 1, 'L');
+                $newY = $pdf->GetY();
+                $rowH = \max($lineH, $newY - $rowY);
+
+                $pdf->SetXY($rowX, $rowY);
+                $pdf->SetFont('Arial', '', 9);
+                $pdf->Cell($colCant, $rowH, $qtyStr, 1, 0, 'C');
+
+                $pdf->SetXY($rowX + $colCant + $colDesc, $rowY);
+                $pdf->Cell($colUnit, $rowH, $unitStr, 1, 0, 'R');
+                $pdf->Cell($colSub, $rowH, $subStr, 1, 1, 'R');
+                $pdf->SetXY($rowX, $newY);
+            }
+
+            $total = \round((float) ($quotation->total_amount ?? 0), 2);
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell($colCant + $colDesc + $colUnit, $lineH, $enc('Total:'), 1, 0, 'R');
+            $pdf->Cell($colSub, $lineH, $currency . ' ' . \number_format($total, 2), 1, 1, 'R');
+
+            $pdf->Output('F', $absPath);
+        } catch (\Throwable $e) {
+            @\ob_end_clean();
+            $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
+
+            return;
+        }
+        @\ob_end_clean();
+
+        $head = @\file_get_contents($absPath, false, null, 0, 5);
+        if ($head !== '%PDF-') {
+            $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
+        }
     }
 
     /**
@@ -791,18 +839,6 @@ class FelInvoiceIssuanceService
         if (\file_put_contents($absPath, $pdf) === false) {
             throw new \RuntimeException('Cannot write mock PDF');
         }
-    }
-
-    protected function fpdfText(string $utf8): string
-    {
-        if (\function_exists('mb_convert_encoding')) {
-            $t = @\mb_convert_encoding($utf8, 'ISO-8859-1', 'UTF-8');
-            if ($t !== false) {
-                return (string) $t;
-            }
-        }
-
-        return $utf8;
     }
 
     protected function summarizeLines(array $lines): string

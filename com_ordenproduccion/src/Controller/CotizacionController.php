@@ -1645,22 +1645,12 @@ class CotizacionController extends BaseController
         $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
         $pdf->SetFillColor(255, 255, 255);
 
-        // FPDF uses Latin-1 (ISO-8859-1) internally. Spanish characters (á, é, í, ó, ú, ñ, ü…)
-        // exist in Latin-1, so we simply re-encode from UTF-8 instead of stripping them.
-        // iconv with //TRANSLIT preserves Latin-1 characters exactly and transliterates any
-        // characters that fall outside Latin-1 (e.g. emoji) to their nearest ASCII equivalent.
-        $fixSpanishChars = function ($text) {
-            if (empty($text)) {
+        // FPDF uses Latin-1 (ISO-8859-1); shared helper matches mock FEL invoice PDF encoding.
+        $fixSpanishChars = static function ($text) {
+            if ($text === null || $text === '') {
                 return $text;
             }
-            // Replace UTF-8 non-breaking space before encoding (avoids "Â " artefact)
-            $text = str_replace("\xc2\xa0", ' ', $text);
-            // Convert UTF-8 → ISO-8859-1 so FPDF renders ñ, á, é, í, ó, ú, ü correctly
-            if (function_exists('iconv')) {
-                $converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
-                return ($converted !== false) ? $converted : $text;
-            }
-            return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+            return CotizacionPdfHelper::encodeTextForFpdf((string) $text);
         };
 
         $encabezadoBlocks = $this->parseHtmlBlocks($encabezadoHtml, $fixSpanishChars);
@@ -1840,16 +1830,11 @@ class CotizacionController extends BaseController
         $pdf->SetMargins(15, 15, 15);
         $pdf->SetAutoPageBreak(true, 15);
 
-        $fixSpanishChars = function ($text) {
-            if (empty($text)) {
+        $fixSpanishChars = static function ($text) {
+            if ($text === null || $text === '') {
                 return $text;
             }
-            $text = str_replace("\xc2\xa0", ' ', $text);
-            if (function_exists('iconv')) {
-                $converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
-                return ($converted !== false) ? $converted : $text;
-            }
-            return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+            return CotizacionPdfHelper::encodeTextForFpdf((string) $text);
         };
 
         $encabezadoBlocks = $this->parseHtmlBlocks($encabezadoHtml, $fixSpanishChars);
