@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.102.1-STABLE] - 2026-04-06
+
+### Added
+- **Administración — pestaña Aprobaciones:** listado de solicitudes pendientes asignadas al usuario, formularios Aprobar/Rechazar (POST con CSRF) vía `administracion.approveApprovalWorkflow` / `administracion.rejectApprovalWorkflow`. Visible si `AccessHelper::canViewApprovalWorkflowTab()` (Administración/Admon/superusuario o al menos una aprobación pendiente); badge con conteo de pendientes.
+
 ## [3.102.0-STABLE] - 2026-04-06
 
 ### Added

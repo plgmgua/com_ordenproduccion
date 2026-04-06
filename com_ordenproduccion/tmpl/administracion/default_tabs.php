@@ -23,6 +23,8 @@ $isVentas = AccessHelper::isInVentasGroup();
 $isAdministracionOrAdmon = AccessHelper::isInAdministracionOrAdmonGroup();
 $canSeeVentasTabs = $isVentas || $isAdministracionOrAdmon;
 $canSeeAdminTabs = $isAdministracionOrAdmon;
+$canSeeAprobacionesTab = AccessHelper::canViewApprovalWorkflowTab();
+$aprobacionesPendingCount = AccessHelper::getPendingApprovalCountForUser();
 
 // Default tab: Ventas see resumen; Admin can use requested or resumen. workorders tab removed.
 $activeTab = $input->get('tab', 'resumen', 'string');
@@ -101,6 +103,17 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     </a>
     <?php endif; ?>
 
+    <?php if ($canSeeAprobacionesTab) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones'); ?>"
+       class="admin-tab <?php echo $activeTab === 'aprobaciones' ? 'active' : ''; ?>">
+        <i class="fas fa-clipboard-check"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_APROBACIONES'); ?>
+        <?php if ($aprobacionesPendingCount > 0) : ?>
+            <span class="badge bg-danger ms-1"><?php echo (int) $aprobacionesPendingCount; ?></span>
+        <?php endif; ?>
+    </a>
+    <?php endif; ?>
+
     <?php if ($canSeeAdminTabs) : ?>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>"
        class="admin-tab <?php echo $activeTab === 'invoices' ? 'active' : ''; ?>">
@@ -156,6 +169,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('herramientas'); ?>
     <?php elseif ($activeTab === 'ajustes'): ?>
         <?php echo $this->loadTemplate('ajustes'); ?>
+    <?php elseif ($activeTab === 'aprobaciones'): ?>
+        <?php echo $this->loadTemplate('aprobaciones'); ?>
     <?php else: ?>
         <?php echo $this->loadTemplate('resumen'); ?>
     <?php endif; ?>

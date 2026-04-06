@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
@@ -427,6 +428,22 @@ class HtmlView extends BaseHtmlView
     protected $invoiceFelQueueAvailable = false;
 
     /**
+     * Pending approval rows for current user (tab aprobaciones).
+     *
+     * @var    array<int, object>
+     * @since  3.102.1
+     */
+    protected $approvalPendingRows = [];
+
+    /**
+     * Whether approval workflow tables exist.
+     *
+     * @var    bool
+     * @since  3.102.1
+     */
+    protected $approvalWorkflowSchemaAvailable = false;
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -455,6 +472,8 @@ class HtmlView extends BaseHtmlView
                 'invoiceFelQueueRows' => is_array($this->invoiceFelQueueRows ?? null) ? $this->invoiceFelQueueRows : [],
                 'invoiceFelQueuePagination' => $this->invoiceFelQueuePagination ?? null,
                 'invoiceFelQueueAvailable' => (bool) ($this->invoiceFelQueueAvailable ?? false),
+                'approvalPendingRows' => is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [],
+                'approvalWorkflowSchemaAvailable' => (bool) ($this->approvalWorkflowSchemaAvailable ?? false),
             ]
         );
         return $data;
@@ -515,6 +534,12 @@ class HtmlView extends BaseHtmlView
         if ($property === 'invoiceFelQueueAvailable') {
             return (bool) ($this->invoiceFelQueueAvailable ?? false);
         }
+        if ($property === 'approvalPendingRows') {
+            return is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [];
+        }
+        if ($property === 'approvalWorkflowSchemaAvailable') {
+            return (bool) ($this->approvalWorkflowSchemaAvailable ?? false);
+        }
         return parent::get($property, $default);
     }
 
@@ -554,6 +579,11 @@ class HtmlView extends BaseHtmlView
 
         // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, herramientas, ajustes
         if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'herramientas', 'ajustes'], true)) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if ($activeTab === 'aprobaciones' && !AccessHelper::canViewApprovalWorkflowTab()) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
@@ -642,6 +672,8 @@ class HtmlView extends BaseHtmlView
         $this->invoiceFelQueueRows = [];
         $this->invoiceFelQueuePagination = null;
         $this->invoiceFelQueueAvailable = false;
+        $this->approvalPendingRows = [];
+        $this->approvalWorkflowSchemaAvailable = false;
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1060,6 +1092,20 @@ class HtmlView extends BaseHtmlView
             }
         } else {
             $this->paymentTypes = [];
+        }
+
+        if ($activeTab === 'aprobaciones') {
+            try {
+                $approvalService = new ApprovalWorkflowService();
+                $this->approvalWorkflowSchemaAvailable = $approvalService->hasSchema();
+                if ($this->approvalWorkflowSchemaAvailable) {
+                    $user = Factory::getUser();
+                    $this->approvalPendingRows = $approvalService->getMyPendingApprovalRows((int) $user->id);
+                }
+            } catch (\Throwable $e) {
+                $this->approvalPendingRows = [];
+                $this->approvalWorkflowSchemaAvailable = false;
+            }
         }
 
         // Load cotización PDF settings if ajustes tab and Ajustes de Cotización subtab

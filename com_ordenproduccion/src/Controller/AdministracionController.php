@@ -19,6 +19,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
  * Administracion controller (reportes export).
@@ -1400,5 +1401,88 @@ class AdministracionController extends BaseController
             );
         }
         return $xml;
+    }
+
+    /**
+     * Approve a pending internal approval workflow request (Administración tab Aprobaciones).
+     *
+     * @return  void
+     *
+     * @since   3.102.1
+     */
+    public function approveApprovalWorkflow()
+    {
+        $this->processApprovalWorkflowDecision('approve');
+    }
+
+    /**
+     * Reject a pending internal approval workflow request.
+     *
+     * @return  void
+     *
+     * @since   3.102.1
+     */
+    public function rejectApprovalWorkflow()
+    {
+        $this->processApprovalWorkflowDecision('reject');
+    }
+
+    /**
+     * @param   string  $action  approve|reject
+     *
+     * @return  void
+     *
+     * @since   3.102.1
+     */
+    protected function processApprovalWorkflowDecision(string $action)
+    {
+        $app = Factory::getApplication();
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $requestId = $app->input->post->getInt('request_id', 0);
+        if ($requestId <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST'), 'warning');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $comment = trim($app->input->post->getString('comment', ''));
+
+        $svc = new ApprovalWorkflowService();
+        if (!$svc->hasSchema()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $ok = $action === 'approve'
+            ? $svc->approve($requestId, (int) $user->id, $comment)
+            : $svc->reject($requestId, (int) $user->id, $comment);
+
+        if ($ok) {
+            $app->enqueueMessage(
+                $action === 'approve'
+                    ? Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVED_OK')
+                    : Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECTED_OK'),
+                'success'
+            );
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED'), 'warning');
+        }
+
+        $app->redirect($redirect);
     }
 }
