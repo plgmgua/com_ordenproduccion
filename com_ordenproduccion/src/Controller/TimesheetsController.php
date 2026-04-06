@@ -13,7 +13,10 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 class TimesheetsController extends BaseController
 {
@@ -28,7 +31,7 @@ class TimesheetsController extends BaseController
         }
 
         $app = Factory::getApplication();
-        $db = Factory::getContainer()->get('DatabaseDriver');
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
         $user = Factory::getUser();
 
         $cardno = $this->input->getString('cardno');
@@ -45,32 +48,48 @@ class TimesheetsController extends BaseController
         $dateTo = $sunday->format('Y-m-d');
 
         try {
-            // Only allow approval if current user manages the employee's group (or is admin)
-            $query = $db->getQuery(true)
-                ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
-                ->innerJoin(
-                    $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
-                    $db->quoteName('s.personname') . ' = ' . $db->quoteName('e.personname')
-                )
-                ->innerJoin(
-                    $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
-                    $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
-                )
-                ->set($db->quoteName('s.approval_status') . ' = ' . $db->quote('approved'))
-                ->set($db->quoteName('s.approved_by') . ' = ' . (int) $user->id)
-                ->set($db->quoteName('s.approved_date') . ' = NOW()')
-                ->set($db->quoteName('s.approved_hours') . ' = COALESCE(' . $db->quoteName('s.approved_hours') . ', ' . $db->quoteName('s.total_hours') . ')')
-                ->where($db->quoteName('e.cardno') . ' = ' . $db->quote($cardno))
-                ->where($db->quoteName('s.work_date') . ' >= ' . $db->quote($dateFrom))
-                ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo));
-            
-            // Scope to manager's groups (unless admin)
-            if (!$user->authorise('core.admin')) {
-                $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+            $entityId = ApprovalWorkflowEntityHelper::timesheetEntityId($cardno, $dateFrom);
+            $metaJson = json_encode([
+                'cardno'     => $cardno,
+                'week_start' => $dateFrom,
+                'date_from'  => $dateFrom,
+                'date_to'    => $dateTo,
+            ]);
+
+            $wfSvc = new ApprovalWorkflowService($db);
+            if ($wfSvc->hasSchema()) {
+                if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_TIMESHEET, $entityId) !== null) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_TIMESHEET_ALREADY_PENDING'), 'notice');
+                    $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&week_start=' . $dateFrom));
+
+                    return true;
+                }
+
+                $rid = $wfSvc->createRequest(
+                    ApprovalWorkflowService::ENTITY_TIMESHEET,
+                    $entityId,
+                    (int) $user->id,
+                    $metaJson
+                );
+
+                if ($rid > 0) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_TIMESHEET_SUBMITTED'), 'success');
+                    $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=timesheets&week_start=' . $dateFrom));
+
+                    return true;
+                }
             }
 
-            $db->setQuery($query);
-            $db->execute();
+            $scopeToManager = !$user->authorise('core.admin');
+            ApprovalWorkflowEntityHelper::applyTimesheetWeekApproved(
+                $db,
+                $cardno,
+                $dateFrom,
+                $dateTo,
+                (int) $user->id,
+                $scopeToManager,
+                (int) $user->id
+            );
 
             $app->enqueueMessage(Text::_('JLIB_APPLICATION_SAVE_SUCCESS'));
         } catch (\Exception $e) {
@@ -92,7 +111,7 @@ class TimesheetsController extends BaseController
         }
 
         $app = Factory::getApplication();
-        $db = Factory::getContainer()->get('DatabaseDriver');
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
         $user = Factory::getUser();
 
         $cardno = $this->input->getString('cardno');
@@ -109,30 +128,24 @@ class TimesheetsController extends BaseController
         $dateTo = $sunday->format('Y-m-d');
 
         try {
-            $query = $db->getQuery(true)
-                ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
-                ->innerJoin(
-                    $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
-                    $db->quoteName('s.personname') . ' = ' . $db->quoteName('e.personname')
-                )
-                ->innerJoin(
-                    $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
-                    $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
-                )
-                ->set($db->quoteName('s.approval_status') . ' = ' . $db->quote('pending'))
-                ->set($db->quoteName('s.approved_by') . ' = NULL')
-                ->set($db->quoteName('s.approved_date') . ' = NULL')
-                ->where($db->quoteName('e.cardno') . ' = ' . $db->quote($cardno))
-                ->where($db->quoteName('s.work_date') . ' >= ' . $db->quote($dateFrom))
-                ->where($db->quoteName('s.work_date') . ' <= ' . $db->quote($dateTo));
-            
-            // Scope to manager's groups (unless admin)
-            if (!$user->authorise('core.admin')) {
-                $query->where($db->quoteName('g.manager_user_id') . ' = ' . (int) $user->id);
+            $entityId = ApprovalWorkflowEntityHelper::timesheetEntityId($cardno, $dateFrom);
+            $wfSvc    = new ApprovalWorkflowService($db);
+            if ($wfSvc->hasSchema()) {
+                $pending = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_TIMESHEET, $entityId);
+                if ($pending !== null) {
+                    $wfSvc->cancelRequest((int) $pending->id, (int) $user->id, 'manager rejected');
+                }
             }
 
-            $db->setQuery($query);
-            $db->execute();
+            $scopeToManager = !$user->authorise('core.admin');
+            ApprovalWorkflowEntityHelper::applyTimesheetWeekRejected(
+                $db,
+                $cardno,
+                $dateFrom,
+                $dateTo,
+                $scopeToManager,
+                (int) $user->id
+            );
 
             $app->enqueueMessage(Text::_('JLIB_APPLICATION_SAVE_SUCCESS'));
         } catch (\Exception $e) {
@@ -154,7 +167,7 @@ class TimesheetsController extends BaseController
         }
 
         $app = Factory::getApplication();
-        $db = Factory::getContainer()->get('DatabaseDriver');
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
         $user = Factory::getUser();
 
         $selected = (array) $this->input->post->get('selected', [], 'array');
@@ -178,13 +191,13 @@ class TimesheetsController extends BaseController
 
         try {
             $query = $db->getQuery(true)
-                ->update($db->quoteName('joomla_ordenproduccion_asistencia_summary', 's'))
+                ->update($db->quoteName('#__ordenproduccion_asistencia_summary', 's'))
                 ->innerJoin(
-                    $db->quoteName('joomla_ordenproduccion_employees', 'e') . ' ON ' .
+                    $db->quoteName('#__ordenproduccion_employees', 'e') . ' ON ' .
                     $db->quoteName('s.personname') . ' = ' . $db->quoteName('e.personname')
                 )
                 ->innerJoin(
-                    $db->quoteName('joomla_ordenproduccion_employee_groups', 'g') . ' ON ' .
+                    $db->quoteName('#__ordenproduccion_employee_groups', 'g') . ' ON ' .
                     $db->quoteName('e.group_id') . ' = ' . $db->quoteName('g.id')
                 )
                 ->set($db->quoteName('s.approval_status') . ' = ' . $db->quote('approved'))

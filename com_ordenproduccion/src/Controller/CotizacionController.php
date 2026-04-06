@@ -23,6 +23,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
  * Cotizacion controller (pliego quote calculation).
@@ -656,11 +657,16 @@ class CotizacionController extends BaseController
             return;
         }
 
+        $wfSvc = new ApprovalWorkflowService($db);
+        $includeConfirmInFirstUpdate = !$wfSvc->hasSchema();
+
         $sets = [
-            $db->quoteName('cotizacion_confirmada') . ' = 1',
             $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
             $db->quoteName('modified_by') . ' = ' . (int) $user->id,
         ];
+        if ($includeConfirmInFirstUpdate) {
+            $sets[] = $db->quoteName('cotizacion_confirmada') . ' = 1';
+        }
         if (isset($cols['cotizacion_aprobada_path'])) {
             $sets[] = $db->quoteName('cotizacion_aprobada_path') . ' = ' . $db->quote($pathAprobada);
         }
@@ -687,6 +693,57 @@ class CotizacionController extends BaseController
             ->where($db->quoteName('id') . ' = ' . $quotationId);
         $db->setQuery($update);
         $db->execute();
+
+        if ($wfSvc->hasSchema()) {
+            $metaJson = json_encode([
+                'quotation_id'          => $quotationId,
+                'facturacion_modo'      => $facturacionModo,
+                'facturacion_fecha_sql' => $facturacionFechaSql,
+                'submitter_user_id'     => (int) $user->id,
+            ], JSON_UNESCAPED_UNICODE);
+
+            $rid = $wfSvc->createRequest(
+                ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION,
+                $quotationId,
+                (int) $user->id,
+                $metaJson
+            );
+
+            if ($rid > 0) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_COTIZACION_SUBMITTED'), 'success');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                return;
+            }
+
+            if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION, $quotationId) !== null) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_COTIZACION_ALREADY_PENDING'), 'notice');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                return;
+            }
+
+            $qConfirm = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_quotations'))
+                ->set($db->quoteName('cotizacion_confirmada') . ' = 1')
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('id') . ' = ' . $quotationId);
+            $db->setQuery($qConfirm);
+            $db->execute();
+
+            if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null) {
+                $felSvc = new FelInvoiceIssuanceService();
+                if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
+                    $felSvc->scheduleOrUpdateInvoiceFromQuotation($quotationId, (int) $user->id, $facturacionFechaSql);
+                }
+            }
+
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
 
         // Queue mock FEL for the billing date whenever "fecha específica" + valid date is chosen.
         // Do not tie this to facturar_cotizacion_exacta (that flag is a billing rule, not "whether to enqueue FEL").

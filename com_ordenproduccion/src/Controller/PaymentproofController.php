@@ -15,6 +15,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 class PaymentproofController extends BaseController
 {
@@ -553,10 +554,45 @@ class PaymentproofController extends BaseController
         }
 
         $model = $this->getModel('Paymentproof');
-        if (!$model->getItem($proofId)) {
+        $proof = $model->getItem($proofId);
+        if (!$proof) {
             $this->app->enqueueMessage('Comprobante no encontrado.', 'error');
             $this->setRedirect($redirectUrl);
             return false;
+        }
+
+        if (isset($proof->verification_status) && (string) $proof->verification_status === 'verificado') {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_ALREADY_VERIFIED'), 'notice');
+            $this->setRedirect($redirectUrl);
+
+            return true;
+        }
+
+        $wfSvc = new ApprovalWorkflowService();
+        if ($wfSvc->hasSchema()) {
+            if ($wfSvc->getOpenPendingRequest(
+                ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
+                $proofId
+            ) !== null) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_ALREADY_PENDING'), 'notice');
+                $this->setRedirect($redirectUrl);
+
+                return true;
+            }
+
+            $rid = $wfSvc->createRequest(
+                ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
+                $proofId,
+                (int) $user->id,
+                null
+            );
+
+            if ($rid > 0) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_SUBMITTED'), 'success');
+                $this->setRedirect($redirectUrl);
+
+                return true;
+            }
         }
 
         if ($model->setVerificado($proofId)) {

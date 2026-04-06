@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalAuditHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalEmailQueueHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\User\User;
 use Joomla\Database\DatabaseInterface;
@@ -287,18 +288,71 @@ class ApprovalWorkflowService
     }
 
     /**
-     * Apply entity-side updates when approved (hook point for later versions).
+     * Apply entity-side updates when approved.
+     *
+     * @param   int  $actorUserId  User who completed the final approval step
      */
-    protected function onRequestFullyApproved(object $request): void
+    protected function onRequestFullyApproved(object $request, int $actorUserId): void
     {
-        // Phase 4: set cotizacion_confirmada, verification_status, timesheet approval, orden status, etc.
+        $type = (string) ($request->entity_type ?? '');
+        $eid  = (int) ($request->entity_id ?? 0);
+        $meta = isset($request->metadata) ? (string) $request->metadata : null;
+
+        if ($eid < 1 || $actorUserId < 1) {
+            return;
+        }
+
+        switch ($type) {
+            case self::ENTITY_TIMESHEET:
+                ApprovalWorkflowEntityHelper::applyTimesheetWeekApprovedFromMetadata(
+                    $this->db,
+                    $meta,
+                    $eid,
+                    $actorUserId
+                );
+                break;
+
+            case self::ENTITY_PAYMENT_PROOF:
+                ApprovalWorkflowEntityHelper::applyPaymentProofVerified($eid);
+                break;
+
+            case self::ENTITY_COTIZACION_CONFIRMATION:
+                ApprovalWorkflowEntityHelper::applyCotizacionConfirmationApproved(
+                    $this->db,
+                    $eid,
+                    $actorUserId,
+                    $meta
+                );
+                break;
+
+            default:
+                break;
+        }
     }
 
     /**
-     * Apply entity-side updates when rejected (hook point).
+     * Apply entity-side updates when rejected.
+     *
+     * @param   int  $actorUserId  User who rejected
      */
-    protected function onRequestRejected(object $request): void
+    protected function onRequestRejected(object $request, int $actorUserId): void
     {
+        $type = (string) ($request->entity_type ?? '');
+        $eid  = (int) ($request->entity_id ?? 0);
+        $meta = isset($request->metadata) ? (string) $request->metadata : null;
+
+        if ($eid < 1) {
+            return;
+        }
+
+        switch ($type) {
+            case self::ENTITY_TIMESHEET:
+                ApprovalWorkflowEntityHelper::applyTimesheetWeekRejectedFromMetadata($this->db, $meta, $eid);
+                break;
+
+            default:
+                break;
+        }
     }
 
     /**
@@ -374,7 +428,7 @@ class ApprovalWorkflowService
                 $this->db->execute();
 
                 ApprovalAuditHelper::log($requestId, 'rejected', $userId, 'pending', 'rejected', $comments);
-                $this->onRequestRejected($req);
+                $this->onRequestRejected($req, $userId);
                 $this->db->transactionCommit();
 
                 return true;
@@ -427,7 +481,7 @@ class ApprovalWorkflowService
                 ApprovalAuditHelper::log($requestId, 'approved_final', $userId, 'pending', 'approved', $comments);
                 $reqFresh = $this->loadRequest($requestId);
                 if ($reqFresh !== null) {
-                    $this->onRequestFullyApproved($reqFresh);
+                    $this->onRequestFullyApproved($reqFresh, $userId);
                 }
                 $this->db->transactionCommit();
 
