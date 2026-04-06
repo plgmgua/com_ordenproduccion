@@ -13,6 +13,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Uri\Uri;
@@ -643,20 +644,7 @@ class FelInvoiceIssuanceService
 
     protected function buildMockPdf(string $absPath, object $quotation, array $lines, array $response): void
     {
-        $fpdfPath = JPATH_ROOT . '/fpdf/fpdf.php';
-        if (!\is_file($fpdfPath)) {
-            $alt = JPATH_ROOT . '/libraries/fpdf/fpdf.php';
-            if (\is_file($alt)) {
-                $fpdfPath = $alt;
-            }
-        }
-        if (!\is_file($fpdfPath)) {
-            $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
-
-            return;
-        }
-        require_once $fpdfPath;
-        if (!\class_exists('FPDF', false)) {
+        if (!FpdfHelper::register()) {
             $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
 
             return;
