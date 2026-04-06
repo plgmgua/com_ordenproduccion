@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
@@ -240,7 +241,7 @@ class AdministracionController extends BaseController
             $items = [];
         }
 
-        $cols = ['Serie | Número', 'Fecha de Emisión', 'NIT', 'Cliente', 'Total Factura (Q)'];
+        $cols = ['Serie | Número', 'Fecha de Emisión', 'NIT', 'Tipo', 'Cliente', 'Total Factura (Q)'];
         $rows = [];
         foreach ($items as $invoice) {
             $felExtra = [];
@@ -253,10 +254,16 @@ class AdministracionController extends BaseController
             $fecha = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
             $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '—';
             $nit = trim($invoice->client_nit ?? $invoice->fel_receptor_id ?? '') ?: '—';
-            $cliente = $invoice->client_name ?? '—';
+            $tipoLabel = InvoiceListHelper::isMockupInvoice($invoice)
+                ? Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP')
+                : Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID');
+            $cliente = InvoiceListHelper::displayClientName($invoice);
+            if ($cliente === '') {
+                $cliente = '—';
+            }
             $moneda = $invoice->currency ?? 'Q';
             $total = number_format((float) ($invoice->invoice_amount ?? 0), 2, '.', '') . ' ' . $moneda;
-            $rows[] = [$serieNumero, $fechaStr, $nit, $cliente, $total];
+            $rows[] = [$serieNumero, $fechaStr, $nit, $tipoLabel, $cliente, $total];
         }
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
@@ -344,7 +351,7 @@ class AdministracionController extends BaseController
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Facturas');
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:E1');
+        $headerStyle = $sheet->getStyle('A1:F1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
@@ -353,7 +360,7 @@ class AdministracionController extends BaseController
             $sheet->fromArray($row, null, 'A' . $rowIndex);
             $rowIndex++;
         }
-        foreach (range('A', 'E') as $col) {
+        foreach (range('A', 'F') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $filename = 'facturas-' . date('Y-m-d-His') . '.xlsx';

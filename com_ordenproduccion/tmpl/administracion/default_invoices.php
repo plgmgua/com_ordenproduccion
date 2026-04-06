@@ -16,6 +16,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 // Get invoices data from view (get() ensures value when layout data is used)
@@ -327,6 +328,10 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 .invoice-fel-queue-table .btn + .btn {
     margin-left: 0.15rem;
 }
+.invoice-tipo-badge { font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.invoice-tipo-valid { background: #e7f5ee; color: #1e6f4a; }
+.invoice-tipo-mockup { background: #fff4e6; color: #b35900; }
+tr.invoice-row-mockup { background: #fffbf5; }
 </style>
 
 <div class="invoices-section">
@@ -782,6 +787,8 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                     <th>Serie | Número</th>
                     <th>Fecha de Emisión</th>
                     <th>NIT</th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_TIPO'); ?></th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_CLIENT_NAME'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_DESCRIPTION'); ?></th>
                     <th style="text-align: right;">Total Factura (Q)</th>
                 </tr>
@@ -805,13 +812,26 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                         $nit = '—';
                     }
                     $moneda = $invoice->currency ?? 'Q';
+                    $isMockup = InvoiceListHelper::isMockupInvoice($invoice);
+                    $displayClient = InvoiceListHelper::displayClientName($invoice);
+                    if ($displayClient === '') {
+                        $displayClient = '—';
+                    }
                 ?>
-                    <tr onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
+                    <tr class="<?php echo $isMockup ? 'invoice-row-mockup' : ''; ?>" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
                         <td>
                             <span class="invoice-serie-numero"><?php echo htmlspecialchars($serie ?: '—'); ?> | <?php echo htmlspecialchars($numero ?: '—'); ?></span>
                         </td>
                         <td><?php echo $fechaEmision; ?></td>
                         <td><?php echo htmlspecialchars($nit); ?></td>
+                        <td>
+                            <?php if ($isMockup) : ?>
+                                <span class="invoice-tipo-badge invoice-tipo-mockup"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP'); ?></span>
+                            <?php else : ?>
+                                <span class="invoice-tipo-badge invoice-tipo-valid"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID'); ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo htmlspecialchars($displayClient, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="invoice-lines-desc"><?php
                             $lineDesc = InvoiceOrdenMatchModel::getInvoiceLinesDescription($invoice);
                             echo $lineDesc !== '' ? htmlspecialchars($lineDesc, ENT_QUOTES, 'UTF-8') : '—';
