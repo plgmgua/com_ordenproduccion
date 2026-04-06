@@ -13,6 +13,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
@@ -823,8 +824,10 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                             $pdfOk  = $pdfAbs !== '' && is_file($pdfAbs);
                             $xmlOk  = $xmlAbs !== '' && is_file($xmlAbs);
                             $invNum = preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($invoice->invoice_number ?? (string) (int) ($invoice->id ?? 0)));
-                            $pdfHref = $pdfOk ? htmlspecialchars(Uri::root() . $pdfRel, ENT_QUOTES, 'UTF-8') : '';
-                            $xmlHref = $xmlOk ? htmlspecialchars(Uri::root() . $xmlRel, ENT_QUOTES, 'UTF-8') : '';
+                            $dlPdf = 'index.php?option=com_ordenproduccion&task=invoice.downloadFelArtifact&invoice_id=' . (int) $invoice->id . '&type=pdf&' . Session::getFormToken() . '=1';
+                            $dlXml = 'index.php?option=com_ordenproduccion&task=invoice.downloadFelArtifact&invoice_id=' . (int) $invoice->id . '&type=xml&' . Session::getFormToken() . '=1';
+                            $pdfHref = $pdfOk ? htmlspecialchars(Route::_($dlPdf), ENT_QUOTES, 'UTF-8') : '';
+                            $xmlHref = $xmlOk ? htmlspecialchars(Route::_($dlXml), ENT_QUOTES, 'UTF-8') : '';
                             ?>
                             <div class="d-inline-flex align-items-center justify-content-end gap-1 flex-wrap">
                                 <span><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></span>

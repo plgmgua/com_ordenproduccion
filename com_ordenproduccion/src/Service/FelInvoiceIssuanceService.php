@@ -643,20 +643,35 @@ class FelInvoiceIssuanceService
     protected function buildMockPdf(string $absPath, object $quotation, array $lines, array $response): void
     {
         if ($this->ensureFpdfLoaded()) {
-            $pdf = new \FPDF('P', 'mm', 'Letter');
-            $pdf->AddPage();
-            $pdf->SetFont('Arial', 'B', 14);
-            $pdf->Cell(0, 8, $this->fpdfText('Factura electrónica (MOCK / pruebas)'), 0, 1);
-            $pdf->SetFont('Arial', '', 10);
-            $pdf->Cell(0, 6, $this->fpdfText('No documento legal — emulador FELplex'), 0, 1);
-            $pdf->Ln(2);
-            $pdf->Cell(0, 6, $this->fpdfText('Cliente: ' . ($quotation->client_name ?? '')), 0, 1);
-            $pdf->Cell(0, 6, $this->fpdfText('NIT: ' . ($quotation->client_nit ?? '')), 0, 1);
-            $pdf->Cell(0, 6, $this->fpdfText('Cotización: ' . ($quotation->quotation_number ?? '')), 0, 1);
-            $sat = $response['sat'] ?? [];
-            $pdf->Cell(0, 6, $this->fpdfText('UUID: ' . ($response['uuid'] ?? '')), 0, 1);
-            $pdf->Cell(0, 6, $this->fpdfText('Autorización: ' . ($sat['authorization'] ?? '')), 0, 1);
-            $pdf->Output('F', $absPath);
+            @\ob_start();
+            try {
+                // Helvetica is a core PDF font; "Arial" can break or warn on some FPDF builds.
+                $pdf = new \FPDF('P', 'mm', 'Letter');
+                $pdf->AddPage();
+                $pdf->SetFont('Helvetica', 'B', 14);
+                $pdf->Cell(0, 8, $this->fpdfText('Factura electrónica (MOCK / pruebas)'), 0, 1);
+                $pdf->SetFont('Helvetica', '', 10);
+                $pdf->Cell(0, 6, $this->fpdfText('No documento legal — emulador FELplex'), 0, 1);
+                $pdf->Ln(2);
+                $pdf->Cell(0, 6, $this->fpdfText('Cliente: ' . ($quotation->client_name ?? '')), 0, 1);
+                $pdf->Cell(0, 6, $this->fpdfText('NIT: ' . ($quotation->client_nit ?? '')), 0, 1);
+                $pdf->Cell(0, 6, $this->fpdfText('Cotización: ' . ($quotation->quotation_number ?? '')), 0, 1);
+                $sat = $response['sat'] ?? [];
+                $pdf->Cell(0, 6, $this->fpdfText('UUID: ' . ($response['uuid'] ?? '')), 0, 1);
+                $pdf->Cell(0, 6, $this->fpdfText('Autorización: ' . ($sat['authorization'] ?? '')), 0, 1);
+                $pdf->Output('F', $absPath);
+            } catch (\Throwable $e) {
+                @\ob_end_clean();
+                $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
+
+                return;
+            }
+            @\ob_end_clean();
+
+            $head = @\file_get_contents($absPath, false, null, 0, 5);
+            if ($head !== '%PDF-') {
+                $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
+            }
 
             return;
         }
@@ -673,9 +688,17 @@ class FelInvoiceIssuanceService
         if (\class_exists('FPDF', false)) {
             return true;
         }
-        $path = JPATH_ROOT . '/fpdf/fpdf.php';
-        if (\is_file($path)) {
-            require_once $path;
+        $paths = [
+            JPATH_ROOT . '/fpdf/fpdf.php',
+            JPATH_ROOT . '/libraries/fpdf/fpdf.php',
+        ];
+        foreach ($paths as $path) {
+            if (\is_file($path)) {
+                require_once $path;
+                if (\class_exists('FPDF', false)) {
+                    return true;
+                }
+            }
         }
 
         return \class_exists('FPDF', false);
@@ -726,7 +749,7 @@ class FelInvoiceIssuanceService
 
         $stream = "BT\n/F1 10 Tf\n";
         foreach ($textLines as $i => $l) {
-            $line = \substr($l, 0, 220);
+            $line = \preg_replace('/[\r\n\x00-\x08\x0B\x0C\x0E-\x1F]+/', ' ', \substr($l, 0, 220));
             if ($i === 0) {
                 $stream .= \sprintf("50 750 Td (%s) Tj\n", $esc($line));
             } else {
@@ -773,7 +796,10 @@ class FelInvoiceIssuanceService
     protected function fpdfText(string $utf8): string
     {
         if (\function_exists('mb_convert_encoding')) {
-            return (string) mb_convert_encoding($utf8, 'ISO-8859-1', 'UTF-8');
+            $t = @\mb_convert_encoding($utf8, 'ISO-8859-1', 'UTF-8');
+            if ($t !== false) {
+                return (string) $t;
+            }
         }
 
         return $utf8;

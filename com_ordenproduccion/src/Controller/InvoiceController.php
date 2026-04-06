@@ -366,6 +366,91 @@ class InvoiceController extends BaseController
     }
 
     /**
+     * Stream mock FEL PDF/XML from disk with correct Content-Type (avoids saving HTML/login pages as .pdf).
+     *
+     * GET: invoice_id, type=pdf|xml, and CSRF token (same as other tasks).
+     *
+     * @return  void
+     *
+     * @since   3.101.57
+     */
+    public function downloadFelArtifact()
+    {
+        $app = $this->app;
+
+        if (!Session::checkToken('request')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->getInt('invoice_id', 0);
+        $kind      = $this->input->getCmd('type', 'pdf');
+        if ($invoiceId < 1 || !\in_array($kind, ['pdf', 'xml'], true)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $model = $this->getModel('Invoice');
+        $inv   = $model ? $model->getItem($invoiceId) : null;
+        if (!$inv) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $rel = $kind === 'xml' ? \trim((string) ($inv->fel_local_xml_path ?? '')) : \trim((string) ($inv->fel_local_pdf_path ?? ''));
+        if ($rel === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        $abs = JPATH_ROOT . '/' . \ltrim(\str_replace('\\', '/', $rel), '/');
+        if (!\is_file($abs)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        $invNum = \preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($inv->invoice_number ?? ('FAC-' . $invoiceId)));
+        $fname  = $kind === 'xml' ? $invNum . '-fel.xml' : $invNum . '-fel.pdf';
+        $mime   = $kind === 'xml' ? 'application/xml' : 'application/pdf';
+
+        if (\method_exists($app, 'clearHeaders')) {
+            $app->clearHeaders();
+        }
+        $app->setHeader('Content-Type', $mime, true);
+        $app->setHeader('Content-Disposition', 'attachment; filename="' . $fname . '"', true);
+        $app->setHeader('Content-Length', (string) \filesize($abs), true);
+        $app->setHeader('Cache-Control', 'private, max-age=0', true);
+        $app->sendHeaders();
+        \readfile($abs);
+        $app->close();
+    }
+
+    /**
      * Generate autonumeric invoice number based on table ID
      */
     private function generateInvoiceNumber()

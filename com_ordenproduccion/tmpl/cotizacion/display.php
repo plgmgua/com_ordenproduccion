@@ -250,10 +250,10 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <span class="badge bg-success"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_DONE', 'Issued', 'Emitida')); ?></span>
                         <span class="small"><?php echo htmlspecialchars($felInv->invoice_number ?? ''); ?></span>
                         <?php if (!empty($felInv->fel_local_pdf_path)) : ?>
-                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Uri::root() . $felInv->fel_local_pdf_path); ?>">PDF</a>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadFelArtifact&invoice_id=' . (int) $felInv->id . '&type=pdf&' . Session::getFormToken() . '=1')); ?>">PDF</a>
                         <?php endif; ?>
                         <?php if (!empty($felInv->fel_local_xml_path)) : ?>
-                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Uri::root() . $felInv->fel_local_xml_path); ?>">XML</a>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadFelArtifact&invoice_id=' . (int) $felInv->id . '&type=xml&' . Session::getFormToken() . '=1')); ?>">XML</a>
                         <?php endif; ?>
                         <a class="btn btn-sm btn-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $felInv->id); ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_OPEN_INVOICE', 'Open invoice', 'Abrir factura')); ?></a>
                     <?php elseif ($felStatus === 'failed') : ?>
