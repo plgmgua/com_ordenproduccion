@@ -15,6 +15,12 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 
+$siteAdminAprobacionesUrl = htmlspecialchars(
+    Uri::root() . 'index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones',
+    ENT_QUOTES,
+    'UTF-8'
+);
+
 ?>
 
 <div class="com-ordenproduccion-dashboard">
@@ -53,6 +59,10 @@ use Joomla\CMS\Uri\Uri;
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-sm btn-outline-primary">
                 <i class="icon-list"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_ORDERS', 'View Orders'); ?>
+            </a>
+            <a href="<?php echo $siteAdminAprobacionesUrl; ?>" class="btn btn-sm btn-outline-success" title="<?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES_TITLE'); ?>">
+                <i class="icon-ok"></i>
+                <?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES'); ?>
             </a>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=technicians'); ?>" class="btn btn-sm btn-outline-primary">
                 <i class="icon-users"></i>
@@ -249,6 +259,10 @@ use Joomla\CMS\Uri\Uri;
                         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>" class="btn btn-sm btn-outline-primary">
                             <i class="icon-list"></i>
                             <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_ORDERS', 'Orders'); ?>
+                        </a>
+                        <a href="<?php echo $siteAdminAprobacionesUrl; ?>" class="btn btn-sm btn-outline-success" title="<?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES_TITLE'); ?>">
+                            <i class="icon-ok"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES'); ?>
                         </a>
                         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=technicians'); ?>" class="btn btn-sm btn-outline-primary">
                             <i class="icon-users"></i>

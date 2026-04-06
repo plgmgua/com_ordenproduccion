@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.102.2-STABLE] - 2026-04-06
+
+### Added
+- **Administrador (backend) — Panel:** botón **Aprobaciones** en la barra de acciones rápidas y en **Todas las vistas**; enlaza al sitio `index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones` (vista Administración del frontend). Cadenas `COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES` / `_TITLE` en admin en-GB y es-ES.
+
 ## [3.102.1-STABLE] - 2026-04-06
 
 ### Added
