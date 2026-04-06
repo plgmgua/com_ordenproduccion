@@ -688,11 +688,9 @@ class CotizacionController extends BaseController
         $db->setQuery($update);
         $db->execute();
 
-        if ($hasFacturacionConfig
-            && isset($cols['facturar_cotizacion_exacta'])
-            && $facturacionModo === 'fecha_especifica'
-            && $facturacionFechaSql !== null
-            && $facturarCotizacionExactaDb === 1) {
+        // Queue mock FEL for the billing date whenever "fecha específica" + valid date is chosen.
+        // Do not tie this to facturar_cotizacion_exacta (that flag is a billing rule, not "whether to enqueue FEL").
+        if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null) {
             $felSvc = new FelInvoiceIssuanceService();
             if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
                 $felSvc->scheduleOrUpdateInvoiceFromQuotation($quotationId, (int) $user->id, $facturacionFechaSql);
