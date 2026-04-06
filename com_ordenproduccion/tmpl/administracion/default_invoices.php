@@ -826,7 +826,7 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                             $xmlOk  = $xmlAbs !== '' && is_file($xmlAbs);
                             $invNum = preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($invoice->invoice_number ?? (string) (int) ($invoice->id ?? 0)));
                             $pdfHref = $pdfOk ? htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $invoice->id, 'pdf'), ENT_QUOTES, 'UTF-8') : '';
-                            $xmlHref = $xmlOk ? htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $invoice->id, 'xml'), ENT_QUOTES, 'UTF-8') : '';
+                            $xmlHref = $xmlOk ? htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $invoice->id, 'xml', true), ENT_QUOTES, 'UTF-8') : '';
                             ?>
                             <div class="d-inline-flex align-items-center justify-content-end gap-1 flex-wrap">
                                 <span><?php echo number_format((float) ($invoice->invoice_amount ?? 0), 2); ?> <?php echo htmlspecialchars($moneda); ?></span>
@@ -834,7 +834,6 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                                 <a href="<?php echo $pdfHref; ?>"
                                    class="p-0 ms-1 text-decoration-none invoice-fel-file-link"
                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_PDF'), ENT_QUOTES, 'UTF-8'); ?>"
-                                   download="<?php echo htmlspecialchars($invNum . '-fel.pdf', ENT_QUOTES, 'UTF-8'); ?>"
                                    target="_blank" rel="noopener noreferrer"
                                    onclick="event.stopPropagation();"><i class="fas fa-file-pdf" aria-hidden="true"></i><span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_PDF'); ?></span></a>
                                 <?php endif; ?>
@@ -842,7 +841,6 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
                                 <a href="<?php echo $xmlHref; ?>"
                                    class="p-0 text-decoration-none invoice-fel-file-link"
                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_XML'), ENT_QUOTES, 'UTF-8'); ?>"
-                                   download="<?php echo htmlspecialchars($invNum . '-fel.xml', ENT_QUOTES, 'UTF-8'); ?>"
                                    target="_blank" rel="noopener noreferrer"
                                    onclick="event.stopPropagation();"><i class="fas fa-file-code" aria-hidden="true"></i><span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_XML'); ?></span></a>
                                 <?php endif; ?>

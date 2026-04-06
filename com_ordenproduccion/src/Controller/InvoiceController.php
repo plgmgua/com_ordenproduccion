@@ -368,7 +368,7 @@ class InvoiceController extends BaseController
     /**
      * Stream mock FEL PDF/XML from disk with correct Content-Type (avoids saving HTML/login pages as .pdf).
      *
-     * GET: invoice_id, type=pdf|xml, and CSRF token (same as other tasks).
+     * GET: invoice_id, type=pdf|xml, CSRF token, optional download=1 (same as cotizacion.downloadPdf: inline in browser by default).
      *
      * @return  void
      *
@@ -463,12 +463,15 @@ class InvoiceController extends BaseController
         $invNum = \preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($inv->invoice_number ?? ('FAC-' . $invoiceId)));
         $fname  = $kind === 'xml' ? $invNum . '-fel.xml' : $invNum . '-fel.pdf';
         $mime   = $kind === 'xml' ? 'application/xml' : 'application/pdf';
+        // Match cotizacion.downloadPdf: open in browser unless download=1 (force attachment).
+        $forceDownload = (int) $this->input->getInt('download', 0) === 1;
+        $disposition     = $forceDownload ? 'attachment' : 'inline';
 
         if (\method_exists($app, 'clearHeaders')) {
             $app->clearHeaders();
         }
         $app->setHeader('Content-Type', $mime, true);
-        $app->setHeader('Content-Disposition', 'attachment; filename="' . $fname . '"', true);
+        $app->setHeader('Content-Disposition', $disposition . '; filename="' . $fname . '"', true);
         $app->setHeader('Content-Length', (string) $size, true);
         $app->setHeader('Cache-Control', 'private, max-age=0', true);
         $app->sendHeaders();

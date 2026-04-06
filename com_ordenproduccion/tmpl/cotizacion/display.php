@@ -254,7 +254,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'pdf'), ENT_QUOTES, 'UTF-8'); ?>">PDF</a>
                         <?php endif; ?>
                         <?php if (!empty($felInv->fel_local_xml_path)) : ?>
-                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'xml'), ENT_QUOTES, 'UTF-8'); ?>">XML</a>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'xml', true), ENT_QUOTES, 'UTF-8'); ?>">XML</a>
                         <?php endif; ?>
                         <a class="btn btn-sm btn-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $felInv->id); ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_OPEN_INVOICE', 'Open invoice', 'Abrir factura')); ?></a>
                     <?php elseif ($felStatus === 'failed') : ?>

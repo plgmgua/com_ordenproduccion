@@ -22,12 +22,15 @@ class FelInvoiceHelper
     /**
      * Absolute non-SEF URL for invoice.downloadFelArtifact with CSRF token in query string.
      *
-     * @param   int     $invoiceId  Invoice primary key
-     * @param   string  $type       pdf|xml
+     * Same behaviour as cotizacion.downloadPdf: PDF opens in the browser (inline) unless $forceDownload is true (adds download=1).
+     *
+     * @param   int     $invoiceId      Invoice primary key
+     * @param   string  $type           pdf|xml
+     * @param   bool    $forceDownload  If true, send Content-Disposition attachment (save file)
      *
      * @return  string
      */
-    public static function downloadFelArtifactUrl(int $invoiceId, string $type = 'pdf'): string
+    public static function downloadFelArtifactUrl(int $invoiceId, string $type = 'pdf', bool $forceDownload = false): string
     {
         $type = ($type === 'xml') ? 'xml' : 'pdf';
         $params = [
@@ -36,6 +39,9 @@ class FelInvoiceHelper
             'invoice_id' => $invoiceId,
             'type'       => $type,
         ];
+        if ($forceDownload) {
+            $params['download'] = '1';
+        }
         $params[Session::getFormToken()] = '1';
         $root = rtrim(Uri::root(false), '/');
 
