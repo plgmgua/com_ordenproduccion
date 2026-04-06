@@ -38,6 +38,8 @@ class FelInvoiceHelper
             'task'       => 'invoice.downloadFelArtifact',
             'invoice_id' => $invoiceId,
             'type'       => $type,
+            'format'     => 'raw',
+            'tmpl'       => 'component',
         ];
         if ($forceDownload) {
             $params['download'] = '1';

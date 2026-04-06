@@ -29,6 +29,11 @@ class Dispatcher extends ComponentDispatcher
 
         $task = $this->input->getCmd('task', '');
         $taskLower = strtolower($task);
+        // Raw binary responses (PDF/XML) must not run through the full HTML template; same pattern as exportInvoicesExcel &format=raw.
+        if ($taskLower === 'invoice.downloadfelartifact') {
+            $this->input->set('format', 'raw');
+            $this->input->set('tmpl', 'component');
+        }
         $isWebhookTask = in_array($taskLower, ['webhook.test', 'webhook.process', 'webhook.health', 'webhook.pendingprecotizaciones'], true);
 
         // Log any request that might be targeting the pending-precotizaciones endpoint (so 404s show in webhook file log)
