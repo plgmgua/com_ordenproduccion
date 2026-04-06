@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.102.3-STABLE] - 2026-04-06
+
+### Fixed
+- **Backend dashboard:** etiquetas de **Aprobaciones** usando `getButtonLabel()` (fallback *Approvals* / texto de título en inglés si no carga el .ini) y carga explícita de `com_ordenproduccion` desde `administrator/components/com_ordenproduccion` en `Dashboard` HtmlView para evitar claves COM_… sin traducir.
+
 ## [3.102.2-STABLE] - 2026-04-06
 
 ### Added

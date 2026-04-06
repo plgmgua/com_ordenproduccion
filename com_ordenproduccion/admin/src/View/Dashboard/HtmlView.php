@@ -86,6 +86,12 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
+        // Ensure component admin strings load (avoids raw COM_… keys if system .ini was not copied yet)
+        Factory::getApplication()->getLanguage()->load(
+            'com_ordenproduccion',
+            JPATH_ADMINISTRATOR . '/components/com_ordenproduccion'
+        );
+
         $this->statistics = $this->get('Statistics');
         $this->recentOrders = $this->get('RecentOrders');
         $this->calendarData = $this->get('CalendarData');

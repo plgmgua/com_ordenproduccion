@@ -60,9 +60,9 @@ $siteAdminAprobacionesUrl = htmlspecialchars(
                 <i class="icon-list"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_VIEW_ORDERS', 'View Orders'); ?>
             </a>
-            <a href="<?php echo $siteAdminAprobacionesUrl; ?>" class="btn btn-sm btn-outline-success" title="<?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES_TITLE'); ?>">
+            <a href="<?php echo $siteAdminAprobacionesUrl; ?>" class="btn btn-sm btn-outline-success" title="<?php echo htmlspecialchars($this->getButtonLabel('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES_TITLE', 'Open the site Administración view (Aprobaciones tab)'), ENT_QUOTES, 'UTF-8'); ?>">
                 <i class="icon-ok"></i>
-                <?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES'); ?>
+                <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES', 'Approvals'); ?>
             </a>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=technicians'); ?>" class="btn btn-sm btn-outline-primary">
                 <i class="icon-users"></i>
@@ -260,9 +260,9 @@ $siteAdminAprobacionesUrl = htmlspecialchars(
                             <i class="icon-list"></i>
                             <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_ORDERS', 'Orders'); ?>
                         </a>
-                        <a href="<?php echo $siteAdminAprobacionesUrl; ?>" class="btn btn-sm btn-outline-success" title="<?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES_TITLE'); ?>">
+                        <a href="<?php echo $siteAdminAprobacionesUrl; ?>" class="btn btn-sm btn-outline-success" title="<?php echo htmlspecialchars($this->getButtonLabel('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES_TITLE', 'Open the site Administración view (Aprobaciones tab)'), ENT_QUOTES, 'UTF-8'); ?>">
                             <i class="icon-ok"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES'); ?>
+                            <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_DASHBOARD_APROBACIONES', 'Approvals'); ?>
                         </a>
                         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=technicians'); ?>" class="btn btn-sm btn-outline-primary">
                             <i class="icon-users"></i>
