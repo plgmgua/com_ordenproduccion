@@ -191,15 +191,29 @@ class CotizacionPdfHelper
             return '';
         }
         $text = str_replace("\xc2\xa0", ' ', $text);
+        // Drop invalid UTF-8 byte sequences (DB / paste) so iconv does not emit stray UTF-8 bytes.
+        if (function_exists('iconv')) {
+            $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $text);
+            if ($clean !== false) {
+                $text = $clean;
+            }
+        }
+        // Strip supplementary-plane chars (emoji); FPDF core fonts cannot render them and they can corrupt streams.
+        if (function_exists('preg_replace')) {
+            $text = (string) preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', $text);
+        }
         if (function_exists('iconv')) {
             $converted = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
             if ($converted !== false) {
-                return $converted;
+                return str_replace("\0", '', $converted);
             }
         }
         if (function_exists('mb_convert_encoding')) {
-            return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+            $converted = mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+
+            return str_replace("\0", '', (string) $converted);
         }
-        return $text;
+
+        return str_replace("\0", '', $text);
     }
 }

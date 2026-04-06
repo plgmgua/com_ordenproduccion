@@ -706,7 +706,13 @@ class FelInvoiceIssuanceService
                     continue;
                 }
                 $r    = $this->resolveQuotationLineTotals($row);
-                $desc = $enc(\trim((string) ($row->descripcion ?? '')));
+                $rawDesc = \trim((string) ($row->descripcion ?? ''));
+                if (\function_exists('mb_substr')) {
+                    $rawDesc = \mb_substr($rawDesc, 0, 4000, 'UTF-8');
+                } else {
+                    $rawDesc = \substr($rawDesc, 0, 4000);
+                }
+                $desc = $enc($rawDesc);
                 $qty  = $r['qty'];
                 $qtyStr = (\abs($qty - \round($qty)) < 0.0001)
                     ? (string) (int) \round($qty)
@@ -747,7 +753,8 @@ class FelInvoiceIssuanceService
         @\ob_end_clean();
 
         $head = @\file_get_contents($absPath, false, null, 0, 5);
-        if ($head !== '%PDF-') {
+        $len  = (int) @\filesize($absPath);
+        if ($head !== '%PDF-' || $len < 64) {
             $this->writeMinimalValidFelMockPdf($absPath, $quotation, $lines, $response);
         }
     }

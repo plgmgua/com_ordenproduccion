@@ -434,6 +434,32 @@ class InvoiceController extends BaseController
             return;
         }
 
+        $size = @\filesize($abs);
+        if ($size === false || $size < 24) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        if ($kind === 'pdf') {
+            $head = @\file_get_contents($abs, false, null, 0, 5);
+            if ($head !== '%PDF-') {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+                return;
+            }
+        }
+
+        // Binary body must not be prefixed by buffer output or zlib (breaks Chrome PDF viewer).
+        if (\function_exists('ini_set')) {
+            @\ini_set('zlib.output_compression', '0');
+        }
+        while (\ob_get_level() > 0) {
+            \ob_end_clean();
+        }
+
         $invNum = \preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($inv->invoice_number ?? ('FAC-' . $invoiceId)));
         $fname  = $kind === 'xml' ? $invNum . '-fel.xml' : $invNum . '-fel.pdf';
         $mime   = $kind === 'xml' ? 'application/xml' : 'application/pdf';
@@ -443,7 +469,7 @@ class InvoiceController extends BaseController
         }
         $app->setHeader('Content-Type', $mime, true);
         $app->setHeader('Content-Disposition', 'attachment; filename="' . $fname . '"', true);
-        $app->setHeader('Content-Length', (string) \filesize($abs), true);
+        $app->setHeader('Content-Length', (string) $size, true);
         $app->setHeader('Cache-Control', 'private, max-age=0', true);
         $app->sendHeaders();
         \readfile($abs);
