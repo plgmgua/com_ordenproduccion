@@ -354,4 +354,56 @@ class AccessHelper
     {
         return self::hasOrderAccess();
     }
+
+    /**
+     * Count of pending approval step rows for the current user (internal workflow engine).
+     *
+     * @param   int|null  $userId  User id or null for current user
+     *
+     * @return  int
+     */
+    public static function getPendingApprovalCountForUser($userId = null)
+    {
+        $user = Factory::getUser();
+        $uid  = $userId !== null ? (int) $userId : (int) $user->id;
+
+        if ($uid < 1) {
+            return 0;
+        }
+
+        $db = Factory::getDbo();
+        $q  = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_approval_request_steps', 's'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_approval_requests', 'r') . ' ON '
+                . $db->quoteName('r.id') . ' = ' . $db->quoteName('s.request_id')
+            )
+            ->where($db->quoteName('s.approver_user_id') . ' = ' . $uid)
+            ->where($db->quoteName('s.status') . ' = ' . $db->quote('pending'))
+            ->where($db->quoteName('r.status') . ' = ' . $db->quote('pending'))
+            ->where($db->quoteName('s.step_number') . ' = ' . $db->quoteName('r.current_step_number'));
+
+        try {
+            $db->setQuery($q);
+
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Whether the Administración frontend may show the Aprobaciones tab (pending items or admin).
+     *
+     * @return  bool
+     */
+    public static function canViewApprovalWorkflowTab()
+    {
+        if (self::isSuperUser() || self::isInAdministracionOrAdmonGroup()) {
+            return true;
+        }
+
+        return self::getPendingApprovalCountForUser() > 0;
+    }
 }

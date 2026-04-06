@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.102.0-STABLE] - 2026-04-06
+
+### Added
+- **Motor de aprobaciones (Option B, fase 1):** tablas `#__ordenproduccion_approval_*` (definiciones de flujo, pasos, solicitudes, filas por aprobador, auditoría, cola de correo), datos semilla por tipo de entidad (`cotizacion_confirmation`, `orden_status`, `timesheet`, `payment_proof`) con un paso y grupo **Administracion**. Migración `admin/sql/updates/mysql/3.102.0.sql`; mismo DDL en `install.mysql.utf8.sql` para instalaciones nuevas. Manifest: `<install>` / `<update><schemas>` para aplicar SQL en actualizaciones Joomla.
+- **`ApprovalWorkflowService`:** crear solicitud, listar pendientes del usuario, aprobar/rechazar/cancelar, avance multi-paso (any-one vs all-must), cola de notificaciones mínima vía `ApprovalEmailQueueHelper`; hooks `onRequestFullyApproved` / `onRequestRejected` reservados para integración con cotizaciones/órdenes/etc.
+- **`AccessHelper`:** `getPendingApprovalCountForUser()`, `canViewApprovalWorkflowTab()` para la pestaña de UI en una fase posterior.
+
 ## [3.101.46-STABLE] - 2026-04-01
 
 ### Added
