@@ -17,6 +17,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 
 $l = function($key, $fallbackEn, $fallbackEs = null) {
     $t = Text::_($key);
@@ -250,10 +251,10 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <span class="badge bg-success"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_STATUS_DONE', 'Issued', 'Emitida')); ?></span>
                         <span class="small"><?php echo htmlspecialchars($felInv->invoice_number ?? ''); ?></span>
                         <?php if (!empty($felInv->fel_local_pdf_path)) : ?>
-                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadFelArtifact&invoice_id=' . (int) $felInv->id . '&type=pdf&' . Session::getFormToken() . '=1')); ?>">PDF</a>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'pdf'), ENT_QUOTES, 'UTF-8'); ?>">PDF</a>
                         <?php endif; ?>
                         <?php if (!empty($felInv->fel_local_xml_path)) : ?>
-                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadFelArtifact&invoice_id=' . (int) $felInv->id . '&type=xml&' . Session::getFormToken() . '=1')); ?>">XML</a>
+                        <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'xml'), ENT_QUOTES, 'UTF-8'); ?>">XML</a>
                         <?php endif; ?>
                         <a class="btn btn-sm btn-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $felInv->id); ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FEL_ISSUE_OPEN_INVOICE', 'Open invoice', 'Abrir factura')); ?></a>
                     <?php elseif ($felStatus === 'failed') : ?>
