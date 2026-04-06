@@ -804,6 +804,7 @@ class HtmlView extends BaseHtmlView
                             $this->invoicesPagination->setAdditionalUrlParam('filter_fecha_to', $st->get('filter.fecha_to', ''));
                             $this->invoicesPagination->setAdditionalUrlParam('filter_total_min', $st->get('filter.total_min', ''));
                             $this->invoicesPagination->setAdditionalUrlParam('filter_total_max', $st->get('filter.total_max', ''));
+                            $this->invoicesPagination->setAdditionalUrlParam('filter_tipo', $st->get('filter.tipo', ''));
                         }
                     } else {
                         $this->invoices = [];

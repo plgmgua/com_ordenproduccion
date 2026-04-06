@@ -15,7 +15,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
-use Joomla\Database\DatabaseInterface;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 class InvoicesModel extends ListModel
 {
@@ -57,6 +57,17 @@ class InvoicesModel extends ListModel
         $cliente = trim((string) $this->getState('filter.cliente', ''));
         if ($cliente !== '') {
             $query->where($db->quoteName('i.client_name') . ' LIKE ' . $db->quote('%' . $db->escape($cliente, true) . '%'));
+        }
+
+        // Filter by Tipo (valid vs mock-up cotización FEL)
+        $tipo = (string) $this->getState('filter.tipo', '');
+        if ($tipo === 'mockup') {
+            $query->where($db->quoteName('i.invoice_source') . ' = ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP));
+        } elseif ($tipo === 'valid') {
+            $query->where(
+                '(' . $db->quoteName('i.invoice_source') . ' IS NULL OR '
+                . $db->quoteName('i.invoice_source') . ' != ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP) . ')'
+            );
         }
 
         // Filter by Fecha (date range: use fel_fecha_emision or invoice_date)
@@ -102,6 +113,8 @@ class InvoicesModel extends ListModel
 
         $this->setState('filter.nit', $app->getUserStateFromRequest($this->context . '.filter.nit', 'filter_nit', '', 'string'));
         $this->setState('filter.cliente', $app->getUserStateFromRequest($this->context . '.filter.cliente', 'filter_cliente', '', 'string'));
+        $tipoRaw = strtolower(trim((string) $app->getUserStateFromRequest($this->context . '.filter.tipo', 'filter_tipo', '', 'string')));
+        $this->setState('filter.tipo', \in_array($tipoRaw, ['valid', 'mockup'], true) ? $tipoRaw : '');
         $this->setState('filter.fecha_from', $app->getUserStateFromRequest($this->context . '.filter.fecha_from', 'filter_fecha_from', '', 'string'));
         $this->setState('filter.fecha_to', $app->getUserStateFromRequest($this->context . '.filter.fecha_to', 'filter_fecha_to', '', 'string'));
         $this->setState('filter.total_min', $app->getUserStateFromRequest($this->context . '.filter.total_min', 'filter_total_min', '', 'string'));

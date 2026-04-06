@@ -233,6 +233,8 @@ class AdministracionController extends BaseController
         $model->setState('filter.fecha_to', $input->getString('filter_fecha_to', ''));
         $model->setState('filter.total_min', $input->getString('filter_total_min', ''));
         $model->setState('filter.total_max', $input->getString('filter_total_max', ''));
+        $tipoRaw = strtolower(trim($input->getString('filter_tipo', '')));
+        $model->setState('filter.tipo', \in_array($tipoRaw, ['valid', 'mockup'], true) ? $tipoRaw : '');
         $model->setState('list.limit', 999999);
         $model->setState('list.start', 0);
 

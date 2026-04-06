@@ -698,6 +698,7 @@ tr.invoice-row-mockup { background: #fffbf5; }
     $filterFechaTo   = $state->get('filter.fecha_to', '');
     $filterTotalMin  = $state->get('filter.total_min', '');
     $filterTotalMax  = $state->get('filter.total_max', '');
+    $filterTipo      = (string) $state->get('filter.tipo', '');
     ?>
     <form id="adminForm" method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" 
           class="search-filter-bar">
@@ -716,6 +717,11 @@ tr.invoice-row-mockup { background: #fffbf5; }
         <input type="date" name="filter_fecha_to" placeholder="Fecha hasta" value="<?php echo htmlspecialchars($filterFechaTo); ?>" title="Fecha hasta" />
         <input type="number" name="filter_total_min" placeholder="Total min" value="<?php echo htmlspecialchars($filterTotalMin); ?>" step="0.01" min="0" title="Total mínimo (Q)" />
         <input type="number" name="filter_total_max" placeholder="Total max" value="<?php echo htmlspecialchars($filterTotalMax); ?>" step="0.01" min="0" title="Total máximo (Q)" />
+        <select name="filter_tipo" class="form-select form-select-sm" style="max-width: 12rem;" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICES_FILTER_TIPO'), ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICES_FILTER_TIPO'), ENT_QUOTES, 'UTF-8'); ?>">
+            <option value=""><?php echo Text::_('JALL'); ?></option>
+            <option value="valid"<?php echo $filterTipo === 'valid' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID'); ?></option>
+            <option value="mockup"<?php echo $filterTipo === 'mockup' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP'); ?></option>
+        </select>
         <button type="submit">
             <i class="fas fa-search"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_FILTER'); ?>
@@ -741,6 +747,7 @@ tr.invoice-row-mockup { background: #fffbf5; }
         $exportUrl .= '&filter_fecha_to=' . rawurlencode($state->get('filter.fecha_to', ''));
         $exportUrl .= '&filter_total_min=' . rawurlencode($state->get('filter.total_min', ''));
         $exportUrl .= '&filter_total_max=' . rawurlencode($state->get('filter.total_max', ''));
+        $exportUrl .= '&filter_tipo=' . rawurlencode($state->get('filter.tipo', ''));
         ?>
         <a href="<?php echo $exportUrl; ?>" class="btn btn-success btn-sm" target="_blank" rel="noopener">
             <i class="fas fa-file-excel"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_EXPORT_EXCEL'); ?>
@@ -896,6 +903,7 @@ tr.invoice-row-mockup { background: #fffbf5; }
                         $baseUrl .= '&filter_fecha_to=' . rawurlencode($state->get('filter.fecha_to', ''));
                         $baseUrl .= '&filter_total_min=' . rawurlencode($state->get('filter.total_min', ''));
                         $baseUrl .= '&filter_total_max=' . rawurlencode($state->get('filter.total_max', ''));
+                        $baseUrl .= '&filter_tipo=' . rawurlencode($state->get('filter.tipo', ''));
                         ?>
                         <nav aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_PAGINATION'); ?>">
                             <ul class="pagination justify-content-center flex-wrap">
