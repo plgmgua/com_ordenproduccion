@@ -210,7 +210,7 @@ use Joomla\CMS\Router\Route;
                     </div>
                     <div class="card-body">
                         <p class="text-muted small mb-3">
-                            <?php echo $l('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_DESC', 'Choose which user groups can see each action button in the work order list (Create Invoice, Register payment receipt, View payment information, Request cancellation). Leave a list empty to use the component default.', 'Elija qué grupos de usuario pueden ver cada botón de acción en la lista de órdenes (Crear Factura, Registrar comprobante de pago, Ver información de pago, Solicitar anulación). Deje una lista vacía para usar el valor por defecto del componente.'); ?>
+                            <?php echo $l('COM_ORDENPRODUCCION_ORDENES_ACTIONS_ACCESS_DESC', 'Choose which user groups can see each action button in the work order list (Create Invoice, Register payment receipt, View payment information, Open invoice, Request cancellation). Leave a list empty to use the component default.', 'Elija qué grupos de usuario pueden ver cada botón de acción en la lista de órdenes (Crear Factura, Registrar comprobante de pago, Ver información de pago, Abrir factura, Solicitar anulación). Deje una lista vacía para usar el valor por defecto del componente.'); ?>
                         </p>
                         <?php
                         $usergroups = isset($this->item->usergroups) ? $this->item->usergroups : [];
@@ -218,6 +218,7 @@ use Joomla\CMS\Router\Route;
                             'ordenes_btn_crear_factura_groups' => ['COM_ORDENPRODUCCION_CREATE_INVOICE', 'Create Invoice', 'Crear Factura'],
                             'ordenes_btn_registrar_pago_groups' => ['COM_ORDENPRODUCCION_REGISTER_PAYMENT_PROOF', 'Register payment receipt', 'Registrar comprobante de pago'],
                             'ordenes_btn_payment_info_groups'   => ['COM_ORDENPRODUCCION_VIEW_PAYMENT_INFO', 'View payment information', 'Ver información de pago'],
+                            'ordenes_btn_open_invoice_groups'   => ['COM_ORDENPRODUCCION_OPEN_LINKED_INVOICE', 'Open invoice', 'Abrir factura'],
                             'ordenes_btn_solicitar_anulacion_groups' => ['COM_ORDENPRODUCCION_SOLICITAR_ANULACION', 'Request cancellation', 'Solicitar anulación'],
                         ];
                         foreach ($btnKeys as $name => $labelData) :

@@ -76,7 +76,7 @@ class HtmlView extends BaseHtmlView
 
     /**
      * Allowed group IDs per ordenes list action button (from backend settings).
-     * Keys: crear_factura, registrar_pago, payment_info, solicitar_anulacion.
+     * Keys: crear_factura, registrar_pago, payment_info, open_invoice, solicitar_anulacion.
      * Value: int[] or empty array if use component default.
      *
      * @var    array
@@ -302,7 +302,7 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Whether the user may open the invoice detail view (same ACL as site Invoice view).
+     * Whether to show "Open invoice" when the order has a linked invoice. Uses backend-configured groups if set; else Administración/Admon.
      *
      * @return  bool
      *
@@ -310,13 +310,18 @@ class HtmlView extends BaseHtmlView
      */
     public function canOpenInvoiceFromOrdenesList()
     {
-        return AccessHelper::isInAdministracionOrAdmonGroup();
+        $groups = $this->ordenesButtonAccess['open_invoice'] ?? [];
+        if ($groups === []) {
+            return AccessHelper::isInAdministracionOrAdmonGroup();
+        }
+
+        return $this->userInGroups($groups);
     }
 
     /**
      * Load allowed user group IDs per ordenes list action button from #__ordenproduccion_config.
      *
-     * @return  array  Keys: crear_factura, registrar_pago, payment_info, solicitar_anulacion. Values: int[].
+     * @return  array  Keys: crear_factura, registrar_pago, payment_info, open_invoice, solicitar_anulacion. Values: int[].
      * @since   1.0.0
      */
     protected function getOrdenesButtonAccessConfig()
@@ -325,6 +330,7 @@ class HtmlView extends BaseHtmlView
             'crear_factura' => 'ordenes_btn_crear_factura_groups',
             'registrar_pago' => 'ordenes_btn_registrar_pago_groups',
             'payment_info'   => 'ordenes_btn_payment_info_groups',
+            'open_invoice'   => 'ordenes_btn_open_invoice_groups',
             'solicitar_anulacion' => 'ordenes_btn_solicitar_anulacion_groups',
         ];
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
@@ -338,6 +344,7 @@ class HtmlView extends BaseHtmlView
             'crear_factura' => [],
             'registrar_pago' => [],
             'payment_info'   => [],
+            'open_invoice'   => [],
             'solicitar_anulacion' => [],
         ];
         $keyToOut = array_flip($keys);

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.103.7-STABLE] - 2026-04-06
+
+### Added
+- **Ajustes (backend) — Lista de órdenes / botones de acción:** selector de grupos para **Abrir factura** (orden con factura vinculada), igual que Crear factura, comprobante de pago, etc. Lista vacía = valor por defecto **Administración/Admon** (`canOpenInvoiceFromOrdenesList`).
+
 ## [3.103.6-STABLE] - 2026-04-06
 
 ### Fixed

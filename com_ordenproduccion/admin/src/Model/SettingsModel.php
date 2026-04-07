@@ -108,6 +108,7 @@ class SettingsModel extends BaseModel
             $settings->ordenes_btn_registrar_pago_groups = $this->getConfigButtonGroups('ordenes_btn_registrar_pago_groups');
             $settings->ordenes_btn_payment_info_groups = $this->getConfigButtonGroups('ordenes_btn_payment_info_groups');
             $settings->ordenes_btn_solicitar_anulacion_groups = $this->getConfigButtonGroups('ordenes_btn_solicitar_anulacion_groups');
+            $settings->ordenes_btn_open_invoice_groups = $this->getConfigButtonGroups('ordenes_btn_open_invoice_groups');
             $settings->usergroups = $this->getUsergroups();
             return $settings;
             
@@ -208,6 +209,7 @@ class SettingsModel extends BaseModel
             $this->saveConfigButtonGroups('ordenes_btn_registrar_pago_groups', isset($data['ordenes_btn_registrar_pago_groups']) ? $data['ordenes_btn_registrar_pago_groups'] : []);
             $this->saveConfigButtonGroups('ordenes_btn_payment_info_groups', isset($data['ordenes_btn_payment_info_groups']) ? $data['ordenes_btn_payment_info_groups'] : []);
             $this->saveConfigButtonGroups('ordenes_btn_solicitar_anulacion_groups', isset($data['ordenes_btn_solicitar_anulacion_groups']) ? $data['ordenes_btn_solicitar_anulacion_groups'] : []);
+            $this->saveConfigButtonGroups('ordenes_btn_open_invoice_groups', isset($data['ordenes_btn_open_invoice_groups']) ? $data['ordenes_btn_open_invoice_groups'] : []);
             Factory::getApplication()->enqueueMessage('Settings saved successfully', 'success');
             return true;
         } catch (\Exception $e) {
