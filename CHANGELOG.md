@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.103.8-STABLE] - 2026-04-06
+
+### Changed
+- **Vista factura (`view=invoice&id=`):** usuarios **Ventas** (incl. Ventas+Producción) pueden abrir una factura solo si está vinculada a al menos una orden de trabajo publicada cuyo `sales_agent` coincide con el usuario (misma regla que cotización PDF). Administración/Admon y superusuario siguen viendo todas. Redirección de error: **Ventas** → lista de órdenes; **admin** → pestaña Facturas.
+- **PDF adjunto manual:** descarga/iframe usa la misma regla; el **formulario de subida** y **asociar orden FEL** siguen solo para Administración/Admon.
+
 ## [3.103.7-STABLE] - 2026-04-06
 
 ### Added

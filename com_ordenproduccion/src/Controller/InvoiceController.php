@@ -361,17 +361,17 @@ class InvoiceController extends BaseController
             return;
         }
 
-        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
-            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
-
-            return;
-        }
-
         $invoiceId = $this->input->getInt('invoice_id', 0);
-        if ($invoiceId < 1) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+        if ($invoiceId < 1 || !AccessHelper::canViewInvoiceDetail($invoiceId)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
 
             return;
         }
@@ -380,7 +380,14 @@ class InvoiceController extends BaseController
         $inv   = $model ? $model->getItem($invoiceId) : null;
         if (!$inv) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
 
             return;
         }

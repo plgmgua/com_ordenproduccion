@@ -52,17 +52,33 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        // Invoices (Facturas) are only visible to Administrator or Admon user groups
-        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
-            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
-            return;
-        }
-
         $id = $app->input->getInt('id', 0);
         if ($id <= 0) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
+
+            return;
+        }
+
+        // Administracion/Admon: all invoices. Ventas: invoice must be linked to own work order(s) only.
+        if (!AccessHelper::canViewInvoiceDetail($id)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
+
             return;
         }
 
@@ -77,7 +93,15 @@ class HtmlView extends BaseHtmlView
 
         if (!$this->item) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
+
             return;
         }
 

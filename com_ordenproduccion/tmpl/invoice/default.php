@@ -253,7 +253,7 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
                 <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NO_ORDEN_LINKED'); ?></p>
             <?php endif; ?>
 
-            <?php if ($isFel && $matchTbl) : ?>
+            <?php if ($isFel && $matchTbl && AccessHelper::isInAdministracionOrAdmonGroup()) : ?>
                 <?php if (!empty($detailDropdown)) : ?>
                 <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.associateOrden'); ?>" class="d-flex flex-wrap align-items-end gap-2">
                     <?php echo HTMLHelper::_('form.token'); ?>
@@ -280,9 +280,14 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
                 <?php endif; ?>
             <?php endif; ?>
 
-            <?php if ($allowManualPdf) : ?>
+            <?php
+            $invoiceDetailAdmin = AccessHelper::isInAdministracionOrAdmonGroup();
+            $showManualPdfBlock = $allowManualPdf && ($invoiceDetailAdmin || ($manualPdfRel !== '' && $manualPdfUrl !== ''));
+            ?>
+            <?php if ($showManualPdfBlock) : ?>
             <div class="mt-3 pt-2 border-top invoice-manual-pdf-block">
                 <div class="fw-bold small mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_SECTION'); ?></div>
+                <?php if ($invoiceDetailAdmin) : ?>
                 <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_HELP'); ?></p>
                 <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.uploadManualPdf'); ?>" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2 mb-3">
                     <?php echo HTMLHelper::_('form.token'); ?>
@@ -293,6 +298,7 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
                     </div>
                     <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_UPLOAD'); ?></button>
                 </form>
+                <?php endif; ?>
                 <?php if ($manualPdfRel !== '' && $manualPdfUrl !== '') : ?>
                 <p class="small mb-2">
                     <a href="<?php echo htmlspecialchars($manualPdfUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer" class="text-decoration-none">

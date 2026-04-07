@@ -309,6 +309,140 @@ class AccessHelper
     }
 
     /**
+     * Collect work order IDs linked to an invoice: legacy orden_id on the invoice row and/or approved rows in invoice_orden_suggestions.
+     *
+     * @param   int  $invoiceId  Published invoice id
+     *
+     * @return  int[]
+     *
+     * @since   3.103.8
+     */
+    public static function getOrderIdsLinkedToInvoice(int $invoiceId): array
+    {
+        if ($invoiceId <= 0) {
+            return [];
+        }
+
+        $db   = Factory::getDbo();
+        $seen = [];
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('orden_id'))
+                    ->from($db->quoteName('#__ordenproduccion_invoices'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $invoiceId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $legacyOid = (int) $db->loadResult();
+            if ($legacyOid > 0) {
+                $seen[$legacyOid] = true;
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        try {
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $want   = $prefix . 'ordenproduccion_invoice_orden_suggestions';
+            $has    = false;
+            foreach ($tables as $t) {
+                if (strcasecmp((string) $t, $want) === 0) {
+                    $has = true;
+                    break;
+                }
+            }
+            if (!$has) {
+                return array_map('intval', array_keys($seen));
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('DISTINCT ' . $db->quoteName('orden_id'))
+                    ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                    ->where($db->quoteName('invoice_id') . ' = ' . (int) $invoiceId)
+                    ->where($db->quoteName('status') . ' = ' . $db->quote('approved'))
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $rows = $db->loadColumn() ?: [];
+            foreach ($rows as $oid) {
+                $oid = (int) $oid;
+                if ($oid > 0) {
+                    $seen[$oid] = true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return array_map('intval', array_keys($seen));
+    }
+
+    /**
+     * Whether the user may open the single invoice detail view (view=invoice&id=).
+     * Administracion/Admon or global super user: all invoices. Ventas (including Ventas+Produccion): only if the invoice
+     * is linked to at least one published work order whose sales_agent matches the current user. Others: denied.
+     *
+     * @param   int  $invoiceId  Invoice primary key
+     *
+     * @return  bool
+     *
+     * @since   3.103.8
+     */
+    public static function canViewInvoiceDetail(int $invoiceId): bool
+    {
+        if ($invoiceId <= 0) {
+            return false;
+        }
+
+        if (self::isSuperUser()) {
+            return true;
+        }
+
+        if (self::isInAdministracionOrAdmonGroup()) {
+            return true;
+        }
+
+        if (!self::isInVentasGroup()) {
+            return false;
+        }
+
+        $user   = Factory::getUser();
+        $myName = trim((string) $user->name);
+        if ($myName === '') {
+            return false;
+        }
+
+        $orderIds = self::getOrderIdsLinkedToInvoice($invoiceId);
+        if ($orderIds === []) {
+            return false;
+        }
+
+        $db  = Factory::getDbo();
+        $ids = implode(',', array_map('intval', $orderIds));
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([$db->quoteName('id'), $db->quoteName('sales_agent')])
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('id') . ' IN (' . $ids . ')')
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $rows = $db->loadObjectList() ?: [];
+            foreach ($rows as $row) {
+                if (trim((string) ($row->sales_agent ?? '')) === $myName) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
      * Get user's access level description
      *
      * @return  string
