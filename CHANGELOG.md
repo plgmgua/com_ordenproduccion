@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.103.5-STABLE] - 2026-04-06
+
+### Fixed
+- **Factura — PDF adjunto manual:** validación CSRF en `invoice.uploadManualPdf` con `Session::checkToken()` (equivalente a `request`) en lugar de `checkToken('post')`, para que el envío `multipart/form-data` no falle con *token de seguridad inválido* en algunos entornos.
+
 ## [3.102.3-STABLE] - 2026-04-06
 
 ### Fixed

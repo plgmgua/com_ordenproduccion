@@ -214,7 +214,8 @@ class InvoiceController extends BaseController
      */
     public function uploadManualPdf()
     {
-        if (!Session::checkToken('post')) {
+        // Use default (request), not post-only: multipart/form-data token must validate like other upload flows.
+        if (!Session::checkToken()) {
             $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
 
