@@ -343,7 +343,7 @@ class InvoiceController extends BaseController
     /**
      * Stream manually uploaded invoice PDF (administración only).
      *
-     * GET: invoice_id, CSRF token
+     * GET: invoice_id. Session cookie + group check (no CSRF in URL): safe for iframe and new tab without token mismatch.
      *
      * @return  void
      *
@@ -351,11 +351,12 @@ class InvoiceController extends BaseController
      */
     public function downloadManualPdf()
     {
-        $app = $this->app;
+        $app  = $this->app;
+        $user = Factory::getUser();
 
-        if (!Session::checkToken('request')) {
-            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
 
             return;
         }

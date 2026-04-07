@@ -12,7 +12,6 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
@@ -33,7 +32,7 @@ $allowManualPdf = !InvoiceListHelper::isMockupInvoice($item);
 $manualPdfRel   = trim((string) ($item->manual_pdf_path ?? ''));
 $manualPdfUrl   = '';
 if ($manualPdfRel !== '' && $allowManualPdf) {
-    $manualPdfUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadManualPdf&invoice_id=' . (int) ($item->id ?? 0) . '&' . Session::getFormToken() . '=1');
+    $manualPdfUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadManualPdf&invoice_id=' . (int) ($item->id ?? 0));
 }
 
 $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');

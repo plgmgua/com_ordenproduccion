@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.103.6-STABLE] - 2026-04-06
+
+### Fixed
+- **Factura — PDF adjunto (vista / iframe):** `invoice.downloadManualPdf` ya no exige token en la URL; solo sesión iniciada y grupo Administración/Admon. Igual que en comprobantes de pago, el PDF se sirve con `GET` estable para **iframe** y pestaña nueva sin errores de token.
+
 ## [3.103.5-STABLE] - 2026-04-06
 
 ### Fixed
