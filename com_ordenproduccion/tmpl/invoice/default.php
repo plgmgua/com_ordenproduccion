@@ -12,6 +12,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
@@ -40,9 +41,11 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
 <div class="com-ordenproduccion-invoice-detail invoice-pdf-style container py-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1 class="h5 mb-0"><?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?> <?php echo htmlspecialchars($item->invoice_number ?? ''); ?></h1>
+        <?php if (AccessHelper::isInAdministracionOrAdmonGroup()) : ?>
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_INVOICES', 'Volver a Facturas'); ?>
         </a>
+        <?php endif; ?>
     </div>
 
     <div class="invoice-pdf-layout border rounded p-3 bg-white">
