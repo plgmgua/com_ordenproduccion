@@ -12,6 +12,8 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
 $item = $this->item;
@@ -26,6 +28,13 @@ $l = function ($key, $fallback) {
     $t = Text::_($key);
     return ($t !== '' && $t !== $key) ? $t : $fallback;
 };
+
+$allowManualPdf = !InvoiceListHelper::isMockupInvoice($item);
+$manualPdfRel   = trim((string) ($item->manual_pdf_path ?? ''));
+$manualPdfUrl   = '';
+if ($manualPdfRel !== '' && $allowManualPdf) {
+    $manualPdfUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.downloadManualPdf&invoice_id=' . (int) ($item->id ?? 0) . '&' . Session::getFormToken() . '=1');
+}
 
 $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
 ?>
@@ -267,6 +276,29 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
                 <?php else : ?>
                 <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_NONE_AVAILABLE'); ?></p>
                 <?php endif; ?>
+            <?php endif; ?>
+
+            <?php if ($allowManualPdf) : ?>
+            <div class="mt-3 pt-2 border-top invoice-manual-pdf-block">
+                <div class="fw-bold small mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_SECTION'); ?></div>
+                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_HELP'); ?></p>
+                <?php if ($manualPdfRel !== '' && $manualPdfUrl !== '') : ?>
+                <p class="small mb-2">
+                    <a href="<?php echo htmlspecialchars($manualPdfUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                        <i class="fas fa-file-pdf text-danger"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_VIEW_LINK'); ?>
+                    </a>
+                </p>
+                <?php endif; ?>
+                <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.uploadManualPdf'); ?>" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+                    <div>
+                        <label for="invoice-manual-pdf-file" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_FILE_LABEL'); ?></label>
+                        <input type="file" name="manual_pdf" id="invoice-manual-pdf-file" class="form-control form-control-sm" accept=".pdf,application/pdf" style="max-width: 320px;" />
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_UPLOAD'); ?></button>
+                </form>
+            </div>
             <?php endif; ?>
         </div>
     </div>

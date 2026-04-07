@@ -19,7 +19,9 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
+use Joomla\Database\DatabaseInterface;
 
 class InvoiceController extends BaseController
 {
@@ -199,6 +201,240 @@ class InvoiceController extends BaseController
         }
 
         $this->setRedirect($back);
+    }
+
+    /**
+     * Upload a manual PDF attachment for a regular invoice (not mock cotización FEL).
+     *
+     * POST: invoice_id, manual_pdf (file)
+     *
+     * @return  void
+     *
+     * @since   3.103.3
+     */
+    public function uploadManualPdf()
+    {
+        if (!Session::checkToken('post')) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->post->getInt('invoice_id', 0);
+        $back        = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoiceId, false);
+
+        if ($invoiceId <= 0) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $model = $this->getModel('Invoice');
+        $inv   = $model ? $model->getItem($invoiceId) : null;
+        if (!$inv) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (InvoiceListHelper::isMockupInvoice($inv)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_MOCKUP_DISABLED'), 'notice');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+        $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['manual_pdf_path'])) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_DB_REQUIRED'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $file = $this->input->files->get('manual_pdf', null, 'array');
+        if (!\is_array($file) || empty($file['tmp_name']) || (int) ($file['error'] ?? 0) !== \UPLOAD_ERR_OK) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_NO_FILE'), 'warning');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $origName = (string) ($file['name'] ?? '');
+        $ext      = strtolower((string) pathinfo($origName, PATHINFO_EXTENSION));
+        if ($ext !== 'pdf') {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_NOT_PDF'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $maxBytes = 15 * 1024 * 1024;
+        if ((int) ($file['size'] ?? 0) > $maxBytes) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_TOO_LARGE'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/invoice_manual_pdf';
+        if (!is_dir($uploadDir)) {
+            if (!@mkdir($uploadDir, 0755, true)) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_DIR_ERROR'), 'error');
+                $this->setRedirect($back);
+
+                return;
+            }
+        }
+
+        $destName = 'invoice_' . $invoiceId . '_' . date('Ymd_His') . '_' . substr(sha1((string) microtime(true)), 0, 8) . '.pdf';
+        $destAbs  = $uploadDir . '/' . $destName;
+        $relPath  = 'media/com_ordenproduccion/invoice_manual_pdf/' . $destName;
+
+        if (!move_uploaded_file($file['tmp_name'], $destAbs)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_SAVE_ERROR'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $head = @\file_get_contents($destAbs, false, null, 0, 5);
+        if ($head !== '%PDF-') {
+            @unlink($destAbs);
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_NOT_PDF'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $oldRel = \trim((string) ($inv->manual_pdf_path ?? ''));
+        if ($oldRel !== '' && \strpos($oldRel, 'media/com_ordenproduccion/invoice_manual_pdf/') === 0) {
+            $oldAbs = JPATH_ROOT . '/' . \str_replace('\\', '/', $oldRel);
+            if (\is_file($oldAbs) && $oldAbs !== $destAbs) {
+                @unlink($oldAbs);
+            }
+        }
+
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_invoices'))
+            ->set($db->quoteName('manual_pdf_path') . ' = ' . $db->quote($relPath))
+            ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+            ->where($db->quoteName('id') . ' = ' . (int) $invoiceId);
+        $db->setQuery($query);
+        $db->execute();
+
+        $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_SUCCESS'), 'success');
+        $this->setRedirect($back);
+    }
+
+    /**
+     * Stream manually uploaded invoice PDF (administración only).
+     *
+     * GET: invoice_id, CSRF token
+     *
+     * @return  void
+     *
+     * @since   3.103.3
+     */
+    public function downloadManualPdf()
+    {
+        $app = $this->app;
+
+        if (!Session::checkToken('request')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->getInt('invoice_id', 0);
+        if ($invoiceId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $model = $this->getModel('Invoice');
+        $inv   = $model ? $model->getItem($invoiceId) : null;
+        if (!$inv) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $rel = \trim((string) ($inv->manual_pdf_path ?? ''));
+        if ($rel === '' || \strpos($rel, 'media/com_ordenproduccion/invoice_manual_pdf/') !== 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        $abs = JPATH_ROOT . '/' . \ltrim(\str_replace('\\', '/', $rel), '/');
+        if (!\is_file($abs)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        $size = @\filesize($abs);
+        if ($size === false || $size < 24) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        $head = @\file_get_contents($abs, false, null, 0, 5);
+        if ($head !== '%PDF-') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        if (\function_exists('ini_set')) {
+            @\ini_set('zlib.output_compression', '0');
+        }
+        while (\ob_get_level() > 0) {
+            \ob_end_clean();
+        }
+
+        $invNum = \preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($inv->invoice_number ?? ('FAC-' . $invoiceId)));
+        $fname  = $invNum . '-adjunto.pdf';
+
+        if (\method_exists($app, 'clearHeaders')) {
+            $app->clearHeaders();
+        }
+        $app->setHeader('Content-Type', 'application/pdf', true);
+        $app->setHeader('Content-Disposition', 'inline; filename="' . $fname . '"', true);
+        $app->setHeader('Content-Length', (string) $size, true);
+        $app->setHeader('Cache-Control', 'private, max-age=0', true);
+        $app->sendHeaders();
+        \readfile($abs);
+        $app->close();
     }
 
     /**
