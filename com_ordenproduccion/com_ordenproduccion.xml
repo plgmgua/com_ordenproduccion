@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.104.3-STABLE</version>
+    <version>3.104.4-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -96,6 +96,17 @@
                     min="1"
                     max="365"
                 />
+                <field
+                    name="approval_workflow_payment_proof"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_APPROVAL_WORKFLOW_PAYMENT_PROOF_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_APPROVAL_WORKFLOW_PAYMENT_PROOF_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
                 <field
                     name="margen_ganancia"
                     type="number"

@@ -7,6 +7,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Mail\MailerFactoryInterface;
@@ -568,8 +569,10 @@ class PaymentproofController extends BaseController
             return true;
         }
 
-        $wfSvc = new ApprovalWorkflowService();
-        if ($wfSvc->hasSchema()) {
+        // Optional: route verification through the approval workflow (off by default; direct verify).
+        $useApprovalWorkflow = (int) ComponentHelper::getParams('com_ordenproduccion')->get('approval_workflow_payment_proof', 0) === 1;
+        $wfSvc               = new ApprovalWorkflowService();
+        if ($useApprovalWorkflow && $wfSvc->hasSchema()) {
             if ($wfSvc->getOpenPendingRequest(
                 ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
                 $proofId

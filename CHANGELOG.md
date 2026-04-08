@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.104.4-STABLE] - 2026-04-06
+
+### Changed
+- **Comprobante de pago — Verificado:** por defecto ya **no** se usa el flujo de aprobaciones al marcar como verificado; se aplica `verification_status` al instante (como cuando no existía el esquema de aprobaciones). Opción nueva en la configuración del componente: *Flujo de aprobación al verificar comprobante de pago* (No/Sí) para volver al comportamiento anterior si hace falta.
+
 ## [3.104.3-STABLE] - 2026-04-06
 
 ### Fixed
