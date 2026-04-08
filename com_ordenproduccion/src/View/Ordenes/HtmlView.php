@@ -302,7 +302,9 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Whether to show "Open invoice" when the order has a linked invoice. Uses backend-configured groups if set; else Administración/Admon.
+     * Whether to show "Open invoice" when the order has a linked invoice.
+     * All members of the Produccion group always see this button (subject to linked_invoice_id in the row).
+     * Otherwise: backend-configured groups if set; else Administración/Admon.
      *
      * @return  bool
      *
@@ -310,6 +312,10 @@ class HtmlView extends BaseHtmlView
      */
     public function canOpenInvoiceFromOrdenesList()
     {
+        if (AccessHelper::isInProduccionGroup()) {
+            return true;
+        }
+
         $groups = $this->ordenesButtonAccess['open_invoice'] ?? [];
         if ($groups === []) {
             return AccessHelper::isInAdministracionOrAdmonGroup();

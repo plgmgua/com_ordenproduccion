@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.104.0-STABLE] - 2026-04-06
+
+### Changed
+- **Lista de órdenes — Abrir factura:** cualquier usuario del grupo **Producción** ve el botón cuando la orden tiene factura vinculada, **sin depender** de la multiselección en Ajustes. La vista `view=invoice` ya permitía a Producción abrir esas facturas (`canViewInvoiceDetail`).
+
 ## [3.103.9-STABLE] - 2026-04-06
 
 ### Changed
