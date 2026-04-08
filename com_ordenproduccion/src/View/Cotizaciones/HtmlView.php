@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Pagination\Pagination;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * View for listing quotations
@@ -71,6 +72,12 @@ class HtmlView extends BaseHtmlView
                 ->from($db->quoteName('#__ordenproduccion_quotations', 'q'))
                 ->where($db->quoteName('q.state') . ' = 1')
                 ->order($db->quoteName('q.created') . ' DESC');
+
+            $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $qCols = \is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+            if (!AccessHelper::canViewAllCotizacionesLikePrecot() && isset($qCols['created_by'])) {
+                $query->where($db->quoteName('q.created_by') . ' = ' . (int) $user->id);
+            }
 
             if (isset($invCols['quotation_id'])) {
                 // "Facturada" only when an invoice is actually issued, not while FEL is only queued/scheduled.

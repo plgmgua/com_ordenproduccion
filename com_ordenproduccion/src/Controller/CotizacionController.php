@@ -33,6 +33,37 @@ use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 class CotizacionController extends BaseController
 {
     /**
+     * Load published quotation or null. If row exists but user may not access it, redirects and closes the app.
+     *
+     * @return  \stdClass|null
+     *
+     * @since   3.104.1
+     */
+    private function loadPublishedQuotationForCurrentUserOrClose(int $quotationId): ?\stdClass
+    {
+        $app = Factory::getApplication();
+        $db  = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . (int) $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            return null;
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($row)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            $app->close();
+        }
+
+        return $row;
+    }
+
+    /**
      * Calculate pliego price (AJAX). Returns JSON: success, price_per_sheet, total, message.
      *
      * @return  void
@@ -207,13 +238,7 @@ class CotizacionController extends BaseController
             return;
         }
 
-        $query = $db->getQuery(true)
-            ->select('*')
-            ->from($db->quoteName('#__ordenproduccion_quotations'))
-            ->where($db->quoteName('id') . ' = ' . $quotationId)
-            ->where($db->quoteName('state') . ' = 1');
-        $db->setQuery($query);
-        $quotation = $db->loadObject();
+        $quotation = $this->loadPublishedQuotationForCurrentUserOrClose($quotationId);
         if (!$quotation) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
@@ -340,13 +365,7 @@ class CotizacionController extends BaseController
             return;
         }
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-        $query = $db->getQuery(true)
-            ->select('id')
-            ->from($db->quoteName('#__ordenproduccion_quotations'))
-            ->where($db->quoteName('id') . ' = ' . $quotationId)
-            ->where($db->quoteName('state') . ' = 1');
-        $db->setQuery($query);
-        if (!$db->loadResult()) {
+        if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
@@ -466,13 +485,7 @@ class CotizacionController extends BaseController
             return;
         }
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-        $query = $db->getQuery(true)
-            ->select('id')
-            ->from($db->quoteName('#__ordenproduccion_quotations'))
-            ->where($db->quoteName('id') . ' = ' . $quotationId)
-            ->where($db->quoteName('state') . ' = 1');
-        $db->setQuery($query);
-        if (!$db->loadResult()) {
+        if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
@@ -558,8 +571,7 @@ class CotizacionController extends BaseController
             return;
         }
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-        $db->setQuery($db->getQuery(true)->select('*')->from($db->quoteName('#__ordenproduccion_quotations'))->where($db->quoteName('id') . ' = ' . $quotationId)->where($db->quoteName('state') . ' = 1'));
-        $row = $db->loadObject();
+        $row = $this->loadPublishedQuotationForCurrentUserOrClose($quotationId);
         if (!$row) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
@@ -793,6 +805,11 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
+        if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')]);
+            $app->close();
+        }
+
         $svc    = new EbiPayLinkService();
         $result = $svc->createMockLinkForQuotation($quotationId);
         if (!empty($result['success'])) {
@@ -868,8 +885,7 @@ class CotizacionController extends BaseController
             return;
         }
         $db = Factory::getDbo();
-        $db->setQuery($db->getQuery(true)->select('id')->from($db->quoteName('#__ordenproduccion_quotations'))->where($db->quoteName('id') . ' = ' . $quotationId)->where($db->quoteName('state') . ' = 1'));
-        if (!$db->loadResult()) {
+        if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
@@ -979,7 +995,7 @@ class CotizacionController extends BaseController
         }
         $db = Factory::getDbo();
 
-        $qCols = ['id', 'client_name', 'client_id', 'client_nit', 'signed_document_path', 'instrucciones_facturacion'];
+        $qCols = ['id', 'created_by', 'client_name', 'client_id', 'client_nit', 'signed_document_path', 'instrucciones_facturacion'];
         $qTableCols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_quotations'), false);
         $qTableCols = is_array($qTableCols) ? array_change_key_case($qTableCols, CASE_LOWER) : [];
         if (!isset($qTableCols['signed_document_path'])) {
@@ -1004,6 +1020,11 @@ class CotizacionController extends BaseController
         if (!$quotation) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($quotation)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            $app->close();
         }
 
         if (isset($qTableCols['cotizacion_confirmada']) && (int) $this->getObjectProperty($quotation, 'cotizacion_confirmada') !== 1) {

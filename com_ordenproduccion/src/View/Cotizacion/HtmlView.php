@@ -16,6 +16,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
@@ -173,6 +174,12 @@ class HtmlView extends BaseHtmlView
                     ->where($db->quoteName('state') . ' = 1');
                 $db->setQuery($query);
                 $this->quotation = $db->loadObject();
+                if ($this->quotation && !AccessHelper::userCanAccessQuotationRow($this->quotation)) {
+                    $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+                    return;
+                }
                 $this->felEngineAvailable = false;
                 $this->felInvoiceForQuotation = null;
                 if ($this->quotation) {

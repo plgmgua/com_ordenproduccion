@@ -549,4 +549,39 @@ class AccessHelper
 
         return self::getPendingApprovalCountForUser() > 0;
     }
+
+    /**
+     * Cotizaciones list/detail: same rule as pre-cotizaciones list — Administracion/Admon or super user sees all;
+     * everyone else only rows they created (created_by).
+     *
+     * @return  bool
+     *
+     * @since   3.104.1
+     */
+    public static function canViewAllCotizacionesLikePrecot()
+    {
+        return self::isInAdministracionOrAdmonGroup() || Factory::getUser()->authorise('core.admin');
+    }
+
+    /**
+     * Whether the current user may view or act on this quotation row (ownership vs admin).
+     *
+     * @param   object|null  $quotation  Row from #__ordenproduccion_quotations (needs created_by when not admin).
+     *
+     * @return  bool
+     *
+     * @since   3.104.1
+     */
+    public static function userCanAccessQuotationRow($quotation)
+    {
+        if (!$quotation) {
+            return false;
+        }
+
+        if (self::canViewAllCotizacionesLikePrecot()) {
+            return true;
+        }
+
+        return (int) ($quotation->created_by ?? 0) === (int) Factory::getUser()->id;
+    }
 }

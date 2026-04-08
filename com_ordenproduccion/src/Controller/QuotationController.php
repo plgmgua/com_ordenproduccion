@@ -16,6 +16,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Quotation controller class for com_ordenproduccion
@@ -54,7 +55,7 @@ class QuotationController extends BaseController
     }
 
     /**
-     * Delete a quotation (soft-delete: state=0). Access: ventas group or quotation owner.
+     * Delete a quotation (soft-delete: state=0). Same as pre-cotizaciones: Administracion/Admon or super user, or row owner.
      *
      * @return  void
      * @since   3.74.0
@@ -91,12 +92,7 @@ class QuotationController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
             return;
         }
-        $userGroups = $user->getAuthorisedGroups();
-        $query = $db->getQuery(true)->select('id')->from($db->quoteName('#__usergroups'))->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
-        $db->setQuery($query);
-        $ventasGroupId = $db->loadResult();
-        $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
-        if (!$hasVentasAccess && (int) $row->created_by !== (int) $user->id) {
+        if (!AccessHelper::userCanAccessQuotationRow($row)) {
             $app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_DELETE_NOT_PERMITTED'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
             return;

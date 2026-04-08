@@ -547,12 +547,7 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => 'Invalid token']);
             exit;
         }
-        $userGroups = $user->getAuthorisedGroups();
         $db = Factory::getDbo();
-        $query = $db->getQuery(true)->select('id')->from($db->quoteName('#__usergroups'))->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
-        $db->setQuery($query);
-        $ventasGroupId = $db->loadResult();
-        $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
         $quotationId = $app->input->getInt('quotation_id', 0);
         if ($quotationId <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid quotation']);
@@ -569,7 +564,7 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => 'Quotation not found']);
             exit;
         }
-        if (!$hasVentasAccess && (int) $quotation->created_by !== (int) $user->id) {
+        if (!AccessHelper::userCanAccessQuotationRow($quotation)) {
             echo json_encode(['success' => false, 'message' => 'Access denied']);
             exit;
         }
