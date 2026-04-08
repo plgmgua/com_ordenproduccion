@@ -29,6 +29,10 @@ if (!$item) {
 
 $preCotizacionId = (int) $item->id;
 $precotizacionLocked = !empty($this->precotizacionLocked);
+$canEditDocument = isset($this->precotizacionDocumentEditable)
+    ? (bool) $this->precotizacionDocumentEditable
+    : !$precotizacionLocked;
+$ofertaViewOnly = !empty($item->oferta) && !$canEditDocument && !$precotizacionLocked;
 $paperNames = [];
 $sizeNames = [];
 foreach ($this->pliegoPaperTypes ?? [] as $p) {
@@ -128,7 +132,7 @@ $envios = $this->envios ?? [];
         <a href="<?php echo $listUrl; ?>" class="btn btn-outline-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BACK'); ?></a>
     </nav>
 
-    <?php if (!$precotizacionLocked) : ?>
+    <?php if ($canEditDocument) : ?>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="page-title mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>
         <button type="submit" form="precotizacion-desc-medidas-form" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
@@ -166,6 +170,15 @@ $envios = $this->envios ?? [];
         }
     ?>
     <div class="alert alert-info mb-3"><?php echo htmlspecialchars($msgLocked); ?></div>
+    <?php endif; ?>
+
+    <?php if ($ofertaViewOnly) :
+        $msgOfertaRo = Text::_('COM_ORDENPRODUCCION_PRE_OFERTA_VIEW_ONLY');
+        if ($msgOfertaRo === 'COM_ORDENPRODUCCION_PRE_OFERTA_VIEW_ONLY' || (is_string($msgOfertaRo) && strpos($msgOfertaRo, 'COM_ORDENPRODUCCION_') === 0)) {
+            $msgOfertaRo = 'Esta pre-cotización es una oferta plantilla. Solo el autor puede editarla; usted puede verla.';
+        }
+    ?>
+    <div class="alert alert-warning mb-3"><?php echo htmlspecialchars($msgOfertaRo); ?></div>
     <?php endif; ?>
 
     <?php
@@ -208,7 +221,7 @@ $envios = $this->envios ?? [];
     if (strpos($labelOfertaChangeExpires, 'COM_') === 0) {
         $labelOfertaChangeExpires = 'Cambiar vencimiento';
     }
-    $canEditOfertaExpiry = !$precotizacionLocked && !empty($this->showOfertaCheckbox)
+    $canEditOfertaExpiry = $canEditDocument && !empty($this->showOfertaCheckbox)
         && $ofertaChecked && property_exists($item, 'oferta_expires');
     $saveOfertaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOferta');
     $labelMedidas = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS');
@@ -223,7 +236,7 @@ $envios = $this->envios ?? [];
     ?>
     <div class="precotizacion-descripcion mb-3">
         <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
-        <?php if ($precotizacionLocked) : ?>
+        <?php if ($precotizacionLocked || !$canEditDocument) : ?>
             <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
             <div class="mt-2">
                 <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelMedidas); ?></span>
@@ -247,7 +260,7 @@ $envios = $this->envios ?? [];
     </div>
 
     <div class="precotizacion-oferta-facturar mb-3 d-flex flex-wrap align-items-center gap-4">
-        <?php if (!$precotizacionLocked && !empty($this->showOfertaCheckbox)) : ?>
+        <?php if ($canEditDocument && !empty($this->showOfertaCheckbox)) : ?>
         <button type="button" class="d-none" id="trigger-modal-oferta-expires" data-bs-toggle="modal" data-bs-target="#modal-oferta-expires" aria-hidden="true"></button>
         <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
             <form action="<?php echo htmlspecialchars($saveOfertaUrl); ?>" method="post" class="d-inline mb-0" id="form-oferta">
@@ -356,7 +369,7 @@ $envios = $this->envios ?? [];
             }
         })();
         </script>
-        <?php elseif ($precotizacionLocked && !empty($this->showOfertaCheckbox)) : ?>
+        <?php elseif ((!$canEditDocument || $precotizacionLocked) && !empty($this->showOfertaCheckbox)) : ?>
         <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
             <div class="form-check mb-0">
                 <input type="checkbox" class="form-check-input" id="precotizacion-oferta-display" disabled <?php echo $ofertaChecked ? ' checked' : ''; ?>>
@@ -386,7 +399,7 @@ $envios = $this->envios ?? [];
             </span>
         </div>
         <?php endif; ?>
-        <?php if ($precotizacionLocked) : ?>
+        <?php if ($precotizacionLocked || !$canEditDocument) : ?>
         <div class="form-check">
             <input type="checkbox" class="form-check-input" id="precotizacion-facturar-display" disabled <?php echo $facturarChecked ? ' checked' : ''; ?>>
             <label class="form-check-label" for="precotizacion-facturar-display"><?php echo htmlspecialchars($labelFacturar); ?></label>
@@ -404,14 +417,14 @@ $envios = $this->envios ?? [];
     </div>
 
     <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
-        <?php if (!$precotizacionLocked) : ?>
+        <?php if ($canEditDocument) : ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
             <?php echo htmlspecialchars($labelCalculoFolios); ?>
         </button>
         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
             <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
-        <?php if (!$precotizacionLocked && $tarjetaCreditoTableOk && !empty($tarjetaCreditoRates)) : ?>
+        <?php if ($canEditDocument && $tarjetaCreditoTableOk && !empty($tarjetaCreditoRates)) : ?>
         <form method="post" action="<?php echo htmlspecialchars($saveTarjetaUrl); ?>" class="d-inline-flex align-items-center gap-2 mb-0">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
@@ -511,7 +524,7 @@ $envios = $this->envios ?? [];
                                     <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
                                 </button>
                                 <?php endif; ?>
-                                <?php if (!$precotizacionLocked) : ?>
+                                <?php if ($canEditDocument) : ?>
                                     <?php if (!$isElemento && !$isEnvio) : ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>

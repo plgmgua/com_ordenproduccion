@@ -177,6 +177,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableColsLc['oferta'])) {
             $cols[] = 'a.oferta';
         }
+        if (isset($tableColsLc['oferta_expires'])) {
+            $cols[] = 'a.oferta_expires';
+        }
         if (isset($tableColsLc['facturar'])) {
             $cols[] = 'a.facturar';
         }
@@ -190,6 +193,17 @@ class PrecotizacionModel extends ListModel
         if ($isAdministracion) {
             $query->leftJoin(
                 $db->quoteName('#__users', 'u') . ' ON u.id = a.created_by'
+            );
+        } elseif (isset($tableColsLc['oferta'])) {
+            $uid = (int) $user->id;
+            $expClause = '';
+            if (isset($tableColsLc['oferta_expires'])) {
+                $expClause = ' AND (' . $db->quoteName('a.oferta_expires') . ' IS NULL OR ' . $db->quoteName('a.oferta_expires') . ' >= CURDATE())';
+            }
+            $query->where(
+                '(' . $db->quoteName('a.created_by') . ' = ' . $uid
+                . ' OR (' . $db->quoteName('a.oferta') . ' = 1' . $expClause . ')'
+                . ')'
             );
         } else {
             $query->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
@@ -453,8 +467,161 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get pre-cotizaciones for the quotation line selector: current user's + all with oferta=1.
-     * Used so "Oferta" pre-cotizaciones can be selected by any user even if already in another quotation.
+     * Whether an offer/template pre-cotización is past its expiration date (date-only comparison to today).
+     *
+     * @param   object|null  $item  Row with optional oferta, oferta_expires
+     *
+     * @return  bool  True if oferta=1 and oferta_expires is set and strictly before today
+     *
+     * @since   3.104.2
+     */
+    public static function isOfertaExpired($item)
+    {
+        if ($item === null || empty($item->oferta)) {
+            return false;
+        }
+        if (!isset($item->oferta_expires) || $item->oferta_expires === null || $item->oferta_expires === '') {
+            return false;
+        }
+        try {
+            $exp = new \DateTimeImmutable(substr((string) $item->oferta_expires, 0, 10));
+            $today = new \DateTimeImmutable('today');
+
+            return $exp < $today;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Document editing: non–offer rows — owner or Administracion/Admon/super user. Offer rows — owner only.
+     *
+     * @param   int  $preCotizacionId  Published pre-cotización id
+     *
+     * @return  bool
+     *
+     * @since   3.104.2
+     */
+    public function canUserEditPreCotizacionDocument($preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item || (int) $item->state !== 1) {
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return false;
+        }
+        $isOwner = (int) $item->created_by === (int) $user->id;
+        $db      = $this->getDatabase();
+        $cols    = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $colsLc  = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (isset($colsLc['oferta']) && !empty($item->oferta)) {
+            return $isOwner;
+        }
+
+        return $isOwner
+            || AccessHelper::isInAdministracionOrAdmonGroup()
+            || $user->authorise('core.admin');
+    }
+
+    /**
+     * Delete permission: offer rows — owner only; normal rows — owner or Administracion/Admon/super user.
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id
+     *
+     * @return  bool
+     *
+     * @since   3.104.2
+     */
+    public function canUserDeletePreCotizacion($preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return false;
+        }
+        $isOwner = (int) $item->created_by === (int) $user->id;
+        $db      = $this->getDatabase();
+        $cols    = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $colsLc  = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (isset($colsLc['oferta']) && !empty($item->oferta)) {
+            return $isOwner;
+        }
+
+        return $isOwner
+            || AccessHelper::isInAdministracionOrAdmonGroup()
+            || $user->authorise('core.admin');
+    }
+
+    /**
+     * Validate pre-cotización ids used as quotation lines: must belong to current user, not be offer templates, published.
+     *
+     * @param   int[]  $preIds  Pre-cotización ids from lines
+     *
+     * @return  string|null  Language constant to translate, or null if ok
+     *
+     * @since   3.104.2
+     */
+    public function validatePreCotizacionIdsForQuotationLine(array $preIds)
+    {
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return 'COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED';
+        }
+        $preIds = array_unique(array_filter(array_map('intval', $preIds)));
+        if ($preIds === []) {
+            return null;
+        }
+        $db     = $this->getDatabase();
+        $cols   = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $colsLc = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        foreach ($preIds as $pid) {
+            if ($pid < 1) {
+                return 'COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID';
+            }
+            $select = [$db->quoteName('id'), $db->quoteName('created_by'), $db->quoteName('state')];
+            if (isset($colsLc['oferta'])) {
+                $select[] = $db->quoteName('oferta');
+            }
+            if (isset($colsLc['oferta_expires'])) {
+                $select[] = $db->quoteName('oferta_expires');
+            }
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($select)
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                    ->where($db->quoteName('id') . ' = ' . $pid)
+            );
+            $row = $db->loadObject();
+            if (!$row || (int) $row->state !== 1) {
+                return 'COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID';
+            }
+            if (isset($colsLc['oferta']) && !empty($row->oferta)) {
+                return 'COM_ORDENPRODUCCION_PRE_OFERTA_CANNOT_LINK_COTIZACION';
+            }
+            if ((int) $row->created_by !== (int) $user->id) {
+                return 'COM_ORDENPRODUCCION_PRE_COT_LINE_OWNER_ONLY';
+            }
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Get pre-cotizaciones for the quotation line selector: current user's non-offer rows only (offers cannot be linked to a cotización).
      *
      * @return  \stdClass[]  List of objects with id, number, total, descripcion, oferta
      * @since   3.95.0
@@ -479,7 +646,8 @@ class PrecotizacionModel extends ListModel
             ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.state') . ' = 1')
-            ->where('(' . $db->quoteName('a.created_by') . ' = ' . (int) $user->id . ' OR ' . $db->quoteName('a.oferta') . ' = 1)')
+            ->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id)
+            ->where('(' . $db->quoteName('a.oferta') . ' = 0 OR ' . $db->quoteName('a.oferta') . ' IS NULL)')
             ->order($db->quoteName('a.id') . ' DESC');
         $db->setQuery($query);
         $rows = $db->loadObjectList();
@@ -1050,6 +1218,9 @@ class PrecotizacionModel extends ListModel
         $db->setQuery($query);
         $template = $db->loadObject();
         if (!$template) {
+            return false;
+        }
+        if (isset($tableCols['oferta_expires']) && self::isOfertaExpired($template)) {
             return false;
         }
         $newNumber = $this->getNextNumber();

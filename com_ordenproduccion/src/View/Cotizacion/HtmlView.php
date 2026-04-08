@@ -361,14 +361,14 @@ class HtmlView extends BaseHtmlView
                 $this->contactPersonPhone = $input->getString('contact_person_phone', '');
             }
 
-            // Pre-Cotizaciones list for line selector: current user + oferta; include if not associated OR oferta=1
+            // Pre-Cotizaciones for lines: own non-offer rows only; omit if already linked to a cotización
             $component = $app->bootComponent('com_ordenproduccion');
             $precotModel = $component->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             if ($precotModel) {
                 $items = $precotModel->getItemsForQuotationLineSelector();
                 $list = [];
                 foreach ($items ?: [] as $item) {
-                    if ($precotModel->isAssociatedWithQuotation((int) $item->id) && empty($item->oferta)) {
+                    if ($precotModel->isAssociatedWithQuotation((int) $item->id)) {
                         continue;
                     }
                     $list[] = (object) [

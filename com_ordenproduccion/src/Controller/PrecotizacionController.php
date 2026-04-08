@@ -91,7 +91,11 @@ class PrecotizacionController extends BaseController
             $id = $model->create();
         }
         if ($id === false) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_CREATE'), 'error');
+            if ($templateId > 0) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_OFERTA_TEMPLATE_EXPIRED_OR_MISSING'), 'error');
+            } else {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_CREATE'), 'error');
+            }
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
             return false;
         }
@@ -152,6 +156,9 @@ class PrecotizacionController extends BaseController
         }
 
         if ($this->isPrecotizacionLocked($preCotizacionId, $format)) {
+            return false;
+        }
+        if ($this->denyIfNotEditableDocument($preCotizacionId, $format)) {
             return false;
         }
 
@@ -238,6 +245,9 @@ class PrecotizacionController extends BaseController
         if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
             return false;
         }
+        if ($this->denyIfNotEditableDocument($preCotizacionId, 'html')) {
+            return false;
+        }
 
         $breakdown = $app->input->get('calculation_breakdown', '', 'raw');
         if (is_string($breakdown) && $breakdown !== '') {
@@ -306,6 +316,12 @@ class PrecotizacionController extends BaseController
         }
 
         $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->canUserDeletePreCotizacion($id)) {
+            $this->setMessage(Text::_('JLIB_APPLICATION_ERROR_DELETE_NOT_PERMITTED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
         if (!$model->delete($id)) {
             $msg = $model->isAssociatedWithQuotation($id)
                 ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE')
@@ -401,6 +417,9 @@ class PrecotizacionController extends BaseController
         if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
             return false;
         }
+        if ($this->denyIfNotEditableDocument($preCotizacionId, 'html')) {
+            return false;
+        }
 
         $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Productos', 'Site', ['ignore_request' => true]);
@@ -473,6 +492,9 @@ class PrecotizacionController extends BaseController
         }
 
         if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
+            return false;
+        }
+        if ($this->denyIfNotEditableDocument($preCotizacionId, 'html')) {
             return false;
         }
 
@@ -557,6 +579,9 @@ class PrecotizacionController extends BaseController
         if ($this->isPrecotizacionLocked($id, 'html')) {
             return false;
         }
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
 
         $db = Factory::getDbo();
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
@@ -629,6 +654,9 @@ class PrecotizacionController extends BaseController
         if ($this->isPrecotizacionLocked($id, 'html')) {
             return false;
         }
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
 
         $db = Factory::getDbo();
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
@@ -654,7 +682,7 @@ class PrecotizacionController extends BaseController
     }
 
     /**
-     * Save the Oferta flag (1 = offer; can be selected in quotation even if already used). Administracion only.
+     * Save the Oferta flag and expiration. Requires oferta-permission users; document must be editable by current user (owner for offers).
      *
      * @return  bool
      * @since   3.95.0
@@ -705,6 +733,13 @@ class PrecotizacionController extends BaseController
         if (!$item) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
+        if (!$model->canUserEditPreCotizacionDocument($id)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_OFERTA_EDIT_OWNER_ONLY'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
             return false;
         }
 
@@ -782,6 +817,9 @@ class PrecotizacionController extends BaseController
         if ($this->isPrecotizacionLocked($id, 'html')) {
             return false;
         }
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
         $model = $this->getModel('Precotizacion', 'Site');
         $cuotasVal = $cuotas > 0 ? $cuotas : null;
         if (!$model->saveTarjetaCreditoCuotas($id, $cuotasVal)) {
@@ -790,6 +828,38 @@ class PrecotizacionController extends BaseController
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_SAVED'));
         }
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+        return true;
+    }
+
+    /**
+     * If the current user may not edit this pre-cotización document (e.g. offer template owned by someone else), respond and return true.
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id
+     * @param   string  $format         'json' for AJAX JSON response, 'html' for redirect
+     *
+     * @return  bool  True if denied (caller should return false)
+     *
+     * @since   3.104.2
+     */
+    private function denyIfNotEditableDocument($preCotizacionId, $format = 'html')
+    {
+        $model = $this->getModel('Precotizacion', 'Site');
+        if ($model->canUserEditPreCotizacionDocument((int) $preCotizacionId)) {
+            return false;
+        }
+        $app = Factory::getApplication();
+        $msg = Text::_('COM_ORDENPRODUCCION_PRE_OFERTA_EDIT_OWNER_ONLY');
+        if ($msg === 'COM_ORDENPRODUCCION_PRE_OFERTA_EDIT_OWNER_ONLY' || (is_string($msg) && strpos($msg, 'COM_ORDENPRODUCCION_') === 0)) {
+            $msg = 'Solo el autor puede editar esta pre-cotización.';
+        }
+        if ($format === 'json' || $app->input->getBool('ajax')) {
+            $app->setHeader('Content-Type', 'application/json', true);
+            echo json_encode(['success' => false, 'message' => $msg]);
+            $app->close();
+        }
+        $this->setMessage($msg, 'error');
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $preCotizacionId, false));
 
         return true;
     }

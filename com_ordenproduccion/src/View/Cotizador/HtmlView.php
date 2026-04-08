@@ -70,6 +70,14 @@ class HtmlView extends BaseHtmlView
     protected $salesAgentFilterOptions = [];
 
     /**
+     * Document layout: whether the user may change lines, description, facturar, etc. (offer templates: owner only).
+     *
+     * @var    bool
+     * @since  3.104.2
+     */
+    protected $precotizacionDocumentEditable = true;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -158,6 +166,13 @@ class HtmlView extends BaseHtmlView
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
                     $this->precotizacionLocked = !empty($this->associatedQuotations);
+                    $isOwner        = (int) ($this->item->created_by ?? 0) === (int) $user->id;
+                    $canAdminPrecot = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+                    if (!empty($this->item->oferta)) {
+                        $this->precotizacionDocumentEditable = !$this->precotizacionLocked && $isOwner;
+                    } else {
+                        $this->precotizacionDocumentEditable = !$this->precotizacionLocked && ($isOwner || $canAdminPrecot);
+                    }
                     // Backfill totals snapshot (3.86.0) when not yet stored so first view persists historical totals
                     if (!empty($this->lines) && (!isset($this->item->lines_subtotal) || $this->item->lines_subtotal === null || $this->item->lines_subtotal === '')) {
                         $precotModel->refreshPreCotizacionTotalsSnapshot($id);

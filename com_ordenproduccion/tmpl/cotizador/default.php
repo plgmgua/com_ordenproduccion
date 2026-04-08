@@ -9,9 +9,12 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
 
@@ -255,6 +258,9 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                             echo $ofertaOn
                                 ? '<span class="text-success">' . htmlspecialchars(Text::_('JYES')) . '</span>'
                                 : '<span class="text-muted">' . htmlspecialchars(Text::_('JNO')) . '</span>';
+                            if ($ofertaOn && isset($item->oferta_expires) && PrecotizacionModel::isOfertaExpired($item)) {
+                                echo ' <span class="badge bg-secondary">' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_OFERTA_EXPIRED_BADGE')) . '</span>';
+                            }
                             ?>
                         </td>
                         <?php endif; ?>
@@ -269,7 +275,15 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         </td>
                         <?php endif; ?>
                         <td class="text-end">
-                            <?php if (empty($quotationNumbers)) : ?>
+                            <?php
+                            $currentUid = (int) Factory::getUser()->id;
+                            $createdBy = (int) ($item->created_by ?? 0);
+                            $isOwnerRow = $createdBy === $currentUid;
+                            $ofertaRow = !empty($item->oferta);
+                            $canAdminRow = AccessHelper::isInAdministracionOrAdmonGroup() || Factory::getUser()->authorise('core.admin');
+                            $mayDeleteRow = empty($quotationNumbers) && ($ofertaRow ? $isOwnerRow : ($isOwnerRow || $canAdminRow));
+                            ?>
+                            <?php if ($mayDeleteRow) : ?>
                             <form action="<?php echo htmlspecialchars($deleteAction); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE')); ?>');">
                                 <?php echo HTMLHelper::_('form.token'); ?>
                                 <input type="hidden" name="id" value="<?php echo (int) $item->id; ?>">

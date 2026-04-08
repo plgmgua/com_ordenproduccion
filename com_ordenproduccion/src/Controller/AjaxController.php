@@ -344,6 +344,20 @@ class AjaxController extends BaseController
                     echo json_encode(['success' => false, 'message' => 'Add at least one Pre-Cotización line']);
                     exit;
                 }
+                $preIdsForQuote = [];
+                foreach ($lines as $line) {
+                    if (!empty($line['pre_cotizacion_id'])) {
+                        $preIdsForQuote[] = (int) $line['pre_cotizacion_id'];
+                    }
+                }
+                $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                    ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+                $precotErr = $precotModel->validatePreCotizacionIdsForQuotationLine($preIdsForQuote);
+                if ($precotErr !== null) {
+                    $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+                    echo json_encode(['success' => false, 'message' => Text::_($precotErr)]);
+                    exit;
+                }
             }
 
             // Generate autonumeric quotation number
@@ -593,6 +607,18 @@ class AjaxController extends BaseController
 
         try {
         $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        $preIdsForQuote = [];
+        foreach ($lines as $line) {
+            if (!empty($line['pre_cotizacion_id'])) {
+                $preIdsForQuote[] = (int) $line['pre_cotizacion_id'];
+            }
+        }
+        $precotErr = $precotModel->validatePreCotizacionIdsForQuotationLine($preIdsForQuote);
+        if ($precotErr !== null) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            echo json_encode(['success' => false, 'message' => Text::_($precotErr)]);
+            exit;
+        }
         $lineItems = [];
         $totalAmount = 0;
         foreach ($lines as $lineOrder => $line) {
