@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.104.3-STABLE] - 2026-04-06
+
+### Fixed
+- **Pre-cotización (oferta):** `PrecotizacionModel::getItem()` aplicaba solo `created_by = usuario actual`, así que una oferta creada por otro (p. ej. superusuario) aparecía en la lista pero al abrirla mostraba *No encontramos esa pre-cotización…*. La carga por id usa ahora las **mismas reglas que el listado**: Administración/Admon/superusuario ven cualquier fila publicada; el resto ve la propia o una oferta activa (`oferta = 1`, no vencida). Invitados: sin acceso. La edición del documento sigue acotada al autor en ofertas (solo lectura para el resto).
+
 ## [3.104.0-STABLE] - 2026-04-06
 
 ### Changed

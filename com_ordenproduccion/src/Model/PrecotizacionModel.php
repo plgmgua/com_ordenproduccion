@@ -305,9 +305,12 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get one Pre-Cotizaci?n by id (only if owned by current user).
+     * Get one Pre-Cotización by id if the current user may access it (same rules as the list query).
      *
-     * @param   int  $id  Pre-Cotizaci?n id.
+     * Administración/Admon/super user: any published row. Others: own rows, or active offer templates
+     * (oferta = 1, not expired) so Ventas can open others’ ofertas read-only.
+     *
+     * @param   int  $id  Pre-Cotización id.
      *
      * @return  \stdClass|null
      *
@@ -321,6 +324,9 @@ class PrecotizacionModel extends ListModel
         }
 
         $user = Factory::getUser();
+        if ($user->guest) {
+            return null;
+        }
         $db   = $this->getDatabase();
         $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
@@ -354,7 +360,26 @@ class PrecotizacionModel extends ListModel
             ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.id') . ' = ' . $id)
-            ->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
+            ->where($db->quoteName('a.state') . ' = 1');
+
+        $isAdministracion = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+
+        if ($isAdministracion) {
+            // Same as getListQuery: see all published rows.
+        } elseif (isset($tableCols['oferta'])) {
+            $uid = (int) $user->id;
+            $expClause = '';
+            if (isset($tableCols['oferta_expires'])) {
+                $expClause = ' AND (' . $db->quoteName('a.oferta_expires') . ' IS NULL OR ' . $db->quoteName('a.oferta_expires') . ' >= CURDATE())';
+            }
+            $query->where(
+                '(' . $db->quoteName('a.created_by') . ' = ' . $uid
+                . ' OR (' . $db->quoteName('a.oferta') . ' = 1' . $expClause . ')'
+                . ')'
+            );
+        } else {
+            $query->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
+        }
 
         $db->setQuery($query);
         $item = $db->loadObject();
