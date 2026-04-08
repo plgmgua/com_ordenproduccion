@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.103.9-STABLE] - 2026-04-06
+
+### Changed
+- **Producción (solo):** pueden abrir facturas vinculadas a cualquier orden publicada (mismo criterio que el botón en lista). **No** ven *Valor a facturar* en ninguna orden.
+- **Ventas** (solo o con Producción): *Valor a facturar* solo en **sus** órdenes (`sales_agent`); acceso a factura sigue siendo por orden vinculada propia.
+
 ## [3.103.8-STABLE] - 2026-04-06
 
 ### Changed

@@ -186,9 +186,8 @@ class AccessHelper
 
     /**
      * Check if user can see valor_factura (Valor a Facturar) for a given order.
-     * Administracion: see all. Produccion-only: only when sales_agent matches the user.
-     * Ventas (including Ventas+Produccion): only when sales_agent matches the user — same rule as cotización PDF
-     * (they may still list all orders via canSeeAllOrders, but not see amounts on others' orders).
+     * Administracion: see all. Produccion-only (no Ventas): never — they see all órdenes but not this field.
+     * Ventas (including Ventas+Produccion): only when sales_agent matches the current user.
      *
      * @param   string|null  $salesAgent  The sales agent name from the order
      * @return  boolean
@@ -196,24 +195,21 @@ class AccessHelper
     public static function canSeeValorFactura($salesAgent = null)
     {
         $user = Factory::getUser();
-        
-        // If user is in Administracion group, can see valor_factura for all orders
+
         if (self::isInAdministracionGroup()) {
             return true;
         }
-        
-        // Produccion only: can see all work orders but Valor a Facturar only for their own (sales_agent = current user)
+
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
-            $agent = trim((string) $salesAgent);
-            return $agent !== '' && $agent === trim($user->name);
+            return false;
         }
-        
-        // Ventas (alone or with Produccion): same as canViewCotizacionPdfForOrder — own orders only
+
         if (self::isInVentasGroup()) {
             $agent = trim((string) $salesAgent);
+
             return $agent !== '' && $agent === trim($user->name);
         }
-        
+
         return false;
     }
 
@@ -380,8 +376,9 @@ class AccessHelper
 
     /**
      * Whether the user may open the single invoice detail view (view=invoice&id=).
-     * Administracion/Admon or global super user: all invoices. Ventas (including Ventas+Produccion): only if the invoice
-     * is linked to at least one published work order whose sales_agent matches the current user. Others: denied.
+     * Super user / Administracion/Admon: all invoices.
+     * Produccion-only: any invoice linked to at least one published orden (any owner).
+     * Ventas (including Ventas+Produccion): invoice linked to at least one published orden owned by the user (sales_agent).
      *
      * @param   int  $invoiceId  Invoice primary key
      *
@@ -403,16 +400,6 @@ class AccessHelper
             return true;
         }
 
-        if (!self::isInVentasGroup()) {
-            return false;
-        }
-
-        $user   = Factory::getUser();
-        $myName = trim((string) $user->name);
-        if ($myName === '') {
-            return false;
-        }
-
         $orderIds = self::getOrderIdsLinkedToInvoice($invoiceId);
         if ($orderIds === []) {
             return false;
@@ -422,6 +409,28 @@ class AccessHelper
         $ids = implode(',', array_map('intval', $orderIds));
 
         try {
+            if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('id') . ' IN (' . $ids . ')')
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+
+                return (int) $db->loadResult() > 0;
+            }
+
+            if (!self::isInVentasGroup()) {
+                return false;
+            }
+
+            $user   = Factory::getUser();
+            $myName = trim((string) $user->name);
+            if ($myName === '') {
+                return false;
+            }
+
             $db->setQuery(
                 $db->getQuery(true)
                     ->select([$db->quoteName('id'), $db->quoteName('sales_agent')])
@@ -462,7 +471,7 @@ class AccessHelper
         }
         
         if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
-            return 'Produccion only: Can see all orders; Valor a Facturar only for own orders; comprobantes de pago only for own orders; cotización PDF not available';
+            return 'Produccion only: Can see all orders; Valor a Facturar hidden; linked invoices viewable; comprobantes de pago only for own orders; cotización PDF not available';
         }
         
         return 'No access: Cannot see orders';
