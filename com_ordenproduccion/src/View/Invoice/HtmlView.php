@@ -15,6 +15,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 class HtmlView extends BaseHtmlView
 {
@@ -49,6 +50,20 @@ class HtmlView extends BaseHtmlView
      * @var bool
      */
     protected $invoiceIsCancelled = false;
+
+    /**
+     * GET assoc_nit filter for listing órdenes / invoices from another client NIT.
+     *
+     * @var string
+     */
+    protected $invoiceAssocNit = '';
+
+    /**
+     * Invoices matching invoiceAssocNit (for reference when associating).
+     *
+     * @var array<int, object>
+     */
+    protected $invoicesForAssocNitList = [];
 
     /**
      * Display the view
@@ -131,6 +146,14 @@ class HtmlView extends BaseHtmlView
         $this->associatedOrdenLinks = [];
         $this->invoiceDetailOrdenDropdown = [];
         $this->invoiceOrdenMatchTableAvailable = false;
+        $this->invoiceAssocNit              = '';
+        $this->invoicesForAssocNitList      = [];
+
+        $assocNitRaw = trim((string) $app->input->getString('assoc_nit', ''));
+        if ($assocNitRaw !== '' && function_exists('mb_strlen') && mb_strlen($assocNitRaw) > 48) {
+            $assocNitRaw = mb_substr($assocNitRaw, 0, 48);
+        }
+        $this->invoiceAssocNit = $assocNitRaw;
 
         try {
             $matchModel = $this->getModel('InvoiceOrdenMatch');
@@ -142,7 +165,11 @@ class HtmlView extends BaseHtmlView
                 $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
                 $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
                 if ($this->invoiceOrdenMatchTableAvailable) {
-                    $this->invoiceDetailOrdenDropdown = $matchModel->getOrdnesForInvoiceDetailDropdown($id);
+                    $nitForDropdown = $assocNitRaw !== '' ? $assocNitRaw : null;
+                    $this->invoiceDetailOrdenDropdown = $matchModel->getOrdnesForInvoiceDetailDropdown($id, $nitForDropdown);
+                    if ($assocNitRaw !== '' && InvoiceOrdenMatchModel::normalizeNitDigits($assocNitRaw) !== '') {
+                        $this->invoicesForAssocNitList = $matchModel->getInvoicesForAssocNitList($assocNitRaw, $id);
+                    }
                 }
             }
         } catch (\Throwable $e) {

@@ -253,9 +253,74 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
         $assocLinks = is_array($this->associatedOrdenLinks ?? null) ? $this->associatedOrdenLinks : [];
         $detailDropdown = is_array($this->invoiceDetailOrdenDropdown ?? null) ? $this->invoiceDetailOrdenDropdown : [];
         $matchTbl = (bool) ($this->invoiceOrdenMatchTableAvailable ?? false);
+        $assocNitVal = trim((string) ($this->invoiceAssocNit ?? ''));
+        $invoicesByNit = is_array($this->invoicesForAssocNitList ?? null) ? $this->invoicesForAssocNitList : [];
+        $invoiceUrlBase = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) ($item->id ?? 0), false);
         ?>
         <div class="pt-3 mt-3 border-top invoice-work-orders-footer">
             <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_WORK_ORDERS_SECTION'); ?></div>
+            <?php if ($isFel && $matchTbl && AccessHelper::isInAdministracionOrAdmonGroup() && !$invoiceCancelled) : ?>
+            <div class="mb-3 p-2 border rounded bg-light">
+                <form method="get" action="<?php echo Route::_('index.php'); ?>" class="row g-2 align-items-end flex-wrap">
+                    <input type="hidden" name="option" value="com_ordenproduccion" />
+                    <input type="hidden" name="view" value="invoice" />
+                    <input type="hidden" name="id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+                    <div class="col-md-5 col-lg-4">
+                        <label for="invoice-assoc-nit" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_LABEL'); ?></label>
+                        <input type="text" name="assoc_nit" id="invoice-assoc-nit" class="form-control form-control-sm"
+                               value="<?php echo htmlspecialchars($assocNitVal, ENT_QUOTES, 'UTF-8'); ?>"
+                               placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_NIT'), ENT_QUOTES, 'UTF-8'); ?>"
+                               maxlength="48" autocomplete="off" />
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-outline-primary"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_APPLY'); ?></button>
+                    </div>
+                    <?php if ($assocNitVal !== '') : ?>
+                    <div class="col-auto">
+                        <a href="<?php echo htmlspecialchars($invoiceUrlBase, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_CLEAR'); ?></a>
+                    </div>
+                    <?php endif; ?>
+                </form>
+                <p class="small text-muted mb-2 mb-md-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_INTRO'); ?></p>
+                <?php if ($assocNitVal !== '' && !empty($invoicesByNit)) : ?>
+                <div class="fw-bold small mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_LIST_TITLE'); ?></div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0 bg-white">
+                        <thead class="table-light">
+                            <tr>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?></th>
+                                <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_INV_TOTAL'); ?></th>
+                                <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DATE'); ?></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($invoicesByNit as $invRow) :
+                                $iid = (int) ($invRow->id ?? 0);
+                                if ($iid < 1) {
+                                    continue;
+                                }
+                                $dtRaw = $invRow->fel_fecha_emision ?? $invRow->invoice_date ?? null;
+                                ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars((string) ($invRow->invoice_number ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars((string) ($invRow->client_name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td class="text-end text-nowrap"><?php echo number_format((float) ($invRow->invoice_amount ?? 0), 2); ?> <?php echo $moneda; ?></td>
+                                <td class="text-nowrap small"><?php echo $dtRaw ? HTMLHelper::_('date', $dtRaw, Text::_('DATE_FORMAT_LC4')) : '—'; ?></td>
+                                <td class="text-nowrap">
+                                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $iid); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary py-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_OPEN'); ?></a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php elseif ($assocNitVal !== '') : ?>
+                <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_LIST_EMPTY'); ?></p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
             <?php if (!empty($assocLinks)) : ?>
                 <ul class="mb-2 ps-3 list-unstyled">
                     <?php foreach ($assocLinks as $lnk) :
@@ -289,6 +354,9 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
                 <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.associateOrden'); ?>" class="d-flex flex-wrap align-items-end gap-2">
                     <?php echo HTMLHelper::_('form.token'); ?>
                     <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+                    <?php if ($assocNitVal !== '') : ?>
+                    <input type="hidden" name="assoc_nit" value="<?php echo htmlspecialchars($assocNitVal, ENT_QUOTES, 'UTF-8'); ?>" />
+                    <?php endif; ?>
                     <div>
                         <label for="invoice-detail-orden-id" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_LABEL'); ?></label>
                         <select name="orden_id" id="invoice-detail-orden-id" class="form-select form-select-sm" style="min-width: 280px;">

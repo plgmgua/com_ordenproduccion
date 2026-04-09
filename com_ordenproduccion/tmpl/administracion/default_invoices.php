@@ -331,7 +331,9 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 .invoice-tipo-badge { font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
 .invoice-tipo-valid { background: #e7f5ee; color: #1e6f4a; }
 .invoice-tipo-mockup { background: #fff4e6; color: #b35900; }
+.invoice-tipo-anulada { background: #fdeaea; color: #8b1538; }
 tr.invoice-row-mockup { background: #fffbf5; }
+tr.invoice-row-cancelled { background: #faf5f5; }
 </style>
 
 <div class="invoices-section">
@@ -820,19 +822,23 @@ tr.invoice-row-mockup { background: #fffbf5; }
                     }
                     $moneda = $invoice->currency ?? 'Q';
                     $isMockup = InvoiceListHelper::isMockupInvoice($invoice);
+                    $isCancelled = isset($invoice->status) && strtolower((string) $invoice->status) === 'cancelled';
                     $displayClient = InvoiceListHelper::displayClientName($invoice);
                     if ($displayClient === '') {
                         $displayClient = '—';
                     }
+                    $rowClass = $isCancelled ? 'invoice-row-cancelled' : ($isMockup ? 'invoice-row-mockup' : '');
                 ?>
-                    <tr class="<?php echo $isMockup ? 'invoice-row-mockup' : ''; ?>" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
+                    <tr class="<?php echo $rowClass; ?>" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
                         <td>
                             <span class="invoice-serie-numero"><?php echo htmlspecialchars($serie ?: '—'); ?> | <?php echo htmlspecialchars($numero ?: '—'); ?></span>
                         </td>
                         <td><?php echo $fechaEmision; ?></td>
                         <td><?php echo htmlspecialchars($nit); ?></td>
                         <td>
-                            <?php if ($isMockup) : ?>
+                            <?php if ($isCancelled) : ?>
+                                <span class="invoice-tipo-badge invoice-tipo-anulada"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_ANULADA'); ?></span>
+                            <?php elseif ($isMockup) : ?>
                                 <span class="invoice-tipo-badge invoice-tipo-mockup"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP'); ?></span>
                             <?php else : ?>
                                 <span class="invoice-tipo-badge invoice-tipo-valid"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID'); ?></span>

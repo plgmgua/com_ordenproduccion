@@ -914,13 +914,15 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
     /**
      * Ordene rows for dropdown: same client NIT as invoice (digits), excluding already linked orden ids.
+     * Optional NIT override (e.g. filter from invoice detail) to list órdenes for another client.
      *
      * @param   int       $invoiceId
      * @param   int[]     $excludeOrdenIds  Orden IDs already linked to this invoice
+     * @param   string|null  $nitOverrideRaw  When non-empty, use this NIT (digits) instead of the invoice receptor
      *
      * @return  array<int, array{id: int, label: string}>
      */
-    public function getOrdnesForInvoiceDropdown(int $invoiceId, array $excludeOrdenIds = []): array
+    public function getOrdnesForInvoiceDropdown(int $invoiceId, array $excludeOrdenIds = [], ?string $nitOverrideRaw = null): array
     {
         if ($invoiceId <= 0) {
             return [];
@@ -939,7 +941,11 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             return [];
         }
 
-        $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+        if ($nitOverrideRaw !== null && trim($nitOverrideRaw) !== '') {
+            $digits = self::normalizeNitDigits($nitOverrideRaw);
+        } else {
+            $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+        }
         if ($digits === '') {
             return [];
         }
@@ -1044,7 +1050,10 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
      *
      * @return  array<int, array{id: int, label: string}>
      */
-    public function getOrdnesForInvoiceDetailDropdown(int $invoiceId): array
+    /**
+     * @param   string|null  $assocNitRaw  Optional GET filter: show órdenes for this NIT (Administración conciliation).
+     */
+    public function getOrdnesForInvoiceDetailDropdown(int $invoiceId, ?string $assocNitRaw = null): array
     {
         if ($invoiceId <= 0) {
             return [];
@@ -1070,7 +1079,59 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         }
         $exclude = array_values(array_unique(array_filter(array_map('intval', $exclude))));
 
-        return $this->getOrdnesForInvoiceDropdown($invoiceId, $exclude);
+        $override = ($assocNitRaw !== null && trim($assocNitRaw) !== '') ? trim($assocNitRaw) : null;
+
+        return $this->getOrdnesForInvoiceDropdown($invoiceId, $exclude, $override);
+    }
+
+    /**
+     * Other invoices (same published state) whose receptor NIT digits match the typed filter — for association context.
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.104.7
+     */
+    public function getInvoicesForAssocNitList(string $nitRaw, int $excludeInvoiceId, int $maxRows = 80): array
+    {
+        $digits = self::normalizeNitDigits($nitRaw);
+        if ($digits === '' || $excludeInvoiceId < 1) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select([
+                    'id',
+                    'invoice_number',
+                    'client_name',
+                    'invoice_amount',
+                    'fel_fecha_emision',
+                    'invoice_date',
+                    'invoice_source',
+                    'status',
+                    'client_nit',
+                    'fel_receptor_id',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('id') . ' != ' . (int) $excludeInvoiceId)
+                ->order('COALESCE(' . $db->quoteName('fel_fecha_emision') . ', ' . $db->quoteName('invoice_date') . ') DESC'),
+            0,
+            2000
+        );
+        $rows = $db->loadObjectList() ?: [];
+        $out  = [];
+        foreach ($rows as $r) {
+            if (self::normalizeNitDigits($r->fel_receptor_id ?? $r->client_nit ?? '') === $digits) {
+                $out[] = $r;
+                if (count($out) >= $maxRows) {
+                    break;
+                }
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -1159,9 +1220,11 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
-     * Manually link an orden to an invoice (approved, score 100). NIT must match.
+     * Manually link an orden to an invoice (approved, score 100). NIT must match invoice receptor unless $allowCrossClientNit.
+     *
+     * @param   bool  $allowCrossClientNit  When true, skip NIT and date-window checks (Administración + NIT filter on detail).
      */
-    public function addManualInvoiceOrdenAssociation(int $invoiceId, int $ordenId): bool
+    public function addManualInvoiceOrdenAssociation(int $invoiceId, int $ordenId, bool $allowCrossClientNit = false): bool
     {
         if ($invoiceId <= 0 || $ordenId <= 0 || !$this->isTableAvailable()) {
             return false;
@@ -1200,21 +1263,26 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             return false;
         }
 
-        $dInv = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
-        $dOrd = self::normalizeNitDigits($ord->nit ?? '');
-        if ($dInv === '' || $dOrd === '' || $dInv !== $dOrd) {
-            return false;
-        }
+        if (!$allowCrossClientNit) {
+            $dInv = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+            $dOrd = self::normalizeNitDigits($ord->nit ?? '');
+            if ($dInv === '' || $dOrd === '' || $dInv !== $dOrd) {
+                return false;
+            }
 
-        $invEm = (string) ($inv->fel_fecha_emision ?? $inv->invoice_date ?? '');
-        $ordEm = (string) ($ord->orden_fecha_for_window ?? '');
-        if ($invEm !== '' && $ordEm !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($invEm, $ordEm)) {
-            return false;
+            $invEm = (string) ($inv->fel_fecha_emision ?? $inv->invoice_date ?? '');
+            $ordEm = (string) ($ord->orden_fecha_for_window ?? '');
+            if ($invEm !== '' && $ordEm !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($invEm, $ordEm)) {
+                return false;
+            }
         }
 
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
-        $reasonsJson = json_encode(['manual'], JSON_UNESCAPED_UNICODE);
+        $reasonsJson = json_encode(
+            $allowCrossClientNit ? ['manual', 'cross_client_nit'] : ['manual'],
+            JSON_UNESCAPED_UNICODE
+        );
 
         $db->setQuery(
             $db->getQuery(true)

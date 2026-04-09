@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.104.7-STABLE] - 2026-04-08
+
+### Added
+- **Vista factura (Administración):** campo **NIT de otro cliente** para listar facturas de referencia y asociar órdenes de ese NIT cuando el vínculo cruza cliente (con validación en controlador).
+- **Idiomas:** cadenas `COM_ORDENPRODUCCION_INVOICE_ASSOC_NIT_*` (en-GB / es-ES); **Tipo** “Anulada” para facturas canceladas en lista admin.
+
+### Changed
+- **Lista Facturas (admin):** columna Tipo muestra **Anulada** cuando el estado de la factura es anulada (`cancelled`), además de mockup / válida.
+
 ## [3.104.6-STABLE] - 2026-04-08
 
 ### Added

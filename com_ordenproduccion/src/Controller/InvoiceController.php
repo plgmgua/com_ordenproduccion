@@ -20,6 +20,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Joomla\Database\DatabaseInterface;
 
@@ -200,13 +201,37 @@ class InvoiceController extends BaseController
                 $this->setRedirect($back);
                 return;
             }
-            $ok = $model->addManualInvoiceOrdenAssociation($invoiceId, $ordenId);
+
+            $assocNit = trim((string) $this->input->post->getString('assoc_nit', ''));
+            $dAssoc   = InvoiceOrdenMatchModel::normalizeNitDigits($assocNit);
+            $db       = Factory::getContainer()->get(DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('nit'))
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $ordenId)
+            );
+            $dOrd = InvoiceOrdenMatchModel::normalizeNitDigits((string) $db->loadResult());
+            $dInv = InvoiceOrdenMatchModel::normalizeNitDigits(
+                (string) ($invRow->fel_receptor_id ?? $invRow->client_nit ?? '')
+            );
+            $allowCross = $dAssoc !== ''
+                && $dOrd !== ''
+                && $dAssoc === $dOrd
+                && $dInv !== $dOrd;
+
+            $ok = $model->addManualInvoiceOrdenAssociation($invoiceId, $ordenId, $allowCross);
             $this->app->enqueueMessage(
                 $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_NOOP'),
                 $ok ? 'success' : 'notice'
             );
         } catch (\Throwable $e) {
             $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ASSOCIATE_ORDEN_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $keepNit = trim((string) $this->input->post->getString('assoc_nit', ''));
+        if ($keepNit !== '' && $invoiceId > 0) {
+            $back = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoiceId . '&assoc_nit=' . rawurlencode($keepNit), false);
         }
 
         $this->setRedirect($back);
