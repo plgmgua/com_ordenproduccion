@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.104.5-STABLE] - 2026-04-08
+
+### Fixed
+- **Vista factura (`view=invoice`):** usuarios **Ventas + Producción** ya no quedan sujetos solo a la regla de `sales_agent` (como Ventas puro). Si pertenecen a Producción, aplican la misma regla que solo Producción: factura vinculada a al menos una orden publicada, acorde a ver todas las órdenes en el listado.
+
 ## [3.104.4-STABLE] - 2026-04-06
 
 ### Changed

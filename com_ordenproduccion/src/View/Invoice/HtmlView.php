@@ -67,7 +67,7 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        // Administracion/Admon: all invoices. Ventas: invoice must be linked to own work order(s) only.
+        // Access: AccessHelper::canViewInvoiceDetail (admin: all; Produccion incl. Ventas+Produccion: linked orden; Ventas-only: sales_agent).
         if (!AccessHelper::canViewInvoiceDetail($id)) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect(

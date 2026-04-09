@@ -377,8 +377,8 @@ class AccessHelper
     /**
      * Whether the user may open the single invoice detail view (view=invoice&id=).
      * Super user / Administracion/Admon: all invoices.
-     * Produccion-only: any invoice linked to at least one published orden (any owner).
-     * Ventas (including Ventas+Produccion): invoice linked to at least one published orden owned by the user (sales_agent).
+     * Any user in Produccion (including Ventas+Produccion): any invoice linked to at least one published orden (same breadth as order list).
+     * Ventas-only: invoice linked to at least one published orden where sales_agent matches the user.
      *
      * @param   int  $invoiceId  Invoice primary key
      *
@@ -409,7 +409,8 @@ class AccessHelper
         $ids = implode(',', array_map('intval', $orderIds));
 
         try {
-            if (self::isInProduccionGroup() && !self::isInVentasGroup()) {
+            // Produccion alone or Ventas+Produccion: do not require sales_agent (list shows all órdenes).
+            if (self::isInProduccionGroup()) {
                 $db->setQuery(
                     $db->getQuery(true)
                         ->select('COUNT(*)')
