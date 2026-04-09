@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.104.6-STABLE] - 2026-04-08
+
+### Added
+- **Vista factura (solo superusuario):** botón **Anular factura (sistema)** — marca `status = cancelled` y nota de auditoría (no anula DTE ante SAT). **Quitar vínculo** (×) junto a cada orden en “Órdenes de trabajo”: elimina fila en `invoice_orden_suggestions`, limpia `orden_id` legado en la factura y `invoice_number` en la orden si coincidía.
+
 ## [3.104.5-STABLE] - 2026-04-08
 
 ### Fixed

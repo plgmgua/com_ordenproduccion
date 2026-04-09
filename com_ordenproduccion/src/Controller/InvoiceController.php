@@ -182,6 +182,15 @@ class InvoiceController extends BaseController
         }
 
         try {
+            $invModel = $this->getModel('Invoice');
+            $invRow   = $invModel ? $invModel->getItem($invoiceId) : null;
+            if ($invRow && isset($invRow->status) && strtolower((string) $invRow->status) === 'cancelled') {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_LOCKED_CANCELLED'), 'error');
+                $this->setRedirect($back);
+
+                return;
+            }
+
             $model = $this->getModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
             if (!$model) {
                 $model = $this->app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
@@ -250,6 +259,13 @@ class InvoiceController extends BaseController
 
         if (InvoiceListHelper::isMockupInvoice($inv)) {
             $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_MOCKUP_DISABLED'), 'notice');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        if (isset($inv->status) && strtolower((string) $inv->status) === 'cancelled') {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_LOCKED_CANCELLED'), 'error');
             $this->setRedirect($back);
 
             return;
@@ -775,5 +791,112 @@ class InvoiceController extends BaseController
             Factory::getApplication()->enqueueMessage('Warning: Could not update work order with invoice number', 'warning');
             return false;
         }
+    }
+
+    /**
+     * Super user only: mark invoice as cancelled in the system (does not void with SAT).
+     *
+     * POST: invoice_id, optional return URL via redirect
+     *
+     * @since  3.104.6
+     */
+    public function anularInvoice()
+    {
+        if (!Session::checkToken('post')) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isSuperUser()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->post->getInt('invoice_id', 0);
+        $back        = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoiceId, false);
+
+        if ($invoiceId <= 0) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $model = $this->getModel('Invoice');
+        if (!$model || !method_exists($model, 'markCancelledBySuperUser')) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $ok = $model->markCancelledBySuperUser($invoiceId, (int) Factory::getUser()->id);
+        $this->app->enqueueMessage(
+            $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_NOOP'),
+            $ok ? 'success' : 'notice'
+        );
+
+        $this->setRedirect($back);
+    }
+
+    /**
+     * Super user only: unlink one work order from this invoice.
+     *
+     * POST: invoice_id, orden_id
+     *
+     * @since  3.104.6
+     */
+    public function removeInvoiceOrden()
+    {
+        if (!Session::checkToken('post')) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isSuperUser()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->post->getInt('invoice_id', 0);
+        $ordenId     = $this->input->post->getInt('orden_id', 0);
+        $back        = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoiceId, false);
+
+        if ($invoiceId <= 0 || $ordenId <= 0) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_INVALID'), 'warning');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        try {
+            $model = $this->getModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if (!$model) {
+                $model = $this->app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('InvoiceOrdenMatch', 'Site');
+            }
+            if (!$model || !method_exists($model, 'removeInvoiceOrdenAssociation')) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_TABLE_MISSING'), 'error');
+                $this->setRedirect($back);
+
+                return;
+            }
+            $ok = $model->removeInvoiceOrdenAssociation($invoiceId, $ordenId);
+            $this->app->enqueueMessage(
+                $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_NOOP'),
+                $ok ? 'success' : 'notice'
+            );
+        } catch (\Throwable $e) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $this->setRedirect($back);
     }
 }

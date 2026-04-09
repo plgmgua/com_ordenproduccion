@@ -281,5 +281,59 @@ class InvoiceModel extends BaseDatabaseModel
             return false;
         }
     }
+
+    /**
+     * Mark invoice as cancelled (in-app void). Super-user administrative action; does not call SAT.
+     *
+     * @return  bool  True if a row was updated
+     *
+     * @since   3.104.6
+     */
+    public function markCancelledBySuperUser(int $invoiceId, int $userId): bool
+    {
+        $invoiceId = (int) $invoiceId;
+        $userId      = (int) $userId;
+        if ($invoiceId < 1 || $userId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        if ((int) $db->loadResult() < 1) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('notes'))
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+        );
+        $prevNotes = (string) $db->loadResult();
+        $now         = Factory::getDate()->toSql();
+        $noteAppend  = "\n[Anulada en sistema " . $now . ' por user_id=' . $userId . ']';
+        $mergedNotes = trim($prevNotes . $noteAppend);
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_invoices'))
+                ->set($db->quoteName('status') . ' = ' . $db->quote('cancelled'))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . $userId)
+                ->set($db->quoteName('notes') . ' = ' . $db->quote($mergedNotes))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('status') . ' != ' . $db->quote('cancelled'))
+        );
+        $db->execute();
+
+        return $db->getAffectedRows() > 0;
+    }
 }
 

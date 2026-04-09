@@ -37,16 +37,33 @@ if ($manualPdfRel !== '' && $allowManualPdf) {
 }
 
 $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
+$canSuperInvoice = !empty($this->canSuperUserInvoiceActions);
+$invoiceCancelled = !empty($this->invoiceIsCancelled);
 ?>
 <div class="com-ordenproduccion-invoice-detail invoice-pdf-style container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="h5 mb-0"><?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?> <?php echo htmlspecialchars($item->invoice_number ?? ''); ?></h1>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+        <?php if ($canSuperInvoice && !$invoiceCancelled) : ?>
+        <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"
+              onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_CONFIRM')); ?>);">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="task" value="invoice.anularInvoice" />
+            <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+            <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_BUTTON'); ?></button>
+        </form>
+        <?php endif; ?>
         <?php if (AccessHelper::isInAdministracionOrAdmonGroup()) : ?>
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_INVOICES', 'Volver a Facturas'); ?>
         </a>
         <?php endif; ?>
+        </div>
     </div>
+
+    <?php if ($invoiceCancelled) : ?>
+    <div class="alert alert-danger mb-3" role="alert"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_CANCELLED_BANNER'); ?></div>
+    <?php endif; ?>
 
     <div class="invoice-pdf-layout border rounded p-3 bg-white">
         <!-- Row: Emisor (left) | Autorización / Fechas / Moneda (right) -->
@@ -240,20 +257,34 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
         <div class="pt-3 mt-3 border-top invoice-work-orders-footer">
             <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_WORK_ORDERS_SECTION'); ?></div>
             <?php if (!empty($assocLinks)) : ?>
-                <ul class="mb-2 ps-3">
+                <ul class="mb-2 ps-3 list-unstyled">
                     <?php foreach ($assocLinks as $lnk) :
                         $oid = (int) ($lnk['orden_id'] ?? 0);
                         $onum = htmlspecialchars((string) ($lnk['orden_num'] ?? ''), ENT_QUOTES, 'UTF-8');
                         $oUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $oid);
                         ?>
-                    <li><a href="<?php echo $oUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo $onum !== '' ? $onum : ('#' . $oid); ?></a></li>
+                    <li class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <a href="<?php echo $oUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo $onum !== '' ? $onum : ('#' . $oid); ?></a>
+                        <?php if ($canSuperInvoice && !$invoiceCancelled && $oid > 0) : ?>
+                        <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"
+                              onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_CONFIRM')); ?>);">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="task" value="invoice.removeInvoiceOrden" />
+                            <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+                            <input type="hidden" name="orden_id" value="<?php echo $oid; ?>" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-1" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_ORDEN'), ENT_QUOTES, 'UTF-8'); ?>">
+                                <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_ORDEN'); ?></span>&times;
+                            </button>
+                        </form>
+                        <?php endif; ?>
+                    </li>
                     <?php endforeach; ?>
                 </ul>
             <?php else : ?>
                 <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NO_ORDEN_LINKED'); ?></p>
             <?php endif; ?>
 
-            <?php if ($isFel && $matchTbl && AccessHelper::isInAdministracionOrAdmonGroup()) : ?>
+            <?php if ($isFel && $matchTbl && AccessHelper::isInAdministracionOrAdmonGroup() && !$invoiceCancelled) : ?>
                 <?php if (!empty($detailDropdown)) : ?>
                 <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.associateOrden'); ?>" class="d-flex flex-wrap align-items-end gap-2">
                     <?php echo HTMLHelper::_('form.token'); ?>
@@ -287,7 +318,7 @@ $moneda = htmlspecialchars($item->currency ?? 'Q', ENT_QUOTES, 'UTF-8');
             <?php if ($showManualPdfBlock) : ?>
             <div class="mt-3 pt-2 border-top invoice-manual-pdf-block">
                 <div class="fw-bold small mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_SECTION'); ?></div>
-                <?php if ($invoiceDetailAdmin) : ?>
+                <?php if ($invoiceDetailAdmin && !$invoiceCancelled) : ?>
                 <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_MANUAL_PDF_HELP'); ?></p>
                 <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=invoice.uploadManualPdf'); ?>" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2 mb-3">
                     <?php echo HTMLHelper::_('form.token'); ?>

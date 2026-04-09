@@ -1291,4 +1291,82 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         return $db->getAffectedRows() > 0;
     }
+
+    /**
+     * Super-user: remove link between this invoice and a work order (approved suggestion row and/or legacy orden_id).
+     * Clears orden.invoice_number when it equals this invoice's number.
+     *
+     * @return  bool  True if something was removed or cleared
+     *
+     * @since   3.104.6
+     */
+    public function removeInvoiceOrdenAssociation(int $invoiceId, int $ordenId): bool
+    {
+        $invoiceId = (int) $invoiceId;
+        $ordenId   = (int) $ordenId;
+        if ($invoiceId < 1 || $ordenId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return false;
+        }
+
+        $invoiceNumber = trim((string) ($inv->invoice_number ?? ''));
+        $changed       = false;
+
+        if ($this->isTableAvailable()) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                    ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                    ->where($db->quoteName('orden_id') . ' = ' . $ordenId)
+            );
+            $db->execute();
+            if ($db->getAffectedRows() > 0) {
+                $changed = true;
+            }
+        }
+
+        if ((int) ($inv->orden_id ?? 0) === $ordenId) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_invoices'))
+                    ->set($db->quoteName('orden_id') . ' = NULL')
+                    ->set($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote(''))
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                    ->where($db->quoteName('id') . ' = ' . $invoiceId)
+            );
+            $db->execute();
+            if ($db->getAffectedRows() > 0) {
+                $changed = true;
+            }
+        }
+
+        if ($invoiceNumber !== '') {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $colsLc = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (isset($colsLc['invoice_number'])) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->set($db->quoteName('invoice_number') . ' = NULL')
+                        ->where($db->quoteName('id') . ' = ' . $ordenId)
+                        ->where($db->quoteName('invoice_number') . ' = ' . $db->quote($invoiceNumber))
+                );
+                $db->execute();
+            }
+        }
+
+        return $changed;
+    }
 }

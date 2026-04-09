@@ -37,6 +37,20 @@ class HtmlView extends BaseHtmlView
     protected $invoiceOrdenMatchTableAvailable = false;
 
     /**
+     * Super users (core.admin) may anular invoice or unlink órdenes on detail view.
+     *
+     * @var bool
+     */
+    protected $canSuperUserInvoiceActions = false;
+
+    /**
+     * Invoice status is cancelled (in-app void).
+     *
+     * @var bool
+     */
+    protected $invoiceIsCancelled = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -90,6 +104,11 @@ class HtmlView extends BaseHtmlView
 
         $model = $this->getModel('Invoice');
         $this->item = $model->getItem($id);
+
+        $this->canSuperUserInvoiceActions = AccessHelper::isSuperUser();
+        $this->invoiceIsCancelled          = $this->item
+            && isset($this->item->status)
+            && strtolower((string) $this->item->status) === 'cancelled';
 
         if (!$this->item) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
