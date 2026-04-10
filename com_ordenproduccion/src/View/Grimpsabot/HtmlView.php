@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -51,6 +52,22 @@ class HtmlView extends BaseHtmlView
     protected $myChatId = '';
 
     /**
+     * One-line crontab example: real URL when a cron secret is saved, else YOUR_SECRET placeholder.
+     *
+     * @var    string
+     * @since  3.108.3
+     */
+    protected $telegramCronCrontabLine = '';
+
+    /**
+     * True when component params contain a non-empty telegram_queue_cron_key.
+     *
+     * @var    bool
+     * @since  3.108.3
+     */
+    protected $telegramCronCrontabKeyConfigured = false;
+
+    /**
      * @param   string|null  $tpl  Template name
      *
      * @return  void
@@ -83,6 +100,18 @@ class HtmlView extends BaseHtmlView
         $this->form = $model ? $model->getForm() : null;
         $cid = TelegramNotificationHelper::getChatIdForUser((int) $user->id);
         $this->myChatId = $cid ?? '';
+
+        if ($this->canManageBotSettings) {
+            $params = ComponentHelper::getParams('com_ordenproduccion');
+            $key    = trim((string) $params->get('telegram_queue_cron_key', ''));
+            $base   = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=';
+            if ($key !== '') {
+                $this->telegramCronCrontabLine          = '*/2 * * * * wget -q -O - ' . \escapeshellarg($base . $key);
+                $this->telegramCronCrontabKeyConfigured = true;
+            } else {
+                $this->telegramCronCrontabLine = '*/2 * * * * wget -q -O - ' . \escapeshellarg($base . 'YOUR_SECRET');
+            }
+        }
 
         $this->setLayout('default');
         $this->_prepareDocument();

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.108.3-STABLE] - 2026-04-09
+
+### Changed
+- **Grimpsa bot / cron:** “Channel & cron” tab shows one copy-paste `crontab -e` line (`wget` every 2 minutes); placeholder until the cron secret is saved. Shorter help strings (en-GB / es-ES).
+
+## [3.108.2-STABLE] - 2026-04-09
+
+### Changed
+- **Telegram “Probar canal Administración”:** clearer messages when Telegram returns `chat not found` / invalid peer (numeric ID, bot as channel admin, save settings); reject `@username` as chat id; expanded field help text (en-GB / es-ES).
+
 ## [3.108.1-STABLE] - 2026-04-09
 
 ### Fixed

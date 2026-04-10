@@ -12,16 +12,12 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Uri\Uri;
-
 HTMLHelper::_('bootstrap.collapse', '.collapse', []);
 HTMLHelper::_('bootstrap.alert', '.alert', []);
 
 $canAdmin = !empty($this->canManageBotSettings);
 $tableOk  = !empty($this->telegramTableOk);
 $form     = $this->form;
-$root    = rtrim(Uri::root(), '/');
-$cronUrl = $root . '/index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=';
 ?>
 <div class="com-ordenproduccion-grimpsabot container py-3">
     <h1 class="h3 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TITLE'); ?></h1>
@@ -71,8 +67,13 @@ $cronUrl = $root . '/index.php?option=com_ordenproduccion&controller=telegram&ta
                                     <?php echo $field->input; ?>
                                 </div>
                             <?php endforeach; ?>
-                            <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_HELP'))); ?></p>
-                            <p class="small font-monospace text-break bg-light p-2 rounded border"><?php echo $this->escape($cronUrl); ?><span class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_KEY_PLACEHOLDER'); ?></span></p>
+                            <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_HELP'); ?></p>
+                            <?php if (!empty($this->telegramCronCrontabLine)) : ?>
+                                <pre class="small mb-2 font-monospace bg-light p-2 rounded border" style="white-space: pre-wrap; word-break: break-all;"><?php echo $this->escape($this->telegramCronCrontabLine); ?></pre>
+                            <?php endif; ?>
+                            <?php if (empty($this->telegramCronCrontabKeyConfigured)) : ?>
+                                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_SAVE_KEY_FIRST'); ?></p>
+                            <?php endif; ?>
                             <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_TEST_BELOW'); ?></p>
                         </div>
                     </div>
