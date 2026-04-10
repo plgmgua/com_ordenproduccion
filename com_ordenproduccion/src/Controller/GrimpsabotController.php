@@ -269,13 +269,6 @@ class GrimpsabotController extends BaseController
             return;
         }
 
-        if ((int) $params->get('telegram_broadcast_enabled', 0) !== 1) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_DISABLED'), 'warning');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
-
-            return;
-        }
-
         $chatId = trim((string) $params->get('telegram_broadcast_chat_id', ''));
         if ($chatId === '' || TelegramNotificationHelper::normalizeTelegramChatId($chatId) === null) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_NO_CHAT'), 'warning');

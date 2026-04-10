@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.107.0-STABLE</version>
+    <version>3.108.0-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -221,11 +221,22 @@
                     filter="raw"
                     default=""
                 />
+            </fieldset>
+            <fieldset name="broadcast" label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_FIELDSET_LABEL">
                 <field
-                    name="telegram_broadcast_enabled"
+                    name="telegram_broadcast_chat_id"
+                    type="text"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_DESC"
+                    default=""
+                    size="50"
+                    filter="string"
+                />
+                <field
+                    name="telegram_broadcast_invoice"
                     type="radio"
-                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_ENABLED_LABEL"
-                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_ENABLED_DESC"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_INVOICE_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_INVOICE_DESC"
                     default="0"
                     class="btn-group btn-group-yesno"
                 >
@@ -233,10 +244,21 @@
                     <option value="0">JNO</option>
                 </field>
                 <field
-                    name="telegram_broadcast_chat_id"
-                    type="text"
-                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_LABEL"
-                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_DESC"
+                    name="telegram_broadcast_envio"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ENVIO_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ENVIO_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="telegram_queue_cron_key"
+                    type="password"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_DESC"
                     default=""
                     size="50"
                     filter="string"

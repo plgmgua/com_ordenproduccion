@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 
 HTMLHelper::_('bootstrap.collapse', '.collapse', []);
 HTMLHelper::_('bootstrap.alert', '.alert', []);
@@ -19,6 +20,8 @@ HTMLHelper::_('bootstrap.alert', '.alert', []);
 $canAdmin = !empty($this->canManageBotSettings);
 $tableOk  = !empty($this->telegramTableOk);
 $form     = $this->form;
+$root    = rtrim(Uri::root(), '/');
+$cronUrl = $root . '/index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=';
 ?>
 <div class="com-ordenproduccion-grimpsabot container py-3">
     <h1 class="h3 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TITLE'); ?></h1>
@@ -30,26 +33,55 @@ $form     = $this->form;
 
     <?php if ($canAdmin && $form) : ?>
         <div class="card mb-4">
-            <div class="card-header"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_FIELDSET_BOT'); ?></div>
+            <div class="card-header"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SETTINGS_CARD_HEADER'); ?></div>
             <div class="card-body">
                 <form action="<?php echo Route::_('index.php'); ?>" method="post" name="grimpsabot-config" id="grimpsabot-config" class="form-validate">
                     <input type="hidden" name="option" value="com_ordenproduccion" />
                     <input type="hidden" name="task" value="grimpsabot.saveconfig" />
                     <?php echo HTMLHelper::_('form.token'); ?>
 
-                    <?php foreach ($form->getFieldset('telegram') as $field) : ?>
-                        <div class="mb-3">
-                            <?php echo $field->label; ?>
-                            <?php echo $field->input; ?>
+                    <ul class="nav nav-tabs mb-3" id="grimpsabotTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="grimpsabot-tab-bot" data-bs-toggle="tab" data-bs-target="#grimpsabot-pane-bot" type="button" role="tab" aria-controls="grimpsabot-pane-bot" aria-selected="true">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BOT'); ?>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="grimpsabot-tab-broadcast" data-bs-toggle="tab" data-bs-target="#grimpsabot-pane-broadcast" type="button" role="tab" aria-controls="grimpsabot-pane-broadcast" aria-selected="false">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BROADCAST'); ?>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="grimpsabotTabsContent">
+                        <div class="tab-pane fade show active" id="grimpsabot-pane-bot" role="tabpanel" aria-labelledby="grimpsabot-tab-bot" tabindex="0">
+                            <?php foreach ($form->getFieldset('telegram') as $field) : ?>
+                                <div class="mb-3">
+                                    <?php echo $field->label; ?>
+                                    <?php echo $field->input; ?>
+                                </div>
+                            <?php endforeach; ?>
+                            <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_INVOICE'))); ?></p>
+                            <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_ENVIO'))); ?></p>
                         </div>
-                    <?php endforeach; ?>
+                        <div class="tab-pane fade" id="grimpsabot-pane-broadcast" role="tabpanel" aria-labelledby="grimpsabot-tab-broadcast" tabindex="0">
+                            <?php foreach ($form->getFieldset('broadcast') as $field) : ?>
+                                <div class="mb-3">
+                                    <?php echo $field->label; ?>
+                                    <?php echo $field->input; ?>
+                                </div>
+                            <?php endforeach; ?>
+                            <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_HELP'))); ?></p>
+                            <p class="small font-monospace text-break bg-light p-2 rounded border"><?php echo $this->escape($cronUrl); ?><span class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_KEY_PLACEHOLDER'); ?></span></p>
+                            <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_TEST_BELOW'); ?></p>
+                        </div>
+                    </div>
 
-                    <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_INVOICE'))); ?></p>
-                    <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_ENVIO'))); ?></p>
-
-                    <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
+                    <div class="mt-3 border-top pt-3">
+                        <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
+                    </div>
                 </form>
-                <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-3">
+                <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-3 border-top pt-3">
                     <input type="hidden" name="option" value="com_ordenproduccion" />
                     <input type="hidden" name="task" value="grimpsabot.sendtestbroadcast" />
                     <?php echo HTMLHelper::_('form.token'); ?>

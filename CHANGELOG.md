@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.108.0-STABLE] - 2026-04-09
+
+### Added
+- **Telegram queue:** table `#__ordenproduccion_telegram_queue`; outbound DMs and channel posts are **queued** and sent when the cron URL is called (recommended every **2 minutes**). Secret key `telegram_queue_cron_key` in component params; endpoint `index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=SECRET`.
+- **Grimpsa bot UI:** second tab **Channel & cron** with channel ID, per-event **Yes/No** for broadcasting invoice vs envío (replaces single “broadcast enabled” switch), cron instructions, and test-channel button below Save.
+
+### Changed
+- Legacy `telegram_broadcast_enabled` is still honored when the new per-event keys are absent (upgrade path).
+
 ## [3.107.0-STABLE] - 2026-04-09
 
 ### Added

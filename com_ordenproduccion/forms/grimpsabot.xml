@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <form>
-    <fieldset name="telegram" label="COM_ORDENPRODUCCION_GRIMPSABOT_FIELDSET_BOT">
+    <fieldset name="telegram" label="COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BOT">
         <field
             name="telegram_enabled"
             type="radio"
@@ -64,17 +64,8 @@
             filter="raw"
             default=""
         />
-        <field
-            name="telegram_broadcast_enabled"
-            type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_ENABLED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_ENABLED_DESC"
-            default="0"
-            class="btn-group btn-group-yesno"
-        >
-            <option value="1">JYES</option>
-            <option value="0">JNO</option>
-        </field>
+    </fieldset>
+    <fieldset name="broadcast" label="COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BROADCAST">
         <field
             name="telegram_broadcast_chat_id"
             type="text"
@@ -84,6 +75,38 @@
             size="40"
             filter="string"
             default=""
+        />
+        <field
+            name="telegram_broadcast_invoice"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_INVOICE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_INVOICE_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="telegram_broadcast_envio"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ENVIO_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ENVIO_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="telegram_queue_cron_key"
+            type="password"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_DESC"
+            default=""
+            autocomplete="off"
+            size="50"
+            filter="string"
         />
     </fieldset>
     <fieldset name="profile" label="COM_ORDENPRODUCCION_GRIMPSABOT_FIELDSET_PROFILE">

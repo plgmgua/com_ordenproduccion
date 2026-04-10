@@ -46,6 +46,16 @@ class GrimpsabotModel extends FormModel
         $params = ComponentHelper::getParams('com_ordenproduccion');
         $data   = $params->toArray();
         $user   = Factory::getUser();
+
+        if (
+            !\array_key_exists('telegram_broadcast_invoice', $data)
+            && !\array_key_exists('telegram_broadcast_envio', $data)
+            && !empty($data['telegram_broadcast_enabled'])
+        ) {
+            $data['telegram_broadcast_invoice'] = 1;
+            $data['telegram_broadcast_envio']   = 1;
+        }
+
         if (!$user->guest && TelegramNotificationHelper::telegramUsersTableExists($this->getDatabase())) {
             $cid = TelegramNotificationHelper::getChatIdForUser((int) $user->id);
             $data['telegram_chat_id'] = $cid ?? '';
@@ -74,16 +84,29 @@ class GrimpsabotModel extends FormModel
         $registry = new Registry($table->params);
         $existing = $registry->toArray();
 
-        foreach (['telegram_enabled', 'telegram_notify_invoice', 'telegram_notify_envio', 'telegram_broadcast_enabled'] as $k) {
+        foreach (['telegram_enabled', 'telegram_notify_invoice', 'telegram_notify_envio'] as $k) {
             if (isset($data[$k])) {
                 $registry->set($k, (int) $data[$k]);
             }
+        }
+
+        if (isset($data['telegram_broadcast_invoice'])) {
+            $registry->set('telegram_broadcast_invoice', (int) $data['telegram_broadcast_invoice'] ? 1 : 0);
+        }
+        if (isset($data['telegram_broadcast_envio'])) {
+            $registry->set('telegram_broadcast_envio', (int) $data['telegram_broadcast_envio'] ? 1 : 0);
         }
 
         if (!empty($data['telegram_bot_token'])) {
             $registry->set('telegram_bot_token', trim((string) $data['telegram_bot_token']));
         } elseif (!empty($existing['telegram_bot_token'])) {
             $registry->set('telegram_bot_token', $existing['telegram_bot_token']);
+        }
+
+        if (!empty($data['telegram_queue_cron_key'])) {
+            $registry->set('telegram_queue_cron_key', trim((string) $data['telegram_queue_cron_key']));
+        } elseif (!empty($existing['telegram_queue_cron_key'])) {
+            $registry->set('telegram_queue_cron_key', $existing['telegram_queue_cron_key']);
         }
 
         foreach (['telegram_message_invoice', 'telegram_message_envio'] as $msgKey) {

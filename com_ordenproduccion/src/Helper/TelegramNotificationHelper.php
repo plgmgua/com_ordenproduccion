@@ -117,7 +117,7 @@ class TelegramNotificationHelper
                     \implode(', ', $uniqueNames)
                 );
             }
-            self::sendToAdministracionBroadcastChannel($params, $token, $channelBody, self::EVENT_INVOICE);
+            self::sendToAdministracionBroadcastChannel($params, $channelBody, self::EVENT_INVOICE);
         }
     }
 
@@ -187,35 +187,73 @@ class TelegramNotificationHelper
         $text     = self::replaceTemplatePlaceholders($template, $vars);
 
         self::sendToUserId($token, $uid, $text);
-        self::sendToAdministracionBroadcastChannel($params, $token, $text, self::EVENT_ENVIO);
+        self::sendToAdministracionBroadcastChannel($params, $text, self::EVENT_ENVIO);
+    }
+
+    /**
+     * Whether the Administración channel should receive this event type (checkboxes + chat id).
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     * @param   string                    $event   self::EVENT_INVOICE or EVENT_ENVIO
+     *
+     * @return  bool
+     */
+    public static function shouldBroadcastToChannel($params, string $event): bool
+    {
+        if (!$params instanceof Registry) {
+            return false;
+        }
+
+        $chatId = trim((string) $params->get('telegram_broadcast_chat_id', ''));
+        if ($chatId === '' || self::normalizeTelegramChatId($chatId) === null) {
+            return false;
+        }
+
+        $arr    = $params->toArray();
+        $legacy = !empty($arr['telegram_broadcast_enabled']) && (int) $arr['telegram_broadcast_enabled'] === 1;
+
+        if ($event === self::EVENT_INVOICE) {
+            if (\array_key_exists('telegram_broadcast_invoice', $arr)) {
+                return (int) ($arr['telegram_broadcast_invoice'] ?? 0) === 1;
+            }
+
+            return $legacy;
+        }
+
+        if ($event === self::EVENT_ENVIO) {
+            if (\array_key_exists('telegram_broadcast_envio', $arr)) {
+                return (int) ($arr['telegram_broadcast_envio'] ?? 0) === 1;
+            }
+
+            return $legacy;
+        }
+
+        return false;
     }
 
     /**
      * Post the same alert to the Administración Telegram channel (optional component param).
      *
      * @param   \Joomla\Registry\Registry  $params  Component params
-     * @param   string                    $token   Bot token
      * @param   string                    $body    Message body (same as DM, without channel prefix)
      * @param   string                    $event   self::EVENT_INVOICE or EVENT_ENVIO
      *
      * @return  void
      */
-    public static function sendToAdministracionBroadcastChannel($params, string $token, string $body, string $event): void
+    public static function sendToAdministracionBroadcastChannel($params, string $body, string $event): void
     {
         if (!$params instanceof Registry) {
             return;
         }
-        if ((int) $params->get('telegram_broadcast_enabled', 0) !== 1) {
+        if ($body === '') {
+            return;
+        }
+        if (!self::shouldBroadcastToChannel($params, $event)) {
             return;
         }
 
         $chatId = trim((string) $params->get('telegram_broadcast_chat_id', ''));
         if ($chatId === '' || self::normalizeTelegramChatId($chatId) === null) {
-            return;
-        }
-
-        $token = trim($token);
-        if ($token === '' || $body === '') {
             return;
         }
 
@@ -226,7 +264,7 @@ class TelegramNotificationHelper
             : 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE';
         $full = Text::_($pfxKey) . $body;
 
-        TelegramApiHelper::sendMessage($token, $chatId, $full);
+        TelegramQueueHelper::enqueue($chatId, $full);
     }
 
     /**
@@ -716,6 +754,6 @@ class TelegramNotificationHelper
             return;
         }
 
-        TelegramApiHelper::sendMessage($token, $chatId, $text);
+        TelegramQueueHelper::enqueue($chatId, $text);
     }
 }
