@@ -114,6 +114,8 @@ class GrimpsabotController extends BaseController
             return;
         }
 
+        TelegramNotificationHelper::ensureTelegramLanguageLoaded();
+
         $params = ComponentHelper::getParams('com_ordenproduccion');
         $token  = trim((string) $params->get('telegram_bot_token', ''));
         if ($token === '') {
@@ -172,6 +174,8 @@ class GrimpsabotController extends BaseController
 
             return;
         }
+
+        TelegramNotificationHelper::ensureTelegramLanguageLoaded();
 
         $event = $this->input->post->getCmd('telegram_test_event', 'invoice');
         if (!\in_array($event, [TelegramNotificationHelper::EVENT_INVOICE, TelegramNotificationHelper::EVENT_ENVIO], true)) {

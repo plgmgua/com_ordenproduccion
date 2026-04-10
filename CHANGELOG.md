@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.106.1-STABLE] - 2026-04-09
+
+### Fixed
+- **Telegram test messages:** load `com_ordenproduccion` language in controller tasks and before resolving template/sample `Text::_()` strings so Telegram does not show raw keys (e.g. `COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_*`, `COM_ORDENPRODUCCION_TELEGRAM_TEST_PREFIX`).
+
 ## [3.106.0-STABLE] - 2026-04-09
 
 ### Added

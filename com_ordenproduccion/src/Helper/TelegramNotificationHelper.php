@@ -192,6 +192,24 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Load site + admin com_ordenproduccion language (needed for controller tasks that skip the view).
+     *
+     * @return  void
+     */
+    public static function ensureTelegramLanguageLoaded(): void
+    {
+        try {
+            $app  = Factory::getApplication();
+            $lang = $app->getLanguage();
+            $tag  = $lang->getTag();
+            $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+            $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+            $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion', $tag, true);
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /**
      * Invoice message body from component params, or language default.
      *
      * @param   \Joomla\Registry\Registry  $params  Component params
@@ -200,6 +218,8 @@ class TelegramNotificationHelper
      */
     public static function getInvoiceMessageTemplate($params): string
     {
+        self::ensureTelegramLanguageLoaded();
+
         $t = '';
         if ($params instanceof Registry) {
             $t = trim((string) $params->get('telegram_message_invoice', ''));
@@ -217,6 +237,8 @@ class TelegramNotificationHelper
      */
     public static function getEnvioMessageTemplate($params): string
     {
+        self::ensureTelegramLanguageLoaded();
+
         $t = '';
         if ($params instanceof Registry) {
             $t = trim((string) $params->get('telegram_message_envio', ''));
@@ -354,6 +376,8 @@ class TelegramNotificationHelper
      */
     public static function getSampleInvoiceTemplateVars(User $user): array
     {
+        self::ensureTelegramLanguageLoaded();
+
         return [
             'username'         => trim((string) $user->name),
             'user_login'       => trim((string) $user->username),
@@ -378,6 +402,8 @@ class TelegramNotificationHelper
      */
     public static function getSampleEnvioTemplateVars(User $user): array
     {
+        self::ensureTelegramLanguageLoaded();
+
         return [
             'username'         => trim((string) $user->name),
             'user_login'       => trim((string) $user->username),
