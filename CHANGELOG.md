@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.105.3-STABLE] - 2026-04-09
+
+### Added
+- **Telegram chat_id:** además de la tabla `ordenproduccion_telegram_users`, se lee el campo personalizado de usuario `telegram_chat_id` o `telegram-chat-id` (com_fields). Prioridad: valor en tabla del componente, si vacío perfil de usuario.
+
 ## [3.105.2-STABLE] - 2026-04-09
 
 ### Fixed

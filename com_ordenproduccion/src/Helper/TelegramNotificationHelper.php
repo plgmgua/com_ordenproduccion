@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\User\UserFactoryInterface;
 
 /**
  * Dispatches Telegram alerts when enabled in component params and user has chat_id.
@@ -261,6 +262,11 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Resolve Telegram chat_id for a Joomla user.
+     *
+     * Order: (1) component table `#__ordenproduccion_telegram_users`;
+     * (2) Users → custom fields `telegram_chat_id` or `telegram-chat-id` (com_fields).
+     *
      * @return  string|null  chat_id or null
      */
     public static function getChatIdForUser(int $userId): ?string
@@ -272,22 +278,77 @@ class TelegramNotificationHelper
 
         try {
             $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-            if (!self::telegramUsersTableExists($db)) {
-                return null;
+            if (self::telegramUsersTableExists($db)) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('chat_id'))
+                        ->from($db->quoteName('#__ordenproduccion_telegram_users'))
+                        ->where($db->quoteName('user_id') . ' = ' . $userId)
+                );
+                $cid = trim((string) $db->loadResult());
+                $ok  = self::normalizeTelegramChatId($cid);
+                if ($ok !== null) {
+                    return $ok;
+                }
             }
-            $db->setQuery(
-                $db->getQuery(true)
-                    ->select($db->quoteName('chat_id'))
-                    ->from($db->quoteName('#__ordenproduccion_telegram_users'))
-                    ->where($db->quoteName('user_id') . ' = ' . $userId)
-            );
-
-            $cid = trim((string) $db->loadResult());
-
-            return $cid !== '' ? $cid : null;
         } catch (\Throwable $e) {
+        }
+
+        return self::getTelegramChatIdFromUserCustomFields($userId);
+    }
+
+    /**
+     * Valid numeric Telegram chat id (private / group), trimmed.
+     *
+     * @param   string  $raw  Raw value
+     *
+     * @return  string|null  Normalized digits or null
+     */
+    public static function normalizeTelegramChatId(string $raw): ?string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
             return null;
         }
+        if (!preg_match('/^-?\d{1,32}$/', $raw)) {
+            return null;
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Read chat_id from Joomla user custom fields (Users → Fields).
+     * Tries field **name** `telegram_chat_id` then `telegram-chat-id`.
+     *
+     * @param   int  $userId  Joomla user id
+     *
+     * @return  string|null
+     */
+    public static function getTelegramChatIdFromUserCustomFields(int $userId): ?string
+    {
+        $userId = (int) $userId;
+        if ($userId < 1) {
+            return null;
+        }
+
+        try {
+            $user = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($userId);
+            if ($user->guest || (int) $user->id !== $userId) {
+                return null;
+            }
+
+            foreach (['telegram_chat_id', 'telegram-chat-id'] as $fieldName) {
+                $raw = CotizacionPdfHelper::getUserCustomField($user, $fieldName);
+                $ok  = self::normalizeTelegramChatId((string) $raw);
+                if ($ok !== null) {
+                    return $ok;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
     }
 
     /**
