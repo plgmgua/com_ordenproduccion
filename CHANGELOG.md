@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.108.1-STABLE] - 2026-04-09
+
+### Fixed
+- **Grimpsa bot tabs:** “Channel & cron” did not switch because frontend templates often do not load Bootstrap’s tab JavaScript. Tabs now use `<a href="#…">` plus a small inline script that toggles `.active` / `.show` on panes (no dependency on `bootstrap.tab`).
+
 ## [3.108.0-STABLE] - 2026-04-09
 
 ### Added

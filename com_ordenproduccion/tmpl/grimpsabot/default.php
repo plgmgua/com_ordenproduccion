@@ -42,14 +42,14 @@ $cronUrl = $root . '/index.php?option=com_ordenproduccion&controller=telegram&ta
 
                     <ul class="nav nav-tabs mb-3" id="grimpsabotTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="grimpsabot-tab-bot" data-bs-toggle="tab" data-bs-target="#grimpsabot-pane-bot" type="button" role="tab" aria-controls="grimpsabot-pane-bot" aria-selected="true">
+                            <a class="nav-link active" id="grimpsabot-tab-bot" href="#grimpsabot-pane-bot" role="tab" aria-controls="grimpsabot-pane-bot" aria-selected="true">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BOT'); ?>
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="grimpsabot-tab-broadcast" data-bs-toggle="tab" data-bs-target="#grimpsabot-pane-broadcast" type="button" role="tab" aria-controls="grimpsabot-pane-broadcast" aria-selected="false">
+                            <a class="nav-link" id="grimpsabot-tab-broadcast" href="#grimpsabot-pane-broadcast" role="tab" aria-controls="grimpsabot-pane-broadcast" aria-selected="false">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BROADCAST'); ?>
-                            </button>
+                            </a>
                         </li>
                     </ul>
 
@@ -143,3 +143,39 @@ $cronUrl = $root . '/index.php?option=com_ordenproduccion&controller=telegram&ta
         </div>
     <?php endif; ?>
 </div>
+<?php if ($canAdmin && $form) : ?>
+<script>
+(function () {
+    var tabBar = document.getElementById('grimpsabotTabs');
+    var panesWrap = document.getElementById('grimpsabotTabsContent');
+    if (!tabBar || !panesWrap) {
+        return;
+    }
+    tabBar.addEventListener('click', function (e) {
+        var a = e.target && e.target.closest ? e.target.closest('a[href^="#grimpsabot-pane-"]') : null;
+        if (!a || !tabBar.contains(a)) {
+            return;
+        }
+        e.preventDefault();
+        var id = a.getAttribute('href');
+        if (!id || id.charAt(0) !== '#') {
+            return;
+        }
+        var pane = document.querySelector(id);
+        if (!pane || !panesWrap.contains(pane)) {
+            return;
+        }
+        tabBar.querySelectorAll('.nav-link').forEach(function (el) {
+            var on = el === a;
+            el.classList.toggle('active', on);
+            el.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        panesWrap.querySelectorAll('.tab-pane').forEach(function (el) {
+            var on = el === pane;
+            el.classList.toggle('show', on);
+            el.classList.toggle('active', on);
+        });
+    });
+})();
+</script>
+<?php endif; ?>
