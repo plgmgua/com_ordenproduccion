@@ -81,6 +81,9 @@ class TelegramNotificationHelper
         $template = self::getInvoiceMessageTemplate($params);
         $users    = Factory::getContainer()->get(UserFactoryInterface::class);
 
+        $firstChannelBody = null;
+        $recipientNames    = [];
+
         foreach ($recipientIds as $uid) {
             $uid = (int) $uid;
             if ($uid < 1) {
@@ -97,7 +100,24 @@ class TelegramNotificationHelper
 
             $vars = self::buildInvoiceTemplateVars($invoice, $recipient, $invoiceId);
             $text = self::replaceTemplatePlaceholders($template, $vars);
+            if ($firstChannelBody === null) {
+                $firstChannelBody = $text;
+            }
+            $recipientNames[] = trim((string) $recipient->name);
             self::sendToUserId($token, $uid, $text);
+        }
+
+        if ($firstChannelBody !== null) {
+            $channelBody = $firstChannelBody;
+            $uniqueNames = \array_unique(\array_filter($recipientNames, static fn ($n) => $n !== ''));
+            if (\count($uniqueNames) > 1) {
+                self::ensureTelegramLanguageLoaded();
+                $channelBody .= "\n\n" . Text::sprintf(
+                    'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_RECIPIENTS_LINE',
+                    \implode(', ', $uniqueNames)
+                );
+            }
+            self::sendToAdministracionBroadcastChannel($params, $token, $channelBody, self::EVENT_INVOICE);
         }
     }
 
@@ -167,6 +187,46 @@ class TelegramNotificationHelper
         $text     = self::replaceTemplatePlaceholders($template, $vars);
 
         self::sendToUserId($token, $uid, $text);
+        self::sendToAdministracionBroadcastChannel($params, $token, $text, self::EVENT_ENVIO);
+    }
+
+    /**
+     * Post the same alert to the Administración Telegram channel (optional component param).
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     * @param   string                    $token   Bot token
+     * @param   string                    $body    Message body (same as DM, without channel prefix)
+     * @param   string                    $event   self::EVENT_INVOICE or EVENT_ENVIO
+     *
+     * @return  void
+     */
+    public static function sendToAdministracionBroadcastChannel($params, string $token, string $body, string $event): void
+    {
+        if (!$params instanceof Registry) {
+            return;
+        }
+        if ((int) $params->get('telegram_broadcast_enabled', 0) !== 1) {
+            return;
+        }
+
+        $chatId = trim((string) $params->get('telegram_broadcast_chat_id', ''));
+        if ($chatId === '' || self::normalizeTelegramChatId($chatId) === null) {
+            return;
+        }
+
+        $token = trim($token);
+        if ($token === '' || $body === '') {
+            return;
+        }
+
+        self::ensureTelegramLanguageLoaded();
+
+        $pfxKey = $event === self::EVENT_ENVIO
+            ? 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ENVIO'
+            : 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE';
+        $full = Text::_($pfxKey) . $body;
+
+        TelegramApiHelper::sendMessage($token, $chatId, $full);
     }
 
     /**

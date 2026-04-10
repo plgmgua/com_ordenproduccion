@@ -49,6 +49,13 @@ $form     = $this->form;
 
                     <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
                 </form>
+                <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-3">
+                    <input type="hidden" name="option" value="com_ordenproduccion" />
+                    <input type="hidden" name="task" value="grimpsabot.sendtestbroadcast" />
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST_BROADCAST'); ?></button>
+                    <span class="small text-muted ms-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST_BROADCAST_HINT'); ?></span>
+                </form>
             </div>
         </div>
     <?php elseif (!$canAdmin) : ?>

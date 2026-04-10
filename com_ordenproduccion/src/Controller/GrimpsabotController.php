@@ -232,6 +232,80 @@ class GrimpsabotController extends BaseController
     }
 
     /**
+     * Send a test line to the Administración Telegram channel (Administración / Admon / superuser only).
+     *
+     * @return  void
+     */
+    public function sendtestbroadcast(): void
+    {
+        if (!$this->verifyToken()) {
+            return;
+        }
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!$this->allowManageBotSettings()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
+        TelegramNotificationHelper::ensureTelegramLanguageLoaded();
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $token  = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_NO_TOKEN'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
+        if ((int) $params->get('telegram_broadcast_enabled', 0) !== 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_DISABLED'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
+        $chatId = trim((string) $params->get('telegram_broadcast_chat_id', ''));
+        if ($chatId === '' || TelegramNotificationHelper::normalizeTelegramChatId($chatId) === null) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_NO_CHAT'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
+        $text = Text::_('COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_TEST_BODY');
+        $res  = TelegramApiHelper::sendMessage($token, $chatId, $text);
+
+        if (!empty($res['ok'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_SENT'), 'success');
+        } else {
+            $detail = trim((string) ($res['description'] ?? $res['error'] ?? ''));
+            if ($detail !== '') {
+                $safe = htmlspecialchars($detail, ENT_QUOTES, 'UTF-8');
+                $app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED_REASON', $safe),
+                    'error'
+                );
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED'), 'error');
+            }
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+    }
+
+    /**
      * @return  bool  True if token valid
      */
     protected function verifyToken(): bool

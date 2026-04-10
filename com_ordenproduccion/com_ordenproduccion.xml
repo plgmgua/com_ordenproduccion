@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.106.1-STABLE</version>
+    <version>3.107.0-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -220,6 +220,26 @@
                     cols="80"
                     filter="raw"
                     default=""
+                />
+                <field
+                    name="telegram_broadcast_enabled"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_ENABLED_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_ENABLED_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="telegram_broadcast_chat_id"
+                    type="text"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_DESC"
+                    default=""
+                    size="50"
+                    filter="string"
                 />
             </fieldset>
         </fields>

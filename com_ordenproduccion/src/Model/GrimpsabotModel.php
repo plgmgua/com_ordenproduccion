@@ -74,7 +74,7 @@ class GrimpsabotModel extends FormModel
         $registry = new Registry($table->params);
         $existing = $registry->toArray();
 
-        foreach (['telegram_enabled', 'telegram_notify_invoice', 'telegram_notify_envio'] as $k) {
+        foreach (['telegram_enabled', 'telegram_notify_invoice', 'telegram_notify_envio', 'telegram_broadcast_enabled'] as $k) {
             if (isset($data[$k])) {
                 $registry->set($k, (int) $data[$k]);
             }
@@ -90,6 +90,10 @@ class GrimpsabotModel extends FormModel
             if (\array_key_exists($msgKey, $data)) {
                 $registry->set($msgKey, trim((string) $data[$msgKey]));
             }
+        }
+
+        if (\array_key_exists('telegram_broadcast_chat_id', $data)) {
+            $registry->set('telegram_broadcast_chat_id', trim((string) $data['telegram_broadcast_chat_id']));
         }
 
         $table->params = $registry->toString();

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.107.0-STABLE] - 2026-04-09
+
+### Added
+- **Telegram Administración channel:** optional broadcast of invoice and envío alerts to a Telegram channel (chat ID, usually `-100…`). Configured on **Grimpsa bot** / component options by **Administración / Admon / super user**; bot must be channel admin. Multi-recipient invoice DMs append one line listing all notified users. **Test Administración channel** button sends a connectivity line to the channel.
+
 ## [3.106.1-STABLE] - 2026-04-09
 
 ### Fixed
