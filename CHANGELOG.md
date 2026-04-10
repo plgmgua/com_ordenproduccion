@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.3-STABLE] - 2026-04-09
+
+### Fixed
+- **Telegram envío:** `notifyEnvioIssued` returned before queuing anything when the work order had no resolvable owner user (`sales_agent` did not match a Joomla user and `created_by` was empty) or when loading that user failed. The Administración channel message (and any template) is now built using `sales_agent` as `{username}` when needed; DMs are only sent when a real user is resolved and has a chat ID.
+
 ## [3.109.2-STABLE] - 2026-04-09
 
 ### Fixed

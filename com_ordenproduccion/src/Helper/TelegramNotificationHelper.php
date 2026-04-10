@@ -168,25 +168,26 @@ class TelegramNotificationHelper
             return;
         }
 
-        $uid = self::resolveOwnerUserIdFromOrden($orden);
-        if ($uid === null) {
-            return;
-        }
-
-        try {
-            $recipient = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($uid);
-        } catch (\Throwable $e) {
-            return;
-        }
-        if ($recipient->guest) {
-            return;
+        $uid         = self::resolveOwnerUserIdFromOrden($orden);
+        $recipient   = null;
+        if ($uid !== null && $uid > 0) {
+            try {
+                $u = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($uid);
+                if (!$u->guest && (int) $u->id === $uid) {
+                    $recipient = $u;
+                }
+            } catch (\Throwable $e) {
+            }
         }
 
         $template = self::getEnvioMessageTemplate($params);
         $vars     = self::buildEnvioTemplateVars($orden, $recipient, $ordenId, $tipoEnvio, $tipoMensajeria);
         $text     = self::replaceTemplatePlaceholders($template, $vars);
 
-        self::sendToUserId($token, $uid, $text);
+        if ($recipient !== null) {
+            self::sendToUserId($token, $uid, $text);
+        }
+
         self::sendToAdministracionBroadcastChannel($params, $text, self::EVENT_ENVIO);
     }
 
@@ -435,15 +436,15 @@ class TelegramNotificationHelper
     /**
      * Variables for envío notification.
      *
-     * @param   object  $orden            Work order row
-     * @param   User    $recipient        Owner
-     * @param   int     $ordenId          Order PK
-     * @param   string  $tipoEnvio        completo / parcial / …
-     * @param   string  $tipoMensajeria   propio / …
+     * @param   object    $orden            Work order row
+     * @param   User|null $recipient        Owner Joomla user, or null if not resolved (uses sales_agent / placeholders)
+     * @param   int       $ordenId          Order PK
+     * @param   string    $tipoEnvio        completo / parcial / …
+     * @param   string    $tipoMensajeria   propio / …
      *
      * @return  array<string,string>
      */
-    public static function buildEnvioTemplateVars(object $orden, User $recipient, int $ordenId, string $tipoEnvio, string $tipoMensajeria): array
+    public static function buildEnvioTemplateVars(object $orden, ?User $recipient, int $ordenId, string $tipoEnvio, string $tipoMensajeria): array
     {
         $site = '';
         try {
@@ -453,9 +454,18 @@ class TelegramNotificationHelper
 
         $ot = trim((string) ($orden->orden_de_trabajo ?? ''));
 
+        if ($recipient !== null && !$recipient->guest) {
+            $username   = trim((string) $recipient->name);
+            $user_login = trim((string) $recipient->username);
+        } else {
+            $sales = trim((string) ($orden->sales_agent ?? ''));
+            $username   = $sales !== '' ? $sales : '—';
+            $user_login = '';
+        }
+
         return [
-            'username'          => trim((string) $recipient->name),
-            'user_login'        => trim((string) $recipient->username),
+            'username'          => $username,
+            'user_login'        => $user_login,
             'orden_id'          => (string) (int) $ordenId,
             'orden_de_trabajo'  => $ot !== '' ? $ot : '#' . (int) $ordenId,
             'client_name'       => trim((string) ($orden->nombre_del_cliente ?? $orden->client_name ?? '')),
