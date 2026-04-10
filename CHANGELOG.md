@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.2-STABLE] - 2026-04-09
+
+### Fixed
+- **Grimpsa bot:** the **Queue** tab label was missing from the tab bar (only the pane existed), so the queue could not be opened. The third tab link is now rendered.
+
 ## [3.109.1-STABLE] - 2026-04-09
 
 ### Changed

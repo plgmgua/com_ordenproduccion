@@ -66,6 +66,11 @@ $truncateQueueBody = static function (string $text, int $max = 200): string {
                                 <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BROADCAST'); ?>
                             </a>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="grimpsabot-tab-queue" href="#grimpsabot-pane-queue" role="tab" aria-controls="grimpsabot-pane-queue" aria-selected="false">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_QUEUE'); ?>
+                            </a>
+                        </li>
                     </ul>
 
                     <div class="tab-content" id="grimpsabotTabsContent">
