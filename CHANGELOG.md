@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.1-STABLE] - 2026-04-09
+
+### Changed
+- **Telegram queue list:** moved from the administrator-only screen to a **Queue** tab on the frontend **Grimpsa bot** view (same access as bot settings: Administración / Admon / super user). Admin submenu entry **Telegram queue** removed; listing uses shared helpers in `TelegramQueueHelper`.
+
 ## [3.109.0-STABLE] - 2026-04-09
 
 ### Added

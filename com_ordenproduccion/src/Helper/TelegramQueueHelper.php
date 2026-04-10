@@ -73,6 +73,133 @@ class TelegramQueueHelper
     }
 
     /**
+     * Max rows returned for queue / sent lists in UI.
+     *
+     * @since  3.109.1
+     */
+    public const DISPLAY_LIST_LIMIT = 200;
+
+    /**
+     * Pending queue rows (FIFO) for display.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db     Database
+     * @param   int|null                            $limit  Max rows (default DISPLAY_LIST_LIMIT, max 500)
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.109.1
+     */
+    public static function getPendingQueueItemsForDisplay(DatabaseInterface $db, ?int $limit = null): array
+    {
+        $limit = $limit ?? self::DISPLAY_LIST_LIMIT;
+        $limit = max(1, min(500, $limit));
+
+        if (!self::telegramQueueTableExists($db)) {
+            return [];
+        }
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_telegram_queue'))
+                    ->order($db->quoteName('id') . ' ASC')
+                    ->setLimit($limit)
+            );
+
+            return $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Sent log rows (newest first) for display.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db     Database
+     * @param   int|null                            $limit  Max rows
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.109.1
+     */
+    public static function getSentLogItemsForDisplay(DatabaseInterface $db, ?int $limit = null): array
+    {
+        $limit = $limit ?? self::DISPLAY_LIST_LIMIT;
+        $limit = max(1, min(500, $limit));
+
+        if (!self::telegramSentLogTableExists($db)) {
+            return [];
+        }
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_telegram_sent_log'))
+                    ->order($db->quoteName('sent_at') . ' DESC')
+                    ->setLimit($limit)
+            );
+
+            return $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database
+     *
+     * @return  int
+     *
+     * @since   3.109.1
+     */
+    public static function countPendingQueue(DatabaseInterface $db): int
+    {
+        if (!self::telegramQueueTableExists($db)) {
+            return 0;
+        }
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__ordenproduccion_telegram_queue'))
+            );
+
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database
+     *
+     * @return  int
+     *
+     * @since   3.109.1
+     */
+    public static function countSentLog(DatabaseInterface $db): int
+    {
+        if (!self::telegramSentLogTableExists($db)) {
+            return 0;
+        }
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__ordenproduccion_telegram_sent_log'))
+            );
+
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
      * Record a successfully sent queue row, then caller deletes the queue row.
      *
      * @param   \Joomla\Database\DatabaseInterface  $db   Database

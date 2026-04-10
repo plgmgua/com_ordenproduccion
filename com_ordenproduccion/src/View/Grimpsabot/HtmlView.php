@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -111,6 +112,14 @@ class HtmlView extends BaseHtmlView
             } else {
                 $this->telegramCronCrontabLine = '*/2 * * * * wget -q -O - ' . \escapeshellarg($base . 'YOUR_SECRET');
             }
+
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $this->telegramQueueTableOk = TelegramQueueHelper::telegramQueueTableExists($db);
+            $this->telegramSentLogTableOk   = TelegramQueueHelper::telegramSentLogTableExists($db);
+            $this->telegramQueuePending     = TelegramQueueHelper::getPendingQueueItemsForDisplay($db);
+            $this->telegramQueueSent        = TelegramQueueHelper::getSentLogItemsForDisplay($db);
+            $this->telegramQueuePendingTotal = TelegramQueueHelper::countPendingQueue($db);
+            $this->telegramQueueSentTotal   = TelegramQueueHelper::countSentLog($db);
         }
 
         $this->setLayout('default');

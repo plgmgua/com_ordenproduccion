@@ -9,15 +9,34 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+
 HTMLHelper::_('bootstrap.collapse', '.collapse', []);
 HTMLHelper::_('bootstrap.alert', '.alert', []);
 
 $canAdmin = !empty($this->canManageBotSettings);
 $tableOk  = !empty($this->telegramTableOk);
 $form     = $this->form;
+
+$truncateQueueBody = static function (string $text, int $max = 200): string {
+    $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+    if (\function_exists('mb_strlen') && \function_exists('mb_substr')) {
+        if (mb_strlen($text) <= $max) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $max) . '…';
+    }
+    if (\strlen($text) <= $max) {
+        return $text;
+    }
+
+    return substr($text, 0, $max) . '…';
+};
+
 ?>
 <div class="com-ordenproduccion-grimpsabot container py-3">
     <h1 class="h3 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TITLE'); ?></h1>
@@ -75,6 +94,93 @@ $form     = $this->form;
                                 <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_SAVE_KEY_FIRST'); ?></p>
                             <?php endif; ?>
                             <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_TEST_BELOW'); ?></p>
+                        </div>
+                        <div class="tab-pane fade" id="grimpsabot-pane-queue" role="tabpanel" aria-labelledby="grimpsabot-tab-queue" tabindex="0">
+                            <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_INTRO'); ?></p>
+                            <?php if (empty($this->telegramQueueTableOk)) : ?>
+                                <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_TABLE_MISSING'); ?></div>
+                            <?php endif; ?>
+                            <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PENDING_HEADING'); ?>
+                                <?php if (!empty($this->telegramQueueTableOk)) : ?>
+                                    <span class="badge bg-secondary"><?php echo (int) $this->telegramQueuePendingTotal; ?></span>
+                                    <?php if ($this->telegramQueuePendingTotal > TelegramQueueHelper::DISPLAY_LIST_LIMIT) : ?>
+                                        <span class="small text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_LIST_CAPPED', TelegramQueueHelper::DISPLAY_LIST_LIMIT); ?></span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </h3>
+                            <?php if (!empty($this->telegramQueueTableOk) && (int) $this->telegramQueuePendingTotal === 0) : ?>
+                                <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PENDING_EMPTY'); ?></p>
+                            <?php elseif (!empty($this->telegramQueueTableOk)) : ?>
+                                <div class="table-responsive mb-4">
+                                    <table class="table table-sm table-striped table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_CHAT_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_CREATED'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_ATTEMPTS'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_LAST_TRY'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_LAST_ERROR'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_BODY'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($this->telegramQueuePending as $row) : ?>
+                                                <tr>
+                                                    <td><?php echo (int) ($row->id ?? 0); ?></td>
+                                                    <td><code class="small"><?php echo $this->escape((string) ($row->chat_id ?? '')); ?></code></td>
+                                                    <td class="small"><?php echo $this->escape((string) ($row->created ?? '')); ?></td>
+                                                    <td><?php echo (int) ($row->attempts ?? 0); ?></td>
+                                                    <td class="small"><?php echo $this->escape((string) ($row->last_try ?? '')); ?></td>
+                                                    <td class="small text-break"><?php echo $this->escape((string) ($row->last_error ?? '')); ?></td>
+                                                    <td class="small"><span title="<?php echo $this->escape((string) ($row->body ?? '')); ?>"><?php echo $this->escape($truncateQueueBody((string) ($row->body ?? ''))); ?></span></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+
+                            <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_SENT_HEADING'); ?>
+                                <?php if (!empty($this->telegramSentLogTableOk)) : ?>
+                                    <span class="badge bg-secondary"><?php echo (int) $this->telegramQueueSentTotal; ?></span>
+                                    <?php if ($this->telegramQueueSentTotal > TelegramQueueHelper::DISPLAY_LIST_LIMIT) : ?>
+                                        <span class="small text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_LIST_CAPPED', TelegramQueueHelper::DISPLAY_LIST_LIMIT); ?></span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </h3>
+                            <?php if (empty($this->telegramSentLogTableOk)) : ?>
+                                <div class="alert alert-info small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_SENT_LOG_MISSING'); ?></div>
+                            <?php elseif ((int) $this->telegramQueueSentTotal === 0) : ?>
+                                <p class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_SENT_EMPTY'); ?></p>
+                            <?php else : ?>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_CHAT_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_QUEUED'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_SENT_AT'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_QUEUE_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_COL_BODY'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($this->telegramQueueSent as $row) : ?>
+                                                <tr>
+                                                    <td><?php echo (int) ($row->id ?? 0); ?></td>
+                                                    <td><code class="small"><?php echo $this->escape((string) ($row->chat_id ?? '')); ?></code></td>
+                                                    <td class="small"><?php echo $this->escape((string) ($row->queued_created ?? '')); ?></td>
+                                                    <td class="small"><?php echo $this->escape((string) ($row->sent_at ?? '')); ?></td>
+                                                    <td><?php echo (int) ($row->source_queue_id ?? 0); ?></td>
+                                                    <td class="small"><span title="<?php echo $this->escape((string) ($row->body ?? '')); ?>"><?php echo $this->escape($truncateQueueBody((string) ($row->body ?? ''))); ?></span></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
