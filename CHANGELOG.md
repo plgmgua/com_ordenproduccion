@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.105.2-STABLE] - 2026-04-09
+
+### Fixed
+- **Telegram test / sendMessage:** el token del bot ya no se pasa por `rawurlencode` en la URL (rompía el `:` del token de BotFather). Envío por **cURL** con `application/x-www-form-urlencoded`; fallback `file_get_contents` o HTTP de Joomla. Mensaje de error de prueba muestra la respuesta de Telegram para diagnóstico.
+
 ## [3.105.1-STABLE] - 2026-04-09
 
 ### Fixed

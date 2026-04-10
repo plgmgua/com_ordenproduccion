@@ -133,12 +133,21 @@ class GrimpsabotController extends BaseController
 
         $site = Factory::getApplication()->get('sitename', 'Joomla');
         $text = 'Grimpsa bot — prueba / test' . "\n" . 'Usuario: ' . $user->name . "\n" . 'Sitio: ' . $site;
-        $res  = TelegramApiHelper::sendMessage($token, $chatId, $text);
+        $res = TelegramApiHelper::sendMessage($token, $chatId, $text);
 
         if (!empty($res['ok'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_SENT'), 'success');
         } else {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED'), 'error');
+            $detail = trim((string) ($res['description'] ?? $res['error'] ?? ''));
+            if ($detail !== '') {
+                $safe = htmlspecialchars($detail, ENT_QUOTES, 'UTF-8');
+                $app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED_REASON', $safe),
+                    'error'
+                );
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED'), 'error');
+            }
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
