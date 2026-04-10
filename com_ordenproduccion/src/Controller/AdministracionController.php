@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -1227,6 +1228,13 @@ class AdministracionController extends BaseController
                 }
 
                 $db->insertObject('#__ordenproduccion_invoices', $obj, 'id');
+                $newInvId = (int) $db->insertid();
+                if ($newInvId > 0) {
+                    try {
+                        TelegramNotificationHelper::notifyInvoiceCreated($newInvId);
+                    } catch (\Throwable $e) {
+                    }
+                }
                 $imported++;
                 $report[] = ['file' => $fileName, 'status' => 'imported', 'message' => ''];
             } catch (\Throwable $e) {

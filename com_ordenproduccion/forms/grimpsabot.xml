@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="telegram" label="COM_ORDENPRODUCCION_GRIMPSABOT_FIELDSET_BOT">
+        <field
+            name="telegram_enabled"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_ENABLED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_ENABLED_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="telegram_bot_token"
+            type="password"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BOT_TOKEN_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BOT_TOKEN_DESC"
+            default=""
+            autocomplete="off"
+        />
+        <field
+            name="telegram_notify_invoice"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_INVOICE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_INVOICE_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="telegram_notify_envio"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ENVIO_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ENVIO_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+    </fieldset>
+    <fieldset name="profile" label="COM_ORDENPRODUCCION_GRIMPSABOT_FIELDSET_PROFILE">
+        <field
+            name="telegram_chat_id"
+            type="text"
+            label="COM_ORDENPRODUCCION_GRIMPSABOT_CHAT_ID_LABEL"
+            description="COM_ORDENPRODUCCION_GRIMPSABOT_CHAT_ID_DESC"
+            hint="COM_ORDENPRODUCCION_GRIMPSABOT_CHAT_ID_HINT"
+            size="30"
+            filter="string"
+        />
+    </fieldset>
+</form>

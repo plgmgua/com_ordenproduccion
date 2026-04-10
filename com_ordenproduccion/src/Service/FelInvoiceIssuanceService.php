@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Uri\Uri;
@@ -174,8 +175,15 @@ class FelInvoiceIssuanceService
 
         $o = (object) $filtered;
         $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+        $newId = (int) $o->id;
+        if ($newId > 0) {
+            try {
+                TelegramNotificationHelper::notifyInvoiceCreated($newId);
+            } catch (\Throwable $e) {
+            }
+        }
 
-        return (int) $o->id;
+        return $newId;
     }
 
     /**
@@ -317,8 +325,15 @@ class FelInvoiceIssuanceService
 
         $o = (object) $filtered;
         $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+        $newId = (int) $o->id;
+        if ($newId > 0) {
+            try {
+                TelegramNotificationHelper::notifyInvoiceCreated($newId);
+            } catch (\Throwable $e) {
+            }
+        }
 
-        return (int) $o->id;
+        return $newId;
     }
 
     /**

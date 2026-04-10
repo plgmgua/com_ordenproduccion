@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
 /**
  * Orden controller for com_ordenproduccion
@@ -224,6 +225,11 @@ class OrdenController extends BaseController
                 // Log error but don't break PDF generation
                 error_log('SHIPPING HISTORY ERROR: ' . $e->getMessage());
                 $app->enqueueMessage('Advertencia: El envio se genero pero no se registro en el historial.', 'warning');
+            }
+
+            try {
+                TelegramNotificationHelper::notifyEnvioIssued((int) $orderId, $tipoEnvio, $tipoMensajeria);
+            } catch (\Throwable $e) {
             }
 
             // When "envio completo" is printed, set orden status to Terminada

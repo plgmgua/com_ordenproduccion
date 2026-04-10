@@ -381,3 +381,13 @@ SELECT w.`id`, 1, 'Aprobar', 'named_group', 'Administracion', 0, 0, 'escalate', 
 FROM `#__ordenproduccion_approval_workflows` AS w
 LEFT JOIN `#__ordenproduccion_approval_workflow_steps` AS s ON s.`workflow_id` = w.`id` AND s.`step_number` = 1
 WHERE s.`id` IS NULL;
+
+-- Telegram bot: per-user chat_id (3.105.0)
+CREATE TABLE IF NOT EXISTS `#__ordenproduccion_telegram_users` (
+    `user_id` int(11) NOT NULL,
+    `chat_id` varchar(32) NOT NULL,
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    PRIMARY KEY (`user_id`),
+    KEY `idx_chat_id` (`chat_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

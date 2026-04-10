@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.104.7-STABLE</version>
+    <version>3.105.0-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -157,6 +157,50 @@
                     max="100"
                     step="0.01"
                 />
+            </fieldset>
+            <fieldset name="telegram" label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_FIELDSET_LABEL">
+                <field
+                    name="telegram_enabled"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_ENABLED_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_ENABLED_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="telegram_bot_token"
+                    type="password"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BOT_TOKEN_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BOT_TOKEN_DESC"
+                    default=""
+                    size="60"
+                    filter="string"
+                />
+                <field
+                    name="telegram_notify_invoice"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_INVOICE_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_INVOICE_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="telegram_notify_envio"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ENVIO_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ENVIO_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
             </fieldset>
         </fields>
     </config>

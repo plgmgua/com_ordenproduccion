@@ -16,6 +16,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 use Joomla\Database\DatabaseInterface;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
 class InvoiceModel extends BaseDatabaseModel
 {
@@ -272,6 +273,12 @@ class InvoiceModel extends BaseDatabaseModel
                 $invoiceData['created_by'] = $user->id;
 
                 $result = $db->insertObject('#__ordenproduccion_invoices', (object) $invoiceData, 'id');
+                if ($result) {
+                    $newId = (int) $db->insertid();
+                    if ($newId > 0) {
+                        TelegramNotificationHelper::notifyInvoiceCreated($newId);
+                    }
+                }
             }
 
             return $result;

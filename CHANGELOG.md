@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.105.0-STABLE] - 2026-04-09
+
+### Added
+- **Telegram (Grimpsa bot):** optional notifications to the work-order owner (sales agent Joomla user, else `created_by`) for **new invoices** (create/import/FEL draft rows) and when an **envío** shipping slip is generated. Requires bot token + master switch + per-event toggles in component params; each user stores a **Telegram chat ID** on the new frontend view `view=grimpsabot` (menu type **Grimpsa bot**). New table `#__ordenproduccion_telegram_users`. API: `TelegramApiHelper`, `TelegramNotificationHelper`.
+
 ## [3.104.7-STABLE] - 2026-04-08
 
 ### Added

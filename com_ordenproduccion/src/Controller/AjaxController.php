@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
 /**
  * Ajax controller for com_ordenproduccion
@@ -245,6 +246,16 @@ class AjaxController extends BaseController
             $result = $db->insertObject('#__ordenproduccion_invoices', $invoiceData, 'id');
 
             if ($result) {
+                $newInvId = (int) ($invoiceData->id ?? 0);
+                if ($newInvId < 1) {
+                    $newInvId = (int) $db->insertid();
+                }
+                if ($newInvId > 0) {
+                    try {
+                        TelegramNotificationHelper::notifyInvoiceCreated($newInvId);
+                    } catch (\Throwable $e) {
+                    }
+                }
                 // Update work order with invoice number
                 $query = $db->getQuery(true)
                     ->update($db->quoteName('#__ordenproduccion_ordenes'))
