@@ -13,7 +13,11 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\User\User;
 use Joomla\CMS\User\UserFactoryInterface;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Registry\Registry;
 
 /**
  * Dispatches Telegram alerts when enabled in component params and user has chat_id.
@@ -74,17 +78,26 @@ class TelegramNotificationHelper
             return;
         }
 
-        $num   = trim((string) ($invoice->invoice_number ?? ''));
-        $amt   = isset($invoice->invoice_amount) ? number_format((float) $invoice->invoice_amount, 2, '.', '') : '';
-        $title = 'Factura: ' . ($num !== '' ? $num : '#' . $invoiceId);
-        $lines = [
-            $title,
-            'Monto: ' . $amt,
-            'Origen: sistema (nueva factura o importación)',
-        ];
+        $template = self::getInvoiceMessageTemplate($params);
+        $users    = Factory::getContainer()->get(UserFactoryInterface::class);
 
         foreach ($recipientIds as $uid) {
-            self::sendToUserId($token, (int) $uid, implode("\n", $lines));
+            $uid = (int) $uid;
+            if ($uid < 1) {
+                continue;
+            }
+            try {
+                $recipient = $users->loadUserById($uid);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($recipient->guest) {
+                continue;
+            }
+
+            $vars = self::buildInvoiceTemplateVars($invoice, $recipient, $invoiceId);
+            $text = self::replaceTemplatePlaceholders($template, $vars);
+            self::sendToUserId($token, $uid, $text);
         }
     }
 
@@ -140,14 +153,241 @@ class TelegramNotificationHelper
             return;
         }
 
-        $ot = trim((string) ($orden->orden_de_trabajo ?? ''));
-        $lines = [
-            'Envío emitido (orden ' . ($ot !== '' ? $ot : '#' . $ordenId) . ')',
-            'Tipo: ' . ($tipoEnvio !== '' ? $tipoEnvio : '—'),
-            'Mensajería: ' . ($tipoMensajeria !== '' ? $tipoMensajeria : '—'),
-        ];
+        try {
+            $recipient = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($uid);
+        } catch (\Throwable $e) {
+            return;
+        }
+        if ($recipient->guest) {
+            return;
+        }
 
-        self::sendToUserId($token, $uid, implode("\n", $lines));
+        $template = self::getEnvioMessageTemplate($params);
+        $vars     = self::buildEnvioTemplateVars($orden, $recipient, $ordenId, $tipoEnvio, $tipoMensajeria);
+        $text     = self::replaceTemplatePlaceholders($template, $vars);
+
+        self::sendToUserId($token, $uid, $text);
+    }
+
+    /**
+     * Replace {placeholder} in template. Unknown keys are left unchanged.
+     *
+     * @param   string               $template  Message with {key} tokens
+     * @param   array<string,string>  $vars     key => value (no braces in keys)
+     *
+     * @return  string
+     */
+    public static function replaceTemplatePlaceholders(string $template, array $vars): string
+    {
+        $out = $template;
+        foreach ($vars as $key => $value) {
+            $key = (string) $key;
+            if ($key === '') {
+                continue;
+            }
+            $out = str_replace('{' . $key . '}', (string) $value, $out);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Invoice message body from component params, or language default.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getInvoiceMessageTemplate($params): string
+    {
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_message_invoice', ''));
+        }
+
+        return $t !== '' ? $t : Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_INVOICE_DEFAULT');
+    }
+
+    /**
+     * Envío message body from component params, or language default.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getEnvioMessageTemplate($params): string
+    {
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_message_envio', ''));
+        }
+
+        return $t !== '' ? $t : Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_ENVIO_DEFAULT');
+    }
+
+    /**
+     * Variables for invoice notification (one recipient).
+     *
+     * @param   object  $invoice    Row from #__ordenproduccion_invoices
+     * @param   User    $recipient  Notify this user
+     * @param   int     $invoiceId  Invoice PK
+     *
+     * @return  array<string,string>
+     */
+    public static function buildInvoiceTemplateVars(object $invoice, User $recipient, int $invoiceId): array
+    {
+        $invoiceId = (int) $invoiceId;
+        $amount    = isset($invoice->invoice_amount) ? number_format((float) $invoice->invoice_amount, 2, '.', '') : '0.00';
+        $currency  = trim((string) ($invoice->currency ?? 'Q'));
+
+        [$ordenIds, $ordenLabels] = self::collectOrdenIdsAndLabelsForInvoice($invoice, $invoiceId);
+
+        $site = '';
+        try {
+            $site = (string) Factory::getApplication()->get('sitename', '');
+        } catch (\Throwable $e) {
+        }
+
+        return [
+            'username'         => trim((string) $recipient->name),
+            'user_login'       => trim((string) $recipient->username),
+            'invoice_id'       => (string) $invoiceId,
+            'invoice_number'   => trim((string) ($invoice->invoice_number ?? '')),
+            'invoice_amount'   => $amount,
+            'currency'         => $currency,
+            'client_name'      => trim((string) ($invoice->client_name ?? '')),
+            'sales_agent'      => trim((string) ($invoice->sales_agent ?? '')),
+            'orden_id'         => $ordenIds,
+            'orden_de_trabajo' => $ordenLabels,
+            'site_name'        => $site,
+        ];
+    }
+
+    /**
+     * @return  array{0: string, 1: string}  [comma-separated ids, comma-separated orden_de_trabajo labels]
+     */
+    protected static function collectOrdenIdsAndLabelsForInvoice(object $invoice, int $invoiceId): array
+    {
+        $ids    = [];
+        $labels = [];
+
+        try {
+            $orderIds = AccessHelper::getOrderIdsLinkedToInvoice($invoiceId);
+        } catch (\Throwable $e) {
+            $orderIds = [];
+        }
+
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+
+        foreach ($orderIds as $oid) {
+            $oid = (int) $oid;
+            if ($oid < 1) {
+                continue;
+            }
+            $ids[] = (string) $oid;
+            try {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('orden_de_trabajo'))
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('id') . ' = ' . $oid)
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+                $ot = trim((string) $db->loadResult());
+                $labels[] = $ot !== '' ? $ot : '#' . $oid;
+            } catch (\Throwable $e) {
+                $labels[] = '#' . $oid;
+            }
+        }
+
+        if ($ids === [] && !empty($invoice->orden_id)) {
+            $oid = (int) $invoice->orden_id;
+            if ($oid > 0) {
+                $ids[] = (string) $oid;
+                $ot    = trim((string) ($invoice->orden_de_trabajo ?? ''));
+                $labels[] = $ot !== '' ? $ot : '#' . $oid;
+            }
+        }
+
+        return [implode(', ', $ids), implode(', ', $labels)];
+    }
+
+    /**
+     * Variables for envío notification.
+     *
+     * @param   object  $orden            Work order row
+     * @param   User    $recipient        Owner
+     * @param   int     $ordenId          Order PK
+     * @param   string  $tipoEnvio        completo / parcial / …
+     * @param   string  $tipoMensajeria   propio / …
+     *
+     * @return  array<string,string>
+     */
+    public static function buildEnvioTemplateVars(object $orden, User $recipient, int $ordenId, string $tipoEnvio, string $tipoMensajeria): array
+    {
+        $site = '';
+        try {
+            $site = (string) Factory::getApplication()->get('sitename', '');
+        } catch (\Throwable $e) {
+        }
+
+        $ot = trim((string) ($orden->orden_de_trabajo ?? ''));
+
+        return [
+            'username'          => trim((string) $recipient->name),
+            'user_login'        => trim((string) $recipient->username),
+            'orden_id'          => (string) (int) $ordenId,
+            'orden_de_trabajo'  => $ot !== '' ? $ot : '#' . (int) $ordenId,
+            'client_name'       => trim((string) ($orden->nombre_del_cliente ?? $orden->client_name ?? '')),
+            'tipo_envio'        => $tipoEnvio !== '' ? $tipoEnvio : '—',
+            'tipo_mensajeria'   => $tipoMensajeria !== '' ? $tipoMensajeria : '—',
+            'site_name'         => $site,
+        ];
+    }
+
+    /**
+     * Demo values for "test invoice" from Grimpsa bot (current user as recipient).
+     *
+     * @param   User  $user  Current user
+     *
+     * @return  array<string,string>
+     */
+    public static function getSampleInvoiceTemplateVars(User $user): array
+    {
+        return [
+            'username'         => trim((string) $user->name),
+            'user_login'       => trim((string) $user->username),
+            'invoice_id'       => '0',
+            'invoice_number'   => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_INVOICE_NUMBER'),
+            'invoice_amount'   => '1234.56',
+            'currency'         => 'Q',
+            'client_name'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'sales_agent'      => trim((string) $user->name),
+            'orden_id'         => '999001, 999002',
+            'orden_de_trabajo' => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_LABELS'),
+            'site_name'        => (string) Factory::getApplication()->get('sitename', 'Joomla'),
+        ];
+    }
+
+    /**
+     * Demo values for "test envío" from Grimpsa bot.
+     *
+     * @param   User  $user  Current user
+     *
+     * @return  array<string,string>
+     */
+    public static function getSampleEnvioTemplateVars(User $user): array
+    {
+        return [
+            'username'         => trim((string) $user->name),
+            'user_login'       => trim((string) $user->username),
+            'orden_id'         => '999001',
+            'orden_de_trabajo' => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_SINGLE'),
+            'client_name'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'tipo_envio'       => 'completo',
+            'tipo_mensajeria'  => 'propio',
+            'site_name'        => (string) Factory::getApplication()->get('sitename', 'Joomla'),
+        ];
     }
 
     /**

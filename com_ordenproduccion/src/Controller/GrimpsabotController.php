@@ -154,6 +154,80 @@ class GrimpsabotController extends BaseController
     }
 
     /**
+     * Send a test message using the invoice or envío template and sample data.
+     *
+     * @return  void
+     */
+    public function sendtestevent(): void
+    {
+        if (!$this->verifyToken()) {
+            return;
+        }
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        $event = $this->input->post->getCmd('telegram_test_event', 'invoice');
+        if (!\in_array($event, [TelegramNotificationHelper::EVENT_INVOICE, TelegramNotificationHelper::EVENT_ENVIO], true)) {
+            $event = TelegramNotificationHelper::EVENT_INVOICE;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $token  = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_NO_TOKEN'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
+        $chatId = TelegramNotificationHelper::getChatIdForUser((int) $user->id);
+        if ($chatId === null) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_NO_CHAT'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
+        if ($event === TelegramNotificationHelper::EVENT_INVOICE) {
+            $template = TelegramNotificationHelper::getInvoiceMessageTemplate($params);
+            $vars     = TelegramNotificationHelper::getSampleInvoiceTemplateVars($user);
+            $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_INVOICE');
+        } else {
+            $template = TelegramNotificationHelper::getEnvioMessageTemplate($params);
+            $vars     = TelegramNotificationHelper::getSampleEnvioTemplateVars($user);
+            $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_ENVIO');
+        }
+
+        $body = TelegramNotificationHelper::replaceTemplatePlaceholders($template, $vars);
+        $text = Text::_('COM_ORDENPRODUCCION_TELEGRAM_TEST_PREFIX') . "\n\n" . $body;
+        $res  = TelegramApiHelper::sendMessage($token, $chatId, $text);
+
+        if (!empty($res['ok'])) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_EVENT_SENT', $eventLabel), 'success');
+        } else {
+            $detail = trim((string) ($res['description'] ?? $res['error'] ?? ''));
+            if ($detail !== '') {
+                $safe = htmlspecialchars($detail, ENT_QUOTES, 'UTF-8');
+                $app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED_REASON', $safe),
+                    'error'
+                );
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED'), 'error');
+            }
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+    }
+
+    /**
      * @return  bool  True if token valid
      */
     protected function verifyToken(): bool

@@ -44,6 +44,9 @@ $form     = $this->form;
                         </div>
                     <?php endforeach; ?>
 
+                    <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_INVOICE'))); ?></p>
+                    <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_ENVIO'))); ?></p>
+
                     <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
                 </form>
             </div>
@@ -74,11 +77,28 @@ $form     = $this->form;
                     </div>
                 </form>
 
-                <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-3">
+                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_EVENTS_INTRO'); ?></p>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <form action="<?php echo Route::_('index.php'); ?>" method="post" class="d-inline">
+                        <input type="hidden" name="option" value="com_ordenproduccion" />
+                        <input type="hidden" name="task" value="grimpsabot.sendtestevent" />
+                        <input type="hidden" name="telegram_test_event" value="invoice" />
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST_INVOICE'); ?></button>
+                    </form>
+                    <form action="<?php echo Route::_('index.php'); ?>" method="post" class="d-inline">
+                        <input type="hidden" name="option" value="com_ordenproduccion" />
+                        <input type="hidden" name="task" value="grimpsabot.sendtestevent" />
+                        <input type="hidden" name="telegram_test_event" value="envio" />
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST_ENVIO'); ?></button>
+                    </form>
+                </div>
+                <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-1">
                     <input type="hidden" name="option" value="com_ordenproduccion" />
                     <input type="hidden" name="task" value="grimpsabot.sendtest" />
                     <?php echo HTMLHelper::_('form.token'); ?>
-                    <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST'); ?></button>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST'); ?></button>
                 </form>
             </div>
         </div>

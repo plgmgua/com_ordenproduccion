@@ -86,6 +86,12 @@ class GrimpsabotModel extends FormModel
             $registry->set('telegram_bot_token', $existing['telegram_bot_token']);
         }
 
+        foreach (['telegram_message_invoice', 'telegram_message_envio'] as $msgKey) {
+            if (\array_key_exists($msgKey, $data)) {
+                $registry->set($msgKey, trim((string) $data[$msgKey]));
+            }
+        }
+
         $table->params = $registry->toString();
 
         if (!$table->check() || !$table->store()) {

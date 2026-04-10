@@ -110,5 +110,25 @@
             <option value="1">JYES</option>
             <option value="0">JNO</option>
         </field>
+        <field
+            name="telegram_message_invoice"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_message_envio"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
     </fieldset>
 </config>

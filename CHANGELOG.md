@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.106.0-STABLE] - 2026-04-09
+
+### Added
+- **Telegram message templates:** configurable texts per event (**new invoice** and **envío**) in component parameters and on **Grimpsa bot** (`view=grimpsabot`), with placeholders such as `{username}`, `{orden_de_trabajo}`, `{invoice_number}`, `{tipo_envio}`, etc. Empty field falls back to default language strings.
+- **Test per event:** Grimpsa bot page can send a **test invoice** or **test envío** message using the configured template and sample data (prefixed `[TEST]`).
+
 ## [3.105.3-STABLE] - 2026-04-09
 
 ### Added
