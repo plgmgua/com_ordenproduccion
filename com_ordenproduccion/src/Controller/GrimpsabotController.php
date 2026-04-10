@@ -277,6 +277,13 @@ class GrimpsabotController extends BaseController
             return;
         }
 
+        if (str_starts_with($chatId, '@')) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_NO_AT_USERNAME'), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+
+            return;
+        }
+
         $text = Text::_('COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_TEST_BODY');
         $res  = TelegramApiHelper::sendMessage($token, $chatId, $text);
 
@@ -285,11 +292,16 @@ class GrimpsabotController extends BaseController
         } else {
             $detail = trim((string) ($res['description'] ?? $res['error'] ?? ''));
             if ($detail !== '') {
-                $safe = htmlspecialchars($detail, ENT_QUOTES, 'UTF-8');
-                $app->enqueueMessage(
-                    Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED_REASON', $safe),
-                    'error'
-                );
+                $lower = strtolower($detail);
+                if (str_contains($lower, 'chat not found') || str_contains($lower, 'peer id invalid')) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_BROADCAST_ERR_CHAT_NOT_FOUND'), 'error');
+                } else {
+                    $safe = htmlspecialchars($detail, ENT_QUOTES, 'UTF-8');
+                    $app->enqueueMessage(
+                        Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED_REASON', $safe),
+                        'error'
+                    );
+                }
             } else {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TEST_FAILED'), 'error');
             }
