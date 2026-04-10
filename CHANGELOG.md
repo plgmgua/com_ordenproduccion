@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.0-STABLE] - 2026-04-09
+
+### Added
+- **Telegram queue admin:** Back-end view **Telegram queue** lists **pending** rows (`#__ordenproduccion_telegram_queue`) and **sent** history (`#__ordenproduccion_telegram_sent_log`). Successfully delivered messages are appended to the log when the cron worker runs (new table + migration `3.109.0.sql`).
+
 ## [3.108.3-STABLE] - 2026-04-09
 
 ### Changed

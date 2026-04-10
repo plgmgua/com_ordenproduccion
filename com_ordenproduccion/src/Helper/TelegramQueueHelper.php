@@ -46,6 +46,81 @@ class TelegramQueueHelper
     }
 
     /**
+     * Whether the sent-log table exists (3.109.0+).
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database
+     *
+     * @return  bool
+     */
+    public static function telegramSentLogTableExists($db): bool
+    {
+        static $ok;
+
+        if ($ok !== null) {
+            return $ok;
+        }
+
+        try {
+            $prefix = $db->getPrefix();
+            $tables = $db->getTableList();
+            $name   = $prefix . 'ordenproduccion_telegram_sent_log';
+            $ok     = \in_array($name, $tables, true);
+        } catch (\Throwable $e) {
+            $ok = false;
+        }
+
+        return $ok;
+    }
+
+    /**
+     * Record a successfully sent queue row, then caller deletes the queue row.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db   Database
+     * @param   object $row  Queue row (id, chat_id, body, created)
+     *
+     * @return  void
+     */
+    public static function logSentFromQueueRow($db, object $row): void
+    {
+        if (!self::telegramSentLogTableExists($db)) {
+            return;
+        }
+
+        $id     = (int) ($row->id ?? 0);
+        $chatId = trim((string) ($row->chat_id ?? ''));
+        $body   = (string) ($row->body ?? '');
+        if ($chatId === '' || $body === '') {
+            return;
+        }
+
+        $queuedCreated = (string) ($row->created ?? '');
+        if ($queuedCreated === '') {
+            $queuedCreated = Factory::getDate()->toSql();
+        }
+
+        try {
+            $now = Factory::getDate()->toSql();
+            $o   = (object) [
+                'chat_id'         => $chatId,
+                'body'            => $body,
+                'queued_created'  => $queuedCreated,
+                'sent_at'         => $now,
+                'source_queue_id' => $id > 0 ? $id : 0,
+            ];
+            $db->insertObject('#__ordenproduccion_telegram_sent_log', $o);
+        } catch (\Throwable $e) {
+            try {
+                \Joomla\CMS\Log\Log::add(
+                    'Telegram sent log insert failed: ' . $e->getMessage(),
+                    \Joomla\CMS\Log\Log::WARNING,
+                    'com_ordenproduccion'
+                );
+            } catch (\Throwable $e2) {
+            }
+        }
+    }
+
+    /**
      * Enqueue a message. If the queue table is missing (pre-migration), sends synchronously using component token.
      *
      * @param   string  $chatId  Telegram chat id
@@ -176,6 +251,7 @@ class TelegramQueueHelper
             $res = TelegramApiHelper::sendMessage($token, $chatId, $body);
 
             if (!empty($res['ok'])) {
+                self::logSentFromQueueRow($db, $row);
                 $db->setQuery('DELETE FROM ' . $db->quoteName('#__ordenproduccion_telegram_queue') . ' WHERE ' . $db->quoteName('id') . ' = ' . $id);
                 $db->execute();
                 $sent++;
