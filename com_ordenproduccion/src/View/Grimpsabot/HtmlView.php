@@ -67,6 +67,13 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        // Load site + component (+ admin) language so form field labels and template strings resolve (see Invoice HtmlView).
+        $app  = Factory::getApplication();
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $lang->getTag(), true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $lang->getTag(), true);
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion', $lang->getTag(), true);
+
         $this->canManageBotSettings = AccessHelper::isSuperUser() || AccessHelper::isInAdministracionOrAdmonGroup();
         $this->telegramTableOk      = TelegramNotificationHelper::telegramUsersTableExists(
             Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class)
@@ -78,6 +85,15 @@ class HtmlView extends BaseHtmlView
         $this->myChatId = $cid ?? '';
 
         $this->setLayout('default');
+        $this->_prepareDocument();
         parent::display($tpl);
+    }
+
+    /**
+     * @return  void
+     */
+    protected function _prepareDocument()
+    {
+        $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TITLE'));
     }
 }

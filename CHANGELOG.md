@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.105.1-STABLE] - 2026-04-09
+
+### Fixed
+- **Vista Grimpsa bot (`view=grimpsabot`):** carga explícita de idioma del componente (sitio + `components/com_ordenproduccion` + admin) antes del formulario, para que las etiquetas `COM_ORDENPRODUCCION_*` se traduzcan en lugar de mostrarse como claves.
+
 ## [3.105.0-STABLE] - 2026-04-09
 
 ### Added
