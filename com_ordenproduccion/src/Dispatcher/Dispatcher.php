@@ -36,6 +36,14 @@ class Dispatcher extends ComponentDispatcher
         }
         $isWebhookTask = in_array($taskLower, ['webhook.test', 'webhook.process', 'webhook.health', 'webhook.pendingprecotizaciones'], true);
 
+        $controllerLower = strtolower($this->input->getCmd('controller', ''));
+        // Telegram queue worker: public like webhooks; auth is cron_key (see TelegramController::processQueue).
+        $isTelegramQueueCron = ($controllerLower === 'telegram' && $taskLower === 'processqueue');
+        if ($isTelegramQueueCron) {
+            $this->input->set('format', 'raw');
+            $this->input->set('tmpl', 'component');
+        }
+
         // Log any request that might be targeting the pending-precotizaciones endpoint (so 404s show in webhook file log)
         $view = $this->input->getCmd('view', '');
         $format = $this->input->getCmd('format', '');
@@ -65,8 +73,9 @@ class Dispatcher extends ComponentDispatcher
 
         // Require login for all frontend component pages; redirect guests to Joomla login with return URL
         // Exception: webhook endpoints (test, process, health, pendingPrecotizaciones) are public for same-site/external access
+        // Exception: Telegram processQueue (cron / Postman) — secured by cron_key, not session
         $user = Factory::getUser();
-        if ($user->guest && !$isWebhookTask) {
+        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron) {
             $app = Factory::getApplication();
             $returnUrl = Uri::getInstance()->toString();
             $return = urlencode(base64_encode($returnUrl));

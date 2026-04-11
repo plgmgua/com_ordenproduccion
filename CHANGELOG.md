@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.4-STABLE] - 2026-04-09
+
+### Fixed
+- **Telegram queue URL:** Site `Dispatcher` redirected all guests (including cron, `wget`, and Postman) to `com_users` login. `controller=telegram&task=processQueue` is now treated like webhooks: guest-allowed; security remains the `cron_key` check in `TelegramController`.
+
 ## [3.109.3-STABLE] - 2026-04-09
 
 ### Fixed
