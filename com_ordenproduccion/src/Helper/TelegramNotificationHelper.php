@@ -768,7 +768,8 @@ class TelegramNotificationHelper
 
     /**
      * Read chat_id from Joomla user custom fields (Users → Fields).
-     * Tries field **name** `telegram_chat_id` then `telegram-chat-id`.
+     * Tries field **name** `telegram_chat_id` then `telegram-chat-id`, then any field whose name contains "telegram"
+     * with a numeric chat_id value (e.g. `id-telegram`, `telegram-id`).
      *
      * @param   int  $userId  Joomla user id
      *
@@ -787,9 +788,41 @@ class TelegramNotificationHelper
                 return null;
             }
 
-            foreach (['telegram_chat_id', 'telegram-chat-id'] as $fieldName) {
-                $raw = CotizacionPdfHelper::getUserCustomField($user, $fieldName);
-                $ok  = self::normalizeTelegramChatId((string) $raw);
+            if (!class_exists(\Joomla\Component\Fields\Administrator\Helper\FieldsHelper::class)) {
+                return null;
+            }
+
+            $fields = \Joomla\Component\Fields\Administrator\Helper\FieldsHelper::getFields('com_users.user', $user, true);
+            if (!\is_array($fields)) {
+                return null;
+            }
+
+            $preferred = ['telegram_chat_id', 'telegram-chat-id'];
+
+            foreach ($preferred as $fieldName) {
+                foreach ($fields as $field) {
+                    if (!isset($field->name, $field->value) || (string) $field->name !== $fieldName) {
+                        continue;
+                    }
+                    $raw = \is_string($field->value) ? $field->value : (string) $field->value;
+                    $ok  = self::normalizeTelegramChatId($raw);
+                    if ($ok !== null) {
+                        return $ok;
+                    }
+                }
+            }
+
+            foreach ($fields as $field) {
+                $nm = isset($field->name) ? (string) $field->name : '';
+                if ($nm === '' || stripos($nm, 'telegram') === false) {
+                    continue;
+                }
+                if (\in_array($nm, $preferred, true)) {
+                    continue;
+                }
+                $raw = $field->value ?? '';
+                $raw = \is_string($raw) ? $raw : (string) $raw;
+                $ok  = self::normalizeTelegramChatId($raw);
                 if ($ok !== null) {
                     return $ok;
                 }

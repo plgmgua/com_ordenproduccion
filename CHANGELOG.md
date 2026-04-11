@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.6-STABLE] - 2026-04-11
+
+### Changed
+- **Telegram DM chat_id:** User profile lookup now accepts any Joomla custom field whose **name** contains `telegram` (after the usual `telegram_chat_id` / `telegram-chat-id` names), if the value is a valid numeric Telegram id.
+
 ## [mod_acciones_produccion 2.4.2-STABLE] - 2026-04-11
 
 ### Fixed
