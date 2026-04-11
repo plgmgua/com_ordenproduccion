@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [mod_acciones_produccion 2.4.2-STABLE] - 2026-04-11
+
+### Fixed
+- **Envío / Telegram duplicate queue rows:** When `mod_acciones_produccion` was loaded twice on the same page (two assignments or positions), `DOMContentLoaded` attached **two** click handlers to the same `#shipping-submit-btn`, so one click sent **two** `generateShippingSlip` requests (~1s apart) and duplicated channel + DM queue entries. The shipping button is now bound **once** per page (`__opAccionesProduccionShippingBound`), and a shared **`__opAccionesShippingRequestLock`** blocks overlapping fetches.
+
 ## [3.109.5-STABLE] - 2026-04-06
 
 ### Fixed

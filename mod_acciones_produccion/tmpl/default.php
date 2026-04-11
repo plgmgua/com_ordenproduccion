@@ -328,6 +328,11 @@ $currentUrl = Uri::current();
             window.closeShippingDescriptionModal();
             return;
         }
+
+        if (window.__opAccionesShippingRequestLock) {
+            return;
+        }
+        window.__opAccionesShippingRequestLock = true;
         
         const submitBtn = document.getElementById('shipping-submit-btn');
         if (submitBtn) {
@@ -361,32 +366,35 @@ $currentUrl = Uri::current();
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
         })
-        .then(response => {
-            if (response.ok) {
-                // Open PDF in new tab
-                window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
-                
-                // Show success message briefly, then reload page to show new Historia entries
-                const shippingMessageDiv = document.getElementById('shipping-message');
-                if (shippingMessageDiv) {
-                    shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
-                    shippingMessageDiv.className = 'shipping-message success';
-                    shippingMessageDiv.style.display = 'block';
+        .then(typeof window.openShippingPdfFromFetchResponse === 'function'
+            ? window.openShippingPdfFromFetchResponse
+            : function(response) {
+                if (!response.ok) {
+                    return Promise.reject(new Error('HTTP error! status: ' + response.status));
                 }
-                
-                // Reload page after 1.5 seconds to show new Historia de Eventos entries
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                throw new Error('HTTP error! status: ' + response.status);
+                return response.blob().then(function(blob) {
+                    var u = URL.createObjectURL(blob);
+                    window.open(u, '_blank');
+                    setTimeout(function() { URL.revokeObjectURL(u); }, 120000);
+                });
+            })
+        .then(() => {
+            const shippingMessageDiv = document.getElementById('shipping-message');
+            if (shippingMessageDiv) {
+                shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
+                shippingMessageDiv.className = 'shipping-message success';
+                shippingMessageDiv.style.display = 'block';
             }
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         })
         .catch(error => {
             console.error('Shipping Error:', error);
             alert('Error al generar envio: ' + error.message);
         })
         .finally(() => {
+            window.__opAccionesShippingRequestLock = false;
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-shipping-fast"></i> Generar Envio';
                 submitBtn.disabled = false;
@@ -544,6 +552,27 @@ $currentUrl = Uri::current();
 <script>
 console.log('MOD_ACCIONES_PRODUCCION: Loading JavaScript functions (outside conditional)...');
 
+/**
+ * Open the PDF from the fetch response only. A second window.open() to the same task
+ * was running generateShippingSlip twice (duplicate historial + duplicate Telegram queue rows).
+ */
+window.openShippingPdfFromFetchResponse = function(response) {
+    if (!response.ok) {
+        return Promise.reject(new Error('HTTP error! status: ' + response.status));
+    }
+    return response.blob().then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+    });
+};
+
+/**
+ * When the module is published twice on the same menu/page, DOMContentLoaded runs twice and
+ * stacks two click listeners on the same #shipping-submit-btn — one click → two requests → duplicate Telegram rows.
+ * Bind the shipping button once; use a request lock so overlapping handlers cannot start two fetches.
+ */
+
 // Define shipping modal close function
 window.closeShippingDescriptionModal = function() {
     console.log('closeShippingDescriptionModal called');
@@ -595,6 +624,11 @@ window.submitShippingWithDescription = function() {
         window.closeShippingDescriptionModal();
         return;
     }
+
+    if (window.__opAccionesShippingRequestLock) {
+        return;
+    }
+    window.__opAccionesShippingRequestLock = true;
     
     const submitBtn = document.getElementById('shipping-submit-btn');
     if (submitBtn) {
@@ -628,32 +662,24 @@ window.submitShippingWithDescription = function() {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
     })
-    .then(response => {
-        if (response.ok) {
-            // Open PDF in new tab
-            window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria + '&descripcion_envio=' + encodeURIComponent(descripcionEnvio), '_blank');
-            
-            // Show success message briefly, then reload page to show new Historia entries
-            const shippingMessageDiv = document.getElementById('shipping-message');
-            if (shippingMessageDiv) {
-                shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
-                shippingMessageDiv.className = 'shipping-message success';
-                shippingMessageDiv.style.display = 'block';
-            }
-            
-            // Reload page after 1.5 seconds to show new Historia de Eventos entries
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            throw new Error('HTTP error! status: ' + response.status);
+    .then(window.openShippingPdfFromFetchResponse)
+    .then(() => {
+        const shippingMessageDiv = document.getElementById('shipping-message');
+        if (shippingMessageDiv) {
+            shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
+            shippingMessageDiv.className = 'shipping-message success';
+            shippingMessageDiv.style.display = 'block';
         }
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
     })
     .catch(error => {
         console.error('Shipping Error:', error);
         alert('Error al generar envio: ' + error.message);
     })
     .finally(() => {
+        window.__opAccionesShippingRequestLock = false;
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-shipping-fast"></i> Generar Envio';
             submitBtn.disabled = false;
@@ -1023,8 +1049,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // Attach click handler to shipping submit button
-    if (shippingSubmitBtn) {
+    // Attach click handler to shipping submit button (once: duplicate module instances must not stack listeners)
+    if (shippingSubmitBtn && !window.__opAccionesProduccionShippingBound) {
+        window.__opAccionesProduccionShippingBound = true;
         shippingSubmitBtn.addEventListener('click', function(e) {
             e.preventDefault();
             
@@ -1069,6 +1096,11 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Por favor selecciona un tipo de mensajería');
             return;
         }
+
+        if (window.__opAccionesShippingRequestLock) {
+            return;
+        }
+        window.__opAccionesShippingRequestLock = true;
         
         const submitBtn = document.getElementById('shipping-submit-btn');
         if (submitBtn) {
@@ -1098,31 +1130,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
         })
-        .then(response => {
-            if (response.ok) {
-                // Open PDF in new tab
-                window.open('index.php?option=com_ordenproduccion&task=orden.generateShippingSlip&id=' + orderId + '&tipo_envio=' + tipoEnvio + '&tipo_mensajeria=' + tipoMensajeria, '_blank');
-                
-                // Show success message briefly, then reload page to show new Historia entries
-                if (shippingMessageDiv) {
-                    shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
-                    shippingMessageDiv.className = 'shipping-message success';
-                    shippingMessageDiv.style.display = 'block';
-                }
-                
-                // Reload page after 1.5 seconds to show new Historia de Eventos entries
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                throw new Error('HTTP error! status: ' + response.status);
+        .then(window.openShippingPdfFromFetchResponse)
+        .then(() => {
+            if (shippingMessageDiv) {
+                shippingMessageDiv.innerHTML = 'Envio generado correctamente. Actualizando pagina...';
+                shippingMessageDiv.className = 'shipping-message success';
+                shippingMessageDiv.style.display = 'block';
             }
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         })
         .catch(error => {
             console.error('Shipping Error:', error);
             alert('Error al generar envio: ' + error.message);
         })
         .finally(() => {
+            window.__opAccionesShippingRequestLock = false;
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-shipping-fast"></i> Generar Envio';
                 submitBtn.disabled = false;
