@@ -184,8 +184,19 @@ class TelegramNotificationHelper
         $vars     = self::buildEnvioTemplateVars($orden, $recipient, $ordenId, $tipoEnvio, $tipoMensajeria);
         $text     = self::replaceTemplatePlaceholders($template, $vars);
 
-        if ($recipient !== null) {
-            self::sendToUserId($token, $uid, $text);
+        // DM: owner if they linked Telegram on Grimpsa bot / custom field; else order creator (if different) so someone who can receive gets the alert.
+        $ownerUid = $uid;
+        $dmTo = null;
+        if ($ownerUid !== null && $ownerUid > 0 && self::getChatIdForUser($ownerUid) !== null) {
+            $dmTo = $ownerUid;
+        } else {
+            $cb = (int) ($orden->created_by ?? 0);
+            if ($cb > 0 && $cb !== $ownerUid && self::getChatIdForUser($cb) !== null) {
+                $dmTo = $cb;
+            }
+        }
+        if ($dmTo !== null) {
+            self::sendToUserId($token, $dmTo, $text);
         }
 
         self::sendToAdministracionBroadcastChannel($params, $text, self::EVENT_ENVIO);
@@ -581,14 +592,19 @@ class TelegramNotificationHelper
     }
 
     /**
-     * Owner: sales_agent Joomla user name match, else created_by.
+     * Owner: match sales_agent to Joomla user (name exact, username exact, name case-insensitive), else created_by.
      */
     public static function resolveOwnerUserIdFromOrden(object $orden): ?int
     {
         $sales = trim((string) ($orden->sales_agent ?? ''));
         if ($sales !== '') {
-            $uid = self::findUserIdByExactName($sales);
-            if ($uid !== null) {
+            if (($uid = self::findUserIdByExactName($sales)) !== null) {
+                return $uid;
+            }
+            if (($uid = self::findUserIdByUsername($sales)) !== null) {
+                return $uid;
+            }
+            if (($uid = self::findUserIdByNameCaseInsensitive($sales)) !== null) {
                 return $uid;
             }
         }
@@ -626,6 +642,65 @@ class TelegramNotificationHelper
                     ->from($db->quoteName('#__users'))
                     ->where($db->quoteName('name') . ' = ' . $db->quote($name))
                     ->where($db->quoteName('block') . ' = 0')
+            );
+            $id = (int) $db->loadResult();
+
+            return $id > 0 ? $id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Match sales_agent to Joomla login (username).
+     *
+     * @since  3.109.5
+     */
+    public static function findUserIdByUsername(string $username): ?int
+    {
+        $username = trim($username);
+        if ($username === '') {
+            return null;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__users'))
+                    ->where($db->quoteName('username') . ' = ' . $db->quote($username))
+                    ->where($db->quoteName('block') . ' = 0')
+            );
+            $id = (int) $db->loadResult();
+
+            return $id > 0 ? $id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Case-insensitive name match (first unblocked hit).
+     *
+     * @since  3.109.5
+     */
+    public static function findUserIdByNameCaseInsensitive(string $name): ?int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__users'))
+                    ->where('LOWER(' . $db->quoteName('name') . ') = ' . $db->quote(strtolower($name)))
+                    ->where($db->quoteName('block') . ' = 0')
+                    ->setLimit(1)
             );
             $id = (int) $db->loadResult();
 

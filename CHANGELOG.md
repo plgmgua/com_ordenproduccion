@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.5-STABLE] - 2026-04-06
+
+### Fixed
+- **Telegram envío DM:** Channel messages could be queued while the owner received no bot DM because `sendToUserId` only enqueues when a Joomla user has a stored Telegram `chat_id` (Grimpsa bot / custom field). Owner resolution now also matches `sales_agent` to Joomla **username** and **case-insensitive display name**. If the resolved owner has no linked chat but **`created_by`** does (and differs), the DM is sent to **`created_by`** as a fallback.
+
 ## [3.109.4-STABLE] - 2026-04-09
 
 ### Fixed
