@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.109.9-STABLE</version>
+    <version>3.109.10-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -228,7 +228,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -238,7 +238,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -248,7 +248,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_ENTERED_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_ENTERED_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -258,7 +258,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -323,7 +323,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -333,7 +333,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -343,7 +343,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_ENTERED_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_ENTERED_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
@@ -353,7 +353,7 @@
                     type="textarea"
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
-                    rows="8"
+                    rows="3"
                     cols="80"
                     filter="raw"
                     default=""
