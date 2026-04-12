@@ -313,7 +313,7 @@ class ApprovalWorkflowService
                 break;
 
             case self::ENTITY_PAYMENT_PROOF:
-                ApprovalWorkflowEntityHelper::applyPaymentProofVerified($eid);
+                ApprovalWorkflowEntityHelper::applyPaymentProofVerified($eid, $actorUserId);
                 break;
 
             case self::ENTITY_COTIZACION_CONFIRMATION:

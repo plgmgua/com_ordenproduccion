@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Order-owner Telegram notifications (invoice created / envío issued).
+ * Order-owner Telegram notifications (invoice, envío, payment proofs).
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @since       3.105.0
@@ -27,6 +27,10 @@ class TelegramNotificationHelper
     public const EVENT_INVOICE = 'invoice';
 
     public const EVENT_ENVIO   = 'envio';
+
+    public const EVENT_PAYMENT_PROOF_ENTERED = 'proof_entered';
+
+    public const EVENT_PAYMENT_PROOF_VERIFIED = 'proof_verified';
 
     /**
      * After a new invoice row is stored: notify linked order owner(s).
@@ -206,10 +210,173 @@ class TelegramNotificationHelper
     }
 
     /**
+     * After a new payment proof is saved (ingresado).
+     *
+     * @param   int  $proofId  Primary key of #__ordenproduccion_payment_proofs
+     *
+     * @return  void
+     */
+    public static function notifyPaymentProofEntered(int $proofId): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+        if ((int) $params->get('telegram_notify_payment_proof_entered', 0) !== 1) {
+            return;
+        }
+
+        $token = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            return;
+        }
+
+        $proof = self::loadPaymentProofRow($proofId);
+        if (!$proof) {
+            return;
+        }
+
+        $recipientIds = self::collectRecipientUserIdsForPaymentProof($proofId);
+        if ($recipientIds === []) {
+            return;
+        }
+
+        $dmTemplate      = self::getPaymentProofEnteredMessageTemplate($params);
+        $channelTemplate = self::getPaymentProofEnteredChannelMessageTemplate($params);
+        $users           = Factory::getContainer()->get(UserFactoryInterface::class);
+
+        $firstChannelVars = null;
+        $recipientNames    = [];
+
+        foreach ($recipientIds as $uid) {
+            $uid = (int) $uid;
+            if ($uid < 1) {
+                continue;
+            }
+            try {
+                $recipient = $users->loadUserById($uid);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($recipient->guest) {
+                continue;
+            }
+
+            $vars = self::buildPaymentProofTemplateVars($proof, $recipient, $proofId, null, false);
+            $text = self::replaceTemplatePlaceholders($dmTemplate, $vars);
+            if ($firstChannelVars === null) {
+                $firstChannelVars = $vars;
+            }
+            $recipientNames[] = trim((string) $recipient->name);
+            self::sendToUserId($token, $uid, $text);
+        }
+
+        if ($firstChannelVars !== null) {
+            $channelBody = self::replaceTemplatePlaceholders($channelTemplate, $firstChannelVars);
+            $uniqueNames = \array_unique(\array_filter($recipientNames, static fn ($n) => $n !== ''));
+            if (\count($uniqueNames) > 1) {
+                self::ensureTelegramLanguageLoaded();
+                $channelBody .= "\n\n" . Text::sprintf(
+                    'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_RECIPIENTS_LINE',
+                    \implode(', ', $uniqueNames)
+                );
+            }
+            self::sendToAdministracionBroadcastChannel($params, $channelBody, self::EVENT_PAYMENT_PROOF_ENTERED);
+        }
+    }
+
+    /**
+     * After a payment proof is marked Verificado (directly or via approval workflow).
+     *
+     * @param   int      $proofId           Payment proof PK
+     * @param   int      $verifiedByUserId  User who verified (0 if unknown)
+     *
+     * @return  void
+     */
+    public static function notifyPaymentProofVerified(int $proofId, int $verifiedByUserId = 0): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+        if ((int) $params->get('telegram_notify_payment_proof_verified', 0) !== 1) {
+            return;
+        }
+
+        $token = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            return;
+        }
+
+        $proof = self::loadPaymentProofRow($proofId);
+        if (!$proof) {
+            return;
+        }
+
+        $recipientIds = self::collectRecipientUserIdsForPaymentProof($proofId);
+        if ($recipientIds === []) {
+            return;
+        }
+
+        $dmTemplate      = self::getPaymentProofVerifiedMessageTemplate($params);
+        $channelTemplate = self::getPaymentProofVerifiedChannelMessageTemplate($params);
+        $users           = Factory::getContainer()->get(UserFactoryInterface::class);
+
+        $firstChannelVars = null;
+        $recipientNames    = [];
+
+        foreach ($recipientIds as $uid) {
+            $uid = (int) $uid;
+            if ($uid < 1) {
+                continue;
+            }
+            try {
+                $recipient = $users->loadUserById($uid);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($recipient->guest) {
+                continue;
+            }
+
+            $vars = self::buildPaymentProofTemplateVars($proof, $recipient, $proofId, $verifiedByUserId, true);
+            $text = self::replaceTemplatePlaceholders($dmTemplate, $vars);
+            if ($firstChannelVars === null) {
+                $firstChannelVars = $vars;
+            }
+            $recipientNames[] = trim((string) $recipient->name);
+            self::sendToUserId($token, $uid, $text);
+        }
+
+        if ($firstChannelVars !== null) {
+            $channelBody = self::replaceTemplatePlaceholders($channelTemplate, $firstChannelVars);
+            $uniqueNames = \array_unique(\array_filter($recipientNames, static fn ($n) => $n !== ''));
+            if (\count($uniqueNames) > 1) {
+                self::ensureTelegramLanguageLoaded();
+                $channelBody .= "\n\n" . Text::sprintf(
+                    'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_RECIPIENTS_LINE',
+                    \implode(', ', $uniqueNames)
+                );
+            }
+            self::sendToAdministracionBroadcastChannel($params, $channelBody, self::EVENT_PAYMENT_PROOF_VERIFIED);
+        }
+    }
+
+    /**
      * Whether the Administración channel should receive this event type (checkboxes + chat id).
      *
      * @param   \Joomla\Registry\Registry  $params  Component params
-     * @param   string                    $event   self::EVENT_INVOICE or EVENT_ENVIO
+     * @param   string                    $event   Event constant (invoice, envio, proof_entered, proof_verified)
      *
      * @return  bool
      */
@@ -243,6 +410,16 @@ class TelegramNotificationHelper
             return $legacy;
         }
 
+        if ($event === self::EVENT_PAYMENT_PROOF_ENTERED) {
+            return \array_key_exists('telegram_broadcast_payment_proof_entered', $arr)
+                && (int) ($arr['telegram_broadcast_payment_proof_entered'] ?? 0) === 1;
+        }
+
+        if ($event === self::EVENT_PAYMENT_PROOF_VERIFIED) {
+            return \array_key_exists('telegram_broadcast_payment_proof_verified', $arr)
+                && (int) ($arr['telegram_broadcast_payment_proof_verified'] ?? 0) === 1;
+        }
+
         return false;
     }
 
@@ -251,7 +428,7 @@ class TelegramNotificationHelper
      *
      * @param   \Joomla\Registry\Registry  $params  Component params
      * @param   string                    $body    Message body (same as DM, without channel prefix)
-     * @param   string                    $event   self::EVENT_INVOICE or EVENT_ENVIO
+     * @param   string                    $event   Event constant (see class constants)
      *
      * @return  void
      */
@@ -274,9 +451,12 @@ class TelegramNotificationHelper
 
         self::ensureTelegramLanguageLoaded();
 
-        $pfxKey = $event === self::EVENT_ENVIO
-            ? 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ENVIO'
-            : 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE';
+        $pfxKey = match ($event) {
+            self::EVENT_ENVIO => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ENVIO',
+            self::EVENT_PAYMENT_PROOF_ENTERED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_ENTERED',
+            self::EVENT_PAYMENT_PROOF_VERIFIED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_VERIFIED',
+            default => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE',
+        };
         $full = Text::_($pfxKey) . $body;
 
         TelegramQueueHelper::enqueue($chatId, $full);
@@ -402,6 +582,88 @@ class TelegramNotificationHelper
         }
 
         return self::getEnvioMessageTemplate($params);
+    }
+
+    /**
+     * Payment proof entered — DM body from params or language default.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getPaymentProofEnteredMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_message_payment_proof_entered', ''));
+        }
+
+        return $t !== '' ? $t : Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_PAYMENT_PROOF_ENTERED_DEFAULT');
+    }
+
+    /**
+     * Payment proof entered — channel body; falls back to DM template.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getPaymentProofEnteredChannelMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_broadcast_message_payment_proof_entered', ''));
+        }
+        if ($t !== '') {
+            return $t;
+        }
+
+        return self::getPaymentProofEnteredMessageTemplate($params);
+    }
+
+    /**
+     * Payment proof verified — DM body from params or language default.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getPaymentProofVerifiedMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_message_payment_proof_verified', ''));
+        }
+
+        return $t !== '' ? $t : Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_PAYMENT_PROOF_VERIFIED_DEFAULT');
+    }
+
+    /**
+     * Payment proof verified — channel body; falls back to DM template.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getPaymentProofVerifiedChannelMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_broadcast_message_payment_proof_verified', ''));
+        }
+        if ($t !== '') {
+            return $t;
+        }
+
+        return self::getPaymentProofVerifiedMessageTemplate($params);
     }
 
     /**
@@ -582,6 +844,303 @@ class TelegramNotificationHelper
             'tipo_mensajeria'  => 'propio',
             'site_name'        => (string) Factory::getApplication()->get('sitename', 'Joomla'),
         ];
+    }
+
+    /**
+     * Demo values for "test payment proof entered" from Grimpsa bot.
+     *
+     * @param   User  $user  Current user
+     *
+     * @return  array<string,string>
+     */
+    public static function getSamplePaymentProofEnteredTemplateVars(User $user): array
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        return [
+            'username'          => trim((string) $user->name),
+            'user_login'        => trim((string) $user->username),
+            'proof_id'          => '0',
+            'proof_number'      => 'PA-00000',
+            'payment_amount'    => '1500.00',
+            'currency'          => 'Q',
+            'proof_status'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_PROOF_STATUS_ENTERED'),
+            'orden_id'          => '999001, 999002',
+            'orden_de_trabajo'  => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_LABELS'),
+            'order_numbers'     => 'A-100, A-101',
+            'client_names'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'sales_agents'      => trim((string) $user->name),
+            'registrant_name'   => trim((string) $user->name),
+            'registrant_login'  => trim((string) $user->username),
+            'verifier_name'     => '—',
+            'verifier_login'    => '',
+            'verified_date'     => '—',
+            'site_name'         => (string) Factory::getApplication()->get('sitename', 'Joomla'),
+        ];
+    }
+
+    /**
+     * Demo values for "test payment proof verified" from Grimpsa bot.
+     *
+     * @param   User  $user  Current user
+     *
+     * @return  array<string,string>
+     */
+    public static function getSamplePaymentProofVerifiedTemplateVars(User $user): array
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        return [
+            'username'          => trim((string) $user->name),
+            'user_login'        => trim((string) $user->username),
+            'proof_id'          => '0',
+            'proof_number'      => 'PA-00000',
+            'payment_amount'    => '1500.00',
+            'currency'          => 'Q',
+            'proof_status'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_PROOF_STATUS_VERIFIED'),
+            'orden_id'          => '999001, 999002',
+            'orden_de_trabajo'  => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_LABELS'),
+            'order_numbers'     => 'A-100, A-101',
+            'client_names'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'sales_agents'      => trim((string) $user->name),
+            'registrant_name'   => trim((string) $user->name),
+            'registrant_login'  => trim((string) $user->username),
+            'verifier_name'     => trim((string) $user->name),
+            'verifier_login'    => trim((string) $user->username),
+            'verified_date'     => Factory::getDate()->format('Y-m-d H:i'),
+            'site_name'         => (string) Factory::getApplication()->get('sitename', 'Joomla'),
+        ];
+    }
+
+    /**
+     * Template variables for payment proof notifications (one DM recipient = order owner).
+     *
+     * @param   object   $proof              Row from #__ordenproduccion_payment_proofs
+     * @param   User     $recipient          Owner / notified user
+     * @param   int      $proofId            Proof PK
+     * @param   int|null $verifiedByUserId   User who verified (verified event only); null or 0 if unknown
+     * @param   bool     $isVerifiedEvent    True when notifying verification
+     *
+     * @return  array<string,string>
+     */
+    public static function buildPaymentProofTemplateVars(
+        object $proof,
+        User $recipient,
+        int $proofId,
+        ?int $verifiedByUserId,
+        bool $isVerifiedEvent
+    ): array {
+        $proofId = (int) $proofId;
+        $amount  = isset($proof->payment_amount) ? number_format((float) $proof->payment_amount, 2, '.', '') : '0.00';
+        $currency = 'Q';
+        if (isset($proof->currency)) {
+            $currency = trim((string) $proof->currency);
+        }
+
+        $site = '';
+        try {
+            $site = (string) Factory::getApplication()->get('sitename', '');
+        } catch (\Throwable $e) {
+        }
+
+        $orders = self::getLinkedOrdersForPaymentProof($proofId);
+        $ids    = [];
+        $labels = [];
+        $orderNums = [];
+        $clients  = [];
+        $agents   = [];
+        foreach ($orders as $o) {
+            $oid = (int) ($o->id ?? 0);
+            if ($oid > 0) {
+                $ids[] = (string) $oid;
+            }
+            $ot = trim((string) ($o->orden_de_trabajo ?? ''));
+            $labels[] = $ot !== '' ? $ot : ($oid > 0 ? '#' . $oid : '');
+            $on = trim((string) ($o->order_number ?? ''));
+            if ($on !== '') {
+                $orderNums[] = $on;
+            }
+            $cn = trim((string) ($o->client_name ?? ''));
+            if ($cn !== '' && !\in_array($cn, $clients, true)) {
+                $clients[] = $cn;
+            }
+            $sa = trim((string) ($o->sales_agent ?? ''));
+            if ($sa !== '' && !\in_array($sa, $agents, true)) {
+                $agents[] = $sa;
+            }
+        }
+
+        $status = trim((string) ($proof->verification_status ?? ''));
+        if ($isVerifiedEvent || strtolower($status) === 'verificado') {
+            $proofStatusLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_PROOF_STATUS_VERIFIED');
+        } else {
+            $proofStatusLabel = $status !== '' ? $status : Text::_('COM_ORDENPRODUCCION_TELEGRAM_PROOF_STATUS_ENTERED');
+        }
+
+        $cb = (int) ($proof->created_by ?? 0);
+        $regName = '';
+        $regLogin = '';
+        if ($cb > 0) {
+            try {
+                $ru = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($cb);
+                if (!$ru->guest) {
+                    $regName  = trim((string) $ru->name);
+                    $regLogin = trim((string) $ru->username);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $verifierName  = '—';
+        $verifierLogin = '';
+        $vuid          = (int) ($verifiedByUserId ?? 0);
+        if ($isVerifiedEvent && $vuid > 0) {
+            try {
+                $vu = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($vuid);
+                if (!$vu->guest) {
+                    $verifierName  = trim((string) $vu->name);
+                    $verifierLogin = trim((string) $vu->username);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $verifiedDate = '—';
+        if ($isVerifiedEvent && !empty($proof->verified_date)) {
+            $verifiedDate = trim((string) $proof->verified_date);
+        }
+
+        $proofNumber = 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT);
+
+        return [
+            'username'          => trim((string) $recipient->name),
+            'user_login'        => trim((string) $recipient->username),
+            'proof_id'          => (string) $proofId,
+            'proof_number'      => $proofNumber,
+            'payment_amount'    => $amount,
+            'currency'          => $currency,
+            'proof_status'      => $proofStatusLabel,
+            'orden_id'          => implode(', ', $ids),
+            'orden_de_trabajo'  => implode(', ', array_filter($labels, static fn ($x) => $x !== '')),
+            'order_numbers'     => implode(', ', array_unique($orderNums)),
+            'client_names'      => implode(', ', $clients),
+            'sales_agents'      => implode(', ', $agents),
+            'registrant_name'   => $regName !== '' ? $regName : '—',
+            'registrant_login'  => $regLogin,
+            'verifier_name'     => $verifierName,
+            'verifier_login'    => $verifierLogin,
+            'verified_date'     => $verifiedDate,
+            'site_name'         => $site,
+        ];
+    }
+
+    /**
+     * Orders linked to a payment proof (for labels and recipient resolution).
+     *
+     * @param   int  $proofId  Payment proof PK
+     *
+     * @return  object[]  Rows with id, orden_de_trabajo, order_number, client_name, sales_agent
+     */
+    protected static function getLinkedOrdersForPaymentProof(int $proofId): array
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return [];
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $hasClientName = isset($cols['client_name']);
+
+            $qo = $db->quoteName('o');
+            $query = $db->getQuery(true)
+                ->select(
+                    [
+                        $qo . '.' . $db->quoteName('id'),
+                        $qo . '.' . $db->quoteName('orden_de_trabajo'),
+                        $qo . '.' . $db->quoteName('order_number'),
+                        $qo . '.' . $db->quoteName('sales_agent'),
+                    ]
+                )
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->innerJoin($db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id')
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+                ->where('po.' . $db->quoteName('payment_proof_id') . ' = ' . $proofId);
+
+            if ($hasClientName) {
+                $query->select($qo . '.' . $db->quoteName('client_name'));
+            } else {
+                $query->select($qo . '.' . $db->quoteName('nombre_del_cliente') . ' AS ' . $db->quoteName('client_name'));
+            }
+
+            $db->setQuery($query);
+
+            return $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Load an active payment proof row.
+     *
+     * @param   int  $proofId  PK
+     *
+     * @return  object|null
+     */
+    protected static function loadPaymentProofRow(int $proofId): ?object
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return null;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+                    ->where($db->quoteName('id') . ' = ' . $proofId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+
+            $row = $db->loadObject();
+
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Distinct order-owner user ids for orders linked to this payment proof.
+     *
+     * @param   int  $proofId  Payment proof PK
+     *
+     * @return  int[]
+     */
+    public static function collectRecipientUserIdsForPaymentProof(int $proofId): array
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return [];
+        }
+
+        $ids  = [];
+        $seen = [];
+
+        foreach (self::getLinkedOrdersForPaymentProof($proofId) as $orden) {
+            $uid = self::resolveOwnerUserIdFromOrden($orden);
+            if ($uid !== null && $uid > 0 && empty($seen[$uid])) {
+                $seen[$uid] = true;
+                $ids[] = $uid;
+            }
+        }
+
+        return $ids;
     }
 
     /**

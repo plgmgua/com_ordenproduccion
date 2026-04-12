@@ -189,7 +189,7 @@ class ApprovalWorkflowEntityHelper
         $db->execute();
     }
 
-    public static function applyPaymentProofVerified(int $proofId): bool
+    public static function applyPaymentProofVerified(int $proofId, int $verifiedByUserId = 0): bool
     {
         $proofId = (int) $proofId;
         if ($proofId < 1) {
@@ -213,6 +213,11 @@ class ApprovalWorkflowEntityHelper
             }
         } catch (\Throwable $e) {
             // Non-fatal
+        }
+
+        try {
+            TelegramNotificationHelper::notifyPaymentProofVerified($proofId, (int) $verifiedByUserId);
+        } catch (\Throwable $e) {
         }
 
         return true;

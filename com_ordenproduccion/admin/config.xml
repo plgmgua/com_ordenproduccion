@@ -111,6 +111,28 @@
             <option value="0">JNO</option>
         </field>
         <field
+            name="telegram_notify_payment_proof_entered"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_ENTERED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_ENTERED_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="telegram_notify_payment_proof_verified"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_VERIFIED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_VERIFIED_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
             name="telegram_message_invoice"
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_LABEL"
@@ -125,6 +147,26 @@
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_LABEL"
             description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_message_payment_proof_entered"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_ENTERED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_ENTERED_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_message_payment_proof_verified"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
             rows="8"
             cols="80"
             filter="raw"
@@ -164,6 +206,28 @@
             <option value="0">JNO</option>
         </field>
         <field
+            name="telegram_broadcast_payment_proof_entered"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_ENTERED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_ENTERED_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="telegram_broadcast_payment_proof_verified"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_VERIFIED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_VERIFIED_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
             name="telegram_broadcast_message_invoice"
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_LABEL"
@@ -178,6 +242,26 @@
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_LABEL"
             description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_broadcast_message_payment_proof_entered"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_ENTERED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_ENTERED_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_broadcast_message_payment_proof_verified"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
             rows="8"
             cols="80"
             filter="raw"

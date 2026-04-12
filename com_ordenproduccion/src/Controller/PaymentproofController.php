@@ -16,6 +16,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 class PaymentproofController extends BaseController
@@ -208,6 +209,11 @@ class PaymentproofController extends BaseController
                         $mismatchNote,
                         $user
                     );
+                }
+
+                try {
+                    TelegramNotificationHelper::notifyPaymentProofEntered((int) $proofId);
+                } catch (\Throwable $e) {
                 }
             } else {
                 $errors = $model->getErrors();
@@ -608,6 +614,10 @@ class PaymentproofController extends BaseController
                 }
             } catch (\Throwable $e) {
                 // Non-fatal
+            }
+            try {
+                TelegramNotificationHelper::notifyPaymentProofVerified((int) $proofId, (int) $user->id);
+            } catch (\Throwable $e) {
             }
         } else {
             $this->app->enqueueMessage('No se pudo actualizar el estado del comprobante.', 'error');

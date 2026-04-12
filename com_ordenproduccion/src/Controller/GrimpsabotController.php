@@ -178,7 +178,16 @@ class GrimpsabotController extends BaseController
         TelegramNotificationHelper::ensureTelegramLanguageLoaded();
 
         $event = $this->input->post->getCmd('telegram_test_event', 'invoice');
-        if (!\in_array($event, [TelegramNotificationHelper::EVENT_INVOICE, TelegramNotificationHelper::EVENT_ENVIO], true)) {
+        if (!\in_array(
+            $event,
+            [
+                TelegramNotificationHelper::EVENT_INVOICE,
+                TelegramNotificationHelper::EVENT_ENVIO,
+                TelegramNotificationHelper::EVENT_PAYMENT_PROOF_ENTERED,
+                TelegramNotificationHelper::EVENT_PAYMENT_PROOF_VERIFIED,
+            ],
+            true
+        )) {
             $event = TelegramNotificationHelper::EVENT_INVOICE;
         }
 
@@ -200,13 +209,21 @@ class GrimpsabotController extends BaseController
         }
 
         if ($event === TelegramNotificationHelper::EVENT_INVOICE) {
-            $template = TelegramNotificationHelper::getInvoiceMessageTemplate($params);
-            $vars     = TelegramNotificationHelper::getSampleInvoiceTemplateVars($user);
+            $template   = TelegramNotificationHelper::getInvoiceMessageTemplate($params);
+            $vars       = TelegramNotificationHelper::getSampleInvoiceTemplateVars($user);
             $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_INVOICE');
-        } else {
-            $template = TelegramNotificationHelper::getEnvioMessageTemplate($params);
-            $vars     = TelegramNotificationHelper::getSampleEnvioTemplateVars($user);
+        } elseif ($event === TelegramNotificationHelper::EVENT_ENVIO) {
+            $template   = TelegramNotificationHelper::getEnvioMessageTemplate($params);
+            $vars       = TelegramNotificationHelper::getSampleEnvioTemplateVars($user);
             $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_ENVIO');
+        } elseif ($event === TelegramNotificationHelper::EVENT_PAYMENT_PROOF_ENTERED) {
+            $template   = TelegramNotificationHelper::getPaymentProofEnteredMessageTemplate($params);
+            $vars       = TelegramNotificationHelper::getSamplePaymentProofEnteredTemplateVars($user);
+            $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_PAYMENT_PROOF_ENTERED');
+        } else {
+            $template   = TelegramNotificationHelper::getPaymentProofVerifiedMessageTemplate($params);
+            $vars       = TelegramNotificationHelper::getSamplePaymentProofVerifiedTemplateVars($user);
+            $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_PAYMENT_PROOF_VERIFIED');
         }
 
         $body = TelegramNotificationHelper::replaceTemplatePlaceholders($template, $vars);
