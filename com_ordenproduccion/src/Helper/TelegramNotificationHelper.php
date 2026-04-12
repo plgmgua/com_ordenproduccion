@@ -78,10 +78,11 @@ class TelegramNotificationHelper
             return;
         }
 
-        $template = self::getInvoiceMessageTemplate($params);
+        $dmTemplate      = self::getInvoiceMessageTemplate($params);
+        $channelTemplate = self::getInvoiceChannelMessageTemplate($params);
         $users    = Factory::getContainer()->get(UserFactoryInterface::class);
 
-        $firstChannelBody = null;
+        $firstChannelVars = null;
         $recipientNames    = [];
 
         foreach ($recipientIds as $uid) {
@@ -99,16 +100,16 @@ class TelegramNotificationHelper
             }
 
             $vars = self::buildInvoiceTemplateVars($invoice, $recipient, $invoiceId);
-            $text = self::replaceTemplatePlaceholders($template, $vars);
-            if ($firstChannelBody === null) {
-                $firstChannelBody = $text;
+            $text = self::replaceTemplatePlaceholders($dmTemplate, $vars);
+            if ($firstChannelVars === null) {
+                $firstChannelVars = $vars;
             }
             $recipientNames[] = trim((string) $recipient->name);
             self::sendToUserId($token, $uid, $text);
         }
 
-        if ($firstChannelBody !== null) {
-            $channelBody = $firstChannelBody;
+        if ($firstChannelVars !== null) {
+            $channelBody = self::replaceTemplatePlaceholders($channelTemplate, $firstChannelVars);
             $uniqueNames = \array_unique(\array_filter($recipientNames, static fn ($n) => $n !== ''));
             if (\count($uniqueNames) > 1) {
                 self::ensureTelegramLanguageLoaded();
@@ -180,9 +181,10 @@ class TelegramNotificationHelper
             }
         }
 
-        $template = self::getEnvioMessageTemplate($params);
+        $dmTemplate      = self::getEnvioMessageTemplate($params);
+        $channelTemplate = self::getEnvioChannelMessageTemplate($params);
         $vars     = self::buildEnvioTemplateVars($orden, $recipient, $ordenId, $tipoEnvio, $tipoMensajeria);
-        $text     = self::replaceTemplatePlaceholders($template, $vars);
+        $text     = self::replaceTemplatePlaceholders($dmTemplate, $vars);
 
         // DM: owner if they linked Telegram on Grimpsa bot / custom field; else order creator (if different) so someone who can receive gets the alert.
         $ownerUid = $uid;
@@ -199,7 +201,8 @@ class TelegramNotificationHelper
             self::sendToUserId($token, $dmTo, $text);
         }
 
-        self::sendToAdministracionBroadcastChannel($params, $text, self::EVENT_ENVIO);
+        $channelText = self::replaceTemplatePlaceholders($channelTemplate, $vars);
+        self::sendToAdministracionBroadcastChannel($params, $channelText, self::EVENT_ENVIO);
     }
 
     /**
@@ -339,6 +342,28 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Invoice message body for Administración channel; falls back to DM template.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getInvoiceChannelMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_broadcast_message_invoice', ''));
+        }
+        if ($t !== '') {
+            return $t;
+        }
+
+        return self::getInvoiceMessageTemplate($params);
+    }
+
+    /**
      * Envío message body from component params, or language default.
      *
      * @param   \Joomla\Registry\Registry  $params  Component params
@@ -355,6 +380,28 @@ class TelegramNotificationHelper
         }
 
         return $t !== '' ? $t : Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_ENVIO_DEFAULT');
+    }
+
+    /**
+     * Envío message body for Administración channel; falls back to DM template.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getEnvioChannelMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_broadcast_message_envio', ''));
+        }
+        if ($t !== '') {
+            return $t;
+        }
+
+        return self::getEnvioMessageTemplate($params);
     }
 
     /**

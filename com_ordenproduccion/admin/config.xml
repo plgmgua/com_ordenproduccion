@@ -164,6 +164,26 @@
             <option value="0">JNO</option>
         </field>
         <field
+            name="telegram_broadcast_message_invoice"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_broadcast_message_envio"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_DESC"
+            rows="8"
+            cols="80"
+            filter="raw"
+            default=""
+        />
+        <field
             name="telegram_queue_cron_key"
             type="password"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_LABEL"

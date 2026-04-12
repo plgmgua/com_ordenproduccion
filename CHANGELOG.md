@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.7-STABLE] - 2026-04-11
+
+### Changed
+- **Telegram templates (Grimpsa bot):** split message templates by destination. Direct-message notifications keep `telegram_message_invoice` / `telegram_message_envio`, and Administración channel now has its own templates `telegram_broadcast_message_invoice` / `telegram_broadcast_message_envio` (in Grimpsa bot + component config). If channel templates are empty, the previous behavior remains: reuse the DM template.
+
 ## [3.109.6-STABLE] - 2026-04-11
 
 ### Changed

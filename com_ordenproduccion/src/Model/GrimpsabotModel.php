@@ -109,7 +109,7 @@ class GrimpsabotModel extends FormModel
             $registry->set('telegram_queue_cron_key', $existing['telegram_queue_cron_key']);
         }
 
-        foreach (['telegram_message_invoice', 'telegram_message_envio'] as $msgKey) {
+        foreach (['telegram_message_invoice', 'telegram_message_envio', 'telegram_broadcast_message_invoice', 'telegram_broadcast_message_envio'] as $msgKey) {
             if (\array_key_exists($msgKey, $data)) {
                 $registry->set($msgKey, trim((string) $data[$msgKey]));
             }
