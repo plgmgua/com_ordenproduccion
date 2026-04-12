@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.8-STABLE] - 2026-04-11
+
+### Fixed
+- **Telegram envío:** `{sales_agent}` was documented for invoice templates but never supplied in envío template variables, so channel/DM messages showed the literal token. `buildEnvioTemplateVars` now includes `sales_agent` from the work order row.
+
 ## [3.109.7-STABLE] - 2026-04-11
 
 ### Changed

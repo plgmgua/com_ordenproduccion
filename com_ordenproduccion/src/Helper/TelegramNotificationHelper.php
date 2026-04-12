@@ -511,19 +511,20 @@ class TelegramNotificationHelper
         }
 
         $ot = trim((string) ($orden->orden_de_trabajo ?? ''));
+        $salesAgent = trim((string) ($orden->sales_agent ?? ''));
 
         if ($recipient !== null && !$recipient->guest) {
             $username   = trim((string) $recipient->name);
             $user_login = trim((string) $recipient->username);
         } else {
-            $sales = trim((string) ($orden->sales_agent ?? ''));
-            $username   = $sales !== '' ? $sales : '—';
+            $username   = $salesAgent !== '' ? $salesAgent : '—';
             $user_login = '';
         }
 
         return [
             'username'          => $username,
             'user_login'        => $user_login,
+            'sales_agent'       => $salesAgent,
             'orden_id'          => (string) (int) $ordenId,
             'orden_de_trabajo'  => $ot !== '' ? $ot : '#' . (int) $ordenId,
             'client_name'       => trim((string) ($orden->nombre_del_cliente ?? $orden->client_name ?? '')),
@@ -573,6 +574,7 @@ class TelegramNotificationHelper
         return [
             'username'         => trim((string) $user->name),
             'user_login'       => trim((string) $user->username),
+            'sales_agent'      => trim((string) $user->name),
             'orden_id'         => '999001',
             'orden_de_trabajo' => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_SINGLE'),
             'client_name'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
