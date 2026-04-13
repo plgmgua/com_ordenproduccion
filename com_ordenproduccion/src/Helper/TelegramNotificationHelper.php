@@ -77,13 +77,10 @@ class TelegramNotificationHelper
             return;
         }
 
+        // DMs only to Joomla users resolved as owners of linked órdenes (not importer / not invoice-only sales_agent).
         $recipientIds = self::collectRecipientUserIdsForInvoice($invoice);
-        $createdBy    = (int) ($invoice->created_by ?? 0);
-        if ($createdBy > 0 && !\in_array($createdBy, $recipientIds, true)) {
-            $recipientIds[] = $createdBy;
-        }
 
-        // FEL/XML imports often have no orden link and no sales_agent — still queue channel if enabled.
+        // FEL/XML imports often have no orden link — still queue channel if enabled.
         if ($recipientIds === [] && !self::shouldBroadcastToChannel($params, self::EVENT_INVOICE)) {
             return;
         }
@@ -201,19 +198,9 @@ class TelegramNotificationHelper
         $vars     = self::buildEnvioTemplateVars($orden, $recipient, $ordenId, $tipoEnvio, $tipoMensajeria);
         $text     = self::replaceTemplatePlaceholders($dmTemplate, $vars);
 
-        // DM: owner if they linked Telegram on Grimpsa bot / custom field; else order creator (if different) so someone who can receive gets the alert.
-        $ownerUid = $uid;
-        $dmTo = null;
-        if ($ownerUid !== null && $ownerUid > 0 && self::getChatIdForUser($ownerUid) !== null) {
-            $dmTo = $ownerUid;
-        } else {
-            $cb = (int) ($orden->created_by ?? 0);
-            if ($cb > 0 && $cb !== $ownerUid && self::getChatIdForUser($cb) !== null) {
-                $dmTo = $cb;
-            }
-        }
-        if ($dmTo !== null) {
-            self::sendToUserId($token, $dmTo, $text);
+        // DM only to the orden owner when they have linked Telegram (not to order creator if owner differs).
+        if ($uid !== null && $uid > 0 && self::getChatIdForUser($uid) !== null) {
+            self::sendToUserId($token, $uid, $text);
         }
 
         $channelText = self::replaceTemplatePlaceholders($channelTemplate, $vars);
@@ -1213,9 +1200,12 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Distinct Joomla user ids for owners of órdenes linked to this invoice (sales_agent / created_by per orden).
+     * Does not use invoice importer, invoice.sales_agent alone, or users without a linked orden.
+     *
      * @param   object  $invoice  Row from #__ordenproduccion_invoices
      *
-     * @return  int[]  Distinct user ids
+     * @return  int[]
      */
     public static function collectRecipientUserIdsForInvoice(object $invoice): array
     {
@@ -1229,40 +1219,35 @@ class TelegramNotificationHelper
             $orderIds = [];
         }
 
-        if ($orderIds !== []) {
-            try {
-                $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-                foreach ($orderIds as $oid) {
-                    $oid = (int) $oid;
-                    if ($oid < 1) {
-                        continue;
-                    }
-                    $db->setQuery(
-                        $db->getQuery(true)
-                            ->select('*')
-                            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-                            ->where($db->quoteName('id') . ' = ' . $oid)
-                            ->where($db->quoteName('state') . ' = 1')
-                    );
-                    $orden = $db->loadObject();
-                    if (!$orden) {
-                        continue;
-                    }
-                    $uid = self::resolveOwnerUserIdFromOrden($orden);
-                    if ($uid !== null && empty($seen[$uid])) {
-                        $seen[$uid] = true;
-                        $ids[] = $uid;
-                    }
-                }
-            } catch (\Throwable $e) {
-            }
+        if ($orderIds === []) {
+            return [];
         }
 
-        if ($ids === []) {
-            $uid = self::resolveOwnerUserIdFromInvoiceRow($invoice);
-            if ($uid !== null) {
-                $ids[] = $uid;
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            foreach ($orderIds as $oid) {
+                $oid = (int) $oid;
+                if ($oid < 1) {
+                    continue;
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('*')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('id') . ' = ' . $oid)
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+                $orden = $db->loadObject();
+                if (!$orden) {
+                    continue;
+                }
+                $uid = self::resolveOwnerUserIdFromOrden($orden);
+                if ($uid !== null && $uid > 0 && empty($seen[$uid])) {
+                    $seen[$uid] = true;
+                    $ids[] = $uid;
+                }
             }
+        } catch (\Throwable $e) {
         }
 
         return $ids;
@@ -1289,19 +1274,6 @@ class TelegramNotificationHelper
         $cb = (int) ($orden->created_by ?? 0);
 
         return $cb > 0 ? $cb : null;
-    }
-
-    /**
-     * When no orden link: match invoice.sales_agent to a user name.
-     */
-    public static function resolveOwnerUserIdFromInvoiceRow(object $invoice): ?int
-    {
-        $sales = trim((string) ($invoice->sales_agent ?? ''));
-        if ($sales === '') {
-            return null;
-        }
-
-        return self::findUserIdByExactName($sales);
     }
 
     public static function findUserIdByExactName(string $name): ?int
