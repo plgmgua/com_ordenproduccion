@@ -73,26 +73,35 @@ class TelegramQueueHelper
     }
 
     /**
-     * Max rows returned for queue / sent lists in UI.
+     * Max rows returned for queue / sent lists in UI when no limit is passed (legacy / scripts).
      *
      * @since  3.109.1
      */
     public const DISPLAY_LIST_LIMIT = 200;
 
     /**
+     * Rows per page on the Grimpsa bot Queue tab.
+     *
+     * @since  3.109.13
+     */
+    public const QUEUE_PAGE_SIZE = 10;
+
+    /**
      * Pending queue rows (FIFO) for display.
      *
      * @param   \Joomla\Database\DatabaseInterface  $db     Database
      * @param   int|null                            $limit  Max rows (default DISPLAY_LIST_LIMIT, max 500)
+     * @param   int                                 $start  Offset (for pagination)
      *
      * @return  array<int, object>
      *
      * @since   3.109.1
      */
-    public static function getPendingQueueItemsForDisplay(DatabaseInterface $db, ?int $limit = null): array
+    public static function getPendingQueueItemsForDisplay(DatabaseInterface $db, ?int $limit = null, int $start = 0): array
     {
         $limit = $limit ?? self::DISPLAY_LIST_LIMIT;
         $limit = max(1, min(500, $limit));
+        $start = max(0, $start);
 
         if (!self::telegramQueueTableExists($db)) {
             return [];
@@ -104,7 +113,7 @@ class TelegramQueueHelper
                     ->select('*')
                     ->from($db->quoteName('#__ordenproduccion_telegram_queue'))
                     ->order($db->quoteName('id') . ' ASC')
-                    ->setLimit($limit)
+                    ->setLimit($limit, $start)
             );
 
             return $db->loadObjectList() ?: [];
@@ -118,15 +127,17 @@ class TelegramQueueHelper
      *
      * @param   \Joomla\Database\DatabaseInterface  $db     Database
      * @param   int|null                            $limit  Max rows
+     * @param   int                                 $start  Offset (for pagination)
      *
      * @return  array<int, object>
      *
      * @since   3.109.1
      */
-    public static function getSentLogItemsForDisplay(DatabaseInterface $db, ?int $limit = null): array
+    public static function getSentLogItemsForDisplay(DatabaseInterface $db, ?int $limit = null, int $start = 0): array
     {
         $limit = $limit ?? self::DISPLAY_LIST_LIMIT;
         $limit = max(1, min(500, $limit));
+        $start = max(0, $start);
 
         if (!self::telegramSentLogTableExists($db)) {
             return [];
@@ -138,7 +149,7 @@ class TelegramQueueHelper
                     ->select('*')
                     ->from($db->quoteName('#__ordenproduccion_telegram_sent_log'))
                     ->order($db->quoteName('sent_at') . ' DESC')
-                    ->setLimit($limit)
+                    ->setLimit($limit, $start)
             );
 
             return $db->loadObjectList() ?: [];

@@ -69,6 +69,38 @@ class HtmlView extends BaseHtmlView
     protected $telegramCronCrontabKeyConfigured = false;
 
     /**
+     * Current page (1-based) for pending queue table.
+     *
+     * @var    int
+     * @since  3.109.13
+     */
+    protected $telegramQueuePendingPage = 1;
+
+    /**
+     * Total pages for pending queue (0 if empty).
+     *
+     * @var    int
+     * @since  3.109.13
+     */
+    protected $telegramQueuePendingTotalPages = 0;
+
+    /**
+     * Current page (1-based) for sent log table.
+     *
+     * @var    int
+     * @since  3.109.13
+     */
+    protected $telegramQueueSentPage = 1;
+
+    /**
+     * Total pages for sent log (0 if empty).
+     *
+     * @var    int
+     * @since  3.109.13
+     */
+    protected $telegramQueueSentTotalPages = 0;
+
+    /**
      * @param   string|null  $tpl  Template name
      *
      * @return  void
@@ -113,13 +145,36 @@ class HtmlView extends BaseHtmlView
                 $this->telegramCronCrontabLine = '*/2 * * * * wget -q -O - ' . \escapeshellarg($base . 'YOUR_SECRET');
             }
 
-            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-            $this->telegramQueueTableOk = TelegramQueueHelper::telegramQueueTableExists($db);
-            $this->telegramSentLogTableOk   = TelegramQueueHelper::telegramSentLogTableExists($db);
-            $this->telegramQueuePending     = TelegramQueueHelper::getPendingQueueItemsForDisplay($db);
-            $this->telegramQueueSent        = TelegramQueueHelper::getSentLogItemsForDisplay($db);
+            $db     = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $input  = Factory::getApplication()->input;
+            $pageSz = TelegramQueueHelper::QUEUE_PAGE_SIZE;
+
+            $this->telegramQueueTableOk   = TelegramQueueHelper::telegramQueueTableExists($db);
+            $this->telegramSentLogTableOk = TelegramQueueHelper::telegramSentLogTableExists($db);
             $this->telegramQueuePendingTotal = TelegramQueueHelper::countPendingQueue($db);
             $this->telegramQueueSentTotal   = TelegramQueueHelper::countSentLog($db);
+
+            $this->telegramQueuePendingTotalPages = $this->telegramQueuePendingTotal > 0
+                ? (int) \ceil($this->telegramQueuePendingTotal / $pageSz)
+                : 0;
+            $this->telegramQueueSentTotalPages = $this->telegramQueueSentTotal > 0
+                ? (int) \ceil($this->telegramQueueSentTotal / $pageSz)
+                : 0;
+
+            $this->telegramQueuePendingPage = \max(1, (int) $input->getInt('tg_qp', 1));
+            if ($this->telegramQueuePendingTotalPages > 0 && $this->telegramQueuePendingPage > $this->telegramQueuePendingTotalPages) {
+                $this->telegramQueuePendingPage = $this->telegramQueuePendingTotalPages;
+            }
+            $this->telegramQueueSentPage = \max(1, (int) $input->getInt('tg_qs', 1));
+            if ($this->telegramQueueSentTotalPages > 0 && $this->telegramQueueSentPage > $this->telegramQueueSentTotalPages) {
+                $this->telegramQueueSentPage = $this->telegramQueueSentTotalPages;
+            }
+
+            $pendingStart = ($this->telegramQueuePendingPage - 1) * $pageSz;
+            $sentStart    = ($this->telegramQueueSentPage - 1) * $pageSz;
+
+            $this->telegramQueuePending = TelegramQueueHelper::getPendingQueueItemsForDisplay($db, $pageSz, $pendingStart);
+            $this->telegramQueueSent    = TelegramQueueHelper::getSentLogItemsForDisplay($db, $pageSz, $sentStart);
         }
 
         $this->setLayout('default');

@@ -37,6 +37,10 @@ $truncateQueueBody = static function (string $text, int $max = 200): string {
     return substr($text, 0, $max) . '…';
 };
 
+$queueUrl = static function (int $tgQp, int $tgQs): string {
+    return Route::_('index.php?option=com_ordenproduccion&view=grimpsabot&tg_qp=' . $tgQp . '&tg_qs=' . $tgQs, false) . '#grimpsabot-pane-queue';
+};
+
 ?>
 <div class="com-ordenproduccion-grimpsabot container py-3">
     <h1 class="h3 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TITLE'); ?></h1>
@@ -110,8 +114,8 @@ $truncateQueueBody = static function (string $text, int $max = 200): string {
                             <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PENDING_HEADING'); ?>
                                 <?php if (!empty($this->telegramQueueTableOk)) : ?>
                                     <span class="badge bg-secondary"><?php echo (int) $this->telegramQueuePendingTotal; ?></span>
-                                    <?php if ($this->telegramQueuePendingTotal > TelegramQueueHelper::DISPLAY_LIST_LIMIT) : ?>
-                                        <span class="small text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_LIST_CAPPED', TelegramQueueHelper::DISPLAY_LIST_LIMIT); ?></span>
+                                    <?php if ((int) $this->telegramQueuePendingTotal > 0) : ?>
+                                        <span class="small text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PER_PAGE', (int) TelegramQueueHelper::QUEUE_PAGE_SIZE); ?></span>
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </h3>
@@ -146,13 +150,53 @@ $truncateQueueBody = static function (string $text, int $max = 200): string {
                                         </tbody>
                                     </table>
                                 </div>
+                                <?php if ((int) $this->telegramQueuePendingTotalPages > 1) : ?>
+                                    <nav class="mb-4" aria-label="<?php echo $this->escape(Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PENDING_HEADING')); ?>">
+                                        <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
+                                            <li class="page-item<?php echo (int) $this->telegramQueuePendingPage <= 1 ? ' disabled' : ''; ?>">
+                                                <?php if ((int) $this->telegramQueuePendingPage > 1) : ?>
+                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage - 1, (int) $this->telegramQueueSentPage); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
+                                                <?php else : ?>
+                                                    <span class="page-link"><?php echo Text::_('JPREVIOUS'); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                            <?php
+                                            $pEnd = (int) $this->telegramQueuePendingTotalPages;
+                                            $pCur = (int) $this->telegramQueuePendingPage;
+                                            if ($pEnd <= 15) :
+                                                for ($p = 1; $p <= $pEnd; $p++) :
+                                                    $isActive = $p === $pCur;
+                                                    ?>
+                                                    <li class="page-item<?php echo $isActive ? ' active' : ''; ?>">
+                                                        <?php if (!$isActive) : ?>
+                                                            <a class="page-link" href="<?php echo $queueUrl($p, (int) $this->telegramQueueSentPage); ?>"><?php echo $p; ?></a>
+                                                        <?php else : ?>
+                                                            <span class="page-link"><?php echo $p; ?></span>
+                                                        <?php endif; ?>
+                                                    </li>
+                                                <?php
+                                                endfor;
+                                            else :
+                                                ?>
+                                                <li class="page-item disabled"><span class="page-link"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PAGE_OF', $pCur, $pEnd); ?></span></li>
+                                            <?php endif; ?>
+                                            <li class="page-item<?php echo $pCur >= $pEnd ? ' disabled' : ''; ?>">
+                                                <?php if ($pCur < $pEnd) : ?>
+                                                    <a class="page-link" href="<?php echo $queueUrl($pCur + 1, (int) $this->telegramQueueSentPage); ?>"><?php echo Text::_('JNEXT'); ?></a>
+                                                <?php else : ?>
+                                                    <span class="page-link"><?php echo Text::_('JNEXT'); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                <?php endif; ?>
                             <?php endif; ?>
 
                             <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_SENT_HEADING'); ?>
                                 <?php if (!empty($this->telegramSentLogTableOk)) : ?>
                                     <span class="badge bg-secondary"><?php echo (int) $this->telegramQueueSentTotal; ?></span>
-                                    <?php if ($this->telegramQueueSentTotal > TelegramQueueHelper::DISPLAY_LIST_LIMIT) : ?>
-                                        <span class="small text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_LIST_CAPPED', TelegramQueueHelper::DISPLAY_LIST_LIMIT); ?></span>
+                                    <?php if ((int) $this->telegramQueueSentTotal > 0) : ?>
+                                        <span class="small text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PER_PAGE', (int) TelegramQueueHelper::QUEUE_PAGE_SIZE); ?></span>
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </h3>
@@ -187,6 +231,46 @@ $truncateQueueBody = static function (string $text, int $max = 200): string {
                                         </tbody>
                                     </table>
                                 </div>
+                                <?php if ((int) $this->telegramQueueSentTotalPages > 1) : ?>
+                                    <nav class="mb-0" aria-label="<?php echo $this->escape(Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_SENT_HEADING')); ?>">
+                                        <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
+                                            <li class="page-item<?php echo (int) $this->telegramQueueSentPage <= 1 ? ' disabled' : ''; ?>">
+                                                <?php if ((int) $this->telegramQueueSentPage > 1) : ?>
+                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, (int) $this->telegramQueueSentPage - 1); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
+                                                <?php else : ?>
+                                                    <span class="page-link"><?php echo Text::_('JPREVIOUS'); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                            <?php
+                                            $sEnd = (int) $this->telegramQueueSentTotalPages;
+                                            $sCur = (int) $this->telegramQueueSentPage;
+                                            if ($sEnd <= 15) :
+                                                for ($s = 1; $s <= $sEnd; $s++) :
+                                                    $sActive = $s === $sCur;
+                                                    ?>
+                                                    <li class="page-item<?php echo $sActive ? ' active' : ''; ?>">
+                                                        <?php if (!$sActive) : ?>
+                                                            <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, $s); ?>"><?php echo $s; ?></a>
+                                                        <?php else : ?>
+                                                            <span class="page-link"><?php echo $s; ?></span>
+                                                        <?php endif; ?>
+                                                    </li>
+                                                <?php
+                                                endfor;
+                                            else :
+                                                ?>
+                                                <li class="page-item disabled"><span class="page-link"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PAGE_OF', $sCur, $sEnd); ?></span></li>
+                                            <?php endif; ?>
+                                            <li class="page-item<?php echo $sCur >= $sEnd ? ' disabled' : ''; ?>">
+                                                <?php if ($sCur < $sEnd) : ?>
+                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, $sCur + 1); ?>"><?php echo Text::_('JNEXT'); ?></a>
+                                                <?php else : ?>
+                                                    <span class="page-link"><?php echo Text::_('JNEXT'); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     </div>
