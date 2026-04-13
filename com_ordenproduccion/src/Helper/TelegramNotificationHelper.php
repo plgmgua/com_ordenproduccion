@@ -78,16 +78,22 @@ class TelegramNotificationHelper
         }
 
         $recipientIds = self::collectRecipientUserIdsForInvoice($invoice);
-        if ($recipientIds === []) {
+        $createdBy    = (int) ($invoice->created_by ?? 0);
+        if ($createdBy > 0 && !\in_array($createdBy, $recipientIds, true)) {
+            $recipientIds[] = $createdBy;
+        }
+
+        // FEL/XML imports often have no orden link and no sales_agent — still queue channel if enabled.
+        if ($recipientIds === [] && !self::shouldBroadcastToChannel($params, self::EVENT_INVOICE)) {
             return;
         }
 
         $dmTemplate      = self::getInvoiceMessageTemplate($params);
         $channelTemplate = self::getInvoiceChannelMessageTemplate($params);
-        $users    = Factory::getContainer()->get(UserFactoryInterface::class);
+        $users           = Factory::getContainer()->get(UserFactoryInterface::class);
 
         $firstChannelVars = null;
-        $recipientNames    = [];
+        $recipientNames   = [];
 
         foreach ($recipientIds as $uid) {
             $uid = (int) $uid;
@@ -112,8 +118,13 @@ class TelegramNotificationHelper
             self::sendToUserId($token, $uid, $text);
         }
 
-        if ($firstChannelVars !== null) {
-            $channelBody = self::replaceTemplatePlaceholders($channelTemplate, $firstChannelVars);
+        $channelVars = $firstChannelVars;
+        if ($channelVars === null) {
+            $channelVars = self::buildInvoiceTemplateVarsChannelFallback($invoice, $invoiceId);
+        }
+
+        if ($channelVars !== null && self::shouldBroadcastToChannel($params, self::EVENT_INVOICE)) {
+            $channelBody = self::replaceTemplatePlaceholders($channelTemplate, $channelVars);
             $uniqueNames = \array_unique(\array_filter($recipientNames, static fn ($n) => $n !== ''));
             if (\count($uniqueNames) > 1) {
                 self::ensureTelegramLanguageLoaded();
@@ -692,6 +703,64 @@ class TelegramNotificationHelper
         return [
             'username'         => trim((string) $recipient->name),
             'user_login'       => trim((string) $recipient->username),
+            'invoice_id'       => (string) $invoiceId,
+            'invoice_number'   => trim((string) ($invoice->invoice_number ?? '')),
+            'invoice_amount'   => $amount,
+            'currency'         => $currency,
+            'client_name'      => trim((string) ($invoice->client_name ?? '')),
+            'sales_agent'      => trim((string) ($invoice->sales_agent ?? '')),
+            'orden_id'         => $ordenIds,
+            'orden_de_trabajo' => $ordenLabels,
+            'site_name'        => $site,
+        ];
+    }
+
+    /**
+     * Invoice template vars when no DM recipient produced vars (e.g. FEL XML import: no linked orden, no sales_agent).
+     * Uses created_by user for {username}/{user_login} when available, else sales_agent or an em dash.
+     *
+     * @param   object  $invoice    Row from #__ordenproduccion_invoices
+     * @param   int     $invoiceId  Invoice PK
+     *
+     * @return  array<string,string>
+     */
+    protected static function buildInvoiceTemplateVarsChannelFallback(object $invoice, int $invoiceId): array
+    {
+        $invoiceId = (int) $invoiceId;
+        $amount     = isset($invoice->invoice_amount) ? number_format((float) $invoice->invoice_amount, 2, '.', '') : '0.00';
+        $currency   = trim((string) ($invoice->currency ?? 'Q'));
+
+        [$ordenIds, $ordenLabels] = self::collectOrdenIdsAndLabelsForInvoice($invoice, $invoiceId);
+
+        $site = '';
+        try {
+            $site = (string) Factory::getApplication()->get('sitename', '');
+        } catch (\Throwable $e) {
+        }
+
+        $username   = '—';
+        $user_login = '';
+        $cb         = (int) ($invoice->created_by ?? 0);
+        if ($cb > 0) {
+            try {
+                $u = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($cb);
+                if (!$u->guest && (int) $u->id === $cb) {
+                    $username   = trim((string) $u->name);
+                    $user_login = trim((string) $u->username);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+        if ($username === '—') {
+            $sa = trim((string) ($invoice->sales_agent ?? ''));
+            if ($sa !== '') {
+                $username = $sa;
+            }
+        }
+
+        return [
+            'username'         => $username,
+            'user_login'       => $user_login,
             'invoice_id'       => (string) $invoiceId,
             'invoice_number'   => trim((string) ($invoice->invoice_number ?? '')),
             'invoice_amount'   => $amount,
