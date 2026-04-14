@@ -168,6 +168,7 @@ class PrecotizacionModel extends ListModel
 
         $user = Factory::getUser();
         $isAdministracion = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+        $isAprobacionesVentas = AccessHelper::isInAprobacionesVentasGroup();
 
         $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
@@ -184,14 +185,14 @@ class PrecotizacionModel extends ListModel
         if (isset($tableColsLc['facturar'])) {
             $cols[] = 'a.facturar';
         }
-        if ($isAdministracion) {
+        if ($isAdministracion || $isAprobacionesVentas) {
             $cols[] = 'u.name AS created_by_name';
         }
         $query->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.state') . ' = 1');
 
-        if ($isAdministracion) {
+        if ($isAdministracion || $isAprobacionesVentas) {
             $query->leftJoin(
                 $db->quoteName('#__users', 'u') . ' ON u.id = a.created_by'
             );
@@ -249,7 +250,7 @@ class PrecotizacionModel extends ListModel
         }
 
         $createdByF = (int) $this->getState('filter.created_by', 0);
-        if ($isAdministracion && $createdByF > 0) {
+        if (($isAdministracion || $isAprobacionesVentas) && $createdByF > 0) {
             $query->where($db->quoteName('a.created_by') . ' = ' . $createdByF);
         }
 
@@ -364,9 +365,12 @@ class PrecotizacionModel extends ListModel
             ->where($db->quoteName('a.state') . ' = 1');
 
         $isAdministracion = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+        $isAprobacionesVentas = AccessHelper::isInAprobacionesVentasGroup();
 
         if ($isAdministracion) {
             // Same as getListQuery: see all published rows.
+        } elseif ($isAprobacionesVentas) {
+            // Read any published pre-cotización (Impresión override / approvals); list view may still be owner-scoped.
         } elseif (isset($tableCols['oferta'])) {
             $uid = (int) $user->id;
             $expClause = '';
@@ -578,11 +582,7 @@ class PrecotizacionModel extends ListModel
         if ($this->isAssociatedWithQuotation($preCotizacionId)) {
             return false;
         }
-        $item = $this->getItem($preCotizacionId);
-        if (!$item || (int) $item->state !== 1) {
-            return false;
-        }
-        $db   = $this->getDatabase();
+        $db = $this->getDatabase();
         $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['impresion_subtotal_base'])) {
@@ -590,8 +590,21 @@ class PrecotizacionModel extends ListModel
         }
         $colsPc = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         $colsPc = is_array($colsPc) ? array_change_key_case($colsPc, CASE_LOWER) : [];
-        if (isset($colsPc['oferta']) && !empty($item->oferta)) {
-            return (int) $item->created_by === (int) $user->id;
+        $select = [$db->quoteName('id'), $db->quoteName('state'), $db->quoteName('created_by')];
+        if (isset($colsPc['oferta'])) {
+            $select[] = $db->quoteName('oferta');
+        }
+        $query = $db->getQuery(true)
+            ->select($select)
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+            ->where($db->quoteName('id') . ' = ' . $preCotizacionId);
+        $db->setQuery($query);
+        $row = $db->loadObject();
+        if (!$row || (int) $row->state !== 1) {
+            return false;
+        }
+        if (isset($colsPc['oferta']) && !empty($row->oferta)) {
+            return (int) $row->created_by === (int) $user->id;
         }
 
         return true;
@@ -725,16 +738,26 @@ class PrecotizacionModel extends ListModel
         $pricePerSheet = round($lineTotal / $qty, 4);
         $overrideVal   = (abs($newSubtotal - $base) < $eps) ? null : $newSubtotal;
 
-        $obj = (object) [
-            'id'                        => $lineId,
-            'calculation_breakdown'     => json_encode($breakdown),
-            'total'                     => $lineTotal,
-            'price_per_sheet'           => $pricePerSheet,
-            'impresion_subtotal_base'   => $base,
-            'impresion_subtotal_override' => $overrideVal,
-        ];
+        $json = json_encode($breakdown, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')];
+        }
+
         try {
-            $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+            $overrideSql = $overrideVal === null
+                ? $db->quoteName('impresion_subtotal_override') . ' = NULL'
+                : $db->quoteName('impresion_subtotal_override') . ' = ' . $db->quote($overrideVal);
+            $setClause = $db->quoteName('calculation_breakdown') . ' = ' . $db->quote($json)
+                . ', ' . $db->quoteName('total') . ' = ' . $db->quote($lineTotal)
+                . ', ' . $db->quoteName('price_per_sheet') . ' = ' . $db->quote($pricePerSheet)
+                . ', ' . $db->quoteName('impresion_subtotal_base') . ' = ' . $db->quote($base)
+                . ', ' . $overrideSql;
+            $q = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->set($setClause)
+                ->where($db->quoteName('id') . ' = ' . $lineId);
+            $db->setQuery($q);
+            $db->execute();
             $this->refreshPreCotizacionTotalsSnapshot((int) $line->pre_cotizacion_id);
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')];

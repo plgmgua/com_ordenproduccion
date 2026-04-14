@@ -14,6 +14,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
 
@@ -30,7 +31,7 @@ if (!$item) {
 
 $preCotizacionId = (int) $item->id;
 $canSaveImpresionOverride = !empty($this->canSaveImpresionOverride);
-$saveImpresionOverrideUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveImpresionOverride');
+$saveImpresionOverrideUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.saveImpresionOverride&format=json';
 $precotizacionLocked = !empty($this->precotizacionLocked);
 $canEditDocument = isset($this->precotizacionDocumentEditable)
     ? (bool) $this->precotizacionDocumentEditable
@@ -547,6 +548,8 @@ $envios = $this->envios ?? [];
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
+                                    <div class="d-flex flex-wrap flex-md-nowrap align-items-start gap-3">
+                                    <div class="flex-shrink-0">
                                     <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
                                         <?php
                                         $breakdown = $line->breakdown ?? [];
@@ -600,6 +603,7 @@ $envios = $this->envios ?? [];
                                         </tfoot>
                                         <?php endif; ?>
                                     </table>
+                                    </div>
                                     <?php
                                     $impBaseVal = null;
                                     if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
@@ -611,7 +615,8 @@ $envios = $this->envios ?? [];
                                     if ($canSaveImpresionOverride && $impBaseVal !== null && $impBaseVal > 0) :
                                         $impMinVal = round($impBaseVal * 0.6, 2);
                                     ?>
-                                    <div class="mt-2 pt-2 border-top impresion-override-wrap"
+                                    <div class="flex-grow-0 impresion-override-wrap border-start border-secondary ps-3 ms-md-0"
+                                        style="min-width: 220px; max-width: 340px;"
                                         data-line-id="<?php echo (int) $line->id; ?>"
                                         data-base="<?php echo htmlspecialchars((string) $impBaseVal, ENT_QUOTES, 'UTF-8'); ?>"
                                         data-min="<?php echo htmlspecialchars((string) $impMinVal, ENT_QUOTES, 'UTF-8'); ?>">
@@ -628,6 +633,7 @@ $envios = $this->envios ?? [];
                                         <div class="text-danger small impresion-override-warning mt-1 d-none" role="alert"></div>
                                     </div>
                                     <?php endif; ?>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -780,7 +786,13 @@ $envios = $this->envios ?? [];
         fd.append(tokenName, '1');
         btn.disabled = true;
         fetch(saveUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                var ct = (r.headers.get('content-type') || '').toLowerCase();
+                if (ct.indexOf('application/json') === -1) {
+                    return { success: false, message: msgErr };
+                }
+                return r.json();
+            })
             .then(function(data) {
                 if (data && data.success) {
                     window.location.reload();

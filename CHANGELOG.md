@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.20-STABLE] - 2026-04-11
+
+### Fixed
+- **Impresión override (pre-cot pliego):** Saving the adjusted Impresión subtotal now uses a single SQL `UPDATE` `SET` clause so all columns persist reliably across Joomla DB drivers. **Aprobaciones Ventas** users can load the parent pre-cotización via `getItem()` / `getLine()` without an owner-only block, so the save path matches the UI.
+- **Impresión override (AJAX):** The save button handler verifies a JSON response before `JSON.parse`, so an HTML error or login page no longer fails with an opaque parse error.
+
+### Changed
+- **Impresión override UI:** The override block stays to the **right** of the Concepto table on medium+ viewports (`flex-md-nowrap`); narrow screens may still stack.
+
 ## [3.109.19-STABLE] - 2026-04-11
 
 ### Added
