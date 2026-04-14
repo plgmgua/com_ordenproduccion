@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.21-STABLE] - 2026-04-11
+
+### Changed
+- **Telegram Administración channel:** Broadcast line prefixes use distinct emojis by announcement type — **🧾** Factura / Invoice, **🚚** Envío, **💵** Comprobante / payment proof (ingresado and verificado). Replaces the generic megaphone for quicker scanning in the channel.
+
 ## [3.109.20-STABLE] - 2026-04-11
 
 ### Fixed
