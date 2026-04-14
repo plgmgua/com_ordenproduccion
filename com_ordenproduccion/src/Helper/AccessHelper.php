@@ -148,9 +148,10 @@ class AccessHelper
     }
 
     /**
-     * Pre-cotización footer: Margen local, IVA, and ISR **amounts** (and margen-total in the margen label)
-     * only for Aprobaciones Ventas (group 16), super users, and Administracion/Admon. Rows stay visible;
-     * unauthorized users see label text and "—" instead of Q amounts.
+     * Pre-cotización footer: show Margen local, IVA, and ISR rows for everyone except **Ventas-only**
+     * users (in Ventas but not in Aprobaciones Ventas group 16). Users in both Ventas and Aprobaciones
+     * Ventas see the rows. Super users and Administracion/Admon always see them; non-Ventas roles
+     * (e.g. Producción-only) see them.
      *
      * @return  bool
      */
@@ -160,7 +161,11 @@ class AccessHelper
             return true;
         }
 
-        return self::isInAprobacionesVentasGroup();
+        if (self::isInVentasGroup() && !self::isInAprobacionesVentasGroup()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

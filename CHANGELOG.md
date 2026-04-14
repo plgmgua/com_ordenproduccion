@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.17-STABLE] - 2026-04-11
+
+### Changed
+- **Pre-cotización Margen local / IVA / ISR:** Entire rows are hidden only for **Ventas-only** users (in Ventas but not in **Aprobaciones Ventas**, group 16). Users in both groups, super users, Administracion/Admon, and non-Ventas roles still see the full rows.
+
 ## [3.109.16-STABLE] - 2026-04-11
 
 ### Changed
