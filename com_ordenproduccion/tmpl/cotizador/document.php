@@ -546,6 +546,10 @@ $envios = $this->envios ?? [];
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
+                                        <?php
+                                        $breakdown = $line->breakdown ?? [];
+                                        ?>
+                                        <?php if ($canSeePrecotInternalTax) : ?>
                                         <thead>
                                             <tr>
                                                 <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
@@ -554,9 +558,7 @@ $envios = $this->envios ?? [];
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php
-                                            $breakdown = $line->breakdown ?? [];
-                                            foreach ($breakdown as $row) :
+                                            <?php foreach ($breakdown as $row) :
                                                 $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
                                                 $detail = isset($row['detail']) ? htmlspecialchars($row['detail']) : '';
                                                 $subtotal = isset($row['subtotal']) ? number_format((float) $row['subtotal'], 2) : '0.00';
@@ -574,6 +576,27 @@ $envios = $this->envios ?? [];
                                                 <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                                             </tr>
                                         </tfoot>
+                                        <?php else : ?>
+                                        <thead>
+                                            <tr>
+                                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($breakdown as $row) :
+                                                $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
+                                            ?>
+                                                <tr>
+                                                    <td><?php echo $label; ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-secondary fw-bold">
+                                                <td><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
+                                            </tr>
+                                        </tfoot>
+                                        <?php endif; ?>
                                     </table>
                                 </div>
                             </td>
@@ -784,9 +807,15 @@ $envios = $this->envios ?? [];
                             <strong><?php echo Text::_('COM_ORDENPRODUCCION_CALC_DETAIL'); ?></strong>
                             <div class="table-responsive mt-1">
                                 <table class="table table-sm table-bordered mb-1" id="pliego_modal_calc_table">
+                                    <?php if ($canSeePrecotInternalTax) : ?>
                                     <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th><th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th><th class="text-end" style="min-width:6em;"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th></tr></thead>
                                     <tbody id="pliego_modal_calc_body"></tbody>
                                     <tfoot><tr class="table-secondary fw-bold"><td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td><td class="text-end" id="pliego_modal_calc_total_cell">—</td></tr></tfoot>
+                                    <?php else : ?>
+                                    <thead><tr><th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th></tr></thead>
+                                    <tbody id="pliego_modal_calc_body"></tbody>
+                                    <tfoot><tr class="table-secondary fw-bold"><td><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td></tr></tfoot>
+                                    <?php endif; ?>
                                 </table>
                             </div>
                         </div>
@@ -931,6 +960,7 @@ $envios = $this->envios ?? [];
     var calcDetail = document.getElementById('pliego_modal_calc_detail');
     var calcBody = document.getElementById('pliego_modal_calc_body');
     var calcTotalCell = document.getElementById('pliego_modal_calc_total_cell');
+    var precotShowLineBreakdownDetail = <?php echo $canSeePrecotInternalTax ? 'true' : 'false'; ?>;
     var modalTitle = document.getElementById('pliegoLineModalLabel');
     var pliegoModal = document.getElementById('pliegoLineModal');
 
@@ -943,15 +973,22 @@ $envios = $this->envios ?? [];
         return div.innerHTML;
     }
     function renderBreakdownTable(rows, totalVal) {
-        if (!calcDetail || !calcBody || !calcTotalCell) return;
+        if (!calcDetail || !calcBody) return;
         if (!rows || rows.length === 0) {
             calcDetail.style.display = 'none';
             return;
         }
-        calcBody.innerHTML = rows.map(function(row) {
-            return '<tr><td>' + escapeHtml(row.label) + '</td><td class="text-end">' + escapeHtml(row.detail) + '</td><td class="text-end">Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
-        }).join('');
-        calcTotalCell.textContent = totalVal != null ? 'Q ' + Number(totalVal).toFixed(2) : '—';
+        if (precotShowLineBreakdownDetail) {
+            if (!calcTotalCell) return;
+            calcBody.innerHTML = rows.map(function(row) {
+                return '<tr><td>' + escapeHtml(row.label) + '</td><td class="text-end">' + escapeHtml(row.detail) + '</td><td class="text-end">Q ' + Number(row.subtotal).toFixed(2) + '</td></tr>';
+            }).join('');
+            calcTotalCell.textContent = totalVal != null ? 'Q ' + Number(totalVal).toFixed(2) : '—';
+        } else {
+            calcBody.innerHTML = rows.map(function(row) {
+                return '<tr><td>' + escapeHtml(row.label) + '</td></tr>';
+            }).join('');
+        }
         calcDetail.style.display = 'block';
     }
 

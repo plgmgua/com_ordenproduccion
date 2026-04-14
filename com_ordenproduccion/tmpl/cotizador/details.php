@@ -135,6 +135,7 @@ $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown
                             <td colspan="6" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
+                                        <?php if ($canSeePrecotInternalTax) : ?>
                                         <thead>
                                             <tr>
                                                 <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
@@ -161,6 +162,27 @@ $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown
                                                 <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                                             </tr>
                                         </tfoot>
+                                        <?php else : ?>
+                                        <thead>
+                                            <tr>
+                                                <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($breakdown as $row) :
+                                                $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
+                                            ?>
+                                                <tr>
+                                                    <td><?php echo $label; ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-secondary fw-bold">
+                                                <td><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
+                                            </tr>
+                                        </tfoot>
+                                        <?php endif; ?>
                                     </table>
                                 </div>
                             </td>

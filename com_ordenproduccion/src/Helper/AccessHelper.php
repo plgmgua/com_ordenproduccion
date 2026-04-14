@@ -148,10 +148,10 @@ class AccessHelper
     }
 
     /**
-     * Pre-cotización footer: show Margen local, IVA, and ISR rows for everyone except **Ventas-only**
-     * users (in Ventas but not in Aprobaciones Ventas group 16). Users in both Ventas and Aprobaciones
-     * Ventas see the rows. Super users and Administracion/Admon always see them; non-Ventas roles
-     * (e.g. Producción-only) see them.
+     * Pre-cotización: show Margen local / IVA / ISR footer rows and **line breakdown** Detalle + Subtotal
+     * columns for everyone except **Ventas-only** users (in Ventas but not in Aprobaciones Ventas group 16).
+     * Ventas-only users see line labels (Concepto) only in the nested table. Super users and
+     * Administracion/Admon always see full detail; non-Ventas roles (e.g. Producción-only) see full detail.
      *
      * @return  bool
      */

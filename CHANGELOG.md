@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.18-STABLE] - 2026-04-11
+
+### Changed
+- **Pre-cotización línea (desglose):** For **Ventas-only** users, the nested breakdown table shows only the first column (concept labels); **Detalle** and **Subtotal** columns are hidden. Same access rule as Margen/IVA/ISR; **Aprobaciones Ventas** (group 16) and others with full access see all three columns. Applies to the details popup, the cotizador document view, and the “Cálculo de Folios” modal preview table.
+
 ## [3.109.17-STABLE] - 2026-04-11
 
 ### Changed
