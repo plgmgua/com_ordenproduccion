@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Joomla\CMS\Language\Text;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
@@ -85,6 +86,7 @@ if ($item) {
         ? (float) $item->total_con_tarjeta
         : null;
 }
+$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 ?>
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
@@ -172,20 +174,20 @@ if ($item) {
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
                     </tr>
-                    <?php if ($paramMargen != 0) : ?>
+                    <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
                     <?php $margenTotal = $margenAmount + $margenAdicional; ?>
                     <tr class="margen-total-row">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <?php echo number_format($margenTotal, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($facturar && $paramIva != 0) : ?>
+                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($facturar && $paramIsr != 0) : ?>
+                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>

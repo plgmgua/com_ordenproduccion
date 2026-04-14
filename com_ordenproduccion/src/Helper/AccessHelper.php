@@ -131,6 +131,38 @@ class AccessHelper
     }
 
     /**
+     * Joomla user group id for "Aprobaciones Ventas" (margen local, IVA, ISR in pre-cotización totals).
+     */
+    public const GROUP_ID_APROBACIONES_VENTAS = 16;
+
+    /**
+     * Whether the user is in the Aprobaciones Ventas group (pre-cotización internal tax/margin rows).
+     *
+     * @return  bool
+     */
+    public static function isInAprobacionesVentasGroup()
+    {
+        $userGroups = Factory::getUser()->getAuthorisedGroups();
+
+        return in_array(self::GROUP_ID_APROBACIONES_VENTAS, $userGroups, true);
+    }
+
+    /**
+     * Pre-cotización footer: show Margen local %, IVA, and ISR only to Aprobaciones Ventas (group 16),
+     * super users, and Administracion/Admon (same pattern as other sensitive financial UI).
+     *
+     * @return  bool
+     */
+    public static function canSeePrecotizacionInternalTaxBreakdown()
+    {
+        if (self::isSuperUser() || self::isInAdministracionOrAdmonGroup()) {
+            return true;
+        }
+
+        return self::isInAprobacionesVentasGroup();
+    }
+
+    /**
      * Get email addresses of all users in the Administracion (or Admon) group.
      * Used to notify administration when a payment proof is saved with a totals mismatch.
      *

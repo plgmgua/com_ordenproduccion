@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -110,6 +111,7 @@ $tcTasa = isset($item->tarjeta_credito_tasa) && $item->tarjeta_credito_tasa !== 
 $totalConTarjeta = isset($item->total_con_tarjeta) && $item->total_con_tarjeta !== null && $item->total_con_tarjeta !== ''
     ? (float) $item->total_con_tarjeta
     : null;
+$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 $saveTarjetaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveTarjetaCredito');
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
 $labelCalculoFolios = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS');
@@ -586,7 +588,7 @@ $envios = $this->envios ?? [];
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
                         <td></td>
                     </tr>
-                    <?php if ($paramMargen != 0) : ?>
+                    <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
                     <?php $margenTotal = $margenAmount + $margenAdicional; ?>
                     <tr class="margen-total-row">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <?php echo number_format($margenTotal, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
@@ -594,14 +596,14 @@ $envios = $this->envios ?? [];
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($facturar && $paramIva != 0) : ?>
+                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($facturar && $paramIsr != 0) : ?>
+                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>

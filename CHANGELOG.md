@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.15-STABLE] - 2026-04-11
+
+### Changed
+- **Pre-cotización totals (popup + document):** Margen local %, IVA, and ISR footer rows are shown only to users in **Aprobaciones Ventas** (group id 16), plus super users and Administracion/Admon. Ventas-only users still see Subtotal, Bono por venta, Margen adicional, Total, tarjeta rows, and Bono de margen adicional as before.
+
 ## [3.109.8-STABLE] - 2026-04-11
 
 ### Fixed
