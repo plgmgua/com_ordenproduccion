@@ -15,6 +15,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 
 /**
@@ -552,6 +553,199 @@ class PrecotizacionModel extends ListModel
         return $isOwner
             || AccessHelper::isInAdministracionOrAdmonGroup()
             || $user->authorise('core.admin');
+    }
+
+    /**
+     * Aprobaciones Ventas (group 16) may adjust Impresión subtotal on pliego lines when pre-cot is editable (not quoted).
+     * Offer templates: owner only.
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id
+     *
+     * @return  bool
+     *
+     * @since   3.109.19
+     */
+    public function canUserSaveImpresionOverrideOnPreCotizacion($preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAprobacionesVentasGroup()) {
+            return false;
+        }
+        if ($this->isAssociatedWithQuotation($preCotizacionId)) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item || (int) $item->state !== 1) {
+            return false;
+        }
+        $db   = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['impresion_subtotal_base'])) {
+            return false;
+        }
+        $colsPc = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $colsPc = is_array($colsPc) ? array_change_key_case($colsPc, CASE_LOWER) : [];
+        if (isset($colsPc['oferta']) && !empty($item->oferta)) {
+            return (int) $item->created_by === (int) $user->id;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param   int  $lineId  Line id
+     *
+     * @return  bool
+     *
+     * @since   3.109.19
+     */
+    public function canUserSaveImpresionOverrideOnLine($lineId)
+    {
+        $lineId = (int) $lineId;
+        if ($lineId < 1) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $q  = $db->getQuery(true)
+            ->select($db->quoteName('pre_cotizacion_id'))
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+            ->where($db->quoteName('id') . ' = ' . $lineId);
+        $db->setQuery($q);
+        $pid = (int) $db->loadResult();
+
+        return $pid > 0 && $this->canUserSaveImpresionOverrideOnPreCotizacion($pid);
+    }
+
+    /**
+     * First breakdown row subtotal (Impresión) for pliego lines.
+     *
+     * @param   array|null  $breakdown  Decoded calculation_breakdown
+     *
+     * @return  float|null
+     *
+     * @since   3.109.19
+     */
+    protected function pliegoImpresionSubtotalFromBreakdown($breakdown)
+    {
+        if (!is_array($breakdown) || !isset($breakdown[0]) || !is_array($breakdown[0])) {
+            return null;
+        }
+        if (!isset($breakdown[0]['subtotal'])) {
+            return null;
+        }
+        $v = round((float) $breakdown[0]['subtotal'], 2);
+
+        return $v > 0 ? $v : null;
+    }
+
+    /**
+     * Save Impresión (first breakdown row) subtotal override: between 60% and 100% of stored base.
+     *
+     * @param   int    $lineId      Line id
+     * @param   float  $newSubtotal New print row subtotal (line total part)
+     *
+     * @return  array{success:bool,message:string,total?:float,price_per_sheet?:float}
+     *
+     * @since   3.109.19
+     */
+    public function saveImpresionSubtotalOverride($lineId, $newSubtotal)
+    {
+        $lineId = (int) $lineId;
+        if ($lineId < 1) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
+        }
+        if (!$this->canUserSaveImpresionOverrideOnLine($lineId)) {
+            return ['success' => false, 'message' => Text::_('JLIB_APPLICATION_ERROR_ACCESS_FORBIDDEN')];
+        }
+        $line = $this->getLine($lineId);
+        if (!$line) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
+        }
+        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if ($lineType !== 'pliego') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NOT_PLIEGO')];
+        }
+        $breakdown = $line->breakdown ?? [];
+        if (empty($breakdown[0]) || !is_array($breakdown[0])) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NO_BREAKDOWN')];
+        }
+        $db = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['impresion_subtotal_base'])) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SCHEMA')];
+        }
+
+        $base = null;
+        if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
+            $base = round((float) $line->impresion_subtotal_base, 2);
+        }
+        if ($base === null || $base <= 0) {
+            $base = $this->pliegoImpresionSubtotalFromBreakdown($breakdown);
+        }
+        if ($base === null || $base <= 0) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NO_BASE')];
+        }
+
+        $minAllowed = round($base * 0.6, 2);
+        $newSubtotal = round((float) $newSubtotal, 2);
+        $eps          = 0.005;
+
+        if ($newSubtotal < $minAllowed - $eps) {
+            return [
+                'success' => false,
+                'message' => Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_TOO_LOW', number_format($minAllowed, 2, '.', '')),
+            ];
+        }
+        if ($newSubtotal > $base + $eps) {
+            return [
+                'success' => false,
+                'message' => Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_TOO_HIGH', number_format($base, 2, '.', '')),
+            ];
+        }
+
+        $qty = max(1, (int) ($line->quantity ?? 1));
+        $breakdown[0]['subtotal'] = $newSubtotal;
+        $perSheet                 = $newSubtotal / $qty;
+        $breakdown[0]['detail']   = 'Q ' . number_format($perSheet, 2);
+
+        $otherSum = 0.0;
+        $n        = count($breakdown);
+        for ($i = 1; $i < $n; $i++) {
+            if (isset($breakdown[$i]['subtotal'])) {
+                $otherSum += (float) $breakdown[$i]['subtotal'];
+            }
+        }
+        $lineTotal     = round($newSubtotal + $otherSum, 2);
+        $pricePerSheet = round($lineTotal / $qty, 4);
+        $overrideVal   = (abs($newSubtotal - $base) < $eps) ? null : $newSubtotal;
+
+        $obj = (object) [
+            'id'                        => $lineId,
+            'calculation_breakdown'     => json_encode($breakdown),
+            'total'                     => $lineTotal,
+            'price_per_sheet'           => $pricePerSheet,
+            'impresion_subtotal_base'   => $base,
+            'impresion_subtotal_override' => $overrideVal,
+        ];
+        try {
+            $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+            $this->refreshPreCotizacionTotalsSnapshot((int) $line->pre_cotizacion_id);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')];
+        }
+
+        return [
+            'success'         => true,
+            'message'         => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVED'),
+            'total'           => $lineTotal,
+            'price_per_sheet' => $pricePerSheet,
+        ];
     }
 
     /**
@@ -1132,6 +1326,16 @@ class PrecotizacionModel extends ListModel
             }
         }
 
+        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if (isset($columns['impresion_subtotal_base']) && $lineType === 'pliego'
+            && isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown']) && $data['calculation_breakdown'] !== []) {
+            $impBase = $this->pliegoImpresionSubtotalFromBreakdown($data['calculation_breakdown']);
+            if ($impBase !== null) {
+                $obj->impresion_subtotal_base     = $impBase;
+                $obj->impresion_subtotal_override = null;
+            }
+        }
+
         try {
             $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
             $preCotizacionId = (int) $line->pre_cotizacion_id;
@@ -1388,6 +1592,14 @@ class PrecotizacionModel extends ListModel
             $line->tipo_elemento = trim((string) ($data['tipo_elemento'] ?? ''));
             if ($line->tipo_elemento === '') {
                 $line->tipo_elemento = null;
+            }
+        }
+        if (isset($columns['impresion_subtotal_base']) && $lineType === 'pliego'
+            && isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown']) && $data['calculation_breakdown'] !== []) {
+            $impBase = $this->pliegoImpresionSubtotalFromBreakdown($data['calculation_breakdown']);
+            if ($impBase !== null) {
+                $line->impresion_subtotal_base     = $impBase;
+                $line->impresion_subtotal_override = null;
             }
         }
 

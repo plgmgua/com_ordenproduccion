@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.19-STABLE] - 2026-04-11
+
+### Added
+- **Pre-cotización Folios (Aprobaciones Ventas):** Optional adjustment of the **Impresión (Tiro/Retiro)** subtotal on each pliego line, between **60%** and **100%** of the value stored when the line was last calculated from the calculator. UI (number input + Save + client/server validation) appears only for users in **Aprobaciones Ventas** (group 16), when the pre-cot is not linked to a quotation, and after schema `3.109.19.sql`. Saving updates the breakdown, line total, and document totals; re-saving the line from **Cálculo de Folios** resets the floor reference and clears the override.
+
 ## [3.109.18-STABLE] - 2026-04-11
 
 ### Changed

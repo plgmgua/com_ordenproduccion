@@ -78,6 +78,14 @@ class HtmlView extends BaseHtmlView
     protected $precotizacionDocumentEditable = true;
 
     /**
+     * Document layout: Aprobaciones Ventas may edit Impresión subtotal override (schema + permission).
+     *
+     * @var    bool
+     * @since  3.109.19
+     */
+    protected $canSaveImpresionOverride = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -178,6 +186,7 @@ class HtmlView extends BaseHtmlView
                         $precotModel->refreshPreCotizacionTotalsSnapshot($id);
                         $this->item = $precotModel->getItem($id);
                     }
+                    $this->canSaveImpresionOverride = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
                 }
             }
             $params = ComponentHelper::getParams('com_ordenproduccion');

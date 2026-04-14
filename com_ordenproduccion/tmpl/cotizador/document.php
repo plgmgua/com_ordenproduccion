@@ -29,6 +29,8 @@ if (!$item) {
 }
 
 $preCotizacionId = (int) $item->id;
+$canSaveImpresionOverride = !empty($this->canSaveImpresionOverride);
+$saveImpresionOverrideUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveImpresionOverride');
 $precotizacionLocked = !empty($this->precotizacionLocked);
 $canEditDocument = isset($this->precotizacionDocumentEditable)
     ? (bool) $this->precotizacionDocumentEditable
@@ -598,6 +600,34 @@ $envios = $this->envios ?? [];
                                         </tfoot>
                                         <?php endif; ?>
                                     </table>
+                                    <?php
+                                    $impBaseVal = null;
+                                    if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
+                                        $impBaseVal = round((float) $line->impresion_subtotal_base, 2);
+                                    } elseif (!empty($breakdown[0]['subtotal'])) {
+                                        $impBaseVal = round((float) $breakdown[0]['subtotal'], 2);
+                                    }
+                                    $impCurrentVal = !empty($breakdown[0]['subtotal']) ? round((float) $breakdown[0]['subtotal'], 2) : $impBaseVal;
+                                    if ($canSaveImpresionOverride && $impBaseVal !== null && $impBaseVal > 0) :
+                                        $impMinVal = round($impBaseVal * 0.6, 2);
+                                    ?>
+                                    <div class="mt-2 pt-2 border-top impresion-override-wrap"
+                                        data-line-id="<?php echo (int) $line->id; ?>"
+                                        data-base="<?php echo htmlspecialchars((string) $impBaseVal, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-min="<?php echo htmlspecialchars((string) $impMinVal, ENT_QUOTES, 'UTF-8'); ?>">
+                                        <label class="form-label small mb-1" for="impresion-override-<?php echo (int) $line->id; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_LABEL'); ?></label>
+                                        <div class="d-flex flex-wrap align-items-start gap-2">
+                                            <input type="number" step="0.01" min="<?php echo htmlspecialchars((string) $impMinVal, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars((string) $impBaseVal, ENT_QUOTES, 'UTF-8'); ?>"
+                                                class="form-control form-control-sm impresion-override-input" style="max-width: 11rem;"
+                                                id="impresion-override-<?php echo (int) $line->id; ?>"
+                                                value="<?php echo htmlspecialchars(number_format($impCurrentVal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                inputmode="decimal" />
+                                            <button type="button" class="btn btn-sm btn-primary impresion-override-save"><?php echo Text::_('JSAVE'); ?></button>
+                                        </div>
+                                        <div class="form-text small mb-0"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_HELP', number_format($impMinVal, 2), number_format($impBaseVal, 2)); ?></div>
+                                        <div class="text-danger small impresion-override-warning mt-1 d-none" role="alert"></div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -701,6 +731,69 @@ $envios = $this->envios ?? [];
         row.style.display = isHidden ? 'table-row' : 'none';
         btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
         label.textContent = isHidden ? ocultarDetalle : verDetalle;
+    });
+})();
+</script>
+<?php endif; ?>
+
+<?php if (!empty($lines) && !empty($canSaveImpresionOverride)) : ?>
+<script>
+(function() {
+    var saveUrl = <?php echo json_encode($saveImpresionOverrideUrl); ?>;
+    var tokenName = <?php echo json_encode($token); ?>;
+    var msgBelow = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_BELOW')); ?>;
+    var msgAbove = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_ABOVE')); ?>;
+    var msgErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')); ?>;
+    document.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest && e.target.closest('.impresion-override-save');
+        if (!btn) return;
+        var wrap = btn.closest('.impresion-override-wrap');
+        if (!wrap) return;
+        var input = wrap.querySelector('.impresion-override-input');
+        var warn = wrap.querySelector('.impresion-override-warning');
+        if (!input || !warn) return;
+        warn.classList.add('d-none');
+        warn.textContent = '';
+        var minV = parseFloat(wrap.getAttribute('data-min'), 10);
+        var maxV = parseFloat(wrap.getAttribute('data-base'), 10);
+        var raw = String(input.value || '').replace(/,/g, '.').replace(/[^\d.\-]/g, '');
+        var v = parseFloat(raw, 10);
+        if (isNaN(v)) {
+            warn.textContent = msgBelow;
+            warn.classList.remove('d-none');
+            return;
+        }
+        if (v < minV - 0.0001) {
+            warn.textContent = msgBelow;
+            warn.classList.remove('d-none');
+            return;
+        }
+        if (v > maxV + 0.0001) {
+            warn.textContent = msgAbove;
+            warn.classList.remove('d-none');
+            return;
+        }
+        var lineId = wrap.getAttribute('data-line-id');
+        var fd = new FormData();
+        fd.append('line_id', lineId);
+        fd.append('impresion_subtotal', String(v));
+        fd.append(tokenName, '1');
+        btn.disabled = true;
+        fetch(saveUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data && data.success) {
+                    window.location.reload();
+                    return;
+                }
+                warn.textContent = (data && data.message) ? data.message : msgErr;
+                warn.classList.remove('d-none');
+            })
+            .catch(function() {
+                warn.textContent = msgErr;
+                warn.classList.remove('d-none');
+            })
+            .finally(function() { btn.disabled = false; });
     });
 })();
 </script>

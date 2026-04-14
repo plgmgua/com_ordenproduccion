@@ -833,6 +833,42 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Save Impresión (first pliego breakdown row) subtotal override — Aprobaciones Ventas only, JSON POST.
+     *
+     * POST: line_id, impresion_subtotal, token
+     *
+     * @return  void  (application close)
+     *
+     * @since   3.109.19
+     */
+    public function saveImpresionOverride()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('post')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        $lineId = (int) $app->input->post->getInt('line_id', 0);
+        $raw     = trim((string) $app->input->post->get('impresion_subtotal', '', 'raw'));
+        $raw     = str_replace([',', 'Q', 'q', ' '], '', $raw);
+        $newSub  = (float) $raw;
+
+        $model  = $this->getModel('Precotizacion', 'Site');
+        $result = $model->saveImpresionSubtotalOverride($lineId, $newSub);
+        echo json_encode($result);
+        $app->close();
+    }
+
+    /**
      * If the current user may not edit this pre-cotización document (e.g. offer template owned by someone else), respond and return true.
      *
      * @param   int     $preCotizacionId  Pre-cotización id
