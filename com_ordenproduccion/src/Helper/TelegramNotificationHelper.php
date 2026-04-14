@@ -931,6 +931,7 @@ class TelegramNotificationHelper
             'verifier_name'     => '—',
             'verifier_login'    => '',
             'verified_date'     => '—',
+            'proof_note'        => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_PROOF_NOTE'),
             'site_name'         => (string) Factory::getApplication()->get('sitename', 'Joomla'),
         ];
     }
@@ -964,6 +965,7 @@ class TelegramNotificationHelper
             'verifier_name'     => trim((string) $user->name),
             'verifier_login'    => trim((string) $user->username),
             'verified_date'     => Factory::getDate()->format('Y-m-d H:i'),
+            'proof_note'        => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_PROOF_NOTE'),
             'site_name'         => (string) Factory::getApplication()->get('sitename', 'Joomla'),
         ];
     }
@@ -1068,6 +1070,17 @@ class TelegramNotificationHelper
 
         $proofNumber = 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT);
 
+        // Nota / acciones (stored as mismatch_note; includes ISR notes, admin text, etc.)
+        $proofNote = '';
+        if (isset($proof->mismatch_note)) {
+            $proofNote = trim((string) $proof->mismatch_note);
+        }
+        if ($proofNote === '') {
+            $proofNote = '—';
+        } elseif (\strlen($proofNote) > 3500) {
+            $proofNote = \substr($proofNote, 0, 3497) . '…';
+        }
+
         return [
             'username'          => trim((string) $recipient->name),
             'user_login'        => trim((string) $recipient->username),
@@ -1076,6 +1089,7 @@ class TelegramNotificationHelper
             'payment_amount'    => $amount,
             'currency'          => $currency,
             'proof_status'      => $proofStatusLabel,
+            'proof_note'        => $proofNote,
             'orden_id'          => implode(', ', $ids),
             'orden_de_trabajo'  => implode(', ', array_filter($labels, static fn ($x) => $x !== '')),
             'order_numbers'     => implode(', ', array_unique($orderNums)),
