@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.23-STABLE] - 2026-04-11
+
+### Changed
+- **Telegram mismatch anchor:** Messages are **enqueued** in `#__ordenproduccion_telegram_queue` (with optional `mismatch_anchor_*` columns). The cron `processQueue` run sends them and then registers `(chat_id, message_id)` in the anchor table. Recipients are **only linked order owners** with Telegram (same resolution as `collectRecipientUserIdsForPaymentProof`); Administración broadcast is no longer included for this anchor. Sync send remains as fallback if the queue row cannot be inserted.
+
 ## [3.109.22-STABLE] - 2026-04-11
 
 ### Added

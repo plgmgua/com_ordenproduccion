@@ -1558,7 +1558,7 @@ class TelegramNotificationHelper
     }
 
     /**
-     * Users who should receive the mismatch "anchor" DM (order owners with Telegram + Administración/Admon with Telegram).
+     * Joomla user ids who should receive the mismatch anchor DM: linked order owner(s) with Telegram only.
      *
      * @param   int  $proofId  Payment proof PK
      *
@@ -1588,23 +1588,11 @@ class TelegramNotificationHelper
             $out[]      = $uid;
         }
 
-        foreach (AccessHelper::getAdministracionGroupUserIds() as $uid) {
-            $uid = (int) $uid;
-            if ($uid < 1 || isset($seen[$uid])) {
-                continue;
-            }
-            if (self::getChatIdForUser($uid) === null) {
-                continue;
-            }
-            $seen[$uid] = true;
-            $out[]      = $uid;
-        }
-
         return $out;
     }
 
     /**
-     * Send a dedicated anchor DM per recipient and register (chat_id, message_id) for reply-to-comment flow.
+     * Queue a dedicated anchor DM per linked order owner (Telegram); cron sends and registers (chat_id, message_id).
      * Call when a payment proof is saved with mismatch note/difference.
      *
      * @param   int  $proofId  Payment proof PK
@@ -1628,11 +1616,6 @@ class TelegramNotificationHelper
             return;
         }
 
-        $token = trim((string) $params->get('telegram_bot_token', ''));
-        if ($token === '') {
-            return;
-        }
-
         try {
             $db = Factory::getContainer()->get(DatabaseInterface::class);
         } catch (\Throwable $e) {
@@ -1642,6 +1625,8 @@ class TelegramNotificationHelper
         if (!TelegramMismatchAnchorHelper::tableExists($db)) {
             return;
         }
+
+        $token = trim((string) $params->get('telegram_bot_token', ''));
 
         $proof = self::loadPaymentProofRow($proofId);
         if (!$proof) {
@@ -1671,6 +1656,12 @@ class TelegramNotificationHelper
         foreach (self::collectMismatchAnchorRecipientUserIds($proofId) as $uid) {
             $chatId = self::getChatIdForUser($uid);
             if ($chatId === null) {
+                continue;
+            }
+            if (TelegramQueueHelper::enqueueMismatchAnchor($chatId, $body, $proofId, $uid)) {
+                continue;
+            }
+            if ($token === '') {
                 continue;
             }
             $res = TelegramApiHelper::sendMessage($token, $chatId, $body);

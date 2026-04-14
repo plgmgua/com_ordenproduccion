@@ -401,6 +401,8 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_telegram_queue` (
     `created` datetime NOT NULL,
     `last_try` datetime DEFAULT NULL,
     `last_error` varchar(1024) DEFAULT NULL,
+    `mismatch_anchor_payment_proof_id` int unsigned DEFAULT NULL,
+    `mismatch_anchor_joomla_user_id` int unsigned DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `idx_created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

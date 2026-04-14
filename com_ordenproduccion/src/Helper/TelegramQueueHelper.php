@@ -21,6 +21,34 @@ use Joomla\Database\DatabaseInterface;
 class TelegramQueueHelper
 {
     /**
+     * Queue table has mismatch anchor columns (3.109.23+).
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db  Database
+     *
+     * @return  bool
+     *
+     * @since   3.109.23
+     */
+    public static function queueSupportsMismatchAnchorMeta($db): bool
+    {
+        static $cache;
+
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $cache = false;
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_telegram_queue', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $cache = isset($cols['mismatch_anchor_payment_proof_id'], $cols['mismatch_anchor_joomla_user_id']);
+        } catch (\Throwable $e) {
+        }
+
+        return $cache;
+    }
+
+    /**
      * @param   \Joomla\Database\DatabaseInterface  $db  Database
      *
      * @return  bool
@@ -306,6 +334,63 @@ class TelegramQueueHelper
     }
 
     /**
+     * Enqueue a mismatch-ticket anchor DM; cron registers Telegram message_id after send (3.109.23+).
+     *
+     * @param   string  $chatId          Telegram chat id
+     * @param   string  $body            Message body
+     * @param   int     $paymentProofId  Payment proof PK
+     * @param   int     $joomlaUserId    Order-owner Joomla user (recipient)
+     *
+     * @return  bool  True if queued
+     *
+     * @since   3.109.23
+     */
+    public static function enqueueMismatchAnchor(string $chatId, string $body, int $paymentProofId, int $joomlaUserId): bool
+    {
+        $chatId         = trim($chatId);
+        $body           = (string) $body;
+        $paymentProofId = (int) $paymentProofId;
+        $joomlaUserId   = (int) $joomlaUserId;
+        if ($chatId === '' || $body === '' || $paymentProofId < 1 || $joomlaUserId < 1) {
+            return false;
+        }
+        if (TelegramNotificationHelper::normalizeTelegramChatId($chatId) === null) {
+            return false;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        if (!self::telegramQueueTableExists($db)) {
+            return false;
+        }
+
+        try {
+            $now = Factory::getDate()->toSql();
+            $o   = (object) [
+                'chat_id'    => $chatId,
+                'body'       => $body,
+                'attempts'   => 0,
+                'created'    => $now,
+                'last_try'   => null,
+                'last_error' => null,
+            ];
+            if (self::queueSupportsMismatchAnchorMeta($db)) {
+                $o->mismatch_anchor_payment_proof_id = $paymentProofId;
+                $o->mismatch_anchor_joomla_user_id   = $joomlaUserId;
+            }
+            $db->insertObject('#__ordenproduccion_telegram_queue', $o);
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * @param   string  $chatId  Chat id
      * @param   string  $body    Body
      *
@@ -389,6 +474,16 @@ class TelegramQueueHelper
             $res = TelegramApiHelper::sendMessage($token, $chatId, $body);
 
             if (!empty($res['ok'])) {
+                $anchorProof = (int) ($row->mismatch_anchor_payment_proof_id ?? 0);
+                $anchorUser  = (int) ($row->mismatch_anchor_joomla_user_id ?? 0);
+                if ($anchorProof > 0 && $anchorUser > 0 && isset($res['message_id']) && TelegramMismatchAnchorHelper::tableExists($db)) {
+                    TelegramMismatchAnchorHelper::insertAnchor(
+                        $chatId,
+                        (int) $res['message_id'],
+                        $anchorProof,
+                        $anchorUser
+                    );
+                }
                 self::logSentFromQueueRow($db, $row);
                 $db->setQuery('DELETE FROM ' . $db->quoteName('#__ordenproduccion_telegram_queue') . ' WHERE ' . $db->quoteName('id') . ' = ' . $id);
                 $db->execute();
