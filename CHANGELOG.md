@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.16-STABLE] - 2026-04-11
+
+### Changed
+- **Pre-cotización totals (popup + document):** For Margen local, IVA, and ISR, rows and descriptive label text remain visible to everyone; **Q amounts** (and the “Margen Total Q …” fragment in the margen label) are shown only to **Aprobaciones Ventas** (group 16), super users, and Administracion/Admon. Others see **—** in the amount column.
+
 ## [3.109.15-STABLE] - 2026-04-11
 
 ### Changed

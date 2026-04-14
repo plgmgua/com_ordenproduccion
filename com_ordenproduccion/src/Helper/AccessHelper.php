@@ -148,8 +148,9 @@ class AccessHelper
     }
 
     /**
-     * Pre-cotización footer: show Margen local %, IVA, and ISR only to Aprobaciones Ventas (group 16),
-     * super users, and Administracion/Admon (same pattern as other sensitive financial UI).
+     * Pre-cotización footer: Margen local, IVA, and ISR **amounts** (and margen-total in the margen label)
+     * only for Aprobaciones Ventas (group 16), super users, and Administracion/Admon. Rows stay visible;
+     * unauthorized users see label text and "—" instead of Q amounts.
      *
      * @return  bool
      */
