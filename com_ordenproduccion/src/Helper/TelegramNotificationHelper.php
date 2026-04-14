@@ -1522,6 +1522,165 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Reverse lookup: Telegram private chat id → Joomla user id (component table only).
+     *
+     * @param   string  $chatId  chat.id from update
+     *
+     * @return  int|null  Joomla user id or null
+     *
+     * @since   3.109.22
+     */
+    public static function getUserIdForChatId(string $chatId): ?int
+    {
+        $norm = self::normalizeTelegramChatId(trim($chatId));
+        if ($norm === null) {
+            return null;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            if (self::telegramUsersTableExists($db)) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('user_id'))
+                        ->from($db->quoteName('#__ordenproduccion_telegram_users'))
+                        ->where($db->quoteName('chat_id') . ' = ' . $db->quote($norm))
+                );
+                $uid = (int) $db->loadResult();
+                if ($uid > 0) {
+                    return $uid;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
+    }
+
+    /**
+     * Users who should receive the mismatch "anchor" DM (order owners with Telegram + Administración/Admon with Telegram).
+     *
+     * @param   int  $proofId  Payment proof PK
+     *
+     * @return  int[]
+     *
+     * @since   3.109.22
+     */
+    public static function collectMismatchAnchorRecipientUserIds(int $proofId): array
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return [];
+        }
+
+        $seen = [];
+        $out  = [];
+
+        foreach (self::collectRecipientUserIdsForPaymentProof($proofId) as $uid) {
+            $uid = (int) $uid;
+            if ($uid < 1 || isset($seen[$uid])) {
+                continue;
+            }
+            if (self::getChatIdForUser($uid) === null) {
+                continue;
+            }
+            $seen[$uid] = true;
+            $out[]      = $uid;
+        }
+
+        foreach (AccessHelper::getAdministracionGroupUserIds() as $uid) {
+            $uid = (int) $uid;
+            if ($uid < 1 || isset($seen[$uid])) {
+                continue;
+            }
+            if (self::getChatIdForUser($uid) === null) {
+                continue;
+            }
+            $seen[$uid] = true;
+            $out[]      = $uid;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Send a dedicated anchor DM per recipient and register (chat_id, message_id) for reply-to-comment flow.
+     * Call when a payment proof is saved with mismatch note/difference.
+     *
+     * @param   int  $proofId  Payment proof PK
+     *
+     * @return  void
+     *
+     * @since   3.109.22
+     */
+    public static function notifyMismatchTicketAnchors(int $proofId): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+        if ((int) $params->get('telegram_mismatch_anchor_enabled', 1) !== 1) {
+            return;
+        }
+
+        $token = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            return;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        if (!TelegramMismatchAnchorHelper::tableExists($db)) {
+            return;
+        }
+
+        $proof = self::loadPaymentProofRow($proofId);
+        if (!$proof) {
+            return;
+        }
+
+        $hasMismatch = false;
+        if (isset($proof->mismatch_note) && trim((string) $proof->mismatch_note) !== '') {
+            $hasMismatch = true;
+        }
+        if (isset($proof->mismatch_difference) && trim((string) $proof->mismatch_difference) !== '') {
+            $hasMismatch = true;
+        }
+        if (!$hasMismatch) {
+            return;
+        }
+
+        self::ensureTelegramLanguageLoaded();
+        $label    = 'PA-' . str_pad((string) $proofId, 6, '0', STR_PAD_LEFT);
+        $template = Text::_('COM_ORDENPRODUCCION_TELEGRAM_MISMATCH_ANCHOR_BODY');
+        if (strpos($template, 'COM_ORDENPRODUCCION_') === 0) {
+            $template = "Caso {proof_label} — diferencia de pago\n\n" .
+                'Responda a este mensaje en Telegram para publicar un comentario en el caso.';
+        }
+        $body = str_replace('{proof_label}', $label, $template);
+
+        foreach (self::collectMismatchAnchorRecipientUserIds($proofId) as $uid) {
+            $chatId = self::getChatIdForUser($uid);
+            if ($chatId === null) {
+                continue;
+            }
+            $res = TelegramApiHelper::sendMessage($token, $chatId, $body);
+            if (!empty($res['ok']) && isset($res['message_id'])) {
+                TelegramMismatchAnchorHelper::insertAnchor($chatId, (int) $res['message_id'], $proofId, $uid);
+            }
+        }
+    }
+
+    /**
      * @param   string  $token  Bot token
      * @param   int     $userId Joomla user id
      * @param   string  $text   Message

@@ -16,6 +16,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\User\User;
+use Joomla\CMS\User\UserFactoryInterface;
 
 /**
  * Access Helper Class
@@ -199,6 +200,90 @@ class AccessHelper
         $db->setQuery($query);
         $emails = $db->loadColumn() ?: [];
         return array_values(array_unique(array_filter($emails)));
+    }
+
+    /**
+     * Joomla user ids in Administracion or Admon groups (unblocked).
+     *
+     * @return  int[]
+     *
+     * @since   3.109.22
+     */
+    public static function getAdministracionGroupUserIds(): array
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('g.id'))
+            ->from($db->quoteName('#__usergroups', 'g'))
+            ->where($db->quoteName('g.title') . ' IN (' . $db->quote('Administracion') . ',' . $db->quote('Admon') . ')');
+        $db->setQuery($query);
+        $groupIds = $db->loadColumn() ?: [];
+        if ($groupIds === []) {
+            return [];
+        }
+        $groupIds = array_map('intval', $groupIds);
+        $subQuery = $db->getQuery(true)
+            ->select($db->quoteName('user_id'))
+            ->from($db->quoteName('#__user_usergroup_map'))
+            ->where($db->quoteName('group_id') . ' IN (' . implode(',', $groupIds) . ')');
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('id'))
+            ->from($db->quoteName('#__users'))
+            ->where($db->quoteName('id') . ' IN (' . (string) $subQuery . ')')
+            ->where($db->quoteName('block') . ' = 0');
+        $db->setQuery($query);
+        $ids = $db->loadColumn() ?: [];
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    /**
+     * Whether the given user belongs to Administracion or Admon (by group id 12 or group title).
+     *
+     * @param   int  $userId  Joomla user id
+     *
+     * @return  bool
+     *
+     * @since   3.109.22
+     */
+    public static function isUserInAdministracionOrAdmonGroupById(int $userId): bool
+    {
+        $userId = (int) $userId;
+        if ($userId < 1) {
+            return false;
+        }
+
+        try {
+            $user = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($userId);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        if ($user->guest || (int) $user->id !== $userId) {
+            return false;
+        }
+
+        $userGroups = $user->getAuthorisedGroups();
+
+        if (in_array(12, $userGroups, true)) {
+            return true;
+        }
+
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('id, title')
+            ->from('#__usergroups')
+            ->where('id IN (' . implode(',', array_map('intval', $userGroups)) . ')');
+        $db->setQuery($query);
+        $groups = $db->loadObjectList() ?: [];
+
+        foreach ($groups as $group) {
+            if ($group->title === 'Administracion' || $group->title === 'Admon') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

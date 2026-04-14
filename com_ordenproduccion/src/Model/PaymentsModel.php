@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
+use Joomla\CMS\User\UserFactoryInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
@@ -726,11 +727,12 @@ class PaymentsModel extends ListModel
     /**
      * Build base query for payment proofs that have a mismatch note or stored difference.
      *
-     * @param   int|null  $restrictProofId  When set, restrict to this payment proof id (access rules still apply).
+     * @param   int|null  $restrictProofId           When set, restrict to this payment proof id (access rules still apply).
+     * @param   bool      $applySalesAgentFilter     When false, omit sales-agent scoping (for permission checks without a logged-in user).
      *
      * @return  \Joomla\Database\DatabaseQuery|null
      */
-    protected function buildMismatchNotesBaseQuery(?int $restrictProofId = null)
+    protected function buildMismatchNotesBaseQuery(?int $restrictProofId = null, bool $applySalesAgentFilter = true)
     {
         if (!$this->hasMismatchNoteColumns()) {
             return null;
@@ -824,9 +826,11 @@ class PaymentsModel extends ListModel
         $query->where($db->quoteName('pp.state') . ' = ' . $stateFilter)
             ->where('(' . implode(' OR ', $parts) . ')');
 
-        $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
-        if ($salesAgentFilter !== null) {
-            $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+        if ($applySalesAgentFilter) {
+            $salesAgentFilter = AccessHelper::getSalesAgentFilterForPaymentProofs();
+            if ($salesAgentFilter !== null) {
+                $query->where($db->quoteName('o.sales_agent') . ' = ' . $db->quote($salesAgentFilter));
+            }
         }
 
         if ($restrictProofId !== null && $restrictProofId > 0) {
@@ -864,6 +868,133 @@ class PaymentsModel extends ListModel
     public function userCanAccessMismatchTicket(int $proofId): bool
     {
         return $this->loadMismatchTicketContext($proofId) !== null;
+    }
+
+    /**
+     * Mismatch ticket row without sales-agent scoping (for permission checks when no user session).
+     *
+     * @param   int  $proofId  Payment proof id
+     *
+     * @return  object|null
+     *
+     * @since   3.109.22
+     */
+    public function loadMismatchTicketContextUnscoped(int $proofId): ?object
+    {
+        $query = $this->buildMismatchNotesBaseQuery($proofId, false);
+        if ($query === null) {
+            return null;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery($query, 0, 1);
+
+        $row = $db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Whether this Joomla user may post mismatch ticket comments (Administración / Admon / super user, or sales_agent on linked order).
+     *
+     * @param   int  $proofId  Payment proof id
+     * @param   int  $userId   Joomla user id
+     *
+     * @return  bool
+     *
+     * @since   3.109.22
+     */
+    public function canUserCommentOnMismatchTicket(int $proofId, int $userId): bool
+    {
+        $proofId = (int) $proofId;
+        $userId  = (int) $userId;
+        if ($proofId < 1 || $userId < 1 || !$this->hasMismatchTicketCommentsTable()) {
+            return false;
+        }
+
+        $ctx = $this->loadMismatchTicketContextUnscoped($proofId);
+        if ($ctx === null) {
+            return false;
+        }
+
+        try {
+            $user = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($userId);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        if ($user->guest || (int) $user->id !== $userId) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        if (AccessHelper::isUserInAdministracionOrAdmonGroupById($userId)) {
+            return true;
+        }
+
+        $agent = trim((string) ($ctx->sales_agent ?? ''));
+
+        return $agent !== '' && $agent === trim($user->name);
+    }
+
+    /**
+     * Append a comment as a specific Joomla user (e.g. Telegram webhook). Validates with canUserCommentOnMismatchTicket.
+     *
+     * @param   int     $proofId         Payment proof id
+     * @param   string  $body            Comment text
+     * @param   int     $createdByUserId Joomla user id stored as created_by
+     *
+     * @return  bool
+     *
+     * @since   3.109.22
+     */
+    public function addMismatchTicketCommentAsUser(int $proofId, string $body, int $createdByUserId): bool
+    {
+        if (!$this->hasMismatchTicketCommentsTable() || !$this->canUserCommentOnMismatchTicket($proofId, $createdByUserId)) {
+            $this->setError('Access denied or comments table missing');
+
+            return false;
+        }
+
+        $body = trim(strip_tags($body));
+        if ($body === '') {
+            $this->setError('Comment is empty');
+
+            return false;
+        }
+        if (strlen($body) > 8000) {
+            $this->setError('Comment too long');
+
+            return false;
+        }
+
+        $db   = $this->getDatabase();
+        $date = Factory::getDate()->toSql();
+
+        $query = $db->getQuery(true)
+            ->insert($db->quoteName('#__ordenproduccion_payment_mismatch_ticket_comments'))
+            ->columns($db->quoteName(['payment_proof_id', 'body', 'created', 'created_by']))
+            ->values(
+                (int) $proofId . ',' .
+                $db->quote($body) . ',' .
+                $db->quote($date) . ',' .
+                (int) $createdByUserId
+            );
+
+        $db->setQuery($query);
+
+        try {
+            $db->execute();
+        } catch (\Throwable $e) {
+            $this->setError($e->getMessage());
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

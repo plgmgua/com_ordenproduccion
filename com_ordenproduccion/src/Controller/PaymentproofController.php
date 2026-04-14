@@ -213,6 +213,9 @@ class PaymentproofController extends BaseController
 
                 try {
                     TelegramNotificationHelper::notifyPaymentProofEntered((int) $proofId);
+                    if ($mismatchNote !== '' || $mismatchDifference !== '') {
+                        TelegramNotificationHelper::notifyMismatchTicketAnchors((int) $proofId);
+                    }
                 } catch (\Throwable $e) {
                 }
             } else {

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.22-STABLE] - 2026-04-11
+
+### Added
+- **Telegram ↔ caso diferencia de pago (PA-…):** Al guardar un comprobante con diferencia, se puede enviar un **mensaje ancla** por DM a dueños de orden vinculada y usuarios Administración/Admon que tengan Telegram enlazado (tabla Grimpsa bot). Cada envío registra `(chat_id, message_id, payment_proof_id)`. **Webhook** `controller=telegram&task=webhook` (POST, cabecera `X-Telegram-Bot-Api-Secret-Token`) procesa respuestas **solo si son respuesta** al mensaje ancla; el texto se guarda en `#__ordenproduccion_payment_mismatch_ticket_comments` con el usuario Joomla resuelto por `chat_id`. Mensajes sueltos reciben una pista para usar “Responder”. Parámetros: `telegram_mismatch_anchor_enabled`, `telegram_webhook_secret`.
+
 ## [3.109.21-STABLE] - 2026-04-11
 
 ### Changed

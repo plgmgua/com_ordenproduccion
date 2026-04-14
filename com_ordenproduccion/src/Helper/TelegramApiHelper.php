@@ -152,7 +152,15 @@ class TelegramApiHelper
     {
         $data = json_decode($rawBody, true);
         if (\is_array($data) && !empty($data['ok'])) {
-            return ['ok' => true, 'http_code' => $httpCode];
+            $out = ['ok' => true, 'http_code' => $httpCode];
+            if (isset($data['result']['message_id'])) {
+                $out['message_id'] = (int) $data['result']['message_id'];
+            }
+            if (isset($data['result']) && \is_array($data['result'])) {
+                $out['result'] = $data['result'];
+            }
+
+            return $out;
         }
 
         $desc = \is_array($data) ? (string) ($data['description'] ?? '') : '';
