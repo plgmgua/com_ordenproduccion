@@ -1673,7 +1673,8 @@ class TelegramNotificationHelper
 
     /**
      * Recipients for mismatch-ticket **comment** DMs: linked order owners with Telegram (same as anchor list)
-     * plus Administración/Admon users with Telegram, excluding the author.
+     * plus Administración/Admon users with Telegram, excluding the author (so others are pinged, not an echo).
+     * Callers: if this list is empty but the author has Telegram, still enqueue one DM to the author (solo stakeholder).
      *
      * @param   int  $proofId        Payment proof PK
      * @param   int  $excludeUserId  Joomla user who wrote the comment (not notified)
@@ -1772,7 +1773,16 @@ class TelegramNotificationHelper
         }
         $text = str_replace(['{proof_label}', '{author}', '{preview}'], [$label, $authorName, $preview], $template);
 
-        foreach (self::collectMismatchTicketTelegramNotifyUserIds($proofId, $actorJoomlaUserId) as $uid) {
+        $recipientIds = self::collectMismatchTicketTelegramNotifyUserIds($proofId, $actorJoomlaUserId);
+
+        // Author is normally excluded so they do not get a Telegram echo of their own comment. When they are the
+        // only linked owner/admin with Telegram (common for tests or single-user workflows), the list is empty
+        // and nothing is queued — still deliver one outbound row so Cola/Telegram reflect the new thread line.
+        if ($recipientIds === [] && self::getChatIdForUser($actorJoomlaUserId) !== null) {
+            $recipientIds = [$actorJoomlaUserId];
+        }
+
+        foreach ($recipientIds as $uid) {
             $chatId = self::getChatIdForUser((int) $uid);
             if ($chatId === null) {
                 continue;
