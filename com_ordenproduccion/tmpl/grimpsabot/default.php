@@ -13,6 +13,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 
 HTMLHelper::_('bootstrap.collapse', '.collapse', []);
 HTMLHelper::_('bootstrap.alert', '.alert', []);
@@ -41,6 +42,8 @@ $queueUrl = static function (int $tgQp, int $tgQs): string {
     return Route::_('index.php?option=com_ordenproduccion&view=grimpsabot&tg_qp=' . $tgQp . '&tg_qs=' . $tgQs, false) . '#grimpsabot-pane-queue';
 };
 
+$webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
+
 ?>
 <div class="com-ordenproduccion-grimpsabot container py-3">
     <h1 class="h3 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TITLE'); ?></h1>
@@ -68,6 +71,11 @@ $queueUrl = static function (int $tgQp, int $tgQs): string {
                         <li class="nav-item" role="presentation">
                             <a class="nav-link" id="grimpsabot-tab-broadcast" href="#grimpsabot-pane-broadcast" role="tab" aria-controls="grimpsabot-pane-broadcast" aria-selected="false">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_BROADCAST'); ?>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="grimpsabot-tab-webhook" href="#grimpsabot-pane-webhook" role="tab" aria-controls="grimpsabot-pane-webhook" aria-selected="false">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_WEBHOOK'); ?>
                             </a>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -105,6 +113,28 @@ $queueUrl = static function (int $tgQp, int $tgQs): string {
                                 <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_CRON_SAVE_KEY_FIRST'); ?></p>
                             <?php endif; ?>
                             <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BROADCAST_TEST_BELOW'); ?></p>
+                        </div>
+                        <div class="tab-pane fade" id="grimpsabot-pane-webhook" role="tabpanel" aria-labelledby="grimpsabot-tab-webhook" tabindex="0">
+                            <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_INTRO'); ?></p>
+                            <div class="mb-3">
+                                <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_URL_LABEL'); ?></label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control font-monospace" readonly value="<?php echo htmlspecialchars($webhookEndpointUrl, ENT_QUOTES, 'UTF-8'); ?>" id="grimpsabot-webhook-url" />
+                                    <button type="button" class="btn btn-outline-secondary" onclick="(function(){var el=document.getElementById('grimpsabot-webhook-url');if(!el)return;el.select();try{document.execCommand('copy');}catch(e){}})();"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_COPY'); ?></button>
+                                </div>
+                            </div>
+                            <?php foreach ($form->getFieldset('webhook') as $field) : ?>
+                                <div class="mb-3">
+                                    <?php echo $field->label; ?>
+                                    <?php echo $field->input; ?>
+                                </div>
+                            <?php endforeach; ?>
+                            <p class="small text-muted mb-2"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_REGISTER_HELP'))); ?></p>
+                            <button type="submit" form="grimpsabot-webhook-register" class="btn btn-warning btn-sm"
+                                onclick="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_CONFIRM')); ?>); ?>">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_BTN'); ?>
+                            </button>
+                            <span class="small text-muted ms-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_SET_BTN_HINT'); ?></span>
                         </div>
                         <div class="tab-pane fade" id="grimpsabot-pane-queue" role="tabpanel" aria-labelledby="grimpsabot-tab-queue" tabindex="0">
                             <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_INTRO'); ?></p>
@@ -279,6 +309,11 @@ $queueUrl = static function (int $tgQp, int $tgQs): string {
                         <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
                     </div>
                 </form>
+                <form id="grimpsabot-webhook-register" action="<?php echo Route::_('index.php'); ?>" method="post" class="d-none" aria-hidden="true">
+                    <input type="hidden" name="option" value="com_ordenproduccion" />
+                    <input type="hidden" name="task" value="grimpsabot.setTelegramWebhook" />
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                </form>
                 <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-3 border-top pt-3">
                     <input type="hidden" name="option" value="com_ordenproduccion" />
                     <input type="hidden" name="task" value="grimpsabot.sendtestbroadcast" />
@@ -388,6 +423,13 @@ $queueUrl = static function (int $tgQp, int $tgQs): string {
             el.classList.toggle('active', on);
         });
     });
+    var h = (window.location.hash || '').trim();
+    if (h && h.indexOf('#grimpsabot-pane-') === 0) {
+        var link0 = tabBar.querySelector('a[href="' + h + '"]');
+        if (link0) {
+            link0.click();
+        }
+    }
 })();
 </script>
 <?php endif; ?>

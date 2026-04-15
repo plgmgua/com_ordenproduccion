@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.25-STABLE] - 2026-04-15
+
+### Changed
+- **Telegram webhook setup:** Moved to the site **Bot Grimpsa** view (`view=grimpsabot`) under a new **Webhook** tab (secret, mismatch-anchor toggle, webhook URL, POST action to call Telegram `setWebhook`). Avoids admin dashboard GET + token mismatch.
+
+### Removed
+- **Admin Dashboard:** “Set Telegram webhook” button and `dashboard.setTelegramWebhook` task (replaced by the frontend flow).
+
 ## [3.109.24-STABLE] - 2026-04-15
 
 ### Added
-- **Admin Dashboard:** Button to call Telegram `setWebhook` using the configured bot token + webhook secret, so inbound replies can be received without manual API calls.
+- **Admin Dashboard:** Button to call Telegram `setWebhook` using the configured bot token + webhook secret, so inbound replies can be received without manual API calls. _(Superseded in 3.109.25: use Bot Grimpsa → Webhook tab.)_
 
 ## [3.109.23-STABLE] - 2026-04-11
 

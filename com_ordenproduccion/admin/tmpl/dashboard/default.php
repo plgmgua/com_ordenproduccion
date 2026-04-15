@@ -21,8 +21,6 @@ $siteAdminAprobacionesUrl = htmlspecialchars(
     'UTF-8'
 );
 
-$telegramWebhookSetupUrl = Route::_('index.php?option=com_ordenproduccion&task=dashboard.setTelegramWebhook&' . \Joomla\CMS\Session\Session::getFormToken() . '=1');
-
 ?>
 
 <div class="com-ordenproduccion-dashboard">
@@ -74,12 +72,6 @@ $telegramWebhookSetupUrl = Route::_('index.php?option=com_ordenproduccion&task=d
                 <i class="icon-link"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_WEBHOOK_CONFIG', 'Webhook Config'); ?>
             </a>
-            <?php if ($this->hasPermission('core.admin')): ?>
-                <a href="<?php echo $telegramWebhookSetupUrl; ?>" class="btn btn-sm btn-outline-warning" onclick="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_CONFIRM'), ENT_QUOTES, 'UTF-8'); ?>');">
-                    <i class="icon-link"></i>
-                    <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_BTN', 'Set Telegram webhook'); ?>
-                </a>
-            <?php endif; ?>
             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=webhook#webhook-logs'); ?>" class="btn btn-sm btn-outline-primary">
                 <i class="icon-list"></i>
                 <?php echo $this->getButtonLabel('COM_ORDENPRODUCCION_MENU_WEBHOOK_LOG', 'Webhook Log'); ?>

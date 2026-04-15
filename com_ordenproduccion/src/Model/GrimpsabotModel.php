@@ -123,6 +123,16 @@ class GrimpsabotModel extends FormModel
             $registry->set('telegram_queue_cron_key', $existing['telegram_queue_cron_key']);
         }
 
+        if (!empty($data['telegram_webhook_secret'])) {
+            $registry->set('telegram_webhook_secret', trim((string) $data['telegram_webhook_secret']));
+        } elseif (!empty($existing['telegram_webhook_secret'])) {
+            $registry->set('telegram_webhook_secret', $existing['telegram_webhook_secret']);
+        }
+
+        if (isset($data['telegram_mismatch_anchor_enabled'])) {
+            $registry->set('telegram_mismatch_anchor_enabled', (int) $data['telegram_mismatch_anchor_enabled'] ? 1 : 0);
+        }
+
         foreach (
             [
                 'telegram_message_invoice',

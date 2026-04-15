@@ -16,9 +16,6 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
-use Joomla\CMS\Uri\Uri;
-use Joomla\CMS\Component\ComponentHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramApiHelper;
 
 /**
  * Dashboard controller for com_ordenproduccion
@@ -142,72 +139,6 @@ class DashboardController extends BaseController
             );
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=dashboard'));
         }
-    }
-
-    /**
-     * Admin action: configure Telegram bot webhook for receiving replies.
-     *
-     * Uses component params:
-     * - telegram_bot_token
-     * - telegram_webhook_secret (sent as secret_token)
-     *
-     * Webhook URL:
-     * - {site}/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw
-     *
-     * @return  void
-     *
-     * @since   3.109.24
-     */
-    public function setTelegramWebhook(): void
-    {
-        if (!Session::checkToken()) {
-            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=dashboard'));
-            return;
-        }
-
-        $user = Factory::getUser();
-        if (!$user->authorise('core.admin', 'com_ordenproduccion')) {
-            $this->app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_ACCESS_FORBIDDEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=dashboard'));
-            return;
-        }
-
-        $params = ComponentHelper::getParams('com_ordenproduccion');
-        $token  = trim((string) $params->get('telegram_bot_token', ''));
-        $secret = trim((string) $params->get('telegram_webhook_secret', ''));
-
-        if ($token === '') {
-            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_NO_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=dashboard'));
-            return;
-        }
-        if ($secret === '') {
-            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_NO_SECRET'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=dashboard'));
-            return;
-        }
-
-        $webhookUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
-        $res        = TelegramApiHelper::setWebhook($token, $webhookUrl, $secret);
-
-        if (!empty($res['ok'])) {
-            $this->app->enqueueMessage(
-                Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_OK', $webhookUrl),
-                'success'
-            );
-        } else {
-            $msg = trim((string) ($res['description'] ?? $res['error'] ?? ''));
-            if ($msg === '') {
-                $msg = 'setWebhook failed';
-            }
-            $this->app->enqueueMessage(
-                Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR', $msg),
-                'error'
-            );
-        }
-
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=dashboard'));
     }
 
     /**

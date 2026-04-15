@@ -20,6 +20,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 
 /**
  * Grimpsabot controller.
@@ -325,6 +326,63 @@ class GrimpsabotController extends BaseController
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false));
+    }
+
+    /**
+     * Call Telegram setWebhook (Administración / Admon / superuser). Uses saved bot token + webhook secret.
+     *
+     * @return  void
+     *
+     * @since   3.109.25
+     */
+    public function setTelegramWebhook(): void
+    {
+        if (!$this->verifyToken()) {
+            return;
+        }
+        $app = Factory::getApplication();
+
+        if (!$this->allowManageBotSettings()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $token  = trim((string) $params->get('telegram_bot_token', ''));
+        $secret = trim((string) $params->get('telegram_webhook_secret', ''));
+
+        if ($token === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_NO_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+
+            return;
+        }
+        if ($secret === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_NO_SECRET'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+
+            return;
+        }
+
+        $webhookUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
+        $res        = TelegramApiHelper::setWebhook($token, $webhookUrl, $secret);
+
+        if (!empty($res['ok'])) {
+            $app->enqueueMessage(
+                Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_OK', $webhookUrl),
+                'success'
+            );
+        } else {
+            $msg = trim((string) ($res['description'] ?? $res['error'] ?? ''));
+            if ($msg === '') {
+                $msg = 'setWebhook failed';
+            }
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR', $msg), 'error');
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
     }
 
     /**

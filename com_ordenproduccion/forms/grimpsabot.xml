@@ -219,6 +219,29 @@
             filter="string"
         />
     </fieldset>
+    <fieldset name="webhook" label="COM_ORDENPRODUCCION_GRIMPSABOT_TAB_WEBHOOK">
+        <field
+            name="telegram_webhook_secret"
+            type="password"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_SECRET_LABEL"
+            description="COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_SECRET_HELP"
+            default=""
+            autocomplete="off"
+            size="60"
+            filter="string"
+        />
+        <field
+            name="telegram_mismatch_anchor_enabled"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MISMATCH_ANCHOR_ENABLED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MISMATCH_ANCHOR_ENABLED_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+    </fieldset>
     <fieldset name="profile" label="COM_ORDENPRODUCCION_GRIMPSABOT_FIELDSET_PROFILE">
         <field
             name="telegram_chat_id"
