@@ -389,17 +389,18 @@ class GrimpsabotController extends BaseController
         $sslDeliveryFail = $lastWebhookErr !== '' && stripos($lastWebhookErr, 'ssl') !== false;
 
         $payload = [
-            'phase'                        => 'getMe_getWebhookInfo',
-            'expected_joomla_webhook_url'  => $expectedUrl,
-            'getMe'                        => $normalize($me),
-            'getWebhookInfo'               => $normalize($wh),
+            'phase'                       => 'getMe_getWebhookInfo',
+            'expected_webhook_url'        => $expectedUrl,
+            'expected_joomla_webhook_url' => $expectedUrl,
+            'getMe'                       => $normalize($me),
+            'getWebhookInfo'              => $normalize($wh),
         ];
 
         if ($lastWebhookErr !== '' || $pendingUpdates > 0) {
             $payload['webhook_delivery'] = [
                 'pending_update_count' => $pendingUpdates,
                 'last_error_message'   => $lastWebhookErr !== '' ? $lastWebhookErr : null,
-                'note'                 => 'If last_error_message is set, Telegram could not POST updates to your webhook URL. In-app replies from Telegram will not reach Joomla until delivery succeeds (often HTTPS / certificate).',
+                'note'                 => 'If last_error_message is set, Telegram could not POST updates to your webhook URL. In-app replies will not reach Joomla until delivery succeeds (HTTPS certificate, 403 secret/WAF, etc.).',
             ];
         }
 

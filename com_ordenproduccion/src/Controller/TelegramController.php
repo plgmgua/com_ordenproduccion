@@ -186,8 +186,15 @@ class TelegramController extends BaseController
      */
     private static function readTelegramWebhookSecretHeader(): string
     {
-        if (isset($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'])) {
-            return trim((string) $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN']);
+        foreach (
+            [
+                'HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN',
+                'REDIRECT_HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN',
+            ] as $serverKey
+        ) {
+            if (!empty($_SERVER[$serverKey])) {
+                return trim((string) $_SERVER[$serverKey]);
+            }
         }
 
         if (\function_exists('getallheaders')) {

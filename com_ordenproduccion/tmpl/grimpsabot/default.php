@@ -124,19 +124,20 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                         </div>
                         <div class="tab-pane fade" id="grimpsabot-pane-webhook" role="tabpanel" aria-labelledby="grimpsabot-tab-webhook" tabindex="0">
                             <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_INTRO'); ?></p>
-                            <div class="mb-3">
-                                <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_URL_LABEL'); ?></label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" class="form-control font-monospace" readonly value="<?php echo htmlspecialchars($webhookEndpointUrl, ENT_QUOTES, 'UTF-8'); ?>" id="grimpsabot-webhook-url" />
-                                    <button type="button" class="btn btn-outline-secondary" onclick="(function(){var el=document.getElementById('grimpsabot-webhook-url');if(!el)return;el.select();try{document.execCommand('copy');}catch(e){}})();"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_COPY'); ?></button>
-                                </div>
-                            </div>
                             <?php foreach ($form->getFieldset('webhook') as $field) : ?>
                                 <div class="mb-3">
                                     <?php echo $field->label; ?>
                                     <?php echo $field->input; ?>
                                 </div>
                             <?php endforeach; ?>
+                            <div class="mb-3 border-top pt-3">
+                                <label class="form-label fw-semibold" for="grimpsabot-webhook-url"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_FULL_URL_LABEL'); ?></label>
+                                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_FULL_URL_HELP'); ?></p>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control font-monospace" readonly value="<?php echo htmlspecialchars($webhookEndpointUrl, ENT_QUOTES, 'UTF-8'); ?>" id="grimpsabot-webhook-url" />
+                                    <button type="button" class="btn btn-outline-secondary" onclick="(function(){var el=document.getElementById('grimpsabot-webhook-url');if(!el)return;el.select();try{document.execCommand('copy');}catch(e){}})();"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_COPY'); ?></button>
+                                </div>
+                            </div>
                             <div class="mb-3">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="grimpsabot-webhook-generate-secret">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_GENERATE_SECRET'); ?>

@@ -289,11 +289,11 @@
         </field>
         <field
             name="telegram_webhook_public_base"
-            type="url"
+            type="text"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_PUBLIC_BASE_LABEL"
             description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_PUBLIC_BASE_DESC"
             hint="https://telegram.grantsolutions.cc"
-            default=""
+            default="https://telegram.grantsolutions.cc"
             size="60"
             filter="string"
         />

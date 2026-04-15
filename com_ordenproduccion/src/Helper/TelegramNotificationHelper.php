@@ -1807,7 +1807,13 @@ class TelegramNotificationHelper
         $raw    = trim((string) $params->get('telegram_webhook_public_base', ''));
 
         if ($raw === '') {
-            return rtrim(Uri::root(), '/');
+            $live = rtrim(Uri::root(), '/');
+            // Legacy host: use dedicated Telegram TLS host unless options override (telegram_webhook_public_base).
+            if (stripos($live, 'grimpsa_webserver.grantsolutions.cc') !== false) {
+                return 'https://telegram.grantsolutions.cc';
+            }
+
+            return $live;
         }
 
         $raw = rtrim($raw, '/');
