@@ -340,6 +340,8 @@ class GrimpsabotController extends BaseController
         if (!$this->verifyToken()) {
             return;
         }
+        $this->loadGrimpsabotLanguageForMessages();
+
         $app = Factory::getApplication();
 
         $returnHash = $this->getGrimpsabotWebhookReturnHash();
@@ -369,7 +371,18 @@ class GrimpsabotController extends BaseController
         }
 
         if (!TelegramApiHelper::isValidWebhookSecretToken($secret)) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_SECRET_TOKEN_RULE'), 'error');
+            $this->stashSetWebhookDebugPayload([
+                'phase'  => 'validation_failed',
+                'reason' => 'secret_token_character_set',
+                'note'   => 'Telegram setWebhook was not called. secret_token must be 1-256 characters: A-Z, a-z, 0-9, underscore, hyphen only.',
+            ]);
+            $app->enqueueMessage(
+                $this->translateOrPlain(
+                    'COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_SECRET_TOKEN_RULE',
+                    'Telegram only accepts webhook secret_token using letters, digits, underscore and hyphen (1-256 characters). Edit the secret on the Webhook tab, Save, and try again.'
+                ),
+                'error'
+            );
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
 
             return;
@@ -378,9 +391,26 @@ class GrimpsabotController extends BaseController
         $webhookUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
         $res        = TelegramApiHelper::setWebhook($token, $webhookUrl, $secret);
 
+        $this->stashSetWebhookDebugPayload([
+            'phase'                    => 'api_response',
+            'ok'                       => !empty($res['ok']),
+            'http_code'                => (int) ($res['http_code'] ?? 0),
+            'telegram_response_raw'    => (string) ($res['raw_body'] ?? ''),
+            'parsed_description'       => (string) ($res['description'] ?? ''),
+            'parsed_error'             => (string) ($res['error'] ?? ''),
+            'webhook_url_registered'   => $webhookUrl,
+            'curl_example_redacted'    => 'curl -sS -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" '
+                . '-H "Content-Type: application/x-www-form-urlencoded" '
+                . '--data-urlencode "url=' . $webhookUrl . '" '
+                . '--data-urlencode "secret_token=<same_as_saved_secret>"',
+        ]);
+
         if (!empty($res['ok'])) {
             $app->enqueueMessage(
-                Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_OK') . ' '
+                $this->translateOrPlain(
+                    'COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_OK',
+                    'Telegram webhook configured successfully.'
+                ) . ' '
                     . htmlspecialchars($webhookUrl, ENT_QUOTES, 'UTF-8'),
                 'success'
             );
@@ -395,7 +425,10 @@ class GrimpsabotController extends BaseController
             }
             // Do not pass Telegram text through Text::sprintf — it may contain "%" and break Joomla translation.
             $app->enqueueMessage(
-                Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR') . ' '
+                $this->translateOrPlain(
+                    'COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR',
+                    'Telegram setWebhook failed.'
+                ) . ' '
                     . htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'),
                 'error'
             );
@@ -416,6 +449,64 @@ class GrimpsabotController extends BaseController
         $tab = $this->input->post->getWord('grimpsabot_webhook_return', 'webhook');
 
         return $tab === 'bot' ? '#grimpsabot-pane-bot' : '#grimpsabot-pane-webhook';
+    }
+
+    /**
+     * Load component language the same way as Grimpsabot HtmlView (site + admin paths).
+     *
+     * @return  void
+     *
+     * @since   3.109.28
+     */
+    private function loadGrimpsabotLanguageForMessages(): void
+    {
+        $app  = Factory::getApplication();
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion', $tag, true);
+    }
+
+    /**
+     * @param   string  $key      Language constant
+     * @param   string  $english  Fallback if constant missing or untranslated
+     *
+     * @return  string
+     *
+     * @since   3.109.28
+     */
+    private function translateOrPlain(string $key, string $english): string
+    {
+        $t = Text::_($key);
+
+        if ($t === '' || $t === $key) {
+            return $english;
+        }
+
+        return $t;
+    }
+
+    /**
+     * One-shot JSON for the Grimpsabot Webhook tab debug box (no bot token).
+     *
+     * @param   array<string,mixed>  $payload
+     *
+     * @return  void
+     *
+     * @since   3.109.28
+     */
+    private function stashSetWebhookDebugPayload(array $payload): void
+    {
+        $json = \json_encode($payload, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($json === false) {
+            $json = '{"error":"json_encode failed"}';
+        }
+        if (\strlen($json) > 12000) {
+            $json = \substr($json, 0, 12000) . "\n… (truncated)";
+        }
+
+        Factory::getApplication()->setUserState('com_ordenproduccion.grimpsabot_setwebhook_debug', $json);
     }
 
     /**

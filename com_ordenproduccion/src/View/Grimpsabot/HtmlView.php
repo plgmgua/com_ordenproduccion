@@ -27,6 +27,14 @@ use Joomla\CMS\Uri\Uri;
 class HtmlView extends BaseHtmlView
 {
     /**
+     * JSON debug from last setTelegramWebhook (cleared after display).
+     *
+     * @var    string|null
+     * @since  3.109.28
+     */
+    public $telegramSetWebhookDebug = null;
+
+    /**
      * @var    \Joomla\CMS\Form\Form|null
      * @since  3.105.0
      */
@@ -176,6 +184,10 @@ class HtmlView extends BaseHtmlView
             $this->telegramQueuePending = TelegramQueueHelper::getPendingQueueItemsForDisplay($db, $pageSz, $pendingStart);
             $this->telegramQueueSent    = TelegramQueueHelper::getSentLogItemsForDisplay($db, $pageSz, $sentStart);
         }
+
+        $debugJson = $app->getUserState('com_ordenproduccion.grimpsabot_setwebhook_debug');
+        $this->telegramSetWebhookDebug = (\is_string($debugJson) && $debugJson !== '') ? $debugJson : null;
+        $app->setUserState('com_ordenproduccion.grimpsabot_setwebhook_debug', null);
 
         $this->setLayout('default');
         $this->_prepareDocument();

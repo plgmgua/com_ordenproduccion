@@ -140,7 +140,10 @@ class TelegramApiHelper
             }
         }
 
-        return self::interpretJsonResponse($rawBody, $httpCode);
+        $out = self::interpretJsonResponse($rawBody, $httpCode);
+        $out['raw_body'] = $rawBody;
+
+        return $out;
     }
 
     /**

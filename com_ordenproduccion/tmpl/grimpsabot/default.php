@@ -316,6 +316,13 @@ $webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenprod
                         <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
                     </div>
                 </form>
+                <?php if (!empty($this->telegramSetWebhookDebug)) : ?>
+                    <div class="mt-3 border rounded p-3 bg-light" id="grimpsabot-setwebhook-debug">
+                        <div class="fw-semibold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_DEBUG_TITLE'); ?></div>
+                        <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_DEBUG_HELP'); ?></p>
+                        <textarea readonly class="form-control font-monospace small" rows="16" spellcheck="false"><?php echo $this->escape((string) $this->telegramSetWebhookDebug); ?></textarea>
+                    </div>
+                <?php endif; ?>
                 <form id="grimpsabot-webhook-register" action="<?php echo Route::_('index.php'); ?>" method="post" class="d-none" aria-hidden="true">
                     <input type="hidden" name="option" value="com_ordenproduccion" />
                     <input type="hidden" name="task" value="grimpsabot.setTelegramWebhook" />
@@ -437,6 +444,10 @@ $webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenprod
         if (link0) {
             link0.click();
         }
+    }
+    var dbg = document.getElementById('grimpsabot-setwebhook-debug');
+    if (dbg) {
+        dbg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 })();
 </script>

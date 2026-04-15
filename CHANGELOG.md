@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.28-STABLE] - 2026-04-15
+
+### Fixed
+- **Grimpsabot setWebhook messages:** Load component language in the controller before enqueueing strings (same paths as the view), plus English fallbacks when a constant is still missing — fixes raw keys such as `COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_SECRET_TOKEN_RULE`.
+
+### Added
+- **Grimpsabot Webhook debug panel:** After Configure webhook, a one-shot JSON box shows Telegram’s raw response, parsed fields, HTTP code, and a redacted curl example (bot token never stored). Panel appears below the settings tabs and scrolls into view.
+
 ## [3.109.27-STABLE] - 2026-04-15
 
 ### Fixed
