@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.47-STABLE] - 2026-04-15
+
+### Changed
+- **Site time zone for datetimes:** Added `SiteDateHelper` using `HTMLHelper::date()` so lists match **System → Global Configuration → Server Time Zone** (e.g. America/Guatemala). Mismatch ticket JSON exposes `created_display`; payment delete preview JSON exposes `created_display`; Grimpsabot queue / webhook log tables format `created`, `last_try`, `queued_created`, and `sent_at` in PHP.
+
 ## [3.109.46-STABLE] - 2026-04-15
 
 ### Added

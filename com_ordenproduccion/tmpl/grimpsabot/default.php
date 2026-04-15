@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\SiteDateHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramWebhookLogHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -208,7 +209,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                                 ?>
                                                 <tr>
                                                     <td><?php echo (int) ($wrow->id ?? 0); ?></td>
-                                                    <td class="small"><?php echo $this->escape((string) ($wrow->created ?? '')); ?></td>
+                                                    <td class="small"><?php echo $this->escape(SiteDateHelper::formatSqlDatetimeForDisplay((string) ($wrow->created ?? ''))); ?></td>
                                                     <td class="small"><code><?php echo $this->escape((string) ($wrow->ip ?? '')); ?></code></td>
                                                     <td><code class="small"><?php echo $this->escape((string) ($wrow->http_method ?? '')); ?></code></td>
                                                     <td><?php echo (int) ($wrow->body_length ?? 0); ?></td>
@@ -301,9 +302,9 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                                 <tr>
                                                     <td><?php echo (int) ($row->id ?? 0); ?></td>
                                                     <td><code class="small"><?php echo $this->escape((string) ($row->chat_id ?? '')); ?></code></td>
-                                                    <td class="small"><?php echo $this->escape((string) ($row->created ?? '')); ?></td>
+                                                    <td class="small"><?php echo $this->escape(SiteDateHelper::formatSqlDatetimeForDisplay((string) ($row->created ?? ''))); ?></td>
                                                     <td><?php echo (int) ($row->attempts ?? 0); ?></td>
-                                                    <td class="small"><?php echo $this->escape((string) ($row->last_try ?? '')); ?></td>
+                                                    <td class="small"><?php echo $this->escape(SiteDateHelper::formatSqlDatetimeForDisplay((string) ($row->last_try ?? ''))); ?></td>
                                                     <td class="small text-break"><?php echo $this->escape((string) ($row->last_error ?? '')); ?></td>
                                                     <td class="small"><span title="<?php echo $this->escape((string) ($row->body ?? '')); ?>"><?php echo $this->escape($truncateQueueBody((string) ($row->body ?? ''))); ?></span></td>
                                                 </tr>
@@ -383,8 +384,8 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                                 <tr>
                                                     <td><?php echo (int) ($row->id ?? 0); ?></td>
                                                     <td><code class="small"><?php echo $this->escape((string) ($row->chat_id ?? '')); ?></code></td>
-                                                    <td class="small"><?php echo $this->escape((string) ($row->queued_created ?? '')); ?></td>
-                                                    <td class="small"><?php echo $this->escape((string) ($row->sent_at ?? '')); ?></td>
+                                                    <td class="small"><?php echo $this->escape(SiteDateHelper::formatSqlDatetimeForDisplay((string) ($row->queued_created ?? ''))); ?></td>
+                                                    <td class="small"><?php echo $this->escape(SiteDateHelper::formatSqlDatetimeForDisplay((string) ($row->sent_at ?? ''))); ?></td>
                                                     <td><?php echo (int) ($row->source_queue_id ?? 0); ?></td>
                                                     <td class="small"><span title="<?php echo $this->escape((string) ($row->body ?? '')); ?>"><?php echo $this->escape($truncateQueueBody((string) ($row->body ?? ''))); ?></span></td>
                                                 </tr>

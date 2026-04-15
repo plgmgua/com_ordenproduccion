@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\SiteDateHelper;
 
 /**
  * Payments controller (export to Excel).
@@ -202,11 +203,13 @@ class PaymentsController extends BaseController
         }
 
         $app->setHeader('Content-Type', 'application/json; charset=utf-8');
-        $proofBank = $details->proof->bank ?? '';
+        $proofBank   = $details->proof->bank ?? '';
+        $proofCreated = (string) ($details->proof->created ?? '');
         $data = [
             'proof' => [
                 'id' => (int) $details->proof->id,
-                'created' => $details->proof->created ?? '',
+                'created' => $proofCreated,
+                'created_display' => SiteDateHelper::formatSqlDatetimeForDisplay($proofCreated),
                 'payment_type' => $details->proof->payment_type ?? '',
                 'payment_type_label' => $this->translatePaymentType($details->proof->payment_type ?? ''),
                 'bank' => $proofBank,
@@ -554,14 +557,16 @@ class PaymentsController extends BaseController
             $commentsRaw = $model->getMismatchTicketComments($proofId);
             $comments    = [];
             foreach ($commentsRaw as $c) {
-                $src = strtolower(trim((string) ($c->source ?? 'site')));
+                $src     = strtolower(trim((string) ($c->source ?? 'site')));
+                $created = (string) ($c->created ?? '');
                 $comments[] = [
-                    'id'         => (int) ($c->id ?? 0),
-                    'body'       => (string) ($c->body ?? ''),
-                    'created'    => (string) ($c->created ?? ''),
-                    'created_by' => (int) ($c->created_by ?? 0),
-                    'user_name'  => (string) ($c->user_name ?? ''),
-                    'source'     => ($src === 'telegram') ? 'telegram' : 'site',
+                    'id'               => (int) ($c->id ?? 0),
+                    'body'             => (string) ($c->body ?? ''),
+                    'created'          => $created,
+                    'created_display'  => SiteDateHelper::formatSqlDatetimeForDisplay($created),
+                    'created_by'       => (int) ($c->created_by ?? 0),
+                    'user_name'        => (string) ($c->user_name ?? ''),
+                    'source'           => ($src === 'telegram') ? 'telegram' : 'site',
                 ];
             }
 

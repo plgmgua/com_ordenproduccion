@@ -639,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     var p = d.proof;
                     document.getElementById('modalClient').textContent = p.client_name || '-';
-                    document.getElementById('modalDate').textContent = p.created ? new Date(p.created).toLocaleString('es-GT') : '-';
+                    document.getElementById('modalDate').textContent = (p.created_display || '').trim() || '-';
                     document.getElementById('modalType').textContent = p.payment_type_label || '-';
                     document.getElementById('modalBank').textContent = p.bank_label || p.bank || '-';
                     document.getElementById('modalDoc').textContent = p.document_number || '-';
@@ -748,7 +748,7 @@ document.addEventListener('DOMContentLoaded', function() {
             div.className = 'mismatch-ticket-comment-item mismatch-ticket-comment--source-' + src;
             var meta = document.createElement('div');
             meta.className = 'mismatch-ticket-comment-meta';
-            var when = c.created ? new Date(c.created).toLocaleString() : '';
+            var when = (c.created_display || '').trim() || '';
             var srcLbl = src === 'telegram' ? mismatchSrcLabelTelegram : mismatchSrcLabelSite;
             meta.textContent = [c.user_name || '', when, srcLbl].filter(Boolean).join(' · ');
             var bubble = document.createElement('div');
