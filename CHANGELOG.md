@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.42-STABLE] - 2026-04-15
+
+### Fixed
+- **Telegram mismatch replies → site comments:** When the anchor registry had no row for `reply_to_message.message_id` (e.g. queue metadata columns missing on older DBs, or cron registered the send late), webhook logged `ok_ignored_no_anchor_match` and dropped the text. The handler now falls back to parsing **PA-########** from the replied-to bot message and saves the comment when permitted; on success it backfills the anchor row for future replies.
+
 ## [3.109.41-STABLE] - 2026-04-15
 
 ### Added

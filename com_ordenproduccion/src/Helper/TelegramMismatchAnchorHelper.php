@@ -147,4 +147,41 @@ class TelegramMismatchAnchorHelper
 
         return $pid > 0 ? $pid : 0;
     }
+
+    /**
+     * When the anchor registry row is missing (e.g. queue sent before 3.109.23 columns, or cron lag),
+     * resolve proof id from the bot DM body the user replied to — same label as notifyMismatchTicketAnchors
+     * ("PA-000222" → 222).
+     *
+     * @param   array<string,mixed>|null  $replyTo  Telegram reply_to_message object
+     *
+     * @return  int  payment_proof_id or 0
+     *
+     * @since   3.109.42
+     */
+    public static function parsePaymentProofIdFromReplyMessage(?array $replyTo): int
+    {
+        if (!\is_array($replyTo)) {
+            return 0;
+        }
+
+        $blob = '';
+        foreach (['text', 'caption'] as $k) {
+            if (!empty($replyTo[$k])) {
+                $blob .= (string) $replyTo[$k] . "\n";
+            }
+        }
+        $blob = trim($blob);
+        if ($blob === '') {
+            return 0;
+        }
+
+        if (\preg_match('/\bPA-(\d{1,10})\b/i', $blob, $m)) {
+            $id = (int) $m[1];
+
+            return $id > 0 ? $id : 0;
+        }
+
+        return 0;
+    }
 }

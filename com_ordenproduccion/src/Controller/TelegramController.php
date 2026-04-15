@@ -261,8 +261,16 @@ class TelegramController extends BaseController
             return;
         }
 
-        $replyMid = (int) $replyTo['message_id'];
-        $proofId  = TelegramMismatchAnchorHelper::findPaymentProofIdByReply($chatId, $replyMid);
+        $replyMid            = (int) $replyTo['message_id'];
+        $proofId             = TelegramMismatchAnchorHelper::findPaymentProofIdByReply($chatId, $replyMid);
+        $resolvedViaPaLabel  = false;
+        if ($proofId < 1) {
+            $parsed = TelegramMismatchAnchorHelper::parsePaymentProofIdFromReplyMessage($replyTo);
+            if ($parsed > 0) {
+                $proofId            = $parsed;
+                $resolvedViaPaLabel = true;
+            }
+        }
         if ($proofId < 1) {
             TelegramWebhookLogHelper::record([
                 'http_method'             => 'POST',
@@ -367,6 +375,10 @@ class TelegramController extends BaseController
             return;
         }
 
+        if ($resolvedViaPaLabel) {
+            TelegramMismatchAnchorHelper::insertAnchor($chatId, $replyMid, $proofId, $joomlaUserId);
+        }
+
         TelegramWebhookLogHelper::record([
             'http_method'             => 'POST',
             'ip'                      => $logIp,
@@ -375,7 +387,7 @@ class TelegramController extends BaseController
             'secret_header_present'   => true,
             'secret_valid'            => true,
             'http_status'             => 200,
-            'outcome'                 => 'ok_comment_saved',
+            'outcome'                 => $resolvedViaPaLabel ? 'ok_comment_saved_pa_label' : 'ok_comment_saved',
             'update_id'               => $updateId > 0 ? $updateId : null,
             'chat_id'                 => $chatId !== '' ? $chatId : null,
             'text_preview'            => $text,
