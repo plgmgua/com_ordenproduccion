@@ -889,40 +889,73 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
         .mismatch-ticket-comments.mismatch-ticket-comments--chat {
             display: flex;
             flex-direction: column;
-            gap: 0.45rem;
-            max-height: 280px;
+            gap: 0.55rem;
+            max-height: 300px;
             overflow-y: auto;
+            overflow-x: hidden;
             font-size: 0.78rem;
-            padding: 0.5rem;
-            background: #eceff1;
-            border-radius: 10px;
+            padding: 0.65rem 0.55rem;
+            background: linear-gradient(180deg, #e8edf0 0%, #eceff1 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.06);
         }
         .mismatch-ticket-comment-item {
-            max-width: 90%;
+            max-width: 92%;
             display: flex;
             flex-direction: column;
-            gap: 0.2rem;
+            gap: 0.25rem;
         }
         .mismatch-ticket-comment-item.mismatch-ticket-comment--them { align-self: flex-start; }
         .mismatch-ticket-comment-item.mismatch-ticket-comment--me { align-self: flex-end; }
-        .mismatch-ticket-comment-item.mismatch-ticket-comment--them .mismatch-ticket-comment-meta { text-align: left; }
-        .mismatch-ticket-comment-item.mismatch-ticket-comment--me .mismatch-ticket-comment-meta { text-align: right; }
-        .mismatch-ticket-comment-meta { color: #6c757d; font-size: 0.7rem; line-height: 1.2; }
+        .mismatch-ticket-comment-item.mismatch-ticket-comment--them .mismatch-ticket-comment-meta { text-align: left; padding-left: 0.2rem; }
+        .mismatch-ticket-comment-item.mismatch-ticket-comment--me .mismatch-ticket-comment-meta { text-align: right; padding-right: 0.2rem; }
+        .mismatch-ticket-comment-meta { color: #6c757d; font-size: 0.68rem; line-height: 1.25; }
         .mismatch-ticket-comment-bubble {
-            border-radius: 14px;
-            padding: 0.45rem 0.65rem;
-            line-height: 1.4;
+            position: relative;
+            z-index: 0;
+            padding: 0.6rem 0.85rem;
+            line-height: 1.45;
             word-break: break-word;
+            font-size: 0.82rem;
         }
+        /* Incoming (others): light bubble + tail on the left */
         .mismatch-ticket-comment--them .mismatch-ticket-comment-bubble {
             background: #fff;
-            border: 1px solid #dee2e6;
             color: #212529;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.07);
+            border-radius: 18px 18px 18px 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 3px 10px rgba(0,0,0,0.06);
         }
+        .mismatch-ticket-comment--them .mismatch-ticket-comment-bubble::before {
+            content: '';
+            position: absolute;
+            top: 14px;
+            left: -7px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px 8px 5px 0;
+            border-color: transparent #fff transparent transparent;
+            filter: drop-shadow(-1px 1px 0 rgba(0,0,0,0.04));
+        }
+        /* Outgoing (me): Telegram-blue bubble + tail on the right */
         .mismatch-ticket-comment--me .mismatch-ticket-comment-bubble {
-            background: #229ed9;
+            background: linear-gradient(165deg, #2aabee 0%, #229ed9 100%);
             color: #fff;
+            border: none;
+            border-radius: 18px 18px 6px 18px;
+            box-shadow: 0 2px 4px rgba(34, 158, 217, 0.25), 0 4px 14px rgba(34, 158, 217, 0.2);
+        }
+        .mismatch-ticket-comment--me .mismatch-ticket-comment-bubble::before {
+            content: '';
+            position: absolute;
+            top: 14px;
+            right: -7px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px 0 5px 8px;
+            border-color: transparent transparent transparent #229ed9;
         }
         </style>
         <script>

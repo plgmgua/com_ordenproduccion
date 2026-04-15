@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.45-STABLE] - 2026-04-15
+
+### Changed
+- **Mismatch ticket thread:** Stronger chat “bubble” styling — asymmetric corners, soft shadows, optional triangular tails (incoming left / outgoing right), slightly larger padding and thread area height.
+
+## [3.109.44-STABLE] - 2026-04-15
+
+### Changed
+- **Mismatch ticket modal comments:** Thread is laid out like Telegram — messages from other users on the left (light bubbles), your messages on the right (blue bubbles). `getMismatchTicket` JSON includes `current_user_id` for alignment.
+
 ## [3.109.43-STABLE] - 2026-04-15
 
 ### Fixed
