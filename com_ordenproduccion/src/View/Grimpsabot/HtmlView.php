@@ -35,6 +35,14 @@ class HtmlView extends BaseHtmlView
     public $telegramSetWebhookDebug = null;
 
     /**
+     * JSON debug from last telegramBotInfo (getMe + getWebhookInfo), cleared after display.
+     *
+     * @var    string|null
+     * @since  3.109.30
+     */
+    public $telegramBotInfoDebug = null;
+
+    /**
      * @var    \Joomla\CMS\Form\Form|null
      * @since  3.105.0
      */
@@ -188,6 +196,10 @@ class HtmlView extends BaseHtmlView
         $debugJson = $app->getUserState('com_ordenproduccion.grimpsabot_setwebhook_debug');
         $this->telegramSetWebhookDebug = (\is_string($debugJson) && $debugJson !== '') ? $debugJson : null;
         $app->setUserState('com_ordenproduccion.grimpsabot_setwebhook_debug', null);
+
+        $infoJson = $app->getUserState('com_ordenproduccion.grimpsabot_telegram_botinfo_debug');
+        $this->telegramBotInfoDebug = (\is_string($infoJson) && $infoJson !== '') ? $infoJson : null;
+        $app->setUserState('com_ordenproduccion.grimpsabot_telegram_botinfo_debug', null);
 
         $this->setLayout('default');
         $this->_prepareDocument();

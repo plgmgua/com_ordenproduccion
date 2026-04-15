@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.30-STABLE] - 2026-04-15
+
+### Fixed
+- **Telegram webhook (browser GET):** `TelegramController` used invalid `setHeader('HTTP/1.1 405 …', true)`, which triggered a Joomla/PHP header error. Status is now set with `setHeader('Status', '405'|'403', true)` like other site controllers. GET shows a short plain explanation; Telegram still uses POST only.
+
+### Added
+- **Bot Grimpsa Webhook tab:** Button **Fetch bot / webhook info** runs Telegram **getMe** and **getWebhookInfo** with the saved token and shows a one-shot JSON debug box (compare `getWebhookInfo.url` to this site’s webhook URL). Helper: `TelegramApiHelper::botApiGet`.
+
 ## [3.109.29-STABLE] - 2026-04-15
 
 ### Fixed

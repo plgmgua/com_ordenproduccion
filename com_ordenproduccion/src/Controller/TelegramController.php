@@ -41,7 +41,7 @@ class TelegramController extends BaseController
         $expected = trim((string) $params->get('telegram_queue_cron_key', ''));
 
         if ($expected === '' || $key === '' || !\hash_equals($expected, $key)) {
-            $app->setHeader('HTTP/1.1 403 Forbidden', true);
+            $app->setHeader('Status', '403', true);
             $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
             echo 'Forbidden';
             $app->close();
@@ -71,9 +71,9 @@ class TelegramController extends BaseController
 
         $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : 'GET';
         if ($method !== 'POST') {
-            $app->setHeader('HTTP/1.1 405 Method Not Allowed', true);
+            $app->setHeader('Status', '405', true);
             $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'Method Not Allowed';
+            echo "Method Not Allowed\n\nThis URL accepts HTTP POST only (Telegram sends JSON updates). A browser uses GET, so you see this message — that is expected.";
             $app->close();
 
             return;
@@ -86,7 +86,7 @@ class TelegramController extends BaseController
             : '';
 
         if ($expected === '' || $hdr === '' || !\hash_equals($expected, $hdr)) {
-            $app->setHeader('HTTP/1.1 403 Forbidden', true);
+            $app->setHeader('Status', '403', true);
             $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
             echo 'Forbidden';
             $app->close();

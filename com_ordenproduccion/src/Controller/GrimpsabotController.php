@@ -329,6 +329,88 @@ class GrimpsabotController extends BaseController
     }
 
     /**
+     * Fetch getMe + getWebhookInfo from Telegram (saved bot token) for diagnostics.
+     *
+     * @return  void
+     *
+     * @since   3.109.30
+     */
+    public function telegramBotInfo(): void
+    {
+        if (!$this->verifyToken()) {
+            return;
+        }
+        $this->loadGrimpsabotLanguageForMessages();
+        $app = Factory::getApplication();
+
+        if (!$this->allowManageBotSettings()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $token  = trim((string) $params->get('telegram_bot_token', ''));
+
+        if ($token === '') {
+            $app->enqueueMessage(
+                $this->translateOrPlain(
+                    'COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_NO_TOKEN',
+                    'Telegram bot token is not configured.'
+                ),
+                'error'
+            );
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+
+            return;
+        }
+
+        $me = TelegramApiHelper::botApiGet($token, 'getMe');
+        $wh = TelegramApiHelper::botApiGet($token, 'getWebhookInfo');
+
+        $expectedUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
+
+        $normalize = static function (array $r): array {
+            return [
+                'ok'          => !empty($r['ok']),
+                'http_code'   => (int) ($r['http_code'] ?? 0),
+                'raw_body'    => (string) ($r['raw_body'] ?? ''),
+                'description' => (string) ($r['description'] ?? ''),
+                'error'       => (string) ($r['error'] ?? ''),
+                'result'      => $r['result'] ?? null,
+            ];
+        };
+
+        $this->stashTelegramBotInfoDebugPayload([
+            'phase'                         => 'getMe_getWebhookInfo',
+            'expected_joomla_webhook_url'  => $expectedUrl,
+            'getMe'                         => $normalize($me),
+            'getWebhookInfo'                => $normalize($wh),
+        ]);
+
+        if (empty($me['ok']) || empty($wh['ok'])) {
+            $app->enqueueMessage(
+                $this->translateOrPlain(
+                    'COM_ORDENPRODUCCION_TELEGRAM_BOT_INFO_ERR',
+                    'getMe or getWebhookInfo returned an error. See the debug box below.'
+                ),
+                'warning'
+            );
+        } else {
+            $app->enqueueMessage(
+                $this->translateOrPlain(
+                    'COM_ORDENPRODUCCION_TELEGRAM_BOT_INFO_OK',
+                    'Telegram API responded OK. Compare getWebhookInfo.url to the expected Joomla URL in the debug box.'
+                ),
+                'success'
+            );
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+    }
+
+    /**
      * Call Telegram setWebhook (Administración / Admon / superuser). Uses saved bot token + webhook secret.
      *
      * @return  void
@@ -507,6 +589,28 @@ class GrimpsabotController extends BaseController
         }
 
         Factory::getApplication()->setUserState('com_ordenproduccion.grimpsabot_setwebhook_debug', $json);
+    }
+
+    /**
+     * One-shot JSON for getMe / getWebhookInfo (no bot token in payload).
+     *
+     * @param   array<string,mixed>  $payload
+     *
+     * @return  void
+     *
+     * @since   3.109.30
+     */
+    private function stashTelegramBotInfoDebugPayload(array $payload): void
+    {
+        $json = \json_encode($payload, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($json === false) {
+            $json = '{"error":"json_encode failed"}';
+        }
+        if (\strlen($json) > 12000) {
+            $json = \substr($json, 0, 12000) . "\n… (truncated)";
+        }
+
+        Factory::getApplication()->setUserState('com_ordenproduccion.grimpsabot_telegram_botinfo_debug', $json);
     }
 
     /**

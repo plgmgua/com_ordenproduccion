@@ -42,6 +42,84 @@ class TelegramApiHelper
     }
 
     /**
+     * GET Bot API method (e.g. getMe, getWebhookInfo). Token path must not be URL-encoded.
+     *
+     * @param   string  $botToken  Bot token from @BotFather
+     * @param   string  $method    Method name only (letters, digits, underscore)
+     *
+     * @return  array{ok:bool,description?:string,error?:string,http_code?:int,raw_body?:string,result?:mixed}
+     *
+     * @since   3.109.30
+     */
+    public static function botApiGet(string $botToken, string $method): array
+    {
+        $botToken = trim($botToken);
+        $method   = \preg_replace('/[^A-Za-z0-9_]/', '', (string) $method);
+        if ($botToken === '' || $method === '') {
+            return ['ok' => false, 'error' => 'empty', 'http_code' => 0, 'raw_body' => ''];
+        }
+
+        $url      = 'https://api.telegram.org/bot' . $botToken . '/' . $method;
+        $httpCode = 0;
+        $rawBody  = '';
+
+        if (\function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                \CURLOPT_HTTPGET        => true,
+                \CURLOPT_RETURNTRANSFER => true,
+                \CURLOPT_FOLLOWLOCATION => true,
+                \CURLOPT_CONNECTTIMEOUT => 12,
+                \CURLOPT_TIMEOUT       => 30,
+                \CURLOPT_SSL_VERIFYPEER => true,
+                \CURLOPT_SSL_VERIFYHOST => 2,
+                \CURLOPT_HTTPHEADER    => ['Accept: application/json'],
+            ]);
+            $rawBody = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
+            curl_close($ch);
+
+            if ($rawBody === false) {
+                return ['ok' => false, 'error' => $curlErr !== '' ? $curlErr : 'curl_exec failed', 'http_code' => $httpCode, 'raw_body' => ''];
+            }
+        } elseif (\ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'  => 'GET',
+                    'header'  => "Accept: application/json\r\nConnection: close\r\n",
+                    'timeout' => 30,
+                ],
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+            $rawBody = @\file_get_contents($url, false, $ctx);
+            if (isset($http_response_header[0]) && \preg_match('#\s(\d{3})\s#', $http_response_header[0], $m)) {
+                $httpCode = (int) $m[1];
+            }
+            if ($rawBody === false) {
+                return ['ok' => false, 'error' => 'file_get_contents failed', 'http_code' => $httpCode, 'raw_body' => ''];
+            }
+        } else {
+            try {
+                $http     = HttpFactory::getHttp();
+                $response = $http->get($url);
+                $httpCode = (int) ($response->code ?? 0);
+                $rawBody  = (string) ($response->body ?? '');
+            } catch (\Throwable $e) {
+                return ['ok' => false, 'error' => $e->getMessage(), 'http_code' => 0, 'raw_body' => ''];
+            }
+        }
+
+        $out = self::interpretJsonResponse($rawBody, $httpCode);
+        $out['raw_body'] = $rawBody;
+
+        return $out;
+    }
+
+    /**
      * Configure Telegram webhook for this bot.
      *
      * @param   string  $botToken      Bot token from @BotFather
