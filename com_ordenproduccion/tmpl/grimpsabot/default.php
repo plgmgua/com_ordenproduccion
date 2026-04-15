@@ -9,11 +9,11 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Uri\Uri;
 
 HTMLHelper::_('bootstrap.collapse', '.collapse', []);
 HTMLHelper::_('bootstrap.alert', '.alert', []);
@@ -42,7 +42,8 @@ $queueUrl = static function (int $tgQp, int $tgQs): string {
     return Route::_('index.php?option=com_ordenproduccion&view=grimpsabot&tg_qp=' . $tgQp . '&tg_qs=' . $tgQs, false) . '#grimpsabot-pane-queue';
 };
 
-$webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
+$webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
+    . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
 
 ?>
 <div class="com-ordenproduccion-grimpsabot container py-3">

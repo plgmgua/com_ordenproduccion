@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 use Joomla\CMS\User\UserFactoryInterface;
 use Joomla\Database\DatabaseInterface;
@@ -1789,6 +1790,48 @@ class TelegramNotificationHelper
             }
             TelegramQueueHelper::enqueue($chatId, $text);
         }
+    }
+
+    /**
+     * Public HTTPS origin for the Bot API inbound webhook (no trailing slash).
+     * When `telegram_webhook_public_base` is set (e.g. https://telegram.example.com), use it so setWebhook
+     * and UI match a dedicated host; otherwise the current site root ({@see Uri::root()}).
+     *
+     * @return  string
+     *
+     * @since   3.109.37
+     */
+    public static function getTelegramWebhookPublicRoot(): string
+    {
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $raw    = trim((string) $params->get('telegram_webhook_public_base', ''));
+
+        if ($raw === '') {
+            return rtrim(Uri::root(), '/');
+        }
+
+        $raw = rtrim($raw, '/');
+        $p   = @parse_url($raw);
+        if (!\is_array($p) || empty($p['scheme']) || empty($p['host'])) {
+            return rtrim(Uri::root(), '/');
+        }
+        if (strtolower((string) $p['scheme']) !== 'https') {
+            return rtrim(Uri::root(), '/');
+        }
+        $host = (string) $p['host'];
+        if ($host === '' || preg_match('/[<>\s]/u', $host)) {
+            return rtrim(Uri::root(), '/');
+        }
+
+        $root = 'https://' . $host;
+        if (!empty($p['port']) && (int) $p['port'] > 0 && (int) $p['port'] !== 443) {
+            $root .= ':' . (int) $p['port'];
+        }
+        if (!empty($p['path']) && $p['path'] !== '/') {
+            $root .= rtrim((string) $p['path'], '/');
+        }
+
+        return $root;
     }
 
     /**

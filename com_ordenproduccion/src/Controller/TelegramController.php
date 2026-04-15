@@ -27,7 +27,7 @@ class TelegramController extends BaseController
 {
     /**
      * Process pending outbound Telegram messages. Call every ~2 minutes via server cron or Postman (GET):
-     * https://grimpsa_webserver.grantsolutions.cc/index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=SECRET
+     * https://telegram.grantsolutions.cc/index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=SECRET
      *
      * @return  void
      */

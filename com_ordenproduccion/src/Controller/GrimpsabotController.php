@@ -369,7 +369,8 @@ class GrimpsabotController extends BaseController
         $me = TelegramApiHelper::botApiGet($token, 'getMe');
         $wh = TelegramApiHelper::botApiGet($token, 'getWebhookInfo');
 
-        $expectedUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
+        $expectedUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
+            . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
 
         $normalize = static function (array $r): array {
             return [
@@ -518,7 +519,8 @@ class GrimpsabotController extends BaseController
             return;
         }
 
-        $webhookUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
+        $webhookUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
+            . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
         $res        = TelegramApiHelper::setWebhook($token, $webhookUrl, $secret);
 
         $this->stashSetWebhookDebugPayload([
