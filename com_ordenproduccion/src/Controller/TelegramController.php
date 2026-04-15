@@ -351,7 +351,7 @@ class TelegramController extends BaseController
             return;
         }
 
-        if (!$model->addMismatchTicketCommentAsUser($proofId, $text, $joomlaUserId)) {
+        if (!$model->addMismatchTicketCommentAsUser($proofId, $text, $joomlaUserId, false)) {
             $errRaw = $model->getError();
             $err    = \is_array($errRaw) ? \implode(' ', $errRaw) : \trim((string) $errRaw);
             if ($token !== '' && $chatId !== '' && $err !== '') {

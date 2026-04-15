@@ -944,15 +944,16 @@ class PaymentsModel extends ListModel
     /**
      * Append a comment as a specific Joomla user (e.g. Telegram webhook). Validates with canUserCommentOnMismatchTicket.
      *
-     * @param   int     $proofId         Payment proof id
-     * @param   string  $body            Comment text
-     * @param   int     $createdByUserId Joomla user id stored as created_by
+     * @param   int     $proofId                        Payment proof id
+     * @param   string  $body                           Comment text
+     * @param   int     $createdByUserId                Joomla user id stored as created_by
+     * @param   bool    $notifyMismatchCommentTelegram  When true, queue Telegram DMs to other stakeholders (site UI). Set false for comments ingested from the Telegram webhook so the same text is not pushed back to chats.
      *
      * @return  bool
      *
      * @since   3.109.22
      */
-    public function addMismatchTicketCommentAsUser(int $proofId, string $body, int $createdByUserId): bool
+    public function addMismatchTicketCommentAsUser(int $proofId, string $body, int $createdByUserId, bool $notifyMismatchCommentTelegram = true): bool
     {
         if (!$this->hasMismatchTicketCommentsTable() || !$this->canUserCommentOnMismatchTicket($proofId, $createdByUserId)) {
             $this->setError('Access denied or comments table missing');
@@ -995,9 +996,11 @@ class PaymentsModel extends ListModel
             return false;
         }
 
-        try {
-            TelegramNotificationHelper::notifyMismatchTicketCommentAdded($proofId, $body, $createdByUserId);
-        } catch (\Throwable $e) {
+        if ($notifyMismatchCommentTelegram) {
+            try {
+                TelegramNotificationHelper::notifyMismatchTicketCommentAdded($proofId, $body, $createdByUserId);
+            } catch (\Throwable $e) {
+            }
         }
 
         return true;

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.43-STABLE] - 2026-04-15
+
+### Fixed
+- **Mismatch ticket Telegram echo:** Comments created from inbound Telegram webhook replies no longer queue `notifyMismatchTicketCommentAdded` DMs, so the same message is not duplicated to owners/admins. Site-typed comments still notify as before (`addMismatchTicketComment` / `addMismatchTicketCommentAsUser` with default notification flag).
+
 ## [3.109.42-STABLE] - 2026-04-15
 
 ### Fixed

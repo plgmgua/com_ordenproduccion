@@ -1720,7 +1720,8 @@ class TelegramNotificationHelper
     }
 
     /**
-     * Queue Telegram DMs when someone posts a new mismatch-ticket comment (site UI or Telegram webhook).
+     * Queue Telegram DMs when someone posts a new mismatch-ticket comment from the **site UI** only.
+     * Comments saved via the Telegram webhook must not call this (avoid duplicating the same text back into Telegram).
      *
      * @param   int     $proofId           Payment proof PK
      * @param   string  $body              Comment body (trimmed; may be truncated in DM)
