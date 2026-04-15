@@ -948,12 +948,13 @@ class PaymentsModel extends ListModel
      * @param   string  $body                           Comment text
      * @param   int     $createdByUserId                Joomla user id stored as created_by
      * @param   bool    $notifyMismatchCommentTelegram  When true, queue Telegram DMs to other stakeholders (site UI). Set false for comments ingested from the Telegram webhook so the same text is not pushed back to chats.
+     * @param   string  $commentSource                  `site` (browser) or `telegram` (webhook); stored when `source` column exists (3.109.46+).
      *
      * @return  bool
      *
      * @since   3.109.22
      */
-    public function addMismatchTicketCommentAsUser(int $proofId, string $body, int $createdByUserId, bool $notifyMismatchCommentTelegram = true): bool
+    public function addMismatchTicketCommentAsUser(int $proofId, string $body, int $createdByUserId, bool $notifyMismatchCommentTelegram = true, string $commentSource = 'site'): bool
     {
         if (!$this->hasMismatchTicketCommentsTable() || !$this->canUserCommentOnMismatchTicket($proofId, $createdByUserId)) {
             $this->setError('Access denied or comments table missing');
@@ -973,18 +974,27 @@ class PaymentsModel extends ListModel
             return false;
         }
 
+        $commentSource = \in_array($commentSource, ['site', 'telegram'], true) ? $commentSource : 'site';
+
         $db   = $this->getDatabase();
         $date = Factory::getDate()->toSql();
 
+        $columns = ['payment_proof_id', 'body', 'created', 'created_by'];
+        $values  = [
+            (int) $proofId,
+            $db->quote($body),
+            $db->quote($date),
+            (int) $createdByUserId,
+        ];
+        if ($this->hasMismatchTicketCommentSourceColumn()) {
+            $columns[] = 'source';
+            $values[]  = $db->quote($commentSource);
+        }
+
         $query = $db->getQuery(true)
             ->insert($db->quoteName('#__ordenproduccion_payment_mismatch_ticket_comments'))
-            ->columns($db->quoteName(['payment_proof_id', 'body', 'created', 'created_by']))
-            ->values(
-                (int) $proofId . ',' .
-                $db->quote($body) . ',' .
-                $db->quote($date) . ',' .
-                (int) $createdByUserId
-            );
+            ->columns(array_map([$db, 'quoteName'], $columns))
+            ->values(implode(',', $values));
 
         $db->setQuery($query);
 
@@ -1027,6 +1037,37 @@ class PaymentsModel extends ListModel
     }
 
     /**
+     * Whether mismatch comment rows have a `source` column (site|telegram). Version 3.109.46+.
+     *
+     * @return  bool
+     *
+     * @since   3.109.46
+     */
+    protected function hasMismatchTicketCommentSourceColumn(): bool
+    {
+        static $cached;
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $cached = false;
+        if (!$this->hasMismatchTicketCommentsTable()) {
+            return $cached;
+        }
+
+        try {
+            $db   = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_mismatch_ticket_comments', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $cached = isset($cols['source']);
+        } catch (\Throwable $e) {
+        }
+
+        return $cached;
+    }
+
+    /**
      * Whether payment_proofs has mismatch_ticket_status column.
      */
     public function hasMismatchTicketStatusColumn(): bool
@@ -1052,14 +1093,19 @@ class PaymentsModel extends ListModel
         }
 
         $db    = $this->getDatabase();
+        $sel   = [
+            $db->quoteName('c.id'),
+            $db->quoteName('c.body'),
+            $db->quoteName('c.created'),
+            $db->quoteName('c.created_by'),
+            $db->quoteName('u.name', 'user_name'),
+        ];
+        if ($this->hasMismatchTicketCommentSourceColumn()) {
+            $sel[] = $db->quoteName('c.source');
+        }
+
         $query = $db->getQuery(true)
-            ->select([
-                $db->quoteName('c.id'),
-                $db->quoteName('c.body'),
-                $db->quoteName('c.created'),
-                $db->quoteName('c.created_by'),
-                $db->quoteName('u.name', 'user_name'),
-            ])
+            ->select($sel)
             ->from($db->quoteName('#__ordenproduccion_payment_mismatch_ticket_comments', 'c'))
             ->leftJoin($db->quoteName('#__users', 'u') . ' ON u.id = c.created_by')
             ->where($db->quoteName('c.payment_proof_id') . ' = ' . (int) $proofId)
@@ -1067,7 +1113,17 @@ class PaymentsModel extends ListModel
 
         $db->setQuery($query);
 
-        return $db->loadObjectList() ?: [];
+        $rows = $db->loadObjectList() ?: [];
+        foreach ($rows as $row) {
+            if (!$this->hasMismatchTicketCommentSourceColumn()) {
+                $row->source = 'site';
+            } else {
+                $s = strtolower(trim((string) ($row->source ?? '')));
+                $row->source = ($s === 'telegram') ? 'telegram' : 'site';
+            }
+        }
+
+        return $rows;
     }
 
     /**
@@ -1097,15 +1153,22 @@ class PaymentsModel extends ListModel
         $date = Factory::getDate()->toSql();
         $uid  = (int) Factory::getUser()->id;
 
+        $columns = ['payment_proof_id', 'body', 'created', 'created_by'];
+        $values  = [
+            (int) $proofId,
+            $db->quote($body),
+            $db->quote($date),
+            (int) $uid,
+        ];
+        if ($this->hasMismatchTicketCommentSourceColumn()) {
+            $columns[] = 'source';
+            $values[]  = $db->quote('site');
+        }
+
         $query = $db->getQuery(true)
             ->insert($db->quoteName('#__ordenproduccion_payment_mismatch_ticket_comments'))
-            ->columns($db->quoteName(['payment_proof_id', 'body', 'created', 'created_by']))
-            ->values(
-                (int) $proofId . ',' .
-                $db->quote($body) . ',' .
-                $db->quote($date) . ',' .
-                (int) $uid
-            );
+            ->columns(array_map([$db, 'quoteName'], $columns))
+            ->values(implode(',', $values));
 
         $db->setQuery($query);
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.46-STABLE] - 2026-04-15
+
+### Added
+- **Mismatch ticket comment source:** Column `source` (`site` | `telegram`) on `#__ordenproduccion_payment_mismatch_ticket_comments` (migration `3.109.46.sql`). Web form saves `site`; Telegram webhook saves `telegram`. Modal shows **Telegram** lines on the left (white bubble, blue accent) and **Web** on the right (blue bubble), regardless of author.
+
+### Note
+- Comments created before this migration are stored as `site` by default; only new rows get `telegram` when ingested from the bot.
+
 ## [3.109.45-STABLE] - 2026-04-15
 
 ### Changed

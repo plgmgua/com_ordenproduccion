@@ -552,10 +552,10 @@ use Joomla\CMS\Session\Session;
     flex-direction: column;
     gap: 0.25rem;
 }
-.mismatch-ticket-comment-item.mismatch-ticket-comment--them { align-self: flex-start; }
-.mismatch-ticket-comment-item.mismatch-ticket-comment--me { align-self: flex-end; }
-.mismatch-ticket-comment-item.mismatch-ticket-comment--them .mismatch-ticket-comment-meta { text-align: left; padding-left: 0.2rem; }
-.mismatch-ticket-comment-item.mismatch-ticket-comment--me .mismatch-ticket-comment-meta { text-align: right; padding-right: 0.2rem; }
+.mismatch-ticket-comment-item.mismatch-ticket-comment--source-telegram { align-self: flex-start; }
+.mismatch-ticket-comment-item.mismatch-ticket-comment--source-site { align-self: flex-end; }
+.mismatch-ticket-comment-item.mismatch-ticket-comment--source-telegram .mismatch-ticket-comment-meta { text-align: left; padding-left: 0.2rem; }
+.mismatch-ticket-comment-item.mismatch-ticket-comment--source-site .mismatch-ticket-comment-meta { text-align: right; padding-right: 0.2rem; }
 .mismatch-ticket-comment-meta { color: #6c757d; font-size: 0.68rem; line-height: 1.25; }
 .mismatch-ticket-comment-bubble {
     position: relative;
@@ -565,14 +565,15 @@ use Joomla\CMS\Session\Session;
     word-break: break-word;
     font-size: 0.82rem;
 }
-.mismatch-ticket-comment--them .mismatch-ticket-comment-bubble {
+.mismatch-ticket-comment--source-telegram .mismatch-ticket-comment-bubble {
     background: #fff;
     color: #212529;
-    border: 1px solid rgba(0,0,0,0.07);
+    border: 1px solid rgba(34, 158, 217, 0.22);
+    border-left: 3px solid #229ed9;
     border-radius: 18px 18px 18px 6px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 3px 10px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 3px 10px rgba(34, 158, 217, 0.08);
 }
-.mismatch-ticket-comment--them .mismatch-ticket-comment-bubble::before {
+.mismatch-ticket-comment--source-telegram .mismatch-ticket-comment-bubble::before {
     content: '';
     position: absolute;
     top: 14px;
@@ -582,16 +583,16 @@ use Joomla\CMS\Session\Session;
     border-style: solid;
     border-width: 5px 8px 5px 0;
     border-color: transparent #fff transparent transparent;
-    filter: drop-shadow(-1px 1px 0 rgba(0,0,0,0.04));
+    filter: drop-shadow(-1px 1px 0 rgba(34, 158, 217, 0.12));
 }
-.mismatch-ticket-comment--me .mismatch-ticket-comment-bubble {
+.mismatch-ticket-comment--source-site .mismatch-ticket-comment-bubble {
     background: linear-gradient(165deg, #2aabee 0%, #229ed9 100%);
     color: #fff;
     border: none;
     border-radius: 18px 18px 6px 18px;
     box-shadow: 0 2px 4px rgba(34, 158, 217, 0.25), 0 4px 14px rgba(34, 158, 217, 0.2);
 }
-.mismatch-ticket-comment--me .mismatch-ticket-comment-bubble::before {
+.mismatch-ticket-comment--source-site .mismatch-ticket-comment-bubble::before {
     content: '';
     position: absolute;
     top: 14px;
@@ -728,8 +729,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function renderMismatchComments(comments, currentUserId) {
-        var uid = typeof currentUserId === 'number' ? currentUserId : parseInt(String(currentUserId || 0), 10) || 0;
+    var mismatchSrcLabelTelegram = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_SOURCE_TELEGRAM')); ?>;
+    var mismatchSrcLabelSite = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_SOURCE_SITE')); ?>;
+
+    function renderMismatchComments(comments) {
         var box = document.getElementById('mismatchTicketComments');
         box.innerHTML = '';
         if (!comments || comments.length === 0) {
@@ -740,13 +743,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         comments.forEach(function(c) {
-            var authorId = parseInt(String(c.created_by || 0), 10) || 0;
-            var isMe = uid > 0 && authorId === uid;
+            var src = ((c.source || 'site') + '').toLowerCase() === 'telegram' ? 'telegram' : 'site';
             var div = document.createElement('div');
-            div.className = 'mismatch-ticket-comment-item ' + (isMe ? 'mismatch-ticket-comment--me' : 'mismatch-ticket-comment--them');
+            div.className = 'mismatch-ticket-comment-item mismatch-ticket-comment--source-' + src;
             var meta = document.createElement('div');
             meta.className = 'mismatch-ticket-comment-meta';
-            meta.textContent = (c.user_name || '') + ' · ' + (c.created ? new Date(c.created).toLocaleString() : '');
+            var when = c.created ? new Date(c.created).toLocaleString() : '';
+            var srcLbl = src === 'telegram' ? mismatchSrcLabelTelegram : mismatchSrcLabelSite;
+            meta.textContent = [c.user_name || '', when, srcLbl].filter(Boolean).join(' · ');
             var bubble = document.createElement('div');
             bubble.className = 'mismatch-ticket-comment-bubble text-break';
             bubble.innerHTML = escapeMismatchHtml(c.body || '').replace(/\n/g, '<br>');
@@ -813,7 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btnS.disabled = !d.comments_enabled;
             ta.value = '';
 
-            renderMismatchComments(d.comments, d.current_user_id);
+            renderMismatchComments(d.comments);
         }).catch(function() {
             document.getElementById('mismatchTicketLoading').classList.add('d-none');
             var er = document.getElementById('mismatchTicketError');

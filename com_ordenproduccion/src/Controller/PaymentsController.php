@@ -554,12 +554,14 @@ class PaymentsController extends BaseController
             $commentsRaw = $model->getMismatchTicketComments($proofId);
             $comments    = [];
             foreach ($commentsRaw as $c) {
+                $src = strtolower(trim((string) ($c->source ?? 'site')));
                 $comments[] = [
                     'id'         => (int) ($c->id ?? 0),
                     'body'       => (string) ($c->body ?? ''),
                     'created'    => (string) ($c->created ?? ''),
                     'created_by' => (int) ($c->created_by ?? 0),
                     'user_name'  => (string) ($c->user_name ?? ''),
+                    'source'     => ($src === 'telegram') ? 'telegram' : 'site',
                 ];
             }
 
