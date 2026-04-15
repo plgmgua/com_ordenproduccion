@@ -15,6 +15,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramApiHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramMismatchAnchorHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramWebhookLogHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -74,10 +75,22 @@ class TelegramController extends BaseController
      */
     public function webhook(): void
     {
-        $app = Factory::getApplication();
-
+        $app    = Factory::getApplication();
         $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : 'GET';
+        $logIp  = TelegramWebhookLogHelper::clientIp();
+        $logUa  = TelegramWebhookLogHelper::clientUserAgent();
+
         if ($method !== 'POST') {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => $method,
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => 0,
+                'secret_header_present'   => false,
+                'secret_valid'            => false,
+                'http_status'             => 405,
+                'outcome'                 => 'method_not_allowed',
+            ]);
             $this->emitPlainResponse(
                 405,
                 "Method Not Allowed\n\nThis URL accepts HTTP POST only (Telegram sends JSON updates). A browser uses GET, so you see this message — that is expected."
@@ -86,11 +99,67 @@ class TelegramController extends BaseController
             return;
         }
 
+        $raw     = (string) file_get_contents('php://input');
+        $bodyLen = \strlen($raw);
+
         $params   = ComponentHelper::getParams('com_ordenproduccion');
         $expected = trim((string) $params->get('telegram_webhook_secret', ''));
         $hdr      = self::readTelegramWebhookSecretHeader();
+        $hdrOk    = $hdr !== '';
 
-        if ($expected === '' || $hdr === '' || !\hash_equals($expected, $hdr)) {
+        if ($expected === '') {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => $hdrOk,
+                'secret_valid'            => false,
+                'http_status'             => 403,
+                'outcome'                 => 'forbidden_joomla_secret_empty',
+            ]);
+            $this->emitPlainResponse(
+                403,
+                "Forbidden\n\n" .
+                'Send HTTP header X-Telegram-Bot-Api-Secret-Token with the exact value saved in ' .
+                "component options (Telegram webhook secret) and in Telegram setWebhook secret_token."
+            );
+
+            return;
+        }
+
+        if ($hdr === '') {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => false,
+                'secret_valid'            => false,
+                'http_status'             => 403,
+                'outcome'                 => 'forbidden_header_missing',
+            ]);
+            $this->emitPlainResponse(
+                403,
+                "Forbidden\n\n" .
+                'Send HTTP header X-Telegram-Bot-Api-Secret-Token with the exact value saved in ' .
+                "component options (Telegram webhook secret) and in Telegram setWebhook secret_token."
+            );
+
+            return;
+        }
+
+        if (!\hash_equals($expected, $hdr)) {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => false,
+                'http_status'             => 403,
+                'outcome'                 => 'forbidden_secret_mismatch',
+            ]);
             $this->emitPlainResponse(
                 403,
                 "Forbidden\n\n" .
@@ -102,20 +171,41 @@ class TelegramController extends BaseController
         }
 
         // Update object: https://core.telegram.org/bots/api#update — tolerate empty body, invalid JSON, or types we do not handle.
-        $raw  = (string) file_get_contents('php://input');
         $data = json_decode($raw !== '' ? $raw : '[]', true);
         if (!\is_array($data)) {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_invalid_json',
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
         }
+
+        $updateId = isset($data['update_id']) ? (int) $data['update_id'] : 0;
 
         $msg = $data['message'] ?? null;
         if (!\is_array($msg)) {
             $msg = $data['edited_message'] ?? null;
         }
         if (!\is_array($msg)) {
-            // callback_query, channel_post, my_chat_member, etc. — acknowledge without error.
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_ignored_no_message',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
@@ -123,6 +213,17 @@ class TelegramController extends BaseController
 
         $text = isset($msg['text']) ? trim((string) $msg['text']) : '';
         if ($text === '') {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_ignored_empty_text',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
@@ -142,6 +243,19 @@ class TelegramController extends BaseController
             if ($token !== '' && $chatId !== '' && TelegramNotificationHelper::normalizeTelegramChatId($chatId) !== null) {
                 TelegramApiHelper::sendMessage($token, $chatId, $hint);
             }
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_hinted_not_reply_to_anchor',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+                'chat_id'                 => $chatId !== '' ? $chatId : null,
+                'text_preview'            => $text,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
@@ -150,6 +264,19 @@ class TelegramController extends BaseController
         $replyMid = (int) $replyTo['message_id'];
         $proofId  = TelegramMismatchAnchorHelper::findPaymentProofIdByReply($chatId, $replyMid);
         if ($proofId < 1) {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_ignored_no_anchor_match',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+                'chat_id'                 => $chatId !== '' ? $chatId : null,
+                'text_preview'            => $text,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
@@ -157,6 +284,19 @@ class TelegramController extends BaseController
 
         $joomlaUserId = TelegramNotificationHelper::getUserIdForChatId($chatId);
         if ($joomlaUserId === null || $joomlaUserId < 1) {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_ignored_chat_not_linked',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+                'chat_id'                 => $chatId !== '' ? $chatId : null,
+                'text_preview'            => $text,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
@@ -166,12 +306,38 @@ class TelegramController extends BaseController
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
                 ->createModel('Payments', 'Site', ['ignore_request' => true]);
         } catch (\Throwable $e) {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_ignored_model_boot_failed',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+                'chat_id'                 => $chatId !== '' ? $chatId : null,
+                'text_preview'            => $text,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
         }
 
         if ($model === null || !\method_exists($model, 'addMismatchTicketCommentAsUser')) {
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_ignored_model_missing',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+                'chat_id'                 => $chatId !== '' ? $chatId : null,
+                'text_preview'            => $text,
+            ]);
             $this->emitPlainResponse(200, 'OK');
 
             return;
@@ -183,8 +349,37 @@ class TelegramController extends BaseController
             if ($token !== '' && $chatId !== '' && $err !== '') {
                 TelegramApiHelper::sendMessage($token, $chatId, $err);
             }
+            TelegramWebhookLogHelper::record([
+                'http_method'             => 'POST',
+                'ip'                      => $logIp,
+                'user_agent'              => $logUa,
+                'body_length'             => $bodyLen,
+                'secret_header_present'   => true,
+                'secret_valid'            => true,
+                'http_status'             => 200,
+                'outcome'                 => 'ok_comment_save_failed',
+                'update_id'               => $updateId > 0 ? $updateId : null,
+                'chat_id'                 => $chatId !== '' ? $chatId : null,
+                'text_preview'            => $text,
+            ]);
+            $this->emitPlainResponse(200, 'OK');
+
+            return;
         }
 
+        TelegramWebhookLogHelper::record([
+            'http_method'             => 'POST',
+            'ip'                      => $logIp,
+            'user_agent'              => $logUa,
+            'body_length'             => $bodyLen,
+            'secret_header_present'   => true,
+            'secret_valid'            => true,
+            'http_status'             => 200,
+            'outcome'                 => 'ok_comment_saved',
+            'update_id'               => $updateId > 0 ? $updateId : null,
+            'chat_id'                 => $chatId !== '' ? $chatId : null,
+            'text_preview'            => $text,
+        ]);
         $this->emitPlainResponse(200, 'OK');
     }
 

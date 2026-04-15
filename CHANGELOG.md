@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.41-STABLE] - 2026-04-15
+
+### Added
+- **Telegram webhook diagnostics:** Each inbound request to `task=webhook` is logged to `#__ordenproduccion_telegram_webhook_log` (metadata and short text preview only; no full JSON or secrets). **Grimpsabot** has a new **Webhook log** tab with paginated history for administrators.
+
 ## [3.109.32-STABLE] - 2026-04-15
 
 ### Fixed

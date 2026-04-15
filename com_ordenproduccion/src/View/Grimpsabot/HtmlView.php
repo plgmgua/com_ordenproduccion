@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramWebhookLogHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -117,6 +118,46 @@ class HtmlView extends BaseHtmlView
     protected $telegramQueueSentTotalPages = 0;
 
     /**
+     * Webhook log table present (admin).
+     *
+     * @var    bool
+     * @since  3.109.41
+     */
+    protected $telegramWebhookLogTableOk = false;
+
+    /**
+     * Total webhook log rows (admin).
+     *
+     * @var    int
+     * @since  3.109.41
+     */
+    protected $telegramWebhookLogTotal = 0;
+
+    /**
+     * Webhook log total pages (admin).
+     *
+     * @var    int
+     * @since  3.109.41
+     */
+    protected $telegramWebhookLogTotalPages = 0;
+
+    /**
+     * Current webhook log page (1-based, admin).
+     *
+     * @var    int
+     * @since  3.109.41
+     */
+    protected $telegramWebhookLogPage = 1;
+
+    /**
+     * Webhook log rows for current page (admin).
+     *
+     * @var    array<int, object>
+     * @since  3.109.41
+     */
+    protected $telegramWebhookLogRows = [];
+
+    /**
      * @param   string|null  $tpl  Template name
      *
      * @return  void
@@ -191,6 +232,19 @@ class HtmlView extends BaseHtmlView
 
             $this->telegramQueuePending = TelegramQueueHelper::getPendingQueueItemsForDisplay($db, $pageSz, $pendingStart);
             $this->telegramQueueSent    = TelegramQueueHelper::getSentLogItemsForDisplay($db, $pageSz, $sentStart);
+
+            $wlpSz = TelegramWebhookLogHelper::LOG_PAGE_SIZE;
+            $this->telegramWebhookLogTableOk   = TelegramWebhookLogHelper::tableExists($db);
+            $this->telegramWebhookLogTotal     = TelegramWebhookLogHelper::countRows($db);
+            $this->telegramWebhookLogTotalPages = $this->telegramWebhookLogTotal > 0
+                ? (int) \ceil($this->telegramWebhookLogTotal / $wlpSz)
+                : 0;
+            $this->telegramWebhookLogPage = \max(1, (int) $input->getInt('tg_wlp', 1));
+            if ($this->telegramWebhookLogTotalPages > 0 && $this->telegramWebhookLogPage > $this->telegramWebhookLogTotalPages) {
+                $this->telegramWebhookLogPage = $this->telegramWebhookLogTotalPages;
+            }
+            $wlpStart = ($this->telegramWebhookLogPage - 1) * $wlpSz;
+            $this->telegramWebhookLogRows = TelegramWebhookLogHelper::getRowsForDisplay($db, $wlpSz, $wlpStart);
         }
 
         $debugJson = $app->getUserState('com_ordenproduccion.grimpsabot_setwebhook_debug');

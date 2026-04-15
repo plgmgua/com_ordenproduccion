@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramWebhookLogHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -38,8 +39,12 @@ $truncateQueueBody = static function (string $text, int $max = 200): string {
     return substr($text, 0, $max) . '…';
 };
 
-$queueUrl = static function (int $tgQp, int $tgQs): string {
-    return Route::_('index.php?option=com_ordenproduccion&view=grimpsabot&tg_qp=' . $tgQp . '&tg_qs=' . $tgQs, false) . '#grimpsabot-pane-queue';
+$queueUrl = static function (int $tgQp, int $tgQs, int $tgWlp): string {
+    return Route::_('index.php?option=com_ordenproduccion&view=grimpsabot&tg_qp=' . $tgQp . '&tg_qs=' . $tgQs . '&tg_wlp=' . $tgWlp, false) . '#grimpsabot-pane-queue';
+};
+
+$webhookLogUrl = static function (int $tgQp, int $tgQs, int $tgWlp): string {
+    return Route::_('index.php?option=com_ordenproduccion&view=grimpsabot&tg_qp=' . $tgQp . '&tg_qs=' . $tgQs . '&tg_wlp=' . $tgWlp, false) . '#grimpsabot-pane-webhook-log';
 };
 
 $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
@@ -77,6 +82,11 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                         <li class="nav-item" role="presentation">
                             <a class="nav-link" id="grimpsabot-tab-webhook" href="#grimpsabot-pane-webhook" role="tab" aria-controls="grimpsabot-pane-webhook" aria-selected="false">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_WEBHOOK'); ?>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="grimpsabot-tab-webhook-log" href="#grimpsabot-pane-webhook-log" role="tab" aria-controls="grimpsabot-pane-webhook-log" aria-selected="false">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_WEBHOOK_LOG'); ?>
                             </a>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -160,6 +170,103 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                             <span class="small text-muted d-block mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_SET_BTN_HINT'); ?></span>
                             <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_BOT_INFO_BTN_HELP'); ?></p>
                         </div>
+                        <div class="tab-pane fade" id="grimpsabot-pane-webhook-log" role="tabpanel" aria-labelledby="grimpsabot-tab-webhook-log" tabindex="0">
+                            <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_INTRO'); ?></p>
+                            <?php if (empty($this->telegramWebhookLogTableOk)) : ?>
+                                <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_TABLE_MISSING'); ?></div>
+                            <?php elseif ((int) $this->telegramWebhookLogTotal === 0) : ?>
+                                <p class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_EMPTY'); ?></p>
+                            <?php else : ?>
+                                <p class="small text-muted mb-2">
+                                    <span class="badge bg-secondary"><?php echo (int) $this->telegramWebhookLogTotal; ?></span>
+                                    <?php echo Text::sprintf('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_PER_PAGE', (int) TelegramWebhookLogHelper::LOG_PAGE_SIZE); ?>
+                                </p>
+                                <div class="table-responsive mb-3">
+                                    <table class="table table-sm table-striped table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_CREATED'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_IP'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_METHOD'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_BODY_LEN'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_HDR'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_HDR_VALID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_STATUS'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_OUTCOME'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_UPDATE_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_CHAT_ID'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_PREVIEW'); ?></th>
+                                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_LOG_COL_UA'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($this->telegramWebhookLogRows as $wrow) : ?>
+                                                <?php
+                                                $hdrOn = !empty($wrow->secret_header_present);
+                                                $hdrOk = !empty($wrow->secret_valid);
+                                                ?>
+                                                <tr>
+                                                    <td><?php echo (int) ($wrow->id ?? 0); ?></td>
+                                                    <td class="small"><?php echo $this->escape((string) ($wrow->created ?? '')); ?></td>
+                                                    <td class="small"><code><?php echo $this->escape((string) ($wrow->ip ?? '')); ?></code></td>
+                                                    <td><code class="small"><?php echo $this->escape((string) ($wrow->http_method ?? '')); ?></code></td>
+                                                    <td><?php echo (int) ($wrow->body_length ?? 0); ?></td>
+                                                    <td><?php echo $hdrOn ? Text::_('JYES') : Text::_('JNO'); ?></td>
+                                                    <td><?php echo $hdrOk ? Text::_('JYES') : Text::_('JNO'); ?></td>
+                                                    <td><?php echo (int) ($wrow->http_status ?? 0); ?></td>
+                                                    <td class="small font-monospace text-break"><?php echo $this->escape((string) ($wrow->outcome ?? '')); ?></td>
+                                                    <td><?php echo isset($wrow->update_id) ? (int) $wrow->update_id : ''; ?></td>
+                                                    <td><code class="small"><?php echo $this->escape((string) ($wrow->chat_id ?? '')); ?></code></td>
+                                                    <td class="small text-break"><?php echo $this->escape($truncateQueueBody((string) ($wrow->text_preview ?? ''), 120)); ?></td>
+                                                    <td class="small text-break"><span title="<?php echo $this->escape((string) ($wrow->user_agent ?? '')); ?>"><?php echo $this->escape($truncateQueueBody((string) ($wrow->user_agent ?? ''), 48)); ?></span></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <?php if ((int) $this->telegramWebhookLogTotalPages > 1) : ?>
+                                    <nav class="mb-0" aria-label="<?php echo $this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_TAB_WEBHOOK_LOG')); ?>">
+                                        <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
+                                            <li class="page-item<?php echo (int) $this->telegramWebhookLogPage <= 1 ? ' disabled' : ''; ?>">
+                                                <?php if ((int) $this->telegramWebhookLogPage > 1) : ?>
+                                                    <a class="page-link" href="<?php echo $webhookLogUrl((int) $this->telegramQueuePendingPage, (int) $this->telegramQueueSentPage, (int) $this->telegramWebhookLogPage - 1); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
+                                                <?php else : ?>
+                                                    <span class="page-link"><?php echo Text::_('JPREVIOUS'); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                            <?php
+                                            $wEnd = (int) $this->telegramWebhookLogTotalPages;
+                                            $wCur = (int) $this->telegramWebhookLogPage;
+                                            if ($wEnd <= 15) :
+                                                for ($w = 1; $w <= $wEnd; $w++) :
+                                                    $wActive = $w === $wCur;
+                                                    ?>
+                                                    <li class="page-item<?php echo $wActive ? ' active' : ''; ?>">
+                                                        <?php if (!$wActive) : ?>
+                                                            <a class="page-link" href="<?php echo $webhookLogUrl((int) $this->telegramQueuePendingPage, (int) $this->telegramQueueSentPage, $w); ?>"><?php echo $w; ?></a>
+                                                        <?php else : ?>
+                                                            <span class="page-link"><?php echo $w; ?></span>
+                                                        <?php endif; ?>
+                                                    </li>
+                                                <?php
+                                                endfor;
+                                            else :
+                                                ?>
+                                                <li class="page-item disabled"><span class="page-link"><?php echo Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_PAGE_OF', $wCur, $wEnd); ?></span></li>
+                                            <?php endif; ?>
+                                            <li class="page-item<?php echo $wCur >= $wEnd ? ' disabled' : ''; ?>">
+                                                <?php if ($wCur < $wEnd) : ?>
+                                                    <a class="page-link" href="<?php echo $webhookLogUrl((int) $this->telegramQueuePendingPage, (int) $this->telegramQueueSentPage, $wCur + 1); ?>"><?php echo Text::_('JNEXT'); ?></a>
+                                                <?php else : ?>
+                                                    <span class="page-link"><?php echo Text::_('JNEXT'); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                         <div class="tab-pane fade" id="grimpsabot-pane-queue" role="tabpanel" aria-labelledby="grimpsabot-tab-queue" tabindex="0">
                             <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_QUEUE_INTRO'); ?></p>
                             <?php if (empty($this->telegramQueueTableOk)) : ?>
@@ -209,7 +316,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                         <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
                                             <li class="page-item<?php echo (int) $this->telegramQueuePendingPage <= 1 ? ' disabled' : ''; ?>">
                                                 <?php if ((int) $this->telegramQueuePendingPage > 1) : ?>
-                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage - 1, (int) $this->telegramQueueSentPage); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
+                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage - 1, (int) $this->telegramQueueSentPage, (int) $this->telegramWebhookLogPage); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
                                                 <?php else : ?>
                                                     <span class="page-link"><?php echo Text::_('JPREVIOUS'); ?></span>
                                                 <?php endif; ?>
@@ -223,7 +330,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                                     ?>
                                                     <li class="page-item<?php echo $isActive ? ' active' : ''; ?>">
                                                         <?php if (!$isActive) : ?>
-                                                            <a class="page-link" href="<?php echo $queueUrl($p, (int) $this->telegramQueueSentPage); ?>"><?php echo $p; ?></a>
+                                                            <a class="page-link" href="<?php echo $queueUrl($p, (int) $this->telegramQueueSentPage, (int) $this->telegramWebhookLogPage); ?>"><?php echo $p; ?></a>
                                                         <?php else : ?>
                                                             <span class="page-link"><?php echo $p; ?></span>
                                                         <?php endif; ?>
@@ -236,7 +343,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                             <?php endif; ?>
                                             <li class="page-item<?php echo $pCur >= $pEnd ? ' disabled' : ''; ?>">
                                                 <?php if ($pCur < $pEnd) : ?>
-                                                    <a class="page-link" href="<?php echo $queueUrl($pCur + 1, (int) $this->telegramQueueSentPage); ?>"><?php echo Text::_('JNEXT'); ?></a>
+                                                    <a class="page-link" href="<?php echo $queueUrl($pCur + 1, (int) $this->telegramQueueSentPage, (int) $this->telegramWebhookLogPage); ?>"><?php echo Text::_('JNEXT'); ?></a>
                                                 <?php else : ?>
                                                     <span class="page-link"><?php echo Text::_('JNEXT'); ?></span>
                                                 <?php endif; ?>
@@ -290,7 +397,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                         <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
                                             <li class="page-item<?php echo (int) $this->telegramQueueSentPage <= 1 ? ' disabled' : ''; ?>">
                                                 <?php if ((int) $this->telegramQueueSentPage > 1) : ?>
-                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, (int) $this->telegramQueueSentPage - 1); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
+                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, (int) $this->telegramQueueSentPage - 1, (int) $this->telegramWebhookLogPage); ?>"><?php echo Text::_('JPREVIOUS'); ?></a>
                                                 <?php else : ?>
                                                     <span class="page-link"><?php echo Text::_('JPREVIOUS'); ?></span>
                                                 <?php endif; ?>
@@ -304,7 +411,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                                     ?>
                                                     <li class="page-item<?php echo $sActive ? ' active' : ''; ?>">
                                                         <?php if (!$sActive) : ?>
-                                                            <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, $s); ?>"><?php echo $s; ?></a>
+                                                            <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, $s, (int) $this->telegramWebhookLogPage); ?>"><?php echo $s; ?></a>
                                                         <?php else : ?>
                                                             <span class="page-link"><?php echo $s; ?></span>
                                                         <?php endif; ?>
@@ -317,7 +424,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                                             <?php endif; ?>
                                             <li class="page-item<?php echo $sCur >= $sEnd ? ' disabled' : ''; ?>">
                                                 <?php if ($sCur < $sEnd) : ?>
-                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, $sCur + 1); ?>"><?php echo Text::_('JNEXT'); ?></a>
+                                                    <a class="page-link" href="<?php echo $queueUrl((int) $this->telegramQueuePendingPage, $sCur + 1, (int) $this->telegramWebhookLogPage); ?>"><?php echo Text::_('JNEXT'); ?></a>
                                                 <?php else : ?>
                                                     <span class="page-link"><?php echo Text::_('JNEXT'); ?></span>
                                                 <?php endif; ?>
