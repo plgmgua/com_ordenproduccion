@@ -564,20 +564,21 @@ class PaymentsController extends BaseController
             }
 
             return [
-                'error'            => false,
-                'proof_id'         => $proofId,
-                'payment_label'    => 'PA-' . str_pad((string) $proofId, 6, '0', STR_PAD_LEFT),
-                'status'           => $status,
-                'status_label'     => $this->translateMismatchTicketStatus($status),
-                'status_options'   => $this->getMismatchTicketStatusOptionsForJson(),
-                'initial_note'     => (string) ($ctx->mismatch_note ?? ''),
-                'difference'       => (string) ($ctx->mismatch_difference ?? ''),
-                'payment_amount'   => (float) ($ctx->payment_amount ?? 0),
-                'created_by_name'  => (string) ($ctx->created_by_name ?? ''),
-                'comments'         => $comments,
-                'comments_enabled'   => $model->hasMismatchTicketCommentsTable(),
-                'status_enabled'     => $model->hasMismatchTicketStatusColumn(),
-                'can_change_status'  => AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser(),
+                'error'               => false,
+                'proof_id'            => $proofId,
+                'payment_label'       => 'PA-' . str_pad((string) $proofId, 6, '0', STR_PAD_LEFT),
+                'status'              => $status,
+                'status_label'        => $this->translateMismatchTicketStatus($status),
+                'status_options'      => $this->getMismatchTicketStatusOptionsForJson(),
+                'initial_note'        => (string) ($ctx->mismatch_note ?? ''),
+                'difference'          => (string) ($ctx->mismatch_difference ?? ''),
+                'payment_amount'      => (float) ($ctx->payment_amount ?? 0),
+                'created_by_name'     => (string) ($ctx->created_by_name ?? ''),
+                'comments'            => $comments,
+                'comments_enabled'    => $model->hasMismatchTicketCommentsTable(),
+                'status_enabled'      => $model->hasMismatchTicketStatusColumn(),
+                'can_change_status'   => AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser(),
+                'current_user_id'     => (int) Factory::getUser()->id,
             ];
         }, true);
     }
