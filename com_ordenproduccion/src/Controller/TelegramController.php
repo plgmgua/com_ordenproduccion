@@ -41,19 +41,17 @@ class TelegramController extends BaseController
         $expected = trim((string) $params->get('telegram_queue_cron_key', ''));
 
         if ($expected === '' || $key === '' || !\hash_equals($expected, $key)) {
-            $app->setHeader('Status', '403', true);
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'Forbidden';
-            $app->close();
+            $this->emitPlainResponse(
+                403,
+                "Forbidden\n\nUse GET with query cron_key matching the component option «Telegram queue cron key»."
+            );
 
             return;
         }
 
         $sent = TelegramQueueHelper::processBatch(100);
 
-        $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-        echo 'OK ' . (int) $sent;
-        $app->close();
+        $this->emitPlainResponse(200, 'OK ' . (int) $sent);
     }
 
     /**
@@ -71,10 +69,10 @@ class TelegramController extends BaseController
 
         $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : 'GET';
         if ($method !== 'POST') {
-            $app->setHeader('Status', '405', true);
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo "Method Not Allowed\n\nThis URL accepts HTTP POST only (Telegram sends JSON updates). A browser uses GET, so you see this message — that is expected.";
-            $app->close();
+            $this->emitPlainResponse(
+                405,
+                "Method Not Allowed\n\nThis URL accepts HTTP POST only (Telegram sends JSON updates). A browser uses GET, so you see this message — that is expected."
+            );
 
             return;
         }
@@ -86,10 +84,12 @@ class TelegramController extends BaseController
             : '';
 
         if ($expected === '' || $hdr === '' || !\hash_equals($expected, $hdr)) {
-            $app->setHeader('Status', '403', true);
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'Forbidden';
-            $app->close();
+            $this->emitPlainResponse(
+                403,
+                "Forbidden\n\n" .
+                'Send HTTP header X-Telegram-Bot-Api-Secret-Token with the exact value saved in ' .
+                "component options (Telegram webhook secret) and in Telegram setWebhook secret_token."
+            );
 
             return;
         }
@@ -97,9 +97,7 @@ class TelegramController extends BaseController
         $raw  = (string) file_get_contents('php://input');
         $data = json_decode($raw !== '' ? $raw : '[]', true);
         if (!\is_array($data)) {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
@@ -109,18 +107,14 @@ class TelegramController extends BaseController
             $msg = $data['edited_message'] ?? null;
         }
         if (!\is_array($msg)) {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
 
         $text = isset($msg['text']) ? trim((string) $msg['text']) : '';
         if ($text === '') {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
@@ -139,9 +133,7 @@ class TelegramController extends BaseController
             if ($token !== '' && $chatId !== '' && TelegramNotificationHelper::normalizeTelegramChatId($chatId) !== null) {
                 TelegramApiHelper::sendMessage($token, $chatId, $hint);
             }
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
@@ -149,18 +141,14 @@ class TelegramController extends BaseController
         $replyMid = (int) $replyTo['message_id'];
         $proofId  = TelegramMismatchAnchorHelper::findPaymentProofIdByReply($chatId, $replyMid);
         if ($proofId < 1) {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
 
         $joomlaUserId = TelegramNotificationHelper::getUserIdForChatId($chatId);
         if ($joomlaUserId === null || $joomlaUserId < 1) {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
@@ -169,17 +157,13 @@ class TelegramController extends BaseController
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
                 ->createModel('Payments', 'Site', ['ignore_request' => true]);
         } catch (\Throwable $e) {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
 
         if ($model === null || !\method_exists($model, 'addMismatchTicketCommentAsUser')) {
-            $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-            echo 'OK';
-            $app->close();
+            $this->emitPlainResponse(200, 'OK');
 
             return;
         }
@@ -192,8 +176,30 @@ class TelegramController extends BaseController
             }
         }
 
+        $this->emitPlainResponse(200, 'OK');
+    }
+
+    /**
+     * Plain text response with an explicit PHP HTTP status code.
+     *
+     * Joomla's {@see \Joomla\CMS\Application\CMSApplication::setHeader()} with `Status` alone does not always
+     * set the real response code seen by clients (e.g. Postman shows 200 while the body says Forbidden).
+     *
+     * @param   int     $status  HTTP status (e.g. 200, 403, 405)
+     * @param   string  $body    UTF-8 body
+     *
+     * @return  void
+     *
+     * @since   3.109.36
+     */
+    private function emitPlainResponse(int $status, string $body): void
+    {
+        $app = Factory::getApplication();
+        if (!\headers_sent()) {
+            \http_response_code($status);
+        }
         $app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
-        echo 'OK';
+        echo $body;
         $app->close();
     }
 }
