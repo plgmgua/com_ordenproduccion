@@ -23,6 +23,108 @@ use Joomla\CMS\Log\Log;
 class TelegramApiHelper
 {
     /**
+     * Configure Telegram webhook for this bot.
+     *
+     * @param   string  $botToken      Bot token from @BotFather
+     * @param   string  $webhookUrl    Public HTTPS URL that receives POST updates
+     * @param   string  $secretToken   Optional secret token (sent as X-Telegram-Bot-Api-Secret-Token header)
+     *
+     * @return  array{ok:bool,description?:string,error?:string,http_code?:int,result?:array}
+     *
+     * @since   3.109.24
+     */
+    public static function setWebhook(string $botToken, string $webhookUrl, string $secretToken = ''): array
+    {
+        $botToken    = trim($botToken);
+        $webhookUrl  = trim($webhookUrl);
+        $secretToken = trim($secretToken);
+
+        if ($botToken === '' || $webhookUrl === '') {
+            return ['ok' => false, 'error' => 'empty'];
+        }
+
+        $url = 'https://api.telegram.org/bot' . $botToken . '/setWebhook';
+
+        $payload = ['url' => $webhookUrl];
+        if ($secretToken !== '') {
+            $payload['secret_token'] = $secretToken;
+        }
+
+        // Telegram expects x-www-form-urlencoded (same as sendMessage).
+        $postFields = http_build_query($payload, '', '&', PHP_QUERY_RFC1738);
+
+        $httpCode = 0;
+        $rawBody  = '';
+
+        if (\function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                \CURLOPT_POST           => true,
+                \CURLOPT_POSTFIELDS    => $postFields,
+                \CURLOPT_HTTPHEADER    => [
+                    'Content-Type: application/x-www-form-urlencoded; charset=UTF-8',
+                    'Accept: application/json',
+                ],
+                \CURLOPT_RETURNTRANSFER => true,
+                \CURLOPT_FOLLOWLOCATION => true,
+                \CURLOPT_CONNECTTIMEOUT => 12,
+                \CURLOPT_TIMEOUT       => 30,
+                \CURLOPT_SSL_VERIFYPEER => true,
+                \CURLOPT_SSL_VERIFYHOST => 2,
+            ]);
+            $rawBody = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
+            curl_close($ch);
+
+            if ($rawBody === false) {
+                try {
+                    Log::add('Telegram cURL error (setWebhook): ' . $curlErr, Log::WARNING, 'com_ordenproduccion');
+                } catch (\Throwable $e) {
+                }
+
+                return ['ok' => false, 'error' => $curlErr !== '' ? $curlErr : 'curl_exec failed', 'http_code' => $httpCode];
+            }
+        } elseif (\ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => "Content-Type: application/x-www-form-urlencoded\r\nConnection: close\r\n",
+                    'content' => $postFields,
+                    'timeout' => 30,
+                ],
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+            $rawBody = @file_get_contents($url, false, $ctx);
+            if (isset($http_response_header[0]) && \preg_match('#\s(\d{3})\s#', $http_response_header[0], $m)) {
+                $httpCode = (int) $m[1];
+            }
+            if ($rawBody === false) {
+                return ['ok' => false, 'error' => 'file_get_contents failed (check allow_url_fopen / SSL)'];
+            }
+        } else {
+            try {
+                $http     = HttpFactory::getHttp();
+                $response = $http->post($url, $payload);
+                $httpCode = (int) ($response->code ?? 0);
+                $rawBody  = (string) ($response->body ?? '');
+            } catch (\Throwable $e) {
+                try {
+                    Log::add('Telegram HttpFactory (setWebhook): ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+                } catch (\Throwable $e2) {
+                }
+
+                return ['ok' => false, 'error' => $e->getMessage()];
+            }
+        }
+
+        return self::interpretJsonResponse($rawBody, $httpCode);
+    }
+
+    /**
      * Send a plain-text message via Bot API.
      *
      * @param   string  $botToken  Bot token from @BotFather

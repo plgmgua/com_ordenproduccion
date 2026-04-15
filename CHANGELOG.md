@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.24-STABLE] - 2026-04-15
+
+### Added
+- **Admin Dashboard:** Button to call Telegram `setWebhook` using the configured bot token + webhook secret, so inbound replies can be received without manual API calls.
+
 ## [3.109.23-STABLE] - 2026-04-11
 
 ### Changed
