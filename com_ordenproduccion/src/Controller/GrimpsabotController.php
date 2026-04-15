@@ -382,12 +382,27 @@ class GrimpsabotController extends BaseController
             ];
         };
 
-        $this->stashTelegramBotInfoDebugPayload([
-            'phase'                         => 'getMe_getWebhookInfo',
+        $whResult        = \is_array($wh['result'] ?? null) ? $wh['result'] : [];
+        $lastWebhookErr  = trim((string) ($whResult['last_error_message'] ?? ''));
+        $pendingUpdates  = (int) ($whResult['pending_update_count'] ?? 0);
+        $sslDeliveryFail = $lastWebhookErr !== '' && stripos($lastWebhookErr, 'ssl') !== false;
+
+        $payload = [
+            'phase'                        => 'getMe_getWebhookInfo',
             'expected_joomla_webhook_url'  => $expectedUrl,
-            'getMe'                         => $normalize($me),
-            'getWebhookInfo'                => $normalize($wh),
-        ]);
+            'getMe'                        => $normalize($me),
+            'getWebhookInfo'               => $normalize($wh),
+        ];
+
+        if ($lastWebhookErr !== '' || $pendingUpdates > 0) {
+            $payload['webhook_delivery'] = [
+                'pending_update_count' => $pendingUpdates,
+                'last_error_message'   => $lastWebhookErr !== '' ? $lastWebhookErr : null,
+                'note'                 => 'If last_error_message is set, Telegram could not POST updates to your webhook URL. In-app replies from Telegram will not reach Joomla until delivery succeeds (often HTTPS / certificate).',
+            ];
+        }
+
+        $this->stashTelegramBotInfoDebugPayload($payload);
 
         if (empty($me['ok']) || empty($wh['ok'])) {
             $app->enqueueMessage(
@@ -397,6 +412,32 @@ class GrimpsabotController extends BaseController
                 ),
                 'warning'
             );
+        } elseif ($lastWebhookErr !== '') {
+            if ($sslDeliveryFail) {
+                $app->enqueueMessage(
+                    $this->translateOrPlain(
+                        'COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SSL_VERIFY_FAILED',
+                        'Telegram servers cannot verify the SSL certificate of your webhook URL. Fix TLS on the server, then check getWebhookInfo again.'
+                    ),
+                    'error'
+                );
+            } else {
+                $safeErr = htmlspecialchars($lastWebhookErr, ENT_QUOTES, 'UTF-8');
+                $app->enqueueMessage(
+                    Text::sprintf(
+                        'COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_DELIVERY_LAST_ERROR',
+                        $safeErr
+                    ),
+                    'error'
+                );
+            }
+
+            if ($pendingUpdates > 0) {
+                $app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_PENDING_UPDATES_COUNT', $pendingUpdates),
+                    'warning'
+                );
+            }
         } else {
             $app->enqueueMessage(
                 $this->translateOrPlain(
@@ -405,6 +446,13 @@ class GrimpsabotController extends BaseController
                 ),
                 'success'
             );
+
+            if ($pendingUpdates > 0) {
+                $app->enqueueMessage(
+                    Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_PENDING_UPDATES_COUNT', $pendingUpdates),
+                    'notice'
+                );
+            }
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
