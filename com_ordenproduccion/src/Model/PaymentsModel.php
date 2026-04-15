@@ -16,6 +16,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\User\UserFactoryInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
 /**
  * Payments model for com_ordenproduccion - lists payment proofs with filters
@@ -994,6 +995,11 @@ class PaymentsModel extends ListModel
             return false;
         }
 
+        try {
+            TelegramNotificationHelper::notifyMismatchTicketCommentAdded($proofId, $body, $createdByUserId);
+        } catch (\Throwable $e) {
+        }
+
         return true;
     }
 
@@ -1106,6 +1112,11 @@ class PaymentsModel extends ListModel
             $this->setError($e->getMessage());
 
             return false;
+        }
+
+        try {
+            TelegramNotificationHelper::notifyMismatchTicketCommentAdded($proofId, $body, $uid);
+        } catch (\Throwable $e) {
         }
 
         return true;

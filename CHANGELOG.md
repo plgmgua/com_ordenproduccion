@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.31-STABLE] - 2026-04-15
+
+### Fixed
+- **Mismatch ticket comments → Telegram queue:** Posting a comment on a payment-difference case (Payments UI or Telegram-linked user) only saved to the DB; nothing called `TelegramQueueHelper::enqueue`. New helper `TelegramNotificationHelper::notifyMismatchTicketCommentAdded` queues DMs for linked order owners with Telegram plus Administración/Admon users with Telegram, excluding the author (requires `telegram_enabled` and `telegram_mismatch_anchor_enabled`).
+
 ## [3.109.30-STABLE] - 2026-04-15
 
 ### Fixed

@@ -1672,6 +1672,119 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Recipients for mismatch-ticket **comment** DMs: linked order owners with Telegram (same as anchor list)
+     * plus Administración/Admon users with Telegram, excluding the author.
+     *
+     * @param   int  $proofId        Payment proof PK
+     * @param   int  $excludeUserId  Joomla user who wrote the comment (not notified)
+     *
+     * @return  int[]
+     *
+     * @since   3.109.31
+     */
+    public static function collectMismatchTicketTelegramNotifyUserIds(int $proofId, int $excludeUserId): array
+    {
+        $proofId        = (int) $proofId;
+        $excludeUserId  = (int) $excludeUserId;
+        if ($proofId < 1) {
+            return [];
+        }
+
+        $seen = [];
+        $out  = [];
+
+        foreach (self::collectMismatchAnchorRecipientUserIds($proofId) as $uid) {
+            $uid = (int) $uid;
+            if ($uid < 1 || $uid === $excludeUserId || isset($seen[$uid])) {
+                continue;
+            }
+            $seen[$uid] = true;
+            $out[]      = $uid;
+        }
+
+        foreach (AccessHelper::getAdministracionGroupUserIds() as $uid) {
+            $uid = (int) $uid;
+            if ($uid < 1 || $uid === $excludeUserId || isset($seen[$uid])) {
+                continue;
+            }
+            if (self::getChatIdForUser($uid) === null) {
+                continue;
+            }
+            $seen[$uid] = true;
+            $out[]      = $uid;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Queue Telegram DMs when someone posts a new mismatch-ticket comment (site UI or Telegram webhook).
+     *
+     * @param   int     $proofId           Payment proof PK
+     * @param   string  $body              Comment body (trimmed; may be truncated in DM)
+     * @param   int     $actorJoomlaUserId Author Joomla user id
+     *
+     * @return  void
+     *
+     * @since   3.109.31
+     */
+    public static function notifyMismatchTicketCommentAdded(int $proofId, string $body, int $actorJoomlaUserId): void
+    {
+        $proofId           = (int) $proofId;
+        $actorJoomlaUserId = (int) $actorJoomlaUserId;
+        if ($proofId < 1 || $actorJoomlaUserId < 1) {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+        if ((int) $params->get('telegram_mismatch_anchor_enabled', 1) !== 1) {
+            return;
+        }
+
+        $body = trim(strip_tags($body));
+        if ($body === '') {
+            return;
+        }
+
+        self::ensureTelegramLanguageLoaded();
+        $label = 'PA-' . str_pad((string) $proofId, 6, '0', STR_PAD_LEFT);
+
+        $authorName = '';
+        try {
+            $u = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($actorJoomlaUserId);
+            $authorName = trim((string) ($u->name ?? ''));
+        } catch (\Throwable $e) {
+        }
+        if ($authorName === '') {
+            $authorName = 'User ' . $actorJoomlaUserId;
+        }
+
+        $preview = trim((string) \preg_replace('/\s+/u', ' ', $body));
+        if (\function_exists('mb_strlen') && \mb_strlen($preview) > 450) {
+            $preview = \mb_substr($preview, 0, 447) . '...';
+        } elseif (\strlen($preview) > 450) {
+            $preview = \substr($preview, 0, 447) . '...';
+        }
+
+        $template = Text::_('COM_ORDENPRODUCCION_TELEGRAM_MISMATCH_NEW_COMMENT_DM');
+        if ($template === '' || strpos($template, 'COM_ORDENPRODUCCION_') === 0) {
+            $template = "Grimpsa — caso {proof_label}\n\n{author} escribió:\n\n{preview}";
+        }
+        $text = str_replace(['{proof_label}', '{author}', '{preview}'], [$label, $authorName, $preview], $template);
+
+        foreach (self::collectMismatchTicketTelegramNotifyUserIds($proofId, $actorJoomlaUserId) as $uid) {
+            $chatId = self::getChatIdForUser((int) $uid);
+            if ($chatId === null) {
+                continue;
+            }
+            TelegramQueueHelper::enqueue($chatId, $text);
+        }
+    }
+
+    /**
      * @param   string  $token  Bot token
      * @param   int     $userId Joomla user id
      * @param   string  $text   Message
