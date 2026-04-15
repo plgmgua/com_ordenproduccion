@@ -368,12 +368,20 @@ class GrimpsabotController extends BaseController
             return;
         }
 
+        if (!TelegramApiHelper::isValidWebhookSecretToken($secret)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_SECRET_TOKEN_RULE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+
+            return;
+        }
+
         $webhookUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&controller=telegram&task=webhook&format=raw';
         $res        = TelegramApiHelper::setWebhook($token, $webhookUrl, $secret);
 
         if (!empty($res['ok'])) {
             $app->enqueueMessage(
-                Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_OK', $webhookUrl),
+                Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_OK') . ' '
+                    . htmlspecialchars($webhookUrl, ENT_QUOTES, 'UTF-8'),
                 'success'
             );
         } else {
@@ -381,7 +389,16 @@ class GrimpsabotController extends BaseController
             if ($msg === '') {
                 $msg = 'setWebhook failed';
             }
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR', $msg), 'error');
+            $code = (int) ($res['http_code'] ?? 0);
+            if ($code > 0) {
+                $msg .= ' (HTTP ' . $code . ')';
+            }
+            // Do not pass Telegram text through Text::sprintf — it may contain "%" and break Joomla translation.
+            $app->enqueueMessage(
+                Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR') . ' '
+                    . htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'),
+                'error'
+            );
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . $returnHash);

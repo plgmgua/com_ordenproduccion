@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.27-STABLE] - 2026-04-15
+
+### Fixed
+- **Telegram setWebhook UI:** Error messages no longer use `Text::sprintf` with Telegram’s free-text response (a `%` in the API text could break translation and show the raw constant `COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR`). Details are appended as escaped plain text; HTTP status is included when useful.
+
+### Added
+- **Webhook secret validation:** Telegram only allows `secret_token` characters `A–Z`, `a–z`, `0–9`, `_`, `-` (1–256). Invalid secrets are rejected before calling the API with a clear language string.
+
 ## [3.109.26-STABLE] - 2026-04-15
 
 ### Added

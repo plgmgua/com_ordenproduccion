@@ -23,6 +23,25 @@ use Joomla\CMS\Log\Log;
 class TelegramApiHelper
 {
     /**
+     * Telegram setWebhook parameter secret_token: 1–256 characters; only A–Z, a–z, 0–9, underscore and hyphen.
+     *
+     * @param   string  $secret  Raw secret (trimmed inside)
+     *
+     * @return  bool
+     *
+     * @since   3.109.27
+     */
+    public static function isValidWebhookSecretToken(string $secret): bool
+    {
+        $secret = trim($secret);
+        if ($secret === '' || \strlen($secret) > 256) {
+            return false;
+        }
+
+        return (bool) \preg_match('/^[A-Za-z0-9_-]+$/', $secret);
+    }
+
+    /**
      * Configure Telegram webhook for this bot.
      *
      * @param   string  $botToken      Bot token from @BotFather
