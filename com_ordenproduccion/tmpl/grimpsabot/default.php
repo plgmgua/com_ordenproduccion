@@ -93,6 +93,13 @@ $webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenprod
                                     <?php echo $field->input; ?>
                                 </div>
                             <?php endforeach; ?>
+                            <div class="border rounded p-3 mb-3 bg-light">
+                                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_BOT_TAB_SETWEBHOOK_HELP'); ?></p>
+                                <button type="submit" form="grimpsabot-webhook-register" class="btn btn-warning btn-sm"
+                                    onclick="(function(){var h=document.getElementById('grimpsabot-webhook-return');if(h){h.value='bot';}return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_CONFIRM')); ?>);})();">
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_BTN'); ?>
+                                </button>
+                            </div>
                             <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_INVOICE'))); ?></p>
                             <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_ENVIO'))); ?></p>
                             <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_PAYMENT_PROOF_ENTERED'))); ?></p>
@@ -131,7 +138,7 @@ $webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenprod
                             <?php endforeach; ?>
                             <p class="small text-muted mb-2"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_REGISTER_HELP'))); ?></p>
                             <button type="submit" form="grimpsabot-webhook-register" class="btn btn-warning btn-sm"
-                                onclick="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_CONFIRM')); ?>); ?>">
+                                onclick="(function(){var h=document.getElementById('grimpsabot-webhook-return');if(h){h.value='webhook';}return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_CONFIRM')); ?>);})();">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_BTN'); ?>
                             </button>
                             <span class="small text-muted ms-2"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_SET_BTN_HINT'); ?></span>
@@ -312,6 +319,7 @@ $webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenprod
                 <form id="grimpsabot-webhook-register" action="<?php echo Route::_('index.php'); ?>" method="post" class="d-none" aria-hidden="true">
                     <input type="hidden" name="option" value="com_ordenproduccion" />
                     <input type="hidden" name="task" value="grimpsabot.setTelegramWebhook" />
+                    <input type="hidden" name="grimpsabot_webhook_return" id="grimpsabot-webhook-return" value="webhook" />
                     <?php echo HTMLHelper::_('form.token'); ?>
                 </form>
                 <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-3 border-top pt-3">

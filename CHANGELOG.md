@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.26-STABLE] - 2026-04-15
+
+### Added
+- **Bot Grimpsa:** On the Bot & messages tab, a second control runs the same Telegram `setWebhook` request using saved token and secret (with redirect back to the tab used).
+
 ## [3.109.25-STABLE] - 2026-04-15
 
 ### Changed

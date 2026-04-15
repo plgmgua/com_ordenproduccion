@@ -342,9 +342,11 @@ class GrimpsabotController extends BaseController
         }
         $app = Factory::getApplication();
 
+        $returnHash = $this->getGrimpsabotWebhookReturnHash();
+
         if (!$this->allowManageBotSettings()) {
             $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . $returnHash);
 
             return;
         }
@@ -355,7 +357,7 @@ class GrimpsabotController extends BaseController
 
         if ($token === '') {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_NO_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . $returnHash);
 
             return;
         }
@@ -382,7 +384,21 @@ class GrimpsabotController extends BaseController
             $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_WEBHOOK_SETUP_ERR', $msg), 'error');
         }
 
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . '#grimpsabot-pane-webhook');
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=grimpsabot', false) . $returnHash);
+    }
+
+    /**
+     * Tab hash after setWebhook redirect (POST grimpsabot_webhook_return: bot | webhook).
+     *
+     * @return  string
+     *
+     * @since   3.109.26
+     */
+    private function getGrimpsabotWebhookReturnHash(): string
+    {
+        $tab = $this->input->post->getWord('grimpsabot_webhook_return', 'webhook');
+
+        return $tab === 'bot' ? '#grimpsabot-pane-bot' : '#grimpsabot-pane-webhook';
     }
 
     /**
