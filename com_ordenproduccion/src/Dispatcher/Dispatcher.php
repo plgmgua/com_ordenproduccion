@@ -39,7 +39,9 @@ class Dispatcher extends ComponentDispatcher
         $controllerLower = strtolower($this->input->getCmd('controller', ''));
         // Telegram queue worker: public like webhooks; auth is cron_key (see TelegramController::processQueue).
         $isTelegramQueueCron = ($controllerLower === 'telegram' && $taskLower === 'processqueue');
-        if ($isTelegramQueueCron) {
+        // Telegram Bot API inbound updates: no Joomla session; auth is X-Telegram-Bot-Api-Secret-Token (see TelegramController::webhook).
+        $isTelegramBotWebhook = ($controllerLower === 'telegram' && $taskLower === 'webhook');
+        if ($isTelegramQueueCron || $isTelegramBotWebhook) {
             $this->input->set('format', 'raw');
             $this->input->set('tmpl', 'component');
         }
@@ -74,8 +76,9 @@ class Dispatcher extends ComponentDispatcher
         // Require login for all frontend component pages; redirect guests to Joomla login with return URL
         // Exception: webhook endpoints (test, process, health, pendingPrecotizaciones) are public for same-site/external access
         // Exception: Telegram processQueue (cron / Postman) — secured by cron_key, not session
+        // Exception: Telegram webhook (POST from Telegram servers) — secured by secret header, not session
         $user = Factory::getUser();
-        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron) {
+        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook) {
             $app = Factory::getApplication();
             $returnUrl = Uri::getInstance()->toString();
             $return = urlencode(base64_encode($returnUrl));

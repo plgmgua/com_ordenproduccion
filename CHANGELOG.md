@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.29-STABLE] - 2026-04-15
+
+### Fixed
+- **Telegram inbound webhook:** Site dispatcher no longer redirects guests to login for `controller=telegram&task=webhook`. Telegram posts without a Joomla user; access remains gated by header `X-Telegram-Bot-Api-Secret-Token`. Raw/component template is forced like `processQueue`.
+
 ## [3.109.28-STABLE] - 2026-04-15
 
 ### Fixed
