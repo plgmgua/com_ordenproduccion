@@ -123,7 +123,9 @@ class AccessHelper
         $groups = $db->loadObjectList() ?: [];
         
         foreach ($groups as $group) {
-            if ($group->title === 'Administracion' || $group->title === 'Admon') {
+            if ($group->title === 'Administracion'
+                || $group->title === 'Administración'
+                || $group->title === 'Admon') {
                 return true;
             }
         }
@@ -179,9 +181,13 @@ class AccessHelper
     {
         $db = Factory::getDbo();
         $query = $db->getQuery(true)
-            ->select($db->quoteName('g.id'))
+            ->select('DISTINCT ' . $db->quoteName('g.id'))
             ->from($db->quoteName('#__usergroups', 'g'))
-            ->where($db->quoteName('g.title') . ' IN (' . $db->quote('Administracion') . ',' . $db->quote('Admon') . ')');
+            ->where(
+                '(' . $db->quoteName('g.id') . ' = 12 OR ' . $db->quoteName('g.title') . ' IN ('
+                . $db->quote('Administracion') . ',' . $db->quote('Administración') . ',' . $db->quote('Admon')
+                . '))'
+            );
         $db->setQuery($query);
         $groupIds = $db->loadColumn() ?: [];
         if (empty($groupIds)) {
@@ -213,9 +219,13 @@ class AccessHelper
     {
         $db = Factory::getDbo();
         $query = $db->getQuery(true)
-            ->select($db->quoteName('g.id'))
+            ->select('DISTINCT ' . $db->quoteName('g.id'))
             ->from($db->quoteName('#__usergroups', 'g'))
-            ->where($db->quoteName('g.title') . ' IN (' . $db->quote('Administracion') . ',' . $db->quote('Admon') . ')');
+            ->where(
+                '(' . $db->quoteName('g.id') . ' = 12 OR ' . $db->quoteName('g.title') . ' IN ('
+                . $db->quote('Administracion') . ',' . $db->quote('Administración') . ',' . $db->quote('Admon')
+                . '))'
+            );
         $db->setQuery($query);
         $groupIds = $db->loadColumn() ?: [];
         if ($groupIds === []) {
@@ -278,7 +288,9 @@ class AccessHelper
         $groups = $db->loadObjectList() ?: [];
 
         foreach ($groups as $group) {
-            if ($group->title === 'Administracion' || $group->title === 'Admon') {
+            if ($group->title === 'Administracion'
+                || $group->title === 'Administración'
+                || $group->title === 'Admon') {
                 return true;
             }
         }

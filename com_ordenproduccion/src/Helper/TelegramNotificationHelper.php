@@ -1740,9 +1740,6 @@ class TelegramNotificationHelper
         if ((int) $params->get('telegram_enabled', 0) !== 1) {
             return;
         }
-        if ((int) $params->get('telegram_mismatch_anchor_enabled', 1) !== 1) {
-            return;
-        }
 
         $body = trim(strip_tags($body));
         if ($body === '') {
