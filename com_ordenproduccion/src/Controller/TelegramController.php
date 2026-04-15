@@ -55,9 +55,18 @@ class TelegramController extends BaseController
     }
 
     /**
-     * Telegram Bot API webhook: reply to anchor DM → mismatch ticket comment.
-     * Configure Bot API setWebhook with secret_token; same value in component param telegram_webhook_secret.
-     * Header: X-Telegram-Bot-Api-Secret-Token must match.
+     * Telegram Bot API webhook: inbound Update (core.telegram.org/bots/api#update) → mismatch-ticket comment when applicable.
+     *
+     * Telegram POSTs a JSON **Update** (top-level `update_id` plus at most one of `message`, `edited_message`,
+     * `callback_query`, `channel_post`, etc.). This handler:
+     *
+     * 1. **403 Forbidden** only when `X-Telegram-Bot-Api-Secret-Token` is missing or does not match
+     *    `telegram_webhook_secret` (same value as setWebhook `secret_token`). No other branch returns 403.
+     * 2. After auth, parses `php://input` as JSON. Unsupported or non-message updates, empty `text`, or
+     *    payloads that are not valid JSON objects still receive **200 OK** so Telegram does not treat delivery as failed.
+     * 3. Processes `message` / `edited_message` with non-empty `text` and `reply_to_message` for the mismatch anchor flow.
+     *
+     * Configure setWebhook with `secret_token`; same value in component param `telegram_webhook_secret`.
      *
      * @return  void
      *
@@ -92,6 +101,7 @@ class TelegramController extends BaseController
             return;
         }
 
+        // Update object: https://core.telegram.org/bots/api#update — tolerate empty body, invalid JSON, or types we do not handle.
         $raw  = (string) file_get_contents('php://input');
         $data = json_decode($raw !== '' ? $raw : '[]', true);
         if (!\is_array($data)) {
@@ -105,6 +115,7 @@ class TelegramController extends BaseController
             $msg = $data['edited_message'] ?? null;
         }
         if (!\is_array($msg)) {
+            // callback_query, channel_post, my_chat_member, etc. — acknowledge without error.
             $this->emitPlainResponse(200, 'OK');
 
             return;
