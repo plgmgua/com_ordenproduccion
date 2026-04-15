@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.32-STABLE] - 2026-04-15
+
+### Fixed
+- **Grimpsabot Webhook tab:** Missing site language strings for **Generate Telegram-safe secret** (`COM_ORDENPRODUCCION_GRIMPSABOT_WEBHOOK_GENERATE_SECRET*`). Wired the button to fill `jform_telegram_webhook_secret` with a random `secret_token`-safe value.
+
 ## [3.109.31-STABLE] - 2026-04-15
 
 ### Fixed

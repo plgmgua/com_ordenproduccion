@@ -472,6 +472,32 @@ $webhookEndpointUrl = rtrim(Uri::root(), '/') . '/index.php?option=com_ordenprod
     if (dbg) {
         dbg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    var genBtn = document.getElementById('grimpsabot-webhook-generate-secret');
+    if (genBtn) {
+        genBtn.addEventListener('click', function () {
+            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+            var len = 40;
+            var out = '';
+            var i;
+            if (window.crypto && window.crypto.getRandomValues) {
+                var buf = new Uint8Array(len);
+                window.crypto.getRandomValues(buf);
+                for (i = 0; i < len; i++) {
+                    out += chars.charAt(buf[i] % chars.length);
+                }
+            } else {
+                for (i = 0; i < len; i++) {
+                    out += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+            }
+            var inp = document.getElementById('jform_telegram_webhook_secret');
+            if (inp) {
+                inp.value = out;
+                inp.type = 'text';
+                inp.focus();
+            }
+        });
+    }
 })();
 </script>
 <?php endif; ?>
