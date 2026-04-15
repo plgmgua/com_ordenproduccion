@@ -129,6 +129,10 @@ class GrimpsabotModel extends FormModel
             $registry->set('telegram_webhook_secret', $existing['telegram_webhook_secret']);
         }
 
+        if (\array_key_exists('telegram_webhook_public_base', $data)) {
+            $registry->set('telegram_webhook_public_base', trim((string) $data['telegram_webhook_public_base']));
+        }
+
         if (isset($data['telegram_mismatch_anchor_enabled'])) {
             $registry->set('telegram_mismatch_anchor_enabled', (int) $data['telegram_mismatch_anchor_enabled'] ? 1 : 0);
         }

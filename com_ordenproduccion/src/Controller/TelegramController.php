@@ -79,9 +79,7 @@ class TelegramController extends BaseController
 
         $params   = ComponentHelper::getParams('com_ordenproduccion');
         $expected = trim((string) $params->get('telegram_webhook_secret', ''));
-        $hdr      = isset($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'])
-            ? trim((string) $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'])
-            : '';
+        $hdr      = self::readTelegramWebhookSecretHeader();
 
         if ($expected === '' || $hdr === '' || !\hash_equals($expected, $hdr)) {
             $this->emitPlainResponse(
@@ -177,6 +175,33 @@ class TelegramController extends BaseController
         }
 
         $this->emitPlainResponse(200, 'OK');
+    }
+
+    /**
+     * Value of Telegram's X-Telegram-Bot-Api-Secret-Token header (some stacks omit HTTP_* in $_SERVER).
+     *
+     * @return  string
+     *
+     * @since   3.109.38
+     */
+    private static function readTelegramWebhookSecretHeader(): string
+    {
+        if (isset($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'])) {
+            return trim((string) $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN']);
+        }
+
+        if (\function_exists('getallheaders')) {
+            $headers = getallheaders();
+            if (\is_array($headers)) {
+                foreach ($headers as $name => $value) {
+                    if (\is_string($name) && strcasecmp($name, 'X-Telegram-Bot-Api-Secret-Token') === 0) {
+                        return trim((string) $value);
+                    }
+                }
+            }
+        }
+
+        return '';
     }
 
     /**
