@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.48-STABLE] - 2026-04-15
+
+### Added
+- **Mismatch ticket modal live updates:** While the case popup is open, the thread polls `getMismatchTicket` every 4 seconds (pauses when the browser tab is hidden). New Telegram webhook comments appear without closing the modal. Draft text in “Add comment” is preserved; scroll stays at the bottom only if you were already near the bottom (so reading older messages is not interrupted). Polling stops when the modal closes.
+
 ## [3.109.47-STABLE] - 2026-04-15
 
 ### Changed

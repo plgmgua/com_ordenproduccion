@@ -715,6 +715,34 @@ document.addEventListener('DOMContentLoaded', function() {
     var mismatchFormToken = <?php echo json_encode($mismatchTicketFormToken); ?>;
     var currentMismatchProofId = 0;
     var skipMismatchStatusChange = false;
+    var mismatchPollTimer = null;
+    var MISMATCH_POLL_MS = 4000;
+
+    function stopMismatchPoll() {
+        if (mismatchPollTimer !== null) {
+            clearInterval(mismatchPollTimer);
+            mismatchPollTimer = null;
+        }
+    }
+
+    function startMismatchPoll() {
+        stopMismatchPoll();
+        if (!mismatchModalEl || !currentMismatchProofId) {
+            return;
+        }
+        mismatchPollTimer = setInterval(function() {
+            if (!mismatchModalEl || !currentMismatchProofId) {
+                return;
+            }
+            if (!mismatchModalEl.classList.contains('show')) {
+                return;
+            }
+            if (document.hidden) {
+                return;
+            }
+            refreshMismatchTicketQuiet();
+        }, MISMATCH_POLL_MS);
+    }
 
     function escapeMismatchHtml(s) {
         if (!s) { return ''; }
@@ -760,8 +788,92 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function applyMismatchTicketPayload(d, opts) {
+        opts = opts || {};
+        var clearDraft = opts.clearCommentDraft !== false;
+        if (d.error) {
+            return false;
+        }
+        document.getElementById('mismatchTicketBody').classList.remove('d-none');
+        document.getElementById('mismatchTicketError').classList.add('d-none');
+        document.getElementById('mismatchTicketModalLabel').textContent =
+            <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_TITLE')); ?> + ' — ' + (d.payment_label || '');
+
+        var sel = document.getElementById('mismatchTicketStatusSelect');
+        sel.innerHTML = '';
+        (d.status_options || []).forEach(function(opt) {
+            var o = document.createElement('option');
+            o.value = opt.value;
+            o.textContent = opt.label;
+            sel.appendChild(o);
+        });
+        skipMismatchStatusChange = true;
+        sel.value = d.status || 'nuevo';
+        setTimeout(function() { skipMismatchStatusChange = false; }, 0);
+        var canSt = !!d.can_change_status;
+        sel.disabled = !d.status_enabled || !canSt;
+        document.getElementById('mismatchTicketStatusHint').classList.toggle('d-none', d.status_enabled);
+        document.getElementById('mismatchTicketStatusHintAdmin').classList.toggle('d-none', !d.status_enabled || canSt);
+
+        document.getElementById('mismatchTicketCreator').textContent = d.created_by_name ? '(' + d.created_by_name + ')' : '';
+        var initN = document.getElementById('mismatchTicketInitialNote');
+        initN.innerHTML = d.initial_note
+            ? escapeMismatchHtml(d.initial_note).replace(/\n/g, '<br>')
+            : '—';
+        var diffRow = document.getElementById('mismatchTicketDiffRow');
+        var diffPart = (d.difference !== '' && d.difference != null)
+            ? (<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?> + ': ' + escapeMismatchHtml(String(d.difference)))
+            : '';
+        var amt = (typeof d.payment_amount === 'number')
+            ? d.payment_amount.toLocaleString('es-GT', { minimumFractionDigits: 2 })
+            : '';
+        diffRow.innerHTML = [diffPart, amt ? (<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?> + ': ' + amt) : ''].filter(Boolean).join(' · ');
+
+        document.getElementById('mismatchTicketCommentsDisabled').classList.toggle('d-none', d.comments_enabled);
+        var ta = document.getElementById('mismatchTicketNewComment');
+        var btnS = document.getElementById('mismatchTicketBtnSendComment');
+        ta.disabled = !d.comments_enabled;
+        btnS.disabled = !d.comments_enabled;
+        if (clearDraft) {
+            ta.value = '';
+        }
+
+        renderMismatchComments(d.comments);
+        if (typeof opts.afterComments === 'function') {
+            opts.afterComments();
+        }
+        return true;
+    }
+
+    function refreshMismatchTicketQuiet() {
+        if (!currentMismatchProofId) {
+            return;
+        }
+        var commentsBox = document.getElementById('mismatchTicketComments');
+        var pinTail = true;
+        if (commentsBox) {
+            pinTail = commentsBox.scrollHeight - commentsBox.scrollTop - commentsBox.clientHeight < 120;
+        }
+        var url = mismatchTicketJsonUrl + (mismatchTicketJsonUrl.indexOf('?') >= 0 ? '&' : '?') +
+            'proof_id=' + encodeURIComponent(currentMismatchProofId) + '&' + encodeURIComponent(mismatchFormToken) + '=1';
+        fetch(url, { headers: { 'Accept': 'application/json' } }).then(function(r) { return r.json(); }).then(function(d) {
+            if (d.error) {
+                return;
+            }
+            applyMismatchTicketPayload(d, {
+                clearCommentDraft: false,
+                afterComments: function() {
+                    if (commentsBox && pinTail) {
+                        commentsBox.scrollTop = commentsBox.scrollHeight;
+                    }
+                }
+            });
+        }).catch(function() { /* ignore */ });
+    }
+
     function loadMismatchTicket(proofId) {
         if (!mismatchModalEl) { return; }
+        stopMismatchPoll();
         currentMismatchProofId = proofId;
         document.getElementById('mismatchTicketLoading').classList.remove('d-none');
         document.getElementById('mismatchTicketBody').classList.add('d-none');
@@ -776,53 +888,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 er.classList.remove('d-none');
                 return;
             }
-            document.getElementById('mismatchTicketBody').classList.remove('d-none');
-            document.getElementById('mismatchTicketModalLabel').textContent =
-                <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_MISMATCH_TICKET_TITLE')); ?> + ' — ' + (d.payment_label || '');
-
-            var sel = document.getElementById('mismatchTicketStatusSelect');
-            sel.innerHTML = '';
-            (d.status_options || []).forEach(function(opt) {
-                var o = document.createElement('option');
-                o.value = opt.value;
-                o.textContent = opt.label;
-                sel.appendChild(o);
+            applyMismatchTicketPayload(d, {
+                clearCommentDraft: true,
+                afterComments: function() {
+                    var box = document.getElementById('mismatchTicketComments');
+                    if (box) {
+                        box.scrollTop = box.scrollHeight;
+                    }
+                }
             });
-            skipMismatchStatusChange = true;
-            sel.value = d.status || 'nuevo';
-            setTimeout(function() { skipMismatchStatusChange = false; }, 0);
-            var canSt = !!d.can_change_status;
-            sel.disabled = !d.status_enabled || !canSt;
-            document.getElementById('mismatchTicketStatusHint').classList.toggle('d-none', d.status_enabled);
-            document.getElementById('mismatchTicketStatusHintAdmin').classList.toggle('d-none', !d.status_enabled || canSt);
-
-            document.getElementById('mismatchTicketCreator').textContent = d.created_by_name ? '(' + d.created_by_name + ')' : '';
-            var initN = document.getElementById('mismatchTicketInitialNote');
-            initN.innerHTML = d.initial_note
-                ? escapeMismatchHtml(d.initial_note).replace(/\n/g, '<br>')
-                : '—';
-            var diffRow = document.getElementById('mismatchTicketDiffRow');
-            var diffPart = (d.difference !== '' && d.difference != null)
-                ? (<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_DIFFERENCE')); ?> + ': ' + escapeMismatchHtml(String(d.difference)))
-                : '';
-            var amt = (typeof d.payment_amount === 'number')
-                ? d.payment_amount.toLocaleString('es-GT', { minimumFractionDigits: 2 })
-                : '';
-            diffRow.innerHTML = [diffPart, amt ? (<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENTS_MISMATCH_COL_AMOUNT')); ?> + ': ' + amt) : ''].filter(Boolean).join(' · ');
-
-            document.getElementById('mismatchTicketCommentsDisabled').classList.toggle('d-none', d.comments_enabled);
-            var ta = document.getElementById('mismatchTicketNewComment');
-            var btnS = document.getElementById('mismatchTicketBtnSendComment');
-            ta.disabled = !d.comments_enabled;
-            btnS.disabled = !d.comments_enabled;
-            ta.value = '';
-
-            renderMismatchComments(d.comments);
+            startMismatchPoll();
         }).catch(function() {
             document.getElementById('mismatchTicketLoading').classList.add('d-none');
             var er = document.getElementById('mismatchTicketError');
             er.textContent = 'Error de red';
             er.classList.remove('d-none');
+        });
+    }
+
+    if (mismatchModalEl) {
+        mismatchModalEl.addEventListener('hidden.bs.modal', function() {
+            stopMismatchPoll();
+            currentMismatchProofId = 0;
         });
     }
 
