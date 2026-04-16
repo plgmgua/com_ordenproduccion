@@ -484,7 +484,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofStatusClip = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresadoClip = ($proofStatusClip === '' || strtolower($proofStatusClip) === 'ingresado');
                                         if ($isIngresadoClip && $lineId > 0) {
-                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" data-line-id="' . $lineId . '" title="' . htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar archivo a esta línea')) . '"><i class="fas fa-paperclip"></i></button>';
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" data-line-id="' . $lineId . '" data-line-doc="' . htmlspecialchars((string) ($line->document_number ?? ''), ENT_QUOTES, 'UTF-8') . '" title="' . htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar archivo a esta línea')) . '"><i class="fas fa-paperclip"></i></button>';
                                         } else {
                                             echo '<span class="text-muted">—</span>';
                                         }
@@ -577,7 +577,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofStatusLeg = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresadoLeg = ($proofStatusLeg === '' || strtolower($proofStatusLeg) === 'ingresado');
                                         if ($isIngresadoLeg) {
-                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" data-line-id="0" title="' . htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar archivo a esta línea')) . '"><i class="fas fa-paperclip"></i></button>';
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" data-line-id="0" data-line-doc="' . htmlspecialchars((string) ($proof->document_number ?? ''), ENT_QUOTES, 'UTF-8') . '" title="' . htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar archivo a esta línea')) . '"><i class="fas fa-paperclip"></i></button>';
                                         } else {
                                             echo '<span class="text-muted">—</span>';
                                         }
@@ -606,44 +606,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                                 <?php /* Removed duplicate simple "Orden #" list; keep detailed "Información de la Orden" table below. */ ?>
                                 <?php endif; endforeach; ?>
-                                <!-- Add-file mini-form rows (hidden, one per proof line, toggled via JS) -->
-                                <?php foreach ($existingPayments as $epf) :
-                                    $isMergedEpf = !empty($epf->_merged);
-                                    $linesForAdd = !$isMergedEpf && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($epf->id ?? 0) : [];
-                                    if (empty($linesForAdd)) {
-                                        $linesForAdd = [(object) ['id' => 0]];
-                                    }
-                                    foreach ($linesForAdd as $ln) :
-                                        $addLineId = (int) ($ln->id ?? 0);
-                                        $lineLabel = $addLineId > 0 ? (' — línea doc. ' . htmlspecialchars((string) ($ln->document_number ?? ''), ENT_QUOTES, 'UTF-8')) : '';
-                                ?>
-                                <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>-<?php echo $addLineId; ?>" style="display:none;">
-                                    <td colspan="9" class="bg-white py-2 px-3">
-                                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>"
-                                              method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
-                                            <?php echo HTMLHelper::_('form.token'); ?>
-                                            <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
-                                            <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
-                                            <?php if ($addLineId > 0) : ?>
-                                            <input type="hidden" name="payment_proof_line_id" value="<?php echo $addLineId; ?>">
-                                            <?php endif; ?>
-                                            <span class="small fw-bold me-1">Agregar a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?><?php echo $lineLabel; ?>:</span>
-                                            <input type="file" name="payment_proof_files[]" multiple
-                                                   class="form-control form-control-sm" style="max-width:280px;"
-                                                   accept=".jpg,.jpeg,.png,.pdf"
-                                                   onchange="validateFiles(this)">
-                                            <button type="submit" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-upload me-1"></i>Guardar
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-add-file-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>" data-line-id="<?php echo $addLineId; ?>">
-                                                Cancelar
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php
-                                    endforeach;
-                                endforeach; ?>
                                 <?php if (!empty($this->canEditNoteOrAssociateOrder)) : ?>
                                 <!-- Edit mismatch note rows (hidden, one per proof) -->
                                 <?php foreach ($existingPayments as $epf) :
@@ -706,6 +668,35 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                             </tfoot>
                         </table>
+                        <?php if (!empty($existingPayments)) : ?>
+                        <div class="modal fade" id="paymentProofAddFileModal" tabindex="-1" aria-labelledby="paymentProofAddFileModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="paymentProofAddFileModalLabel"><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE_MODAL_TITLE', 'Add attachment', 'Agregar archivo adjunto')); ?></h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form id="paymentProofAddFileForm" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>" method="post" enctype="multipart/form-data">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="proof_id" id="ppaf-proof-id" value="">
+                                            <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>">
+                                            <input type="hidden" name="payment_proof_line_id" id="ppaf-line-id" value="0">
+                                            <div class="mb-3">
+                                                <label class="form-label" for="ppaf-file-input"><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE_CHOOSE', 'Choose file(s)', 'Elegir archivo(s)')); ?></label>
+                                                <input type="file" name="payment_proof_files[]" id="ppaf-file-input" class="form-control form-control-sm" multiple accept=".jpg,.jpeg,.png,.pdf" onchange="validateFiles(this)">
+                                                <div class="form-text"><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE_HINT', 'JPG, PNG or PDF. Max 5 MB per file.', 'JPG, PNG o PDF. Máximo 5 MB por archivo.')); ?></div>
+                                            </div>
+                                            <div class="d-flex gap-2 justify-content-end pt-2 border-top">
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars($this->labelCancel ?? 'Cancelar'); ?></button>
+                                                <button type="submit" class="btn btn-primary"><i class="fas fa-upload me-1" aria-hidden="true"></i><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE_SAVE', 'Upload', 'Guardar')); ?></button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <!-- Información de la Orden: subtable of orders associated to payment(s), above the viewer -->
                         <?php
                         $orderInfoRows = [];
@@ -1554,16 +1545,53 @@ window.validateFiles = function(input) {
     return true;
 };
 document.addEventListener('DOMContentLoaded', function () {
+    var ppafModal = document.getElementById('paymentProofAddFileModal');
+    if (ppafModal) {
+        ppafModal.addEventListener('hidden.bs.modal', function () {
+            var fi = document.getElementById('ppaf-file-input');
+            if (fi) {
+                fi.value = '';
+            }
+        });
+    }
     document.querySelectorAll('.toggle-add-file-form').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var proofId = this.getAttribute('data-proof-id');
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var proofId = this.getAttribute('data-proof-id') || '';
             var lineId = this.getAttribute('data-line-id');
             if (lineId === null || lineId === '') {
                 lineId = '0';
             }
-            var row = document.getElementById('add-file-row-' + proofId + '-' + lineId);
-            if (row) {
-                row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+            var lineDoc = this.getAttribute('data-line-doc') || '';
+            var form = document.getElementById('paymentProofAddFileForm');
+            var modalEl = document.getElementById('paymentProofAddFileModal');
+            if (!form || !modalEl) {
+                return;
+            }
+            var proofInput = document.getElementById('ppaf-proof-id');
+            if (proofInput) {
+                proofInput.value = proofId;
+            }
+            var lineInput = document.getElementById('ppaf-line-id');
+            if (lineInput) {
+                lineInput.value = lineId;
+            }
+            var titleEl = document.getElementById('paymentProofAddFileModalLabel');
+            if (titleEl) {
+                var fid = parseInt(proofId, 10) || 0;
+                var paNum = String(fid).padStart(5, '0');
+                if (lineDoc) {
+                    titleEl.textContent = 'PA-' + paNum + ' — doc. ' + lineDoc;
+                } else {
+                    titleEl.textContent = 'PA-' + paNum;
+                }
+            }
+            var fi = document.getElementById('ppaf-file-input');
+            if (fi) {
+                fi.value = '';
+            }
+            if (window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
             }
         });
     });

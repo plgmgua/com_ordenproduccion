@@ -1150,12 +1150,12 @@ class PaymentproofModel extends ItemModel
         $legacySynthetics = [];
 
         foreach ($raw as $f) {
-            if ($this->proofFileHasPositiveLineId($f)) {
-                $lid = (int) trim((string) ($f->payment_proof_line_id ?? '0'));
-                if (!isset($explicit[$lid])) {
-                    $explicit[$lid] = [];
+            $fkLine = $this->getPaymentProofLineIdFromFileRow($f);
+            if ($fkLine !== null) {
+                if (!isset($explicit[$fkLine])) {
+                    $explicit[$fkLine] = [];
                 }
-                $explicit[$lid][] = $f;
+                $explicit[$fkLine][] = $f;
             } elseif ((int) ($f->id ?? 0) === 0) {
                 // Placeholder row for payment_proofs.file_path only (not a DB id)
                 $legacySynthetics[] = $f;
@@ -1187,23 +1187,43 @@ class PaymentproofModel extends ItemModel
             }
         );
 
-        $lineList       = array_values($lines);
-        $lineCount      = count($lineList);
+        $lineList         = array_values($lines);
+        $lineIdsOrdered   = [];
+        foreach ($lineList as $line) {
+            $lid = (int) ($line->id ?? 0);
+            if ($lid > 0) {
+                $lineIdsOrdered[] = $lid;
+            }
+        }
+        $nLines         = count($lineIdsOrdered);
         $orphanByLineId = [];
+        $orphanQueue    = $dbOrphans;
 
-        foreach ($dbOrphans as $i => $f) {
-            if ($lineCount <= 0) {
-                break;
+        // Orphans (NULL line FK): first fill lines that have no explicit attachment, in document order;
+        // then spread any remainder round-robin so files do not pile onto the last line only.
+        if ($nLines > 0) {
+            foreach ($lineIdsOrdered as $lid) {
+                if (empty($orphanQueue)) {
+                    break;
+                }
+                if (empty($explicit[$lid])) {
+                    $o = array_shift($orphanQueue);
+                    if (!isset($orphanByLineId[$lid])) {
+                        $orphanByLineId[$lid] = [];
+                    }
+                    $orphanByLineId[$lid][] = $o;
+                }
             }
-            $lineIdx = ($i < $lineCount) ? $i : $lineCount - 1;
-            $lid     = (int) ($lineList[$lineIdx]->id ?? 0);
-            if ($lid <= 0) {
-                continue;
+            $rr = 0;
+            while (!empty($orphanQueue)) {
+                $o   = array_shift($orphanQueue);
+                $lid = $lineIdsOrdered[$rr % $nLines];
+                $rr++;
+                if (!isset($orphanByLineId[$lid])) {
+                    $orphanByLineId[$lid] = [];
+                }
+                $orphanByLineId[$lid][] = $o;
             }
-            if (!isset($orphanByLineId[$lid])) {
-                $orphanByLineId[$lid] = [];
-            }
-            $orphanByLineId[$lid][] = $f;
         }
 
         $out = [];
@@ -1211,7 +1231,7 @@ class PaymentproofModel extends ItemModel
             $out[$lid] = array_merge($explicit[$lid] ?? [], $orphanByLineId[$lid] ?? []);
         }
 
-        $firstLid = (int) ($lineList[0]->id ?? 0);
+        $firstLid = $nLines > 0 ? (int) ($lineList[0]->id ?? 0) : 0;
         if ($firstLid > 0 && $legacySynthetics !== []) {
             foreach (array_reverse($legacySynthetics) as $ls) {
                 array_unshift($out[$firstLid], $ls);
@@ -1222,20 +1242,38 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Read FK to payment_proof_lines.id from a file row (handles driver/casing quirks).
+     *
+     * @param   object  $f  File row from getPaymentProofFiles
+     *
+     * @return  int|null  Positive line id, or null if column missing / not set / legacy row
+     */
+    protected function getPaymentProofLineIdFromFileRow(object $f): ?int
+    {
+        if (!$this->hasPaymentProofFileLineIdColumn()) {
+            return null;
+        }
+        $v = null;
+        foreach (get_object_vars($f) as $name => $val) {
+            if (strcasecmp((string) $name, 'payment_proof_line_id') === 0) {
+                $v = $val;
+                break;
+            }
+        }
+        if ($v === null || $v === '') {
+            return null;
+        }
+        $id = (int) $v;
+
+        return $id > 0 ? $id : null;
+    }
+
+    /**
      * @param   object  $f  File row from getPaymentProofFiles
      */
     protected function proofFileHasPositiveLineId(object $f): bool
     {
-        if (!$this->hasPaymentProofFileLineIdColumn()) {
-            return false;
-        }
-        // Use null coalesce: some drivers omit unset columns; FK must be a positive int to count as explicit.
-        $v = $f->payment_proof_line_id ?? null;
-        if ($v === null || $v === '') {
-            return false;
-        }
-
-        return (int) $v > 0;
+        return $this->getPaymentProofLineIdFromFileRow($f) !== null;
     }
 
     /**
