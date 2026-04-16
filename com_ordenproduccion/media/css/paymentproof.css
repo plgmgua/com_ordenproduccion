@@ -493,3 +493,29 @@
     #payment-lines-table th:nth-child(3),
     #payment-lines-table td:nth-child(3) { min-width: 100px; }
 }
+
+/* Per-line attachment thumbnails + Administración delete control */
+.payment-proof-list-table .payment-proof-attach-cell-item {
+    position: relative;
+    vertical-align: top;
+}
+.payment-proof-list-table .payment-proof-delete-file-form {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    z-index: 2;
+    margin: 0;
+    line-height: 1;
+}
+.payment-proof-list-table .payment-proof-attach-delete {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 50%;
+    font-size: 10px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9);
+}

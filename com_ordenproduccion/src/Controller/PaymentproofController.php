@@ -556,6 +556,70 @@ class PaymentproofController extends BaseController
     }
 
     /**
+     * Delete one payment proof attachment (Administración / Admon only).
+     * POST: proof_id, file_id (0 = legacy payment_proofs.file_path), order_id
+     */
+    public function deleteAttachment()
+    {
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        $proofId = $this->input->getInt('proof_id', 0);
+        $fileId  = $this->input->getInt('file_id', -1);
+        $orderId = $this->input->getInt('order_id', 0);
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE_DENIED'), 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        if ($proofId <= 0 || $orderId <= 0 || $fileId < 0) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'), 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        try {
+            $orderModel = $this->app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Orden', 'Site');
+            $order      = $orderModel->getItem($orderId);
+            if (!$order) {
+                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'));
+            }
+            if (!AccessHelper::canAccessPaymentProofForOrder($order->sales_agent ?? '')) {
+                throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'));
+            }
+        } catch (\Exception $e) {
+            $this->app->enqueueMessage($e->getMessage(), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $model = $this->getModel('Paymentproof');
+        if ($model->deleteProofAttachment($proofId, $fileId)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE_SUCCESS'), 'success');
+        } else {
+            $errors = $model->getErrors();
+            $msg    = !empty($errors) ? implode(' ', $errors) : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE_FAILED');
+            $this->app->enqueueMessage($msg, 'error');
+        }
+
+        $this->setRedirect($redirectUrl);
+        return true;
+    }
+
+    /**
      * Update mismatch note for an existing payment proof (after the fact).
      * POST: proof_id, order_id (for redirect), payment_mismatch_note
      */

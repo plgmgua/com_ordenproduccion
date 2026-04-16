@@ -416,12 +416,19 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
                                     if (!empty($lines)):
-                                        $proofFilesRaw = method_exists($proofModel, 'getPaymentProofFiles') ? $proofModel->getPaymentProofFiles($proof) : [];
+                                        $groupedLineFiles = method_exists($proofModel, 'groupFilesByPaymentLineForDisplay')
+                                            ? $proofModel->groupFilesByPaymentLineForDisplay($proof, $lines)
+                                            : [];
+                                        $delConfirmMsg = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE_CONFIRM');
+                                        if (strpos((string) $delConfirmMsg, 'COM_ORDENPRODUCCION') === 0) {
+                                            $delConfirmMsg = '¿Eliminar este archivo adjunto?';
+                                        }
                                         $proofMonto = 0.0;
                                         $isFirstLine = true;
                                         foreach ($lines as $line):
                                             $proofMonto += (float)($line->amount ?? 0);
                                             $lineId = (int) ($line->id ?? 0);
+                                            $cellFiles = $groupedLineFiles[$lineId] ?? [];
                                 ?>
                                 <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; } ?>>
                                     <td><?php echo $isFirstLine ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
@@ -443,18 +450,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     ?></td>
                                     <td><?php
                                         $fileShown = false;
-                                        foreach ($proofFilesRaw as $fObj) {
-                                            $lid = null;
-                                            if (isset($fObj->payment_proof_line_id) && $fObj->payment_proof_line_id !== null && $fObj->payment_proof_line_id !== '') {
-                                                $lid = (int) $fObj->payment_proof_line_id;
-                                            }
-                                            if ($lid !== null && $lid > 0) {
-                                                if ($lid !== $lineId) {
-                                                    continue;
-                                                }
-                                            } elseif (!$isFirstLine) {
-                                                continue;
-                                            }
+                                        foreach ($cellFiles as $fObj) {
                                             $pf = $this->getPaymentProofFileInfo($fObj);
                                             if ($pf === null) {
                                                 continue;
@@ -462,11 +458,23 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             $fileShown = true;
                                             $url  = htmlspecialchars($pf['url'], ENT_QUOTES, 'UTF-8');
                                             $type = $pf['type'];
+                                            $fid  = (int) ($fObj->id ?? 0);
+                                            echo '<span class="payment-proof-attach-cell-item me-1 mb-1 d-inline-block position-relative align-top">';
                                             if ($type === 'image') {
-                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
                                             } else {
-                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
                                             }
+                                            if (!empty($this->canEditNoteOrAssociateOrder)) {
+                                                echo '<form method="post" action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.deleteAttachment') . '" class="payment-proof-delete-file-form d-inline" onsubmit="return confirm(' . json_encode($delConfirmMsg) . ');">';
+                                                echo HTMLHelper::_('form.token');
+                                                echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '">';
+                                                echo '<input type="hidden" name="order_id" value="' . (int)$orderId . '">';
+                                                echo '<input type="hidden" name="file_id" value="' . $fid . '">';
+                                                echo '<button type="submit" class="btn btn-sm btn-danger payment-proof-attach-delete p-0" title="' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE')) . '" aria-label="' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE')) . '"><i class="fas fa-times"></i></button>';
+                                                echo '</form>';
+                                            }
+                                            echo '</span>';
                                         }
                                         if (!$fileShown) {
                                             echo '<span class="text-muted">—</span>';
@@ -516,6 +524,11 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     else:
                                         $totalMonto += (float)($proof->payment_amount ?? 0);
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
+                                        $delConfirmMsgLegacy = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE_CONFIRM');
+                                        if (strpos((string) $delConfirmMsgLegacy, 'COM_ORDENPRODUCCION') === 0) {
+                                            $delConfirmMsgLegacy = '¿Eliminar este archivo adjunto?';
+                                        }
+                                        $proofFilesLegacy = method_exists($proofModel, 'getPaymentProofFiles') ? $proofModel->getPaymentProofFiles($proof) : [];
                                 ?>
                                 <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
                                     <td>PA-<?php echo str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT); ?></td>
@@ -529,18 +542,34 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
                                     ?></td>
                                     <td><?php
-                                        $proofFiles2 = $this->getProofFiles($proof);
-                                        if (!empty($proofFiles2)) {
-                                            foreach ($proofFiles2 as $pf2) {
-                                                $url2  = htmlspecialchars($pf2['url'], ENT_QUOTES, 'UTF-8');
-                                                $type2 = $pf2['type'];
-                                                if ($type2 === 'image') {
-                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap me-1" role="button" tabindex="0" data-url="' . $url2 . '" data-type="' . $type2 . '" title="Ver comprobante"><img src="' . $url2 . '" alt="" class="payment-proof-thumb"></span>';
-                                                } else {
-                                                    echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf me-1" role="button" tabindex="0" data-url="' . $url2 . '" data-type="' . $type2 . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
-                                                }
+                                        $fileShownLegacy = false;
+                                        foreach ($proofFilesLegacy as $fObjLeg) {
+                                            $pf2 = $this->getPaymentProofFileInfo($fObjLeg);
+                                            if ($pf2 === null) {
+                                                continue;
                                             }
-                                        } else {
+                                            $fileShownLegacy = true;
+                                            $url2  = htmlspecialchars($pf2['url'], ENT_QUOTES, 'UTF-8');
+                                            $type2 = $pf2['type'];
+                                            $fidL  = (int) ($fObjLeg->id ?? 0);
+                                            echo '<span class="payment-proof-attach-cell-item me-1 mb-1 d-inline-block position-relative align-top">';
+                                            if ($type2 === 'image') {
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap" role="button" tabindex="0" data-url="' . $url2 . '" data-type="' . $type2 . '" title="Ver comprobante"><img src="' . $url2 . '" alt="" class="payment-proof-thumb"></span>';
+                                            } else {
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf" role="button" tabindex="0" data-url="' . $url2 . '" data-type="' . $type2 . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                            }
+                                            if (!empty($this->canEditNoteOrAssociateOrder)) {
+                                                echo '<form method="post" action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.deleteAttachment') . '" class="payment-proof-delete-file-form d-inline" onsubmit="return confirm(' . json_encode($delConfirmMsgLegacy) . ');">';
+                                                echo HTMLHelper::_('form.token');
+                                                echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '">';
+                                                echo '<input type="hidden" name="order_id" value="' . (int)$orderId . '">';
+                                                echo '<input type="hidden" name="file_id" value="' . $fidL . '">';
+                                                echo '<button type="submit" class="btn btn-sm btn-danger payment-proof-attach-delete p-0" title="' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE')) . '" aria-label="' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE')) . '"><i class="fas fa-times"></i></button>';
+                                                echo '</form>';
+                                            }
+                                            echo '</span>';
+                                        }
+                                        if (!$fileShownLegacy) {
                                             echo '<span class="text-muted">—</span>';
                                         }
                                     ?></td>

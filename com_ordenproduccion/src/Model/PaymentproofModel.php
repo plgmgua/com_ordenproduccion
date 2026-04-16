@@ -1081,6 +1081,208 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Group attachment file rows by payment line for display.
+     * Rows with payment_proof_line_id set go to that line; rows without (legacy / old uploads)
+     * are distributed across lines in file id order (extras go to the last line).
+     *
+     * @param   object  $proof  Payment proof row
+     * @param   array   $lines  Rows from getPaymentProofLines (ordered)
+     *
+     * @return  array<int, array<int, object>>  payment_proof_lines.id => file rows
+     *
+     * @since   3.109.50
+     */
+    public function groupFilesByPaymentLineForDisplay(object $proof, array $lines): array
+    {
+        $byLine = [];
+        foreach ($lines as $line) {
+            $lid = (int) ($line->id ?? 0);
+            if ($lid > 0) {
+                $byLine[$lid] = [];
+            }
+        }
+
+        if (empty($byLine)) {
+            return [];
+        }
+
+        $raw = $this->getPaymentProofFiles($proof);
+        $explicit = [];
+        $orphans  = [];
+
+        foreach ($raw as $f) {
+            if ($this->proofFileHasPositiveLineId($f)) {
+                $lid = (int) $f->payment_proof_line_id;
+                if (!isset($explicit[$lid])) {
+                    $explicit[$lid] = [];
+                }
+                $explicit[$lid][] = $f;
+            } else {
+                $orphans[] = $f;
+            }
+        }
+
+        usort(
+            $orphans,
+            static function ($a, $b) {
+                return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
+            }
+        );
+
+        $lineList   = array_values($lines);
+        $lineCount  = count($lineList);
+        $orphanByLineId = [];
+
+        foreach ($orphans as $i => $f) {
+            if ($lineCount <= 0) {
+                break;
+            }
+            $lineIdx = ($i < $lineCount) ? $i : $lineCount - 1;
+            $lid     = (int) ($lineList[$lineIdx]->id ?? 0);
+            if ($lid <= 0) {
+                continue;
+            }
+            if (!isset($orphanByLineId[$lid])) {
+                $orphanByLineId[$lid] = [];
+            }
+            $orphanByLineId[$lid][] = $f;
+        }
+
+        $out = [];
+        foreach ($byLine as $lid => $_) {
+            $out[$lid] = array_merge($explicit[$lid] ?? [], $orphanByLineId[$lid] ?? []);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param   object  $f  File row from getPaymentProofFiles
+     */
+    protected function proofFileHasPositiveLineId(object $f): bool
+    {
+        if (!$this->hasPaymentProofFileLineIdColumn()) {
+            return false;
+        }
+        if (!property_exists($f, 'payment_proof_line_id')) {
+            return false;
+        }
+        $v = $f->payment_proof_line_id;
+
+        return $v !== null && $v !== '' && (int) $v > 0;
+    }
+
+    /**
+     * Delete one attachment (Administración). Removes DB row and file on disk; clears legacy file_path when needed.
+     *
+     * @param   int  $proofId    Payment proof id
+     * @param   int  $fileRowId  Row id in payment_proof_files, or 0 for legacy payment_proofs.file_path only
+     *
+     * @return  boolean
+     *
+     * @since   3.109.50
+     */
+    public function deleteProofAttachment(int $proofId, int $fileRowId): bool
+    {
+        if ($proofId <= 0) {
+            return false;
+        }
+
+        try {
+            $db = $this->getDatabase();
+
+            if ($fileRowId === 0) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('file_path'))
+                        ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+                        ->where($db->quoteName('id') . ' = ' . (int) $proofId)
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+                $path = trim((string) $db->loadResult());
+                if ($path === '') {
+                    return false;
+                }
+                $this->unlinkPaymentProofFile($path);
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                        ->set($db->quoteName('file_path') . ' = ' . $db->quote(''))
+                        ->where($db->quoteName('id') . ' = ' . (int) $proofId)
+                );
+                $db->execute();
+
+                return true;
+            }
+
+            if (!$this->hasPaymentProofFilesTable()) {
+                return false;
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([$db->quoteName('id'), $db->quoteName('file_path')])
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $fileRowId)
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . (int) $proofId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $row = $db->loadObject();
+            if ($row === null || trim((string) ($row->file_path ?? '')) === '') {
+                return false;
+            }
+
+            $path = trim((string) $row->file_path);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $fileRowId)
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . (int) $proofId)
+            );
+            $db->execute();
+
+            $this->unlinkPaymentProofFile($path);
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('file_path'))
+                    ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $proofId)
+            );
+            $legacy = trim((string) $db->loadResult());
+            if ($legacy !== '' && $legacy === $path) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                        ->set($db->quoteName('file_path') . ' = ' . $db->quote(''))
+                        ->where($db->quoteName('id') . ' = ' . (int) $proofId)
+                );
+                $db->execute();
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->setError($e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * @param   string  $relativePath  Path as stored in DB
+     */
+    protected function unlinkPaymentProofFile(string $relativePath): void
+    {
+        if ($relativePath === '' || strpos($relativePath, '..') !== false) {
+            return;
+        }
+        $fullPath = JPATH_ROOT . '/' . ltrim($relativePath, '/');
+        if (is_file($fullPath)) {
+            @unlink($fullPath);
+        }
+    }
+
+    /**
      * Get payment type options (from DB if payment_types table exists, else hardcoded fallback)
      *
      * @return  array  Array of payment type options (code => label)
