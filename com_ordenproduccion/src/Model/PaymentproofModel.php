@@ -224,18 +224,9 @@ class PaymentproofModel extends ItemModel
             
             $paymentProofId = $db->insertid();
 
-            // Insert additional file attachments into payment_proof_files (3.65.0+)
-            if (!empty($data['file_paths']) && is_array($data['file_paths']) && $this->hasPaymentProofFilesTable()) {
-                $createdBy = (int) ($data['created_by'] ?? 0);
-                foreach ($data['file_paths'] as $fp) {
-                    $fp = trim((string) $fp);
-                    if ($fp !== '') {
-                        $this->addFileToProof((int) $paymentProofId, $fp, $createdBy);
-                    }
-                }
-            }
+            $insertedPaymentLineIds = [];
 
-            // Insert payment_proof_lines if table exists (3.64.0+)
+            // Insert payment_proof_lines if table exists (3.64.0+); files link to line IDs (3.109.49+)
             if ($this->hasPaymentProofLinesTable() && !empty($paymentLines)) {
                 $pplCols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
                 $pplCols = is_array($pplCols) ? array_change_key_case($pplCols, CASE_LOWER) : [];
@@ -264,6 +255,33 @@ class PaymentproofModel extends ItemModel
                         ->values($values);
                     $db->setQuery($insertLine);
                     $db->execute();
+                    $insertedPaymentLineIds[] = (int) $db->insertid();
+                }
+            }
+
+            // Insert file attachments into payment_proof_files (3.65.0+), optionally per line (3.109.49+)
+            if ($this->hasPaymentProofFilesTable()) {
+                $createdBy = (int) ($data['created_by'] ?? 0);
+                $hasLineCol = $this->hasPaymentProofFileLineIdColumn();
+                $lineFilePaths = $data['line_file_paths'] ?? null;
+                if (!is_array($lineFilePaths) && !empty($data['file_paths']) && is_array($data['file_paths'])) {
+                    $lineFilePaths = [0 => $data['file_paths']];
+                }
+                if (is_array($lineFilePaths)) {
+                    foreach ($lineFilePaths as $lineIdx => $paths) {
+                        if (!is_array($paths)) {
+                            continue;
+                        }
+                        $pplId = isset($insertedPaymentLineIds[$lineIdx]) ? (int) $insertedPaymentLineIds[$lineIdx] : 0;
+                        foreach ($paths as $fp) {
+                            $fp = trim((string) $fp);
+                            if ($fp === '') {
+                                continue;
+                            }
+                            $lineFk = ($hasLineCol && $pplId > 0) ? $pplId : null;
+                            $this->addFileToProof((int) $paymentProofId, $fp, $createdBy, $lineFk);
+                        }
+                    }
                 }
             }
             
@@ -945,6 +963,25 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Whether payment_proof_files has payment_proof_line_id (3.109.49+).
+     */
+    public function hasPaymentProofFileLineIdColumn(): bool
+    {
+        if (!$this->hasPaymentProofFilesTable()) {
+            return false;
+        }
+        try {
+            $db   = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proof_files', false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+            return isset($cols['payment_proof_line_id']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Return all file attachments for a payment proof.
      * Reads from the new payment_proof_files table when available;
      * falls back to the legacy file_path column otherwise.
@@ -960,8 +997,11 @@ class PaymentproofModel extends ItemModel
         if ($this->hasPaymentProofFilesTable()) {
             try {
                 $db    = $this->getDatabase();
+                $select = $this->hasPaymentProofFileLineIdColumn()
+                    ? 'id, file_path, payment_proof_line_id'
+                    : 'id, file_path';
                 $query = $db->getQuery(true)
-                    ->select('id, file_path')
+                    ->select($select)
                     ->from($db->quoteName('#__ordenproduccion_payment_proof_files'))
                     ->where($db->quoteName('payment_proof_id') . ' = ' . (int) ($proof->id ?? 0))
                     ->where($db->quoteName('state') . ' = 1')
@@ -996,13 +1036,14 @@ class PaymentproofModel extends ItemModel
     /**
      * Add a file attachment to an existing payment proof.
      *
-     * @param   int     $proofId    Payment proof ID
-     * @param   string  $filePath   Relative file path
-     * @param   int     $createdBy  User ID
+     * @param   int       $proofId          Payment proof ID
+     * @param   string    $filePath         Relative file path
+     * @param   int       $createdBy        User ID
+     * @param   int|null  $paymentLineId    FK to payment_proof_lines.id, or null for proof-level (legacy)
      *
      * @return  boolean
      */
-    public function addFileToProof(int $proofId, string $filePath, int $createdBy): bool
+    public function addFileToProof(int $proofId, string $filePath, int $createdBy, ?int $paymentLineId = null): bool
     {
         if ($proofId <= 0 || $filePath === '') {
             return false;
@@ -1010,14 +1051,27 @@ class PaymentproofModel extends ItemModel
 
         try {
             $db    = $this->getDatabase();
-            $query = $db->getQuery(true)
-                ->insert($db->quoteName('#__ordenproduccion_payment_proof_files'))
-                ->columns($db->quoteName(['payment_proof_id', 'file_path', 'created_by', 'state']))
-                ->values(
-                    $proofId . ',' .
-                    $db->quote($filePath) . ',' .
-                    $createdBy . ',1'
-                );
+            if ($this->hasPaymentProofFileLineIdColumn()) {
+                $lineVal = ($paymentLineId !== null && $paymentLineId > 0) ? (int) $paymentLineId : 'NULL';
+                $query   = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                    ->columns($db->quoteName(['payment_proof_id', 'payment_proof_line_id', 'file_path', 'created_by', 'state']))
+                    ->values(
+                        $proofId . ',' .
+                        $lineVal . ',' .
+                        $db->quote($filePath) . ',' .
+                        $createdBy . ',1'
+                    );
+            } else {
+                $query = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_payment_proof_files'))
+                    ->columns($db->quoteName(['payment_proof_id', 'file_path', 'created_by', 'state']))
+                    ->values(
+                        $proofId . ',' .
+                        $db->quote($filePath) . ',' .
+                        $createdBy . ',1'
+                    );
+            }
             $db->setQuery($query);
             $db->execute();
             return true;
@@ -1057,6 +1111,34 @@ class PaymentproofModel extends ItemModel
             'deposito' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEPOSIT', 'Bank Deposit', 'Depósito Bancario'),
             'nota_credito_fiscal' => AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE_TAX_CREDIT_NOTE', 'Tax Credit Note', 'Nota Crédito Fiscal')
         ];
+    }
+
+    /**
+     * True if this payment line belongs to the given payment proof.
+     *
+     * @param   int  $paymentProofLineId  Row id in payment_proof_lines
+     * @param   int  $paymentProofId      Payment proof id
+     *
+     * @return  bool
+     */
+    public function paymentProofLineBelongsToProof(int $paymentProofLineId, int $paymentProofId): bool
+    {
+        if ($paymentProofLineId <= 0 || $paymentProofId <= 0 || !$this->hasPaymentProofLinesTable()) {
+            return false;
+        }
+        try {
+            $db = $this->getDatabase();
+            $q  = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                ->where($db->quoteName('id') . ' = ' . (int) $paymentProofLineId)
+                ->where($db->quoteName('payment_proof_id') . ' = ' . (int) $paymentProofId);
+            $db->setQuery($q);
+
+            return (int) $db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

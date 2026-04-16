@@ -170,8 +170,16 @@ class PaymentproofController extends BaseController
                 }
             }
 
-            // Handle file uploads (supports multiple files via payment_proof_files[])
-            $uploadedFiles = $this->handleMultipleFileUploads($validatedOrders[0]['order_id']);
+            $primaryOrderId = (int) $validatedOrders[0]['order_id'];
+            $lineFilePaths  = $this->buildLineFilePathsForRegister($primaryOrderId, $validatedLines);
+
+            $firstPath = '';
+            foreach ($lineFilePaths as $paths) {
+                if (is_array($paths) && !empty($paths[0])) {
+                    $firstPath = (string) $paths[0];
+                    break;
+                }
+            }
 
             $model = $this->getModel('Paymentproof');
 
@@ -179,16 +187,16 @@ class PaymentproofController extends BaseController
             $mismatchDifference = $this->input->getString('payment_mismatch_difference', '');
 
             $data = [
-                'order_id'     => $validatedOrders[0]['order_id'],
-                'payment_amount' => array_sum(array_column($validatedLines, 'amount')),
-                'file_path'    => !empty($uploadedFiles) ? $uploadedFiles[0] : '',
-                'file_paths'   => $uploadedFiles,
-                'created_by'   => $user->id,
-                'created'      => Factory::getDate()->toSql(),
-                'state'        => 1,
-                'payment_orders' => $validatedOrders,
-                'payment_lines'  => $validatedLines,
-                'mismatch_note' => $mismatchNote,
+                'order_id'          => $primaryOrderId,
+                'payment_amount'    => array_sum(array_column($validatedLines, 'amount')),
+                'file_path'         => $firstPath,
+                'line_file_paths'   => $lineFilePaths,
+                'created_by'        => $user->id,
+                'created'           => Factory::getDate()->toSql(),
+                'state'             => 1,
+                'payment_orders'    => $validatedOrders,
+                'payment_lines'     => $validatedLines,
+                'mismatch_note'     => $mismatchNote,
                 'mismatch_difference' => $mismatchDifference,
             ];
 
@@ -296,6 +304,145 @@ class PaymentproofController extends BaseController
     }
 
     /**
+     * Map uploaded files per payment line (same order as validated lines) using POST payment_lines indices.
+     *
+     * @param   int    $orderId         Primary order for stored filenames
+     * @param   array  $validatedLines  Validated payment line rows
+     *
+     * @return  array<int, array<int, string>>  Zero-based line index => list of relative paths
+     *
+     * @throws \Exception  On upload failure when a file was selected
+     */
+    private function buildLineFilePathsForRegister(int $orderId, array $validatedLines): array
+    {
+        $byPost = $this->handlePaymentLineFilesByPostIndex($orderId);
+        $postLines = $this->input->get('payment_lines', [], 'array');
+        $lineFilePaths = [];
+        $v             = 0;
+
+        foreach ($postLines as $pIdx => $pline) {
+            $amount = (float) ($pline['amount'] ?? 0);
+            $type   = trim((string) ($pline['payment_type'] ?? ''));
+            $doc    = trim((string) ($pline['document_number'] ?? ''));
+            if ($amount > 0 && $type !== '' && $doc !== '') {
+                $key = is_numeric($pIdx) ? (int) $pIdx : $pIdx;
+                $lineFilePaths[$v] = $byPost[$key] ?? ($byPost[(string) $pIdx] ?? []);
+                $v++;
+            }
+        }
+
+        $anyNew = false;
+        foreach ($lineFilePaths as $paths) {
+            if (!empty($paths)) {
+                $anyNew = true;
+                break;
+            }
+        }
+
+        if (!$anyNew) {
+            $bulk = $this->handleMultipleFileUploads($orderId);
+            if (!empty($bulk)) {
+                $lineFilePaths[0] = $bulk;
+            }
+        }
+
+        return $lineFilePaths;
+    }
+
+    /**
+     * Read payment_line_files[N][] from $_FILES (per POST row index).
+     *
+     * @return array<int|string, array<int, string>>
+     */
+    private function handlePaymentLineFilesByPostIndex(int $orderId): array
+    {
+        $out       = [];
+        $lastError = null;
+
+        if (!isset($_FILES['payment_line_files']) || !is_array($_FILES['payment_line_files'])) {
+            return $out;
+        }
+
+        $root = $_FILES['payment_line_files'];
+        if (!isset($root['name']) || !is_array($root['name'])) {
+            return $out;
+        }
+
+        foreach ($root['name'] as $postIdx => $names) {
+            $files = $this->normaliseIndexedLineFiles($root, $postIdx);
+            $key   = is_numeric($postIdx) ? (int) $postIdx : $postIdx;
+            $out[$key] = [];
+
+            foreach ($files as $single) {
+                if (empty($single['name']) && (int) ($single['error'] ?? 0) === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+                try {
+                    $out[$key][] = $this->handleFileUpload($single, $orderId);
+                } catch (\Exception $e) {
+                    $lastError = $e;
+                }
+            }
+        }
+
+        $anySaved = false;
+        foreach ($out as $paths) {
+            if (!empty($paths)) {
+                $anySaved = true;
+                break;
+            }
+        }
+        if (!$anySaved && $lastError !== null) {
+            throw $lastError;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Build single-file descriptors for one payment_line_files post index (supports multiple files per line).
+     *
+     * @param   array      $root  $_FILES['payment_line_files']
+     * @param   int|string $postIdx
+     *
+     * @return  array<int, array<string, mixed>>
+     */
+    private function normaliseIndexedLineFiles(array $root, $postIdx): array
+    {
+        $names = $root['name'][$postIdx] ?? null;
+        if ($names === null) {
+            return [];
+        }
+
+        if (is_string($names)) {
+            return [[
+                'name'     => $names,
+                'type'     => $root['type'][$postIdx] ?? '',
+                'tmp_name' => $root['tmp_name'][$postIdx] ?? '',
+                'error'    => $root['error'][$postIdx] ?? UPLOAD_ERR_NO_FILE,
+                'size'     => $root['size'][$postIdx] ?? 0,
+            ]];
+        }
+
+        if (!is_array($names)) {
+            return [];
+        }
+
+        $files = [];
+        foreach ($names as $i => $name) {
+            $files[] = [
+                'name'     => $name,
+                'type'     => $root['type'][$postIdx][$i] ?? '',
+                'tmp_name' => $root['tmp_name'][$postIdx][$i] ?? '',
+                'error'    => $root['error'][$postIdx][$i] ?? UPLOAD_ERR_NO_FILE,
+                'size'     => $root['size'][$postIdx][$i] ?? 0,
+            ];
+        }
+
+        return $files;
+    }
+
+    /**
      * @throws \Exception  Rethrows the last upload error so callers can show a meaningful message.
      */
     private function handleMultipleFileUploads(int $orderId): array
@@ -376,10 +523,19 @@ class PaymentproofController extends BaseController
                 throw new \Exception('No se seleccionó ningún archivo.');
             }
 
-            $model = $this->getModel('Paymentproof');
+            $model   = $this->getModel('Paymentproof');
+            $lineId  = $this->input->getInt('payment_proof_line_id', 0);
+            $lineFk  = null;
+            if ($lineId > 0) {
+                if (!$model->paymentProofLineBelongsToProof($lineId, $proofId)) {
+                    throw new \Exception('Línea de comprobante no válida para este PA.');
+                }
+                $lineFk = $lineId;
+            }
+
             $saved = 0;
             foreach ($uploadedFiles as $fp) {
-                if ($model->addFileToProof($proofId, $fp, $user->id)) {
+                if ($model->addFileToProof($proofId, $fp, $user->id, $lineFk)) {
                     $saved++;
                 }
             }

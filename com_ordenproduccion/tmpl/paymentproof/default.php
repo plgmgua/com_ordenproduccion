@@ -86,6 +86,7 @@ if (empty($order)) :
                                             <th style="width: 140px;">Doc. No</th>
                                             <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                             <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
+                                            <th class="text-center" style="width: 52px;" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ATTACHMENTS', 'Attachments for this line', 'Archivos por línea')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                                             <th style="width: 40px;"></th>
                                         </tr>
                                     </thead>
@@ -110,6 +111,12 @@ if (empty($order)) :
                                             <td><input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque'); ?>" maxlength="255" required></td>
                                             <td><input type="date" name="payment_lines[0][document_date]" class="form-control form-control-sm payment-line-document-date"></td>
                                             <td><input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required></td>
+                                            <td class="text-center align-middle">
+                                                <label class="btn btn-sm btn-outline-secondary mb-0 payment-line-clip-label" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ATTACH_HINT', 'One or more files for this line', 'Uno o más archivos para esta línea')); ?>">
+                                                    <i class="fas fa-paperclip" aria-hidden="true"></i>
+                                                    <input type="file" name="payment_line_files[0][]" class="d-none payment-line-file-input" accept=".jpg,.jpeg,.png,.pdf" multiple onchange="validateFiles(this)">
+                                                </label>
+                                            </td>
                                             <td class="text-center"></td>
                                         </tr>
                                     </tbody>
@@ -117,6 +124,7 @@ if (empty($order)) :
                                         <tr class="table-info">
                                             <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                             <td><strong id="payment-lines-total">Q. 0.00</strong></td>
+                                            <td></td>
                                             <td class="text-end">
                                                 <button type="button" class="btn btn-sm btn-success add-payment-line-btn" style="min-width: 38px;" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
                                                     <i class="fas fa-plus"></i>
@@ -182,14 +190,6 @@ if (empty($order)) :
                                 </table>
                             </div>
                             <small class="form-text text-muted"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ORDERS_TO_APPLY_HELP', 'Add work orders and amount for each', 'Agregue las órdenes y el monto para cada una.'); ?></small>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="payment_proof_file"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE', 'Payment proof file', 'Archivo comprobante de pago'); ?></label>
-                            <input type="file" name="payment_proof_files[]" id="payment_proof_files" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple onchange="validateFiles(this)">
-                            <small class="form-text text-muted">Formatos: JPG, PNG, PDF (Máx: 5MB por archivo).</small>
                         </div>
                     </div>
 
@@ -259,6 +259,10 @@ document.addEventListener('DOMContentLoaded', function() {
             clone.querySelectorAll('select, input').forEach(function(el) {
                 var m = el.name && el.name.match(/payment_lines\[\d+\]\[(\w+)\]/);
                 if (m) { el.name = 'payment_lines[' + lineIndex + '][' + m[1] + ']'; if (m[1] === 'amount' || m[1] === 'document_number' || m[1] === 'document_date') el.value = ''; }
+                if (el.classList && el.classList.contains('payment-line-file-input')) {
+                    el.name = 'payment_line_files[' + lineIndex + '][]';
+                    el.value = '';
+                }
             });
             tbody.appendChild(clone);
             lineIndex++;
@@ -399,7 +403,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
                                     <th class="text-nowrap"><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
-                                    <th style="width: 200px;">Archivos adjuntos</th>
+                                    <th style="width: 200px;"><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILES_COLUMN', 'Attached files', 'Archivos adjuntos')); ?></th>
+                                    <th class="text-center" style="width: 52px;" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar a esta línea')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                                     <th style="width: 180px;"><?php echo htmlspecialchars($this->labelMismatchNoteActions ?? 'Nota / Acciones'); ?></th>
                                 </tr>
                             </thead>
@@ -411,13 +416,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
                                     if (!empty($lines)):
+                                        $proofFilesRaw = method_exists($proofModel, 'getPaymentProofFiles') ? $proofModel->getPaymentProofFiles($proof) : [];
                                         $proofMonto = 0.0;
                                         $isFirstLine = true;
                                         foreach ($lines as $line):
                                             $proofMonto += (float)($line->amount ?? 0);
+                                            $lineId = (int) ($line->id ?? 0);
                                 ?>
-                                <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; $isFirstLine = false; } ?>>
-                                    <td><?php echo $line === reset($lines) ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
+                                <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; } ?>>
+                                    <td><?php echo $isFirstLine ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
                                     <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td class="text-nowrap"><?php
                                         $docDate = $line->document_date ?? null;
@@ -428,32 +435,54 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
-                                        if ($line === reset($lines)) {
+                                        if ($isFirstLine) {
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                             $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             echo $isIngresado ? htmlspecialchars($this->labelIngresado ?? 'Ingresado') : htmlspecialchars($this->labelVerificado ?? 'Verificado');
                                         }
                                     ?></td>
                                     <td><?php
-                                        if ($line === reset($lines)) {
-                                            $proofFiles = $this->getProofFiles($proof);
-                                            if (!empty($proofFiles)) {
-                                                foreach ($proofFiles as $pf) {
-                                                    $url  = htmlspecialchars($pf['url'], ENT_QUOTES, 'UTF-8');
-                                                    $type = $pf['type'];
-                                                    if ($type === 'image') {
-                                                        echo '<span class="view-payment-attachment payment-proof-thumb-wrap me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
-                                                    } else {
-                                                        echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
-                                                    }
-                                                }
-                                            } else {
-                                                echo '<span class="text-muted">—</span>';
+                                        $fileShown = false;
+                                        foreach ($proofFilesRaw as $fObj) {
+                                            $lid = null;
+                                            if (isset($fObj->payment_proof_line_id) && $fObj->payment_proof_line_id !== null && $fObj->payment_proof_line_id !== '') {
+                                                $lid = (int) $fObj->payment_proof_line_id;
                                             }
+                                            if ($lid !== null && $lid > 0) {
+                                                if ($lid !== $lineId) {
+                                                    continue;
+                                                }
+                                            } elseif (!$isFirstLine) {
+                                                continue;
+                                            }
+                                            $pf = $this->getPaymentProofFileInfo($fObj);
+                                            if ($pf === null) {
+                                                continue;
+                                            }
+                                            $fileShown = true;
+                                            $url  = htmlspecialchars($pf['url'], ENT_QUOTES, 'UTF-8');
+                                            $type = $pf['type'];
+                                            if ($type === 'image') {
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><img src="' . $url . '" alt="" class="payment-proof-thumb"></span>';
+                                            } else {
+                                                echo '<span class="view-payment-attachment payment-proof-thumb-wrap payment-proof-thumb-pdf me-1" role="button" tabindex="0" data-url="' . $url . '" data-type="' . $type . '" title="Ver comprobante"><i class="fas fa-file-pdf"></i><span class="small d-block">PDF</span></span>';
+                                            }
+                                        }
+                                        if (!$fileShown) {
+                                            echo '<span class="text-muted">—</span>';
+                                        }
+                                    ?></td>
+                                    <td class="text-center align-middle"><?php
+                                        $proofStatusClip = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
+                                        $isIngresadoClip = ($proofStatusClip === '' || strtolower($proofStatusClip) === 'ingresado');
+                                        if ($isIngresadoClip && $lineId > 0) {
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" data-line-id="' . $lineId . '" title="' . htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar archivo a esta línea')) . '"><i class="fas fa-paperclip"></i></button>';
+                                        } else {
+                                            echo '<span class="text-muted">—</span>';
                                         }
                                     ?></td>
                                     <td class="align-top"><?php
-                                        if ($line === reset($lines)) {
+                                        if ($isFirstLine) {
                                             $pn = trim((string)($proof->mismatch_note ?? ''));
                                             if ($pn !== '') {
                                                 echo '<span class="small text-muted d-block" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span>';
@@ -461,7 +490,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                             $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             echo '<div class="payment-proof-actions-row mt-1">';
-                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                             if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
                                                 echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                                 echo HTMLHelper::_('form.token');
@@ -477,7 +505,9 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         }
                                     ?></td>
                                 </tr>
-                                <?php endforeach;
+                                <?php
+                                        $isFirstLine = false;
+                                        endforeach;
                                         $totalMonto += $proofMonto;
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
@@ -514,6 +544,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             echo '<span class="text-muted">—</span>';
                                         }
                                     ?></td>
+                                    <td class="text-center align-middle"><?php
+                                        $proofStatusLeg = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
+                                        $isIngresadoLeg = ($proofStatusLeg === '' || strtolower($proofStatusLeg) === 'ingresado');
+                                        if ($isIngresadoLeg) {
+                                            echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" data-line-id="0" title="' . htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar archivo a esta línea')) . '"><i class="fas fa-paperclip"></i></button>';
+                                        } else {
+                                            echo '<span class="text-muted">—</span>';
+                                        }
+                                    ?></td>
                                     <td class="align-top"><?php
                                         $pn = trim((string)($proof->mismatch_note ?? ''));
                                         if ($pn !== '') {
@@ -522,7 +561,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                         echo '<div class="payment-proof-actions-row mt-1">';
-                                        echo '<button type="button" class="btn btn-sm btn-outline-secondary payment-proof-action-btn toggle-add-file-form" data-proof-id="' . (int)($proof->id ?? 0) . '" title="Agregar archivo"><i class="fas fa-paperclip"></i></button>';
                                         if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
                                             echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                             echo HTMLHelper::_('form.token');
@@ -539,16 +577,28 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                                 <?php /* Removed duplicate simple "Orden #" list; keep detailed "Información de la Orden" table below. */ ?>
                                 <?php endif; endforeach; ?>
-                                <!-- Add-file mini-form rows (hidden, one per proof, toggled via JS) -->
-                                <?php foreach ($existingPayments as $epf) : ?>
-                                <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="8" class="bg-white py-2 px-3">
+                                <!-- Add-file mini-form rows (hidden, one per proof line, toggled via JS) -->
+                                <?php foreach ($existingPayments as $epf) :
+                                    $isMergedEpf = !empty($epf->_merged);
+                                    $linesForAdd = !$isMergedEpf && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($epf->id ?? 0) : [];
+                                    if (empty($linesForAdd)) {
+                                        $linesForAdd = [(object) ['id' => 0]];
+                                    }
+                                    foreach ($linesForAdd as $ln) :
+                                        $addLineId = (int) ($ln->id ?? 0);
+                                        $lineLabel = $addLineId > 0 ? (' — línea doc. ' . htmlspecialchars((string) ($ln->document_number ?? ''), ENT_QUOTES, 'UTF-8')) : '';
+                                ?>
+                                <tr class="add-file-form-row" id="add-file-row-<?php echo (int)($epf->id ?? 0); ?>-<?php echo $addLineId; ?>" style="display:none;">
+                                    <td colspan="9" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addFile'); ?>"
                                               method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
                                             <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
-                                            <span class="small fw-bold me-1">Agregar a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?>:</span>
+                                            <?php if ($addLineId > 0) : ?>
+                                            <input type="hidden" name="payment_proof_line_id" value="<?php echo $addLineId; ?>">
+                                            <?php endif; ?>
+                                            <span class="small fw-bold me-1">Agregar a PA-<?php echo str_pad((string)(int)($epf->id ?? 0), 5, '0', STR_PAD_LEFT); ?><?php echo $lineLabel; ?>:</span>
                                             <input type="file" name="payment_proof_files[]" multiple
                                                    class="form-control form-control-sm" style="max-width:280px;"
                                                    accept=".jpg,.jpeg,.png,.pdf"
@@ -556,20 +606,22 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <button type="submit" class="btn btn-sm btn-primary">
                                                 <i class="fas fa-upload me-1"></i>Guardar
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-add-file-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-add-file-form" data-proof-id="<?php echo (int)($epf->id ?? 0); ?>" data-line-id="<?php echo $addLineId; ?>">
                                                 Cancelar
                                             </button>
                                         </form>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+                                    endforeach;
+                                endforeach; ?>
                                 <?php if (!empty($this->canEditNoteOrAssociateOrder)) : ?>
                                 <!-- Edit mismatch note rows (hidden, one per proof) -->
                                 <?php foreach ($existingPayments as $epf) :
                                     $currentNote = trim((string)($epf->mismatch_note ?? ''));
                                 ?>
                                 <tr class="edit-note-form-row" id="edit-note-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="8" class="bg-white py-2 px-3">
+                                    <td colspan="9" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateMismatchNote'); ?>" method="post" class="d-flex align-items-start gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -587,7 +639,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $availableOrders = method_exists($proofModel, 'getOrdersNotLinkedToProof') ? $proofModel->getOrdersNotLinkedToProof($epf->id ?? 0, 150) : [];
                                 ?>
                                 <tr class="add-order-form-row" id="add-order-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="8" class="bg-white py-2 px-3">
+                                    <td colspan="9" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addOrderToProof'); ?>" method="post" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -618,6 +670,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td></td>
                                     <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
                                     <td>Q <?php echo number_format($totalMonto, 2); ?></td>
+                                    <td></td>
                                     <td></td>
                                     <td></td>
                                     <td></td>
@@ -1275,6 +1328,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <th style="width: 140px;">Doc. No</th>
                                                     <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                                     <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
+                                                    <th class="text-center" style="width: 52px;" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ATTACHMENTS', 'Attachments for this line', 'Archivos por línea')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                                                     <th style="width: 40px;"></th>
                                                 </tr>
                                             </thead>
@@ -1305,6 +1359,12 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                     <td>
                                                         <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>
                                                     </td>
+                                                    <td class="text-center align-middle">
+                                                        <label class="btn btn-sm btn-outline-secondary mb-0 payment-line-clip-label" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ATTACH_HINT', 'One or more files for this line', 'Uno o más archivos para esta línea')); ?>">
+                                                            <i class="fas fa-paperclip" aria-hidden="true"></i>
+                                                            <input type="file" name="payment_line_files[0][]" class="d-none payment-line-file-input" accept=".jpg,.jpeg,.png,.pdf" multiple onchange="validateFiles(this)">
+                                                        </label>
+                                                    </td>
                                                     <td class="text-center"></td>
                                                 </tr>
                                             </tbody>
@@ -1312,6 +1372,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 <tr class="table-info">
                                                     <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                     <td><strong id="payment-lines-total">Q. 0.00</strong></td>
+                                                    <td></td>
                                                     <td class="text-end">
                                                         <button type="button" class="btn btn-sm btn-success add-payment-line-btn" style="min-width: 38px;" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
                                                             <i class="fas fa-plus"></i>
@@ -1403,26 +1464,6 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="payment_proof_file">
-                                            <?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILE', 'Payment proof file', 'Archivo comprobante de pago'); ?>
-                                        </label>
-                                        <input type="file" 
-                                               name="payment_proof_files[]" 
-                                               id="payment_proof_files" 
-                                               class="form-control" 
-                                               accept=".jpg,.jpeg,.png,.pdf"
-                                               multiple
-                                               onchange="validateFiles(this)">
-                                        <small class="form-text text-muted">
-                                            Formatos aceptados: JPG, PNG, PDF (Máx: 5MB por archivo). Puede seleccionar varios archivos a la vez.
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Hidden field with orders-with-remaining-balance data for JavaScript -->
                             <script type="application/json" id="unpaid-orders-data">
                                 <?php echo $this->getUnpaidOrdersJson(); ?>
@@ -1487,7 +1528,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.toggle-add-file-form').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var proofId = this.getAttribute('data-proof-id');
-            var row = document.getElementById('add-file-row-' + proofId);
+            var lineId = this.getAttribute('data-line-id');
+            if (lineId === null || lineId === '') {
+                lineId = '0';
+            }
+            var row = document.getElementById('add-file-row-' + proofId + '-' + lineId);
             if (row) {
                 row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
             }
@@ -1575,6 +1620,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 else if (m[1] === 'document_number') el.value = '';
                 else if (m[1] === 'document_date') el.value = '';
                 else if (m[1] === 'payment_type') el.value = '';
+            }
+            if (el.classList && el.classList.contains('payment-line-file-input')) {
+                el.name = 'payment_line_files[' + lineIndex + '][]';
+                el.value = '';
             }
         });
         tbody.appendChild(newRow);
