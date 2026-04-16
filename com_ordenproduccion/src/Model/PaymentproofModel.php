@@ -982,6 +982,33 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Columns to select for payment_proof_files rows (includes optional columns when present).
+     *
+     * @return  array<int, string>
+     */
+    protected function getPaymentProofFilesSelectColumns(): array
+    {
+        $fields = ['id', 'file_path'];
+        if (!$this->hasPaymentProofFilesTable()) {
+            return $fields;
+        }
+        try {
+            $db   = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proof_files', false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (isset($cols['payment_proof_line_id'])) {
+                $fields[] = 'payment_proof_line_id';
+            }
+            if (isset($cols['created'])) {
+                $fields[] = 'created';
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $fields;
+    }
+
+    /**
      * Return all file attachments for a payment proof.
      * Reads from the new payment_proof_files table when available;
      * falls back to the legacy file_path column otherwise.
@@ -996,12 +1023,10 @@ class PaymentproofModel extends ItemModel
 
         if ($this->hasPaymentProofFilesTable()) {
             try {
-                $db    = $this->getDatabase();
-                $select = $this->hasPaymentProofFileLineIdColumn()
-                    ? 'id, file_path, payment_proof_line_id'
-                    : 'id, file_path';
-                $query = $db->getQuery(true)
-                    ->select($select)
+                $db     = $this->getDatabase();
+                $fields = $this->getPaymentProofFilesSelectColumns();
+                $query  = $db->getQuery(true)
+                    ->select($db->quoteName($fields))
                     ->from($db->quoteName('#__ordenproduccion_payment_proof_files'))
                     ->where($db->quoteName('payment_proof_id') . ' = ' . (int) ($proof->id ?? 0))
                     ->where($db->quoteName('state') . ' = 1')
@@ -1082,8 +1107,10 @@ class PaymentproofModel extends ItemModel
 
     /**
      * Group attachment file rows by payment line for display.
-     * Rows with payment_proof_line_id set go to that line; rows without (legacy / old uploads)
-     * are distributed across lines in file id order (extras go to the last line).
+     * Rows with payment_proof_line_id go to that line. Rows without (legacy uploads) are paired
+     * to lines in **registration order** (created ASC, then id), not raw id order, so thumbnails
+     * match the payment line sequence (line 1, 2, 3…). Legacy synthetic rows (id 0 placeholder)
+     * attach to the first line only.
      *
      * @param   object  $proof  Payment proof row
      * @param   array   $lines  Rows from getPaymentProofLines (ordered)
@@ -1106,34 +1133,54 @@ class PaymentproofModel extends ItemModel
             return [];
         }
 
-        $raw = $this->getPaymentProofFiles($proof);
-        $explicit = [];
-        $orphans  = [];
+        $raw              = $this->getPaymentProofFiles($proof);
+        $explicit         = [];
+        $dbOrphans        = [];
+        $legacySynthetics = [];
 
         foreach ($raw as $f) {
             if ($this->proofFileHasPositiveLineId($f)) {
-                $lid = (int) $f->payment_proof_line_id;
+                $lid = (int) trim((string) ($f->payment_proof_line_id ?? '0'));
                 if (!isset($explicit[$lid])) {
                     $explicit[$lid] = [];
                 }
                 $explicit[$lid][] = $f;
+            } elseif ((int) ($f->id ?? 0) === 0) {
+                // Placeholder row for payment_proofs.file_path only (not a DB id)
+                $legacySynthetics[] = $f;
             } else {
-                $orphans[] = $f;
+                $dbOrphans[] = $f;
             }
         }
 
+        foreach ($explicit as $lid => &$list) {
+            usort(
+                $list,
+                static function ($a, $b) {
+                    return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
+                }
+            );
+        }
+        unset($list);
+
         usort(
-            $orphans,
-            static function ($a, $b) {
+            $dbOrphans,
+            function ($a, $b) {
+                $ta = isset($a->created) ? strtotime((string) $a->created) : false;
+                $tb = isset($b->created) ? strtotime((string) $b->created) : false;
+                if ($ta !== false && $tb !== false && $ta !== $tb) {
+                    return $ta <=> $tb;
+                }
+
                 return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
             }
         );
 
-        $lineList   = array_values($lines);
-        $lineCount  = count($lineList);
+        $lineList       = array_values($lines);
+        $lineCount      = count($lineList);
         $orphanByLineId = [];
 
-        foreach ($orphans as $i => $f) {
+        foreach ($dbOrphans as $i => $f) {
             if ($lineCount <= 0) {
                 break;
             }
@@ -1153,6 +1200,13 @@ class PaymentproofModel extends ItemModel
             $out[$lid] = array_merge($explicit[$lid] ?? [], $orphanByLineId[$lid] ?? []);
         }
 
+        $firstLid = (int) ($lineList[0]->id ?? 0);
+        if ($firstLid > 0 && $legacySynthetics !== []) {
+            foreach (array_reverse($legacySynthetics) as $ls) {
+                array_unshift($out[$firstLid], $ls);
+            }
+        }
+
         return $out;
     }
 
@@ -1168,8 +1222,11 @@ class PaymentproofModel extends ItemModel
             return false;
         }
         $v = $f->payment_proof_line_id;
+        if ($v === null || $v === '') {
+            return false;
+        }
 
-        return $v !== null && $v !== '' && (int) $v > 0;
+        return (int) $v > 0;
     }
 
     /**
