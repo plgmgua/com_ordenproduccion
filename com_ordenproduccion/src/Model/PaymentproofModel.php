@@ -224,19 +224,23 @@ class PaymentproofModel extends ItemModel
             
             $paymentProofId = $db->insertid();
 
-            $insertedPaymentLineIds = [];
+            $lineFilePaths = $data['line_file_paths'] ?? null;
+            if (!is_array($lineFilePaths) && !empty($data['file_paths']) && is_array($data['file_paths'])) {
+                $lineFilePaths = [0 => $data['file_paths']];
+            }
 
-            // Insert payment_proof_lines if table exists (3.64.0+); files link to line IDs (3.109.49+)
+            // Insert payment_proof_lines if table exists (3.64.0+); attach files in the same pass so
+            // payment_proof_line_id always matches the line we just inserted (same index as buildLineFilePathsForRegister).
             if ($this->hasPaymentProofLinesTable() && !empty($paymentLines)) {
                 $pplCols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
                 $pplCols = is_array($pplCols) ? array_change_key_case($pplCols, CASE_LOWER) : [];
                 $hasDocumentDate = isset($pplCols['document_date']);
-                $ordering = 0;
+                $ordering     = 0;
+                $lineFileIdx  = 0;
+                $createdBy    = (int) ($data['created_by'] ?? 0);
+                $hasLineCol   = $this->hasPaymentProofFileLineIdColumn();
                 foreach ($paymentLines as $line) {
                     $amt = (float) ($line['amount'] ?? 0);
-                    if ($amt <= 0) {
-                        continue;
-                    }
                     $columns = ['payment_proof_id', 'payment_type', 'bank', 'document_number', 'amount', 'ordering'];
                     $values = (int) $paymentProofId . ',' .
                         $db->quote($line['payment_type'] ?? 'efectivo') . ',' .
@@ -255,32 +259,36 @@ class PaymentproofModel extends ItemModel
                         ->values($values);
                     $db->setQuery($insertLine);
                     $db->execute();
-                    $insertedPaymentLineIds[] = (int) $db->insertid();
-                }
-            }
+                    $newLineId = (int) $db->insertid();
 
-            // Insert file attachments into payment_proof_files (3.65.0+), optionally per line (3.109.49+)
-            if ($this->hasPaymentProofFilesTable()) {
-                $createdBy = (int) ($data['created_by'] ?? 0);
-                $hasLineCol = $this->hasPaymentProofFileLineIdColumn();
-                $lineFilePaths = $data['line_file_paths'] ?? null;
-                if (!is_array($lineFilePaths) && !empty($data['file_paths']) && is_array($data['file_paths'])) {
-                    $lineFilePaths = [0 => $data['file_paths']];
+                    if ($this->hasPaymentProofFilesTable() && is_array($lineFilePaths)) {
+                        $paths = $lineFilePaths[$lineFileIdx] ?? [];
+                        $lineFileIdx++;
+                        if (is_array($paths)) {
+                            foreach ($paths as $fp) {
+                                $fp = trim((string) $fp);
+                                if ($fp === '') {
+                                    continue;
+                                }
+                                $lineFk = ($hasLineCol && $newLineId > 0) ? $newLineId : null;
+                                $this->addFileToProof((int) $paymentProofId, $fp, $createdBy, $lineFk);
+                            }
+                        }
+                    }
                 }
-                if (is_array($lineFilePaths)) {
-                    foreach ($lineFilePaths as $lineIdx => $paths) {
-                        if (!is_array($paths)) {
+            } elseif ($this->hasPaymentProofFilesTable() && is_array($lineFilePaths)) {
+                // No payment_proof_lines table: legacy proof-level files only (no line FK).
+                $createdBy = (int) ($data['created_by'] ?? 0);
+                foreach ($lineFilePaths as $paths) {
+                    if (!is_array($paths)) {
+                        continue;
+                    }
+                    foreach ($paths as $fp) {
+                        $fp = trim((string) $fp);
+                        if ($fp === '') {
                             continue;
                         }
-                        $pplId = isset($insertedPaymentLineIds[$lineIdx]) ? (int) $insertedPaymentLineIds[$lineIdx] : 0;
-                        foreach ($paths as $fp) {
-                            $fp = trim((string) $fp);
-                            if ($fp === '') {
-                                continue;
-                            }
-                            $lineFk = ($hasLineCol && $pplId > 0) ? $pplId : null;
-                            $this->addFileToProof((int) $paymentProofId, $fp, $createdBy, $lineFk);
-                        }
+                        $this->addFileToProof((int) $paymentProofId, $fp, $createdBy, null);
                     }
                 }
             }
@@ -399,13 +407,16 @@ class PaymentproofModel extends ItemModel
         if (!empty($data['payment_lines']) && is_array($data['payment_lines'])) {
             foreach ($data['payment_lines'] as $line) {
                 $amount = (float) ($line['amount'] ?? 0);
-                if ($amount <= 0) {
+                $type   = trim((string) ($line['payment_type'] ?? ''));
+                $doc    = trim((string) ($line['document_number'] ?? ''));
+                // Same rules as PaymentproofController::register() and buildLineFilePathsForRegister()
+                if ($amount <= 0 || $type === '' || $doc === '') {
                     continue;
                 }
                 $lines[] = [
-                    'payment_type' => $line['payment_type'] ?? 'efectivo',
+                    'payment_type' => $type,
                     'bank' => $line['bank'] ?? '',
-                    'document_number' => trim($line['document_number'] ?? ''),
+                    'document_number' => $doc,
                     'document_date' => trim($line['document_date'] ?? ''),
                     'amount' => $amount
                 ];
@@ -1218,10 +1229,8 @@ class PaymentproofModel extends ItemModel
         if (!$this->hasPaymentProofFileLineIdColumn()) {
             return false;
         }
-        if (!property_exists($f, 'payment_proof_line_id')) {
-            return false;
-        }
-        $v = $f->payment_proof_line_id;
+        // Use null coalesce: some drivers omit unset columns; FK must be a positive int to count as explicit.
+        $v = $f->payment_proof_line_id ?? null;
         if ($v === null || $v === '') {
             return false;
         }
