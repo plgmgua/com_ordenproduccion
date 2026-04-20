@@ -14,8 +14,6 @@ use Joomla\CMS\Router\Route;
 
 /** @var array $rows */
 /** @var bool $schemaOk */
-/** @var bool $showHeading */
-/** @var bool $showIntro */
 /** @var bool $showFullLink */
 /** @var int $pendingTotal */
 
@@ -36,17 +34,6 @@ $adminAprobUrl = Route::_('index.php?option=com_ordenproduccion&view=administrac
 $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
 ?>
 <div id="<?php echo $modId; ?>" class="mod-ordop-pending-approvals <?php echo htmlspecialchars($params->get('moduleclass_sfx', ''), ENT_QUOTES, 'UTF-8'); ?>">
-    <?php if ($showHeading) : ?>
-    <h3 class="h5 mb-2">
-        <span class="icon-check-square" aria-hidden="true"></span>
-        <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_TAB_HEADING'); ?>
-    </h3>
-    <?php endif; ?>
-
-    <?php if ($showIntro) : ?>
-    <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_TAB_INTRO'); ?></p>
-    <?php endif; ?>
-
     <?php if ($showFullLink) : ?>
     <p class="mb-2">
         <a href="<?php echo htmlspecialchars($adminAprobUrl, ENT_QUOTES, 'UTF-8'); ?>" class="small">

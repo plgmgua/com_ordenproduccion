@@ -59,8 +59,6 @@ if ($rows !== []) {
 }
 
 $pendingTotal  = count($rows);
-$showHeading   = (int) $params->get('show_heading', 1) === 1;
-$showIntro     = (int) $params->get('show_intro', 1) === 1;
 $showFullLink  = (int) $params->get('show_full_link', 1) === 1;
 $hideWhenEmpty = (int) $params->get('hide_when_empty', 0) === 1;
 

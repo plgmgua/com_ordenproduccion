@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>1.1.0-STABLE</version>
+    <version>1.1.1-STABLE</version>
     <description>MOD_ORDOP_PENDING_APPROVALS_XML_DESCRIPTION</description>
 
     <files>
@@ -27,28 +27,6 @@
     <config>
         <fields name="params">
             <fieldset name="basic" label="MOD_ORDOP_PENDING_APPROVALS_CONFIG_BASIC_LABEL">
-                <field
-                    name="show_heading"
-                    type="radio"
-                    label="MOD_ORDOP_PENDING_APPROVALS_SHOW_HEADING_LABEL"
-                    description="MOD_ORDOP_PENDING_APPROVALS_SHOW_HEADING_DESC"
-                    default="1"
-                    class="btn-group btn-group-yesno"
-                >
-                    <option value="1">JYES</option>
-                    <option value="0">JNO</option>
-                </field>
-                <field
-                    name="show_intro"
-                    type="radio"
-                    label="MOD_ORDOP_PENDING_APPROVALS_SHOW_INTRO_LABEL"
-                    description="MOD_ORDOP_PENDING_APPROVALS_SHOW_INTRO_DESC"
-                    default="1"
-                    class="btn-group btn-group-yesno"
-                >
-                    <option value="1">JYES</option>
-                    <option value="0">JNO</option>
-                </field>
                 <field
                     name="show_full_link"
                     type="radio"
