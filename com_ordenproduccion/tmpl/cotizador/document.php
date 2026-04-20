@@ -548,11 +548,20 @@ $envios = $this->envios ?? [];
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
-                                    <div class="d-flex flex-wrap flex-md-nowrap align-items-start gap-3">
-                                    <div class="flex-shrink-0">
-                                    <table class="table table-sm table-bordered mb-0" style="max-width: 700px;">
+                                    <table class="table table-sm table-bordered mb-0" style="max-width: 920px;">
                                         <?php
                                         $breakdown = $line->breakdown ?? [];
+                                        $precotRowModel = $this->precotizacionModel ?? null;
+                                        $hasBreakdownOverrideCols = $canSaveImpresionOverride && $precotRowModel;
+                                        if ($hasBreakdownOverrideCols) {
+                                            $hasBreakdownOverrideCols = false;
+                                            foreach ($breakdown as $bi => $_br) {
+                                                if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi) !== null) {
+                                                    $hasBreakdownOverrideCols = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
                                         ?>
                                         <?php if ($canSeePrecotInternalTax) : ?>
                                         <thead>
@@ -560,18 +569,56 @@ $envios = $this->envios ?? [];
                                                 <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
+                                                <?php if ($hasBreakdownOverrideCols) : ?>
+                                                <th class="text-center text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_COL_SAVE'); ?></th>
+                                                <th class="text-end text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_COL_MIN'); ?></th>
+                                                <?php endif; ?>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php foreach ($breakdown as $row) :
+                                            <?php foreach ($breakdown as $bi => $row) :
                                                 $label = isset($row['label']) ? htmlspecialchars($row['label']) : '';
                                                 $detail = isset($row['detail']) ? htmlspecialchars($row['detail']) : '';
                                                 $subtotal = isset($row['subtotal']) ? number_format((float) $row['subtotal'], 2) : '0.00';
+                                                $rowMeta = ($hasBreakdownOverrideCols && $precotRowModel)
+                                                    ? $precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi)
+                                                    : null;
                                             ?>
                                                 <tr>
                                                     <td><?php echo $label; ?></td>
                                                     <td class="text-end"><?php echo $detail; ?></td>
+                                                    <?php if ($rowMeta !== null) :
+                                                        $rBase = $rowMeta['base'];
+                                                        $rMin  = $rowMeta['min'];
+                                                        $rCur  = $rowMeta['current'];
+                                                        $overrideInputId = 'breakdown-override-' . (int) $line->id . '-' . (int) $bi;
+                                                    ?>
+                                                    <td class="text-end align-middle">
+                                                        <div class="breakdown-row-override-wrap text-end"
+                                                            data-line-id="<?php echo (int) $line->id; ?>"
+                                                            data-breakdown-index="<?php echo (int) $bi; ?>"
+                                                            data-base="<?php echo htmlspecialchars((string) $rBase, ENT_QUOTES, 'UTF-8'); ?>"
+                                                            data-min="<?php echo htmlspecialchars((string) $rMin, ENT_QUOTES, 'UTF-8'); ?>">
+                                                            <input type="number" step="0.01" min="<?php echo htmlspecialchars((string) $rMin, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars((string) $rBase, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                class="form-control form-control-sm breakdown-row-override-input d-inline-block" style="max-width: 7.5rem;"
+                                                                id="<?php echo htmlspecialchars($overrideInputId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                value="<?php echo htmlspecialchars(number_format($rCur, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                inputmode="decimal"
+                                                                title="<?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_HELP', number_format($rMin, 2), number_format($rBase, 2)), ENT_QUOTES, 'UTF-8'); ?>" />
+                                                            <div class="text-danger small breakdown-row-override-warning mt-1 d-none text-start" role="alert"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center align-middle">
+                                                        <button type="button" class="btn btn-sm btn-primary breakdown-row-override-save"><?php echo Text::_('JSAVE'); ?></button>
+                                                    </td>
+                                                    <td class="text-end align-middle">Q <?php echo number_format($rMin, 2); ?></td>
+                                                    <?php elseif ($hasBreakdownOverrideCols) : ?>
                                                     <td class="text-end">Q <?php echo $subtotal; ?></td>
+                                                    <td class="text-center text-muted">—</td>
+                                                    <td class="text-end text-muted">—</td>
+                                                    <?php else : ?>
+                                                    <td class="text-end">Q <?php echo $subtotal; ?></td>
+                                                    <?php endif; ?>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -579,6 +626,10 @@ $envios = $this->envios ?? [];
                                             <tr class="table-secondary fw-bold">
                                                 <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
                                                 <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                                                <?php if ($hasBreakdownOverrideCols) : ?>
+                                                <td></td>
+                                                <td></td>
+                                                <?php endif; ?>
                                             </tr>
                                         </tfoot>
                                         <?php else : ?>
@@ -603,64 +654,6 @@ $envios = $this->envios ?? [];
                                         </tfoot>
                                         <?php endif; ?>
                                     </table>
-                                    </div>
-                                    <?php
-                                    $precotRowModel = $this->precotizacionModel ?? null;
-                                    $showRowOverrides = $canSaveImpresionOverride && $precotRowModel;
-                                    if ($showRowOverrides) {
-                                        $showRowOverrides = false;
-                                        foreach ($breakdown as $bi => $_br) {
-                                            if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi) !== null) {
-                                                $showRowOverrides = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if ($showRowOverrides) :
-                                    ?>
-                                    <div class="flex-grow-0 breakdown-overrides-col border-start border-secondary ps-3 ms-md-0" style="min-width: 260px; max-width: 440px;">
-                                    <?php
-                                        foreach ($breakdown as $bi => $bRow) :
-                                            $rowMeta = $precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi);
-                                            if ($rowMeta === null) {
-                                                continue;
-                                            }
-                                            $rBase = $rowMeta['base'];
-                                            $rMin  = $rowMeta['min'];
-                                            $rCur  = $rowMeta['current'];
-                                            $conceptLabel = isset($bRow['label']) ? trim((string) $bRow['label']) : '';
-                                            if ($conceptLabel === '') {
-                                                $conceptLabel = Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM');
-                                            }
-                                            $overrideInputId = 'breakdown-override-' . (int) $line->id . '-' . (int) $bi;
-                                    ?>
-                                    <div class="breakdown-row-override-wrap mb-3 pb-3 border-bottom border-secondary"
-                                        data-line-id="<?php echo (int) $line->id; ?>"
-                                        data-breakdown-index="<?php echo (int) $bi; ?>"
-                                        data-base="<?php echo htmlspecialchars((string) $rBase, ENT_QUOTES, 'UTF-8'); ?>"
-                                        data-min="<?php echo htmlspecialchars((string) $rMin, ENT_QUOTES, 'UTF-8'); ?>">
-                                        <label class="form-label small mb-1" for="<?php echo htmlspecialchars($overrideInputId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_SUBTOTAL_LABEL', htmlspecialchars($conceptLabel, ENT_QUOTES, 'UTF-8')); ?></label>
-                                        <div class="d-flex flex-wrap align-items-center gap-2">
-                                            <input type="number" step="0.01" min="<?php echo htmlspecialchars((string) $rMin, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars((string) $rBase, ENT_QUOTES, 'UTF-8'); ?>"
-                                                class="form-control form-control-sm breakdown-row-override-input" style="max-width: 10rem;"
-                                                id="<?php echo htmlspecialchars($overrideInputId, ENT_QUOTES, 'UTF-8'); ?>"
-                                                value="<?php echo htmlspecialchars(number_format($rCur, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
-                                                inputmode="decimal"
-                                                title="<?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_HELP', number_format($rMin, 2), number_format($rBase, 2)), ENT_QUOTES, 'UTF-8'); ?>" />
-                                            <button type="button" class="btn btn-sm btn-primary breakdown-row-override-save"><?php echo Text::_('JSAVE'); ?></button>
-                                            <span class="small text-muted text-nowrap"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_MIN_SHORT', number_format($rMin, 2)); ?></span>
-                                            <span class="small text-muted text-nowrap"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_MAX_SHORT', number_format($rBase, 2)); ?></span>
-                                        </div>
-                                        <div class="text-danger small breakdown-row-override-warning mt-1 d-none" role="alert"></div>
-                                    </div>
-                                    <?php
-                                        endforeach;
-                                    ?>
-                                    </div>
-                                    <?php
-                                    endif;
-                                    ?>
-                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -780,7 +773,9 @@ $envios = $this->envios ?? [];
     document.addEventListener('click', function(e) {
         var btn = e.target && e.target.closest && e.target.closest('.breakdown-row-override-save');
         if (!btn) return;
-        var wrap = btn.closest('.breakdown-row-override-wrap');
+        var tr = btn.closest('tr');
+        if (!tr) return;
+        var wrap = tr.querySelector('.breakdown-row-override-wrap');
         if (!wrap) return;
         var input = wrap.querySelector('.breakdown-row-override-input');
         var warn = wrap.querySelector('.breakdown-row-override-warning');
