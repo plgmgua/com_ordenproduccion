@@ -878,7 +878,7 @@ class PrecotizacionModel extends ListModel
 
         return [
             'success'         => true,
-            'message'         => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVED'),
+            'message'         => Text::_('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_SAVED'),
             'total'           => $lineTotal,
             'price_per_sheet' => $pricePerSheet,
         ];
