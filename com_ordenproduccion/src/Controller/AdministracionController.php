@@ -17,6 +17,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
@@ -1455,6 +1456,17 @@ class AdministracionController extends BaseController
     {
         $app = Factory::getApplication();
         $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones', false);
+
+        $returnPost = $app->input->post->get('return', '', 'string');
+        if ($returnPost !== '') {
+            $decoded = base64_decode($returnPost, true);
+            if ($decoded === false || $decoded === '') {
+                $decoded = base64_decode($returnPost);
+            }
+            if (is_string($decoded) && $decoded !== '' && Uri::isInternal($decoded)) {
+                $redirect = $decoded;
+            }
+        }
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
