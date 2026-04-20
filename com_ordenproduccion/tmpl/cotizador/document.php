@@ -14,7 +14,6 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
-use Joomla\CMS\Uri\Uri;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
 
@@ -31,7 +30,13 @@ if (!$item) {
 
 $preCotizacionId = (int) $item->id;
 $canSaveImpresionOverride = !empty($this->canSaveImpresionOverride);
-$saveImpresionOverrideUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.saveImpresionOverride&format=json';
+// Absolute SEF-safe URLs (same scheme as current request). Uri::root().'index.php' breaks with http/https mismatch or some SEF layouts.
+$saveImpresionOverrideUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.saveImpresionOverride&format=json&tmpl=component',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
 $precotizacionLocked = !empty($this->precotizacionLocked);
 $canEditDocument = isset($this->precotizacionDocumentEditable)
     ? (bool) $this->precotizacionDocumentEditable
@@ -148,8 +153,18 @@ if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
         }
     }
 }
-$saveBreakdownBatchUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.saveBreakdownSubtotalsBatch&format=json';
-$rejectSinDescuentoUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.rejectSolicitudDescuentoSinDescuento&format=json';
+$saveBreakdownBatchUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.saveBreakdownSubtotalsBatch&format=json&tmpl=component',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
+$rejectSinDescuentoUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.rejectSolicitudDescuentoSinDescuento&format=json&tmpl=component',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
 
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
@@ -832,6 +847,16 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
     var msgDiscountDone = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_DISCOUNT_COMPLETED')); ?>;
     var msgRejectConfirm = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_CONFIRM')); ?>;
     var msgRejectDone = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_DONE')); ?>;
+    function postJsonResponse(r) {
+        var status = r.status;
+        return r.text().then(function(text) {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                return { success: false, message: msgErr + (status ? ' (HTTP ' + status + ')' : '') };
+            }
+        });
+    }
     var saveBtn = document.getElementById('precotizacion-save-all-breakdown-subtotals');
     var rejectBtn = document.getElementById('precotizacion-reject-sin-descuento');
     var batchMsg = document.getElementById('precotizacion-breakdown-batch-msg');
@@ -852,13 +877,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                 saveBtn.disabled = true;
             }
             fetch(rejectUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
-                .then(function(r) {
-                    var ct = (r.headers.get('content-type') || '').toLowerCase();
-                    if (ct.indexOf('application/json') === -1) {
-                        return { success: false, message: msgErr };
-                    }
-                    return r.json();
-                })
+                .then(postJsonResponse)
                 .then(function(data) {
                     if (data && data.success) {
                         try { window.alert(msgRejectDone); } catch (e) {}
@@ -942,13 +961,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
             rejectBtn.disabled = true;
         }
         fetch(batchUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
-            .then(function(r) {
-                var ct = (r.headers.get('content-type') || '').toLowerCase();
-                if (ct.indexOf('application/json') === -1) {
-                    return { success: false, message: msgErr };
-                }
-                return r.json();
-            })
+            .then(postJsonResponse)
             .then(function(data) {
                 if (data && data.success) {
                     if (data.discount_request_completed && msgDiscountDone) {

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.61-STABLE] - 2026-04-21
+
+### Fixed
+- **Pre-cotización document (Aprobaciones Ventas):** Las peticiones `fetch` a guardar subtotales / Sin Descuento / override de impresión usan enlaces absolutos generados con `Route::_(..., TLS_IGNORE, true)` y `tmpl=component`, en lugar de `Uri::root() + index.php`, evitando respuestas HTML (mismo mensaje genérico «No se pudo guardar») por desajuste http/https, subcarpeta o SEF. El cliente intenta parsear JSON y, si falla, muestra el código HTTP.
+
 ## [3.109.60-STABLE] - 2026-04-21
 
 ### Added
