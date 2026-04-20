@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.63-STABLE] - 2026-04-16
+
+### Added
+- **Control de Ventas → Ajustes:** New sub-tab **Grupos de aprobaciones** lists Joomla user groups (ID, title, member count) and shows how each approval workflow step uses approvers, as a reference when editing **Flujos de aprobaciones**.
+
 ## [3.109.62-STABLE] - 2026-04-21
 
 ### Fixed

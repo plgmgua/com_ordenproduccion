@@ -453,6 +453,22 @@ class HtmlView extends BaseHtmlView
     protected $approvalWorkflowsAdmin = [];
 
     /**
+     * Ajustes → Grupos de aprobaciones: Joomla user groups (id, title, member count).
+     *
+     * @var    array<int, object>
+     * @since  3.109.63
+     */
+    protected $approvalReferenceJoomlaGroups = [];
+
+    /**
+     * Workflow steps with human-readable approver hint (grupos tab).
+     *
+     * @var    array<int, object>
+     * @since  3.109.63
+     */
+    protected $approvalWorkflowStepsApproverRows = [];
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -484,6 +500,8 @@ class HtmlView extends BaseHtmlView
                 'approvalPendingRows' => is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [],
                 'approvalWorkflowSchemaAvailable' => (bool) ($this->approvalWorkflowSchemaAvailable ?? false),
                 'approvalWorkflowsAdmin' => is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [],
+                'approvalReferenceJoomlaGroups' => is_array($this->approvalReferenceJoomlaGroups ?? null) ? $this->approvalReferenceJoomlaGroups : [],
+                'approvalWorkflowStepsApproverRows' => is_array($this->approvalWorkflowStepsApproverRows ?? null) ? $this->approvalWorkflowStepsApproverRows : [],
             ]
         );
         return $data;
@@ -552,6 +570,12 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'approvalWorkflowsAdmin') {
             return is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [];
+        }
+        if ($property === 'approvalReferenceJoomlaGroups') {
+            return is_array($this->approvalReferenceJoomlaGroups ?? null) ? $this->approvalReferenceJoomlaGroups : [];
+        }
+        if ($property === 'approvalWorkflowStepsApproverRows') {
+            return is_array($this->approvalWorkflowStepsApproverRows ?? null) ? $this->approvalWorkflowStepsApproverRows : [];
         }
         return parent::get($property, $default);
     }
@@ -1178,6 +1202,61 @@ class HtmlView extends BaseHtmlView
             }
         }
 
+        if ($activeTab === 'ajustes' && $activeSubTab === 'grupos_aprobaciones') {
+            $this->approvalReferenceJoomlaGroups       = [];
+            $this->approvalWorkflowStepsApproverRows = [];
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            try {
+                $q = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('g.id'),
+                        $db->quoteName('g.title'),
+                        'COUNT(DISTINCT ' . $db->quoteName('m.user_id') . ') AS ' . $db->quoteName('member_count'),
+                    ])
+                    ->from($db->quoteName('#__usergroups', 'g'))
+                    ->join(
+                        'LEFT',
+                        $db->quoteName('#__user_usergroup_map', 'm') . ' ON ' . $db->quoteName('m.group_id') . ' = ' . $db->quoteName('g.id')
+                    )
+                    ->group($db->quoteName('g.id') . ', ' . $db->quoteName('g.title'))
+                    ->order($db->quoteName('g.title') . ' ASC');
+                $db->setQuery($q);
+                $this->approvalReferenceJoomlaGroups = $db->loadObjectList() ?: [];
+            } catch (\Throwable $e) {
+                $this->approvalReferenceJoomlaGroups = [];
+            }
+
+            try {
+                $approvalService = new ApprovalWorkflowService();
+                $this->approvalWorkflowSchemaAvailable = $approvalService->hasSchema();
+                if ($approvalService->hasSchema()) {
+                    $q2 = $db->getQuery(true)
+                        ->select([
+                            $db->quoteName('w.entity_type'),
+                            $db->quoteName('w.name', 'workflow_name'),
+                            $db->quoteName('s.step_number'),
+                            $db->quoteName('s.step_name'),
+                            $db->quoteName('s.approver_type'),
+                            $db->quoteName('s.approver_value'),
+                        ])
+                        ->from($db->quoteName('#__ordenproduccion_approval_workflow_steps', 's'))
+                        ->innerJoin(
+                            $db->quoteName('#__ordenproduccion_approval_workflows', 'w')
+                            . ' ON ' . $db->quoteName('w.id') . ' = ' . $db->quoteName('s.workflow_id')
+                        )
+                        ->order($db->quoteName('w.entity_type') . ' ASC, ' . $db->quoteName('s.step_number') . ' ASC');
+                    $db->setQuery($q2);
+                    $steps = $db->loadObjectList() ?: [];
+                    foreach ($steps as $st) {
+                        $st->approver_display = $this->buildApprovalApproverDisplayHint($db, $st);
+                    }
+                    $this->approvalWorkflowStepsApproverRows = $steps;
+                }
+            } catch (\Throwable $e) {
+                $this->approvalWorkflowStepsApproverRows = [];
+            }
+        }
+
         // Load cotización PDF settings if ajustes tab and Ajustes de Cotización subtab
         if ($activeTab === 'ajustes' && $activeSubTab === 'ajustes_cotizacion') {
             try {
@@ -1244,6 +1323,51 @@ class HtmlView extends BaseHtmlView
 
         // Load Bootstrap and jQuery
         \Joomla\CMS\HTML\HTMLHelper::_('bootstrap.framework');
+    }
+
+    /**
+     * Human-readable approver summary for Grupos de aprobaciones tab.
+     *
+     * @since  3.109.63
+     */
+    protected function buildApprovalApproverDisplayHint(DatabaseInterface $db, object $step): string
+    {
+        $type = strtolower(trim((string) ($step->approver_type ?? '')));
+        $val  = trim((string) ($step->approver_value ?? ''));
+        if ($val === '') {
+            return '—';
+        }
+
+        if ($type === 'user') {
+            $uid = (int) $val;
+
+            return $uid > 0 ? Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_GROUPS_DISPLAY_USER', $uid) : '—';
+        }
+
+        if ($type === 'joomla_group') {
+            $ids = array_unique(array_filter(array_map('intval', explode(',', $val))));
+            if ($ids === []) {
+                return $val;
+            }
+            $in = implode(',', $ids);
+            $q  = $db->getQuery(true)
+                ->select($db->quoteName('title'))
+                ->from($db->quoteName('#__usergroups'))
+                ->where($db->quoteName('id') . ' IN (' . $in . ')')
+                ->order($db->quoteName('id') . ' ASC');
+            $db->setQuery($q);
+            $titles = $db->loadColumn() ?: [];
+
+            return $titles !== []
+                ? implode(', ', $titles) . ' (' . Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_GROUPS_IDS') . ': ' . $in . ')'
+                : $val;
+        }
+
+        if ($type === 'named_group') {
+            return Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_GROUPS_NAMED_MATCH') . ' ' . $val;
+        }
+
+        return $val;
     }
 }
 
