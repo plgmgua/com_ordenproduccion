@@ -57,7 +57,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
             <table class="table table-sm table-striped table-bordered align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_TYPE'); ?></th>
+                        <th scope="col"><?php echo Text::_('MOD_ORDOP_PENDING_APPROVALS_COL_TYPE'); ?></th>
                         <th scope="col"><?php echo Text::_('MOD_ORDOP_PENDING_APPROVALS_COL_ID'); ?></th>
                     </tr>
                 </thead>

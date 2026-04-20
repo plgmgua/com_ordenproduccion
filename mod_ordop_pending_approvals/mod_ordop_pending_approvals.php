@@ -27,7 +27,7 @@ $lang = $app->getLanguage();
 $modPath = (is_object($module) && !empty($module->path))
     ? $module->path
     : JPATH_SITE . '/modules/mod_ordop_pending_approvals';
-$lang->load('mod_ordop_pending_approvals', $modPath);
+$lang->load('mod_ordop_pending_approvals', $modPath, null, true);
 $lang->load('com_ordenproduccion', JPATH_SITE);
 $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 
