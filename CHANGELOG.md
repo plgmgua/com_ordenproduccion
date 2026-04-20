@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.60-STABLE] - 2026-04-21
+
+### Added
+- **Pre-cotización solicitud de descuento:** Botón **Sin Descuento** junto a **Guardar descuentos** para que el aprobador rechace la solicitud sin guardar subtotales (misma API de rechazo que Aprobaciones). Confirmación en el navegador; permiso igual que el guardado por lote de subtotales.
+
 ## [3.109.48-STABLE] - 2026-04-15
 
 ### Added

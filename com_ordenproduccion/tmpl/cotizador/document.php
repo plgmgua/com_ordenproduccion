@@ -149,6 +149,7 @@ if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
     }
 }
 $saveBreakdownBatchUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.saveBreakdownSubtotalsBatch&format=json';
+$rejectSinDescuentoUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.rejectSolicitudDescuentoSinDescuento&format=json';
 
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
@@ -688,12 +689,25 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
                         </tr>
                         <?php endif; ?>
                     <?php endforeach; ?>
-                    <?php if (!empty($canSaveImpresionOverride) && !empty($hasAnyBreakdownOverrideRows)) : ?>
+                    <?php
+                    $showApproverDiscountActions = !empty($canSaveImpresionOverride)
+                        && (!empty($hasAnyBreakdownOverrideRows) || !empty($pendingSolicitudDescuento));
+                    ?>
+                    <?php if ($showApproverDiscountActions) : ?>
                     <tr class="precotizacion-breakdown-batch-save-row">
                         <td colspan="7" class="bg-light border-top py-3 text-end">
-                            <button type="button" id="precotizacion-save-all-breakdown-subtotals" class="btn btn-primary">
-                                <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_SAVE_BTN'); ?>
-                            </button>
+                            <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                <?php if (!empty($pendingSolicitudDescuento)) : ?>
+                                <button type="button" id="precotizacion-reject-sin-descuento" class="btn btn-outline-danger">
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_BTN'); ?>
+                                </button>
+                                <?php endif; ?>
+                                <?php if (!empty($hasAnyBreakdownOverrideRows)) : ?>
+                                <button type="button" id="precotizacion-save-all-breakdown-subtotals" class="btn btn-primary">
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_SAVE_BTN'); ?>
+                                </button>
+                                <?php endif; ?>
+                            </div>
                             <div class="text-danger small mt-2 d-none text-end" id="precotizacion-breakdown-batch-msg" role="alert"></div>
                         </td>
                     </tr>
@@ -801,19 +815,78 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
 </script>
 <?php endif; ?>
 
-<?php if (!empty($lines) && !empty($canSaveImpresionOverride) && !empty($hasAnyBreakdownOverrideRows)) : ?>
+<?php
+$showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverride)
+    && (!empty($hasAnyBreakdownOverrideRows) || !empty($pendingSolicitudDescuento));
+?>
+<?php if ($showApproverDiscountActionsJs) : ?>
 <script>
 (function() {
     var batchUrl = <?php echo json_encode($saveBreakdownBatchUrl); ?>;
+    var rejectUrl = <?php echo json_encode($rejectSinDescuentoUrl); ?>;
     var tokenName = <?php echo json_encode($token); ?>;
     var preCotId = <?php echo (int) $preCotizacionId; ?>;
     var msgBelow = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_BELOW')); ?>;
     var msgAbove = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_ABOVE')); ?>;
     var msgErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')); ?>;
     var msgDiscountDone = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_DISCOUNT_COMPLETED')); ?>;
+    var msgRejectConfirm = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_CONFIRM')); ?>;
+    var msgRejectDone = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_DONE')); ?>;
     var saveBtn = document.getElementById('precotizacion-save-all-breakdown-subtotals');
+    var rejectBtn = document.getElementById('precotizacion-reject-sin-descuento');
     var batchMsg = document.getElementById('precotizacion-breakdown-batch-msg');
-    if (!saveBtn) return;
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', function() {
+            if (batchMsg) {
+                batchMsg.classList.add('d-none');
+                batchMsg.textContent = '';
+            }
+            if (!window.confirm(msgRejectConfirm)) {
+                return;
+            }
+            var fd = new FormData();
+            fd.append('pre_cotizacion_id', String(preCotId));
+            fd.append(tokenName, '1');
+            rejectBtn.disabled = true;
+            if (saveBtn) {
+                saveBtn.disabled = true;
+            }
+            fetch(rejectUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function(r) {
+                    var ct = (r.headers.get('content-type') || '').toLowerCase();
+                    if (ct.indexOf('application/json') === -1) {
+                        return { success: false, message: msgErr };
+                    }
+                    return r.json();
+                })
+                .then(function(data) {
+                    if (data && data.success) {
+                        try { window.alert(msgRejectDone); } catch (e) {}
+                        window.location.reload();
+                        return;
+                    }
+                    if (batchMsg) {
+                        batchMsg.textContent = (data && data.message) ? data.message : msgErr;
+                        batchMsg.classList.remove('d-none');
+                    }
+                })
+                .catch(function() {
+                    if (batchMsg) {
+                        batchMsg.textContent = msgErr;
+                        batchMsg.classList.remove('d-none');
+                    }
+                })
+                .finally(function() {
+                    rejectBtn.disabled = false;
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                    }
+                });
+        });
+    }
+    if (!saveBtn) {
+        return;
+    }
     saveBtn.addEventListener('click', function() {
         if (batchMsg) {
             batchMsg.classList.add('d-none');
@@ -865,6 +938,9 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
         fd.append('items_json', JSON.stringify(items));
         fd.append(tokenName, '1');
         saveBtn.disabled = true;
+        if (rejectBtn) {
+            rejectBtn.disabled = true;
+        }
         fetch(batchUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(function(r) {
                 var ct = (r.headers.get('content-type') || '').toLowerCase();
@@ -892,7 +968,12 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
                     batchMsg.classList.remove('d-none');
                 }
             })
-            .finally(function() { saveBtn.disabled = false; });
+            .finally(function() {
+                saveBtn.disabled = false;
+                if (rejectBtn) {
+                    rejectBtn.disabled = false;
+                }
+            });
     });
 })();
 </script>

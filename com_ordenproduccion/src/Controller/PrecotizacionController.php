@@ -930,6 +930,68 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Reject open solicitud de descuento (approver: no discount applied).
+     *
+     * POST: pre_cotizacion_id, token
+     *
+     * @return  void  application close
+     *
+     * @since   3.109.60
+     */
+    public function rejectSolicitudDescuentoSinDescuento()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('post')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        $preCotId = (int) $app->input->post->getInt('pre_cotizacion_id', 0);
+        if ($preCotId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')]);
+            $app->close();
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->canUserSaveImpresionOverrideOnPreCotizacion($preCotId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JLIB_APPLICATION_ERROR_ACCESS_FORBIDDEN')]);
+            $app->close();
+        }
+
+        $wf = new ApprovalWorkflowService();
+        if (!$wf->hasSchema()) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING')]);
+            $app->close();
+        }
+
+        $req = $wf->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO, $preCotId);
+        if ($req === null) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_NONE')]);
+            $app->close();
+        }
+
+        $ok = $wf->reject((int) $req->id, (int) $user->id, 'sin_descuento');
+        if (!$ok) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_FAILED')]);
+            $app->close();
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_REJECT_SIN_DESCUENTO_DONE'),
+        ]);
+        $app->close();
+    }
+
+    /**
      * Start solicitud de descuento approval (pre-cotización document).
      *
      * @return  bool
