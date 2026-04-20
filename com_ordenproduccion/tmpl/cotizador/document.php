@@ -453,6 +453,11 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
             <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
+        <?php if (!empty($envios)) : ?>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal">
+            <?php echo htmlspecialchars($labelAnadirEnvio); ?>
+        </button>
+        <?php endif; ?>
         <?php if ($canEditDocument && $tarjetaCreditoTableOk && !empty($tarjetaCreditoRates)) : ?>
         <form method="post" action="<?php echo htmlspecialchars($saveTarjetaUrl); ?>" class="d-inline-flex align-items-center gap-2 mb-0">
             <?php echo HTMLHelper::_('form.token'); ?>
@@ -473,11 +478,6 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
                 <?php endforeach; ?>
             </select>
         </form>
-        <?php endif; ?>
-        <?php if (!empty($envios)) : ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal">
-            <?php echo htmlspecialchars($labelAnadirEnvio); ?>
-        </button>
         <?php endif; ?>
         <?php endif; ?>
         <?php if ($discountWorkflowAvailable && !$precotizacionLocked) : ?>
