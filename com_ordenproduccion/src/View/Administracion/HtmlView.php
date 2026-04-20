@@ -453,6 +453,70 @@ class HtmlView extends BaseHtmlView
     protected $approvalWorkflowsAdmin = [];
 
     /**
+     * Flujos list: workflow rows with steps_count.
+     *
+     * @var    array<int, object>
+     * @since  3.109.64
+     */
+    protected $approvalWorkflowsListSummary = [];
+
+    /**
+     * Flujos edit: workflow id from request (0 = list only).
+     *
+     * @var    int
+     * @since  3.109.64
+     */
+    protected $approvalWorkflowEditId = 0;
+
+    /**
+     * Flujos edit: single workflow + steps or null.
+     *
+     * @var    array{workflow: object, steps: object[]}|null
+     * @since  3.109.64
+     */
+    protected $approvalWorkflowEditBundle = null;
+
+    /**
+     * Dropdown: published component approval groups.
+     *
+     * @var    array<int, object>
+     * @since  3.109.64
+     */
+    protected $approvalComponentGroupsForSelect = [];
+
+    /**
+     * Whether ordenproduccion_approval_groups tables exist.
+     *
+     * @var    bool
+     * @since  3.109.64
+     */
+    protected $approvalGroupsSchemaAvailable = false;
+
+    /**
+     * Grupos CRUD: -1 list, 0 new, >0 edit.
+     *
+     * @var    int
+     * @since  3.109.64
+     */
+    protected $approvalGroupEditorId = -1;
+
+    /**
+     * Grupos editor row or null.
+     *
+     * @var    object|null
+     * @since  3.109.64
+     */
+    protected $approvalGroupEditorRow = null;
+
+    /**
+     * Grupos editor: member Joomla user ids.
+     *
+     * @var    array<int, int>
+     * @since  3.109.64
+     */
+    protected $approvalGroupEditorMemberIds = [];
+
+    /**
      * Ajustes → Grupos de aprobaciones: Joomla user groups (id, title, member count).
      *
      * @var    array<int, object>
@@ -500,6 +564,14 @@ class HtmlView extends BaseHtmlView
                 'approvalPendingRows' => is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [],
                 'approvalWorkflowSchemaAvailable' => (bool) ($this->approvalWorkflowSchemaAvailable ?? false),
                 'approvalWorkflowsAdmin' => is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [],
+                'approvalWorkflowsListSummary' => is_array($this->approvalWorkflowsListSummary ?? null) ? $this->approvalWorkflowsListSummary : [],
+                'approvalWorkflowEditId' => (int) ($this->approvalWorkflowEditId ?? 0),
+                'approvalWorkflowEditBundle' => $this->approvalWorkflowEditBundle ?? null,
+                'approvalComponentGroupsForSelect' => is_array($this->approvalComponentGroupsForSelect ?? null) ? $this->approvalComponentGroupsForSelect : [],
+                'approvalGroupsSchemaAvailable' => (bool) ($this->approvalGroupsSchemaAvailable ?? false),
+                'approvalGroupEditorId' => (int) ($this->approvalGroupEditorId ?? -1),
+                'approvalGroupEditorRow' => $this->approvalGroupEditorRow ?? null,
+                'approvalGroupEditorMemberIds' => is_array($this->approvalGroupEditorMemberIds ?? null) ? $this->approvalGroupEditorMemberIds : [],
                 'approvalReferenceJoomlaGroups' => is_array($this->approvalReferenceJoomlaGroups ?? null) ? $this->approvalReferenceJoomlaGroups : [],
                 'approvalWorkflowStepsApproverRows' => is_array($this->approvalWorkflowStepsApproverRows ?? null) ? $this->approvalWorkflowStepsApproverRows : [],
             ]
@@ -570,6 +642,30 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'approvalWorkflowsAdmin') {
             return is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [];
+        }
+        if ($property === 'approvalWorkflowsListSummary') {
+            return is_array($this->approvalWorkflowsListSummary ?? null) ? $this->approvalWorkflowsListSummary : [];
+        }
+        if ($property === 'approvalWorkflowEditId') {
+            return (int) ($this->approvalWorkflowEditId ?? 0);
+        }
+        if ($property === 'approvalWorkflowEditBundle') {
+            return $this->approvalWorkflowEditBundle ?? null;
+        }
+        if ($property === 'approvalComponentGroupsForSelect') {
+            return is_array($this->approvalComponentGroupsForSelect ?? null) ? $this->approvalComponentGroupsForSelect : [];
+        }
+        if ($property === 'approvalGroupsSchemaAvailable') {
+            return (bool) ($this->approvalGroupsSchemaAvailable ?? false);
+        }
+        if ($property === 'approvalGroupEditorId') {
+            return (int) ($this->approvalGroupEditorId ?? -1);
+        }
+        if ($property === 'approvalGroupEditorRow') {
+            return $this->approvalGroupEditorRow ?? null;
+        }
+        if ($property === 'approvalGroupEditorMemberIds') {
+            return is_array($this->approvalGroupEditorMemberIds ?? null) ? $this->approvalGroupEditorMemberIds : [];
         }
         if ($property === 'approvalReferenceJoomlaGroups') {
             return is_array($this->approvalReferenceJoomlaGroups ?? null) ? $this->approvalReferenceJoomlaGroups : [];
@@ -712,6 +808,16 @@ class HtmlView extends BaseHtmlView
         $this->approvalPendingRows = [];
         $this->approvalWorkflowSchemaAvailable = false;
         $this->approvalWorkflowsAdmin = [];
+        $this->approvalWorkflowsListSummary = [];
+        $this->approvalWorkflowEditId = 0;
+        $this->approvalWorkflowEditBundle = null;
+        $this->approvalComponentGroupsForSelect = [];
+        $this->approvalGroupsSchemaAvailable = false;
+        $this->approvalGroupEditorId = -1;
+        $this->approvalGroupEditorRow = null;
+        $this->approvalGroupEditorMemberIds = [];
+        $this->approvalReferenceJoomlaGroups       = [];
+        $this->approvalWorkflowStepsApproverRows = [];
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1188,42 +1294,64 @@ class HtmlView extends BaseHtmlView
         if ($activeTab === 'ajustes' && $activeSubTab === 'flujos_aprobaciones') {
             try {
                 $approvalService = new ApprovalWorkflowService();
-                $this->approvalWorkflowSchemaAvailable = $approvalService->hasSchema();
+                $this->approvalWorkflowSchemaAvailable       = $approvalService->hasSchema();
+                $this->approvalGroupsSchemaAvailable         = $approvalService->hasApprovalGroupsSchema();
+                $this->approvalWorkflowEditId            = $input->getInt('wf_id', 0);
+                $this->approvalComponentGroupsForSelect = $this->approvalGroupsSchemaAvailable
+                    ? $approvalService->listComponentApprovalGroupsWithMemberCount()
+                    : [];
+
                 if ($this->approvalWorkflowSchemaAvailable) {
-                    try {
-                        $this->approvalWorkflowsAdmin = $approvalService->getAllWorkflowsWithStepsForAdmin();
-                    } catch (\Throwable $e) {
-                        $this->approvalWorkflowsAdmin = [];
+                    if ($this->approvalWorkflowEditId > 0) {
+                        $this->approvalWorkflowEditBundle = $approvalService->getWorkflowBundleForAdmin($this->approvalWorkflowEditId);
+                        if ($this->approvalWorkflowEditBundle === null) {
+                            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WF_NOT_FOUND'), 'warning');
+                            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false));
+                            return;
+                        }
+                    } else {
+                        try {
+                            $this->approvalWorkflowsListSummary = $approvalService->getWorkflowsListSummaryForAdmin();
+                        } catch (\Throwable $e) {
+                            $this->approvalWorkflowsListSummary = [];
+                        }
                     }
                 }
             } catch (\Throwable $e) {
                 $this->approvalWorkflowSchemaAvailable = false;
-                $this->approvalWorkflowsAdmin = [];
+                $this->approvalWorkflowsListSummary    = [];
+                $this->approvalWorkflowEditBundle      = null;
             }
         }
 
         if ($activeTab === 'ajustes' && $activeSubTab === 'grupos_aprobaciones') {
-            $this->approvalReferenceJoomlaGroups       = [];
             $this->approvalWorkflowStepsApproverRows = [];
-            $db = Factory::getContainer()->get(DatabaseInterface::class);
-            try {
-                $q = $db->getQuery(true)
-                    ->select([
-                        $db->quoteName('g.id'),
-                        $db->quoteName('g.title'),
-                        'COUNT(DISTINCT ' . $db->quoteName('m.user_id') . ') AS ' . $db->quoteName('member_count'),
-                    ])
-                    ->from($db->quoteName('#__usergroups', 'g'))
-                    ->join(
-                        'LEFT',
-                        $db->quoteName('#__user_usergroup_map', 'm') . ' ON ' . $db->quoteName('m.group_id') . ' = ' . $db->quoteName('g.id')
-                    )
-                    ->group($db->quoteName('g.id') . ', ' . $db->quoteName('g.title'))
-                    ->order($db->quoteName('g.title') . ' ASC');
-                $db->setQuery($q);
-                $this->approvalReferenceJoomlaGroups = $db->loadObjectList() ?: [];
-            } catch (\Throwable $e) {
-                $this->approvalReferenceJoomlaGroups = [];
+            $db     = Factory::getContainer()->get(DatabaseInterface::class);
+            $wfSvc  = new ApprovalWorkflowService();
+            $this->approvalGroupsSchemaAvailable = $wfSvc->hasApprovalGroupsSchema();
+            $this->approvalGroupEditorId         = $input->getInt('approval_group_id', -1);
+
+            if ($this->approvalGroupsSchemaAvailable && $this->approvalGroupEditorId >= 0) {
+                if ($this->approvalGroupEditorId === 0) {
+                    $this->approvalGroupEditorRow = (object) [
+                        'id'          => 0,
+                        'title'       => '',
+                        'description' => '',
+                        'published'   => 1,
+                    ];
+                    $this->approvalGroupEditorMemberIds = [];
+                } else {
+                    $row = $wfSvc->getComponentApprovalGroup($this->approvalGroupEditorId);
+                    if ($row === null) {
+                        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_NOT_FOUND'), 'warning');
+                        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones', false));
+                        return;
+                    }
+                    $this->approvalGroupEditorRow       = $row;
+                    $this->approvalGroupEditorMemberIds = $wfSvc->getComponentApprovalGroupMemberIds($this->approvalGroupEditorId);
+                }
+            } elseif ($this->approvalGroupsSchemaAvailable) {
+                $this->approvalReferenceJoomlaGroups = $wfSvc->listComponentApprovalGroupsWithMemberCount();
             }
 
             try {
@@ -1248,7 +1376,7 @@ class HtmlView extends BaseHtmlView
                     $db->setQuery($q2);
                     $steps = $db->loadObjectList() ?: [];
                     foreach ($steps as $st) {
-                        $st->approver_display = $this->buildApprovalApproverDisplayHint($db, $st);
+                        $st->approver_display = $this->buildApprovalApproverDisplayHint($db, $st, $wfSvc);
                     }
                     $this->approvalWorkflowStepsApproverRows = $steps;
                 }
@@ -1330,7 +1458,7 @@ class HtmlView extends BaseHtmlView
      *
      * @since  3.109.63
      */
-    protected function buildApprovalApproverDisplayHint(DatabaseInterface $db, object $step): string
+    protected function buildApprovalApproverDisplayHint(DatabaseInterface $db, object $step, ?ApprovalWorkflowService $wfSvc = null): string
     {
         $type = strtolower(trim((string) ($step->approver_type ?? '')));
         $val  = trim((string) ($step->approver_value ?? ''));
@@ -1365,6 +1493,29 @@ class HtmlView extends BaseHtmlView
 
         if ($type === 'named_group') {
             return Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_GROUPS_NAMED_MATCH') . ' ' . $val;
+        }
+
+        if ($type === 'approval_group') {
+            $ids = array_unique(array_filter(array_map('intval', explode(',', $val))));
+            if ($ids === []) {
+                return '—';
+            }
+            if ($wfSvc !== null && $wfSvc->hasApprovalGroupsSchema()) {
+                $in     = implode(',', $ids);
+                $q      = $db->getQuery(true)
+                    ->select($db->quoteName('title'))
+                    ->from($db->quoteName('#__ordenproduccion_approval_groups'))
+                    ->where($db->quoteName('id') . ' IN (' . $in . ')')
+                    ->order($db->quoteName('id') . ' ASC');
+                $db->setQuery($q);
+                $titles = $db->loadColumn() ?: [];
+
+                return $titles !== []
+                    ? implode(', ', $titles) . ' (' . Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_APPROVAL_GROUP_SHORT') . ': ' . $in . ')'
+                    : $val;
+            }
+
+            return $val;
         }
 
         return $val;

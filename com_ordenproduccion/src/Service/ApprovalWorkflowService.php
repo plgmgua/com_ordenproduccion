@@ -752,6 +752,12 @@ class ApprovalWorkflowService
             return $this->getUserIdsInNamedGroups($titles);
         }
 
+        if ($type === 'approval_group') {
+            $ids = array_filter(array_map('intval', explode(',', $value)));
+
+            return $this->getUserIdsInComponentApprovalGroups($ids);
+        }
+
         return [];
     }
 
@@ -808,6 +814,61 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Whether component approval-group tables exist (3.109.64+).
+     *
+     * @since   3.109.64
+     */
+    public function hasApprovalGroupsSchema(): bool
+    {
+        $prefix = $this->db->getPrefix();
+        $name   = $prefix . 'ordenproduccion_approval_groups';
+
+        try {
+            $this->db->setQuery('SHOW TABLES LIKE ' . $this->db->quote($name));
+            $this->db->execute();
+
+            return (string) $this->db->loadResult() !== '';
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * User IDs assigned to component approval groups (union of all given group ids).
+     *
+     * @param   int[]  $groupIds
+     *
+     * @return  int[]
+     *
+     * @since   3.109.64
+     */
+    protected function getUserIdsInComponentApprovalGroups(array $groupIds): array
+    {
+        if ($groupIds === [] || !$this->hasApprovalGroupsSchema()) {
+            return [];
+        }
+
+        $groupIds = array_unique(array_values(array_filter(array_map('intval', $groupIds), static function ($v) {
+            return $v > 0;
+        })));
+
+        if ($groupIds === []) {
+            return [];
+        }
+
+        $in = implode(',', $groupIds);
+
+        $q = $this->db->getQuery(true)
+            ->select('DISTINCT ' . $this->db->quoteName('user_id'))
+            ->from($this->db->quoteName('#__ordenproduccion_approval_group_users'))
+            ->where($this->db->quoteName('group_id') . ' IN (' . $in . ')');
+        $this->db->setQuery($q);
+        $uids = $this->db->loadColumn() ?: [];
+
+        return array_values(array_unique(array_map('intval', $uids)));
+    }
+
+    /**
      * All workflows with ordered steps (Control de Ventas → Ajustes → Flujos de aprobaciones).
      *
      * @return  array<int, array{workflow: object, steps: object[]}>
@@ -841,6 +902,455 @@ class ApprovalWorkflowService
         }
 
         return $out;
+    }
+
+    /**
+     * Workflow list rows with step counts (Ajustes → Flujos list).
+     *
+     * @return  array<int, object>  Rows: workflow fields + steps_count
+     *
+     * @since   3.109.64
+     */
+    public function getWorkflowsListSummaryForAdmin(): array
+    {
+        if (!$this->hasSchema()) {
+            return [];
+        }
+
+        $sub = '(SELECT COUNT(*) FROM ' . $this->db->quoteName('#__ordenproduccion_approval_workflow_steps', 's')
+            . ' WHERE ' . $this->db->quoteName('s.workflow_id') . ' = ' . $this->db->quoteName('w.id') . ')';
+
+        $q = $this->db->getQuery(true)
+            ->select(['w.*', $sub . ' AS ' . $this->db->quoteName('steps_count')])
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflows', 'w'))
+            ->order($this->db->quoteName('w.entity_type') . ' ASC');
+        $this->db->setQuery($q);
+
+        return $this->db->loadObjectList() ?: [];
+    }
+
+    /**
+     * One workflow and its steps for the edit screen.
+     *
+     * @return  array{workflow: object, steps: object[]}|null
+     *
+     * @since   3.109.64
+     */
+    public function getWorkflowBundleForAdmin(int $workflowId): ?array
+    {
+        if (!$this->hasSchema() || $workflowId < 1) {
+            return null;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflows'))
+            ->where($this->db->quoteName('id') . ' = ' . $workflowId)
+            ->setLimit(1);
+        $this->db->setQuery($q);
+        $wf = $this->db->loadObject();
+
+        if (!$wf) {
+            return null;
+        }
+
+        $q2 = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+            ->where($this->db->quoteName('workflow_id') . ' = ' . $workflowId)
+            ->order($this->db->quoteName('step_number') . ' ASC');
+        $this->db->setQuery($q2);
+        $steps = $this->db->loadObjectList() ?: [];
+
+        return ['workflow' => $wf, 'steps' => $steps];
+    }
+
+    /**
+     * Append a new step at the end of a workflow (placeholder approver: current user id or 1).
+     *
+     * @return  int  New step row id, or 0 on failure
+     *
+     * @since   3.109.64
+     */
+    public function adminAddWorkflowStep(int $workflowId): int
+    {
+        if (!$this->hasSchema() || $workflowId < 1) {
+            return 0;
+        }
+
+        $q0 = $this->db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflows'))
+            ->where($this->db->quoteName('id') . ' = ' . $workflowId);
+        $this->db->setQuery($q0);
+        if ((int) $this->db->loadResult() < 1) {
+            return 0;
+        }
+
+        $next = $this->getMaxStepNumberForWorkflow($workflowId) + 1;
+        $user = Factory::getUser();
+        $uid  = (int) $user->id;
+        $ph   = $uid > 0 ? $uid : 1;
+        $now  = Factory::getDate()->toSql();
+        $by   = $uid;
+
+        try {
+            $ins = $this->db->getQuery(true)
+                ->insert($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+                ->columns([
+                    $this->db->quoteName('workflow_id'),
+                    $this->db->quoteName('step_number'),
+                    $this->db->quoteName('step_name'),
+                    $this->db->quoteName('approver_type'),
+                    $this->db->quoteName('approver_value'),
+                    $this->db->quoteName('require_all'),
+                    $this->db->quoteName('timeout_hours'),
+                    $this->db->quoteName('timeout_action'),
+                    $this->db->quoteName('created'),
+                    $this->db->quoteName('created_by'),
+                ])
+                ->values(implode(',', [
+                    (string) $workflowId,
+                    (string) $next,
+                    $this->db->quote('Paso ' . (string) $next),
+                    $this->db->quote('user'),
+                    $this->db->quote((string) $ph),
+                    '0',
+                    '0',
+                    $this->db->quote('escalate'),
+                    $this->db->quote($now),
+                    (string) $by,
+                ]));
+            $this->db->setQuery($ins);
+            $this->db->execute();
+
+            return (int) $this->db->insertid();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Delete a step if the workflow still has another step; renumbers step_number.
+     *
+     * @since   3.109.64
+     */
+    public function adminDeleteWorkflowStep(int $stepId): bool
+    {
+        if (!$this->hasSchema() || $stepId < 1) {
+            return false;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+            ->where($this->db->quoteName('id') . ' = ' . $stepId)
+            ->setLimit(1);
+        $this->db->setQuery($q);
+        $row = $this->db->loadObject();
+
+        if (!$row) {
+            return false;
+        }
+
+        $wid = (int) $row->workflow_id;
+
+        $q2 = $this->db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+            ->where($this->db->quoteName('workflow_id') . ' = ' . $wid);
+        $this->db->setQuery($q2);
+        if ((int) $this->db->loadResult() <= 1) {
+            return false;
+        }
+
+        try {
+            $this->db->transactionStart();
+            $del = $this->db->getQuery(true)
+                ->delete($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+                ->where($this->db->quoteName('id') . ' = ' . $stepId);
+            $this->db->setQuery($del);
+            $this->db->execute();
+
+            $q3 = $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+                ->where($this->db->quoteName('workflow_id') . ' = ' . $wid)
+                ->order($this->db->quoteName('step_number') . ' ASC');
+            $this->db->setQuery($q3);
+            $rest = $this->db->loadObjectList() ?: [];
+            $n    = 1;
+            foreach ($rest as $st) {
+                $sid = (int) $st->id;
+                if ((int) $st->step_number !== $n) {
+                    $up = $this->db->getQuery(true)
+                        ->update($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+                        ->set($this->db->quoteName('step_number') . ' = ' . (string) $n)
+                        ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote(Factory::getDate()->toSql()))
+                        ->set($this->db->quoteName('modified_by') . ' = ' . (string) (int) Factory::getUser()->id)
+                        ->where($this->db->quoteName('id') . ' = ' . $sid);
+                    $this->db->setQuery($up);
+                    $this->db->execute();
+                }
+                $n++;
+            }
+            $this->db->transactionCommit();
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
+    }
+
+    /**
+     * Component approval groups with member counts.
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.109.64
+     */
+    public function listComponentApprovalGroupsWithMemberCount(): array
+    {
+        if (!$this->hasApprovalGroupsSchema()) {
+            return [];
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select([
+                'g.*',
+                'COUNT(' . $this->db->quoteName('m.id') . ') AS ' . $this->db->quoteName('member_count'),
+            ])
+            ->from($this->db->quoteName('#__ordenproduccion_approval_groups', 'g'))
+            ->join(
+                'LEFT',
+                $this->db->quoteName('#__ordenproduccion_approval_group_users', 'm')
+                . ' ON ' . $this->db->quoteName('m.group_id') . ' = ' . $this->db->quoteName('g.id')
+            )
+            ->group($this->db->quoteName('g.id'))
+            ->order($this->db->quoteName('g.title') . ' ASC');
+        $this->db->setQuery($q);
+
+        return $this->db->loadObjectList() ?: [];
+    }
+
+    public function getComponentApprovalGroup(int $groupId): ?object
+    {
+        if (!$this->hasApprovalGroupsSchema() || $groupId < 1) {
+            return null;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_groups'))
+            ->where($this->db->quoteName('id') . ' = ' . $groupId)
+            ->setLimit(1);
+        $this->db->setQuery($q);
+        $row = $this->db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * @return  int[]
+     */
+    public function getComponentApprovalGroupMemberIds(int $groupId): array
+    {
+        if (!$this->hasApprovalGroupsSchema() || $groupId < 1) {
+            return [];
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select($this->db->quoteName('user_id'))
+            ->from($this->db->quoteName('#__ordenproduccion_approval_group_users'))
+            ->where($this->db->quoteName('group_id') . ' = ' . $groupId)
+            ->order($this->db->quoteName('user_id') . ' ASC');
+        $this->db->setQuery($q);
+        $col = $this->db->loadColumn() ?: [];
+
+        return array_values(array_unique(array_map('intval', $col)));
+    }
+
+    /**
+     * True if any workflow step references this component group id in approver_value.
+     *
+     * @since   3.109.64
+     */
+    public function isComponentApprovalGroupUsedInWorkflows(int $groupId): bool
+    {
+        if (!$this->hasSchema() || $groupId < 1) {
+            return false;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select([$this->db->quoteName('approver_value')])
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+            ->where($this->db->quoteName('approver_type') . ' = ' . $this->db->quote('approval_group'));
+        $this->db->setQuery($q);
+        $vals = $this->db->loadColumn() ?: [];
+
+        foreach ($vals as $v) {
+            $ids = array_filter(array_map('intval', explode(',', (string) $v)));
+            if (in_array($groupId, $ids, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Insert or update a component approval group and replace members.
+     *
+     * @param   int   $groupId  0 = create
+     * @param   int[]  $userIds
+     *
+     * @return  int  Group id, or 0 on failure
+     *
+     * @since   3.109.64
+     */
+    public function adminSaveComponentApprovalGroup(int $groupId, array $data, array $userIds): int
+    {
+        if (!$this->hasApprovalGroupsSchema()) {
+            return 0;
+        }
+
+        $title = isset($data['title']) ? trim((string) $data['title']) : '';
+        if ($title === '' || strlen($title) > 255) {
+            return 0;
+        }
+
+        $description = isset($data['description']) ? trim((string) $data['description']) : '';
+        $published   = !empty($data['published']) ? 1 : 0;
+        $user        = Factory::getUser();
+        $uid         = (int) $user->id;
+        $now         = Factory::getDate()->toSql();
+
+        $userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), static function ($v) {
+            return $v > 0;
+        })));
+
+        try {
+            $this->db->transactionStart();
+
+            if ($groupId < 1) {
+                $ins = $this->db->getQuery(true)
+                    ->insert($this->db->quoteName('#__ordenproduccion_approval_groups'))
+                    ->columns([
+                        $this->db->quoteName('title'),
+                        $this->db->quoteName('description'),
+                        $this->db->quoteName('published'),
+                        $this->db->quoteName('created'),
+                        $this->db->quoteName('created_by'),
+                    ])
+                    ->values(implode(',', [
+                        $this->db->quote($title),
+                        $this->db->quote($description),
+                        (string) $published,
+                        $this->db->quote($now),
+                        (string) $uid,
+                    ]));
+                $this->db->setQuery($ins);
+                $this->db->execute();
+                $groupId = (int) $this->db->insertid();
+            } else {
+                $exists = $this->getComponentApprovalGroup($groupId);
+                if ($exists === null) {
+                    $this->db->transactionRollback();
+
+                    return 0;
+                }
+                $up = $this->db->getQuery(true)
+                    ->update($this->db->quoteName('#__ordenproduccion_approval_groups'))
+                    ->set($this->db->quoteName('title') . ' = ' . $this->db->quote($title))
+                    ->set($this->db->quoteName('description') . ' = ' . $this->db->quote($description))
+                    ->set($this->db->quoteName('published') . ' = ' . (string) $published)
+                    ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                    ->set($this->db->quoteName('modified_by') . ' = ' . (string) $uid)
+                    ->where($this->db->quoteName('id') . ' = ' . $groupId);
+                $this->db->setQuery($up);
+                $this->db->execute();
+            }
+
+            if ($groupId < 1) {
+                $this->db->transactionRollback();
+
+                return 0;
+            }
+
+            $del = $this->db->getQuery(true)
+                ->delete($this->db->quoteName('#__ordenproduccion_approval_group_users'))
+                ->where($this->db->quoteName('group_id') . ' = ' . $groupId);
+            $this->db->setQuery($del);
+            $this->db->execute();
+
+            foreach ($userIds as $mUid) {
+                $insM = $this->db->getQuery(true)
+                    ->insert($this->db->quoteName('#__ordenproduccion_approval_group_users'))
+                    ->columns([
+                        $this->db->quoteName('group_id'),
+                        $this->db->quoteName('user_id'),
+                        $this->db->quoteName('created'),
+                    ])
+                    ->values(implode(',', [
+                        (string) $groupId,
+                        (string) $mUid,
+                        $this->db->quote($now),
+                    ]));
+                $this->db->setQuery($insM);
+                $this->db->execute();
+            }
+
+            $this->db->transactionCommit();
+
+            return $groupId;
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return 0;
+        }
+    }
+
+    /**
+     * Delete group and members if not referenced by a workflow step.
+     *
+     * @since   3.109.64
+     */
+    public function adminDeleteComponentApprovalGroup(int $groupId): bool
+    {
+        if (!$this->hasApprovalGroupsSchema() || $groupId < 1) {
+            return false;
+        }
+
+        if ($this->getComponentApprovalGroup($groupId) === null) {
+            return false;
+        }
+
+        if ($this->isComponentApprovalGroupUsedInWorkflows($groupId)) {
+            return false;
+        }
+
+        try {
+            $this->db->transactionStart();
+            $d1 = $this->db->getQuery(true)
+                ->delete($this->db->quoteName('#__ordenproduccion_approval_group_users'))
+                ->where($this->db->quoteName('group_id') . ' = ' . $groupId);
+            $this->db->setQuery($d1);
+            $this->db->execute();
+            $d2 = $this->db->getQuery(true)
+                ->delete($this->db->quoteName('#__ordenproduccion_approval_groups'))
+                ->where($this->db->quoteName('id') . ' = ' . $groupId);
+            $this->db->setQuery($d2);
+            $this->db->execute();
+            $this->db->transactionCommit();
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
     }
 
     /**
@@ -939,13 +1449,34 @@ class ApprovalWorkflowService
         }
 
         $approverType = isset($data['approver_type']) ? strtolower(trim((string) $data['approver_type'])) : '';
-        if (!in_array($approverType, ['user', 'joomla_group', 'named_group'], true)) {
+        if (!in_array($approverType, ['user', 'joomla_group', 'named_group', 'approval_group'], true)) {
             return false;
         }
 
         $approverValue = isset($data['approver_value']) ? trim((string) $data['approver_value']) : '';
         if ($approverValue === '' || strlen($approverValue) > 512) {
             return false;
+        }
+
+        if ($approverType === 'approval_group') {
+            if (!preg_match('/^\d+(,\d+)*$/', $approverValue)) {
+                return false;
+            }
+            if ($this->hasApprovalGroupsSchema()) {
+                $gids = array_unique(array_filter(array_map('intval', explode(',', $approverValue))));
+                if ($gids === []) {
+                    return false;
+                }
+                $in   = implode(',', $gids);
+                $qchk = $this->db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($this->db->quoteName('#__ordenproduccion_approval_groups'))
+                    ->where($this->db->quoteName('id') . ' IN (' . $in . ')');
+                $this->db->setQuery($qchk);
+                if ((int) $this->db->loadResult() !== count($gids)) {
+                    return false;
+                }
+            }
         }
 
         $requireAll = !empty($data['require_all']) ? 1 : 0;

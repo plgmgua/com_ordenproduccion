@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.64-STABLE] - 2026-04-16
+
+### Added
+- **Grupos de aprobación del componente:** Tablas `#__ordenproduccion_approval_groups` y `#__ordenproduccion_approval_group_users` (migración `3.109.64.sql`). Grupos independientes de los grupos de usuarios Joomla; miembros = IDs de usuario Joomla. CRUD en **Ajustes → Grupos de aprobaciones** (listado, nuevo, editar, eliminar si no está en uso).
+- **Tipo de aprobador `approval_group`:** Los pasos pueden resolver aprobadores desde estos grupos (`ApprovalWorkflowService::resolveApproverUserIds`). Sigue existiendo usuario / grupo Joomla / nombre de grupo Joomla por compatibilidad.
+- **Flujos:** Listado tipo CRUD y pantalla **Editar** por `wf_id` con **agregar paso** y **eliminar paso** (renumeración). Guardado redirige al mismo flujo.
+
+### Changed
+- **Ajustes → Flujos de aprobaciones:** Ya no se muestran todos los flujos en una sola página; se lista y se edita uno a la vez.
+
 ## [3.109.63-STABLE] - 2026-04-16
 
 ### Added

@@ -708,7 +708,10 @@ class AdministracionController extends BaseController
     public function saveApprovalWorkflows()
     {
         $app = Factory::getApplication();
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false);
+        $returnWfId = $app->input->post->getInt('awf_return_wf_id', 0);
+        $redirect   = $returnWfId > 0
+            ? Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones&wf_id=' . $returnWfId, false)
+            : Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false);
 
         if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
@@ -761,6 +764,197 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect($redirect);
+    }
+
+    /**
+     * Add a step to a workflow (Ajustes → Flujos → edit).
+     *
+     * @return  void
+     *
+     * @since   3.109.64
+     */
+    public function addApprovalWorkflowStep()
+    {
+        $app   = Factory::getApplication();
+        $wfId  = $app->input->post->getInt('workflow_id', 0);
+        $redir = $wfId > 0
+            ? Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones&wf_id=' . $wfId, false)
+            : Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redir);
+            return;
+        }
+
+        $svc = new ApprovalWorkflowService();
+        if (!$svc->hasSchema() || $wfId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING'), 'error');
+            $app->redirect($redir);
+            return;
+        }
+
+        $newStepId = $svc->adminAddWorkflowStep($wfId);
+        if ($newStepId > 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_STEP_ADDED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_STEP_ADD_FAIL'), 'error');
+        }
+
+        $app->redirect($redir);
+    }
+
+    /**
+     * Delete a workflow step if more than one step remains.
+     *
+     * @return  void
+     *
+     * @since   3.109.64
+     */
+    public function deleteApprovalWorkflowStep()
+    {
+        $app   = Factory::getApplication();
+        $wfId  = $app->input->post->getInt('workflow_id', 0);
+        $redir = $wfId > 0
+            ? Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones&wf_id=' . $wfId, false)
+            : Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redir);
+            return;
+        }
+
+        $stepId = $app->input->post->getInt('step_id', 0);
+        $svc    = new ApprovalWorkflowService();
+
+        if (!$svc->hasSchema() || $stepId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_STEP_DELETE_FAIL'), 'error');
+            $app->redirect($redir);
+            return;
+        }
+
+        if ($svc->adminDeleteWorkflowStep($stepId)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_STEP_DELETED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_STEP_DELETE_FAIL'), 'warning');
+        }
+
+        $app->redirect($redir);
+    }
+
+    /**
+     * Save a component-scoped approval group (Ajustes → Grupos de aprobaciones).
+     *
+     * @return  void
+     *
+     * @since   3.109.64
+     */
+    public function saveComponentApprovalGroup()
+    {
+        $app = Factory::getApplication();
+        $listUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones', false);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($listUrl);
+            return;
+        }
+
+        $svc = new ApprovalWorkflowService();
+        if (!$svc->hasApprovalGroupsSchema()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUPS_SCHEMA_MISSING'), 'error');
+            $app->redirect($listUrl);
+            return;
+        }
+
+        $groupId     = $app->input->post->getInt('approval_group_id', 0);
+        $title       = trim($app->input->post->getString('title', ''));
+        $description = trim($app->input->post->getString('description', ''));
+        $published   = $app->input->post->getInt('published', 0) === 1;
+        $membersRaw  = $app->input->post->getString('member_user_ids', '');
+        $parts       = preg_split('/[\s,;]+/', $membersRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $userIds     = [];
+        foreach ($parts as $p) {
+            $userIds[] = (int) $p;
+        }
+
+        $newId = $svc->adminSaveComponentApprovalGroup($groupId, [
+            'title'       => $title,
+            'description' => $description,
+            'published'   => $published,
+        ], $userIds);
+
+        if ($newId > 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_SAVED'), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones&approval_group_id=' . $newId, false));
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_SAVE_FAIL'), 'error');
+            $editUrl = $groupId > 0
+                ? Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones&approval_group_id=' . $groupId, false)
+                : Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones&approval_group_id=0', false);
+            $app->redirect($editUrl);
+        }
+    }
+
+    /**
+     * Delete a component approval group if unused by workflows.
+     *
+     * @return  void
+     *
+     * @since   3.109.64
+     */
+    public function deleteComponentApprovalGroup()
+    {
+        $app     = Factory::getApplication();
+        $listUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones', false);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($listUrl);
+            return;
+        }
+
+        $groupId = $app->input->post->getInt('approval_group_id', 0);
+        $svc     = new ApprovalWorkflowService();
+
+        if (!$svc->hasApprovalGroupsSchema() || $groupId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_DELETE_FAIL'), 'error');
+            $app->redirect($listUrl);
+            return;
+        }
+
+        if ($svc->adminDeleteComponentApprovalGroup($groupId)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_DELETED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_DELETE_IN_USE'), 'warning');
+        }
+
+        $app->redirect($listUrl);
     }
 
     /**
