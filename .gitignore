@@ -25,6 +25,7 @@ Thumbs.db
 /build/
 /dist/
 *.zip
+!deployment_package/mod_ordop_pending_approvals-*-site.zip
 *.tar.gz
 
 # Node modules (if using build tools)
