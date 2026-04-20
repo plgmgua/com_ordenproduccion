@@ -130,6 +130,30 @@ if ($labelAnadirEnvio === 'COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO') {
     $labelAnadirEnvio = 'Añadir envío';
 }
 $envios = $this->envios ?? [];
+
+$hasAnyBreakdownOverrideRows = false;
+$precotModelDoc = $this->precotizacionModel ?? null;
+if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
+    foreach ($lines as $ln) {
+        $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
+        if ($lt !== 'pliego') {
+            continue;
+        }
+        $br = $ln->breakdown ?? [];
+        foreach ($br as $bi => $_br) {
+            if ($precotModelDoc->getBreakdownRowAdjustmentMeta($ln, (int) $bi) !== null) {
+                $hasAnyBreakdownOverrideRows = true;
+                break 2;
+            }
+        }
+    }
+}
+$saveBreakdownBatchUrl = Uri::root() . 'index.php?option=com_ordenproduccion&task=precotizacion.saveBreakdownSubtotalsBatch&format=json';
+
+$discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
+$canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
+$pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
+$solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.solicitarDescuento');
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document container py-4">
@@ -458,6 +482,20 @@ $envios = $this->envios ?? [];
         <?php endif; ?>
     </div>
 
+    <?php if ($discountWorkflowAvailable && !$precotizacionLocked) : ?>
+    <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+        <?php if ($canRequestSolicitudDescuento) : ?>
+        <form method="post" action="<?php echo htmlspecialchars($solicitarDescuentoAction, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
+            <button type="submit" class="btn btn-outline-warning"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_BTN'); ?></button>
+        </form>
+        <?php elseif ($pendingSolicitudDescuento) : ?>
+        <span class="badge bg-warning text-dark"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></span>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINES'); ?></h2>
 
     <?php if (empty($lines)) : ?>
@@ -570,7 +608,6 @@ $envios = $this->envios ?? [];
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
                                                 <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
                                                 <?php if ($hasBreakdownOverrideCols) : ?>
-                                                <th class="text-center text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_COL_SAVE'); ?></th>
                                                 <th class="text-end text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_COL_MIN'); ?></th>
                                                 <?php endif; ?>
                                             </tr>
@@ -608,13 +645,9 @@ $envios = $this->envios ?? [];
                                                             <div class="text-danger small breakdown-row-override-warning mt-1 d-none text-start" role="alert"></div>
                                                         </div>
                                                     </td>
-                                                    <td class="text-center align-middle">
-                                                        <button type="button" class="btn btn-sm btn-primary breakdown-row-override-save"><?php echo Text::_('JSAVE'); ?></button>
-                                                    </td>
                                                     <td class="text-end align-middle">Q <?php echo number_format($rMin, 2); ?></td>
                                                     <?php elseif ($hasBreakdownOverrideCols) : ?>
                                                     <td class="text-end">Q <?php echo $subtotal; ?></td>
-                                                    <td class="text-center text-muted">—</td>
                                                     <td class="text-end text-muted">—</td>
                                                     <?php else : ?>
                                                     <td class="text-end">Q <?php echo $subtotal; ?></td>
@@ -627,7 +660,6 @@ $envios = $this->envios ?? [];
                                                 <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
                                                 <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                                                 <?php if ($hasBreakdownOverrideCols) : ?>
-                                                <td></td>
                                                 <td></td>
                                                 <?php endif; ?>
                                             </tr>
@@ -659,6 +691,16 @@ $envios = $this->envios ?? [];
                         </tr>
                         <?php endif; ?>
                     <?php endforeach; ?>
+                    <?php if (!empty($canSaveImpresionOverride) && !empty($hasAnyBreakdownOverrideRows)) : ?>
+                    <tr class="precotizacion-breakdown-batch-save-row">
+                        <td colspan="7" class="bg-light border-top py-3">
+                            <button type="button" id="precotizacion-save-all-breakdown-subtotals" class="btn btn-primary">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_SAVE_BTN'); ?>
+                            </button>
+                            <div class="text-danger small mt-2 d-none" id="precotizacion-breakdown-batch-msg" role="alert"></div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>
                 <tfoot>
                     <?php $tfootLabelSpan = 5; ?>
@@ -762,57 +804,71 @@ $envios = $this->envios ?? [];
 </script>
 <?php endif; ?>
 
-<?php if (!empty($lines) && !empty($canSaveImpresionOverride)) : ?>
+<?php if (!empty($lines) && !empty($canSaveImpresionOverride) && !empty($hasAnyBreakdownOverrideRows)) : ?>
 <script>
 (function() {
-    var saveUrl = <?php echo json_encode($saveImpresionOverrideUrl); ?>;
+    var batchUrl = <?php echo json_encode($saveBreakdownBatchUrl); ?>;
     var tokenName = <?php echo json_encode($token); ?>;
+    var preCotId = <?php echo (int) $preCotizacionId; ?>;
     var msgBelow = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_BELOW')); ?>;
     var msgAbove = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_ABOVE')); ?>;
     var msgErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')); ?>;
-    document.addEventListener('click', function(e) {
-        var btn = e.target && e.target.closest && e.target.closest('.breakdown-row-override-save');
-        if (!btn) return;
-        var tr = btn.closest('tr');
-        if (!tr) return;
-        var wrap = tr.querySelector('.breakdown-row-override-wrap');
-        if (!wrap) return;
-        var input = wrap.querySelector('.breakdown-row-override-input');
-        var warn = wrap.querySelector('.breakdown-row-override-warning');
-        if (!input || !warn) return;
-        warn.classList.add('d-none');
-        warn.textContent = '';
-        var minV = parseFloat(wrap.getAttribute('data-min'), 10);
-        var maxV = parseFloat(wrap.getAttribute('data-base'), 10);
-        var raw = String(input.value || '').replace(/,/g, '.').replace(/[^\d.\-]/g, '');
-        var v = parseFloat(raw, 10);
-        if (isNaN(v)) {
-            warn.textContent = msgBelow;
-            warn.classList.remove('d-none');
+    var msgDiscountDone = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_DISCOUNT_COMPLETED')); ?>;
+    var saveBtn = document.getElementById('precotizacion-save-all-breakdown-subtotals');
+    var batchMsg = document.getElementById('precotizacion-breakdown-batch-msg');
+    if (!saveBtn) return;
+    saveBtn.addEventListener('click', function() {
+        if (batchMsg) {
+            batchMsg.classList.add('d-none');
+            batchMsg.textContent = '';
+        }
+        var wraps = document.querySelectorAll('.breakdown-row-override-wrap');
+        var items = [];
+        var firstWarn = null;
+        wraps.forEach(function(wrap) {
+            var input = wrap.querySelector('.breakdown-row-override-input');
+            var warn = wrap.querySelector('.breakdown-row-override-warning');
+            if (!input || !warn) return;
+            warn.classList.add('d-none');
+            warn.textContent = '';
+            var minV = parseFloat(wrap.getAttribute('data-min'), 10);
+            var maxV = parseFloat(wrap.getAttribute('data-base'), 10);
+            var raw = String(input.value || '').replace(/,/g, '.').replace(/[^\d.\-]/g, '');
+            var v = parseFloat(raw, 10);
+            if (isNaN(v) || v < minV - 0.0001) {
+                warn.textContent = msgBelow;
+                warn.classList.remove('d-none');
+                firstWarn = firstWarn || warn;
+                return;
+            }
+            if (v > maxV + 0.0001) {
+                warn.textContent = msgAbove;
+                warn.classList.remove('d-none');
+                firstWarn = firstWarn || warn;
+                return;
+            }
+            var lineId = wrap.getAttribute('data-line-id');
+            var bIdx = wrap.getAttribute('data-breakdown-index');
+            if (bIdx === null || bIdx === '') bIdx = '0';
+            items.push({ line_id: parseInt(lineId, 10), breakdown_index: parseInt(bIdx, 10), subtotal: v });
+        });
+        if (firstWarn) {
+            try { firstWarn.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
             return;
         }
-        if (v < minV - 0.0001) {
-            warn.textContent = msgBelow;
-            warn.classList.remove('d-none');
+        if (items.length === 0) {
+            if (batchMsg) {
+                batchMsg.textContent = msgErr;
+                batchMsg.classList.remove('d-none');
+            }
             return;
-        }
-        if (v > maxV + 0.0001) {
-            warn.textContent = msgAbove;
-            warn.classList.remove('d-none');
-            return;
-        }
-        var lineId = wrap.getAttribute('data-line-id');
-        var bIdx = wrap.getAttribute('data-breakdown-index');
-        if (bIdx === null || bIdx === '') {
-            bIdx = '0';
         }
         var fd = new FormData();
-        fd.append('line_id', lineId);
-        fd.append('breakdown_index', bIdx);
-        fd.append('row_subtotal', String(v));
+        fd.append('pre_cotizacion_id', String(preCotId));
+        fd.append('items_json', JSON.stringify(items));
         fd.append(tokenName, '1');
-        btn.disabled = true;
-        fetch(saveUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+        saveBtn.disabled = true;
+        fetch(batchUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(function(r) {
                 var ct = (r.headers.get('content-type') || '').toLowerCase();
                 if (ct.indexOf('application/json') === -1) {
@@ -822,17 +878,24 @@ $envios = $this->envios ?? [];
             })
             .then(function(data) {
                 if (data && data.success) {
+                    if (data.discount_request_completed && msgDiscountDone) {
+                        try { window.alert(msgDiscountDone); } catch (e) {}
+                    }
                     window.location.reload();
                     return;
                 }
-                warn.textContent = (data && data.message) ? data.message : msgErr;
-                warn.classList.remove('d-none');
+                if (batchMsg) {
+                    batchMsg.textContent = (data && data.message) ? data.message : msgErr;
+                    batchMsg.classList.remove('d-none');
+                }
             })
             .catch(function() {
-                warn.textContent = msgErr;
-                warn.classList.remove('d-none');
+                if (batchMsg) {
+                    batchMsg.textContent = msgErr;
+                    batchMsg.classList.remove('d-none');
+                }
             })
-            .finally(function() { btn.disabled = false; });
+            .finally(function() { saveBtn.disabled = false; });
     });
 })();
 </script>

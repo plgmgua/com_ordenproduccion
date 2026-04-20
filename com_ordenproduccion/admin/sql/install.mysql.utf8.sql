@@ -376,11 +376,21 @@ SELECT 'Comprobante de pago', 'Verifica comprobantes de pago.', 'payment_proof',
 FROM (SELECT 1 AS `x`) AS `t`
 WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'payment_proof');
 
+INSERT INTO `#__ordenproduccion_approval_workflows` (`name`, `description`, `entity_type`, `published`, `created_by`)
+SELECT 'Pre-cotización — solicitud de descuento', 'Notifica a ventas para revisar y ajustar subtotales de línea.', 'solicitud_descuento', 1, 0
+FROM (SELECT 1 AS `x`) AS `t`
+WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'solicitud_descuento');
+
 INSERT INTO `#__ordenproduccion_approval_workflow_steps` (`workflow_id`, `step_number`, `step_name`, `approver_type`, `approver_value`, `require_all`, `timeout_hours`, `timeout_action`, `created_by`)
 SELECT w.`id`, 1, 'Aprobar', 'named_group', 'Administracion', 0, 0, 'escalate', 0
 FROM `#__ordenproduccion_approval_workflows` AS w
 LEFT JOIN `#__ordenproduccion_approval_workflow_steps` AS s ON s.`workflow_id` = w.`id` AND s.`step_number` = 1
 WHERE s.`id` IS NULL;
+
+UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
+INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
+SET s.`step_name` = 'Revisar descuento', s.`approver_value` = 'Aprobaciones Ventas'
+WHERE w.`entity_type` = 'solicitud_descuento' AND s.`step_number` = 1;
 
 -- Telegram bot: per-user chat_id (3.105.0)
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_telegram_users` (

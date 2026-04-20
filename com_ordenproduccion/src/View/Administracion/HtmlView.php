@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -1115,6 +1116,44 @@ class HtmlView extends BaseHtmlView
                 if ($this->approvalWorkflowSchemaAvailable) {
                     $user = Factory::getUser();
                     $this->approvalPendingRows = $approvalService->getMyPendingApprovalRows((int) $user->id);
+                    $preCotIds = [];
+                    foreach ($this->approvalPendingRows as $prow) {
+                        if (($prow->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+                            $eid = (int) ($prow->entity_id ?? 0);
+                            if ($eid > 0) {
+                                $preCotIds[$eid] = true;
+                            }
+                        }
+                    }
+                    if ($preCotIds !== []) {
+                        try {
+                            $db  = Factory::getContainer()->get(DatabaseInterface::class);
+                            $ids = array_keys($preCotIds);
+                            $ids = array_values(array_filter(array_map('intval', $ids), static function ($v) {
+                                return $v > 0;
+                            }));
+                            if ($ids !== []) {
+                                $q = $db->getQuery(true)
+                                    ->select($db->quoteName('id') . ', ' . $db->quoteName('number'))
+                                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                                    ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+                                $db->setQuery($q);
+                                $numRows = $db->loadObjectList() ?: [];
+                                $byId = [];
+                                foreach ($numRows as $nr) {
+                                    $byId[(int) $nr->id] = (string) ($nr->number ?? '');
+                                }
+                                foreach ($this->approvalPendingRows as $prow) {
+                                    if (($prow->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+                                        $eid = (int) ($prow->entity_id ?? 0);
+                                        $prow->precotizacion_number = $eid > 0 && isset($byId[$eid]) ? $byId[$eid] : '';
+                                    }
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            // leave rows without precotizacion_number
+                        }
+                    }
                 }
             } catch (\Throwable $e) {
                 $this->approvalPendingRows = [];

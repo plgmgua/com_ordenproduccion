@@ -30,6 +30,9 @@ class ApprovalWorkflowService
 
     public const ENTITY_PAYMENT_PROOF = 'payment_proof';
 
+    /** Pre-cotización: solicitud de descuento (entity_id = pre_cotización id). */
+    public const ENTITY_SOLICITUD_DESCUENTO = 'solicitud_descuento';
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -220,6 +223,77 @@ class ApprovalWorkflowService
         }
 
         return $requestId;
+    }
+
+    /**
+     * Whether a published workflow exists for the entity type.
+     *
+     * @since   3.109.59
+     */
+    public function isWorkflowPublishedForEntity(string $entityType): bool
+    {
+        return $this->getPublishedWorkflowByEntityType($entityType) !== null;
+    }
+
+    /**
+     * When Aprobaciones Ventas saves pliego breakdown subtotals, mark any open solicitud de descuento as approved (no binary approve in UI).
+     *
+     * @return  bool  True if a pending request was closed
+     *
+     * @since   3.109.59
+     */
+    public function completePendingSolicitudDescuentoIfAny(int $preCotizacionId, int $actorUserId): bool
+    {
+        if (!$this->hasSchema() || $preCotizacionId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $req = $this->getOpenPendingRequest(self::ENTITY_SOLICITUD_DESCUENTO, $preCotizacionId);
+
+        if ($req === null) {
+            return false;
+        }
+
+        $requestId = (int) $req->id;
+        $now       = Factory::getDate()->toSql();
+
+        $this->db->transactionStart();
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_request_steps'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('comments') . ' = ' . $this->db->quote('subtotals_saved'))
+                ->set($this->db->quoteName('decided_date') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('request_id') . ' = ' . $requestId)
+                ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'));
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            $q2 = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_requests'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('completed') . ' = ' . $this->db->quote($now))
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('id') . ' = ' . $requestId);
+            $this->db->setQuery($q2);
+            $this->db->execute();
+
+            ApprovalAuditHelper::log($requestId, 'discount_subtotals_saved', $actorUserId, 'pending', 'approved', '');
+            $reqFresh = $this->loadRequest($requestId);
+
+            if ($reqFresh !== null) {
+                $this->onRequestFullyApproved($reqFresh, $actorUserId);
+            }
+
+            $this->db->transactionCommit();
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

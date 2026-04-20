@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -873,6 +874,126 @@ class PrecotizacionController extends BaseController
         $result = $model->saveBreakdownRowSubtotalOverride($lineId, $rowIdx, $newSub);
         echo json_encode($result);
         $app->close();
+    }
+
+    /**
+     * Save all edited pliego breakdown subtotals in one request; completes solicitud de descuento if pending.
+     *
+     * POST: pre_cotizacion_id, items_json (array of {line_id, breakdown_index, subtotal}), token
+     *
+     * @return  void  application close
+     *
+     * @since   3.109.59
+     */
+    public function saveBreakdownSubtotalsBatch()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('post')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        $preCotId = (int) $app->input->post->getInt('pre_cotizacion_id', 0);
+        if ($preCotId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')]);
+            $app->close();
+        }
+
+        $raw = trim((string) $app->input->post->getString('items_json', ''));
+        $items = json_decode($raw, true);
+        if (!is_array($items)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_INVALID')]);
+            $app->close();
+        }
+
+        $model  = $this->getModel('Precotizacion', 'Site');
+        $result = $model->saveBreakdownSubtotalsBatch($preCotId, $items);
+
+        if (!empty($result['success'])) {
+            $wf = new ApprovalWorkflowService();
+            $result['discount_request_completed'] = $wf->completePendingSolicitudDescuentoIfAny(
+                $preCotId,
+                (int) $user->id
+            );
+        }
+
+        echo json_encode($result);
+        $app->close();
+    }
+
+    /**
+     * Start solicitud de descuento approval (pre-cotización document).
+     *
+     * @return  bool
+     *
+     * @since   3.109.59
+     */
+    public function solicitarDescuento()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+
+        $id = (int) $this->input->post->getInt('id', 0);
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+
+        $wf = new ApprovalWorkflowService();
+        if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_WORKFLOW_NOT_AVAILABLE'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        if ($wf->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO, $id) !== null) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_REQUEST_ALREADY_PENDING'), 'notice');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        $rid = $wf->createRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO, $id, (int) $user->id);
+        if ($rid < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_REQUEST_CREATE_FAILED'), 'error');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_REQUEST_CREATED'));
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+        return true;
     }
 
     /**

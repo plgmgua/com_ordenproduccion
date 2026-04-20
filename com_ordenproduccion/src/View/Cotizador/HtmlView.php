@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Cotizador;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
@@ -84,6 +85,30 @@ class HtmlView extends BaseHtmlView
      * @since  3.109.19
      */
     protected $canSaveImpresionOverride = false;
+
+    /**
+     * Document: solicitud de descuento workflow is installed and published.
+     *
+     * @var    bool
+     * @since  3.109.59
+     */
+    protected $discountWorkflowAvailable = false;
+
+    /**
+     * Document: open solicitud de descuento approval for this pre-cotización.
+     *
+     * @var    bool
+     * @since  3.109.59
+     */
+    protected $pendingSolicitudDescuento = false;
+
+    /**
+     * Document: user may submit a new solicitud de descuento.
+     *
+     * @var    bool
+     * @since  3.109.59
+     */
+    protected $canRequestSolicitudDescuento = false;
 
     /**
      * Precotizacion model (document/details layout) for breakdown adjustment helpers in layout.
@@ -196,6 +221,28 @@ class HtmlView extends BaseHtmlView
                         $this->item = $precotModel->getItem($id);
                     }
                     $this->canSaveImpresionOverride = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
+                    $this->discountWorkflowAvailable   = false;
+                    $this->pendingSolicitudDescuento     = false;
+                    $this->canRequestSolicitudDescuento  = false;
+                    try {
+                        $wf = new ApprovalWorkflowService();
+                        if ($wf->hasSchema()) {
+                            $this->discountWorkflowAvailable = $wf->isWorkflowPublishedForEntity(
+                                ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+                            );
+                            $this->pendingSolicitudDescuento = $wf->getOpenPendingRequest(
+                                ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
+                                (int) $id
+                            ) !== null;
+                        }
+                    } catch (\Throwable $e) {
+                        $this->discountWorkflowAvailable  = false;
+                        $this->pendingSolicitudDescuento    = false;
+                    }
+                    $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
+                        && $precotModel->canUserEditPreCotizacionDocument((int) $id)
+                        && !$this->precotizacionLocked
+                        && !$this->pendingSolicitudDescuento;
                 }
             }
             $params = ComponentHelper::getParams('com_ordenproduccion');

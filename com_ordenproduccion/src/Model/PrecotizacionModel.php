@@ -881,6 +881,69 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Save multiple pliego breakdown subtotal overrides in one transaction (Aprobaciones Ventas).
+     *
+     * @param   array<int, array<string, mixed>>  $items  Each: line_id, breakdown_index, subtotal
+     *
+     * @return  array{success:bool,message:string}
+     *
+     * @since   3.109.59
+     */
+    public function saveBreakdownSubtotalsBatch(int $preCotizacionId, array $items): array
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
+        }
+        if (!$this->canUserSaveImpresionOverrideOnPreCotizacion($preCotizacionId)) {
+            return ['success' => false, 'message' => Text::_('JLIB_APPLICATION_ERROR_ACCESS_FORBIDDEN')];
+        }
+        if ($items === []) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_EMPTY')];
+        }
+
+        $db = $this->getDatabase();
+        $db->transactionStart();
+
+        try {
+            foreach ($items as $it) {
+                if (!is_array($it)) {
+                    $db->transactionRollback();
+
+                    return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_INVALID')];
+                }
+                $lineId = (int) ($it['line_id'] ?? 0);
+                $rowIdx = (int) ($it['breakdown_index'] ?? -1);
+                $sub    = isset($it['subtotal']) ? (float) $it['subtotal'] : null;
+                if ($lineId < 1 || $rowIdx < 0 || $sub === null) {
+                    $db->transactionRollback();
+
+                    return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_INVALID')];
+                }
+                $line = $this->getLine($lineId);
+                if (!$line || (int) $line->pre_cotizacion_id !== $preCotizacionId) {
+                    $db->transactionRollback();
+
+                    return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
+                }
+                $result = $this->saveBreakdownRowSubtotalOverride($lineId, $rowIdx, $sub);
+                if (empty($result['success'])) {
+                    $db->transactionRollback();
+
+                    return $result;
+                }
+            }
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')];
+        }
+
+        return ['success' => true, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_SAVED')];
+    }
+
+    /**
      * Save Impresión (first breakdown row) subtotal override: between 60% and 100% of stored base.
      *
      * @param   int    $lineId      Line id
