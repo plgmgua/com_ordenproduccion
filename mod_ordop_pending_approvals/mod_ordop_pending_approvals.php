@@ -11,8 +11,10 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Module\OrdopPendingApprovals\Helper\RecordLink as ApprovalRecordLink;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Helper\ModuleHelper;
+use Joomla\Database\DatabaseInterface;
 
 $app  = Factory::getApplication();
 $user = Factory::getUser();
@@ -35,6 +37,8 @@ try {
     return;
 }
 
+require_once __DIR__ . '/helper/RecordLink.php';
+
 if (!class_exists(ApprovalWorkflowService::class) || !class_exists(AccessHelper::class)) {
     return;
 }
@@ -47,6 +51,14 @@ $approvalService = new ApprovalWorkflowService();
 $schemaOk        = $approvalService->hasSchema();
 $rows            = $schemaOk ? $approvalService->getMyPendingApprovalRows((int) $user->id) : [];
 
+if ($rows !== []) {
+    $db = Factory::getContainer()->get(DatabaseInterface::class);
+    foreach ($rows as $row) {
+        $row->record_link = ApprovalRecordLink::relativeUrl($db, $row);
+    }
+}
+
+$pendingTotal  = count($rows);
 $showHeading   = (int) $params->get('show_heading', 1) === 1;
 $showIntro     = (int) $params->get('show_intro', 1) === 1;
 $showFullLink  = (int) $params->get('show_full_link', 1) === 1;

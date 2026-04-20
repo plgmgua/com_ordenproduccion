@@ -9,16 +9,15 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Uri\Uri;
 
 /** @var array $rows */
 /** @var bool $schemaOk */
 /** @var bool $showHeading */
 /** @var bool $showIntro */
 /** @var bool $showFullLink */
+/** @var int $pendingTotal */
 
 $entityLabel = static function (string $entityType): string {
     $map = [
@@ -32,10 +31,7 @@ $entityLabel = static function (string $entityType): string {
     return Text::_($key);
 };
 
-$approveAction = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow', false);
-$rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectApprovalWorkflow', false);
 $adminAprobUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones', false);
-$returnB64     = base64_encode(Uri::getInstance()->toString());
 
 $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
 ?>
@@ -48,7 +44,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
     <?php endif; ?>
 
     <?php if ($showIntro) : ?>
-    <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_TAB_INTRO'); ?></p>
+    <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_TAB_INTRO'); ?></p>
     <?php endif; ?>
 
     <?php if ($showFullLink) : ?>
@@ -62,49 +58,33 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
     <?php if (!$schemaOk) : ?>
         <div class="alert alert-warning mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING'); ?></div>
     <?php elseif ($rows === []) : ?>
+        <p class="mb-2"><strong><?php echo Text::sprintf('MOD_ORDOP_PENDING_APPROVALS_TOTAL', 0); ?></strong></p>
         <div class="alert alert-info mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_EMPTY'); ?></div>
     <?php else : ?>
+        <p class="mb-2"><strong><?php echo Text::sprintf('MOD_ORDOP_PENDING_APPROVALS_TOTAL', (int) $pendingTotal); ?></strong></p>
         <div class="table-responsive">
             <table class="table table-sm table-striped table-bordered align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_REQUEST'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_TYPE'); ?></th>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_ENTITY_ID'); ?></th>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_CREATED'); ?></th>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_ACTIONS'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($rows as $row) : ?>
                         <?php
-                        $rid = isset($row->id) ? (int) $row->id : 0;
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
-                        $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
-                        $created = isset($row->created) ? (string) $row->created : '';
+                        $label = $entityLabel($etype);
+                        $href  = isset($row->record_link) && is_string($row->record_link) && $row->record_link !== ''
+                            ? Route::_($row->record_link, false)
+                            : '';
                         ?>
                         <tr>
-                            <td><?php echo (int) $rid; ?></td>
-                            <td><?php echo htmlspecialchars($entityLabel($etype), ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo (int) $eid; ?></td>
-                            <td><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td style="min-width:220px;">
-                                <form method="post" action="<?php echo htmlspecialchars($approveAction, ENT_QUOTES, 'UTF-8'); ?>" class="mb-2">
-                                    <?php echo HTMLHelper::_('form.token'); ?>
-                                    <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
-                                    <input type="hidden" name="return" value="<?php echo htmlspecialchars($returnB64, ENT_QUOTES, 'UTF-8'); ?>" />
-                                    <label class="form-label small mb-0" for="<?php echo $modId; ?>-approve-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
-                                    <textarea class="form-control form-control-sm mb-1" id="<?php echo $modId; ?>-approve-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'); ?>"></textarea>
-                                    <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
-                                </form>
-                                <form method="post" action="<?php echo htmlspecialchars($rejectAction, ENT_QUOTES, 'UTF-8'); ?>">
-                                    <?php echo HTMLHelper::_('form.token'); ?>
-                                    <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
-                                    <input type="hidden" name="return" value="<?php echo htmlspecialchars($returnB64, ENT_QUOTES, 'UTF-8'); ?>" />
-                                    <label class="form-label small mb-0" for="<?php echo $modId; ?>-reject-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
-                                    <textarea class="form-control form-control-sm mb-1" id="<?php echo $modId; ?>-reject-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'); ?>"></textarea>
-                                    <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
-                                </form>
+                            <td>
+                                <?php if ($href !== '') : ?>
+                                    <a href="<?php echo htmlspecialchars($href, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></a>
+                                <?php else : ?>
+                                    <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
