@@ -445,19 +445,19 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
         <?php endif; ?>
     </div>
 
-    <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+    <div class="mb-3 d-flex flex-wrap align-items-center gap-2 precotizacion-doc-toolbar">
         <?php if ($canEditDocument) : ?>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pliegoLineModal">
             <?php echo htmlspecialchars($labelCalculoFolios); ?>
         </button>
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
             <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
         <?php if ($canEditDocument && $tarjetaCreditoTableOk && !empty($tarjetaCreditoRates)) : ?>
         <form method="post" action="<?php echo htmlspecialchars($saveTarjetaUrl); ?>" class="d-inline-flex align-items-center gap-2 mb-0">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
-            <label for="precotizacion-tarjeta-cuotas" class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_LABEL'); ?></label>
+            <label for="precotizacion-tarjeta-cuotas" class="small text-muted mb-0 text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_LABEL'); ?></label>
             <select name="tarjeta_cuotas" id="precotizacion-tarjeta-cuotas" class="form-select form-select-sm" style="min-width: 220px; max-width: 280px;" onchange="this.form.submit()">
                 <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_NONE'); ?></option>
                 <?php foreach ($tarjetaCreditoRates as $tcRow) :
@@ -475,26 +475,23 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
         </form>
         <?php endif; ?>
         <?php if (!empty($envios)) : ?>
-        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#envioLineModal">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal">
             <?php echo htmlspecialchars($labelAnadirEnvio); ?>
         </button>
         <?php endif; ?>
         <?php endif; ?>
-    </div>
-
-    <?php if ($discountWorkflowAvailable && !$precotizacionLocked) : ?>
-    <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
-        <?php if ($canRequestSolicitudDescuento) : ?>
+        <?php if ($discountWorkflowAvailable && !$precotizacionLocked) : ?>
+            <?php if ($canRequestSolicitudDescuento) : ?>
         <form method="post" action="<?php echo htmlspecialchars($solicitarDescuentoAction, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
-            <button type="submit" class="btn btn-outline-warning"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_BTN'); ?></button>
+            <button type="submit" class="btn btn-outline-warning btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_BTN'); ?></button>
         </form>
-        <?php elseif ($pendingSolicitudDescuento) : ?>
-        <span class="badge bg-warning text-dark"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></span>
+            <?php elseif ($pendingSolicitudDescuento) : ?>
+        <span class="badge bg-warning text-dark align-self-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></span>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
-    <?php endif; ?>
 
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINES'); ?></h2>
 
