@@ -657,18 +657,108 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Save Impresión (first breakdown row) subtotal override: between 60% and 100% of stored base.
+     * Ensure each breakdown row has subtotal_base (original ceiling for 60% floor). Mutates array.
+     *
+     * @param   array     $breakdown  Breakdown rows
+     * @param   \stdClass $line       Line with optional impresion_subtotal_base
+     *
+     * @return  void
+     *
+     * @since   3.109.54
+     */
+    protected function ensureBreakdownSubtotalBases(array &$breakdown, $line): void
+    {
+        $impColBase = null;
+        if (is_object($line) && isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
+            $impColBase = round((float) $line->impresion_subtotal_base, 2);
+        }
+        foreach ($breakdown as $i => &$row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $st = isset($row['subtotal']) ? round((float) $row['subtotal'], 2) : 0.0;
+            if ($i === 0 && $impColBase !== null && $impColBase > 0) {
+                if (!isset($row['subtotal_base']) || (float) $row['subtotal_base'] <= 0) {
+                    $row['subtotal_base'] = $impColBase;
+                }
+            } elseif (!isset($row['subtotal_base']) || (float) $row['subtotal_base'] <= 0) {
+                if ($st > 0) {
+                    $row['subtotal_base'] = $st;
+                }
+            }
+        }
+        unset($row);
+    }
+
+    /**
+     * Min/max/current subtotal for one breakdown row (Aprobaciones Ventas UI).
+     *
+     * @param   \stdClass  $line      Line from getLines()
+     * @param   int        $rowIndex  Breakdown index
+     *
+     * @return  array{base:float,min:float,current:float}|null
+     *
+     * @since   3.109.54
+     */
+    public function getBreakdownRowAdjustmentMeta($line, int $rowIndex): ?array
+    {
+        $lineId = (int) ($line->id ?? 0);
+        if ($lineId < 1 || !$this->canUserSaveImpresionOverrideOnLine($lineId)) {
+            return null;
+        }
+        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if ($lineType !== 'pliego') {
+            return null;
+        }
+        $breakdown = $line->breakdown ?? [];
+        if (!isset($breakdown[$rowIndex]) || !is_array($breakdown[$rowIndex])) {
+            return null;
+        }
+        $db = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['impresion_subtotal_base'])) {
+            return null;
+        }
+        $work = $breakdown;
+        $this->ensureBreakdownSubtotalBases($work, $line);
+        $base = isset($work[$rowIndex]['subtotal_base']) ? round((float) $work[$rowIndex]['subtotal_base'], 2) : null;
+        if (($base === null || $base <= 0) && $rowIndex === 0) {
+            $base = $this->pliegoImpresionSubtotalFromBreakdown($work);
+        }
+        if ($base === null || $base <= 0) {
+            $st = isset($work[$rowIndex]['subtotal']) ? round((float) $work[$rowIndex]['subtotal'], 2) : 0.0;
+            if ($st > 0) {
+                $base = $st;
+            }
+        }
+        if ($base === null || $base <= 0) {
+            return null;
+        }
+        $current = isset($breakdown[$rowIndex]['subtotal']) ? round((float) $breakdown[$rowIndex]['subtotal'], 2) : $base;
+
+        return [
+            'base'    => $base,
+            'min'     => round($base * 0.6, 2),
+            'current' => $current,
+        ];
+    }
+
+    /**
+     * Save one pliego breakdown row subtotal override (60%–100% of stored base per row). Row 0 also updates impresion_subtotal_* columns.
      *
      * @param   int    $lineId      Line id
-     * @param   float  $newSubtotal New print row subtotal (line total part)
+     * @param   int    $rowIndex    Breakdown row index (0 = Impresión, 1+ = Corte, etc.)
+     * @param   float  $newSubtotal New subtotal for that row
      *
      * @return  array{success:bool,message:string,total?:float,price_per_sheet?:float}
      *
-     * @since   3.109.19
+     * @since   3.109.54
      */
-    public function saveImpresionSubtotalOverride($lineId, $newSubtotal)
+    public function saveBreakdownRowSubtotalOverride($lineId, $rowIndex, $newSubtotal)
     {
-        $lineId = (int) $lineId;
+        $lineId   = (int) $lineId;
+        $rowIndex = (int) $rowIndex;
         if ($lineId < 1) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
         }
@@ -684,7 +774,7 @@ class PrecotizacionModel extends ListModel
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NOT_PLIEGO')];
         }
         $breakdown = $line->breakdown ?? [];
-        if (empty($breakdown[0]) || !is_array($breakdown[0])) {
+        if (!isset($breakdown[$rowIndex]) || !is_array($breakdown[$rowIndex])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NO_BREAKDOWN')];
         }
         $db = $this->getDatabase();
@@ -694,20 +784,22 @@ class PrecotizacionModel extends ListModel
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SCHEMA')];
         }
 
-        $base = null;
-        if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
-            $base = round((float) $line->impresion_subtotal_base, 2);
+        $this->ensureBreakdownSubtotalBases($breakdown, $line);
+
+        $base = isset($breakdown[$rowIndex]['subtotal_base']) ? round((float) $breakdown[$rowIndex]['subtotal_base'], 2) : null;
+        if (($base === null || $base <= 0) && $rowIndex === 0) {
+            $base = $this->pliegoImpresionSubtotalFromBreakdown($breakdown);
         }
         if ($base === null || $base <= 0) {
-            $base = $this->pliegoImpresionSubtotalFromBreakdown($breakdown);
+            $base = isset($breakdown[$rowIndex]['subtotal']) ? round((float) $breakdown[$rowIndex]['subtotal'], 2) : null;
         }
         if ($base === null || $base <= 0) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NO_BASE')];
         }
 
-        $minAllowed = round($base * 0.6, 2);
+        $minAllowed  = round($base * 0.6, 2);
         $newSubtotal = round((float) $newSubtotal, 2);
-        $eps          = 0.005;
+        $eps         = 0.005;
 
         if ($newSubtotal < $minAllowed - $eps) {
             return [
@@ -723,20 +815,39 @@ class PrecotizacionModel extends ListModel
         }
 
         $qty = max(1, (int) ($line->quantity ?? 1));
-        $breakdown[0]['subtotal'] = $newSubtotal;
-        $perSheet                 = $newSubtotal / $qty;
-        $breakdown[0]['detail']   = 'Q ' . number_format($perSheet, 2);
+        $breakdown[$rowIndex]['subtotal'] = $newSubtotal;
+        if ($rowIndex === 0) {
+            $perSheet                       = $newSubtotal / $qty;
+            $breakdown[$rowIndex]['detail'] = 'Q ' . number_format($perSheet, 2);
+        } else {
+            $breakdown[$rowIndex]['detail'] = 'Q ' . number_format($newSubtotal, 2);
+        }
 
-        $otherSum = 0.0;
-        $n        = count($breakdown);
-        for ($i = 1; $i < $n; $i++) {
-            if (isset($breakdown[$i]['subtotal'])) {
-                $otherSum += (float) $breakdown[$i]['subtotal'];
+        $lineTotal = 0.0;
+        foreach ($breakdown as $r) {
+            if (is_array($r) && isset($r['subtotal'])) {
+                $lineTotal += (float) $r['subtotal'];
             }
         }
-        $lineTotal     = round($newSubtotal + $otherSum, 2);
+        $lineTotal     = round($lineTotal, 2);
         $pricePerSheet = round($lineTotal / $qty, 4);
-        $overrideVal   = (abs($newSubtotal - $base) < $eps) ? null : $newSubtotal;
+
+        $impBaseDb = null;
+        if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
+            $impBaseDb = round((float) $line->impresion_subtotal_base, 2);
+        }
+        if ($impBaseDb === null || $impBaseDb <= 0) {
+            $impBaseDb = $this->pliegoImpresionSubtotalFromBreakdown($breakdown);
+        }
+        if ($impBaseDb === null || $impBaseDb <= 0) {
+            $impBaseDb = isset($breakdown[0]['subtotal_base']) ? round((float) $breakdown[0]['subtotal_base'], 2) : round((float) ($breakdown[0]['subtotal'] ?? 0), 2);
+        }
+
+        $overrideVal = null;
+        if ($rowIndex === 0) {
+            $printSub = round((float) ($breakdown[0]['subtotal'] ?? 0), 2);
+            $overrideVal = (abs($printSub - $impBaseDb) < $eps) ? null : $printSub;
+        }
 
         $json = json_encode($breakdown, JSON_UNESCAPED_UNICODE);
         if ($json === false) {
@@ -744,14 +855,16 @@ class PrecotizacionModel extends ListModel
         }
 
         try {
-            $overrideSql = $overrideVal === null
-                ? $db->quoteName('impresion_subtotal_override') . ' = NULL'
-                : $db->quoteName('impresion_subtotal_override') . ' = ' . $db->quote($overrideVal);
             $setClause = $db->quoteName('calculation_breakdown') . ' = ' . $db->quote($json)
                 . ', ' . $db->quoteName('total') . ' = ' . $db->quote($lineTotal)
-                . ', ' . $db->quoteName('price_per_sheet') . ' = ' . $db->quote($pricePerSheet)
-                . ', ' . $db->quoteName('impresion_subtotal_base') . ' = ' . $db->quote($base)
-                . ', ' . $overrideSql;
+                . ', ' . $db->quoteName('price_per_sheet') . ' = ' . $db->quote($pricePerSheet);
+            if ($rowIndex === 0) {
+                $overrideSql = $overrideVal === null
+                    ? $db->quoteName('impresion_subtotal_override') . ' = NULL'
+                    : $db->quoteName('impresion_subtotal_override') . ' = ' . $db->quote($overrideVal);
+                $setClause .= ', ' . $db->quoteName('impresion_subtotal_base') . ' = ' . $db->quote($impBaseDb)
+                    . ', ' . $overrideSql;
+            }
             $q = $db->getQuery(true)
                 ->update($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
                 ->set($setClause)
@@ -769,6 +882,21 @@ class PrecotizacionModel extends ListModel
             'total'           => $lineTotal,
             'price_per_sheet' => $pricePerSheet,
         ];
+    }
+
+    /**
+     * Save Impresión (first breakdown row) subtotal override: between 60% and 100% of stored base.
+     *
+     * @param   int    $lineId      Line id
+     * @param   float  $newSubtotal New print row subtotal (line total part)
+     *
+     * @return  array{success:bool,message:string,total?:float,price_per_sheet?:float}
+     *
+     * @since   3.109.19
+     */
+    public function saveImpresionSubtotalOverride($lineId, $newSubtotal)
+    {
+        return $this->saveBreakdownRowSubtotalOverride((int) $lineId, 0, (float) $newSubtotal);
     }
 
     /**

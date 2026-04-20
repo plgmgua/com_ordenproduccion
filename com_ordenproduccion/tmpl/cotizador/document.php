@@ -605,34 +605,61 @@ $envios = $this->envios ?? [];
                                     </table>
                                     </div>
                                     <?php
-                                    $impBaseVal = null;
-                                    if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
-                                        $impBaseVal = round((float) $line->impresion_subtotal_base, 2);
-                                    } elseif (!empty($breakdown[0]['subtotal'])) {
-                                        $impBaseVal = round((float) $breakdown[0]['subtotal'], 2);
+                                    $precotRowModel = $this->precotizacionModel ?? null;
+                                    $showRowOverrides = $canSaveImpresionOverride && $precotRowModel;
+                                    if ($showRowOverrides) {
+                                        $showRowOverrides = false;
+                                        foreach ($breakdown as $bi => $_br) {
+                                            if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi) !== null) {
+                                                $showRowOverrides = true;
+                                                break;
+                                            }
+                                        }
                                     }
-                                    $impCurrentVal = !empty($breakdown[0]['subtotal']) ? round((float) $breakdown[0]['subtotal'], 2) : $impBaseVal;
-                                    if ($canSaveImpresionOverride && $impBaseVal !== null && $impBaseVal > 0) :
-                                        $impMinVal = round($impBaseVal * 0.6, 2);
+                                    if ($showRowOverrides) :
                                     ?>
-                                    <div class="flex-grow-0 impresion-override-wrap border-start border-secondary ps-3 ms-md-0"
-                                        style="min-width: 220px; max-width: 340px;"
+                                    <div class="flex-grow-0 breakdown-overrides-col border-start border-secondary ps-3 ms-md-0" style="min-width: 260px; max-width: 440px;">
+                                    <?php
+                                        foreach ($breakdown as $bi => $bRow) :
+                                            $rowMeta = $precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi);
+                                            if ($rowMeta === null) {
+                                                continue;
+                                            }
+                                            $rBase = $rowMeta['base'];
+                                            $rMin  = $rowMeta['min'];
+                                            $rCur  = $rowMeta['current'];
+                                            $conceptLabel = isset($bRow['label']) ? trim((string) $bRow['label']) : '';
+                                            if ($conceptLabel === '') {
+                                                $conceptLabel = Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM');
+                                            }
+                                            $overrideInputId = 'breakdown-override-' . (int) $line->id . '-' . (int) $bi;
+                                    ?>
+                                    <div class="breakdown-row-override-wrap mb-3 pb-3 border-bottom border-secondary"
                                         data-line-id="<?php echo (int) $line->id; ?>"
-                                        data-base="<?php echo htmlspecialchars((string) $impBaseVal, ENT_QUOTES, 'UTF-8'); ?>"
-                                        data-min="<?php echo htmlspecialchars((string) $impMinVal, ENT_QUOTES, 'UTF-8'); ?>">
-                                        <label class="form-label small mb-1" for="impresion-override-<?php echo (int) $line->id; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_LABEL'); ?></label>
-                                        <div class="d-flex flex-wrap align-items-start gap-2">
-                                            <input type="number" step="0.01" min="<?php echo htmlspecialchars((string) $impMinVal, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars((string) $impBaseVal, ENT_QUOTES, 'UTF-8'); ?>"
-                                                class="form-control form-control-sm impresion-override-input" style="max-width: 11rem;"
-                                                id="impresion-override-<?php echo (int) $line->id; ?>"
-                                                value="<?php echo htmlspecialchars(number_format($impCurrentVal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
-                                                inputmode="decimal" />
-                                            <button type="button" class="btn btn-sm btn-primary impresion-override-save"><?php echo Text::_('JSAVE'); ?></button>
+                                        data-breakdown-index="<?php echo (int) $bi; ?>"
+                                        data-base="<?php echo htmlspecialchars((string) $rBase, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-min="<?php echo htmlspecialchars((string) $rMin, ENT_QUOTES, 'UTF-8'); ?>">
+                                        <label class="form-label small mb-1" for="<?php echo htmlspecialchars($overrideInputId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_SUBTOTAL_LABEL', htmlspecialchars($conceptLabel, ENT_QUOTES, 'UTF-8')); ?></label>
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <input type="number" step="0.01" min="<?php echo htmlspecialchars((string) $rMin, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars((string) $rBase, ENT_QUOTES, 'UTF-8'); ?>"
+                                                class="form-control form-control-sm breakdown-row-override-input" style="max-width: 10rem;"
+                                                id="<?php echo htmlspecialchars($overrideInputId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                value="<?php echo htmlspecialchars(number_format($rCur, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                inputmode="decimal"
+                                                title="<?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_HELP', number_format($rMin, 2), number_format($rBase, 2)), ENT_QUOTES, 'UTF-8'); ?>" />
+                                            <button type="button" class="btn btn-sm btn-primary breakdown-row-override-save"><?php echo Text::_('JSAVE'); ?></button>
+                                            <span class="small text-muted text-nowrap"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_MIN_SHORT', number_format($rMin, 2)); ?></span>
+                                            <span class="small text-muted text-nowrap"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_ROW_OVERRIDE_MAX_SHORT', number_format($rBase, 2)); ?></span>
                                         </div>
-                                        <div class="form-text small mb-0"><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_HELP', number_format($impMinVal, 2), number_format($impBaseVal, 2)); ?></div>
-                                        <div class="text-danger small impresion-override-warning mt-1 d-none" role="alert"></div>
+                                        <div class="text-danger small breakdown-row-override-warning mt-1 d-none" role="alert"></div>
                                     </div>
-                                    <?php endif; ?>
+                                    <?php
+                                        endforeach;
+                                    ?>
+                                    </div>
+                                    <?php
+                                    endif;
+                                    ?>
                                     </div>
                                 </div>
                             </td>
@@ -751,12 +778,12 @@ $envios = $this->envios ?? [];
     var msgAbove = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_CLIENT_ABOVE')); ?>;
     var msgErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_SAVE_ERROR')); ?>;
     document.addEventListener('click', function(e) {
-        var btn = e.target && e.target.closest && e.target.closest('.impresion-override-save');
+        var btn = e.target && e.target.closest && e.target.closest('.breakdown-row-override-save');
         if (!btn) return;
-        var wrap = btn.closest('.impresion-override-wrap');
+        var wrap = btn.closest('.breakdown-row-override-wrap');
         if (!wrap) return;
-        var input = wrap.querySelector('.impresion-override-input');
-        var warn = wrap.querySelector('.impresion-override-warning');
+        var input = wrap.querySelector('.breakdown-row-override-input');
+        var warn = wrap.querySelector('.breakdown-row-override-warning');
         if (!input || !warn) return;
         warn.classList.add('d-none');
         warn.textContent = '';
@@ -780,9 +807,14 @@ $envios = $this->envios ?? [];
             return;
         }
         var lineId = wrap.getAttribute('data-line-id');
+        var bIdx = wrap.getAttribute('data-breakdown-index');
+        if (bIdx === null || bIdx === '') {
+            bIdx = '0';
+        }
         var fd = new FormData();
         fd.append('line_id', lineId);
-        fd.append('impresion_subtotal', String(v));
+        fd.append('breakdown_index', bIdx);
+        fd.append('row_subtotal', String(v));
         fd.append(tokenName, '1');
         btn.disabled = true;
         fetch(saveUrl, { method: 'POST', body: fd, credentials: 'same-origin' })

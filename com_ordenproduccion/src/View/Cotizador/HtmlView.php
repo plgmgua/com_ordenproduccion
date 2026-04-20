@@ -86,6 +86,14 @@ class HtmlView extends BaseHtmlView
     protected $canSaveImpresionOverride = false;
 
     /**
+     * Precotizacion model (document/details layout) for breakdown adjustment helpers in layout.
+     *
+     * @var    \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel|null
+     * @since  3.109.54
+     */
+    protected $precotizacionModel = null;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -146,7 +154,8 @@ class HtmlView extends BaseHtmlView
                 }
             }
             $precotModel = $mvcFactory->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
-            $this->item  = $precotModel->getItem($id);
+            $this->precotizacionModel = $precotModel;
+            $this->item               = $precotModel->getItem($id);
             if (!$this->item) {
                 if ($layout === 'document') {
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'), 'error');

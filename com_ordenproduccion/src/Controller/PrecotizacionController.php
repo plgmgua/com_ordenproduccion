@@ -835,7 +835,7 @@ class PrecotizacionController extends BaseController
     /**
      * Save Impresión (first pliego breakdown row) subtotal override — Aprobaciones Ventas only, JSON POST.
      *
-     * POST: line_id, impresion_subtotal, token
+     * POST: line_id, row_subtotal (or legacy impresion_subtotal), breakdown_index (optional, default 0), token
      *
      * @return  void  (application close)
      *
@@ -858,12 +858,19 @@ class PrecotizacionController extends BaseController
         }
 
         $lineId = (int) $app->input->post->getInt('line_id', 0);
-        $raw     = trim((string) $app->input->post->get('impresion_subtotal', '', 'raw'));
-        $raw     = str_replace([',', 'Q', 'q', ' '], '', $raw);
-        $newSub  = (float) $raw;
+        $rowIdx = (int) $app->input->post->getInt('breakdown_index', 0);
+        if ($rowIdx < 0) {
+            $rowIdx = 0;
+        }
+        $raw = trim((string) $app->input->post->get('row_subtotal', '', 'raw'));
+        if ($raw === '') {
+            $raw = trim((string) $app->input->post->get('impresion_subtotal', '', 'raw'));
+        }
+        $raw    = str_replace([',', 'Q', 'q', ' '], '', $raw);
+        $newSub = (float) $raw;
 
         $model  = $this->getModel('Precotizacion', 'Site');
-        $result = $model->saveImpresionSubtotalOverride($lineId, $newSub);
+        $result = $model->saveBreakdownRowSubtotalOverride($lineId, $rowIdx, $newSub);
         echo json_encode($result);
         $app->close();
     }
