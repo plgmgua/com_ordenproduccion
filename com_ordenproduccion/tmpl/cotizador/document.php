@@ -690,11 +690,11 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
                     <?php endforeach; ?>
                     <?php if (!empty($canSaveImpresionOverride) && !empty($hasAnyBreakdownOverrideRows)) : ?>
                     <tr class="precotizacion-breakdown-batch-save-row">
-                        <td colspan="7" class="bg-light border-top py-3">
+                        <td colspan="7" class="bg-light border-top py-3 text-end">
                             <button type="button" id="precotizacion-save-all-breakdown-subtotals" class="btn btn-primary">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_BREAKDOWN_BATCH_SAVE_BTN'); ?>
                             </button>
-                            <div class="text-danger small mt-2 d-none" id="precotizacion-breakdown-batch-msg" role="alert"></div>
+                            <div class="text-danger small mt-2 d-none text-end" id="precotizacion-breakdown-batch-msg" role="alert"></div>
                         </td>
                     </tr>
                     <?php endif; ?>
