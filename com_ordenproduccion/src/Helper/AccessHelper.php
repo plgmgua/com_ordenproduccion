@@ -140,14 +140,59 @@ class AccessHelper
 
     /**
      * Whether the user is in the Aprobaciones Ventas group (pre-cotización internal tax/margin rows).
+     * Matches configured id (typically 16) with int-normalized ids, and group title for migrated sites.
      *
      * @return  bool
      */
     public static function isInAprobacionesVentasGroup()
     {
         $userGroups = Factory::getUser()->getAuthorisedGroups();
+        if (!is_array($userGroups) || $userGroups === []) {
+            return false;
+        }
 
-        return in_array(self::GROUP_ID_APROBACIONES_VENTAS, $userGroups, true);
+        $ids = array_map('intval', $userGroups);
+        if (in_array(self::GROUP_ID_APROBACIONES_VENTAS, $ids, true)) {
+            return true;
+        }
+
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('title'))
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+        $db->setQuery($query);
+        $titles = $db->loadColumn() ?: [];
+
+        foreach ($titles as $title) {
+            if ($title === 'Aprobaciones Ventas') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Pre-cotización list/detail: see all published rows (not only created_by = current user).
+     * Super user, Administración/Admon, or Aprobaciones Ventas (discount approval on others’ pre-cots).
+     *
+     * @return  bool
+     *
+     * @since   3.109.56
+     */
+    public static function canViewAllPrecotizaciones(): bool
+    {
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        return self::isInAdministracionOrAdmonGroup() || self::isInAprobacionesVentasGroup();
     }
 
     /**

@@ -155,7 +155,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Build list query (only current user's Pre-Cotizaciones).
+     * Build list query: owner-scoped unless user may see all pre-cotizaciones (admin, Administración, Aprobaciones Ventas).
      *
      * @return  \Joomla\Database\DatabaseQuery
      *
@@ -167,8 +167,7 @@ class PrecotizacionModel extends ListModel
         $query = $db->getQuery(true);
 
         $user = Factory::getUser();
-        $isAdministracion = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
-        $isAprobacionesVentas = AccessHelper::isInAprobacionesVentasGroup();
+        $canViewAllPrecot = AccessHelper::canViewAllPrecotizaciones();
 
         $cols = ['a.id', 'a.number', 'a.created_by', 'a.created', 'a.modified', 'a.state'];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
@@ -185,14 +184,14 @@ class PrecotizacionModel extends ListModel
         if (isset($tableColsLc['facturar'])) {
             $cols[] = 'a.facturar';
         }
-        if ($isAdministracion || $isAprobacionesVentas) {
+        if ($canViewAllPrecot) {
             $cols[] = 'u.name AS created_by_name';
         }
         $query->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.state') . ' = 1');
 
-        if ($isAdministracion || $isAprobacionesVentas) {
+        if ($canViewAllPrecot) {
             $query->leftJoin(
                 $db->quoteName('#__users', 'u') . ' ON u.id = a.created_by'
             );
@@ -250,7 +249,7 @@ class PrecotizacionModel extends ListModel
         }
 
         $createdByF = (int) $this->getState('filter.created_by', 0);
-        if (($isAdministracion || $isAprobacionesVentas) && $createdByF > 0) {
+        if ($canViewAllPrecot && $createdByF > 0) {
             $query->where($db->quoteName('a.created_by') . ' = ' . $createdByF);
         }
 
@@ -309,7 +308,7 @@ class PrecotizacionModel extends ListModel
     /**
      * Get one Pre-Cotización by id if the current user may access it (same rules as the list query).
      *
-     * Administración/Admon/super user: any published row. Others: own rows, or active offer templates
+     * Administración/Admon/super user/Aprobaciones Ventas: any published row. Others: own rows, or active offer templates
      * (oferta = 1, not expired) so Ventas can open others’ ofertas read-only.
      *
      * @param   int  $id  Pre-Cotización id.
@@ -364,13 +363,10 @@ class PrecotizacionModel extends ListModel
             ->where($db->quoteName('a.id') . ' = ' . $id)
             ->where($db->quoteName('a.state') . ' = 1');
 
-        $isAdministracion = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
-        $isAprobacionesVentas = AccessHelper::isInAprobacionesVentasGroup();
+        $canViewAllPrecot = AccessHelper::canViewAllPrecotizaciones();
 
-        if ($isAdministracion) {
-            // Same as getListQuery: see all published rows.
-        } elseif ($isAprobacionesVentas) {
-            // Read any published pre-cotización (Impresión override / approvals); list view may still be owner-scoped.
+        if ($canViewAllPrecot) {
+            // Same as getListQuery: see all published rows (admin, Administración, Aprobaciones Ventas).
         } elseif (isset($tableCols['oferta'])) {
             $uid = (int) $user->id;
             $expClause = '';

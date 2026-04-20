@@ -231,7 +231,7 @@ class HtmlView extends BaseHtmlView
             $pcColsLc = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
             $this->hasFacturarColumn = isset($pcColsLc['facturar']);
             $this->hasOfertaColumn   = isset($pcColsLc['oferta']);
-            $this->showSalesAgentColumn = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
+            $this->showSalesAgentColumn = AccessHelper::canViewAllPrecotizaciones();
             $this->templates = $precotModel->getTemplates();
             $ids = [];
             foreach ($this->items as $it) {
