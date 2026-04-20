@@ -180,7 +180,7 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
     <?php if ($canEditDocument) : ?>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="page-title mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>
-        <button type="submit" form="precotizacion-desc-medidas-form" class="btn btn-secondary"><?php echo Text::_('JSAVE'); ?></button>
+        <button type="submit" form="precotizacion-desc-medidas-form" class="btn btn-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DOCUMENT_SAVE_BTN'); ?></button>
     </div>
     <?php else : ?>
     <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TITLE'); ?> <?php echo htmlspecialchars($item->number); ?></h1>

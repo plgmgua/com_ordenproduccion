@@ -28,6 +28,26 @@ use Joomla\CMS\Session\Session;
 class PrecotizacionController extends BaseController
 {
     /**
+     * Translate com_ordenproduccion string for flash messages after POST (ensure site language is loaded).
+     *
+     * @since  3.109.62
+     */
+    private function precotLang(string $key, string $fallbackEs, string $fallbackEn): string
+    {
+        $app  = Factory::getApplication();
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE, null, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', null, true);
+        $out = Text::_($key);
+        if (is_string($out) && $out !== $key && strpos($out, 'COM_ORDENPRODUCCION_') !== 0) {
+            return $out;
+        }
+        $tag = strtolower($lang->getTag());
+
+        return str_starts_with($tag, 'es') ? $fallbackEs : $fallbackEn;
+    }
+
+    /**
      * Create a new Pre-Cotización and redirect to document view.
      *
      * @return  bool
@@ -1033,14 +1053,28 @@ class PrecotizacionController extends BaseController
 
         $wf = new ApprovalWorkflowService();
         if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO)) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_WORKFLOW_NOT_AVAILABLE'), 'error');
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_DISCOUNT_WORKFLOW_NOT_AVAILABLE',
+                    'El flujo de solicitud de descuento no está disponible.',
+                    'The discount request workflow is not available.'
+                ),
+                'error'
+            );
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
 
             return false;
         }
 
         if ($wf->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO, $id) !== null) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_REQUEST_ALREADY_PENDING'), 'notice');
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_DISCOUNT_REQUEST_ALREADY_PENDING',
+                    'Ya hay una solicitud de descuento pendiente para esta pre-cotización.',
+                    'A discount request is already pending for this pre-cotización.'
+                ),
+                'notice'
+            );
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
 
             return false;
@@ -1048,9 +1082,22 @@ class PrecotizacionController extends BaseController
 
         $rid = $wf->createRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO, $id, (int) $user->id);
         if ($rid < 1) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_REQUEST_CREATE_FAILED'), 'error');
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_DISCOUNT_REQUEST_CREATE_FAILED',
+                    'No se pudo crear la solicitud de descuento.',
+                    'Could not create the discount request.'
+                ),
+                'error'
+            );
         } else {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_DISCOUNT_REQUEST_CREATED'));
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_DISCOUNT_REQUEST_CREATED',
+                    'Solicitud de descuento enviada. Se notificará a Aprobaciones Ventas.',
+                    'Discount request sent. Sales approvals will be notified.'
+                )
+            );
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));

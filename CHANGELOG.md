@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.62-STABLE] - 2026-04-21
+
+### Fixed
+- **Solicitar descuento:** Los avisos tras el POST ya no muestran la constante cruda `COM_ORDENPRODUCCION_DISCOUNT_REQUEST_*`: se recarga el idioma del componente en sitio y, si aún faltara la cadena, se usan textos de respaldo en español/inglés.
+### Changed
+- **Pre-cot documento:** El botón superior del formulario de descripción/medidas usa la etiqueta **Guardar pre-cotización** (`COM_ORDENPRODUCCION_PRE_COT_DOCUMENT_SAVE_BTN`) en lugar del genérico `JSAVE`, para no confundirlo con **Guardar descuentos** (subtotales de línea).
+
 ## [3.109.61-STABLE] - 2026-04-21
 
 ### Fixed
