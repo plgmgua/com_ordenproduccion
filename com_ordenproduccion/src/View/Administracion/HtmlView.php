@@ -444,6 +444,14 @@ class HtmlView extends BaseHtmlView
     protected $approvalWorkflowSchemaAvailable = false;
 
     /**
+     * Workflow definitions + steps for Ajustes → Flujos de aprobaciones.
+     *
+     * @var    array<int, array{workflow: object, steps: object[]}>
+     * @since  3.109.58
+     */
+    protected $approvalWorkflowsAdmin = [];
+
+    /**
      * Get the layout data for the view (ensures 'invoices' key exists for AbstractView/layouts).
      *
      * @return  array
@@ -474,6 +482,7 @@ class HtmlView extends BaseHtmlView
                 'invoiceFelQueueAvailable' => (bool) ($this->invoiceFelQueueAvailable ?? false),
                 'approvalPendingRows' => is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [],
                 'approvalWorkflowSchemaAvailable' => (bool) ($this->approvalWorkflowSchemaAvailable ?? false),
+                'approvalWorkflowsAdmin' => is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [],
             ]
         );
         return $data;
@@ -539,6 +548,9 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'approvalWorkflowSchemaAvailable') {
             return (bool) ($this->approvalWorkflowSchemaAvailable ?? false);
+        }
+        if ($property === 'approvalWorkflowsAdmin') {
+            return is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [];
         }
         return parent::get($property, $default);
     }
@@ -674,6 +686,7 @@ class HtmlView extends BaseHtmlView
         $this->invoiceFelQueueAvailable = false;
         $this->approvalPendingRows = [];
         $this->approvalWorkflowSchemaAvailable = false;
+        $this->approvalWorkflowsAdmin = [];
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1106,6 +1119,23 @@ class HtmlView extends BaseHtmlView
             } catch (\Throwable $e) {
                 $this->approvalPendingRows = [];
                 $this->approvalWorkflowSchemaAvailable = false;
+            }
+        }
+
+        if ($activeTab === 'ajustes' && $activeSubTab === 'flujos_aprobaciones') {
+            try {
+                $approvalService = new ApprovalWorkflowService();
+                $this->approvalWorkflowSchemaAvailable = $approvalService->hasSchema();
+                if ($this->approvalWorkflowSchemaAvailable) {
+                    try {
+                        $this->approvalWorkflowsAdmin = $approvalService->getAllWorkflowsWithStepsForAdmin();
+                    } catch (\Throwable $e) {
+                        $this->approvalWorkflowsAdmin = [];
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->approvalWorkflowSchemaAvailable = false;
+                $this->approvalWorkflowsAdmin = [];
             }
         }
 

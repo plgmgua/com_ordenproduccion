@@ -732,4 +732,178 @@ class ApprovalWorkflowService
 
         return $this->getUserIdsInJoomlaGroups($groupIds);
     }
+
+    /**
+     * All workflows with ordered steps (Control de Ventas → Ajustes → Flujos de aprobaciones).
+     *
+     * @return  array<int, array{workflow: object, steps: object[]}>
+     *
+     * @since   3.109.58
+     */
+    public function getAllWorkflowsWithStepsForAdmin(): array
+    {
+        if (!$this->hasSchema()) {
+            return [];
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflows'))
+            ->order($this->db->quoteName('entity_type') . ' ASC');
+        $this->db->setQuery($q);
+        $wfs = $this->db->loadObjectList() ?: [];
+        $out = [];
+
+        foreach ($wfs as $wf) {
+            $wid = (int) $wf->id;
+            $q2  = $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+                ->where($this->db->quoteName('workflow_id') . ' = ' . $wid)
+                ->order($this->db->quoteName('step_number') . ' ASC');
+            $this->db->setQuery($q2);
+            $steps = $this->db->loadObjectList() ?: [];
+            $out[] = ['workflow' => $wf, 'steps' => $steps];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Update workflow row from Ajustes UI (does not change entity_type).
+     *
+     * @since   3.109.58
+     */
+    public function adminUpdateWorkflow(int $workflowId, array $data): bool
+    {
+        if (!$this->hasSchema() || $workflowId < 1) {
+            return false;
+        }
+
+        $user = Factory::getUser();
+        $uid  = (int) $user->id;
+        $now  = Factory::getDate()->toSql();
+
+        $name        = isset($data['name']) ? trim((string) $data['name']) : '';
+        $description = isset($data['description']) ? trim((string) $data['description']) : '';
+        $published   = !empty($data['published']) ? 1 : 0;
+
+        if ($name === '') {
+            return false;
+        }
+        if (strlen($name) > 255) {
+            $name = substr($name, 0, 255);
+        }
+
+        $emailSubjectAssign  = isset($data['email_subject_assign']) ? trim((string) $data['email_subject_assign']) : '';
+        $emailBodyAssign     = isset($data['email_body_assign']) ? (string) $data['email_body_assign'] : '';
+        $emailSubjectDecided = isset($data['email_subject_decided']) ? trim((string) $data['email_subject_decided']) : '';
+        $emailBodyDecided    = isset($data['email_body_decided']) ? (string) $data['email_body_decided'] : '';
+
+        if (strlen($emailSubjectAssign) > 255) {
+            $emailSubjectAssign = substr($emailSubjectAssign, 0, 255);
+        }
+        if (strlen($emailSubjectDecided) > 255) {
+            $emailSubjectDecided = substr($emailSubjectDecided, 0, 255);
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_workflows'))
+                ->set($this->db->quoteName('name') . ' = ' . $this->db->quote($name))
+                ->set($this->db->quoteName('description') . ' = ' . $this->db->quote($description))
+                ->set($this->db->quoteName('published') . ' = ' . (string) (int) $published)
+                ->set(
+                    $this->db->quoteName('email_subject_assign') . ' = '
+                    . ($emailSubjectAssign === '' ? 'NULL' : $this->db->quote($emailSubjectAssign))
+                )
+                ->set(
+                    $this->db->quoteName('email_body_assign') . ' = '
+                    . ($emailBodyAssign === '' ? 'NULL' : $this->db->quote($emailBodyAssign))
+                )
+                ->set(
+                    $this->db->quoteName('email_subject_decided') . ' = '
+                    . ($emailSubjectDecided === '' ? 'NULL' : $this->db->quote($emailSubjectDecided))
+                )
+                ->set(
+                    $this->db->quoteName('email_body_decided') . ' = '
+                    . ($emailBodyDecided === '' ? 'NULL' : $this->db->quote($emailBodyDecided))
+                )
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                ->set($this->db->quoteName('modified_by') . ' = ' . (string) $uid)
+                ->where($this->db->quoteName('id') . ' = ' . $workflowId);
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Update one workflow step row from Ajustes UI.
+     *
+     * @since   3.109.58
+     */
+    public function adminUpdateWorkflowStep(int $stepId, array $data): bool
+    {
+        if (!$this->hasSchema() || $stepId < 1) {
+            return false;
+        }
+
+        $user = Factory::getUser();
+        $uid  = (int) $user->id;
+        $now  = Factory::getDate()->toSql();
+
+        $stepName = isset($data['step_name']) ? trim((string) $data['step_name']) : '';
+        if ($stepName === '') {
+            return false;
+        }
+        if (strlen($stepName) > 255) {
+            $stepName = substr($stepName, 0, 255);
+        }
+
+        $approverType = isset($data['approver_type']) ? strtolower(trim((string) $data['approver_type'])) : '';
+        if (!in_array($approverType, ['user', 'joomla_group', 'named_group'], true)) {
+            return false;
+        }
+
+        $approverValue = isset($data['approver_value']) ? trim((string) $data['approver_value']) : '';
+        if ($approverValue === '' || strlen($approverValue) > 512) {
+            return false;
+        }
+
+        $requireAll = !empty($data['require_all']) ? 1 : 0;
+
+        $timeoutHours = isset($data['timeout_hours']) ? (int) $data['timeout_hours'] : 0;
+        if ($timeoutHours < 0) {
+            $timeoutHours = 0;
+        }
+
+        $timeoutAction = isset($data['timeout_action']) ? strtolower(trim((string) $data['timeout_action'])) : 'escalate';
+        if (!in_array($timeoutAction, ['escalate', 'auto_approve', 'auto_reject'], true)) {
+            $timeoutAction = 'escalate';
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+                ->set($this->db->quoteName('step_name') . ' = ' . $this->db->quote($stepName))
+                ->set($this->db->quoteName('approver_type') . ' = ' . $this->db->quote($approverType))
+                ->set($this->db->quoteName('approver_value') . ' = ' . $this->db->quote($approverValue))
+                ->set($this->db->quoteName('require_all') . ' = ' . (string) $requireAll)
+                ->set($this->db->quoteName('timeout_hours') . ' = ' . (string) $timeoutHours)
+                ->set($this->db->quoteName('timeout_action') . ' = ' . $this->db->quote($timeoutAction))
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                ->set($this->db->quoteName('modified_by') . ' = ' . (string) $uid)
+                ->where($this->db->quoteName('id') . ' = ' . $stepId);
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 }

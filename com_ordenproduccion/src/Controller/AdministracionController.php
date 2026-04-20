@@ -699,6 +699,71 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save approval workflow definitions (Ajustes → Flujos de aprobaciones).
+     *
+     * @return  void
+     *
+     * @since   3.109.58
+     */
+    public function saveApprovalWorkflows()
+    {
+        $app = Factory::getApplication();
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false);
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $svc = new ApprovalWorkflowService();
+        if (!$svc->hasSchema()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING'), 'error');
+            $app->redirect($redirect);
+            return;
+        }
+
+        $workflows = $app->input->post->get('awf_workflow', [], 'array');
+        $steps     = $app->input->post->get('awf_step', [], 'array');
+
+        $fail = false;
+
+        foreach ($workflows as $wid => $fields) {
+            $wid = (int) $wid;
+            if ($wid < 1 || !is_array($fields)) {
+                continue;
+            }
+            if (!$svc->adminUpdateWorkflow($wid, $fields)) {
+                $fail = true;
+            }
+        }
+
+        foreach ($steps as $sid => $fields) {
+            $sid = (int) $sid;
+            if ($sid < 1 || !is_array($fields)) {
+                continue;
+            }
+            if (!$svc->adminUpdateWorkflowStep($sid, $fields)) {
+                $fail = true;
+            }
+        }
+
+        if ($fail) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WORKFLOWS_SAVE_PARTIAL'), 'warning');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WORKFLOWS_SAVED'), 'success');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
      * Set a work order status to Anulada by order number (Ajustes > Anular orden).
      * Anulada orders are excluded from Estado de cuenta, Comprobantes de pago, and Rango de días.
      *
