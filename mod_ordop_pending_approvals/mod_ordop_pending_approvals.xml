@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>1.2.1-STABLE</version>
+    <version>1.2.2-STABLE</version>
     <description>MOD_ORDOP_PENDING_APPROVALS_XML_DESCRIPTION</description>
 
     <files>
@@ -43,7 +43,7 @@
                     type="radio"
                     label="MOD_ORDOP_PENDING_APPROVALS_HIDE_EMPTY_LABEL"
                     description="MOD_ORDOP_PENDING_APPROVALS_HIDE_EMPTY_DESC"
-                    default="0"
+                    default="1"
                     class="btn-group btn-group-yesno"
                 >
                     <option value="1">JYES</option>

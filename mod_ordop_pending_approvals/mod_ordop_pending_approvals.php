@@ -92,7 +92,7 @@ if ($rows !== []) {
 
 $pendingTotal  = count($rows);
 $showFullLink  = (int) $params->get('show_full_link', 1) === 1;
-$hideWhenEmpty = (int) $params->get('hide_when_empty', 0) === 1;
+$hideWhenEmpty = (int) $params->get('hide_when_empty', 1) === 1;
 
 if ($hideWhenEmpty && $schemaOk && $rows === []) {
     return;
