@@ -2,7 +2,8 @@
 
 ## Package
 
-- **File:** `mod_ordop_pending_approvals-1.2.0-site.zip`
+- **File (repository path):** `deployment_package/mod_ordop_pending_approvals-1.2.0-site.zip`  
+  On GitHub, open the **`deployment_package`** folder at the repo root — the zip is **not** inside `mod_ordop_pending_approvals/` (that folder is the unpacked source used to build the zip).
 - **Joomla:** Install via **System → Install → Extensions** (upload the zip).
 - **Requires:** `com_ordenproduccion` with approval workflow schema (3.102.0+) and a user who may see the Aprobaciones tab (`AccessHelper::canViewApprovalWorkflowTab()`).
 
