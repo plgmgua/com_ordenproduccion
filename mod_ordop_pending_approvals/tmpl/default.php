@@ -50,31 +50,52 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
         <div class="alert alert-info mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_EMPTY'); ?></div>
     <?php else : ?>
         <p class="mb-2"><strong><?php echo Text::sprintf('MOD_ORDOP_PENDING_APPROVALS_TOTAL', (int) $pendingTotal); ?></strong></p>
+        <style>
+        .mod-ordop-pending-approvals .mod-ordop-row-link:hover { background-color: rgba(13, 110, 253, 0.08); }
+        </style>
         <div class="table-responsive">
             <table class="table table-sm table-striped table-bordered align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_TYPE'); ?></th>
+                        <th scope="col"><?php echo Text::_('MOD_ORDOP_PENDING_APPROVALS_COL_ID'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($rows as $row) : ?>
                         <?php
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
-                        $label = $entityLabel($etype);
-                        $href  = isset($row->record_link) && is_string($row->record_link) && $row->record_link !== ''
+                        $isDiscount = $etype === 'solicitud_descuento';
+                        $tipoLabel  = $isDiscount
+                            ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_DESCUENTO')
+                            : $entityLabel($etype);
+                        $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
+                        if ($isDiscount) {
+                            $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
+                                ? (string) $row->precotizacion_number
+                                : (string) $eid;
+                        } else {
+                            $idLabel = (string) $eid;
+                        }
+                        $href = isset($row->record_link) && is_string($row->record_link) && $row->record_link !== ''
                             ? Route::_($row->record_link, false)
                             : '';
                         ?>
+                        <?php if ($href !== '') : ?>
                         <tr>
-                            <td>
-                                <?php if ($href !== '') : ?>
-                                    <a href="<?php echo htmlspecialchars($href, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></a>
-                                <?php else : ?>
-                                    <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
-                                <?php endif; ?>
+                            <td colspan="2" class="p-0">
+                                <a href="<?php echo htmlspecialchars($href, ENT_QUOTES, 'UTF-8'); ?>" class="mod-ordop-row-link d-flex align-items-center w-100 px-2 py-2 text-decoration-none text-body">
+                                    <span class="flex-grow-1 pe-2"><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="text-end text-nowrap border-start ps-2"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                </a>
                             </td>
                         </tr>
+                        <?php else : ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="text-end"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </tbody>
             </table>

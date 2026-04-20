@@ -53,8 +53,40 @@ $rows            = $schemaOk ? $approvalService->getMyPendingApprovalRows((int) 
 
 if ($rows !== []) {
     $db = Factory::getContainer()->get(DatabaseInterface::class);
+    $preCotIds = [];
+    foreach ($rows as $row) {
+        if (($row->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+            $eid = (int) ($row->entity_id ?? 0);
+            if ($eid > 0) {
+                $preCotIds[$eid] = true;
+            }
+        }
+    }
+    $preCotNumberById = [];
+    if ($preCotIds !== []) {
+        $ids = array_values(array_filter(array_map('intval', array_keys($preCotIds)), static function ($v) {
+            return $v > 0;
+        }));
+        if ($ids !== []) {
+            $q = $db->getQuery(true)
+                ->select($db->quoteName('id') . ', ' . $db->quoteName('number'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+            $db->setQuery($q);
+            $numRows = $db->loadObjectList() ?: [];
+            foreach ($numRows as $nr) {
+                $preCotNumberById[(int) $nr->id] = (string) ($nr->number ?? '');
+            }
+        }
+    }
     foreach ($rows as $row) {
         $row->record_link = ApprovalRecordLink::relativeUrl($db, $row);
+        if (($row->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+            $eid = (int) ($row->entity_id ?? 0);
+            $row->precotizacion_number = $eid > 0 && isset($preCotNumberById[$eid])
+                ? $preCotNumberById[$eid]
+                : '';
+        }
     }
 }
 
