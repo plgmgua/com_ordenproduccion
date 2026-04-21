@@ -71,10 +71,13 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                     <?php foreach ($rows as $row) : ?>
                         <?php
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
-                        $isDiscount = $etype === 'solicitud_descuento';
-                        $tipoLabel  = $isDiscount
+                        $isDiscount     = $etype === 'solicitud_descuento';
+                        $isPaymentProof = $etype === 'payment_proof';
+                        $tipoLabel      = $isDiscount
                             ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_DESCUENTO')
-                            : $entityLabel($etype);
+                            : ($isPaymentProof
+                                ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_PAGO')
+                                : $entityLabel($etype));
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
                         if ($isDiscount) {
                             $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
