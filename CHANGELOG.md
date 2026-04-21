@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.70-STABLE] - 2026-04-21
+
+### Added
+- **`ApprovalWorkflowService::enrichPendingRowsWithSubmitterDisplay`:** Rellena `submitter_name` / `submitter_username` en filas pendientes (consulta a `#__users`).
+- **Módulo `mod_ordop_pending_approvals`:** Columna **Solicitante / Requester** en la tabla (v1.2.3-STABLE).
+- **Administración → pestaña Aprobaciones:** Columna **Solicitante** en el listado completo.
+
 ## [3.109.69-STABLE] - 2026-04-21
 
 ### Changed

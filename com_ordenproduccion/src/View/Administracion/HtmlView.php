@@ -1297,6 +1297,7 @@ class HtmlView extends BaseHtmlView
                             // leave rows without precotizacion_number
                         }
                     }
+                    $approvalService->enrichPendingRowsWithSubmitterDisplay($this->approvalPendingRows);
                 }
             } catch (\Throwable $e) {
                 $this->approvalPendingRows = [];

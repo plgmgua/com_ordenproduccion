@@ -58,6 +58,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                 <thead class="table-light">
                     <tr>
                         <th scope="col"><?php echo Text::_('MOD_ORDOP_PENDING_APPROVALS_COL_TYPE'); ?></th>
+                        <th scope="col"><?php echo Text::_('MOD_ORDOP_PENDING_APPROVALS_COL_REQUESTER'); ?></th>
                         <th scope="col"><?php echo Text::_('MOD_ORDOP_PENDING_APPROVALS_COL_ID'); ?></th>
                     </tr>
                 </thead>
@@ -80,19 +81,32 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         $href = isset($row->record_link) && is_string($row->record_link) && $row->record_link !== ''
                             ? Route::_($row->record_link, false)
                             : '';
+                        $reqName = isset($row->submitter_name) ? trim((string) $row->submitter_name) : '';
+                        $reqUser = isset($row->submitter_username) ? trim((string) $row->submitter_username) : '';
+                        if ($reqName !== '' && $reqUser !== '') {
+                            $requesterLabel = $reqName . ' (' . $reqUser . ')';
+                        } elseif ($reqName !== '') {
+                            $requesterLabel = $reqName;
+                        } elseif ($reqUser !== '') {
+                            $requesterLabel = $reqUser;
+                        } else {
+                            $requesterLabel = '—';
+                        }
                         ?>
                         <?php if ($href !== '') : ?>
                         <tr>
-                            <td colspan="2" class="p-0">
-                                <a href="<?php echo htmlspecialchars($href, ENT_QUOTES, 'UTF-8'); ?>" class="mod-ordop-row-link d-flex align-items-center w-100 px-2 py-2 text-decoration-none text-body">
-                                    <span class="flex-grow-1 pe-2"><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-                                    <span class="text-end text-nowrap border-start ps-2"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                            <td colspan="3" class="p-0">
+                                <a href="<?php echo htmlspecialchars($href, ENT_QUOTES, 'UTF-8'); ?>" class="mod-ordop-row-link d-flex align-items-center w-100 px-2 py-2 text-decoration-none text-body gap-2">
+                                    <span class="flex-shrink-0" style="min-width:4.5rem"><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="flex-grow-1 small text-muted text-truncate" title="<?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="text-end text-nowrap flex-shrink-0 border-start ps-2"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></span>
                                 </a>
                             </td>
                         </tr>
                         <?php else : ?>
                         <tr>
                             <td><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="small"><?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="text-end"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></td>
                         </tr>
                         <?php endif; ?>

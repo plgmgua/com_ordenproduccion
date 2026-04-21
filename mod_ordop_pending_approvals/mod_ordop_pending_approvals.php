@@ -52,6 +52,7 @@ $schemaOk        = $approvalService->hasSchema();
 $rows            = $schemaOk ? $approvalService->getMyPendingApprovalRows((int) $user->id) : [];
 
 if ($rows !== []) {
+    $approvalService->enrichPendingRowsWithSubmitterDisplay($rows);
     $db = Factory::getContainer()->get(DatabaseInterface::class);
     $preCotIds = [];
     foreach ($rows as $row) {

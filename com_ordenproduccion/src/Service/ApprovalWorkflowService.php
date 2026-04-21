@@ -112,6 +112,63 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Add submitter_name / submitter_username to pending row objects (from #__users).
+     *
+     * @param   array<int, object>  $rows  Rows from getMyPendingApprovalRows (must include submitter_id)
+     *
+     * @since   3.109.70
+     */
+    public function enrichPendingRowsWithSubmitterDisplay(array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $sid = (int) ($row->submitter_id ?? 0);
+            if ($sid > 0) {
+                $ids[$sid] = true;
+            }
+        }
+
+        if ($ids === []) {
+            foreach ($rows as $row) {
+                $row->submitter_name     = '';
+                $row->submitter_username = '';
+            }
+
+            return;
+        }
+
+        $idList = implode(',', array_map('intval', array_keys($ids)));
+        $q      = $this->db->getQuery(true)
+            ->select([
+                $this->db->quoteName('id'),
+                $this->db->quoteName('name'),
+                $this->db->quoteName('username'),
+            ])
+            ->from($this->db->quoteName('#__users'))
+            ->where($this->db->quoteName('id') . ' IN (' . $idList . ')');
+        $this->db->setQuery($q);
+        $users = $this->db->loadObjectList() ?: [];
+        $byId  = [];
+        foreach ($users as $u) {
+            $byId[(int) $u->id] = $u;
+        }
+
+        foreach ($rows as $row) {
+            $sid                   = (int) ($row->submitter_id ?? 0);
+            $row->submitter_name     = '';
+            $row->submitter_username = '';
+            if ($sid > 0 && isset($byId[$sid])) {
+                $row->submitter_name     = trim((string) ($byId[$sid]->name ?? ''));
+                $row->submitter_username = trim((string) ($byId[$sid]->username ?? ''));
+            }
+        }
+    }
+
+    /**
      * Start a new approval request for an entity.
      *
      * @param   string|null  $metadataJson  Optional JSON (e.g. orden status transition)

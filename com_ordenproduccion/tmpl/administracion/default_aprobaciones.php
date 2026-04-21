@@ -54,6 +54,7 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                     <tr>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_REQUEST'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_TYPE'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_SUBMITTER'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_REFERENCE'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_CREATED'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_ACTIONS'); ?></th>
@@ -73,10 +74,22 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             $refDisplay = (string) (int) $eid;
                         }
                         $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $eid, false);
+                        $subName = isset($row->submitter_name) ? trim((string) $row->submitter_name) : '';
+                        $subUser = isset($row->submitter_username) ? trim((string) $row->submitter_username) : '';
+                        if ($subName !== '' && $subUser !== '') {
+                            $submitterDisplay = $subName . ' (' . $subUser . ')';
+                        } elseif ($subName !== '') {
+                            $submitterDisplay = $subName;
+                        } elseif ($subUser !== '') {
+                            $submitterDisplay = $subUser;
+                        } else {
+                            $submitterDisplay = '—';
+                        }
                         ?>
                         <tr>
                             <td><?php echo (int) $rid; ?></td>
                             <td><?php echo htmlspecialchars($entityLabel($etype), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:220px;">
