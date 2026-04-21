@@ -110,9 +110,79 @@ if (strpos($badgeVendor, 'COM_ORDENPRODUCCION_') === 0) {
     $badgeVendor = 'Proveedor externo';
 }
 $tfootLabelSpan = 5;
+
+$colQty   = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY');
+$colDesc  = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_DESC');
+$colPrice = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE_SHORT');
+if (strpos($colPrice, 'COM_ORDENPRODUCCION_') === 0) {
+    $colPrice = 'Precio';
+}
+$colLeadShort = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME_SHORT');
+if (strpos($colLeadShort, 'COM_ORDENPRODUCCION_') === 0) {
+    $colLeadShort = 'Entrega';
+}
+$colLeadFull = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME');
+if (strpos($colLeadFull, 'COM_ORDENPRODUCCION_') === 0) {
+    $colLeadFull = 'Tiempo de entrega después de confirmación';
+}
+$colTotal = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL');
+$colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document com-ordenproduccion-precotizacion-proveedor-externo container py-4">
+<style>
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-wrap {
+    max-width: 100%;
+    overflow-x: visible;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table {
+    table-layout: fixed;
+    width: 100%;
+    margin-bottom: 0;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table th,
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table td {
+    vertical-align: middle;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table thead th {
+    font-size: 0.8rem;
+    line-height: 1.25;
+    font-weight: 600;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-qty { width: 4.25rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-desc { width: 36%; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-price { width: 5rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-lead { width: 22%; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-total { width: 4.25rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-actions { width: 2.75rem; padding-left: 0.2rem; padding-right: 0.2rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    resize: vertical;
+    min-height: 3.25rem;
+    max-height: 8rem;
+    box-sizing: border-box;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table input.form-control {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .btn-vendor-row-action {
+    padding: 0.15rem 0.4rem;
+    line-height: 1.2;
+    min-width: 0;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .js-vendor-line-total {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+</style>
     <nav class="mb-3">
         <a href="<?php echo $listUrl; ?>" class="btn btn-outline-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BACK'); ?></a>
     </nav>
@@ -221,15 +291,15 @@ $tfootLabelSpan = 5;
         <?php if (empty($vendorLines)) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
-        <div class="table-responsive">
-            <table class="table table-bordered">
+        <div class="pre-cot-vendor-lines-wrap">
+            <table class="table table-sm table-bordered pre-cot-vendor-lines-table">
                 <thead>
                     <tr>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_DESC'); ?></th>
-                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME'); ?></th>
-                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
+                        <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
+                        <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
+                        <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
+                        <th class="col-lead" title="<?php echo htmlspecialchars($colLeadFull); ?>"><?php echo htmlspecialchars($colLeadShort); ?></th>
+                        <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -237,11 +307,11 @@ $tfootLabelSpan = 5;
                         $unit = round((float) ($line->price_per_sheet ?? 0), 2);
                         ?>
                     <tr>
-                        <td><?php echo (int) $line->quantity; ?></td>
-                        <td><?php echo nl2br(htmlspecialchars((string) ($line->vendor_descripcion ?? ''))); ?></td>
-                        <td class="text-end">Q <?php echo number_format($unit, 2); ?></td>
-                        <td><?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?></td>
-                        <td class="text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
+                        <td class="col-qty"><?php echo (int) $line->quantity; ?></td>
+                        <td class="col-desc"><?php echo nl2br(htmlspecialchars((string) ($line->vendor_descripcion ?? ''))); ?></td>
+                        <td class="col-price text-end">Q <?php echo number_format($unit, 2); ?></td>
+                        <td class="col-lead"><?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?></td>
+                        <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -266,16 +336,16 @@ $tfootLabelSpan = 5;
     <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="proveedor-externo-lines-form" class="mb-3">
         <?php echo HTMLHelper::_('form.token'); ?>
         <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-        <div class="table-responsive">
-            <table class="table table-bordered" id="proveedor-externo-lines-table">
+        <div class="pre-cot-vendor-lines-wrap">
+            <table class="table table-sm table-bordered pre-cot-vendor-lines-table" id="proveedor-externo-lines-table">
                 <thead>
                     <tr>
-                        <th style="width:7rem;"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_DESC'); ?></th>
-                        <th style="width:8rem;" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE'); ?></th>
-                        <th style="width:14rem;"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME'); ?></th>
-                        <th style="width:8rem;" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
-                        <th style="width:6rem;" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                        <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
+                        <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
+                        <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
+                        <th class="col-lead" title="<?php echo htmlspecialchars($colLeadFull); ?>"><?php echo htmlspecialchars($colLeadShort); ?></th>
+                        <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
+                        <th class="col-actions text-center"><span class="visually-hidden"><?php echo htmlspecialchars($colActions); ?></span></th>
                     </tr>
                 </thead>
                 <tbody id="proveedor-externo-lines-tbody">
@@ -285,32 +355,32 @@ $tfootLabelSpan = 5;
                         $tot  = round((float) ($line->total ?? 0), 2);
                         ?>
                     <tr class="proveedor-externo-line-row">
-                        <td>
+                        <td class="col-qty">
                             <input type="hidden" name="lines[<?php echo $i; ?>][id]" value="<?php echo $lid; ?>">
                             <input type="number" class="form-control form-control-sm js-vendor-qty" name="lines[<?php echo $i; ?>][quantity]" min="1" step="1" value="<?php echo (int) $line->quantity; ?>" required>
                         </td>
-                        <td>
-                            <textarea class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_descripcion]" rows="3" style="min-height:4rem;"><?php echo htmlspecialchars((string) ($line->vendor_descripcion ?? '')); ?></textarea>
+                        <td class="col-desc">
+                            <textarea class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_descripcion]" rows="2" aria-label="<?php echo htmlspecialchars($colDesc); ?>"><?php echo htmlspecialchars((string) ($line->vendor_descripcion ?? '')); ?></textarea>
                         </td>
-                        <td>
+                        <td class="col-price">
                             <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[<?php echo $i; ?>][price_per_sheet]" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($unit, 2, '.', '')); ?>">
                         </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_tiempo_entrega]" maxlength="512" value="<?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?>">
+                        <td class="col-lead">
+                            <input type="text" class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_tiempo_entrega]" maxlength="512" value="<?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?>" autocomplete="off" aria-label="<?php echo htmlspecialchars($colLeadFull); ?>">
                         </td>
-                        <td class="text-end align-middle">
+                        <td class="col-total text-end align-middle">
                             <span class="js-vendor-line-total">Q <?php echo number_format($tot, 2); ?></span>
                         </td>
-                        <td class="text-end align-middle">
+                        <td class="col-actions text-center align-middle">
                             <?php if ($lid > 0) :
                                 $deleteLineUrl = 'index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . $lid . '&id=' . $preCotizacionId;
                                 ?>
                             <form action="<?php echo Route::_($deleteLineUrl); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
                                 <?php echo HTMLHelper::_('form.token'); ?>
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger btn-vendor-row-action" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
                             </form>
                             <?php else : ?>
-                            <button type="button" class="btn btn-sm btn-outline-secondary js-remove-vendor-row" title="<?php echo Text::_('JACTION_DELETE'); ?>">×</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-vendor-row-action js-remove-vendor-row" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -325,24 +395,24 @@ $tfootLabelSpan = 5;
     </form>
     <template id="proveedor-externo-line-template">
         <tr class="proveedor-externo-line-row">
-            <td>
+            <td class="col-qty">
                 <input type="hidden" name="lines[__I__][id]" value="0">
                 <input type="number" class="form-control form-control-sm js-vendor-qty" name="lines[__I__][quantity]" min="1" step="1" value="1" required>
             </td>
-            <td>
-                <textarea class="form-control form-control-sm" name="lines[__I__][vendor_descripcion]" rows="3" style="min-height:4rem;"></textarea>
+            <td class="col-desc">
+                <textarea class="form-control form-control-sm" name="lines[__I__][vendor_descripcion]" rows="2"></textarea>
             </td>
-            <td>
+            <td class="col-price">
                 <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[__I__][price_per_sheet]" min="0" step="0.01" value="0.00">
             </td>
-            <td>
-                <input type="text" class="form-control form-control-sm" name="lines[__I__][vendor_tiempo_entrega]" maxlength="512" value="">
+            <td class="col-lead">
+                <input type="text" class="form-control form-control-sm" name="lines[__I__][vendor_tiempo_entrega]" maxlength="512" value="" autocomplete="off">
             </td>
-            <td class="text-end align-middle">
+            <td class="col-total text-end align-middle">
                 <span class="js-vendor-line-total">Q 0.00</span>
             </td>
-            <td class="text-end align-middle">
-                <button type="button" class="btn btn-sm btn-outline-secondary js-remove-vendor-row" title="<?php echo Text::_('JACTION_DELETE'); ?>">×</button>
+            <td class="col-actions text-center align-middle">
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-vendor-row-action js-remove-vendor-row" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
             </td>
         </tr>
     </template>
