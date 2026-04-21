@@ -123,7 +123,8 @@ class PrecotizacionController extends BaseController
             $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
             return false;
         }
-        $templateId = (int) $app->input->post->get('template_id', 0);
+        // Read as string first so template_id=-1 is not lost if the input filter treats it as unsigned.
+        $templateId = (int) $app->input->post->get('template_id', '0', 'string');
         $model = $this->getModel('Precotizacion', 'Site');
         if ($templateId === -1) {
             $id = $model->createProveedorExterno();
@@ -133,7 +134,9 @@ class PrecotizacionController extends BaseController
             $id = $model->create();
         }
         if ($id === false) {
-            if ($templateId > 0) {
+            if ($templateId === -1) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_CREATE_FAIL'), 'error');
+            } elseif ($templateId > 0) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_OFERTA_TEMPLATE_EXPIRED_OR_MISSING'), 'error');
             } else {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_CREATE'), 'error');
