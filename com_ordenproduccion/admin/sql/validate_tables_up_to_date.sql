@@ -118,3 +118,12 @@ LEFT JOIN INFORMATION_SCHEMA.COLUMNS c
   AND c.TABLE_NAME = t.TABLE_NAME
   AND c.COLUMN_NAME = t.COLUMN_NAME
 ORDER BY t.TABLE_NAME, t.COLUMN_NAME;
+
+-- -----------------------------------------------------------------------------
+-- Proveedores (3.110.0) — expect tables exist after component update
+-- -----------------------------------------------------------------------------
+SELECT TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME IN ('joomla_ordenproduccion_proveedores', 'joomla_ordenproduccion_proveedor_productos')
+ORDER BY TABLE_NAME;

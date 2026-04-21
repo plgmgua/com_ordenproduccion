@@ -3462,5 +3462,281 @@ class AdministracionModel extends BaseDatabaseModel
         $displayNumber = $order->orden_de_trabajo ?? $order->order_number ?? $input;
         return ['success' => true, 'message' => 'La orden ' . $displayNumber . ' fue marcada como Anulada. No se incluirá en Estado de cuenta, Comprobantes de pago ni Rango de días.'];
     }
+
+    /**
+     * Whether proveedores tables exist (3.110.0+).
+     *
+     * @since  3.110.0
+     */
+    public function hasProveedoresSchema(): bool
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $db = Factory::getDbo();
+        try {
+            $tables = $db->getTableList();
+            $want   = $db->getPrefix() . 'ordenproduccion_proveedores';
+            foreach ($tables as $t) {
+                if (strcasecmp((string) $t, $want) === 0) {
+                    return $cache = true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $cache = false;
+    }
+
+    /**
+     * List vendors for Administración → Proveedores.
+     *
+     * @param   string    $search       Substring match on name, NIT, contact name
+     * @param   int|null  $stateFilter  null = all, 1 = active, 0 = inactive
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.110.0
+     */
+    public function getProveedoresList(string $search = '', ?int $stateFilter = null): array
+    {
+        if (!$this->hasProveedoresSchema()) {
+            return [];
+        }
+        $db = Factory::getDbo();
+        $q  = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_proveedores'))
+            ->order($db->quoteName('name') . ' ASC');
+        if ($stateFilter !== null) {
+            $q->where($db->quoteName('state') . ' = ' . (int) $stateFilter);
+        }
+        $s = trim($search);
+        if ($s !== '') {
+            $like = '%' . $db->escape($s, true) . '%';
+            $q->where(
+                '(' . $db->quoteName('name') . ' LIKE ' . $db->quote($like)
+                . ' OR ' . $db->quoteName('nit') . ' LIKE ' . $db->quote($like)
+                . ' OR ' . $db->quoteName('contact_name') . ' LIKE ' . $db->quote($like) . ')'
+            );
+        }
+        $db->setQuery($q);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * @since  3.110.0
+     */
+    public function getProveedorById(int $id): ?object
+    {
+        if (!$this->hasProveedoresSchema() || $id < 1) {
+            return null;
+        }
+        $db = Factory::getDbo();
+        $q  = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_proveedores'))
+            ->where($db->quoteName('id') . ' = ' . $id)
+            ->setLimit(1);
+        $db->setQuery($q);
+        $row = $db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Product lines for a vendor (ordered).
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.110.0
+     */
+    public function getProveedorProductos(int $proveedorId): array
+    {
+        if (!$this->hasProveedoresSchema() || $proveedorId < 1) {
+            return [];
+        }
+        $db = Factory::getDbo();
+        $q  = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_proveedor_productos'))
+            ->where($db->quoteName('proveedor_id') . ' = ' . $proveedorId)
+            ->order($db->quoteName('ordering') . ' ASC')
+            ->order($db->quoteName('id') . ' ASC');
+        $db->setQuery($q);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Save vendor and replace product lines.
+     *
+     * @param   array<int, string>  $productLines  Trimmed non-empty strings, max 500 chars each
+     *
+     * @return  int|false  New or updated id, or false on validation / DB error
+     *
+     * @since   3.110.0
+     */
+    public function saveProveedor(array $data, array $productLines, int $userId)
+    {
+        if (!$this->hasProveedoresSchema() || $userId < 1) {
+            return false;
+        }
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            return false;
+        }
+        $email = trim((string) ($data['contact_email'] ?? ''));
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $id    = (int) ($data['id'] ?? 0);
+        $now   = Factory::getDate()->toSql();
+        $state = (int) ($data['state'] ?? 1) === 0 ? 0 : 1;
+
+        $row = [
+            'name'              => $name,
+            'nit'               => substr(trim((string) ($data['nit'] ?? '')), 0, 64),
+            'address'           => trim((string) ($data['address'] ?? '')),
+            'phone'             => substr(trim((string) ($data['phone'] ?? '')), 0, 64),
+            'contact_name'      => substr(trim((string) ($data['contact_name'] ?? '')), 0, 255),
+            'contact_cellphone' => substr(trim((string) ($data['contact_cellphone'] ?? '')), 0, 64),
+            'contact_email'     => substr($email, 0, 255),
+            'state'             => $state,
+        ];
+
+        $cleanProducts = [];
+        foreach ($productLines as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+            $cleanProducts[] = substr($line, 0, 500);
+        }
+
+        $db = Factory::getDbo();
+
+        try {
+            $db->transactionStart();
+
+            if ($id < 1) {
+                $q = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_proveedores'))
+                    ->columns([
+                        $db->quoteName('name'),
+                        $db->quoteName('nit'),
+                        $db->quoteName('address'),
+                        $db->quoteName('phone'),
+                        $db->quoteName('contact_name'),
+                        $db->quoteName('contact_cellphone'),
+                        $db->quoteName('contact_email'),
+                        $db->quoteName('state'),
+                        $db->quoteName('created'),
+                        $db->quoteName('created_by'),
+                    ])
+                    ->values(implode(',', [
+                        $db->quote($row['name']),
+                        $db->quote($row['nit']),
+                        $db->quote($row['address']),
+                        $db->quote($row['phone']),
+                        $db->quote($row['contact_name']),
+                        $db->quote($row['contact_cellphone']),
+                        $db->quote($row['contact_email']),
+                        (string) (int) $row['state'],
+                        $db->quote($now),
+                        (string) (int) $userId,
+                    ]));
+                $db->setQuery($q);
+                $db->execute();
+                $id = (int) $db->insertid();
+            } else {
+                $exists = $this->getProveedorById($id);
+                if ($exists === null) {
+                    $db->transactionRollback();
+
+                    return false;
+                }
+                $q = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_proveedores'))
+                    ->set($db->quoteName('name') . ' = ' . $db->quote($row['name']))
+                    ->set($db->quoteName('nit') . ' = ' . $db->quote($row['nit']))
+                    ->set($db->quoteName('address') . ' = ' . $db->quote($row['address']))
+                    ->set($db->quoteName('phone') . ' = ' . $db->quote($row['phone']))
+                    ->set($db->quoteName('contact_name') . ' = ' . $db->quote($row['contact_name']))
+                    ->set($db->quoteName('contact_cellphone') . ' = ' . $db->quote($row['contact_cellphone']))
+                    ->set($db->quoteName('contact_email') . ' = ' . $db->quote($row['contact_email']))
+                    ->set($db->quoteName('state') . ' = ' . (string) (int) $row['state'])
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->set($db->quoteName('modified_by') . ' = ' . (int) $userId)
+                    ->where($db->quoteName('id') . ' = ' . $id);
+                $db->setQuery($q);
+                $db->execute();
+
+                $db->setQuery($db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_proveedor_productos'))
+                    ->where($db->quoteName('proveedor_id') . ' = ' . $id));
+                $db->execute();
+            }
+
+            $ord = 0;
+            foreach ($cleanProducts as $pv) {
+                $db->setQuery($db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_proveedor_productos'))
+                    ->columns([
+                        $db->quoteName('proveedor_id'),
+                        $db->quoteName('product_value'),
+                        $db->quoteName('ordering'),
+                    ])
+                    ->values(implode(',', [
+                        (string) $id,
+                        $db->quote($pv),
+                        (string) ($ord++),
+                    ])));
+                $db->execute();
+            }
+
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            return false;
+        }
+
+        return $id;
+    }
+
+    /**
+     * Delete vendor and its product rows.
+     *
+     * @since  3.110.0
+     */
+    public function deleteProveedor(int $id): bool
+    {
+        if (!$this->hasProveedoresSchema() || $id < 1) {
+            return false;
+        }
+        $db = Factory::getDbo();
+        try {
+            $db->transactionStart();
+            $db->setQuery($db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_proveedor_productos'))
+                ->where($db->quoteName('proveedor_id') . ' = ' . $id));
+            $db->execute();
+            $db->setQuery($db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_proveedores'))
+                ->where($db->quoteName('id') . ' = ' . $id));
+            $db->execute();
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            return false;
+        }
+
+        return true;
+    }
 }
 
