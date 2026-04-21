@@ -58,7 +58,9 @@ class ProveedoresController extends BaseController
             return;
         }
 
-        $model = $this->getModel('Administracion');
+        $model = $app->bootComponent('com_ordenproduccion')
+            ->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
 
         if (!$model || !method_exists($model, 'hasProveedoresSchema') || !$model->hasProveedoresSchema()) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_SCHEMA_MISSING'), 'error');
@@ -143,7 +145,9 @@ class ProveedoresController extends BaseController
             return;
         }
 
-        $model = $this->getModel('Administracion');
+        $model = $app->bootComponent('com_ordenproduccion')
+            ->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
         $id    = $app->input->post->getInt('proveedor_id', 0);
 
         if (!$model || !method_exists($model, 'hasProveedoresSchema') || !$model->hasProveedoresSchema() || $id < 1) {

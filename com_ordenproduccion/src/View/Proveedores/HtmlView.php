@@ -77,10 +77,18 @@ class HtmlView extends BaseHtmlView
         $proveedorId = $input->getInt('proveedor_id', -1);
 
         try {
-            $admModel = $this->getModel('Administracion');
-            $this->proveedoresSchemaOk = $admModel->hasProveedoresSchema();
+            $admModel = Factory::getApplication()
+                ->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Administracion', 'Site', ['ignore_request' => true]);
 
-            if ($this->proveedoresSchemaOk) {
+            if ($admModel === null || !method_exists($admModel, 'hasProveedoresSchema')) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_LOAD_ERROR'), 'error');
+            } else {
+                $this->proveedoresSchemaOk = $admModel->hasProveedoresSchema();
+            }
+
+            if ($admModel !== null && $this->proveedoresSchemaOk) {
                 $stateFilter = $this->proveedoresStateFilter === '' ? null : (int) $this->proveedoresStateFilter;
                 $this->proveedoresList = $admModel->getProveedoresList($this->proveedoresSearch, $stateFilter);
 
