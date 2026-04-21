@@ -119,7 +119,7 @@ if (strpos($colPrice, 'COM_ORDENPRODUCCION_') === 0) {
 }
 $colLeadShort = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME_SHORT');
 if (strpos($colLeadShort, 'COM_ORDENPRODUCCION_') === 0) {
-    $colLeadShort = 'Entrega';
+    $colLeadShort = 'Condiciones de entrega';
 }
 $colLeadFull = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME');
 if (strpos($colLeadFull, 'COM_ORDENPRODUCCION_') === 0) {
