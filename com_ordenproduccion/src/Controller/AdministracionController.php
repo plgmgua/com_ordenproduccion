@@ -1834,7 +1834,14 @@ class AdministracionController extends BaseController
             return;
         }
 
-        $post     = $app->input->post->get('proveedor', [], 'array');
+        $post = $app->input->post->get('proveedor', [], 'array');
+
+        if ((int) ($post['id'] ?? 0) === 0 && !AccessHelper::canCreateProveedores()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CREATE_DENIED'), 'error');
+            $app->redirect($listUrl);
+            return;
+        }
+
         $products = $app->input->post->get('proveedor_products', [], 'array');
         if (!is_array($products)) {
             $products = [];

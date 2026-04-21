@@ -1147,18 +1147,22 @@ class HtmlView extends BaseHtmlView
                     $this->proveedoresList = $admModel->getProveedoresList($this->proveedoresSearch, $stateFilter);
                     if ($proveedorId >= 0) {
                         if ($proveedorId === 0) {
-                            $this->proveedorEdit = (object) [
-                                'id'                => 0,
-                                'name'              => '',
-                                'nit'               => '',
-                                'address'           => '',
-                                'phone'             => '',
-                                'contact_name'      => '',
-                                'contact_cellphone' => '',
-                                'contact_email'     => '',
-                                'state'             => 1,
-                            ];
-                            $this->proveedorProductos = [];
+                            if (!AccessHelper::canCreateProveedores()) {
+                                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CREATE_DENIED'), 'warning');
+                            } else {
+                                $this->proveedorEdit = (object) [
+                                    'id'                => 0,
+                                    'name'              => '',
+                                    'nit'               => '',
+                                    'address'           => '',
+                                    'phone'             => '',
+                                    'contact_name'      => '',
+                                    'contact_cellphone' => '',
+                                    'contact_email'     => '',
+                                    'state'             => 1,
+                                ];
+                                $this->proveedorProductos = [];
+                            }
                         } else {
                             $row = $admModel->getProveedorById($proveedorId);
                             if ($row !== null) {

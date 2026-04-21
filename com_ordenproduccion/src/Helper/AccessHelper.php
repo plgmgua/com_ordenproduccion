@@ -174,6 +174,56 @@ class AccessHelper
     }
 
     /**
+     * Whether the current user may register a **new** vendor (Proveedores).
+     * Allowed: global config admins and members of the **Administracion / Administración** group (incl. id 12).
+     * Not allowed: **Admon-only** users (they may still view/edit existing if they pass the tab ACL).
+     *
+     * @return  bool
+     *
+     * @since   3.110.2
+     */
+    public static function canCreateProveedores(): bool
+    {
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        $userGroups = $user->getAuthorisedGroups();
+
+        if ($userGroups === []) {
+            return false;
+        }
+
+        $ids = array_map('intval', $userGroups);
+
+        if (in_array(12, $ids, true)) {
+            return true;
+        }
+
+        $db    = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('title'))
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+        $db->setQuery($query);
+        $titles = $db->loadColumn() ?: [];
+
+        foreach ($titles as $title) {
+            if ($title === 'Administracion' || $title === 'Administración') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Pre-cotización list/detail: see all published rows (not only created_by = current user).
      * Super user, Administración/Admon, or Aprobaciones Ventas (discount approval on others’ pre-cots).
      *

@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 $schemaOk       = !empty($this->proveedoresSchemaOk);
 $listUrl        = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=proveedores', false);
@@ -55,9 +56,11 @@ $showForm       = is_object($proveedorEdit);
                     <button type="submit" class="btn btn-primary btn-sm"><?php echo Text::_('JSEARCH_FILTER_SUBMIT'); ?></button>
                 </div>
             </form>
+            <?php if (AccessHelper::canCreateProveedores()) : ?>
             <a class="btn btn-success btn-sm" href="<?php echo htmlspecialchars($newUrl, ENT_QUOTES, 'UTF-8'); ?>">
                 <i class="fas fa-plus"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NEW'); ?>
             </a>
+            <?php endif; ?>
         </div>
         <div class="table-responsive">
             <table class="table table-striped table-sm align-middle">
