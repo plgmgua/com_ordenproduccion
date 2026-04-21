@@ -66,6 +66,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-link"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_SOLICITUD_ORDEN'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_cotizacion'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'solicitud_cotizacion' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-paper-plane"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_SOLICITUD_COTIZACION'); ?>
+    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'flujos_aprobaciones' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-sitemap"></i>
@@ -87,6 +92,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php include __DIR__ . '/default_ajustes_ajustes_cotizacion.php'; ?>
     <?php elseif ($activeSubTab === 'solicitud_orden'): ?>
         <?php include __DIR__ . '/default_ajustes_solicitud_orden.php'; ?>
+    <?php elseif ($activeSubTab === 'solicitud_cotizacion'): ?>
+        <?php echo $this->loadTemplate('solicitud_cotizacion'); ?>
     <?php elseif ($activeSubTab === 'flujos_aprobaciones'): ?>
         <?php include __DIR__ . '/default_ajustes_flujos_aprobaciones.php'; ?>
     <?php elseif ($activeSubTab === 'grupos_aprobaciones'): ?>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Control de ventas — Solicitud de cotización a proveedor externo (message templates).
+ * Ajustes — Solicitud de cotización a proveedor externo (message templates).
  *
  * @package     com_ordenproduccion
  * @copyright   (C) 2025 Grimpsa. All rights reserved.

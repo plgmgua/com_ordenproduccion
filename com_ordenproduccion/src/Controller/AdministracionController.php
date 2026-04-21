@@ -1797,7 +1797,7 @@ class AdministracionController extends BaseController
     }
 
     /**
-     * Save vendor quote message templates (email / cellphone / PDF). Ventas or Administración.
+     * Save vendor quote message templates (email / cellphone / PDF). Ajustes — Administración / Admon only.
      *
      * @return  void
      *
@@ -1806,7 +1806,7 @@ class AdministracionController extends BaseController
     public function saveVendorQuoteTemplates()
     {
         $app      = Factory::getApplication();
-        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=solicitud_cotizacion', false);
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_cotizacion', false);
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -1823,7 +1823,7 @@ class AdministracionController extends BaseController
             return;
         }
 
-        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_EDIT_NOT_PERMITTED'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
 

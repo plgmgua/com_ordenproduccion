@@ -147,11 +147,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-users"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_ESTADO_DE_CUENTA'); ?>
     </a>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=solicitud_cotizacion'); ?>"
-       class="admin-tab <?php echo $activeTab === 'solicitud_cotizacion' ? 'active' : ''; ?>">
-        <i class="fas fa-paper-plane"></i>
-        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_SOLICITUD_COTIZACION'); ?>
-    </a>
     <?php endif; ?>
 
     <?php if ($canSeeAdminTabs) : ?>
@@ -185,8 +180,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('ajustes'); ?>
     <?php elseif ($activeTab === 'aprobaciones'): ?>
         <?php echo $this->loadTemplate('aprobaciones'); ?>
-    <?php elseif ($activeTab === 'solicitud_cotizacion'): ?>
-        <?php echo $this->loadTemplate('solicitud_cotizacion'); ?>
     <?php else: ?>
         <?php echo $this->loadTemplate('resumen'); ?>
     <?php endif; ?>

@@ -329,7 +329,7 @@ class HtmlView extends BaseHtmlView
     protected $solicitudOrdenUrl = '';
 
     /**
-     * Solicitud de cotización a proveedor: templates per channel (tab solicitud_cotizacion).
+     * Solicitud de cotización a proveedor: templates per channel (Ajustes → Solicitud de cotización).
      *
      * @var    array<string, \stdClass|null>
      * @since  3.113.0
@@ -1473,7 +1473,7 @@ class HtmlView extends BaseHtmlView
 
         $this->vendorQuoteTemplates         = ['email' => null, 'cellphone' => null, 'pdf' => null];
         $this->vendorQuoteTemplatesSchemaOk = false;
-        if ($activeTab === 'solicitud_cotizacion') {
+        if ($activeTab === 'ajustes' && $activeSubTab === 'solicitud_cotizacion') {
             $this->vendorQuoteTemplatesSchemaOk = $statsModel->hasVendorQuoteTemplatesSchema();
             if ($this->vendorQuoteTemplatesSchemaOk) {
                 $tplRows = $statsModel->getVendorQuoteTemplates();
