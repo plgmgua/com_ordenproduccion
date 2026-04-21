@@ -76,12 +76,10 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $eid, false);
                         $subName = isset($row->submitter_name) ? trim((string) $row->submitter_name) : '';
                         $subUser = isset($row->submitter_username) ? trim((string) $row->submitter_username) : '';
-                        if ($subName !== '' && $subUser !== '') {
-                            $submitterDisplay = $subName . ' (' . $subUser . ')';
+                        if ($subUser !== '') {
+                            $submitterDisplay = $subUser;
                         } elseif ($subName !== '') {
                             $submitterDisplay = $subName;
-                        } elseif ($subUser !== '') {
-                            $submitterDisplay = $subUser;
                         } else {
                             $submitterDisplay = '—';
                         }

@@ -35,6 +35,14 @@ $adminAprobUrl = Route::_('index.php?option=com_ordenproduccion&view=administrac
 $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
 ?>
 <div id="<?php echo $modId; ?>" class="mod-ordop-pending-approvals <?php echo htmlspecialchars($params->get('moduleclass_sfx', ''), ENT_QUOTES, 'UTF-8'); ?>">
+    <style>
+    #<?php echo $modId; ?> {
+        font-size: 0.8125rem;
+        line-height: 1.35;
+    }
+    #<?php echo $modId; ?> .table { font-size: inherit; }
+    #<?php echo $modId; ?> .mod-ordop-row-link:hover { background-color: rgba(13, 110, 253, 0.08); }
+    </style>
     <?php if ($showFullLink) : ?>
     <p class="mb-2">
         <a href="<?php echo htmlspecialchars($adminAprobUrl, ENT_QUOTES, 'UTF-8'); ?>" class="small">
@@ -50,9 +58,6 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
         <div class="alert alert-info mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_EMPTY'); ?></div>
     <?php else : ?>
         <p class="mb-2"><strong><?php echo Text::sprintf('MOD_ORDOP_PENDING_APPROVALS_TOTAL', (int) $pendingTotal); ?></strong></p>
-        <style>
-        .mod-ordop-pending-approvals .mod-ordop-row-link:hover { background-color: rgba(13, 110, 253, 0.08); }
-        </style>
         <div class="table-responsive">
             <table class="table table-sm table-striped table-bordered align-middle mb-0">
                 <thead class="table-light">
@@ -83,12 +88,10 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                             : '';
                         $reqName = isset($row->submitter_name) ? trim((string) $row->submitter_name) : '';
                         $reqUser = isset($row->submitter_username) ? trim((string) $row->submitter_username) : '';
-                        if ($reqName !== '' && $reqUser !== '') {
-                            $requesterLabel = $reqName . ' (' . $reqUser . ')';
+                        if ($reqUser !== '') {
+                            $requesterLabel = $reqUser;
                         } elseif ($reqName !== '') {
                             $requesterLabel = $reqName;
-                        } elseif ($reqUser !== '') {
-                            $requesterLabel = $reqUser;
                         } else {
                             $requesterLabel = '—';
                         }
@@ -98,7 +101,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                             <td colspan="3" class="p-0">
                                 <a href="<?php echo htmlspecialchars($href, ENT_QUOTES, 'UTF-8'); ?>" class="mod-ordop-row-link d-flex align-items-center w-100 px-2 py-2 text-decoration-none text-body gap-2">
                                     <span class="flex-shrink-0" style="min-width:4.5rem"><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-                                    <span class="flex-grow-1 small text-muted text-truncate" title="<?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="flex-grow-1 text-muted text-truncate" title="<?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?></span>
                                     <span class="text-end text-nowrap flex-shrink-0 border-start ps-2"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></span>
                                 </a>
                             </td>
@@ -106,7 +109,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         <?php else : ?>
                         <tr>
                             <td><?php echo htmlspecialchars($tipoLabel, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td class="small"><?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($requesterLabel, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="text-end"><?php echo htmlspecialchars($idLabel, ENT_QUOTES, 'UTF-8'); ?></td>
                         </tr>
                         <?php endif; ?>
