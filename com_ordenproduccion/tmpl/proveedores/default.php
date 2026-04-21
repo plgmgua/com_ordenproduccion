@@ -1,6 +1,6 @@
 <?php
 /**
- * Proveedores (vendors) — Administración tab.
+ * Proveedores (vendors) — standalone view.
  *
  * @package     Joomla.Site
  * @subpackage  com_ordenproduccion
@@ -14,18 +14,25 @@ use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 $schemaOk       = !empty($this->proveedoresSchemaOk);
-$listUrl        = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=proveedores', false);
-$newUrl         = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=proveedores&proveedor_id=0', false);
-$saveAction     = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveProveedor', false);
-$deleteAction   = Route::_('index.php?option=com_ordenproduccion&task=administracion.deleteProveedor', false);
+$listUrl        = Route::_('index.php?option=com_ordenproduccion&view=proveedores', false);
+$newUrl         = Route::_('index.php?option=com_ordenproduccion&view=proveedores&proveedor_id=0', false);
+$saveAction     = Route::_('index.php?option=com_ordenproduccion&task=proveedores.save', false);
+$deleteAction   = Route::_('index.php?option=com_ordenproduccion&task=proveedores.delete', false);
 $search         = (string) ($this->proveedoresSearch ?? '');
 $stateFilter    = (string) ($this->proveedoresStateFilter ?? '');
 $proveedorEdit  = isset($this->proveedorEdit) ? $this->proveedorEdit : null;
 $productos      = isset($this->proveedorProductos) && is_array($this->proveedorProductos) ? $this->proveedorProductos : [];
 $rows           = isset($this->proveedoresList) && is_array($this->proveedoresList) ? $this->proveedoresList : [];
 $showForm       = is_object($proveedorEdit);
+$adminUrl       = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false);
 ?>
-<div class="proveedores-section" style="background:#fff;padding:25px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+<div class="proveedores-page container py-3">
+    <p class="mb-3">
+        <a href="<?php echo htmlspecialchars($adminUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_BACK_CONTROL_VENTAS'); ?>
+        </a>
+    </p>
+    <div class="proveedores-section" style="background:#fff;padding:25px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
     <h2 class="h4 mb-3">
         <i class="fas fa-truck-loading me-2"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_HEADING'); ?>
@@ -37,8 +44,7 @@ $showForm       = is_object($proveedorEdit);
         <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
             <form method="get" action="<?php echo htmlspecialchars($listUrl, ENT_QUOTES, 'UTF-8'); ?>" class="row g-2 align-items-end flex-grow-1">
                 <input type="hidden" name="option" value="com_ordenproduccion" />
-                <input type="hidden" name="view" value="administracion" />
-                <input type="hidden" name="tab" value="proveedores" />
+                <input type="hidden" name="view" value="proveedores" />
                 <div class="col-md-4">
                     <label class="form-label small mb-0" for="proveedores_search"><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_FILTER_SEARCH'); ?></label>
                     <input type="text" class="form-control form-control-sm" name="proveedores_search" id="proveedores_search"
@@ -82,7 +88,7 @@ $showForm       = is_object($proveedorEdit);
                             <?php
                             $rid   = (int) ($r->id ?? 0);
                             $st    = (int) ($r->state ?? 0);
-                            $editU = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=proveedores&proveedor_id=' . $rid, false);
+                            $editU = Route::_('index.php?option=com_ordenproduccion&view=proveedores&proveedor_id=' . $rid, false);
                             ?>
                         <tr>
                             <td><?php echo htmlspecialchars((string) ($r->name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
@@ -222,4 +228,5 @@ $showForm       = is_object($proveedorEdit);
         })();
         </script>
     <?php endif; ?>
+    </div>
 </div>

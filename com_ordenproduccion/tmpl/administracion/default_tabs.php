@@ -31,7 +31,7 @@ $activeTab = $input->get('tab', 'resumen', 'string');
 if ($activeTab === 'workorders') {
     $activeTab = 'resumen';
 }
-if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas', 'proveedores'], true)) {
+if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas'], true)) {
     $activeTab = 'resumen';
 }
 
@@ -120,8 +120,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-file-invoice-dollar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_INVOICES'); ?>
     </a>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=proveedores'); ?>"
-       class="admin-tab <?php echo $activeTab === 'proveedores' ? 'active' : ''; ?>">
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=proveedores'); ?>"
+       class="admin-tab">
         <i class="fas fa-truck-loading"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_PROVEEDORES'); ?>
     </a>
@@ -170,8 +170,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('reportes'); ?>
     <?php elseif ($activeTab === 'clientes'): ?>
         <?php echo $this->loadTemplate('clientes'); ?>
-    <?php elseif ($activeTab === 'proveedores'): ?>
-        <?php echo $this->loadTemplate('proveedores'); ?>
     <?php elseif ($activeTab === 'herramientas'): ?>
         <?php echo $this->loadTemplate('herramientas'); ?>
     <?php elseif ($activeTab === 'ajustes'): ?>

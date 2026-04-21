@@ -312,23 +312,6 @@ class HtmlView extends BaseHtmlView
     /** Rango de días: clients grouped by sales_agent key, each list sorted (for agent expand rows) */
     protected $clientesDiasCreditoGroupedByAgent = [];
 
-    /** Proveedores (vendors) tab — 3.110.0 */
-    protected $proveedoresSchemaOk = false;
-
-    /** @var array<int, object> */
-    protected $proveedoresList = [];
-
-    /** @var object|null */
-    protected $proveedorEdit = null;
-
-    /** @var array<int, object> */
-    protected $proveedorProductos = [];
-
-    protected $proveedoresSearch = '';
-
-    /** @var string  '' | '1' | '0' */
-    protected $proveedoresStateFilter = '';
-
     /**
      * Cotización PDF template settings (Encabezado, Términos y Condiciones, Pie de página) for Ajustes > Ajustes de Cotización
      *
@@ -719,9 +702,33 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
         $input = $app->input;
 
-        // Menu item layout "proveedores" (dedicated menu type); keep tab aligned for SEF URLs that omit &tab=
-        if ($this->getLayout() === 'proveedores') {
-            $input->set('tab', 'proveedores');
+        // Legacy URLs: tab=proveedores or administración layout proveedores → standalone view=com_ordenproduccion&view=proveedores
+        if ($this->getLayout() === 'proveedores' || $input->get('tab', '', 'string') === 'proveedores') {
+            $parts = [
+                'option' => 'com_ordenproduccion',
+                'view'   => 'proveedores',
+            ];
+            $pid = $input->getInt('proveedor_id', -1);
+
+            if ($pid >= 0) {
+                $parts['proveedor_id'] = $pid;
+            }
+
+            $search = $input->getString('proveedores_search', '');
+
+            if ($search !== '') {
+                $parts['proveedores_search'] = $search;
+            }
+
+            $st = $input->getString('proveedores_state', '');
+
+            if ($st !== '') {
+                $parts['proveedores_state'] = $st;
+            }
+
+            $app->redirect(Route::_('index.php?' . http_build_query($parts), false));
+
+            return;
         }
 
         // Load component language files - standard Joomla way
@@ -745,7 +752,7 @@ class HtmlView extends BaseHtmlView
         }
 
         // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, herramientas, ajustes
-        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'herramientas', 'ajustes', 'proveedores'], true)) {
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'herramientas', 'ajustes'], true)) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
@@ -1125,57 +1132,6 @@ class HtmlView extends BaseHtmlView
                 $this->clients = [];
                 $this->canMergeClients = false;
                 $this->canInitializeOpeningBalances = false;
-            }
-        }
-
-        if ($activeTab === 'proveedores' && AccessHelper::isInAdministracionOrAdmonGroup()) {
-            $this->proveedoresSchemaOk   = false;
-            $this->proveedoresList       = [];
-            $this->proveedorEdit         = null;
-            $this->proveedorProductos    = [];
-            $this->proveedoresSearch     = $input->getString('proveedores_search', '');
-            $this->proveedoresStateFilter = $input->getString('proveedores_state', '');
-            if (!in_array($this->proveedoresStateFilter, ['', '1', '0'], true)) {
-                $this->proveedoresStateFilter = '';
-            }
-            $proveedorId = $input->getInt('proveedor_id', -1);
-            try {
-                $admModel = $this->getModel('Administracion');
-                $this->proveedoresSchemaOk = $admModel->hasProveedoresSchema();
-                if ($this->proveedoresSchemaOk) {
-                    $stateFilter = $this->proveedoresStateFilter === '' ? null : (int) $this->proveedoresStateFilter;
-                    $this->proveedoresList = $admModel->getProveedoresList($this->proveedoresSearch, $stateFilter);
-                    if ($proveedorId >= 0) {
-                        if ($proveedorId === 0) {
-                            if (!AccessHelper::canCreateProveedores()) {
-                                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CREATE_DENIED'), 'warning');
-                            } else {
-                                $this->proveedorEdit = (object) [
-                                    'id'                => 0,
-                                    'name'              => '',
-                                    'nit'               => '',
-                                    'address'           => '',
-                                    'phone'             => '',
-                                    'contact_name'      => '',
-                                    'contact_cellphone' => '',
-                                    'contact_email'     => '',
-                                    'state'             => 1,
-                                ];
-                                $this->proveedorProductos = [];
-                            }
-                        } else {
-                            $row = $admModel->getProveedorById($proveedorId);
-                            if ($row !== null) {
-                                $this->proveedorEdit      = $row;
-                                $this->proveedorProductos = $admModel->getProveedorProductos($proveedorId);
-                            } else {
-                                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NOT_FOUND'), 'warning');
-                            }
-                        }
-                    }
-                }
-            } catch (\Throwable $e) {
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_LOAD_ERROR') . ': ' . $e->getMessage(), 'error');
             }
         }
 
