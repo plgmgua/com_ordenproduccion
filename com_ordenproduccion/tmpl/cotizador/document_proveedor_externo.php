@@ -10,9 +10,11 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
 
@@ -127,6 +129,34 @@ if (strpos($colLeadFull, 'COM_ORDENPRODUCCION_') === 0) {
 }
 $colTotal = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL');
 $colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
+
+$user  = Factory::getUser();
+$token = Session::getFormToken();
+$vendorQuoteProveedoresUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedoresJson&format=json&' . $token . '=1',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
+$vendorQuoteProveedorUrlPrefix = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedorJson&format=json&',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
+$vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteSendEmail', false, Route::TLS_IGNORE, true);
+$vendorQuoteCellphoneUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteCellphoneJson&format=json',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
+$vendorQuotePdfUrlPrefix = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteDownloadPdf&precot_id=' . $preCotizacionId . '&',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document com-ordenproduccion-precotizacion-proveedor-externo container py-4">
@@ -183,8 +213,13 @@ $colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
     white-space: nowrap;
 }
 </style>
-    <nav class="mb-3">
+    <nav class="mb-3 d-flex flex-wrap gap-2 align-items-center">
         <a href="<?php echo $listUrl; ?>" class="btn btn-outline-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BACK'); ?></a>
+        <?php if (!$user->guest) : ?>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open">
+            <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
+        </button>
+        <?php endif; ?>
     </nav>
 
     <?php if ($canEditDocument) : ?>
@@ -535,4 +570,303 @@ $colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
             </tbody>
         </table>
     </div>
+
+    <?php if (!$user->guest) : ?>
+    <form id="vendor-quote-email-form" method="post" action="<?php echo htmlspecialchars($vendorQuoteSendEmailUrl); ?>" class="d-none" aria-hidden="true">
+        <?php echo HTMLHelper::_('form.token'); ?>
+        <input type="hidden" name="precot_id" value="<?php echo (int) $preCotizacionId; ?>">
+        <input type="hidden" name="proveedor_id" id="vendor-quote-email-proveedor-id" value="">
+    </form>
+
+    <div class="modal fade" id="vendorQuoteModal" tabindex="-1" aria-labelledby="vendorQuoteModalTitle" aria-hidden="true"
+         data-proveedores-url="<?php echo htmlspecialchars($vendorQuoteProveedoresUrl); ?>"
+         data-proveedor-url-prefix="<?php echo htmlspecialchars($vendorQuoteProveedorUrlPrefix); ?>"
+         data-cellphone-url="<?php echo htmlspecialchars($vendorQuoteCellphoneUrl); ?>"
+         data-pdf-url-prefix="<?php echo htmlspecialchars($vendorQuotePdfUrlPrefix); ?>"
+         data-token-name="<?php echo htmlspecialchars($token); ?>"
+         data-precot-id="<?php echo (int) $preCotizacionId; ?>">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="vendorQuoteModalTitle"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_MODAL_TITLE'); ?></h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2" id="vendor-quote-status"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_SELECT_VENDOR'); ?></p>
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <div class="list-group small" id="vendor-quote-proveedor-list" role="listbox" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_SELECT_VENDOR')); ?>"></div>
+                        </div>
+                        <div class="col-md-7">
+                            <div id="vendor-quote-detail" class="d-none border rounded p-3 bg-light small">
+                                <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_VENDOR_DETAILS'); ?></h3>
+                                <dl class="row mb-0" id="vendor-quote-detail-dl"></dl>
+                            </div>
+                            <div id="vendor-quote-method-wrap" class="mt-3 d-none">
+                                <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_METHOD_LABEL'); ?></div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="vendor_quote_method" id="vqm-email" value="email" checked>
+                                    <label class="form-check-label" for="vqm-email"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_METHOD_EMAIL'); ?></label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="vendor_quote_method" id="vqm-cell" value="cellphone">
+                                    <label class="form-check-label" for="vqm-cell"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_METHOD_CELLPHONE'); ?></label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="vendor_quote_method" id="vqm-pdf" value="pdf">
+                                    <label class="form-check-label" for="vqm-pdf"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_METHOD_PDF'); ?></label>
+                                </div>
+                            </div>
+                            <div id="vendor-quote-cell-panel" class="mt-3 d-none">
+                                <label class="form-label fw-bold" for="vendor-quote-cell-text"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_COMPOSE_MESSAGE'); ?></label>
+                                <textarea id="vendor-quote-cell-text" class="form-control font-monospace small" rows="6" readonly></textarea>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="vendor-quote-copy-msg"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_COPY_MESSAGE'); ?></button>
+                                    <a href="#" class="btn btn-outline-primary btn-sm d-none" id="vendor-quote-tel-link"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_OPEN_TEL'); ?></a>
+                                </div>
+                                <p class="small text-muted mt-2 mb-0" id="vendor-quote-phone-hint"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer flex-wrap gap-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                    <button type="button" class="btn btn-primary d-none" id="vendor-quote-btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_SEND_EMAIL'); ?></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var modalEl = document.getElementById('vendorQuoteModal');
+        if (!modalEl) return;
+
+        var msgs = {
+            loading: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_LOADING_PROVEEDORES')); ?>,
+            loadError: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_LOAD_ERROR')); ?>,
+            selectFirst: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_SELECT_VENDOR_FIRST')); ?>,
+            copied: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_COPIED')); ?>,
+            noPhone: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_NO_PHONE')); ?>,
+            sendEmail: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_SEND_EMAIL')); ?>,
+            composeCell: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_COMPOSE_CELL')); ?>,
+            downloadPdf: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_DOWNLOAD_PDF')); ?>
+        };
+
+        var listEl = document.getElementById('vendor-quote-proveedor-list');
+        var statusEl = document.getElementById('vendor-quote-status');
+        var detailWrap = document.getElementById('vendor-quote-detail');
+        var detailDl = document.getElementById('vendor-quote-detail-dl');
+        var methodWrap = document.getElementById('vendor-quote-method-wrap');
+        var cellPanel = document.getElementById('vendor-quote-cell-panel');
+        var cellText = document.getElementById('vendor-quote-cell-text');
+        var btnPrimary = document.getElementById('vendor-quote-btn-primary');
+        var btnCopy = document.getElementById('vendor-quote-copy-msg');
+        var telLink = document.getElementById('vendor-quote-tel-link');
+        var phoneHint = document.getElementById('vendor-quote-phone-hint');
+        var emailProveedorInput = document.getElementById('vendor-quote-email-proveedor-id');
+        var emailForm = document.getElementById('vendor-quote-email-form');
+
+        var proveedoresUrl = modalEl.getAttribute('data-proveedores-url') || '';
+        var proveedorPrefix = modalEl.getAttribute('data-proveedor-url-prefix') || '';
+        var cellphoneUrl = modalEl.getAttribute('data-cellphone-url') || '';
+        var pdfPrefix = modalEl.getAttribute('data-pdf-url-prefix') || '';
+        var tokenName = modalEl.getAttribute('data-token-name') || '';
+        var precotId = modalEl.getAttribute('data-precot-id') || '0';
+
+        var selectedId = 0;
+        var cellLoaded = false;
+
+        function esc(s) {
+            if (!s) return '';
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function setStatus(t) {
+            if (statusEl) statusEl.textContent = t;
+        }
+
+        function getMethod() {
+            var r = modalEl.querySelector('input[name="vendor_quote_method"]:checked');
+            return r ? r.value : 'email';
+        }
+
+        function updatePrimaryButton() {
+            if (!btnPrimary) return;
+            var m = getMethod();
+            cellPanel.classList.add('d-none');
+            if (m === 'email') {
+                btnPrimary.textContent = msgs.sendEmail;
+                btnPrimary.classList.remove('d-none');
+            } else if (m === 'cellphone') {
+                btnPrimary.textContent = msgs.composeCell;
+                btnPrimary.classList.remove('d-none');
+            } else {
+                btnPrimary.textContent = msgs.downloadPdf;
+                btnPrimary.classList.remove('d-none');
+            }
+        }
+
+        function resetModal() {
+            selectedId = 0;
+            cellLoaded = false;
+            listEl.innerHTML = '';
+            detailDl.innerHTML = '';
+            detailWrap.classList.add('d-none');
+            methodWrap.classList.add('d-none');
+            cellPanel.classList.add('d-none');
+            cellText.value = '';
+            btnPrimary.classList.add('d-none');
+            telLink.classList.add('d-none');
+            phoneHint.textContent = '';
+            if (emailProveedorInput) emailProveedorInput.value = '';
+        }
+
+        function renderDetail(p) {
+            detailDl.innerHTML = ''
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NAME')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.name) + '</dd>'
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NIT')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.nit) + '</dd>'
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_ADDRESS')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.address) + '</dd>'
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_PHONE')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.phone) + '</dd>'
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_NAME')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.contact_name) + '</dd>'
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_CELL')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.contact_cellphone) + '</dd>'
+                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_EMAIL')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.contact_email) + '</dd>';
+            detailWrap.classList.remove('d-none');
+            methodWrap.classList.remove('d-none');
+            updatePrimaryButton();
+        }
+
+        function selectProveedor(id) {
+            selectedId = id;
+            cellLoaded = false;
+            cellPanel.classList.add('d-none');
+            listEl.querySelectorAll('.list-group-item').forEach(function(el) {
+                el.classList.toggle('active', parseInt(el.getAttribute('data-id'), 10) === id);
+            });
+            if (emailProveedorInput) emailProveedorInput.value = String(id);
+            var url = proveedorPrefix + 'proveedor_id=' + encodeURIComponent(id) + '&' + encodeURIComponent(tokenName) + '=1';
+            setStatus(msgs.loading);
+            fetch(url, { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || !data.ok || !data.proveedor) {
+                        setStatus(msgs.loadError);
+                        return;
+                    }
+                    renderDetail(data.proveedor);
+                    setStatus('');
+                })
+                .catch(function() { setStatus(msgs.loadError); });
+        }
+
+        function loadProveedores() {
+            setStatus(msgs.loading);
+            fetch(proveedoresUrl, { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    listEl.innerHTML = '';
+                    if (!data || !data.ok || !Array.isArray(data.proveedores)) {
+                        setStatus(msgs.loadError);
+                        return;
+                    }
+                    if (data.proveedores.length === 0) {
+                        setStatus(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_EMPTY')); ?>);
+                        return;
+                    }
+                    data.proveedores.forEach(function(pr) {
+                        var a = document.createElement('button');
+                        a.type = 'button';
+                        a.className = 'list-group-item list-group-item-action';
+                        a.setAttribute('data-id', String(pr.id));
+                        a.textContent = pr.name || ('#' + pr.id);
+                        a.addEventListener('click', function() { selectProveedor(parseInt(pr.id, 10)); });
+                        listEl.appendChild(a);
+                    });
+                    setStatus(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_SELECT_VENDOR')); ?>);
+                })
+                .catch(function() {
+                    listEl.innerHTML = '';
+                    setStatus(msgs.loadError);
+                });
+        }
+
+        modalEl.addEventListener('show.bs.modal', function() {
+            resetModal();
+            loadProveedores();
+        });
+
+        modalEl.querySelectorAll('input[name="vendor_quote_method"]').forEach(function(inp) {
+            inp.addEventListener('change', function() {
+                cellPanel.classList.add('d-none');
+                cellLoaded = false;
+                updatePrimaryButton();
+            });
+        });
+
+        if (btnCopy && cellText) {
+            btnCopy.addEventListener('click', function() {
+                cellText.select();
+                document.execCommand('copy');
+                if (phoneHint) {
+                    phoneHint.textContent = msgs.copied;
+                    setTimeout(function() { if (phoneHint.textContent === msgs.copied) phoneHint.textContent = ''; }, 2000);
+                }
+            });
+        }
+
+        if (btnPrimary) {
+            btnPrimary.addEventListener('click', function() {
+                if (selectedId < 1) {
+                    setStatus(msgs.selectFirst);
+                    return;
+                }
+                var m = getMethod();
+                if (m === 'email') {
+                    if (emailForm) emailForm.submit();
+                    return;
+                }
+                if (m === 'pdf') {
+                    var pdfUrl = pdfPrefix + 'proveedor_id=' + encodeURIComponent(selectedId) + '&' + encodeURIComponent(tokenName) + '=1';
+                    window.location.href = pdfUrl;
+                    return;
+                }
+                if (m === 'cellphone') {
+                    if (cellLoaded) {
+                        cellPanel.classList.remove('d-none');
+                        return;
+                    }
+                    var fd = new FormData();
+                    fd.append(tokenName, '1');
+                    fd.append('precot_id', precotId);
+                    fd.append('proveedor_id', String(selectedId));
+                    setStatus(msgs.loading);
+                    fetch(cellphoneUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            setStatus('');
+                            if (!data || !data.ok) {
+                                setStatus(msgs.loadError);
+                                return;
+                            }
+                            cellText.value = data.message_text || '';
+                            cellLoaded = true;
+                            cellPanel.classList.remove('d-none');
+                            var ph = (data.phone || '').trim();
+                            if (ph) {
+                                telLink.href = 'tel:' + ph.replace(/\s+/g, '');
+                                telLink.classList.remove('d-none');
+                                phoneHint.textContent = ph;
+                            } else {
+                                telLink.classList.add('d-none');
+                                phoneHint.textContent = msgs.noPhone;
+                            }
+                        })
+                        .catch(function() { setStatus(msgs.loadError); });
+                }
+            });
+        }
+    })();
+    </script>
+    <?php endif; ?>
 </div>

@@ -1795,4 +1795,55 @@ class AdministracionController extends BaseController
 
         $app->redirect($redirect);
     }
+
+    /**
+     * Save vendor quote message templates (email / cellphone / PDF). Ventas or Administración.
+     *
+     * @return  void
+     *
+     * @since   3.113.0
+     */
+    public function saveVendorQuoteTemplates()
+    {
+        $app      = Factory::getApplication();
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=solicitud_cotizacion', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_EDIT_NOT_PERMITTED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+        $data  = [
+            'email_subject'  => $app->input->post->getString('email_subject', ''),
+            'email_body'     => (string) $app->input->post->get('email_body', '', 'raw'),
+            'cellphone_body' => (string) $app->input->post->get('cellphone_body', '', 'raw'),
+            'pdf_body'       => (string) $app->input->post->get('pdf_body', '', 'raw'),
+        ];
+
+        if (!$model->saveVendorQuoteTemplates($data)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_TEMPLATES_SAVE_ERROR'), 'error');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_TEMPLATES_SAVED'));
+        }
+
+        $app->redirect($redirect);
+    }
 }

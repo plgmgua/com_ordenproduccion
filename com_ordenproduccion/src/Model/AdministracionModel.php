@@ -3738,5 +3738,110 @@ class AdministracionModel extends BaseDatabaseModel
 
         return true;
     }
+
+    /**
+     * Vendor quote message templates table (3.113.0+).
+     *
+     * @since  3.113.0
+     */
+    public function hasVendorQuoteTemplatesSchema(): bool
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $db = Factory::getDbo();
+        try {
+            $tables = $db->getTableList();
+            $want   = $db->getPrefix() . 'ordenproduccion_vendor_quote_templates';
+            foreach ($tables as $t) {
+                if (strcasecmp((string) $t, $want) === 0) {
+                    return $cache = true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $cache = false;
+    }
+
+    /**
+     * @return  array<string, \stdClass>  Keyed by channel (email|cellphone|pdf)
+     *
+     * @since   3.113.0
+     */
+    public function getVendorQuoteTemplates(): array
+    {
+        if (!$this->hasVendorQuoteTemplatesSchema()) {
+            return [];
+        }
+        $db = Factory::getDbo();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_vendor_quote_templates'))
+        );
+        $rows = $db->loadObjectList('channel');
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * @param   array<string, string>  $data  keys: email_subject, email_body, cellphone_body, pdf_body
+     *
+     * @since   3.113.0
+     */
+    public function saveVendorQuoteTemplates(array $data): bool
+    {
+        if (!$this->hasVendorQuoteTemplatesSchema()) {
+            return false;
+        }
+        $db  = Factory::getDbo();
+        $uid = (int) Factory::getUser()->id;
+        $now = Factory::getDate()->toSql();
+
+        $channels = [
+            'email' => [
+                'subject' => substr(trim((string) ($data['email_subject'] ?? '')), 0, 512),
+                'body'    => (string) ($data['email_body'] ?? ''),
+            ],
+            'cellphone' => [
+                'subject' => '',
+                'body'    => (string) ($data['cellphone_body'] ?? ''),
+            ],
+            'pdf' => [
+                'subject' => '',
+                'body'    => (string) ($data['pdf_body'] ?? ''),
+            ],
+        ];
+
+        try {
+            foreach ($channels as $ch => $parts) {
+                $obj = (object) [
+                    'channel'     => $ch,
+                    'subject'     => $parts['subject'],
+                    'body'        => $parts['body'],
+                    'modified'    => $now,
+                    'modified_by' => $uid,
+                ];
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__ordenproduccion_vendor_quote_templates'))
+                        ->where($db->quoteName('channel') . ' = ' . $db->quote($ch))
+                );
+                $exists = (int) $db->loadResult() > 0;
+                if ($exists) {
+                    $db->updateObject('#__ordenproduccion_vendor_quote_templates', $obj, 'channel');
+                } else {
+                    $db->insertObject('#__ordenproduccion_vendor_quote_templates', $obj);
+                }
+            }
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return true;
+    }
 }
 

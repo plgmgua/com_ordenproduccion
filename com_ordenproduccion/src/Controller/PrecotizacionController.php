@@ -12,10 +12,12 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\VendorQuoteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -64,6 +66,61 @@ class PrecotizacionController extends BaseController
         }
 
         return isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+    }
+
+    /**
+     * @return  array{0:\stdClass,1:\stdClass,2:\stdClass[],3:\Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel}|null
+     *
+     * @since  3.113.0
+     */
+    private function loadVendorQuoteComposeContext(int $precotId, int $proveedorId): ?array
+    {
+        if ($precotId < 1 || $proveedorId < 1) {
+            return null;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return null;
+        }
+        $preModel = $this->getModel('Precotizacion', 'Site');
+        $item     = $preModel->getItem($precotId);
+        if (!$item) {
+            return null;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return null;
+        }
+        $adm = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+        if (!$adm->hasProveedoresSchema() || !$adm->hasVendorQuoteTemplatesSchema()) {
+            return null;
+        }
+        $proveedor = $adm->getProveedorById($proveedorId);
+        if (!$proveedor || (int) ($proveedor->state ?? 0) !== 1) {
+            return null;
+        }
+        $lines       = $preModel->getLines($precotId);
+        $vendorLines = [];
+        foreach ($lines as $ln) {
+            if ((isset($ln->line_type) ? (string) $ln->line_type : '') === 'proveedor_externo') {
+                $vendorLines[] = $ln;
+            }
+        }
+
+        return [$item, $proveedor, $vendorLines, $adm];
+    }
+
+    /**
+     * @since  3.113.0
+     */
+    private function vendorQuoteJsonResponse(array $payload, int $httpStatus = 200): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        $app->setHeader('Status', (string) $httpStatus, true);
+        echo json_encode($payload);
+        $app->close();
     }
 
     /**
@@ -664,6 +721,238 @@ class PrecotizacionController extends BaseController
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
 
         return true;
+    }
+
+    /**
+     * JSON: active proveedores for vendor quote modal (CSRF: request token in URL).
+     *
+     * @return  void
+     *
+     * @since   3.113.0
+     */
+    public function vendorQuoteProveedoresJson()
+    {
+        if (!Session::checkToken('request')) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => Text::_('JINVALID_TOKEN')], 403);
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'guest'], 401);
+        }
+        $adm = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+        if (!$adm->hasProveedoresSchema()) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'schema'], 400);
+        }
+        $rows = $adm->getProveedoresList('', 1);
+        $out  = [];
+        foreach ($rows as $r) {
+            $out[] = [
+                'id'                => (int) $r->id,
+                'name'              => (string) ($r->name ?? ''),
+                'contact_email'     => (string) ($r->contact_email ?? ''),
+                'contact_cellphone' => (string) ($r->contact_cellphone ?? ''),
+                'phone'             => (string) ($r->phone ?? ''),
+            ];
+        }
+        $this->vendorQuoteJsonResponse(['ok' => true, 'proveedores' => $out]);
+    }
+
+    /**
+     * JSON: one proveedor detail.
+     *
+     * @return  void
+     *
+     * @since   3.113.0
+     */
+    public function vendorQuoteProveedorJson()
+    {
+        if (!Session::checkToken('request')) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => Text::_('JINVALID_TOKEN')], 403);
+        }
+        if (Factory::getUser()->guest) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'guest'], 401);
+        }
+        $id = Factory::getApplication()->input->getInt('proveedor_id', 0);
+        if ($id < 1) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'id'], 400);
+        }
+        $adm = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+        if (!$adm->hasProveedoresSchema()) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'schema'], 400);
+        }
+        $p = $adm->getProveedorById($id);
+        if (!$p || (int) ($p->state ?? 0) !== 1) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'notfound'], 404);
+        }
+        $this->vendorQuoteJsonResponse([
+            'ok'        => true,
+            'proveedor' => [
+                'id'                => (int) $p->id,
+                'name'              => (string) ($p->name ?? ''),
+                'nit'               => (string) ($p->nit ?? ''),
+                'address'           => (string) ($p->address ?? ''),
+                'phone'             => (string) ($p->phone ?? ''),
+                'contact_name'      => (string) ($p->contact_name ?? ''),
+                'contact_cellphone' => (string) ($p->contact_cellphone ?? ''),
+                'contact_email'     => (string) ($p->contact_email ?? ''),
+            ],
+        ]);
+    }
+
+    /**
+     * POST: send vendor quote request email.
+     *
+     * @return  bool
+     *
+     * @since   3.113.0
+     */
+    public function vendorQuoteSendEmail()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+        $app         = Factory::getApplication();
+        $precotId    = (int) $app->input->post->get('precot_id', 0);
+        $proveedorId = (int) $app->input->post->get('proveedor_id', 0);
+        $ctx         = $this->loadVendorQuoteComposeContext($precotId, $proveedorId);
+        if ($ctx === null) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_REQUEST_ERROR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+
+            return false;
+        }
+        [$item, $proveedor, $vendorLines, $adm] = $ctx;
+        $templates = $adm->getVendorQuoteTemplates();
+        $tpl       = $templates['email'] ?? null;
+        if (!$tpl) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_TEMPLATE_MISSING'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+
+            return false;
+        }
+        $user = Factory::getUser();
+        $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, $user);
+        $subj = VendorQuoteHelper::replacePlaceholders((string) ($tpl->subject ?? ''), $map);
+        $body = VendorQuoteHelper::replacePlaceholders((string) ($tpl->body ?? ''), $map);
+        $to   = trim((string) ($proveedor->contact_email ?? ''));
+        if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_INVALID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+
+            return false;
+        }
+        try {
+            $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
+            $mailer->setSubject($subj);
+            $mailer->setBody(nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8')));
+            $mailer->isHtml(true);
+            $mailer->addRecipient($to);
+            $mailer->send();
+        } catch (\Throwable $e) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_SEND_FAIL'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+
+            return false;
+        }
+        $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_SENT'));
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+
+        return true;
+    }
+
+    /**
+     * POST JSON: composed cellphone / WhatsApp message text.
+     *
+     * @return  void
+     *
+     * @since   3.113.0
+     */
+    public function vendorQuoteCellphoneJson()
+    {
+        if (!Session::checkToken('post')) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => Text::_('JINVALID_TOKEN')], 403);
+        }
+        if (Factory::getUser()->guest) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'guest'], 401);
+        }
+        $app         = Factory::getApplication();
+        $precotId    = (int) $app->input->post->get('precot_id', 0);
+        $proveedorId = (int) $app->input->post->get('proveedor_id', 0);
+        $ctx         = $this->loadVendorQuoteComposeContext($precotId, $proveedorId);
+        if ($ctx === null) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'context'], 400);
+        }
+        [$item, $proveedor, $vendorLines, $adm] = $ctx;
+        $templates = $adm->getVendorQuoteTemplates();
+        $tpl       = $templates['cellphone'] ?? null;
+        if (!$tpl) {
+            $this->vendorQuoteJsonResponse(['ok' => false, 'error' => 'template'], 400);
+        }
+        $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, Factory::getUser());
+        $text = VendorQuoteHelper::replacePlaceholders((string) ($tpl->body ?? ''), $map);
+        $phone = trim((string) ($proveedor->contact_cellphone ?? ''));
+        if ($phone === '') {
+            $phone = trim((string) ($proveedor->phone ?? ''));
+        }
+        $this->vendorQuoteJsonResponse([
+            'ok'           => true,
+            'message_text' => $text,
+            'phone'        => $phone,
+        ]);
+    }
+
+    /**
+     * GET: download PDF for vendor quote request (request token in URL).
+     *
+     * @return  void
+     *
+     * @since   3.113.0
+     */
+    public function vendorQuoteDownloadPdf()
+    {
+        if (!Session::checkToken('request')) {
+            Factory::getApplication()->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            Factory::getApplication()->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+        }
+        if (Factory::getUser()->guest) {
+            Factory::getApplication()->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            Factory::getApplication()->redirect(Route::_('index.php?option=com_users&view=login', false));
+        }
+        $app         = Factory::getApplication();
+        $precotId    = (int) $app->input->get('precot_id', 0);
+        $proveedorId = (int) $app->input->get('proveedor_id', 0);
+        $ctx         = $this->loadVendorQuoteComposeContext($precotId, $proveedorId);
+        if ($ctx === null) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_REQUEST_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+        }
+        [$item, $proveedor, $vendorLines, $adm] = $ctx;
+        $templates = $adm->getVendorQuoteTemplates();
+        $tpl       = $templates['pdf'] ?? null;
+        if (!$tpl) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_TEMPLATE_MISSING'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+        }
+        $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, Factory::getUser());
+        $body = VendorQuoteHelper::replacePlaceholders((string) ($tpl->body ?? ''), $map);
+        $bin  = VendorQuoteHelper::renderPdfFromPlainText($body);
+        if ($bin === null) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_FAIL'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
+        }
+        $fname = 'solicitud-cotizacion-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', (string) ($item->number ?? 'precot')) . '.pdf';
+        $app->clearHeaders();
+        $app->setHeader('Content-Type', 'application/pdf', true);
+        $app->setHeader('Content-Disposition', 'attachment; filename="' . $fname . '"', true);
+        $app->setHeader('Cache-Control', 'no-cache', true);
+        $app->sendHeaders();
+        echo $bin;
+        $app->close();
     }
 
     /**

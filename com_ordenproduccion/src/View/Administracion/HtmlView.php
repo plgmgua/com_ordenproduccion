@@ -329,6 +329,20 @@ class HtmlView extends BaseHtmlView
     protected $solicitudOrdenUrl = '';
 
     /**
+     * Solicitud de cotización a proveedor: templates per channel (tab solicitud_cotizacion).
+     *
+     * @var    array<string, \stdClass|null>
+     * @since  3.113.0
+     */
+    protected $vendorQuoteTemplates = [];
+
+    /**
+     * @var    bool
+     * @since  3.113.0
+     */
+    protected $vendorQuoteTemplatesSchemaOk = false;
+
+    /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
      *
      * @var    string
@@ -1454,6 +1468,18 @@ class HtmlView extends BaseHtmlView
                 $this->solicitudOrdenUrl = $statsModel->getSolicitudOrdenUrl();
             } catch (\Exception $e) {
                 $this->solicitudOrdenUrl = '';
+            }
+        }
+
+        $this->vendorQuoteTemplates         = ['email' => null, 'cellphone' => null, 'pdf' => null];
+        $this->vendorQuoteTemplatesSchemaOk = false;
+        if ($activeTab === 'solicitud_cotizacion') {
+            $this->vendorQuoteTemplatesSchemaOk = $statsModel->hasVendorQuoteTemplatesSchema();
+            if ($this->vendorQuoteTemplatesSchemaOk) {
+                $tplRows = $statsModel->getVendorQuoteTemplates();
+                foreach (['email', 'cellphone', 'pdf'] as $ch) {
+                    $this->vendorQuoteTemplates[$ch] = $tplRows[$ch] ?? null;
+                }
             }
         }
 
