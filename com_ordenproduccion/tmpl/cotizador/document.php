@@ -29,6 +29,12 @@ if (!$item) {
     return;
 }
 
+$documentMode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+if ($documentMode === 'proveedor_externo') {
+    echo $this->loadTemplate('proveedor_externo');
+    return;
+}
+
 $preCotizacionId = (int) $item->id;
 $canSaveImpresionOverride = !empty($this->canSaveImpresionOverride);
 // Absolute SEF-safe URLs (same scheme as current request). Uri::root().'index.php' breaks with http/https mismatch or some SEF layouts.

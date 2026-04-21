@@ -347,6 +347,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['oferta_expires'])) {
             $cols[] = 'a.oferta_expires';
         }
+        if (isset($tableCols['document_mode'])) {
+            $cols[] = 'a.document_mode';
+        }
         foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
                 $cols[] = 'a.' . $snapCol;
@@ -1507,6 +1510,40 @@ class PrecotizacionModel extends ListModel
 
         $db = $this->getDatabase();
 
+        $lineTypeExisting = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if ($lineTypeExisting === 'proveedor_externo') {
+            $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+            $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+            $qty       = max(1, (int) ($data['quantity'] ?? $line->quantity ?? 1));
+            $unit      = round((float) ($data['price_per_sheet'] ?? $line->price_per_sheet ?? 0), 2);
+            $totalLine = round($qty * $unit, 2);
+            $obj       = (object) [
+                'id'              => (int) $lineId,
+                'quantity'        => $qty,
+                'price_per_sheet' => $unit,
+                'total'           => $totalLine,
+            ];
+            if (isset($columns['vendor_descripcion'])) {
+                $vd = trim((string) ($data['vendor_descripcion'] ?? $line->vendor_descripcion ?? ''));
+                $obj->vendor_descripcion = $vd !== '' ? $vd : null;
+            }
+            if (isset($columns['vendor_tiempo_entrega'])) {
+                $vt = trim((string) ($data['vendor_tiempo_entrega'] ?? $line->vendor_tiempo_entrega ?? ''));
+                $obj->vendor_tiempo_entrega = $vt !== '' ? substr($vt, 0, 512) : null;
+            }
+            try {
+                $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+                $preCotizacionId = (int) $line->pre_cotizacion_id;
+                if ($preCotizacionId > 0) {
+                    $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+                }
+
+                return true;
+            } catch (\Exception $e) {
+                return false;
+            }
+        }
+
         $processIds = isset($data['process_ids']) && is_array($data['process_ids'])
             ? json_encode(array_values(array_map('intval', $data['process_ids'])))
             : '[]';
@@ -1580,8 +1617,12 @@ class PrecotizacionModel extends ListModel
             'state'      => 1,
         ];
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-        if (is_array($tableCols) && array_key_exists('facturar', array_change_key_case($tableCols, CASE_LOWER))) {
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (isset($tableCols['facturar'])) {
             $data->facturar = 1;
+        }
+        if (isset($tableCols['document_mode'])) {
+            $data->document_mode = 'pliego';
         }
 
         try {
@@ -1590,6 +1631,63 @@ class PrecotizacionModel extends ListModel
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * Create a Pre-Cotización for external vendor quotation requests (same PRE- sequence as pliego).
+     *
+     * @return  int|false  New id on success.
+     *
+     * @since   3.112.0
+     */
+    public function createProveedorExterno()
+    {
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return false;
+        }
+
+        $number = $this->getNextNumber();
+        $db     = $this->getDatabase();
+        $data   = (object) [
+            'number'     => $number,
+            'created_by' => (int) $user->id,
+            'state'      => 1,
+        ];
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (isset($tableCols['facturar'])) {
+            $data->facturar = 1;
+        }
+        if (!isset($tableCols['document_mode'])) {
+            return false;
+        }
+        $data->document_mode = 'proveedor_externo';
+
+        try {
+            $db->insertObject('#__ordenproduccion_pre_cotizacion', $data, 'id');
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        $id = (int) $data->id;
+        if ($id < 1) {
+            return false;
+        }
+
+        $lineOk = $this->addLine($id, [
+            'line_type'           => 'proveedor_externo',
+            'quantity'            => 1,
+            'price_per_sheet'     => 0.0,
+            'vendor_descripcion'  => '',
+            'vendor_tiempo_entrega' => '',
+        ]);
+
+        if ($lineOk === false) {
+            return false;
+        }
+
+        return $id;
     }
 
     /**
@@ -1676,6 +1774,11 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['medidas'])) {
             $newRow->medidas = isset($template->medidas) ? (string) $template->medidas : '';
         }
+        if (isset($tableCols['document_mode'])) {
+            $newRow->document_mode = isset($template->document_mode) && (string) $template->document_mode !== ''
+                ? (string) $template->document_mode
+                : 'pliego';
+        }
         try {
             $db->insertObject('#__ordenproduccion_pre_cotizacion', $newRow, 'id');
         } catch (\Exception $e) {
@@ -1742,15 +1845,32 @@ class PrecotizacionModel extends ListModel
             $ordering = (int) $db->loadResult();
         }
 
-        $lineType = (isset($data['line_type']) && $data['line_type'] === 'elementos') ? 'elementos' : 'pliego';
-        $elementoId = $lineType === 'elementos' ? (int) ($data['elemento_id'] ?? 0) : null;
-        if (isset($data['line_type']) && $data['line_type'] === 'envio') {
+        $docMode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+
+        $lineType   = 'pliego';
+        $elementoId = null;
+        if (isset($data['line_type']) && $data['line_type'] === 'proveedor_externo') {
+            $lineType = 'proveedor_externo';
+        } elseif (isset($data['line_type']) && $data['line_type'] === 'envio') {
             $lineType = 'envio';
-            $elementoId = null;
+        } elseif (isset($data['line_type']) && $data['line_type'] === 'elementos') {
+            $lineType   = 'elementos';
+            $elementoId = (int) ($data['elemento_id'] ?? 0);
+        }
+
+        if ($lineType === 'proveedor_externo' && $docMode !== 'proveedor_externo') {
+            return false;
+        }
+        if ($lineType !== 'proveedor_externo' && $docMode === 'proveedor_externo') {
+            return false;
         }
 
         $totalLine = (float) ($data['total'] ?? 0);
-        if ($lineType === 'envio') {
+        if ($lineType === 'proveedor_externo') {
+            $qtyPe  = max(1, (int) ($data['quantity'] ?? 1));
+            $unitPe = round((float) ($data['price_per_sheet'] ?? 0), 2);
+            $totalLine = round($qtyPe * $unitPe, 2);
+        } elseif ($lineType === 'envio') {
             $envioId = (int) ($data['envio_id'] ?? 0);
             if ($envioId > 0) {
                 $productosModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
@@ -1773,16 +1893,29 @@ class PrecotizacionModel extends ListModel
             ? json_encode($data['calculation_breakdown'])
             : null;
 
+        $isPliego = ($lineType === 'pliego');
+        $isEnvio  = ($lineType === 'envio');
+        $qtyLine  = $isEnvio ? 1 : ($lineType === 'proveedor_externo'
+            ? max(1, (int) ($data['quantity'] ?? 1))
+            : (int) ($data['quantity'] ?? 1));
+        if ($isEnvio) {
+            $pricePerSheet = $totalLine;
+        } elseif ($lineType === 'proveedor_externo') {
+            $pricePerSheet = round((float) ($data['price_per_sheet'] ?? 0), 4);
+        } else {
+            $pricePerSheet = (float) ($data['price_per_sheet'] ?? 0);
+        }
+
         $line = (object) [
             'pre_cotizacion_id'       => $preCotizacionId,
-            'quantity'               => $lineType === 'envio' ? 1 : (int) ($data['quantity'] ?? 1),
-            'paper_type_id'          => $lineType === 'pliego' ? (int) ($data['paper_type_id'] ?? 0) : 0,
-            'size_id'                => $lineType === 'pliego' ? (int) ($data['size_id'] ?? 0) : 0,
-            'tiro_retiro'            => $lineType === 'pliego' ? (($data['tiro_retiro'] ?? 'tiro') === 'retiro' ? 'retiro' : 'tiro') : 'tiro',
-            'lamination_type_id'     => $lineType === 'pliego' && isset($data['lamination_type_id']) ? (int) $data['lamination_type_id'] : null,
-            'lamination_tiro_retiro' => $lineType === 'pliego' && isset($data['lamination_tiro_retiro']) && $data['lamination_tiro_retiro'] === 'retiro' ? 'retiro' : 'tiro',
-            'process_ids'            => $lineType === 'pliego' ? $processIds : '[]',
-            'price_per_sheet'        => $lineType === 'envio' ? $totalLine : (float) ($data['price_per_sheet'] ?? 0),
+            'quantity'               => $qtyLine,
+            'paper_type_id'          => $isPliego ? (int) ($data['paper_type_id'] ?? 0) : 0,
+            'size_id'                => $isPliego ? (int) ($data['size_id'] ?? 0) : 0,
+            'tiro_retiro'            => $isPliego ? (($data['tiro_retiro'] ?? 'tiro') === 'retiro' ? 'retiro' : 'tiro') : 'tiro',
+            'lamination_type_id'     => $isPliego && isset($data['lamination_type_id']) ? (int) $data['lamination_type_id'] : null,
+            'lamination_tiro_retiro' => $isPliego && isset($data['lamination_tiro_retiro']) && $data['lamination_tiro_retiro'] === 'retiro' ? 'retiro' : 'tiro',
+            'process_ids'            => $isPliego ? $processIds : '[]',
+            'price_per_sheet'        => $pricePerSheet,
             'total'                  => $totalLine,
             'calculation_breakdown'  => $breakdown,
             'ordering'               => $ordering,
@@ -1792,7 +1925,7 @@ class PrecotizacionModel extends ListModel
         $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
         if (isset($columns['line_type'])) {
             $line->line_type = $lineType;
-            $line->elemento_id = $elementoId > 0 ? $elementoId : null;
+            $line->elemento_id = ($lineType === 'elementos' && $elementoId > 0) ? $elementoId : null;
         }
         if (isset($columns['envio_id']) && $lineType === 'envio') {
             $line->envio_id = (int) ($data['envio_id'] ?? 0) ?: null;
@@ -1802,6 +1935,16 @@ class PrecotizacionModel extends ListModel
             $line->tipo_elemento = trim((string) ($data['tipo_elemento'] ?? ''));
             if ($line->tipo_elemento === '') {
                 $line->tipo_elemento = null;
+            }
+        }
+        if ($lineType === 'proveedor_externo') {
+            if (isset($columns['vendor_descripcion'])) {
+                $vd = trim((string) ($data['vendor_descripcion'] ?? ''));
+                $line->vendor_descripcion = $vd !== '' ? $vd : null;
+            }
+            if (isset($columns['vendor_tiempo_entrega'])) {
+                $vt = trim((string) ($data['vendor_tiempo_entrega'] ?? ''));
+                $line->vendor_tiempo_entrega = $vt !== '' ? substr($vt, 0, 512) : null;
             }
         }
         if (isset($columns['impresion_subtotal_base']) && $lineType === 'pliego'
@@ -1908,6 +2051,88 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Batch-save external-vendor quote lines from the document form.
+     *
+     * @param   int    $preCotizacionId  Pre-cotización id.
+     * @param   array  $rows             Rows with id (0 = new), quantity, price_per_sheet, vendor_descripcion, vendor_tiempo_entrega.
+     *
+     * @return  bool
+     *
+     * @since   3.112.0
+     */
+    public function saveProveedorExternoLines(int $preCotizacionId, array $rows): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+
+        try {
+            $db->transactionStart();
+
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $lid  = (int) ($row['id'] ?? 0);
+                $qty  = max(1, (int) ($row['quantity'] ?? 1));
+                $unit = round((float) ($row['price_per_sheet'] ?? 0), 2);
+                $desc = trim((string) ($row['vendor_descripcion'] ?? ''));
+                $tiempo = trim((string) ($row['vendor_tiempo_entrega'] ?? ''));
+
+                $payload = [
+                    'quantity'              => $qty,
+                    'price_per_sheet'       => $unit,
+                    'vendor_descripcion'    => $desc,
+                    'vendor_tiempo_entrega' => $tiempo,
+                ];
+
+                if ($lid > 0) {
+                    $ln = $this->getLine($lid);
+                    if (!$ln || (int) $ln->pre_cotizacion_id !== $preCotizacionId) {
+                        throw new \RuntimeException('line document mismatch');
+                    }
+                    $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
+                    if ($lt !== 'proveedor_externo') {
+                        throw new \RuntimeException('invalid line type');
+                    }
+                    if (!$this->updateLine($lid, $payload)) {
+                        throw new \RuntimeException('updateLine failed');
+                    }
+                } else {
+                    $newId = $this->addLine($preCotizacionId, array_merge([
+                        'line_type' => 'proveedor_externo',
+                    ], $payload));
+                    if ($newId === false) {
+                        throw new \RuntimeException('addLine failed');
+                    }
+                }
+            }
+
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Get concepts (element labels) that require "Detalles" for a given line.
      * Pliego: one per breakdown row (label); if breakdown is empty, a single "Detalles" field is used. Elementos/Env?o: one single "Detalles" input per line (each is a single element).
      *
@@ -1918,6 +2143,15 @@ class PrecotizacionModel extends ListModel
     public function getConceptsForLine($line)
     {
         $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if ($lineType === 'proveedor_externo') {
+            return [
+                'detalle' => CotizacionHelper::labelOrFallback(
+                    'COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC',
+                    'Details',
+                    'Detalles'
+                ),
+            ];
+        }
         if ($lineType === 'envio') {
             return [
                 'detalle_envio' => CotizacionHelper::labelOrFallback(

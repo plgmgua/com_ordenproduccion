@@ -62,6 +62,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
             <?php echo HTMLHelper::_('form.token'); ?>
             <select name="template_id" id="new-precotizacion-template" class="form-select" style="width: auto; max-width: 360px;">
                 <option value="0"><?php echo htmlspecialchars($labelNewBlank); ?></option>
+                <option value="-1"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_PROVEEDOR_EXTERNO_OPTION'); ?></option>
                 <?php
                 $labelNoExpiry = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA_NO_EXPIRY');
                 if (strpos($labelNoExpiry, 'COM_') === 0) {
