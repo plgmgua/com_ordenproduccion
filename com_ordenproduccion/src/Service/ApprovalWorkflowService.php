@@ -354,6 +354,66 @@ class ApprovalWorkflowService
     }
 
     /**
+     * When a payment proof is marked Verificado, close any open approval request without applying
+     * entity side-effects here (setVerificado runs separately in the controller).
+     *
+     * @return  bool  True if there was nothing to do or the pending request was closed successfully; false on DB error
+     *
+     * @since   3.109.72
+     */
+    public function completePendingPaymentProofForVerification(int $proofId, int $actorUserId): bool
+    {
+        if (!$this->hasSchema() || $proofId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $req = $this->getOpenPendingRequest(self::ENTITY_PAYMENT_PROOF, $proofId);
+
+        if ($req === null) {
+            return true;
+        }
+
+        $requestId = (int) $req->id;
+        $now       = Factory::getDate()->toSql();
+        $comment   = 'verification_status_verificado';
+
+        $this->db->transactionStart();
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_request_steps'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('comments') . ' = ' . $this->db->quote($comment))
+                ->set($this->db->quoteName('decided_date') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('request_id') . ' = ' . $requestId)
+                ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'));
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            $q2 = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_requests'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('completed') . ' = ' . $this->db->quote($now))
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('id') . ' = ' . $requestId);
+            $this->db->setQuery($q2);
+            $this->db->execute();
+
+            ApprovalAuditHelper::log($requestId, 'payment_proof_verificado', $actorUserId, 'pending', 'approved', $comment);
+
+            $this->db->transactionCommit();
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
+
+        ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $actorUserId, $comment);
+
+        return true;
+    }
+
+    /**
      * Approve a pending step row for the current user.
      */
     public function approve(int $requestId, int $userId, string $comments = ''): bool
@@ -441,10 +501,6 @@ class ApprovalWorkflowService
                     $eid,
                     $actorUserId
                 );
-                break;
-
-            case self::ENTITY_PAYMENT_PROOF:
-                ApprovalWorkflowEntityHelper::applyPaymentProofVerified($eid, $actorUserId);
                 break;
 
             case self::ENTITY_COTIZACION_CONFIRMATION:

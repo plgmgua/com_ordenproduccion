@@ -7,10 +7,12 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Model\ItemModel;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\Model\ItemModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 class PaymentproofModel extends ItemModel
 {
@@ -338,6 +340,24 @@ class PaymentproofModel extends ItemModel
             }
             
             $db->transactionCommit();
+
+            // Optional: start approval workflow when a new proof is recorded (3.109.72+).
+            try {
+                if ((int) ComponentHelper::getParams('com_ordenproduccion')->get('approval_workflow_payment_proof', 0) === 1) {
+                    $wfSvc       = new ApprovalWorkflowService();
+                    $submitterId = (int) ($data['created_by'] ?? 0);
+                    if ($wfSvc->hasSchema() && $submitterId > 0) {
+                        $wfSvc->createRequest(
+                            ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
+                            (int) $paymentProofId,
+                            $submitterId,
+                            null
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal: proof is already saved
+            }
 
             // Update client Saldo immediately (3.64.0)
             try {

@@ -798,32 +798,15 @@ class PaymentproofController extends BaseController
             return true;
         }
 
-        // Optional: route verification through the approval workflow (off by default; direct verify).
+        // Optional: close open approval request when verifying (workflow started on proof save; 3.109.72+).
         $useApprovalWorkflow = (int) ComponentHelper::getParams('com_ordenproduccion')->get('approval_workflow_payment_proof', 0) === 1;
         $wfSvc               = new ApprovalWorkflowService();
         if ($useApprovalWorkflow && $wfSvc->hasSchema()) {
-            if ($wfSvc->getOpenPendingRequest(
-                ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
-                $proofId
-            ) !== null) {
-                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_ALREADY_PENDING'), 'notice');
+            if (!$wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id)) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_VERIFY_WORKFLOW_ERROR'), 'error');
                 $this->setRedirect($redirectUrl);
 
-                return true;
-            }
-
-            $rid = $wfSvc->createRequest(
-                ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
-                $proofId,
-                (int) $user->id,
-                null
-            );
-
-            if ($rid > 0) {
-                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_SUBMITTED'), 'success');
-                $this->setRedirect($redirectUrl);
-
-                return true;
+                return false;
             }
         }
 
