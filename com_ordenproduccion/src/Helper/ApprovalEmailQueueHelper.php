@@ -151,6 +151,8 @@ class ApprovalEmailQueueHelper
                 'client_id'        => '',
                 'proof_created'    => '',
                 'request_created'  => '',
+                'payment_amount'   => '0.00',
+                'currency'         => 'Q',
             ];
         }
 
@@ -163,20 +165,40 @@ class ApprovalEmailQueueHelper
             'client_id'        => '',
             'proof_created'    => '',
             'request_created'  => '',
+            'payment_amount'   => '0.00',
+            'currency'         => 'Q',
         ];
 
         try {
+            $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $ppCols = is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+            $select = [
+                $db->quoteName('pp.created'),
+                $db->quoteName('pp.payment_amount'),
+            ];
+            if (isset($ppCols['currency'])) {
+                $select[] = $db->quoteName('pp.currency');
+            }
+
             $q = $db->getQuery(true)
-                ->select([
-                    $db->quoteName('pp.created'),
-                ])
+                ->select($select)
                 ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
                 ->where('pp.' . $db->quoteName('id') . ' = ' . $proofId)
                 ->setLimit(1);
             $db->setQuery($q);
             $proofRow = $db->loadObject();
-            if ($proofRow !== null && isset($proofRow->created)) {
-                $empty['proof_created'] = self::formatSqlDatetimeForTemplate((string) $proofRow->created);
+            if ($proofRow !== null) {
+                if (isset($proofRow->created)) {
+                    $empty['proof_created'] = self::formatSqlDatetimeForTemplate((string) $proofRow->created);
+                }
+                $amt = isset($proofRow->payment_amount) ? (float) $proofRow->payment_amount : 0.0;
+                $empty['payment_amount'] = number_format($amt, 2, '.', '');
+                if (isset($proofRow->currency)) {
+                    $cur = trim((string) $proofRow->currency);
+                    if ($cur !== '') {
+                        $empty['currency'] = $cur;
+                    }
+                }
             }
         } catch (\Throwable $e) {
         }
