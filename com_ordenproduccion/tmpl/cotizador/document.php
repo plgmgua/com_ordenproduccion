@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -169,7 +170,14 @@ $rejectSinDescuentoUrl = Route::_(
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
 $pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
-$solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.solicitarDescuento');
+$itemIdForRoutes            = (int) Factory::getApplication()->getInput()->getInt('Itemid', 0);
+$solicitarDescuentoAction   = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.solicitarDescuento'
+    . ($itemIdForRoutes > 0 ? '&Itemid=' . $itemIdForRoutes : ''),
+    false,
+    Route::TLS_IGNORE,
+    true
+);
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document container py-4">
@@ -499,6 +507,8 @@ $solicitarDescuentoAction     = Route::_('index.php?option=com_ordenproduccion&t
         <?php if ($discountWorkflowAvailable && !$precotizacionLocked) : ?>
             <?php if ($canRequestSolicitudDescuento) : ?>
         <form method="post" action="<?php echo htmlspecialchars($solicitarDescuentoAction, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
+            <input type="hidden" name="option" value="com_ordenproduccion" />
+            <input type="hidden" name="task" value="precotizacion.solicitarDescuento" />
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
             <button type="submit" class="btn btn-outline-warning btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_BTN'); ?></button>

@@ -173,6 +173,7 @@ class HtmlView extends BaseHtmlView
         if (($layout === 'document' || $layout === 'details') && $id > 0) {
             if ($layout === 'document') {
                 HTMLHelper::_('bootstrap.framework');
+                HTMLHelper::_('form.csrf');
                 $wa = $this->document->getWebAssetManager();
                 if ($wa->assetExists('script', 'bootstrap.modal')) {
                     $wa->useScript('bootstrap.modal');

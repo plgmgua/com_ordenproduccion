@@ -1020,9 +1020,14 @@ class PrecotizacionController extends BaseController
      */
     public function solicitarDescuento()
     {
-        if (!Session::checkToken('post')) {
+        if (!Session::checkToken('request')) {
             $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            $rid = (int) $this->input->getInt('id', 0);
+            $this->setRedirect(
+                $rid > 0
+                    ? Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $rid, false)
+                    : Route::_('index.php?option=com_ordenproduccion&view=cotizador', false)
+            );
 
             return false;
         }

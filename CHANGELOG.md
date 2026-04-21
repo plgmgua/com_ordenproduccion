@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.67-STABLE] - 2026-04-16
+
+### Fixed
+- **Pre-cotización → Solicitar descuento:** Validación CSRF alineada con el resto de tareas de `PrecotizacionController` (`checkToken('request')`), acción del formulario como URL absoluta compatible con SEF e `Itemid`, campos ocultos `option`/`task`, y redirección con token inválido de vuelta al documento. Vista documento: `HTMLHelper::_('form.csrf')`.
+
 ## [3.109.66-STABLE] - 2026-04-16
 
 ### Changed
