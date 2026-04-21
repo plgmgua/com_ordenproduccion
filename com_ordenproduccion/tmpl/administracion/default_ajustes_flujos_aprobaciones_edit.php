@@ -107,11 +107,17 @@ $formId = 'adminFormApprovalWorkflowsSave';
                 <label class="form-label" for="awf-tg-assign-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_ASSIGN_LABEL'); ?></label>
                 <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_body_assign]" id="awf-tg-assign-<?php echo $wid; ?>" rows="6"><?php echo htmlspecialchars((string) ($wf->email_body_assign ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_ASSIGN'); ?></p>
+                <?php if ($etype === 'payment_proof') : ?>
+                <p class="small text-muted mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_PAYMENT_PROOF'); ?></p>
+                <?php endif; ?>
             </div>
             <div class="col-12">
                 <label class="form-label" for="awf-tg-outcome-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_OUTCOME_LABEL'); ?></label>
                 <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_body_decided]" id="awf-tg-outcome-<?php echo $wid; ?>" rows="6"><?php echo htmlspecialchars((string) ($wf->email_body_decided ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_OUTCOME'); ?></p>
+                <?php if ($etype === 'payment_proof') : ?>
+                <p class="small text-muted mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_PAYMENT_PROOF'); ?></p>
+                <?php endif; ?>
             </div>
         </div>
 

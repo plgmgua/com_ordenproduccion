@@ -94,6 +94,10 @@ class ApprovalEmailQueueHelper
         }
 
         $type = (string) ($request->entity_type ?? '');
+        if ($type === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF) {
+            return 'PA-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
+        }
+
         if ($type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
             return (string) $pk;
         }
@@ -113,6 +117,107 @@ class ApprovalEmailQueueHelper
         }
 
         return 'PRE-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Format DB datetime for Telegram templates (site/user timezone when possible).
+     */
+    protected static function formatSqlDatetimeForTemplate(?string $sql): string
+    {
+        if ($sql === null || trim($sql) === '' || $sql === '0000-00-00 00:00:00') {
+            return '';
+        }
+
+        try {
+            return Factory::getDate($sql)->format(Text::_('DATE_FORMAT_LC4'));
+        } catch (\Throwable $e) {
+            return trim($sql);
+        }
+    }
+
+    /**
+     * Extra placeholders for payment_proof workflows (client + proof dates).
+     *
+     * @return array<string, string>
+     */
+    protected static function buildPaymentProofTemplateVars(DatabaseInterface $db, object $request): array
+    {
+        $proofId = (int) ($request->entity_id ?? 0);
+        if ($proofId < 1) {
+            return [
+                'proof_id'         => '0',
+                'proof_number'     => '',
+                'client_name'      => '',
+                'client_id'        => '',
+                'proof_created'    => '',
+                'request_created'  => '',
+            ];
+        }
+
+        $proofNumber = 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT);
+
+        $empty = [
+            'proof_id'         => (string) $proofId,
+            'proof_number'     => $proofNumber,
+            'client_name'      => '',
+            'client_id'        => '',
+            'proof_created'    => '',
+            'request_created'  => '',
+        ];
+
+        try {
+            $q = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('pp.created'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->where('pp.' . $db->quoteName('id') . ' = ' . $proofId)
+                ->setLimit(1);
+            $db->setQuery($q);
+            $proofRow = $db->loadObject();
+            if ($proofRow !== null && isset($proofRow->created)) {
+                $empty['proof_created'] = self::formatSqlDatetimeForTemplate((string) $proofRow->created);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        if (isset($request->created) && (string) $request->created !== '') {
+            $empty['request_created'] = self::formatSqlDatetimeForTemplate((string) $request->created);
+        }
+
+        try {
+            $orderCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $orderCols = is_array($orderCols) ? array_change_key_case($orderCols, CASE_LOWER) : [];
+            $hasClientName = isset($orderCols['client_name']);
+            $clientExpr    = $hasClientName ? 'o.client_name' : 'o.nombre_del_cliente';
+            $select        = [$clientExpr . ' AS client_name'];
+            if (isset($orderCols['client_id'])) {
+                $select[] = 'o.client_id';
+            } else {
+                $select[] = $db->quote('') . ' AS ' . $db->quoteName('client_id');
+            }
+
+            $q2 = $db->getQuery(true)
+                ->select($select)
+                ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
+                ->innerJoin(
+                    $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id'
+                )
+                ->where('po.' . $db->quoteName('payment_proof_id') . ' = ' . $proofId)
+                ->order('po.' . $db->quoteName('id') . ' ASC')
+                ->setLimit(1);
+            $db->setQuery($q2);
+            $row = $db->loadObject();
+            if ($row !== null) {
+                $empty['client_name'] = trim((string) ($row->client_name ?? ''));
+                if (isset($row->client_id)) {
+                    $empty['client_id'] = trim((string) $row->client_id);
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $empty;
     }
 
     /**
@@ -159,6 +264,10 @@ class ApprovalEmailQueueHelper
         }
         if (!isset($vars['submitter_username'])) {
             $vars['submitter_username'] = '';
+        }
+
+        if ((string) ($request->entity_type ?? '') === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF) {
+            $vars = array_merge($vars, self::buildPaymentProofTemplateVars($db, $request));
         }
 
         return $vars;
