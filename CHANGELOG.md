@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.69-STABLE] - 2026-04-21
+
+### Changed
+- **Ajustes → Grupos de aprobaciones (editar):** Los miembros se eligen con una lista multi-selección de usuarios Joomla activos (nombre y usuario), igual que en pasos de flujo «Usuario(s) individual(es)». El guardado acepta `member_user_ids[]` y mantiene compatibilidad con el envío por texto (IDs separados) si hiciera falta.
+
 ## [3.109.68-STABLE] - 2026-04-21
 
 ### Changed

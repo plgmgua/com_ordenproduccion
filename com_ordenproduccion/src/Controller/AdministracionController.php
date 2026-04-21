@@ -902,11 +902,21 @@ class AdministracionController extends BaseController
         $title       = trim($app->input->post->getString('title', ''));
         $description = trim($app->input->post->getString('description', ''));
         $published   = $app->input->post->getInt('published', 0) === 1;
-        $membersRaw  = $app->input->post->getString('member_user_ids', '');
-        $parts       = preg_split('/[\s,;]+/', $membersRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $userIds     = [];
-        foreach ($parts as $p) {
-            $userIds[] = (int) $p;
+        $membersPost = $app->input->post->get('member_user_ids', [], 'array');
+        if ($membersPost !== []) {
+            foreach ($membersPost as $p) {
+                $v = (int) $p;
+                if ($v > 0) {
+                    $userIds[] = $v;
+                }
+            }
+        } else {
+            $membersRaw = $app->input->post->getString('member_user_ids', '');
+            $parts      = preg_split('/[\s,;]+/', $membersRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            foreach ($parts as $p) {
+                $userIds[] = (int) $p;
+            }
         }
 
         $newId = $svc->adminSaveComponentApprovalGroup($groupId, [

@@ -1368,6 +1368,11 @@ class HtmlView extends BaseHtmlView
                     $this->approvalGroupEditorRow       = $row;
                     $this->approvalGroupEditorMemberIds = $wfSvc->getComponentApprovalGroupMemberIds($this->approvalGroupEditorId);
                 }
+                try {
+                    $this->approvalJoomlaUsersForSelect = $wfSvc->listJoomlaUsersForApprovalPicker();
+                } catch (\Throwable $e) {
+                    $this->approvalJoomlaUsersForSelect = [];
+                }
             } elseif ($this->approvalGroupsSchemaAvailable) {
                 $this->approvalReferenceJoomlaGroups = $wfSvc->listComponentApprovalGroupsWithMemberCount();
             }

@@ -25,6 +25,9 @@ $stepRows = isset($this->approvalWorkflowStepsApproverRows) && is_array($this->a
     ? $this->approvalWorkflowStepsApproverRows
     : [];
 $wfSchemaOk = !empty($this->approvalWorkflowSchemaAvailable);
+$joomlaUsers = isset($this->approvalJoomlaUsersForSelect) && is_array($this->approvalJoomlaUsersForSelect)
+    ? $this->approvalJoomlaUsersForSelect
+    : [];
 
 $listUrl  = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones');
 $newUrl   = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=grupos_aprobaciones&approval_group_id=0');
@@ -48,7 +51,11 @@ $delTask  = Route::_('index.php?option=com_ordenproduccion&task=administracion.d
             <div class="alert alert-warning mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUPS_SCHEMA_MISSING'); ?></div>
         <?php elseif ($editorId >= 0 && $row) :
             $gid = (int) ($row->id ?? 0);
-            $membersStr = implode(', ', $memberIds);
+            $userPickerSize = min(14, max(6, count($joomlaUsers)));
+            $memberIdSelected = [];
+            foreach ($memberIds as $mid) {
+                $memberIdSelected[(int) $mid] = true;
+            }
             ?>
             <p class="mb-3">
                 <a href="<?php echo $listUrl; ?>" class="btn btn-outline-secondary btn-sm">
@@ -79,9 +86,21 @@ $delTask  = Route::_('index.php?option=com_ordenproduccion&task=administracion.d
                     </div>
                     <div class="col-12">
                         <label class="form-label" for="ag-members"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_MEMBERS'); ?></label>
-                        <textarea class="form-control font-monospace" name="member_user_ids" id="ag-members" rows="4"
-                            placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_MEMBERS_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($membersStr, ENT_QUOTES, 'UTF-8'); ?></textarea>
-                        <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_MEMBERS_HELP'); ?></p>
+                        <select class="form-select" name="member_user_ids[]" id="ag-members" multiple="multiple" size="<?php echo (int) $userPickerSize; ?>">
+                            <?php foreach ($joomlaUsers as $ju) :
+                                $juid = (int) ($ju->id ?? 0);
+                                if ($juid < 1) {
+                                    continue;
+                                }
+                                $jnm = (string) ($ju->name ?? '');
+                                $jun = (string) ($ju->username ?? '');
+                                $label = $jnm . ' (' . $jun . ')';
+                                ?>
+                            <option value="<?php echo $juid; ?>"<?php echo isset($memberIdSelected[$juid]) ? ' selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="small text-muted mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_GROUP_MEMBERS_HELP'); ?></p>
+                        <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_USER_PICKER_HELP'); ?></p>
                     </div>
                 </div>
                 <div class="mt-3 d-flex flex-wrap gap-2">
