@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.68-STABLE] - 2026-04-21
+
+### Changed
+- **Aprobaciones / Telegram:** Para flujos `solicitud_descuento`, la variable `{entity_id}` en plantillas usa el **número de pre-cotización** (`number`, ej. PRE-00072), no el id numérico de fila. Si `number` viniera vacío, se usa `PRE-` + id con 5 dígitos. Otros tipos de entidad siguen usando el id numérico.
+
 ## [3.109.67-STABLE] - 2026-04-16
 
 ### Fixed

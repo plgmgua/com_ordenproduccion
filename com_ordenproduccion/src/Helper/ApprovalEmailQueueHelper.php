@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -80,11 +81,46 @@ class ApprovalEmailQueueHelper
     }
 
     /**
+     * Human-facing entity reference for Telegram templates.
+     * For solicitud_descuento, entity_id is the pre-cotización PK: use stored number (e.g. PRE-00072).
+     *
+     * @since  3.109.68
+     */
+    protected static function formatEntityIdForTelegram(DatabaseInterface $db, object $request): string
+    {
+        $pk = (int) ($request->entity_id ?? 0);
+        if ($pk < 1) {
+            return '0';
+        }
+
+        $type = (string) ($request->entity_type ?? '');
+        if ($type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+            return (string) $pk;
+        }
+
+        try {
+            $q = $db->getQuery(true)
+                ->select($db->quoteName('number'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $pk)
+                ->setLimit(1);
+            $db->setQuery($q);
+            $num = trim((string) $db->loadResult());
+            if ($num !== '') {
+                return $num;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return 'PRE-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * @param   array<string, string>  $base
      *
      * @return  array<string, string>
      */
-    protected static function buildBaseTemplateVars(object $request, ?object $workflow, User $recipient, array $base = []): array
+    protected static function buildBaseTemplateVars(DatabaseInterface $db, object $request, ?object $workflow, User $recipient, array $base = []): array
     {
         $app      = Factory::getApplication();
         $siteName = (string) $app->get('sitename', '');
@@ -95,7 +131,7 @@ class ApprovalEmailQueueHelper
 
         $vars = array_merge([
             'request_id'   => (string) (int) ($request->id ?? 0),
-            'entity_id'    => (string) (int) ($request->entity_id ?? 0),
+            'entity_id'    => self::formatEntityIdForTelegram($db, $request),
             'entity_type'  => (string) ($request->entity_type ?? ''),
             'workflow_name' => $workflow ? (string) ($workflow->name ?? '') : '',
             'workflow_description' => $workflow ? (string) ($workflow->description ?? '') : '',
@@ -151,7 +187,7 @@ class ApprovalEmailQueueHelper
             $template = Text::_('COM_ORDENPRODUCCION_APPROVAL_TELEGRAM_ASSIGN_DEFAULT');
         }
 
-        $vars = self::buildBaseTemplateVars($req, $wf, $approver, [
+        $vars = self::buildBaseTemplateVars($db, $req, $wf, $approver, [
             'approver_name'     => trim((string) $approver->name),
             'approver_username' => trim((string) $approver->username),
             'approver_id'       => (string) (int) $approver->id,
@@ -231,7 +267,7 @@ class ApprovalEmailQueueHelper
             ? Text::_('COM_ORDENPRODUCCION_APPROVAL_TELEGRAM_DECISION_APPROVED')
             : Text::_('COM_ORDENPRODUCCION_APPROVAL_TELEGRAM_DECISION_REJECTED');
 
-        $vars = self::buildBaseTemplateVars($req, $wf, $submitter, [
+        $vars = self::buildBaseTemplateVars($db, $req, $wf, $submitter, [
             'decision'        => $outcome,
             'decision_label'  => $decisionLabel,
             'comments'        => $comments,
