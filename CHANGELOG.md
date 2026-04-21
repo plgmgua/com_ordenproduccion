@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.66-STABLE] - 2026-04-16
+
+### Changed
+- **Flujos de aprobaciones (editar):** Los cuatro campos de correo (asunto/cuerpo asignación y decisión) se sustituyen por dos áreas de texto para **mensajes GrimpsaBot (Telegram)** al aprobar y al notificar el resultado, con ayuda de variables `{placeholder}`. Los asuntos de correo dejan de usarse (se guardan en NULL al guardar el flujo).
+
+### Added
+- Cadenas de idioma para plantillas por defecto y etiquetas de variables (`COM_ORDENPRODUCCION_APPROVAL_TELEGRAM_*`, `COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_*`).
+
 ## [3.109.65-STABLE] - 2026-04-16
 
 ### Added

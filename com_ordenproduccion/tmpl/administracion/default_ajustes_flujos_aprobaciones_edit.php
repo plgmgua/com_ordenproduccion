@@ -79,6 +79,8 @@ $formId = 'adminFormApprovalWorkflowsSave';
     <form action="<?php echo htmlspecialchars($saveAction, ENT_QUOTES, 'UTF-8'); ?>" method="post" id="<?php echo $formId; ?>" class="form-validate">
         <?php echo HTMLHelper::_('form.token'); ?>
         <input type="hidden" name="awf_return_wf_id" value="<?php echo $wid; ?>" />
+        <input type="hidden" name="awf_workflow[<?php echo $wid; ?>][email_subject_assign]" value="" />
+        <input type="hidden" name="awf_workflow[<?php echo $wid; ?>][email_subject_decided]" value="" />
 
         <div class="row g-2 mb-2">
             <div class="col-md-6">
@@ -97,23 +99,19 @@ $formId = 'adminFormApprovalWorkflowsSave';
                 <label class="form-label" for="awf-desc-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WF_DESCRIPTION'); ?></label>
                 <textarea class="form-control" name="awf_workflow[<?php echo $wid; ?>][description]" id="awf-desc-<?php echo $wid; ?>" rows="2"><?php echo htmlspecialchars((string) ($wf->description ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
             </div>
-            <div class="col-md-6">
-                <label class="form-label" for="awf-em-as-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_EMAIL_ASSIGN_SUBJECT'); ?></label>
-                <input type="text" class="form-control" name="awf_workflow[<?php echo $wid; ?>][email_subject_assign]" id="awf-em-as-<?php echo $wid; ?>"
-                    value="<?php echo htmlspecialchars((string) ($wf->email_subject_assign ?? ''), ENT_QUOTES, 'UTF-8'); ?>" maxlength="255" />
+            <div class="col-12">
+                <h4 class="h6 mt-2 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_MESSAGES'); ?></h4>
+                <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_INTRO'); ?></p>
             </div>
-            <div class="col-md-6">
-                <label class="form-label" for="awf-em-ds-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_EMAIL_DECIDED_SUBJECT'); ?></label>
-                <input type="text" class="form-control" name="awf_workflow[<?php echo $wid; ?>][email_subject_decided]" id="awf-em-ds-<?php echo $wid; ?>"
-                    value="<?php echo htmlspecialchars((string) ($wf->email_subject_decided ?? ''), ENT_QUOTES, 'UTF-8'); ?>" maxlength="255" />
+            <div class="col-12">
+                <label class="form-label" for="awf-tg-assign-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_ASSIGN_LABEL'); ?></label>
+                <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_body_assign]" id="awf-tg-assign-<?php echo $wid; ?>" rows="6"><?php echo htmlspecialchars((string) ($wf->email_body_assign ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_ASSIGN'); ?></p>
             </div>
-            <div class="col-md-6">
-                <label class="form-label" for="awf-em-ab-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_EMAIL_ASSIGN_BODY'); ?></label>
-                <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_body_assign]" id="awf-em-ab-<?php echo $wid; ?>" rows="4"><?php echo htmlspecialchars((string) ($wf->email_body_assign ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label" for="awf-em-db-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_EMAIL_DECIDED_BODY'); ?></label>
-                <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_body_decided]" id="awf-em-db-<?php echo $wid; ?>" rows="4"><?php echo htmlspecialchars((string) ($wf->email_body_decided ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+            <div class="col-12">
+                <label class="form-label" for="awf-tg-outcome-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_OUTCOME_LABEL'); ?></label>
+                <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_body_decided]" id="awf-tg-outcome-<?php echo $wid; ?>" rows="6"><?php echo htmlspecialchars((string) ($wf->email_body_decided ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_OUTCOME'); ?></p>
             </div>
         </div>
 

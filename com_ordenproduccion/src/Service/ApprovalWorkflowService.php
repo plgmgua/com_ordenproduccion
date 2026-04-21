@@ -504,6 +504,7 @@ class ApprovalWorkflowService
                 ApprovalAuditHelper::log($requestId, 'rejected', $userId, 'pending', 'rejected', $comments);
                 $this->onRequestRejected($req, $userId);
                 $this->db->transactionCommit();
+                ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'rejected', $userId, $comments);
 
                 return true;
             }
@@ -558,6 +559,7 @@ class ApprovalWorkflowService
                     $this->onRequestFullyApproved($reqFresh, $userId);
                 }
                 $this->db->transactionCommit();
+                ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $userId, $comments);
 
                 return true;
             }
