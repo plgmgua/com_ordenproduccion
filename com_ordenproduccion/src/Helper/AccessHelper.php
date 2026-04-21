@@ -174,6 +174,29 @@ class AccessHelper
     }
 
     /**
+     * Whether the user may open the Proveedores (vendors) view — list at minimum.
+     * Ventas-only: read-only list; Administración / Admon: full UI per canManage rules.
+     *
+     * @return  bool
+     *
+     * @since   3.111.2
+     */
+    public static function canViewProveedores(): bool
+    {
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        return self::isInVentasGroup() || self::isInAdministracionOrAdmonGroup();
+    }
+
+    /**
      * Whether the current user may register a **new** vendor (Proveedores).
      * Allowed: global config admins and members of the **Administracion / Administración** group (incl. id 12).
      * Not allowed: **Admon-only** users (they may still view/edit existing if they pass the tab ACL).

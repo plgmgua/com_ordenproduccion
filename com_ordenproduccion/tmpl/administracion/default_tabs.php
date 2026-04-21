@@ -25,6 +25,7 @@ $canSeeVentasTabs = $isVentas || $isAdministracionOrAdmon;
 $canSeeAdminTabs = $isAdministracionOrAdmon;
 $canSeeAprobacionesTab = AccessHelper::canViewApprovalWorkflowTab();
 $aprobacionesPendingCount = AccessHelper::getPendingApprovalCountForUser();
+$canSeeProveedoresTab  = AccessHelper::canViewProveedores();
 
 // Default tab: Ventas see resumen; Admin can use requested or resumen. workorders tab removed.
 $activeTab = $input->get('tab', 'resumen', 'string');
@@ -114,16 +115,19 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     </a>
     <?php endif; ?>
 
+    <?php if ($canSeeProveedoresTab) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=proveedores'); ?>"
+       class="admin-tab">
+        <i class="fas fa-truck-loading"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_PROVEEDORES'); ?>
+    </a>
+    <?php endif; ?>
+
     <?php if ($canSeeAdminTabs) : ?>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>"
        class="admin-tab <?php echo $activeTab === 'invoices' ? 'active' : ''; ?>">
         <i class="fas fa-file-invoice-dollar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_INVOICES'); ?>
-    </a>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=proveedores'); ?>"
-       class="admin-tab">
-        <i class="fas fa-truck-loading"></i>
-        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_PROVEEDORES'); ?>
     </a>
     <?php endif; ?>
 

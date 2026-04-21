@@ -25,6 +25,7 @@ $productos      = isset($this->proveedorProductos) && is_array($this->proveedorP
 $rows           = isset($this->proveedoresList) && is_array($this->proveedoresList) ? $this->proveedoresList : [];
 $showForm       = is_object($proveedorEdit);
 $adminUrl       = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false);
+$canManage      = !empty($this->canManageProveedores);
 ?>
 <div class="proveedores-page container py-3">
     <p class="mb-3">
@@ -77,18 +78,17 @@ $adminUrl       = Route::_('index.php?option=com_ordenproduccion&view=administra
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_COL_CONTACT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_COL_PHONE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_COL_STATE'); ?></th>
-                        <th></th>
+                        <?php if ($canManage) : ?><th></th><?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if ($rows === []) : ?>
-                    <tr><td colspan="6" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_EMPTY'); ?></td></tr>
+                    <tr><td colspan="<?php echo $canManage ? 6 : 5; ?>" class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_EMPTY'); ?></td></tr>
                     <?php else : ?>
                         <?php foreach ($rows as $r) : ?>
                             <?php
-                            $rid   = (int) ($r->id ?? 0);
-                            $st    = (int) ($r->state ?? 0);
-                            $editU = Route::_('index.php?option=com_ordenproduccion&view=proveedores&proveedor_id=' . $rid, false);
+                            $rid = (int) ($r->id ?? 0);
+                            $st  = (int) ($r->state ?? 0);
                             ?>
                         <tr>
                             <td><?php echo htmlspecialchars((string) ($r->name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
@@ -102,9 +102,13 @@ $adminUrl       = Route::_('index.php?option=com_ordenproduccion&view=administra
                                     <span class="badge bg-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_STATE_INACTIVE'); ?></span>
                                 <?php endif; ?>
                             </td>
+                            <?php if ($canManage) :
+                                $editU = Route::_('index.php?option=com_ordenproduccion&view=proveedores&proveedor_id=' . $rid, false);
+                                ?>
                             <td class="text-end text-nowrap">
                                 <a class="btn btn-outline-primary btn-sm" href="<?php echo htmlspecialchars($editU, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('JACTION_EDIT'); ?></a>
                             </td>
+                            <?php endif; ?>
                         </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

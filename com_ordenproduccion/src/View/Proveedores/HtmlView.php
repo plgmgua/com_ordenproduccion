@@ -42,6 +42,14 @@ class HtmlView extends BaseHtmlView
     protected $proveedoresStateFilter = '';
 
     /**
+     * Create / edit / delete vendors (Administración or Admon).
+     *
+     * @var    bool
+     * @since  3.111.2
+     */
+    public $canManageProveedores = false;
+
+    /**
      * @param   string|null  $tpl  Template name
      *
      * @return  void
@@ -51,12 +59,14 @@ class HtmlView extends BaseHtmlView
         $app   = Factory::getApplication();
         $input = $app->input;
 
-        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if (!AccessHelper::canViewProveedores()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'warning');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
 
             return;
         }
+
+        $this->canManageProveedores = AccessHelper::isInAdministracionOrAdmonGroup();
 
         $lang = $app->getLanguage();
         $lang->load('com_ordenproduccion', JPATH_SITE);
@@ -75,6 +85,11 @@ class HtmlView extends BaseHtmlView
         }
 
         $proveedorId = $input->getInt('proveedor_id', -1);
+
+        if (!$this->canManageProveedores && $proveedorId >= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_LIST_ONLY'), 'notice');
+            $proveedorId = -1;
+        }
 
         try {
             $admModel = Factory::getApplication()
