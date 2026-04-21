@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_ORDENPRODUCCION_MENU_ADMINISTRACION_PROVEEDORES_TITLE">
+        <message>COM_ORDENPRODUCCION_MENU_ADMINISTRACION_PROVEEDORES_DESC</message>
+    </layout>
+    <fields name="request">
+        <fieldset name="request">
+            <field
+                name="tab"
+                type="hidden"
+                default="proveedores"
+            />
+        </fieldset>
+    </fields>
+</metadata>

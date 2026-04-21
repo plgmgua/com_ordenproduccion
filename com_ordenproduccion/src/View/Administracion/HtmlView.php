@@ -719,6 +719,11 @@ class HtmlView extends BaseHtmlView
         $app = Factory::getApplication();
         $input = $app->input;
 
+        // Menu item layout "proveedores" (dedicated menu type); keep tab aligned for SEF URLs that omit &tab=
+        if ($this->getLayout() === 'proveedores') {
+            $input->set('tab', 'proveedores');
+        }
+
         // Load component language files - standard Joomla way
         $lang = $app->getLanguage();
         // Load site language (usually in components/com_ordenproduccion/language)
