@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.109.65-STABLE] - 2026-04-16
+
+### Added
+- **Flujos de aprobaciones (editar paso):** Tipo «Usuario(s) individual(es)» con lista multi-selección de usuarios Joomla activos (`listJoomlaUsersForApprovalPicker`). El valor guardado sigue siendo `approver_type=user` y `approver_value` como ids separados por coma (uno o varios).
+
+### Changed
+- **ApprovalWorkflowService:** `user` resuelve varios ids; validación al guardar comprueba que existan y no estén bloqueados.
+
 ## [3.109.64-STABLE] - 2026-04-16
 
 ### Added

@@ -20,7 +20,11 @@ $steps  = isset($bundle['steps']) && is_array($bundle['steps']) ? $bundle['steps
 $groups = isset($this->approvalComponentGroupsForSelect) && is_array($this->approvalComponentGroupsForSelect)
     ? $this->approvalComponentGroupsForSelect
     : [];
+$joomlaUsers = isset($this->approvalJoomlaUsersForSelect) && is_array($this->approvalJoomlaUsersForSelect)
+    ? $this->approvalJoomlaUsersForSelect
+    : [];
 $hasGroupSchema = !empty($this->approvalGroupsSchemaAvailable);
+$userPickerSize = min(14, max(6, count($joomlaUsers)));
 
 if (!$wf || !isset($wf->id)) {
     return;
@@ -150,14 +154,41 @@ $formId = 'adminFormApprovalWorkflowsSave';
                     <div class="col-md-4">
                         <label class="form-label" for="awf-st-at-<?php echo $sid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_APPROVER_TYPE'); ?></label>
                         <select class="form-select awf-approver-type" form="<?php echo $formId; ?>" name="awf_step[<?php echo $sid; ?>][approver_type]" id="awf-st-at-<?php echo $sid; ?>" data-step="<?php echo $sid; ?>">
-                            <option value="user"<?php echo $atype === 'user' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_USER'); ?></option>
+                            <option value="user"<?php echo $atype === 'user' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_INDIVIDUAL_USERS'); ?></option>
                             <option value="approval_group"<?php echo $atype === 'approval_group' ? ' selected' : ''; ?><?php echo !$hasGroupSchema ? ' disabled' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_APPROVAL_GROUP'); ?></option>
-                            <option value="joomla_group"<?php echo $atype === 'joomla_group' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_JOOMLA_GROUP'); ?></option>
-                            <option value="named_group"<?php echo $atype === 'named_group' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_NAMED_GROUP'); ?></option>
+                            <optgroup label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVER_OPTGROUP_LEGACY'), ENT_QUOTES, 'UTF-8'); ?>">
+                                <option value="joomla_group"<?php echo $atype === 'joomla_group' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_JOOMLA_GROUP'); ?></option>
+                                <option value="named_group"<?php echo $atype === 'named_group' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TYPE_NAMED_GROUP'); ?></option>
+                            </optgroup>
                         </select>
+                        <p class="small text-muted mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_APPROVER_TYPE_HELP'); ?></p>
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label" for="awf-st-av-<?php echo $sid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_APPROVER_VALUE'); ?></label>
+                        <label class="form-label awf-label-user-pick<?php echo $atype !== 'user' ? ' d-none' : ''; ?>" id="awf-lbl-user-<?php echo $sid; ?>" for="awf-st-us-<?php echo $sid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_USER_PICKER_LABEL'); ?></label>
+                        <label class="form-label awf-label-legacy-val<?php echo in_array($atype, ['joomla_group', 'named_group'], true) ? '' : ' d-none'; ?>" id="awf-lbl-legacy-<?php echo $sid; ?>" for="awf-st-av-<?php echo $sid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_APPROVER_VALUE'); ?></label>
+                        <label class="form-label awf-label-group-pick<?php echo $atype !== 'approval_group' ? ' d-none' : ''; ?>" id="awf-lbl-ag-<?php echo $sid; ?>" for="awf-st-ag-<?php echo $sid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_APPROVER_GROUP_PICK'); ?></label>
+                        <select class="form-select awf-user-multiselect mb-2<?php echo $atype !== 'user' ? ' d-none' : ''; ?>"
+                            form="<?php echo $formId; ?>"
+                            name="awf_step[<?php echo $sid; ?>][approver_user_ids][]"
+                            id="awf-st-us-<?php echo $sid; ?>"
+                            multiple="multiple"
+                            size="<?php echo (int) $userPickerSize; ?>"
+                            data-step="<?php echo $sid; ?>"
+                            <?php echo $atype !== 'user' ? 'disabled' : ''; ?>>
+                            <?php
+                            $selUids = array_unique(array_filter(array_map('intval', explode(',', (string) ($st->approver_value ?? ''))), static function ($id) {
+                                return $id > 0;
+                            }));
+                            foreach ($joomlaUsers as $ju) :
+                                $juid = (int) ($ju->id ?? 0);
+                                $jnm  = (string) ($ju->name ?? '');
+                                $jun  = (string) ($ju->username ?? '');
+                                $label = $jnm . ' (' . $jun . ')';
+                                ?>
+                            <option value="<?php echo $juid; ?>"<?php echo in_array($juid, $selUids, true) ? ' selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="small text-muted awf-help-user-pick mb-2<?php echo $atype !== 'user' ? ' d-none' : ''; ?>" id="awf-help-user-<?php echo $sid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_USER_PICKER_HELP'); ?></p>
                         <?php if ($hasGroupSchema) : ?>
                         <select class="form-select awf-approver-group-select mb-2<?php echo $atype !== 'approval_group' ? ' d-none' : ''; ?>" id="awf-st-ag-<?php echo $sid; ?>" data-step="<?php echo $sid; ?>">
                             <?php foreach ($groups as $g) :
@@ -173,8 +204,11 @@ $formId = 'adminFormApprovalWorkflowsSave';
                             <?php endforeach; ?>
                         </select>
                         <?php endif; ?>
-                        <input type="text" class="form-control awf-approver-value-input" form="<?php echo $formId; ?>" name="awf_step[<?php echo $sid; ?>][approver_value]" id="awf-st-av-<?php echo $sid; ?>"
-                            value="<?php echo htmlspecialchars((string) ($st->approver_value ?? ''), ENT_QUOTES, 'UTF-8'); ?>" required maxlength="512"
+                        <input type="text" class="form-control awf-approver-value-input<?php echo ($atype === 'user' || $atype === 'approval_group') ? ' d-none' : ''; ?>" form="<?php echo $formId; ?>" name="awf_step[<?php echo $sid; ?>][approver_value]" id="awf-st-av-<?php echo $sid; ?>"
+                            value="<?php echo htmlspecialchars((string) ($st->approver_value ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                            <?php echo in_array($atype, ['joomla_group', 'named_group'], true) ? 'required ' : ''; ?>
+                            <?php echo $atype === 'user' ? 'disabled ' : ''; ?>
+                            maxlength="512"
                             autocomplete="off"<?php echo ($hasGroupSchema && $atype === 'approval_group') ? ' readonly' : ''; ?> />
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
@@ -214,18 +248,55 @@ $formId = 'adminFormApprovalWorkflowsSave';
 </form>
 <script>
 (function () {
+  function toggleLabels(stepId, mode) {
+    var lu = document.getElementById('awf-lbl-user-' + stepId);
+    var ll = document.getElementById('awf-lbl-legacy-' + stepId);
+    var lg = document.getElementById('awf-lbl-ag-' + stepId);
+    var hu = document.getElementById('awf-help-user-' + stepId);
+    if (lu) lu.classList.toggle('d-none', mode !== 'user');
+    if (ll) ll.classList.toggle('d-none', mode !== 'joomla_group' && mode !== 'named_group');
+    if (lg) lg.classList.toggle('d-none', mode !== 'approval_group');
+    if (hu) hu.classList.toggle('d-none', mode !== 'user');
+  }
   function syncStep(stepId) {
     var sel = document.getElementById('awf-st-at-' + stepId);
     var inp = document.getElementById('awf-st-av-' + stepId);
     var gsel = document.getElementById('awf-st-ag-' + stepId);
+    var umul = document.getElementById('awf-st-us-' + stepId);
     if (!sel || !inp) return;
-    if (sel.value === 'approval_group' && gsel) {
+    var mode = sel.value;
+    toggleLabels(stepId, mode);
+    if (mode === 'user') {
+      inp.classList.add('d-none');
+      inp.removeAttribute('required');
+      inp.setAttribute('disabled', 'disabled');
+      if (umul) {
+        umul.classList.remove('d-none');
+        umul.removeAttribute('disabled');
+      }
+      if (gsel) gsel.classList.add('d-none');
+      inp.removeAttribute('readonly');
+    } else if (mode === 'approval_group' && gsel) {
+      if (umul) {
+        umul.classList.add('d-none');
+        umul.setAttribute('disabled', 'disabled');
+      }
+      inp.classList.remove('d-none');
       inp.setAttribute('readonly', 'readonly');
+      inp.removeAttribute('disabled');
+      inp.removeAttribute('required');
       gsel.classList.remove('d-none');
       inp.value = gsel.value || '';
     } else {
-      inp.removeAttribute('readonly');
+      if (umul) {
+        umul.classList.add('d-none');
+        umul.setAttribute('disabled', 'disabled');
+      }
       if (gsel) gsel.classList.add('d-none');
+      inp.classList.remove('d-none');
+      inp.removeAttribute('readonly');
+      inp.removeAttribute('disabled');
+      inp.setAttribute('required', 'required');
     }
   }
   document.querySelectorAll('.awf-approver-type').forEach(function (sel) {

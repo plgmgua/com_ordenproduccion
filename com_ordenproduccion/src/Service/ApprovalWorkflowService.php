@@ -734,9 +734,11 @@ class ApprovalWorkflowService
         }
 
         if ($type === 'user') {
-            $uid = (int) $value;
+            $uids = array_unique(array_filter(array_map('intval', explode(',', $value)), static function ($id) {
+                return $id > 0;
+            }));
 
-            return $uid > 0 ? [$uid] : [];
+            return array_values($uids);
         }
 
         if ($type === 'joomla_group') {
@@ -811,6 +813,30 @@ class ApprovalWorkflowService
         }
 
         return $this->getUserIdsInJoomlaGroups($groupIds);
+    }
+
+    /**
+     * Active Joomla users for workflow step picker (block = 0, id &gt; 0).
+     *
+     * @return  array<int, object>  Objects: id, name, username
+     *
+     * @since   3.109.65
+     */
+    public function listJoomlaUsersForApprovalPicker(): array
+    {
+        $q = $this->db->getQuery(true)
+            ->select([
+                $this->db->quoteName('id'),
+                $this->db->quoteName('name'),
+                $this->db->quoteName('username'),
+            ])
+            ->from($this->db->quoteName('#__users'))
+            ->where($this->db->quoteName('block') . ' = 0')
+            ->where($this->db->quoteName('id') . ' > 0')
+            ->order($this->db->quoteName('name') . ' ASC, ' . $this->db->quoteName('username') . ' ASC');
+        $this->db->setQuery($q);
+
+        return $this->db->loadObjectList() ?: [];
     }
 
     /**
@@ -1456,6 +1482,28 @@ class ApprovalWorkflowService
         $approverValue = isset($data['approver_value']) ? trim((string) $data['approver_value']) : '';
         if ($approverValue === '' || strlen($approverValue) > 512) {
             return false;
+        }
+
+        if ($approverType === 'user') {
+            if (!preg_match('/^\d+(,\d+)*$/', $approverValue)) {
+                return false;
+            }
+            $uids = array_unique(array_filter(array_map('intval', explode(',', $approverValue)), static function ($id) {
+                return $id > 0;
+            }));
+            if ($uids === []) {
+                return false;
+            }
+            $in = implode(',', $uids);
+            $qchk = $this->db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($this->db->quoteName('#__users'))
+                ->where($this->db->quoteName('id') . ' IN (' . $in . ')')
+                ->where($this->db->quoteName('block') . ' = 0');
+            $this->db->setQuery($qchk);
+            if ((int) $this->db->loadResult() !== count($uids)) {
+                return false;
+            }
         }
 
         if ($approverType === 'approval_group') {

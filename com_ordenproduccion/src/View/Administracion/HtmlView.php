@@ -485,6 +485,14 @@ class HtmlView extends BaseHtmlView
     protected $approvalComponentGroupsForSelect = [];
 
     /**
+     * Multiselect: active Joomla users (workflow step approvers).
+     *
+     * @var    array<int, object>
+     * @since  3.109.65
+     */
+    protected $approvalJoomlaUsersForSelect = [];
+
+    /**
      * Whether ordenproduccion_approval_groups tables exist.
      *
      * @var    bool
@@ -568,6 +576,7 @@ class HtmlView extends BaseHtmlView
                 'approvalWorkflowEditId' => (int) ($this->approvalWorkflowEditId ?? 0),
                 'approvalWorkflowEditBundle' => $this->approvalWorkflowEditBundle ?? null,
                 'approvalComponentGroupsForSelect' => is_array($this->approvalComponentGroupsForSelect ?? null) ? $this->approvalComponentGroupsForSelect : [],
+                'approvalJoomlaUsersForSelect' => is_array($this->approvalJoomlaUsersForSelect ?? null) ? $this->approvalJoomlaUsersForSelect : [],
                 'approvalGroupsSchemaAvailable' => (bool) ($this->approvalGroupsSchemaAvailable ?? false),
                 'approvalGroupEditorId' => (int) ($this->approvalGroupEditorId ?? -1),
                 'approvalGroupEditorRow' => $this->approvalGroupEditorRow ?? null,
@@ -654,6 +663,9 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'approvalComponentGroupsForSelect') {
             return is_array($this->approvalComponentGroupsForSelect ?? null) ? $this->approvalComponentGroupsForSelect : [];
+        }
+        if ($property === 'approvalJoomlaUsersForSelect') {
+            return is_array($this->approvalJoomlaUsersForSelect ?? null) ? $this->approvalJoomlaUsersForSelect : [];
         }
         if ($property === 'approvalGroupsSchemaAvailable') {
             return (bool) ($this->approvalGroupsSchemaAvailable ?? false);
@@ -812,6 +824,7 @@ class HtmlView extends BaseHtmlView
         $this->approvalWorkflowEditId = 0;
         $this->approvalWorkflowEditBundle = null;
         $this->approvalComponentGroupsForSelect = [];
+        $this->approvalJoomlaUsersForSelect = [];
         $this->approvalGroupsSchemaAvailable = false;
         $this->approvalGroupEditorId = -1;
         $this->approvalGroupEditorRow = null;
@@ -1309,6 +1322,11 @@ class HtmlView extends BaseHtmlView
                             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=flujos_aprobaciones', false));
                             return;
                         }
+                        try {
+                            $this->approvalJoomlaUsersForSelect = $approvalService->listJoomlaUsersForApprovalPicker();
+                        } catch (\Throwable $e) {
+                            $this->approvalJoomlaUsersForSelect = [];
+                        }
                     } else {
                         try {
                             $this->approvalWorkflowsListSummary = $approvalService->getWorkflowsListSummaryForAdmin();
@@ -1467,9 +1485,31 @@ class HtmlView extends BaseHtmlView
         }
 
         if ($type === 'user') {
-            $uid = (int) $val;
+            $uids = array_unique(array_filter(array_map('intval', explode(',', $val)), static function ($id) {
+                return $id > 0;
+            }));
+            if ($uids === []) {
+                return '—';
+            }
+            $in = implode(',', $uids);
+            $q  = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('id'),
+                    $db->quoteName('name'),
+                    $db->quoteName('username'),
+                ])
+                ->from($db->quoteName('#__users'))
+                ->where($db->quoteName('id') . ' IN (' . $in . ')')
+                ->order($db->quoteName('name') . ' ASC');
+            $db->setQuery($q);
+            $rows = $db->loadObjectList() ?: [];
+            $parts = [];
+            foreach ($rows as $ur) {
+                $parts[] = htmlspecialchars((string) ($ur->name ?? ''), ENT_QUOTES, 'UTF-8')
+                    . ' (' . htmlspecialchars((string) ($ur->username ?? ''), ENT_QUOTES, 'UTF-8') . ')';
+            }
 
-            return $uid > 0 ? Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_GROUPS_DISPLAY_USER', $uid) : '—';
+            return $parts !== [] ? implode('; ', $parts) : $val;
         }
 
         if ($type === 'joomla_group') {

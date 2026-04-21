@@ -752,6 +752,18 @@ class AdministracionController extends BaseController
             if ($sid < 1 || !is_array($fields)) {
                 continue;
             }
+            $atype = strtolower(trim((string) ($fields['approver_type'] ?? '')));
+            if ($atype === 'user' && isset($fields['approver_user_ids']) && is_array($fields['approver_user_ids'])) {
+                $picked = [];
+                foreach ($fields['approver_user_ids'] as $raw) {
+                    $picked[] = (int) $raw;
+                }
+                $picked = array_values(array_unique(array_filter($picked, static function ($id) {
+                    return $id > 0;
+                })));
+                $fields['approver_value'] = implode(',', $picked);
+                unset($fields['approver_user_ids']);
+            }
             if (!$svc->adminUpdateWorkflowStep($sid, $fields)) {
                 $fail = true;
             }
