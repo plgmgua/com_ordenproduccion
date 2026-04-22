@@ -632,11 +632,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             <div class="list-group small" id="vendor-quote-proveedor-list" role="listbox" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_SELECT_VENDOR')); ?>"></div>
                         </div>
                         <div class="col-md-7">
-                            <div id="vendor-quote-detail" class="d-none border rounded p-3 bg-light small">
-                                <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_VENDOR_DETAILS'); ?></h3>
-                                <dl class="row mb-0" id="vendor-quote-detail-dl"></dl>
-                            </div>
-                            <div id="vendor-quote-method-wrap" class="mt-3 d-none">
+                            <div id="vendor-quote-method-wrap" class="d-none">
                                 <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_METHOD_LABEL'); ?></div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="vendor_quote_method" id="vqm-email" value="email" checked>
@@ -688,8 +684,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 
         var listEl = document.getElementById('vendor-quote-proveedor-list');
         var statusEl = document.getElementById('vendor-quote-status');
-        var detailWrap = document.getElementById('vendor-quote-detail');
-        var detailDl = document.getElementById('vendor-quote-detail-dl');
         var methodWrap = document.getElementById('vendor-quote-method-wrap');
         var cellPanel = document.getElementById('vendor-quote-cell-panel');
         var cellText = document.getElementById('vendor-quote-cell-text');
@@ -735,13 +729,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             return u.toString();
         }
 
-        function esc(s) {
-            if (!s) return '';
-            var d = document.createElement('div');
-            d.textContent = s;
-            return d.innerHTML;
-        }
-
         function setStatus(t) {
             if (statusEl) statusEl.textContent = t;
         }
@@ -771,8 +758,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             selectedId = 0;
             cellLoaded = false;
             listEl.innerHTML = '';
-            detailDl.innerHTML = '';
-            detailWrap.classList.add('d-none');
             methodWrap.classList.add('d-none');
             cellPanel.classList.add('d-none');
             cellText.value = '';
@@ -782,16 +767,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             if (emailProveedorInput) emailProveedorInput.value = '';
         }
 
-        function renderDetail(p) {
-            detailDl.innerHTML = ''
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NAME')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.name) + '</dd>'
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NIT')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.nit) + '</dd>'
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_ADDRESS')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.address) + '</dd>'
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_PHONE')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.phone) + '</dd>'
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_NAME')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.contact_name) + '</dd>'
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_CELL')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.contact_cellphone) + '</dd>'
-                + '<dt class="col-sm-4">' + esc(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_EMAIL')); ?>) + '</dt><dd class="col-sm-8">' + esc(p.contact_email) + '</dd>';
-            detailWrap.classList.remove('d-none');
+        function renderDetail() {
             methodWrap.classList.remove('d-none');
             updatePrimaryButton();
         }
@@ -821,7 +797,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         setStatus(msgs.loadError);
                         return;
                     }
-                    renderDetail(data.proveedor);
+                    renderDetail();
                     setStatus('');
                 })
                 .catch(function() { setStatus(msgs.loadError); });
