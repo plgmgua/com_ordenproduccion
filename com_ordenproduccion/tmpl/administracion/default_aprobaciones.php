@@ -92,16 +92,11 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:220px;">
-                                <?php if ($etype === 'solicitud_descuento') : ?>
+                                <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion') : ?>
                                 <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
                                 </a>
                                 <?php else : ?>
-                                <?php if ($etype === 'solicitud_cotizacion') : ?>
-                                <a class="btn btn-primary btn-sm mb-2" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
-                                </a>
-                                <?php endif; ?>
                                 <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
                                     <?php echo HTMLHelper::_('form.token'); ?>
                                     <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />

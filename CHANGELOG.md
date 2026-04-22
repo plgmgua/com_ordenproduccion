@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.33-STABLE] - 2026-04-16
+
+### Changed
+- **Administración → Aprobaciones:** En solicitudes **solicitud_cotizacion** (pre-cot proveedor externo) solo se muestra **Abrir pre-cotización**; se ocultan Aprobar/Rechazar y notas (la aprobación puede completarse en el documento al guardar precios, como en solicitud de descuento).
+
 ## [3.113.32-STABLE] - 2026-04-16
 
 ### Added
