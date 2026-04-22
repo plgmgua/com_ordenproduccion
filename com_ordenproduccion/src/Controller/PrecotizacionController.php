@@ -778,7 +778,7 @@ class PrecotizacionController extends BaseController
         $app     = Factory::getApplication();
         $id      = (int) $app->input->post->get('id', 0);
         $eventId = (int) $app->input->post->get('event_id', 0);
-        $text    = $app->input->post->get('condiciones_entrega', '', 'string');
+        $text = trim((string) $app->input->post->get('condiciones_entrega', '', 'raw'));
 
         if ($id < 1 || $eventId < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');

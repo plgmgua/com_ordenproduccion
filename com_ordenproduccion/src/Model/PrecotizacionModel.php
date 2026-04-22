@@ -2493,7 +2493,7 @@ class PrecotizacionModel extends ListModel
      *
      * @param   int     $preCotizacionId  Pre-cotización id.
      * @param   int     $eventId          Event id.
-     * @param   string  $text             Plain text (max 512).
+     * @param   string  $text             Plain text (stored as TEXT, max ~64 KiB).
      *
      * @return  bool
      *
@@ -2529,8 +2529,9 @@ class PrecotizacionModel extends ListModel
         }
 
         $text = trim($text);
-        if (strlen($text) > 512) {
-            $text = substr($text, 0, 512);
+        $maxBytes = 65535;
+        if (strlen($text) > $maxBytes) {
+            $text = substr($text, 0, $maxBytes);
         }
         $value = $text !== '' ? $text : null;
 

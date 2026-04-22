@@ -180,6 +180,15 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-actions { width: 2.75rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-cond { min-width: 10rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log tr.precot-vendor-evt-cond-row td.col-evt-cond { max-width: none; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log tr.precot-vendor-evt-cond-row td.col-evt-cond textarea.form-control {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 5.5rem;
+    max-width: 100%;
+    resize: vertical;
+    box-sizing: border-box;
+}
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log tr.precot-vendor-evt-main-row td.col-evt-spacer { width: 0.01%; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-save { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
@@ -1057,13 +1066,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                     </tr>
                     <tr class="precot-vendor-evt-cond-row">
-                        <td colspan="6" class="col-evt-cond small p-2 border-top-0">
+                        <td colspan="6" class="col-evt-cond small p-2 border-top-0 w-100">
                             <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
-                            <input type="text" class="form-control form-control-sm" name="condiciones_entrega" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
-                                   maxlength="512" value="<?php echo htmlspecialchars($evtCondiciones); ?>" autocomplete="off"
-                                   aria-label="<?php echo htmlspecialchars($colEventCondiciones); ?>">
+                            <textarea name="condiciones_entrega" class="form-control" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
+                                      rows="4" autocomplete="off"
+                                      placeholder="<?php echo htmlspecialchars($colEventCondiciones); ?>"
+                                      aria-label="<?php echo htmlspecialchars($colEventCondiciones); ?>"><?php echo htmlspecialchars($evtCondiciones); ?></textarea>
                             <?php else : ?>
-                            <span class="d-block px-1 py-1"><?php echo $evtCondiciones !== '' ? htmlspecialchars($evtCondiciones) : '—'; ?></span>
+                            <div class="form-control-plaintext bg-light px-2 py-2 rounded mb-0 small" style="min-height: 5.5rem;"><?php echo $evtCondiciones !== '' ? nl2br(htmlspecialchars($evtCondiciones, ENT_QUOTES, 'UTF-8')) : '<span class="text-muted">—</span>'; ?></div>
                             <?php endif; ?>
                         </td>
                     </tr>

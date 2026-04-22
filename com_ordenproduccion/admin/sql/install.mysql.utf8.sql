@@ -526,7 +526,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_precot_vendor_quote_event` (
     `event_type` varchar(32) NOT NULL COMMENT 'email_sent|pdf_download|cellphone_compose',
     `meta` text COMMENT 'JSON: actor_name, to_email, subject, filename, phone, etc.',
     `vendor_quote_attachment` varchar(512) DEFAULT NULL COMMENT 'Relative path under site root (precot_vendor_quote)',
-    `condiciones_entrega` varchar(512) DEFAULT NULL COMMENT 'Delivery conditions for this request (user-editable)',
+    `condiciones_entrega` text COMMENT 'Delivery conditions for this request (user-editable)',
     `created` datetime NOT NULL,
     `created_by` int(11) NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
