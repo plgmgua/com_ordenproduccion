@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.44-STABLE] - 2026-04-22
+
+### Changed
+- **PDF (cotización / Ajustes):** `{CELULAR}`, `{USUARIO_CELULAR_HTML}` y `{USUARIO_CELULAR_WA_URL}` ya no insertan icono ni enlace a WhatsApp; solo el número formateado en texto.
+
+### Fixed
+- **Correo solicitud proveedor:** El icono usaba `data:` con SVG; muchos clientes lo bloquean o lo muestran mal. Ahora el `<img>` apunta a la URL absoluta de `media/com_ordenproduccion/images/whatsapp-icon.png` (PNG 128×128 generado desde el SVG oficial).
+
 ## [3.113.43-STABLE] - 2026-04-16
 
 ### Fixed

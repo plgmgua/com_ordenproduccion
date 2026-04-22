@@ -14,13 +14,16 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 
 /**
  * Placeholders supported in Ajustes de Cotización (PDF template).
  * Use these in Encabezado, Términos y Condiciones, Pie de página; they are replaced when generating the PDF.
  * User profile fields use Joomla custom field names: numero-de-celular, puesto-laboral, departamento, telefono, agente-de-ventas.
- * {CELULAR}, {USUARIO_CELULAR_HTML} y {USUARIO_CELULAR_WA_URL}: icono WhatsApp + número formateado enlazado a wa.me. {USUARIO_CELULAR}: texto crudo del perfil.
+ * En **PDF**, {CELULAR}, {USUARIO_CELULAR_HTML} y {USUARIO_CELULAR_WA_URL} se sustituyen por el número formateado en texto (sin icono ni enlace).
+ * Para **correo** con icono y enlace a wa.me use {@see buildCelularWhatsAppHtml()} desde el flujo de plantillas (p. ej. solicitud a proveedor).
+ * {USUARIO_CELULAR}: texto crudo del perfil.
  */
 class CotizacionPdfHelper
 {
@@ -50,15 +53,8 @@ class CotizacionPdfHelper
     /** Guatemala country calling code for WhatsApp (wa.me) normalization. */
     private const CELULAR_GT_CC = '502';
 
-    /** Site-relative path to WhatsApp **PNG** for FPDF (SVG is not supported by FPDF::Image). */
+    /** Site-relative path to WhatsApp mark **PNG** (correo HTML y FPDF). */
     private const WHATSAPP_ICON_MEDIA_PATH = 'media/com_ordenproduccion/images/whatsapp-icon.png';
-
-    /**
-     * Official-style WhatsApp mark (SVG) as base64 — used in HTML email with data URI.
-     *
-     * @since  3.113.43
-     */
-    private const WHATSAPP_ICON_SVG_BASE64 = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48cGF0aCBmaWxsPSIjMjVEMzY2IiBkPSJNNDQ4IDI1Ni4wMDNjMCAxNDEuMzc3LTExNC42MjMgMjU2LTI1NiAyNTZzLTI1Ni0xMTQuNjIzLTI1Ni0yNTYgMTE0LjYyMy0yNTYgMjU2LTI1NiAyNTYgMTE0LjYyMyAyNTYgMjU2em0tMjU2LTE5MmMtMTA1Ljg2OSAwLTE5MiA4Ni4xMzEtMTkyIDE5MiAwIDM3LjQyMSAxMC45OTkgNzIuMTc2IDI5Ljk5IDEwMS41NTFsLTMxLjk5IDkzLjA0MSA5Ni4zNjQtMzEuMTc1YzI4LjQxMiAxNS41MTIgNjAuOTQgMjQuNTgzIDk0LjYzNiAyNC41ODMgMTA1Ljg2OSAwIDE5Mi04Ni4xMzEgMTkyLTE5MiAwLTEwNS44NjktODYuMTMxLTE5Mi0xOTItMTkyem0xMDcuNzY5IDI2OS43NTJjLTQuNTM2IDEyLjc4NC0yNi41ODIgMjQuNTc1LTM2LjU2NiAyNi4xMDQtOS40MzQgMS40NDctMjEuMjc0IDIuMDYyLTYxLjg1My0xNC43ODItNTEuOTkzLTIxLjQ0MS04NS4yNTctNzMuOTYtODcuODE1LTc3LjM4NS0yLjU1OC0zLjQyNS0yMC43ODctMjcuNjU2LTIwLjc4Ny01Mi42NjMgMCAyNS4wMDcgMTMuMDI5IDM3LjQ5NiAxNy41NjQgNDIuNjk4IDQuNTM2IDUuMjAyIDkuMDcxIDYuNTAyIDEyLjE3MiA5Ljc1MiAzLjEwMSAzLjI1IDYuNTAyIDQuMDY1IDEyLjE3MiAyLjQwOCA1LjY3LTEuNjU3IDIxLjI3NC04LjMyNiAyNC4zNzUtMTYuMjUzIDMuMTAxLTcuOTI3IDMuMTAxLTE0LjY4NSAyLjE3Mi0xNi4yNTMtMC45MjktMS41NjgtMy4xMDEtMi40MDgtNi41MDItNC4wNjUtMy40MDEtMS42NTctMjEuMjc0LTguMzI2LTI0LjM3NS0xNi4yNTMtMy4xMDEtNy45MjctMy4xMDEtMTQuNjg1LTIuMTcyLTE2LjI1MyAwLjkyOS0xLjU2OCAzLjEwMS0yLjQwOCA2LjUwMi00LjA2NSAzLjQwMS0xLjY1NyAyMS4yNzQtOC4zMjYgMjQuMzc1LTE2LjI1MyAzLjEwMS03LjkyNyAzLjEwMS0xNC42ODUgMi4xNzItMTYuMjUzIi8+PC9zdmc+';
 
     /** Placeholder: puesto laboral (campo perfil puesto-laboral) */
     public const PLACEHOLDER_PUESTO = '{PUESTO}';
@@ -131,7 +127,7 @@ class CotizacionPdfHelper
 
         $agenteDeVentasCampo = $user ? self::getUserCustomField($user, self::USER_FIELD_AGENTE_DE_VENTAS) : '';
         $celularRaw  = $user ? self::getUserCelularRawForWa($user) : '';
-        $celular     = self::buildCelularWhatsAppHtml($celularRaw, false);
+        $celularPdf  = self::buildCelularPlainForPdf($celularRaw);
         $puesto      = $user ? self::getUserCustomField($user, self::USER_FIELD_PUESTO) : '';
         $departamento = $user ? self::getUserCustomField($user, self::USER_FIELD_DEPARTAMENTO) : '';
         $telefono    = $user ? self::getUserCustomField($user, self::USER_FIELD_TELEFONO) : '';
@@ -143,9 +139,9 @@ class CotizacionPdfHelper
             self::PLACEHOLDER_CONTACTO            => $contacto,
             self::PLACEHOLDER_AGENTE_VENTAS       => $agenteVentas,
             self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => $agenteDeVentasCampo,
-            self::PLACEHOLDER_CELULAR             => $celular,
-            self::PLACEHOLDER_USUARIO_CELULAR_HTML => $celular,
-            self::PLACEHOLDER_USUARIO_CELULAR_WA_URL => $celular,
+            self::PLACEHOLDER_CELULAR             => $celularPdf,
+            self::PLACEHOLDER_USUARIO_CELULAR_HTML => $celularPdf,
+            self::PLACEHOLDER_USUARIO_CELULAR_WA_URL => $celularPdf,
             self::PLACEHOLDER_USUARIO_CELULAR     => $celularRaw,
             self::PLACEHOLDER_PUESTO              => $puesto,
             self::PLACEHOLDER_DEPARTAMENTO        => $departamento,
@@ -270,10 +266,31 @@ class CotizacionPdfHelper
     }
 
     /**
-     * HTML fragment: small WhatsApp icon + linked number (Guatemala 502) for PDF blocks and emails.
+     * Número para pie de PDF: solo texto escapado (+502 …), sin icono ni enlace.
+     *
+     * @since  3.113.44
+     */
+    private static function buildCelularPlainForPdf(string $rawCelular): string
+    {
+        $raw = trim($rawCelular);
+        if ($raw === '') {
+            return '';
+        }
+        $waDigits = self::normalizeCelularDigitsForWaMe($raw);
+        if ($waDigits === '') {
+            return htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        }
+        $display = self::formatCelularDisplayGuatemala($waDigits);
+
+        return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * HTML fragment: small WhatsApp icon + linked number (Guatemala 502) for HTML email.
+     * Uses an absolute URL to the PNG on the site so clients that block data: and SVG still show the logo.
      *
      * @param   string  $rawCelular          Profile field value
-     * @param   bool    $absoluteImageUrl   If true, prefix icon src with site root (HTML email)
+     * @param   bool    $absoluteImageUrl   If true, icon src is full URL (HTML email). If false, site-relative path only.
      *
      * @return  string  Safe HTML or empty
      */
@@ -289,8 +306,9 @@ class CotizacionPdfHelper
         }
         $href = self::getCelularWaMeUrl($raw);
         $display = self::formatCelularDisplayGuatemala($waDigits);
+        $rel = ltrim(self::WHATSAPP_ICON_MEDIA_PATH, '/');
         $imgPath = $absoluteImageUrl
-            ? ('data:image/svg+xml;base64,' . self::WHATSAPP_ICON_SVG_BASE64)
+            ? (rtrim(Uri::root(), '/') . '/' . $rel)
             : self::WHATSAPP_ICON_MEDIA_PATH;
         $imgEsc = htmlspecialchars($imgPath, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $hrefEsc = htmlspecialchars($href, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -302,8 +320,8 @@ class CotizacionPdfHelper
         $altEsc = htmlspecialchars($alt, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
         return '<span style="white-space:nowrap;">'
-            . '<img src="' . $imgEsc . '" width="16" height="16" alt="' . $altEsc . '" '
-            . 'style="vertical-align:middle;margin-right:4px;" />'
+            . '<img src="' . $imgEsc . '" width="18" height="18" alt="' . $altEsc . '" '
+            . 'style="vertical-align:middle;margin-right:4px;border:0;display:inline-block;" />'
             . '<a href="' . $hrefEsc . '" style="vertical-align:middle;">' . $displayEsc . '</a>'
             . '</span>';
     }
