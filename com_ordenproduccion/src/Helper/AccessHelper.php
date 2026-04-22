@@ -175,7 +175,7 @@ class AccessHelper
 
     /**
      * Whether the user may open the Proveedores (vendors) view — list at minimum.
-     * Ventas-only: read-only list; Administración / Admon: full UI per canManage rules.
+     * Restricted to Administración / Admon (same as other back-office tabs); not Ventas.
      *
      * @return  bool
      *
@@ -193,7 +193,7 @@ class AccessHelper
             return true;
         }
 
-        return self::isInVentasGroup() || self::isInAdministracionOrAdmonGroup();
+        return self::isInAdministracionOrAdmonGroup();
     }
 
     /**
