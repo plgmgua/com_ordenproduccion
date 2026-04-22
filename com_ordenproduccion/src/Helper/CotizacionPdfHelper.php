@@ -13,12 +13,15 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 
 /**
  * Placeholders supported in Ajustes de Cotización (PDF template).
  * Use these in Encabezado, Términos y Condiciones, Pie de página; they are replaced when generating the PDF.
  * User profile fields use Joomla custom field names: numero-de-celular, puesto-laboral, departamento, telefono, agente-de-ventas.
+ * {CELULAR} expands to a WhatsApp icon + linked number (Guatemala +502) for PDF and HTML.
  */
 class CotizacionPdfHelper
 {
@@ -33,6 +36,12 @@ class CotizacionPdfHelper
 
     /** Placeholder: número de celular (campo perfil numero-de-celular) */
     public const PLACEHOLDER_CELULAR = '{CELULAR}';
+
+    /** Guatemala country calling code for WhatsApp (wa.me) normalization. */
+    private const CELULAR_GT_CC = '502';
+
+    /** Site-relative path to WhatsApp icon under media/com_ordenproduccion (PDF + HTML). */
+    private const WHATSAPP_ICON_MEDIA_PATH = 'media/com_ordenproduccion/images/whatsapp-icon.png';
 
     /** Placeholder: puesto laboral (campo perfil puesto-laboral) */
     public const PLACEHOLDER_PUESTO = '{PUESTO}';
@@ -101,7 +110,8 @@ class CotizacionPdfHelper
             : ($user ? $user->get('name') : '');
 
         $agenteDeVentasCampo = $user ? self::getUserCustomField($user, self::USER_FIELD_AGENTE_DE_VENTAS) : '';
-        $celular     = $user ? self::getUserCustomField($user, self::USER_FIELD_CELULAR) : '';
+        $celularRaw  = $user ? self::getUserCustomField($user, self::USER_FIELD_CELULAR) : '';
+        $celular     = self::buildCelularWhatsAppHtml($celularRaw, false);
         $puesto      = $user ? self::getUserCustomField($user, self::USER_FIELD_PUESTO) : '';
         $departamento = $user ? self::getUserCustomField($user, self::USER_FIELD_DEPARTAMENTO) : '';
         $telefono    = $user ? self::getUserCustomField($user, self::USER_FIELD_TELEFONO) : '';
@@ -120,6 +130,106 @@ class CotizacionPdfHelper
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), (string) $html);
+    }
+
+    /**
+     * Normalize profile cellphone to digits for https://wa.me/ (Guatemala: prefix 502 when missing).
+     *
+     * @param   string  $raw  Value from custom field numero-de-celular
+     *
+     * @return  string  Digits only (e.g. 502XXXXXXXX) or empty
+     */
+    public static function normalizeCelularDigitsForWaMe(string $raw): string
+    {
+        $d = preg_replace('/\D+/u', '', $raw);
+        if ($d === null || $d === '') {
+            return '';
+        }
+        if (strpos($d, self::CELULAR_GT_CC) === 0) {
+            return $d;
+        }
+
+        return self::CELULAR_GT_CC . $d;
+    }
+
+    /**
+     * Full WhatsApp chat URL for wa.me.
+     *
+     * @param   string  $raw  Raw profile cellphone
+     *
+     * @return  string  e.g. https://wa.me/50212345678
+     */
+    public static function getCelularWaMeUrl(string $raw): string
+    {
+        $digits = self::normalizeCelularDigitsForWaMe($raw);
+        if ($digits === '') {
+            return '';
+        }
+
+        return 'https://wa.me/' . $digits;
+    }
+
+    /**
+     * Display form +502 XXXX XXXX (or +digits) for anchor text.
+     *
+     * @param   string  $digitsForWa  From {@see normalizeCelularDigitsForWaMe()}
+     */
+    public static function formatCelularDisplayGuatemala(string $digitsForWa): string
+    {
+        if ($digitsForWa === '') {
+            return '';
+        }
+        if (strpos($digitsForWa, self::CELULAR_GT_CC) !== 0) {
+            return '+' . $digitsForWa;
+        }
+        $local = substr($digitsForWa, strlen(self::CELULAR_GT_CC));
+        if ($local === '') {
+            return '+' . self::CELULAR_GT_CC;
+        }
+        $local = trim(chunk_split($local, 4, ' '));
+        $local = trim(preg_replace('/\s+/u', ' ', $local));
+
+        return '+' . self::CELULAR_GT_CC . ' ' . $local;
+    }
+
+    /**
+     * HTML fragment: small WhatsApp icon + linked number (Guatemala 502) for PDF blocks and emails.
+     *
+     * @param   string  $rawCelular          Profile field value
+     * @param   bool    $absoluteImageUrl   If true, prefix icon src with site root (HTML email)
+     *
+     * @return  string  Safe HTML or empty
+     */
+    public static function buildCelularWhatsAppHtml(string $rawCelular, bool $absoluteImageUrl = false): string
+    {
+        $raw = trim($rawCelular);
+        if ($raw === '') {
+            return '';
+        }
+        $waDigits = self::normalizeCelularDigitsForWaMe($raw);
+        if ($waDigits === '') {
+            return htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        }
+        $href = self::getCelularWaMeUrl($raw);
+        $display = self::formatCelularDisplayGuatemala($waDigits);
+        $imgPath = self::WHATSAPP_ICON_MEDIA_PATH;
+        if ($absoluteImageUrl) {
+            $imgPath = rtrim(Uri::root(), '/') . '/' . $imgPath;
+        }
+        $imgEsc = htmlspecialchars($imgPath, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $hrefEsc = htmlspecialchars($href, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $displayEsc = htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $alt = Text::_('COM_ORDENPRODUCCION_CELULAR_WHATSAPP_ICON_ALT');
+        if ($alt === '' || strpos($alt, 'COM_ORDENPRODUCCION_') === 0) {
+            $alt = 'WhatsApp';
+        }
+        $altEsc = htmlspecialchars($alt, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        return '<span style="white-space:nowrap;">'
+            . '<img src="' . $imgEsc . '" width="16" height="16" alt="' . $altEsc . '" '
+            . 'style="vertical-align:middle;margin-right:4px;" />'
+            . '<a href="' . $hrefEsc . '" style="vertical-align:middle;">' . $displayEsc . '</a>'
+            . '</span>';
     }
 
     /**

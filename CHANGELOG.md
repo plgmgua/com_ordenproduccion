@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.36-STABLE] - 2026-04-16
+
+### Changed
+- **Cotización PDF (Ajustes) y solicitud al proveedor:** El marcador `{CELULAR}` (campo perfil `numero-de-celular`) se sustituye por un **icono WhatsApp** local y un **enlace** `https://wa.me/…` con prefijo **502** (Guatemala) cuando el número no lo incluye. Plantillas de **correo** de solicitud de cotización: nuevo bloque por defecto `{USUARIO_CELULAR_HTML}`; placeholders `{USUARIO_CELULAR}`, `{USUARIO_CELULAR_WA_URL}` para texto plano (SMS/PDF). Icono en `media/com_ordenproduccion/images/whatsapp-icon.png`.
+
 ## [3.113.35-STABLE] - 2026-04-16
 
 ### Changed

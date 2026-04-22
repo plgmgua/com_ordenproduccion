@@ -38,7 +38,7 @@ $saveUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.sa
 {PROVEEDOR_CONTACTO_NOMBRE} {PROVEEDOR_CELULAR} {PROVEEDOR_EMAIL}
 {PRECOT_NUMERO} {PRECOT_DESCRIPCION} {PRECOT_MEDIDAS}
 {LINEAS_TEXTO} {LINEAS_TEXTO_CORTO}
-{USUARIO_NOMBRE} {USUARIO_EMAIL}</code>
+{USUARIO_NOMBRE} {USUARIO_EMAIL} {USUARIO_CELULAR} {USUARIO_CELULAR_WA_URL} {USUARIO_CELULAR_HTML}</code>
         </div>
 
         <form method="post" action="<?php echo htmlspecialchars($saveUrl); ?>">

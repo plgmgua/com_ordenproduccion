@@ -14,6 +14,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\User\User;
 
 /**
  * @since  3.113.0
@@ -116,6 +117,11 @@ class VendorQuoteHelper
         $linesText      = self::formatLinesFull($vendorLines);
         $linesTextCorto = self::formatLinesShort($vendorLines);
 
+        $celularRaw = '';
+        if ($user instanceof User) {
+            $celularRaw = CotizacionPdfHelper::getUserCustomField($user, 'numero-de-celular');
+        }
+
         return [
             'PROVEEDOR_NOMBRE'          => $p($proveedor, 'name'),
             'PROVEEDOR_NIT'             => $p($proveedor, 'nit'),
@@ -131,6 +137,9 @@ class VendorQuoteHelper
             'LINEAS_TEXTO_CORTO'        => $linesTextCorto,
             'USUARIO_NOMBRE'            => $user && !empty($user->name) ? (string) $user->name : '',
             'USUARIO_EMAIL'             => $user && !empty($user->email) ? (string) $user->email : '',
+            'USUARIO_CELULAR'           => $celularRaw,
+            'USUARIO_CELULAR_WA_URL'    => CotizacionPdfHelper::getCelularWaMeUrl($celularRaw),
+            'USUARIO_CELULAR_HTML'      => CotizacionPdfHelper::buildCelularWhatsAppHtml($celularRaw, true),
         ];
     }
 
@@ -260,7 +269,8 @@ class VendorQuoteHelper
     }
 
     /**
-     * Apply placeholders for HTML email: escape all values except LINEAS_TEXTO (replaced with {@see formatLinesFullHtml()}).
+     * Apply placeholders for HTML email: escape all values except LINEAS_TEXTO (replaced with {@see formatLinesFullHtml()})
+     * and USUARIO_CELULAR_HTML (pre-built WhatsApp fragment from {@see CotizacionPdfHelper::buildCelularWhatsAppHtml()}).
      * Template line breaks become &lt;br&gt; (nl2br); table fragment must not contain raw newlines.
      *
      * @param   string  $template     Raw template body from DB
@@ -273,10 +283,15 @@ class VendorQuoteHelper
     {
         $tableHtml = self::formatLinesFullHtml($vendorLines);
         $mapOut    = [];
+        $rawHtmlKeys = ['USUARIO_CELULAR_HTML'];
         foreach ($map as $key => $value) {
-            $mapOut[$key] = $key === 'LINEAS_TEXTO'
-                ? $tableHtml
-                : htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            if ($key === 'LINEAS_TEXTO') {
+                $mapOut[$key] = $tableHtml;
+            } elseif (in_array($key, $rawHtmlKeys, true)) {
+                $mapOut[$key] = (string) $value;
+            } else {
+                $mapOut[$key] = htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            }
         }
         $body = self::replacePlaceholders($template, $mapOut);
 
