@@ -1006,6 +1006,11 @@ class PrecotizacionController extends BaseController
 
             return false;
         }
+        $this->recordVendorQuoteEvent($precotId, $proveedorId, 'email_sent', [
+            'proveedor_name' => (string) ($proveedor->name ?? ''),
+            'to_email'       => $to,
+            'subject'        => mb_substr($subj, 0, 240),
+        ]);
         $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_SENT'));
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
 
@@ -1046,6 +1051,10 @@ class PrecotizacionController extends BaseController
         if ($phone === '') {
             $phone = trim((string) ($proveedor->phone ?? ''));
         }
+        $this->recordVendorQuoteEvent($precotId, $proveedorId, 'cellphone_compose', [
+            'proveedor_name' => (string) ($proveedor->name ?? ''),
+            'phone'          => $phone,
+        ]);
         $this->vendorQuoteJsonResponse([
             'ok'           => true,
             'message_text' => $text,
@@ -1093,6 +1102,10 @@ class PrecotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
         }
         $fname = 'solicitud-cotizacion-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', (string) ($item->number ?? 'precot')) . '.pdf';
+        $this->recordVendorQuoteEvent($precotId, $proveedorId, 'pdf_download', [
+            'proveedor_name' => (string) ($proveedor->name ?? ''),
+            'filename'       => $fname,
+        ]);
         $app->clearHeaders();
         $app->setHeader('Content-Type', 'application/pdf', true);
         $app->setHeader('Content-Disposition', 'attachment; filename="' . $fname . '"', true);
@@ -1689,6 +1702,22 @@ class PrecotizacionController extends BaseController
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $preCotizacionId, false));
 
         return true;
+    }
+
+    /**
+     * Audit row for vendor quote channel (email / PDF / cellphone). Ignores failures.
+     *
+     * @since  3.113.6
+     */
+    private function recordVendorQuoteEvent(int $precotId, int $proveedorId, string $eventType, array $meta = []): void
+    {
+        try {
+            $model = $this->getModel('Precotizacion', 'Site');
+            if (method_exists($model, 'logVendorQuoteEvent')) {
+                $model->logVendorQuoteEvent($precotId, $proveedorId, $eventType, $meta);
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     /**

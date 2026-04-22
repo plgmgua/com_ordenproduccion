@@ -119,6 +119,14 @@ class HtmlView extends BaseHtmlView
     protected $precotizacionModel = null;
 
     /**
+     * Proveedor externo: vendor quote request audit log (newest first).
+     *
+     * @var    array<int, \stdClass>
+     * @since  3.113.6
+     */
+    protected $precotVendorQuoteEvents = [];
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -244,6 +252,11 @@ class HtmlView extends BaseHtmlView
                         && $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked
                         && !$this->pendingSolicitudDescuento;
+                    $this->precotVendorQuoteEvents = [];
+                    $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
+                    if ($docMode === 'proveedor_externo' && method_exists($precotModel, 'getVendorQuoteEvents')) {
+                        $this->precotVendorQuoteEvents = $precotModel->getVendorQuoteEvents((int) $id);
+                    }
                 }
             }
             $params = ComponentHelper::getParams('com_ordenproduccion');

@@ -2187,6 +2187,118 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Vendor quote request event log table (3.113.6+).
+     *
+     * @since  3.113.6
+     */
+    public function hasVendorQuoteEventLogSchema(): bool
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $db = $this->getDatabase();
+        try {
+            $tables = $db->getTableList();
+            $want   = $db->getPrefix() . 'ordenproduccion_precot_vendor_quote_event';
+            foreach ($tables as $t) {
+                if (strcasecmp((string) $t, $want) === 0) {
+                    return $cache = true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $cache = false;
+    }
+
+    /**
+     * Append an audit row when a user sends/requests a vendor quote (email, PDF, cellphone compose).
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id.
+     * @param   int     $proveedorId      Proveedor id (0 if unknown).
+     * @param   string  $eventType        email_sent|pdf_download|cellphone_compose
+     * @param   array   $meta             Extra JSON-safe keys (to_email, subject, proveedor_name, …).
+     *
+     * @return  bool
+     *
+     * @since   3.113.6
+     */
+    public function logVendorQuoteEvent(int $preCotizacionId, int $proveedorId, string $eventType, array $meta = []): bool
+    {
+        if (!$this->hasVendorQuoteEventLogSchema()) {
+            return false;
+        }
+        $allowed = ['email_sent', 'pdf_download', 'cellphone_compose'];
+        if (!in_array($eventType, $allowed, true)) {
+            return false;
+        }
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $user = Factory::getUser();
+        $meta['actor_id']   = (int) $user->id;
+        $meta['actor_name'] = (string) ($user->name ?? '');
+
+        $row                   = new \stdClass();
+        $row->pre_cotizacion_id = $preCotizacionId;
+        $row->proveedor_id     = (int) $proveedorId;
+        $row->event_type       = $eventType;
+        $row->meta             = json_encode($meta, JSON_UNESCAPED_UNICODE);
+        $row->created          = Factory::getDate()->toSql();
+        $row->created_by       = (int) $user->id;
+
+        try {
+            $this->getDatabase()->insertObject('#__ordenproduccion_precot_vendor_quote_event', $row);
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Newest-first event rows for one pre-cotización (proveedor externo).
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id.
+     * @param   int  $limit            Max rows.
+     *
+     * @return  array<int, \stdClass>
+     *
+     * @since   3.113.6
+     */
+    public function getVendorQuoteEvents(int $preCotizacionId, int $limit = 200): array
+    {
+        if (!$this->hasVendorQuoteEventLogSchema() || $preCotizacionId < 1) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_precot_vendor_quote_event'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+            ->order($db->quoteName('id') . ' DESC');
+        $db->setQuery($query, 0, max(1, min(500, $limit)));
+
+        $rows = $db->loadObjectList();
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        return $rows;
+    }
+
+    /**
      * Get concepts (element labels) that require "Detalles" for a given line.
      * Pliego: one per breakdown row (label); if breakdown is empty, a single "Detalles" field is used. Elementos/Env?o: one single "Detalles" input per line (each is a single element).
      *

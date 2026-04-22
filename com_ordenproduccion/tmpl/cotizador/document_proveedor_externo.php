@@ -933,6 +933,74 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     </script>
     <?php endif; ?>
 
+    <?php
+    $vendorQuoteEvents = $this->precotVendorQuoteEvents ?? [];
+    ?>
+    <?php if (!empty($vendorQuoteEvents)) : ?>
+    <section class="precot-vendor-quote-event-log mt-4 pt-4 border-top" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_TITLE')); ?>">
+        <h2 class="h6 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_TITLE'); ?></h2>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_DATE'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_USER'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ACTION'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_VENDOR'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_DETAIL'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($vendorQuoteEvents as $ev) :
+                        $meta = [];
+                        if (!empty($ev->meta)) {
+                            $decoded = json_decode((string) $ev->meta, true);
+                            $meta    = is_array($decoded) ? $decoded : [];
+                        }
+                        $etype = (string) ($ev->event_type ?? '');
+                        $actionLabel = $etype;
+                        if ($etype === 'email_sent') {
+                            $actionLabel = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_EMAIL_SENT');
+                        } elseif ($etype === 'pdf_download') {
+                            $actionLabel = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_PDF_DOWNLOAD');
+                        } elseif ($etype === 'cellphone_compose') {
+                            $actionLabel = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_CELLPHONE_COMPOSE');
+                        }
+                        $detail = '';
+                        if ($etype === 'email_sent') {
+                            $detail = trim((string) ($meta['to_email'] ?? ''));
+                            $subj   = trim((string) ($meta['subject'] ?? ''));
+                            if ($subj !== '') {
+                                $detail .= ($detail !== '' ? ' — ' : '') . $subj;
+                            }
+                        } elseif ($etype === 'pdf_download') {
+                            $detail = (string) ($meta['filename'] ?? '');
+                        } elseif ($etype === 'cellphone_compose') {
+                            $detail = (string) ($meta['phone'] ?? '');
+                        }
+                        $actor = trim((string) ($meta['actor_name'] ?? ''));
+                        if ($actor === '' && !empty($ev->created_by)) {
+                            $actor = '#' . (int) $ev->created_by;
+                        }
+                        $provName = trim((string) ($meta['proveedor_name'] ?? ''));
+                        if ($provName === '' && !empty($ev->proveedor_id)) {
+                            $provName = '#' . (int) $ev->proveedor_id;
+                        }
+                        ?>
+                    <tr>
+                        <td class="text-nowrap small"><?php echo htmlspecialchars(HTMLHelper::_('date', $ev->created, Text::_('DATE_FORMAT_LC6'))); ?></td>
+                        <td class="small"><?php echo htmlspecialchars($actor); ?></td>
+                        <td class="small"><?php echo htmlspecialchars($actionLabel); ?></td>
+                        <td class="small"><?php echo htmlspecialchars($provName); ?></td>
+                        <td class="small"><?php echo htmlspecialchars($detail); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <?php if ($vendorQuoteAttachHref !== '') : ?>
     <section class="precot-vendor-attachment-viewer mt-4 pt-4 border-top" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_TITLE')); ?>">
         <h2 class="h6 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_TITLE'); ?></h2>
