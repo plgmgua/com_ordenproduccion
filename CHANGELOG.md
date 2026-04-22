@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.46-STABLE] - 2026-04-22
+
+### Changed
+- **Lista pre-cotizaciones:** Columna «Cotizaciones vinculadas» pasa a «Cotizacion #» en la tabla; «Facturar» en cabecera de tabla a «Fac.» (filtros y formulario siguen con el texto largo). Anchos mínimos para `PRE-…` y `COT-…` sin apretar con «Fecha».
+
 ## [3.113.45-STABLE] - 2026-04-22
 
 ### Changed

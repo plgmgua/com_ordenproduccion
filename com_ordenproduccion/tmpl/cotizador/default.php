@@ -182,19 +182,19 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
         <table class="table table-striped table-hover precotizacion-list-table">
             <thead>
                 <tr>
-                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NUMBER'); ?></th>
+                    <th scope="col" class="col-precot-num"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NUMBER'); ?></th>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CREATED'); ?></th>
                     <?php if (!empty($this->showSalesAgentColumn)) : ?>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SALES_AGENT'); ?></th>
                     <?php endif; ?>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION'); ?></th>
-                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ASSOCIATED_QUOTATION'); ?></th>
+                    <th scope="col" class="col-cotizacion-num"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_QUOTATION_COLUMN'); ?></th>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CLIENT'); ?></th>
                     <?php if ($showOfertaColumn) : ?>
                     <th scope="col" class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA'); ?></th>
                     <?php endif; ?>
                     <?php if ($showFacturarColumn) : ?>
-                    <th scope="col" class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR'); ?></th>
+                    <th scope="col" class="text-center col-facturar-short"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_COLUMN_SHORT'); ?></th>
                     <?php endif; ?>
                     <th scope="col" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                 </tr>
@@ -217,7 +217,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         $quotationNumbers = $associatedMap[(int) $item->id] ?? [];
                 ?>
                     <tr>
-                        <td>
+                        <td class="col-precot-num">
                             <a href="<?php echo htmlspecialchars($docUrl); ?>"><?php echo htmlspecialchars($item->number ?? ''); ?></a>
                         </td>
                         <td><?php echo htmlspecialchars($created); ?></td>
@@ -225,7 +225,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         <td><?php echo htmlspecialchars($item->created_by_name ?? '—'); ?></td>
                         <?php endif; ?>
                         <td class="col-descripcion"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
-                        <td>
+                        <td class="col-cotizacion-num">
                             <?php
                             if (empty($quotationNumbers)) {
                                 echo '<span class="text-muted">—</span>';
@@ -270,7 +270,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         </td>
                         <?php endif; ?>
                         <?php if ($showFacturarColumn) : ?>
-                        <td class="text-center">
+                        <td class="text-center col-facturar-short">
                             <?php
                             $facturarOn = !empty($item->facturar);
                             echo $facturarOn
@@ -320,6 +320,20 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
 .precotizacion-list-table-wrap .precotizacion-list-table { font-size: 0.8rem; }
 .precotizacion-list-table-wrap .precotizacion-list-table th,
 .precotizacion-list-table-wrap .precotizacion-list-table td { padding: 0.3rem 0.4rem; vertical-align: middle; }
+.precotizacion-list-table-wrap .precotizacion-list-table .col-precot-num {
+    white-space: nowrap;
+    width: 1%;
+    min-width: 6.25rem;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table .col-cotizacion-num {
+    white-space: nowrap;
+    width: 1%;
+    min-width: 7.25rem;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table .col-facturar-short {
+    white-space: nowrap;
+    width: 1%;
+}
 .precotizacion-list-table-wrap .precotizacion-list-table .col-descripcion { max-width: 260px; }
 .precotizacion-list-table-wrap .precotizacion-list-table .col-client { max-width: 200px; }
 .precotizacion-list-table-wrap .precotizacion-list-table .btn .icon-trash { font-size: 1rem; }
