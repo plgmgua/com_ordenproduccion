@@ -13,6 +13,8 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Language\Text;
+
 /**
  * @since  3.113.0
  */
@@ -39,6 +41,32 @@ class VendorQuoteHelper
         }
 
         return $out;
+    }
+
+    /**
+     * In vendor-quote PDF only: replace standalone "Cotizacion/Cotización" (or English "Quotation")
+     * in encabezado/pie HTML from PDF settings so the line reads e.g. "Solicitud de cotizacion PRE-…".
+     *
+     * @param   string  $html  HTML after CotizacionPdfHelper::replacePlaceholders
+     *
+     * @return  string
+     *
+     * @since   3.113.18
+     */
+    public static function applyVendorQuotePdfDocTypeInHtml(string $html): string
+    {
+        if ($html === '') {
+            return '';
+        }
+        $label = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_HEADER_DOC_TYPE');
+        if ($label === '') {
+            return $html;
+        }
+        $out = preg_replace('/\bCotizaci[oó]n\b/u', $label, $html);
+        $out = $out !== null ? $out : $html;
+        $out2 = preg_replace('/\bQuotation\b/u', $label, $out);
+
+        return $out2 !== null ? $out2 : $out;
     }
 
     /**
@@ -362,7 +390,7 @@ class VendorQuoteHelper
         $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($contentW, $sectionH, $fix('Datos del cliente / Cotizacion'), 0, 1, 'L', true);
+        $pdf->Cell($contentW, $sectionH, $fix(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_V2_CLIENT_DOC_BAR')), 0, 1, 'L', true);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFillColor(255, 255, 255);
 
