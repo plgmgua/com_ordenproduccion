@@ -330,7 +330,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         <?php endif; ?>
     </div>
 
-    <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_TITLE'); ?></h2>
+    <h2 class="h5 mt-4" id="precot-vendor-lines-anchor"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_TITLE'); ?></h2>
     <?php if ($vendorQuoteAttachHref !== '') : ?>
     <p class="small mb-2">
         <span class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_CURRENT'); ?>:</span>
@@ -410,10 +410,13 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         ];
     }
     ?>
-    <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="proveedor-externo-lines-form" class="mb-3">
+    <?php $saveLinesFormId = 'proveedor-externo-lines-form'; ?>
+    <?php /* Token + precot id only: line inputs use form= attribute so row upload/delete forms are not nested (invalid HTML). */ ?>
+    <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="d-none" aria-hidden="true">
         <?php echo HTMLHelper::_('form.token'); ?>
         <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-        <div class="pre-cot-vendor-lines-wrap">
+    </form>
+    <div class="pre-cot-vendor-lines-wrap mb-3">
             <table class="table table-sm table-bordered pre-cot-vendor-lines-table" id="proveedor-externo-lines-table">
                 <thead>
                     <tr>
@@ -439,17 +442,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         ?>
                     <tr class="proveedor-externo-line-row">
                         <td class="col-qty">
-                            <input type="hidden" name="lines[<?php echo $i; ?>][id]" value="<?php echo $lid; ?>">
-                            <input type="number" class="form-control form-control-sm js-vendor-qty" name="lines[<?php echo $i; ?>][quantity]" min="1" step="1" value="<?php echo (int) $line->quantity; ?>" required>
+                            <input type="hidden" name="lines[<?php echo $i; ?>][id]" value="<?php echo $lid; ?>" form="<?php echo htmlspecialchars($saveLinesFormId); ?>">
+                            <input type="number" class="form-control form-control-sm js-vendor-qty" name="lines[<?php echo $i; ?>][quantity]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="1" step="1" value="<?php echo (int) $line->quantity; ?>" required>
                         </td>
                         <td class="col-desc">
-                            <textarea class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_descripcion]" rows="2" aria-label="<?php echo htmlspecialchars($colDesc); ?>"><?php echo htmlspecialchars((string) ($line->vendor_descripcion ?? '')); ?></textarea>
+                            <textarea class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_descripcion]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" rows="2" aria-label="<?php echo htmlspecialchars($colDesc); ?>"><?php echo htmlspecialchars((string) ($line->vendor_descripcion ?? '')); ?></textarea>
                         </td>
                         <td class="col-price">
-                            <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[<?php echo $i; ?>][price_per_sheet]" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($unit, 2, '.', '')); ?>">
+                            <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[<?php echo $i; ?>][price_per_sheet]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($unit, 2, '.', '')); ?>">
                         </td>
                         <td class="col-lead">
-                            <input type="text" class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_tiempo_entrega]" maxlength="512" value="<?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?>" autocomplete="off" aria-label="<?php echo htmlspecialchars($colLeadFull); ?>">
+                            <input type="text" class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_tiempo_entrega]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" maxlength="512" value="<?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?>" autocomplete="off" aria-label="<?php echo htmlspecialchars($colLeadFull); ?>">
                         </td>
                         <td class="col-total text-end align-middle">
                             <span class="js-vendor-line-total">Q <?php echo number_format($tot, 2); ?></span>
@@ -501,7 +504,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
+    </div>
         <div class="d-flex flex-wrap gap-2 mt-2 align-items-center justify-content-between">
             <?php if (!$user->guest) : ?>
             <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -513,25 +516,24 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <div></div>
             <?php endif; ?>
             <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
+                <button type="submit" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
                 <button type="button" class="btn btn-outline-primary" id="proveedor-externo-add-line" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE'); ?>">+</button>
             </div>
         </div>
-    </form>
     <template id="proveedor-externo-line-template">
         <tr class="proveedor-externo-line-row">
             <td class="col-qty">
-                <input type="hidden" name="lines[__I__][id]" value="0">
-                <input type="number" class="form-control form-control-sm js-vendor-qty" name="lines[__I__][quantity]" min="1" step="1" value="1" required>
+                <input type="hidden" name="lines[__I__][id]" value="0" form="<?php echo htmlspecialchars($saveLinesFormId); ?>">
+                <input type="number" class="form-control form-control-sm js-vendor-qty" name="lines[__I__][quantity]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="1" step="1" value="1" required>
             </td>
             <td class="col-desc">
-                <textarea class="form-control form-control-sm" name="lines[__I__][vendor_descripcion]" rows="2"></textarea>
+                <textarea class="form-control form-control-sm" name="lines[__I__][vendor_descripcion]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" rows="2"></textarea>
             </td>
             <td class="col-price">
-                <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[__I__][price_per_sheet]" min="0" step="0.01" value="0.00">
+                <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[__I__][price_per_sheet]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="0.00">
             </td>
             <td class="col-lead">
-                <input type="text" class="form-control form-control-sm" name="lines[__I__][vendor_tiempo_entrega]" maxlength="512" value="" autocomplete="off">
+                <input type="text" class="form-control form-control-sm" name="lines[__I__][vendor_tiempo_entrega]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" maxlength="512" value="" autocomplete="off">
             </td>
             <td class="col-total text-end align-middle">
                 <span class="js-vendor-line-total">Q 0.00</span>
@@ -1072,7 +1074,8 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     ?>
     <?php if (!empty($vendorQuoteEvents)) : ?>
     <section class="precot-vendor-quote-event-log mt-4 pt-4 border-top" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_TITLE')); ?>">
-        <h2 class="h6 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_TITLE'); ?></h2>
+        <h2 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_TITLE'); ?></h2>
+        <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_ATTACH_HINT'); ?> <a href="#precot-vendor-lines-anchor"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_ATTACH_LINK'); ?></a></p>
         <div class="table-responsive">
             <table class="table table-sm table-bordered align-middle">
                 <thead class="table-light">
