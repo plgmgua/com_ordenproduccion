@@ -350,6 +350,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['document_mode'])) {
             $cols[] = 'a.document_mode';
         }
+        if (isset($tableCols['vendor_quote_attachment'])) {
+            $cols[] = 'a.vendor_quote_attachment';
+        }
         foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
                 $cols[] = 'a.' . $snapCol;
@@ -2130,6 +2133,57 @@ class PrecotizacionModel extends ListModel
         }
 
         return true;
+    }
+
+    /**
+     * Store relative path (media/com_ordenproduccion/precot_vendor_quote/…) for vendor quote file on pre-cot header.
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id.
+     * @param   string  $relativePath     Path relative to site root, no leading slash.
+     *
+     * @return  bool
+     *
+     * @since   3.113.4
+     */
+    public function saveVendorQuoteAttachment(int $preCotizacionId, string $relativePath): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        $relativePath    = trim(str_replace(['\\', '..'], ['/', ''], $relativePath), '/');
+        if ($preCotizacionId < 1 || $relativePath === '') {
+            return false;
+        }
+
+        $db        = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (!isset($tableCols['vendor_quote_attachment'])) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $prefix = 'media/com_ordenproduccion/precot_vendor_quote/';
+        if (strpos($relativePath, $prefix) !== 0) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->set($db->quoteName('vendor_quote_attachment') . ' = ' . $db->quote($relativePath))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id)
+                ->where($db->quoteName('id') . ' = ' . $preCotizacionId)
+        );
+
+        return (bool) $db->execute();
     }
 
     /**

@@ -724,6 +724,153 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Upload vendor quote file (PDF or image) for proveedor externo pre-cotización.
+     *
+     * POST: id, vendor_quote_file, CSRF token. File stored under media/com_ordenproduccion/precot_vendor_quote/.
+     *
+     * @return  bool
+     *
+     * @since   3.113.4
+     */
+    public function uploadVendorQuoteAttachment()
+    {
+        $app = Factory::getApplication();
+        $redir = static function (int $id) {
+            return Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false);
+        };
+
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+
+        $id = (int) $app->input->post->get('id', 0);
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $item  = $model->getItem($id);
+        if (!$item) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_WRONG_MODE'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $file = $app->input->files->get('vendor_quote_file', [], 'array');
+        if (empty($file['name']) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_NO_FILE'), 'warning');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $phpError = (int) ($file['error'] ?? 0);
+        if ($phpError !== UPLOAD_ERR_OK) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_ERROR'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
+        $ext     = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed, true)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_INVALID_TYPE'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $maxSize = 10 * 1024 * 1024;
+        if ((int) ($file['size'] ?? 0) > $maxSize) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_TOO_BIG'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/precot_vendor_quote';
+        if (!is_dir($uploadDir)) {
+            if (!@mkdir($uploadDir, 0755, true)) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_ERROR'), 'error');
+                $this->setRedirect($redir($id));
+
+                return false;
+            }
+        }
+        if (!is_writable($uploadDir)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_ERROR'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $uniqueName   = 'pre_' . $id . '_' . date('Y-m-d_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $fullPath     = $uploadDir . '/' . $uniqueName;
+        $relativePath = 'media/com_ordenproduccion/precot_vendor_quote/' . $uniqueName;
+
+        if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_ERROR'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        $oldRel = isset($item->vendor_quote_attachment) ? trim((string) $item->vendor_quote_attachment) : '';
+        if (!$model->saveVendorQuoteAttachment($id, $relativePath)) {
+            @unlink($fullPath);
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_SCHEMA'), 'error');
+            $this->setRedirect($redir($id));
+
+            return false;
+        }
+
+        if ($oldRel !== '' && $oldRel !== $relativePath) {
+            $safePrefix = 'media/com_ordenproduccion/precot_vendor_quote/';
+            if (strpos($oldRel, $safePrefix) === 0) {
+                $oldFull = JPATH_ROOT . '/' . $oldRel;
+                if (is_file($oldFull)) {
+                    @unlink($oldFull);
+                }
+            }
+        }
+
+        $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_SAVED'));
+        $this->setRedirect($redir($id));
+
+        return true;
+    }
+
+    /**
      * JSON: active proveedores for vendor quote modal (CSRF: request token in URL).
      *
      * @return  void

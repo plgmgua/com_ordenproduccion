@@ -107,7 +107,13 @@ if (strpos($placeholderMedidas, 'COM_ORDENPRODUCCION_') === 0) {
 }
 $medidasValue = isset($item->medidas) ? (string) $item->medidas : '';
 
-$saveVendorLinesUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveProveedorExternoLines');
+$saveVendorLinesUrl     = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveProveedorExternoLines');
+$uploadVendorQuoteUrl   = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.uploadVendorQuoteAttachment', false, Route::TLS_IGNORE, true);
+$vendorQuoteAttachRel   = (isset($item->vendor_quote_attachment) && is_string($item->vendor_quote_attachment))
+    ? trim($item->vendor_quote_attachment) : '';
+$vendorQuoteAttachHref  = $vendorQuoteAttachRel !== ''
+    ? rtrim(Uri::root(), '/') . '/' . str_replace('\\', '/', ltrim($vendorQuoteAttachRel, '/'))
+    : '';
 $badgeVendor        = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_BADGE');
 if (strpos($badgeVendor, 'COM_ORDENPRODUCCION_') === 0) {
     $badgeVendor = 'Proveedor externo';
@@ -301,6 +307,12 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     </div>
 
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_TITLE'); ?></h2>
+    <?php if ($vendorQuoteAttachHref !== '') : ?>
+    <p class="small mb-2">
+        <span class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_CURRENT'); ?>:</span>
+        <a href="<?php echo htmlspecialchars($vendorQuoteAttachHref); ?>" target="_blank" rel="noopener"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEW'); ?></a>
+    </p>
+    <?php endif; ?>
 
     <?php if ($precotizacionLocked || !$canEditDocument) : ?>
         <?php if (empty($vendorLines)) : ?>
@@ -422,6 +434,18 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <?php endif; ?>
         </div>
     </form>
+    <div class="mt-3 pt-3 border-top">
+        <form method="post" enctype="multipart/form-data" action="<?php echo htmlspecialchars($uploadVendorQuoteUrl); ?>" class="d-flex flex-wrap align-items-end gap-2">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+            <div class="flex-grow-1" style="min-width: 220px; max-width: 420px;">
+                <label class="form-label small mb-1" for="vendor-quote-file-input"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_LABEL'); ?></label>
+                <input type="file" name="vendor_quote_file" id="vendor-quote-file-input" class="form-control form-control-sm"
+                       accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf">
+            </div>
+            <button type="submit" class="btn btn-outline-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_BTN'); ?></button>
+        </form>
+    </div>
     <template id="proveedor-externo-line-template">
         <tr class="proveedor-externo-line-row">
             <td class="col-qty">
