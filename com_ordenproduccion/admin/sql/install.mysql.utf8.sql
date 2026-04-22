@@ -405,6 +405,11 @@ SELECT 'Pre-cotización — solicitud de descuento', 'Notifica a ventas para rev
 FROM (SELECT 1 AS `x`) AS `t`
 WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'solicitud_descuento');
 
+INSERT INTO `#__ordenproduccion_approval_workflows` (`name`, `description`, `entity_type`, `published`, `created_by`)
+SELECT 'Solicitud de Cotizacion', 'Autoriza solicitar cotización al proveedor en pre-cotización modo proveedor externo.', 'solicitud_cotizacion', 1, 0
+FROM (SELECT 1 AS `x`) AS `t`
+WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'solicitud_cotizacion');
+
 INSERT INTO `#__ordenproduccion_approval_workflow_steps` (`workflow_id`, `step_number`, `step_name`, `approver_type`, `approver_value`, `require_all`, `timeout_hours`, `timeout_action`, `created_by`)
 SELECT w.`id`, 1, 'Aprobar', 'named_group', 'Administracion', 0, 0, 'escalate', 0
 FROM `#__ordenproduccion_approval_workflows` AS w
@@ -415,6 +420,11 @@ UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
 INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
 SET s.`step_name` = 'Revisar descuento', s.`approver_value` = 'Aprobaciones Ventas'
 WHERE w.`entity_type` = 'solicitud_descuento' AND s.`step_number` = 1;
+
+UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
+INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
+SET s.`step_name` = 'Revisar solicitud de cotización', s.`approver_value` = 'Aprobaciones Ventas'
+WHERE w.`entity_type` = 'solicitud_cotizacion' AND s.`step_number` = 1;
 
 -- Telegram bot: per-user chat_id (3.105.0)
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_telegram_users` (

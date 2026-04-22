@@ -1832,6 +1832,122 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Start solicitud de cotización al proveedor approval (pre-cotización document_mode proveedor_externo).
+     *
+     * @return  bool
+     *
+     * @since   3.113.26
+     */
+    public function solicitarCotizacionProveedor()
+    {
+        if (!Session::checkToken('request')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $rid = (int) $this->input->getInt('id', 0);
+            $this->setRedirect(
+                $rid > 0
+                    ? Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $rid, false)
+                    : Route::_('index.php?option=com_ordenproduccion&view=cotizador', false)
+            );
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+
+        $id = (int) $this->input->post->getInt('id', 0);
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $item  = $model->getItem($id);
+        $mode  = $item && isset($item->document_mode) ? (string) $item->document_mode : '';
+        if ($mode !== 'proveedor_externo') {
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_VENDOR_QUOTE_APPROVAL_WRONG_DOCUMENT_MODE',
+                    'Esta acción solo aplica a pre-cotizaciones en modo proveedor externo.',
+                    'This action only applies to pre-cotizaciones in external vendor mode.'
+                ),
+                'error'
+            );
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        $wf = new ApprovalWorkflowService();
+        if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION)) {
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_VENDOR_QUOTE_WORKFLOW_NOT_AVAILABLE',
+                    'El flujo de solicitud de cotización no está disponible.',
+                    'The vendor quote request workflow is not available.'
+                ),
+                'error'
+            );
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        if ($wf->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION, $id) !== null) {
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_VENDOR_QUOTE_REQUEST_ALREADY_PENDING',
+                    'Ya hay una solicitud de cotización pendiente para esta pre-cotización.',
+                    'A vendor quote request is already pending for this pre-cotización.'
+                ),
+                'notice'
+            );
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        $rid = $wf->createRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION, $id, (int) $user->id);
+        if ($rid < 1) {
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_VENDOR_QUOTE_REQUEST_CREATE_FAILED',
+                    'No se pudo crear la solicitud de cotización.',
+                    'Could not create the vendor quote request.'
+                ),
+                'error'
+            );
+        } else {
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_VENDOR_QUOTE_REQUEST_CREATED',
+                    'Solicitud de cotización enviada. Se notificará a quien corresponda según el flujo.',
+                    'Vendor quote request sent. Approvers will be notified per the workflow.'
+                )
+            );
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+        return true;
+    }
+
+    /**
      * If the current user may not edit this pre-cotización document (e.g. offer template owned by someone else), respond and return true.
      *
      * @param   int     $preCotizacionId  Pre-cotización id

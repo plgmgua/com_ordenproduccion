@@ -137,6 +137,12 @@ $colEventCondiciones = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_CON
 $labelSaveEventCondiciones = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_CONDICIONES_SAVE');
 $colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
 $user  = Factory::getUser();
+$solicitarCotProveedorUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.solicitarCotizacionProveedor');
+$solicitudCotWf          = isset($this->solicitudCotizacionWorkflowAvailable) ? (bool) $this->solicitudCotizacionWorkflowAvailable : false;
+$pendingSolicitudCot     = isset($this->pendingSolicitudCotizacion) ? (bool) $this->pendingSolicitudCotizacion : false;
+$canReqSolicitudCot      = isset($this->canRequestSolicitudCotizacion) ? (bool) $this->canRequestSolicitudCotizacion : false;
+$vendorQuoteApprOk       = isset($this->vendorQuoteSolicitudApproved) ? (bool) $this->vendorQuoteSolicitudApproved : false;
+$showVendorQuoteModalBtn = !$user->guest && (!$solicitudCotWf || ($vendorQuoteApprOk && !$pendingSolicitudCot));
 $canAttachVendorQuoteEvent = !$precotizacionLocked && $canEditDocument && !$user->guest;
 $token = Session::getFormToken();
 $vendorQuoteProveedoresUrl = Route::_(
@@ -380,10 +386,30 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         </div>
         <?php endif; ?>
         <?php if (!$user->guest) : ?>
-        <div class="d-flex justify-content-end mt-2">
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open">
+        <div class="d-flex flex-wrap justify-content-end gap-2 mt-2 align-items-center">
+            <?php if ($solicitudCotWf && $pendingSolicitudCot) : ?>
+            <button type="button" class="btn btn-primary" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
             </button>
+            <?php elseif ($solicitudCotWf && $canReqSolicitudCot) : ?>
+            <form method="post" action="<?php echo htmlspecialchars($solicitarCotProveedorUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
+                </button>
+            </form>
+            <?php endif; ?>
+            <?php if ($showVendorQuoteModalBtn) :
+                $modalBtnClass = ($solicitudCotWf && $vendorQuoteApprOk) ? 'btn btn-outline-primary' : 'btn btn-primary';
+                $modalBtnLabel = ($solicitudCotWf && $vendorQuoteApprOk)
+                    ? Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT')
+                    : Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN');
+                ?>
+            <button type="button" class="<?php echo htmlspecialchars($modalBtnClass, ENT_QUOTES, 'UTF-8'); ?>" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-readonly">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo $modalBtnLabel; ?>
+            </button>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     <?php else :
@@ -457,9 +483,29 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         <div class="d-flex flex-wrap gap-2 mt-2 align-items-center justify-content-between">
             <?php if (!$user->guest) : ?>
             <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open">
+                <?php if ($solicitudCotWf && $pendingSolicitudCot) : ?>
+                <button type="button" class="btn btn-primary" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
                 </button>
+                <?php elseif ($solicitudCotWf && $canReqSolicitudCot) : ?>
+                <form method="post" action="<?php echo htmlspecialchars($solicitarCotProveedorUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
+                    </button>
+                </form>
+                <?php endif; ?>
+                <?php if ($showVendorQuoteModalBtn) :
+                    $modalBtnClass = ($solicitudCotWf && $vendorQuoteApprOk) ? 'btn btn-outline-primary' : 'btn btn-primary';
+                    $modalBtnLabel = ($solicitudCotWf && $vendorQuoteApprOk)
+                        ? Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT')
+                        : Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN');
+                    ?>
+                <button type="button" class="<?php echo htmlspecialchars($modalBtnClass, ENT_QUOTES, 'UTF-8'); ?>" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-edit">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo $modalBtnLabel; ?>
+                </button>
+                <?php endif; ?>
             </div>
             <?php else : ?>
             <div></div>

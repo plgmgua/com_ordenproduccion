@@ -82,7 +82,7 @@ class ApprovalEmailQueueHelper
 
     /**
      * Human-facing entity reference for Telegram templates.
-     * For solicitud_descuento, entity_id is the pre-cotización PK: use stored number (e.g. PRE-00072).
+     * For solicitud_descuento and solicitud_cotizacion, entity_id is the pre-cotización PK: use stored number (e.g. PRE-00072).
      *
      * @since  3.109.68
      */
@@ -98,7 +98,10 @@ class ApprovalEmailQueueHelper
             return 'PA-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
         }
 
-        if ($type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+        if (
+            $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+            && $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+        ) {
             return (string) $pk;
         }
 

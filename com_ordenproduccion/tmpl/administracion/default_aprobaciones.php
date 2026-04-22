@@ -26,6 +26,7 @@ $entityLabel = static function (string $entityType): string {
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
+        'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 
@@ -67,10 +68,10 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
                         $created = isset($row->created) ? (string) $row->created : '';
-                        $refDisplay = $etype === 'solicitud_descuento'
+                        $refDisplay = ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion')
                             ? (string) ($row->precotizacion_number ?? '')
                             : (string) (int) $eid;
-                        if ($refDisplay === '' && $etype === 'solicitud_descuento') {
+                        if ($refDisplay === '' && ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion')) {
                             $refDisplay = (string) (int) $eid;
                         }
                         $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $eid, false);
@@ -96,6 +97,11 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                     <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
                                 </a>
                                 <?php else : ?>
+                                <?php if ($etype === 'solicitud_cotizacion') : ?>
+                                <a class="btn btn-primary btn-sm mb-2" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
+                                </a>
+                                <?php endif; ?>
                                 <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
                                     <?php echo HTMLHelper::_('form.token'); ?>
                                     <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />

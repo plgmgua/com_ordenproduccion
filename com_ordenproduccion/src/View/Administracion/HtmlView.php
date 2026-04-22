@@ -1304,7 +1304,11 @@ class HtmlView extends BaseHtmlView
                     $this->approvalPendingRows = $approvalService->getMyPendingApprovalRows((int) $user->id);
                     $preCotIds = [];
                     foreach ($this->approvalPendingRows as $prow) {
-                        if (($prow->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+                        $et = (string) ($prow->entity_type ?? '');
+                        if (
+                            $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+                            || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                        ) {
                             $eid = (int) ($prow->entity_id ?? 0);
                             if ($eid > 0) {
                                 $preCotIds[$eid] = true;
@@ -1330,7 +1334,11 @@ class HtmlView extends BaseHtmlView
                                     $byId[(int) $nr->id] = (string) ($nr->number ?? '');
                                 }
                                 foreach ($this->approvalPendingRows as $prow) {
-                                    if (($prow->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+                                    $et = (string) ($prow->entity_type ?? '');
+                                    if (
+                                        $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+                                        || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                                    ) {
                                         $eid = (int) ($prow->entity_id ?? 0);
                                         $prow->precotizacion_number = $eid > 0 && isset($byId[$eid]) ? $byId[$eid] : '';
                                     }

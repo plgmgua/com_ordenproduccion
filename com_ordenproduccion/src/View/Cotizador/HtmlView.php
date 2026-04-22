@@ -111,6 +111,38 @@ class HtmlView extends BaseHtmlView
     protected $canRequestSolicitudDescuento = false;
 
     /**
+     * Document (proveedor_externo): solicitud de cotización workflow is installed and published.
+     *
+     * @var    bool
+     * @since  3.113.26
+     */
+    protected $solicitudCotizacionWorkflowAvailable = false;
+
+    /**
+     * Document: open solicitud de cotización al proveedor for this pre-cotización.
+     *
+     * @var    bool
+     * @since  3.113.26
+     */
+    protected $pendingSolicitudCotizacion = false;
+
+    /**
+     * Document: user may submit a new solicitud de cotización (proveedor externo).
+     *
+     * @var    bool
+     * @since  3.113.26
+     */
+    protected $canRequestSolicitudCotizacion = false;
+
+    /**
+     * Document: at least one solicitud de cotización was approved for this pre-cotización.
+     *
+     * @var    bool
+     * @since  3.113.26
+     */
+    protected $vendorQuoteSolicitudApproved = false;
+
+    /**
      * Precotizacion model (document/details layout) for breakdown adjustment helpers in layout.
      *
      * @var    \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel|null
@@ -233,6 +265,11 @@ class HtmlView extends BaseHtmlView
                     $this->discountWorkflowAvailable   = false;
                     $this->pendingSolicitudDescuento     = false;
                     $this->canRequestSolicitudDescuento  = false;
+                    $this->solicitudCotizacionWorkflowAvailable = false;
+                    $this->pendingSolicitudCotizacion           = false;
+                    $this->canRequestSolicitudCotizacion        = false;
+                    $this->vendorQuoteSolicitudApproved         = false;
+                    $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
                     try {
                         $wf = new ApprovalWorkflowService();
                         if ($wf->hasSchema()) {
@@ -243,17 +280,37 @@ class HtmlView extends BaseHtmlView
                                 ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
                                 (int) $id
                             ) !== null;
+                            if ($docMode === 'proveedor_externo') {
+                                $this->solicitudCotizacionWorkflowAvailable = $wf->isWorkflowPublishedForEntity(
+                                    ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                                );
+                                $this->pendingSolicitudCotizacion = $wf->getOpenPendingRequest(
+                                    ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION,
+                                    (int) $id
+                                ) !== null;
+                                $this->vendorQuoteSolicitudApproved = $wf->hasApprovedRequestForEntity(
+                                    ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION,
+                                    (int) $id
+                                );
+                            }
                         }
                     } catch (\Throwable $e) {
                         $this->discountWorkflowAvailable  = false;
                         $this->pendingSolicitudDescuento    = false;
+                        $this->solicitudCotizacionWorkflowAvailable = false;
+                        $this->pendingSolicitudCotizacion           = false;
+                        $this->vendorQuoteSolicitudApproved           = false;
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked
                         && !$this->pendingSolicitudDescuento;
+                    $this->canRequestSolicitudCotizacion = $docMode === 'proveedor_externo'
+                        && $this->solicitudCotizacionWorkflowAvailable
+                        && $precotModel->canUserEditPreCotizacionDocument((int) $id)
+                        && !$this->precotizacionLocked
+                        && !$this->pendingSolicitudCotizacion;
                     $this->precotVendorQuoteEvents = [];
-                    $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
                     if ($docMode === 'proveedor_externo' && method_exists($precotModel, 'getVendorQuoteEvents')) {
                         $this->precotVendorQuoteEvents = $precotModel->getVendorQuoteEvents((int) $id);
                     }

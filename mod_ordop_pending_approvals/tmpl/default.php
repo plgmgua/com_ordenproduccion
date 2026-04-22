@@ -24,6 +24,7 @@ $entityLabel = static function (string $entityType): string {
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
+        'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 
@@ -72,14 +73,17 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         <?php
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
                         $isDiscount     = $etype === 'solicitud_descuento';
+                        $isPreCotVendor = $etype === 'solicitud_cotizacion';
                         $isPaymentProof = $etype === 'payment_proof';
                         $tipoLabel      = $isDiscount
                             ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_DESCUENTO')
-                            : ($isPaymentProof
-                                ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_PAGO')
-                                : $entityLabel($etype));
+                            : ($isPreCotVendor
+                                ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_VENDOR_QUOTE')
+                                : ($isPaymentProof
+                                    ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_PAGO')
+                                    : $entityLabel($etype)));
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
-                        if ($isDiscount) {
+                        if ($isDiscount || $isPreCotVendor) {
                             $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
                                 ? (string) $row->precotizacion_number
                                 : (string) $eid;

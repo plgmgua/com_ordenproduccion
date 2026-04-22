@@ -56,7 +56,11 @@ if ($rows !== []) {
     $db = Factory::getContainer()->get(DatabaseInterface::class);
     $preCotIds = [];
     foreach ($rows as $row) {
-        if (($row->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+        $et = (string) ($row->entity_type ?? '');
+        if (
+            $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+            || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+        ) {
             $eid = (int) ($row->entity_id ?? 0);
             if ($eid > 0) {
                 $preCotIds[$eid] = true;
@@ -82,7 +86,11 @@ if ($rows !== []) {
     }
     foreach ($rows as $row) {
         $row->record_link = ApprovalRecordLink::relativeUrl($db, $row);
-        if (($row->entity_type ?? '') === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO) {
+        $et = (string) ($row->entity_type ?? '');
+        if (
+            $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+            || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+        ) {
             $eid = (int) ($row->entity_id ?? 0);
             $row->precotizacion_number = $eid > 0 && isset($preCotNumberById[$eid])
                 ? $preCotNumberById[$eid]

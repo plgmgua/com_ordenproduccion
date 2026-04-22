@@ -33,6 +33,9 @@ class ApprovalWorkflowService
     /** Pre-cotización: solicitud de descuento (entity_id = pre_cotización id). */
     public const ENTITY_SOLICITUD_DESCUENTO = 'solicitud_descuento';
 
+    /** Pre-cotización proveedor externo: solicitud de cotización (entity_id = pre_cotización id). */
+    public const ENTITY_SOLICITUD_COTIZACION = 'solicitud_cotizacion';
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -80,6 +83,30 @@ class ApprovalWorkflowService
         $row = $this->db->loadObject();
 
         return $row ?: null;
+    }
+
+    /**
+     * Whether any approval request for this entity was completed with status approved.
+     *
+     * @since   3.113.26
+     */
+    public function hasApprovedRequestForEntity(string $entityType, int $entityId): bool
+    {
+        if (!$this->hasSchema() || $entityId < 1 || $entityType === '') {
+            return false;
+        }
+
+        $query = $this->db->getQuery(true)
+            ->select($this->db->quoteName('id'))
+            ->from($this->db->quoteName('#__ordenproduccion_approval_requests'))
+            ->where($this->db->quoteName('entity_type') . ' = ' . $this->db->quote($entityType))
+            ->where($this->db->quoteName('entity_id') . ' = ' . (int) $entityId)
+            ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+            ->setLimit(1);
+
+        $this->db->setQuery($query);
+
+        return (int) $this->db->loadResult() > 0;
     }
 
     /**
