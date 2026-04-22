@@ -18,7 +18,8 @@ use Joomla\CMS\Router\Route;
 /** @var int $pendingTotal */
 
 $entityLabel = static function (string $entityType): string {
-    $map = [
+    $entityType = strtolower(trim($entityType));
+    $map        = [
         'cotizacion_confirmation' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_CONFIRMATION',
         'orden_status'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_STATUS',
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
@@ -71,7 +72,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                 <tbody>
                     <?php foreach ($rows as $row) : ?>
                         <?php
-                        $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
+                        $etype = strtolower(trim((string) ($row->entity_type ?? '')));
                         $isDiscount     = $etype === 'solicitud_descuento';
                         $isPreCotVendor = $etype === 'solicitud_cotizacion';
                         $isPaymentProof = $etype === 'payment_proof';
