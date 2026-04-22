@@ -887,11 +887,12 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     return;
                 }
                 if (m === 'pdf') {
-                    window.location.href = buildComponentTaskUrl(
+                    var pdfUrl = buildComponentTaskUrl(
                         'precotizacion.vendorQuoteDownloadPdf',
                         { precot_id: String(precotId), proveedor_id: String(selectedId) },
                         false
                     );
+                    window.open(pdfUrl, '_blank', 'noopener,noreferrer');
                     return;
                 }
                 if (m === 'cellphone') {

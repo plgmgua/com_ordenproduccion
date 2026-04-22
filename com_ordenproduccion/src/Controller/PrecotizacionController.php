@@ -1158,9 +1158,12 @@ class PrecotizacionController extends BaseController
             'proveedor_name' => (string) ($proveedor->name ?? ''),
             'filename'       => $fname,
         ]);
+        $forceDownload = (int) $app->input->get('download', 0) === 1;
+        $disposition   = $forceDownload ? 'attachment' : 'inline';
+
         $app->clearHeaders();
         $app->setHeader('Content-Type', 'application/pdf', true);
-        $app->setHeader('Content-Disposition', 'attachment; filename="' . $fname . '"', true);
+        $app->setHeader('Content-Disposition', $disposition . '; filename="' . $fname . '"', true);
         $app->setHeader('Cache-Control', 'no-cache', true);
         $app->sendHeaders();
         echo $bin;
