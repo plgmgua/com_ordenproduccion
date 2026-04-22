@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.37-STABLE] - 2026-04-16
+
+### Fixed
+- **Solicitud de cotización por correo:** Cuerpo HTML pasaba por `MailHelper::cleanText()`, que elimina secuencias `\n` + `to:` / `cc:` / `bcc:` / `content-type:` (anti–header-injection) y podía **corromper o vaciar** el mensaje si un campo (p. ej. descripción) contenía saltos de línea seguidos de “To:”. Los valores de marcadores de texto plano se **normalizan a una línea** antes del escape. Asunto **sin saltos de línea**; `isHtml(true)` **antes** de `setBody()`; `Reply-To` al usuario; registro en log y detalle del error si falla el envío (con **depuración** del componente o `JDEBUG`).
+
 ## [3.113.36-STABLE] - 2026-04-16
 
 ### Changed

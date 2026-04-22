@@ -44,6 +44,19 @@ class VendorQuoteHelper
     }
 
     /**
+     * Single-line subject for SMTP / MailHelper::cleanSubject (no CR/LF header injection).
+     *
+     * @since  3.113.37
+     */
+    public static function sanitizeVendorQuoteEmailSubject(string $subject): string
+    {
+        $s = str_replace(["\r\n", "\r", "\n"], ' ', $subject);
+        $s = preg_replace('/\s+/u', ' ', $s);
+
+        return trim((string) $s);
+    }
+
+    /**
      * Replace {KEY} placeholders in a template string.
      *
      * @param   string  $template
@@ -122,6 +135,12 @@ class VendorQuoteHelper
             $celularRaw = CotizacionPdfHelper::getUserCustomField($user, 'numero-de-celular');
         }
 
+        try {
+            $celularHtml = CotizacionPdfHelper::buildCelularWhatsAppHtml($celularRaw, true);
+        } catch (\Throwable $e) {
+            $celularHtml = htmlspecialchars($celularRaw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        }
+
         return [
             'PROVEEDOR_NOMBRE'          => $p($proveedor, 'name'),
             'PROVEEDOR_NIT'             => $p($proveedor, 'nit'),
@@ -139,7 +158,7 @@ class VendorQuoteHelper
             'USUARIO_EMAIL'             => $user && !empty($user->email) ? (string) $user->email : '',
             'USUARIO_CELULAR'           => $celularRaw,
             'USUARIO_CELULAR_WA_URL'    => CotizacionPdfHelper::getCelularWaMeUrl($celularRaw),
-            'USUARIO_CELULAR_HTML'      => CotizacionPdfHelper::buildCelularWhatsAppHtml($celularRaw, true),
+            'USUARIO_CELULAR_HTML'      => $celularHtml,
         ];
     }
 
@@ -290,7 +309,14 @@ class VendorQuoteHelper
             } elseif (in_array($key, $rawHtmlKeys, true)) {
                 $mapOut[$key] = (string) $value;
             } else {
-                $mapOut[$key] = htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                // Flatten newlines: Joomla Mail::setBody() runs MailHelper::cleanText(), which strips
+                // (\n|\r)(content-type:|to:|cc:|bcc:) and can remove legitimate text (e.g. "...\nTo: ...").
+                $flat = preg_replace(
+                    '/\s+/u',
+                    ' ',
+                    str_replace(["\r\n", "\r", "\n"], ' ', trim((string) $value))
+                );
+                $mapOut[$key] = htmlspecialchars($flat, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             }
         }
         $body = self::replacePlaceholders($template, $mapOut);

@@ -18,6 +18,9 @@ use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
+use Joomla\CMS\Mail\Mail;
+use Joomla\CMS\Mail\MailHelper;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
@@ -1194,7 +1197,9 @@ class PrecotizacionController extends BaseController
         }
         $user = Factory::getUser();
         $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, $user);
-        $subj = VendorQuoteHelper::replacePlaceholders((string) ($tpl->subject ?? ''), $map);
+        $subj = VendorQuoteHelper::sanitizeVendorQuoteEmailSubject(
+            VendorQuoteHelper::replacePlaceholders((string) ($tpl->subject ?? ''), $map)
+        );
         $bodyHtml = VendorQuoteHelper::buildVendorQuoteEmailBodyHtml((string) ($tpl->body ?? ''), $map, $vendorLines);
         $to   = trim((string) ($proveedor->contact_email ?? ''));
         if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
@@ -1203,15 +1208,37 @@ class PrecotizacionController extends BaseController
 
             return false;
         }
+        $mailer = null;
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
+            // Match Joomla sendMail order; isHtml before setBody avoids ambiguous MIME setup on some setups.
+            $mailer->isHtml(true);
             $mailer->setSubject($subj);
             $mailer->setBody(VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml));
-            $mailer->isHtml(true);
+            $replyEmail = trim((string) $user->email);
+            if ($replyEmail !== '' && MailHelper::isEmailAddress($replyEmail)) {
+                try {
+                    $mailer->addReplyTo($replyEmail, (string) ($user->name ?? ''));
+                } catch (\Throwable $ignore) {
+                    // Reply-To is optional
+                }
+            }
             $mailer->addRecipient($to);
             $mailer->send();
         } catch (\Throwable $e) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_SEND_FAIL'), 'error');
+            $detail = $e->getMessage();
+            if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
+                $detail .= ' | ' . $mailer->ErrorInfo;
+            }
+            Log::add('vendorQuoteSendEmail: ' . $detail, Log::ERROR, 'com_ordenproduccion');
+            $params = ComponentHelper::getParams('com_ordenproduccion');
+            $showDetail = (bool) $params->get('enable_debug', 0)
+                || (\defined('JDEBUG') && constant('JDEBUG'));
+            $msg = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_SEND_FAIL');
+            if ($showDetail && $detail !== '') {
+                $msg .= ' — ' . $detail;
+            }
+            $this->setMessage($msg, 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
 
             return false;
