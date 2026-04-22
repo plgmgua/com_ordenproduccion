@@ -1256,10 +1256,12 @@ class PrecotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
         }
         $fname = 'solicitud-cotizacion-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', (string) ($item->number ?? 'precot')) . '.pdf';
-        $this->recordVendorQuoteEvent($precotId, $proveedorId, 'pdf_download', [
-            'proveedor_name' => (string) ($proveedor->name ?? ''),
-            'filename'       => $fname,
-        ]);
+        if ($this->shouldLogVendorQuotePdfDownload()) {
+            $this->recordVendorQuoteEvent($precotId, $proveedorId, 'pdf_download', [
+                'proveedor_name' => (string) ($proveedor->name ?? ''),
+                'filename'       => $fname,
+            ]);
+        }
         $forceDownload = (int) $app->input->get('download', 0) === 1;
         $disposition   = $forceDownload ? 'attachment' : 'inline';
 
@@ -1859,6 +1861,28 @@ class PrecotizacionController extends BaseController
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $preCotizacionId, false));
 
         return true;
+    }
+
+    /**
+     * Whether to append a pdf_download registro row for this HTTP request.
+     * Inline PDF viewers often send a full GET then one or more ranged GETs to the same URL; each would otherwise create a duplicate log row.
+     *
+     * @return  bool
+     *
+     * @since   3.113.24
+     */
+    private function shouldLogVendorQuotePdfDownload(): bool
+    {
+        $app = Factory::getApplication();
+        if (strcasecmp($app->input->getMethod(), 'GET') !== 0) {
+            return false;
+        }
+        $range = trim((string) $app->input->server->getString('HTTP_RANGE', ''));
+        if ($range === '') {
+            return true;
+        }
+
+        return (bool) preg_match('/^bytes=0-/i', $range);
     }
 
     /**
