@@ -1552,6 +1552,16 @@ class PrecotizacionModel extends ListModel
                 $vt = trim((string) ($data['vendor_tiempo_entrega'] ?? $line->vendor_tiempo_entrega ?? ''));
                 $obj->vendor_tiempo_entrega = $vt !== '' ? substr($vt, 0, 512) : null;
             }
+            if (isset($columns['vendor_precio_unit_proveedor'])) {
+                if (AccessHelper::canEditProveedorExternoPrecioUnitProveedor()) {
+                    $obj->vendor_precio_unit_proveedor = round(
+                        (float) ($data['vendor_precio_unit_proveedor'] ?? $line->vendor_precio_unit_proveedor ?? 0),
+                        2
+                    );
+                } else {
+                    $obj->vendor_precio_unit_proveedor = round((float) ($line->vendor_precio_unit_proveedor ?? 0), 2);
+                }
+            }
             try {
                 $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
                 $preCotizacionId = (int) $line->pre_cotizacion_id;
@@ -1967,6 +1977,13 @@ class PrecotizacionModel extends ListModel
                 $vt = trim((string) ($data['vendor_tiempo_entrega'] ?? ''));
                 $line->vendor_tiempo_entrega = $vt !== '' ? substr($vt, 0, 512) : null;
             }
+            if (isset($columns['vendor_precio_unit_proveedor'])) {
+                if (AccessHelper::canEditProveedorExternoPrecioUnitProveedor()) {
+                    $line->vendor_precio_unit_proveedor = round((float) ($data['vendor_precio_unit_proveedor'] ?? 0), 2);
+                } else {
+                    $line->vendor_precio_unit_proveedor = 0.0;
+                }
+            }
         }
         if (isset($columns['impresion_subtotal_base']) && $lineType === 'pliego'
             && isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown']) && $data['calculation_breakdown'] !== []) {
@@ -2113,6 +2130,8 @@ class PrecotizacionModel extends ListModel
 
         $db = $this->getDatabase();
 
+        $canPup = AccessHelper::canEditProveedorExternoPrecioUnitProveedor();
+
         try {
             $db->transactionStart();
 
@@ -2132,6 +2151,9 @@ class PrecotizacionModel extends ListModel
                     'vendor_descripcion'    => $desc,
                     'vendor_tiempo_entrega' => '',
                 ];
+                if ($canPup) {
+                    $payload['vendor_precio_unit_proveedor'] = round((float) ($row['vendor_precio_unit_proveedor'] ?? 0), 2);
+                }
 
                 if ($lid > 0) {
                     $ln = $this->getLine($lid);

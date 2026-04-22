@@ -174,6 +174,27 @@ class AccessHelper
     }
 
     /**
+     * Whether the user may view/edit "P.Unit Proveedor" on pre-cotización proveedor externo lines (future PO).
+     * Allowed: Joomla groups **12** (Administración) and **16** (Aprobaciones Ventas / configured id).
+     *
+     * @return  bool
+     *
+     * @since   3.113.29
+     */
+    public static function canEditProveedorExternoPrecioUnitProveedor(): bool
+    {
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            return false;
+        }
+
+        $ids = array_map('intval', $user->getAuthorisedGroups());
+
+        return in_array(12, $ids, true) || in_array(self::GROUP_ID_APROBACIONES_VENTAS, $ids, true);
+    }
+
+    /**
      * Whether the user may open the Proveedores (vendors) view — list at minimum.
      * Restricted to Administración / Admon (same as other back-office tabs); not Ventas.
      *

@@ -699,7 +699,7 @@ class PrecotizacionController extends BaseController
     /**
      * Save all external-vendor lines from the proveedor document form (batch POST).
      *
-     * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion.
+     * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion, vendor_precio_unit_proveedor (groups 12/16 only).
      *
      * @return  bool
      *
