@@ -744,6 +744,16 @@ class PrecotizacionController extends BaseController
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
         } else {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVED'));
+            if (method_exists($model, 'allProveedorExternoLinesHavePositiveUnitPrices')
+                && $model->allProveedorExternoLinesHavePositiveUnitPrices($id)) {
+                try {
+                    $wf = new ApprovalWorkflowService();
+                    if ($wf->completePendingSolicitudCotizacionIfAny($id, (int) $user->id)) {
+                        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SOLICITUD_COT_AUTO_COMPLETED'), 'success');
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));

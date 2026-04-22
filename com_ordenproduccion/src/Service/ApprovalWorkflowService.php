@@ -381,6 +381,71 @@ class ApprovalWorkflowService
     }
 
     /**
+     * When proveedor externo lines are saved with unit sale price and P.Unit Proveedor both greater than 0 on every line,
+     * close any open solicitud de cotización approval (same pattern as discount subtotals auto-complete).
+     *
+     * @return  bool  True if a pending request was closed
+     *
+     * @since   3.113.32
+     */
+    public function completePendingSolicitudCotizacionIfAny(int $preCotizacionId, int $actorUserId): bool
+    {
+        if (!$this->hasSchema() || $preCotizacionId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $req = $this->getOpenPendingRequest(self::ENTITY_SOLICITUD_COTIZACION, $preCotizacionId);
+
+        if ($req === null) {
+            return false;
+        }
+
+        $requestId = (int) $req->id;
+        $now       = Factory::getDate()->toSql();
+        $comment   = 'vendor_unit_prices_saved';
+
+        $this->db->transactionStart();
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_request_steps'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('comments') . ' = ' . $this->db->quote($comment))
+                ->set($this->db->quoteName('decided_date') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('request_id') . ' = ' . $requestId)
+                ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'));
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            $q2 = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_requests'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('completed') . ' = ' . $this->db->quote($now))
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('id') . ' = ' . $requestId);
+            $this->db->setQuery($q2);
+            $this->db->execute();
+
+            ApprovalAuditHelper::log($requestId, 'vendor_unit_prices_saved', $actorUserId, 'pending', 'approved', '');
+            $reqFresh = $this->loadRequest($requestId);
+
+            if ($reqFresh !== null) {
+                $this->onRequestFullyApproved($reqFresh, $actorUserId);
+            }
+
+            $this->db->transactionCommit();
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
+
+        ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $actorUserId, $comment);
+
+        return true;
+    }
+
+    /**
      * When a payment proof is marked Verificado, close any open approval request without applying
      * entity side-effects here (setVerificado runs separately in the controller).
      *

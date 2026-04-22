@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.32-STABLE] - 2026-04-16
+
+### Added
+- **Guardar líneas (proveedor externo):** Si tras guardar todas las líneas `proveedor_externo` tienen **Precio unidad** y **P.Unit Proveedor** &gt; 0, se cierra automáticamente la aprobación pendiente de **solicitud de cotización** (misma mecánica que el cierre por subtotales en descuento; notificación al solicitante vía flujo).
+
 ## [3.113.31-STABLE] - 2026-04-16
 
 ### Changed
