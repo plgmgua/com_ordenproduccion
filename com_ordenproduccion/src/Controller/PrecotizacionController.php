@@ -1136,14 +1136,12 @@ class PrecotizacionController extends BaseController
             'user'              => $user,
         ];
         $encabezadoHtml = CotizacionPdfHelper::replacePlaceholders($pdfSettings['encabezado'] ?? '', $pdfContext);
-        $terminosHtml   = CotizacionPdfHelper::replacePlaceholders($pdfSettings['terminos_condiciones'] ?? '', $pdfContext);
         $pieHtml        = CotizacionPdfHelper::replacePlaceholders($pdfSettings['pie_pagina'] ?? '', $pdfContext);
         $formatVersion  = isset($pdfSettings['format_version']) ? max(1, min(2, (int) $pdfSettings['format_version'])) : 1;
         $sectionTitle   = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_SECTION_REQUEST');
         $bin            = VendorQuoteHelper::renderVendorQuotePdfLikeCotizacion(
             $body,
             $encabezadoHtml,
-            $terminosHtml,
             $pieHtml,
             $pdfSettings,
             $formatVersion,
