@@ -87,7 +87,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         if ($isDiscount || $isPreCotVendor) {
                             $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
                                 ? (string) $row->precotizacion_number
-                                : (string) $eid;
+                                : ($eid > 0 ? 'PRE-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT) : '');
                         } else {
                             $idLabel = (string) $eid;
                         }

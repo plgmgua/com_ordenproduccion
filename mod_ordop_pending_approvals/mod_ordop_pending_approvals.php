@@ -54,9 +54,19 @@ $rows            = $schemaOk ? $approvalService->getMyPendingApprovalRows((int) 
 if ($rows !== []) {
     $approvalService->enrichPendingRowsWithSubmitterDisplay($rows);
     $db = Factory::getContainer()->get(DatabaseInterface::class);
+
+    $formatPreCotDisplayNumber = static function (int $preCotId, string $storedNumber): string {
+        if ($preCotId < 1) {
+            return '';
+        }
+        $n = trim($storedNumber);
+
+        return $n !== '' ? $n : ('PRE-' . str_pad((string) $preCotId, 5, '0', STR_PAD_LEFT));
+    };
+
     $preCotIds = [];
     foreach ($rows as $row) {
-        $et = (string) ($row->entity_type ?? '');
+        $et = strtolower(trim((string) ($row->entity_type ?? '')));
         if (
             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -80,20 +90,21 @@ if ($rows !== []) {
             $db->setQuery($q);
             $numRows = $db->loadObjectList() ?: [];
             foreach ($numRows as $nr) {
-                $preCotNumberById[(int) $nr->id] = (string) ($nr->number ?? '');
+                $pid = (int) $nr->id;
+                $preCotNumberById[$pid] = $formatPreCotDisplayNumber($pid, (string) ($nr->number ?? ''));
             }
         }
     }
     foreach ($rows as $row) {
         $row->record_link = ApprovalRecordLink::relativeUrl($db, $row);
-        $et = (string) ($row->entity_type ?? '');
+        $et = strtolower(trim((string) ($row->entity_type ?? '')));
         if (
             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
         ) {
             $eid = (int) ($row->entity_id ?? 0);
-            $row->precotizacion_number = $eid > 0 && isset($preCotNumberById[$eid])
-                ? $preCotNumberById[$eid]
+            $row->precotizacion_number = $eid > 0
+                ? ($preCotNumberById[$eid] ?? $formatPreCotDisplayNumber($eid, ''))
                 : '';
         }
     }

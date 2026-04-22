@@ -1304,7 +1304,7 @@ class HtmlView extends BaseHtmlView
                     $this->approvalPendingRows = $approvalService->getMyPendingApprovalRows((int) $user->id);
                     $preCotIds = [];
                     foreach ($this->approvalPendingRows as $prow) {
-                        $et = (string) ($prow->entity_type ?? '');
+                        $et = strtolower(trim((string) ($prow->entity_type ?? '')));
                         if (
                             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
                             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -1331,16 +1331,20 @@ class HtmlView extends BaseHtmlView
                                 $numRows = $db->loadObjectList() ?: [];
                                 $byId = [];
                                 foreach ($numRows as $nr) {
-                                    $byId[(int) $nr->id] = (string) ($nr->number ?? '');
+                                    $pid = (int) $nr->id;
+                                    $raw = trim((string) ($nr->number ?? ''));
+                                    $byId[$pid] = $raw !== '' ? $raw : ('PRE-' . str_pad((string) $pid, 5, '0', STR_PAD_LEFT));
                                 }
                                 foreach ($this->approvalPendingRows as $prow) {
-                                    $et = (string) ($prow->entity_type ?? '');
+                                    $et = strtolower(trim((string) ($prow->entity_type ?? '')));
                                     if (
                                         $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
                                         || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
                                     ) {
                                         $eid = (int) ($prow->entity_id ?? 0);
-                                        $prow->precotizacion_number = $eid > 0 && isset($byId[$eid]) ? $byId[$eid] : '';
+                                        $prow->precotizacion_number = $eid > 0
+                                            ? ($byId[$eid] ?? ('PRE-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT)))
+                                            : '';
                                     }
                                 }
                             }
