@@ -1211,10 +1211,10 @@ class PrecotizacionController extends BaseController
         $mailer = null;
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
-            // Match Joomla sendMail order; isHtml before setBody avoids ambiguous MIME setup on some setups.
-            $mailer->isHtml(true);
+            // Same order as Joomla\CMS\Mail\Mail::sendMail(): subject, body, then isHtml.
             $mailer->setSubject($subj);
             $mailer->setBody(VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml));
+            $mailer->isHtml(true);
             $replyEmail = trim((string) $user->email);
             if ($replyEmail !== '' && MailHelper::isEmailAddress($replyEmail)) {
                 try {
