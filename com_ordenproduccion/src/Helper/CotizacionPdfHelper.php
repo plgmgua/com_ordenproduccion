@@ -21,7 +21,7 @@ use Joomla\CMS\User\User;
  * Placeholders supported in Ajustes de Cotización (PDF template).
  * Use these in Encabezado, Términos y Condiciones, Pie de página; they are replaced when generating the PDF.
  * User profile fields use Joomla custom field names: numero-de-celular, puesto-laboral, departamento, telefono, agente-de-ventas.
- * {CELULAR} and {USUARIO_CELULAR_HTML}: WhatsApp icon + link (+502). {USUARIO_CELULAR_WA_URL}: solo URL. {USUARIO_CELULAR}: texto crudo.
+ * {CELULAR}, {USUARIO_CELULAR_HTML} y {USUARIO_CELULAR_WA_URL}: icono WhatsApp + número formateado enlazado a wa.me. {USUARIO_CELULAR}: texto crudo del perfil.
  */
 class CotizacionPdfHelper
 {
@@ -42,7 +42,7 @@ class CotizacionPdfHelper
      */
     public const PLACEHOLDER_USUARIO_CELULAR_HTML = '{USUARIO_CELULAR_HTML}';
 
-    /** Plain wa.me URL (texto; campo perfil numero-de-celular). */
+    /** Mismo fragmento HTML que {CELULAR}: icono + número enlazado a wa.me. */
     public const PLACEHOLDER_USUARIO_CELULAR_WA_URL = '{USUARIO_CELULAR_WA_URL}';
 
     /** Celular sin formato (texto plano del perfil). */
@@ -130,8 +130,6 @@ class CotizacionPdfHelper
         $departamento = $user ? self::getUserCustomField($user, self::USER_FIELD_DEPARTAMENTO) : '';
         $telefono    = $user ? self::getUserCustomField($user, self::USER_FIELD_TELEFONO) : '';
 
-        $waUrl = self::getCelularWaMeUrl($celularRaw);
-
         $replacements = [
             self::PLACEHOLDER_NUMERO_COTIZACION   => $numeroCotizacion,
             self::PLACEHOLDER_FECHA               => $fecha,
@@ -141,7 +139,7 @@ class CotizacionPdfHelper
             self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => $agenteDeVentasCampo,
             self::PLACEHOLDER_CELULAR             => $celular,
             self::PLACEHOLDER_USUARIO_CELULAR_HTML => $celular,
-            self::PLACEHOLDER_USUARIO_CELULAR_WA_URL => $waUrl,
+            self::PLACEHOLDER_USUARIO_CELULAR_WA_URL => $celular,
             self::PLACEHOLDER_USUARIO_CELULAR     => $celularRaw,
             self::PLACEHOLDER_PUESTO              => $puesto,
             self::PLACEHOLDER_DEPARTAMENTO        => $departamento,

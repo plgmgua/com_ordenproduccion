@@ -151,8 +151,6 @@ class CotizacionFpdfBlocksHelper
                 continue;
             }
 
-            $chunk = self::expandAnchorHrefsForPdf($chunk);
-
             if (strpos($chunk, '<__TABLEBLOCK__>') !== false) {
                 preg_match_all('/<__TABLEBLOCK__>(.*?)<\/__TABLEBLOCK__>/s', $chunk, $tbMatches);
                 foreach ($tbMatches[1] as $encoded) {
@@ -182,6 +180,12 @@ class CotizacionFpdfBlocksHelper
             }
             if (preg_match('/<(i|em)\b/i', $chunk)) {
                 $fontStyle .= 'I';
+            }
+
+            $waInline = self::tryExtractWaInlineBlock($chunk, $align, $fontStyle);
+            if ($waInline !== null) {
+                $blocks[] = $waInline;
+                continue;
             }
 
             if (preg_match_all('/<img[^>]+>/i', $chunk, $imgMatches)) {
@@ -219,7 +223,7 @@ class CotizacionFpdfBlocksHelper
                 }
                 $text = implode("\n", $textParts);
             } else {
-                $text = strip_tags($chunk);
+                $text = strip_tags(self::expandAnchorHrefsForPdf($chunk));
             }
 
             $text = preg_replace('/[ \t]+/', ' ', $text);
@@ -313,6 +317,54 @@ class CotizacionFpdfBlocksHelper
                 continue;
             }
 
+            if ($type === 'wa_inline') {
+                $contentStarted = true;
+                $href  = $encode($block['href'] ?? '');
+                $label = $encode($block['label'] ?? '');
+                $st    = $block['style'] ?? '';
+                $align = $block['align'] ?? 'L';
+                $pdf->SetFont('Arial', $st, $fontSize);
+                $usableW = $pageW - $marginL - $marginR;
+
+                $iconWmm  = 0.0;
+                $iconHmm  = $lineH;
+                $imgMeta  = $block['img'] ?? null;
+                $imgPath  = null;
+                if (is_array($imgMeta) && !empty($imgMeta['src'])) {
+                    $imgPath = self::resolveImagePath($imgMeta['src']);
+                    if ($imgPath) {
+                        $imgWpx = (int) ($imgMeta['width'] ?? 0);
+                        $iconWmm = $imgWpx > 0 ? min($imgWpx * 0.2646, 6.0) : 4.5;
+                        $imgHpx = (int) ($imgMeta['height'] ?? 0);
+                        $iconHmm = $imgHpx > 0 ? min($imgHpx * 0.2646, $lineH * 1.2) : $iconWmm;
+                    }
+                }
+
+                $gapMm  = 1.5;
+                $textWid = $pdf->GetStringWidth($label);
+                $totalW  = $iconWmm + ($iconWmm > 0 ? $gapMm : 0) + $textWid;
+
+                $rowY = $pdf->GetY();
+                if ($align === 'C') {
+                    $startX = $marginL + max(0, ($usableW - $totalW) / 2);
+                } elseif ($align === 'R') {
+                    $startX = max($marginL, $pageW - $marginR - $totalW);
+                } else {
+                    $startX = $marginL;
+                }
+
+                if ($imgPath !== null && $iconWmm > 0) {
+                    $pdf->Image($imgPath, $startX, $rowY + max(0, ($lineH - $iconHmm) / 2), $iconWmm);
+                }
+                $labelX = $startX + $iconWmm + ($iconWmm > 0 ? $gapMm : 0);
+                $pdf->SetXY($labelX, $rowY);
+                $pdf->Cell(0, $lineH, $label, 0, 1, 'L', false, $href);
+                $pdf->SetY(max($pdf->GetY(), $rowY + max($lineH, $iconHmm)));
+                $pdf->Ln($gap);
+
+                continue;
+            }
+
             if ($type === 'table') {
                 $contentStarted = true;
                 $tableW = ($maxWidth > 0 ? $maxWidth : ($pageW - $marginL - $marginR));
@@ -397,9 +449,82 @@ class CotizacionFpdfBlocksHelper
     }
 
     /**
+     * Single-line WhatsApp control: optional one &lt;img&gt; + one wa.me (or api.whatsapp.com) &lt;a&gt;; used for PDF.
+     *
+     * @return  array<string, mixed>|null
+     *
+     * @since   3.113.42
+     */
+    private static function tryExtractWaInlineBlock(string $chunk, string $align, string $fontStyle): ?array
+    {
+        $chunk = trim($chunk);
+        if ($chunk === '') {
+            return null;
+        }
+
+        $imgMeta = null;
+        if (preg_match_all('#<img[^>]+>#i', $chunk, $imgMatches)) {
+            $nImg = count($imgMatches[0]);
+            if ($nImg > 1) {
+                return null;
+            }
+            if ($nImg === 1) {
+                $imgTag = $imgMatches[0][0];
+                if (preg_match('/src\s*=\s*["\']([^"\']+)["\']/', $imgTag, $srcM)) {
+                    $iw = 0;
+                    $ih = 0;
+                    if (preg_match('/width\s*=\s*["\']?(\d+)["\']?/i', $imgTag, $wm)) {
+                        $iw = (int) $wm[1];
+                    }
+                    if (preg_match('/height\s*=\s*["\']?(\d+)["\']?/i', $imgTag, $hm)) {
+                        $ih = (int) $hm[1];
+                    }
+                    $imgMeta = ['src' => $srcM[1], 'width' => $iw, 'height' => $ih];
+                }
+            }
+        }
+
+        $chunkNoImg = preg_replace('#<img[^>]+>#i', '', $chunk);
+        $chunkNoImg = trim($chunkNoImg);
+        if ($chunkNoImg === '' || !preg_match('#<\s*a\s#i', $chunkNoImg)) {
+            return null;
+        }
+
+        $linkRe = '#<\s*a\s[^>]*\bhref\s*=\s*(["\'])(https://(?:wa\.me/[^"\']+|api\.whatsapp\.com/send\?[^"\']+))\1[^>]*>([^<]*)</a>#i';
+        if (!preg_match_all($linkRe, $chunkNoImg, $waAll, PREG_SET_ORDER) || count($waAll) !== 1) {
+            return null;
+        }
+
+        $temp = preg_replace($linkRe, '', $chunkNoImg, 1);
+        $temp = trim(strip_tags($temp ?? ''));
+
+        if ($temp !== '') {
+            return null;
+        }
+
+        $only  = $waAll[0];
+        $href  = html_entity_decode(trim($only[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $label = trim(html_entity_decode($only[3], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($label === '') {
+            $label = $href;
+        }
+
+        return [
+            'type'   => 'wa_inline',
+            'img'    => $imgMeta,
+            'href'   => $href,
+            'label'  => $label,
+            'align'  => $align,
+            'list'   => false,
+            'style'  => $fontStyle,
+            'text'   => '',
+        ];
+    }
+
+    /**
      * FPDF strips &lt;a&gt; to inner text only; editors often keep a shortened label while href is correct.
      * Replace each anchor with href text when it is a WhatsApp URL, when inner is empty, or when inner is
-     * a strict prefix of href (truncated URL in the label).
+     * a strict prefix of href (truncated URL in the label). Preserves full &lt;a&gt; when label is the formatted number.
      *
      * @param   string  $html  HTML fragment
      *
@@ -422,6 +547,18 @@ class CotizacionFpdfBlocksHelper
                     return $inner;
                 }
                 if (preg_match('#^https?://(wa\.me/|api\.whatsapp\.com/)#i', $href)) {
+                    if ($inner !== '') {
+                        $innerNorm = rtrim($inner, '/');
+                        $hrefNorm  = rtrim($href, '/');
+                        $truncated = $innerNorm !== '' && strlen($hrefNorm) > strlen($innerNorm)
+                            && stripos($hrefNorm, $innerNorm) === 0;
+                        if ($truncated) {
+                            return $href;
+                        }
+
+                        return $m[0];
+                    }
+
                     return $href;
                 }
                 if (preg_match('#^https?://#i', $href)) {

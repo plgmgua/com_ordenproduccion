@@ -302,12 +302,16 @@ class VendorQuoteHelper
     {
         $tableHtml = self::formatLinesFullHtml($vendorLines);
         $mapOut    = [];
-        $rawHtmlKeys = ['USUARIO_CELULAR_HTML'];
+        $rawHtmlKeys = ['USUARIO_CELULAR_HTML', 'USUARIO_CELULAR_WA_URL'];
         foreach ($map as $key => $value) {
             if ($key === 'LINEAS_TEXTO') {
                 $mapOut[$key] = $tableHtml;
             } elseif (in_array($key, $rawHtmlKeys, true)) {
-                $mapOut[$key] = (string) $value;
+                if ($key === 'USUARIO_CELULAR_WA_URL') {
+                    $mapOut[$key] = (string) ($map['USUARIO_CELULAR_HTML'] ?? $value);
+                } else {
+                    $mapOut[$key] = (string) $value;
+                }
             } else {
                 // Flatten newlines: Joomla Mail::setBody() runs MailHelper::cleanText(), which strips
                 // (\n|\r)(content-type:|to:|cc:|bcc:) and can remove legitimate text (e.g. "...\nTo: ...").

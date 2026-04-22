@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.42-STABLE] - 2026-04-16
+
+### Changed
+- **WhatsApp en plantillas:** `{USUARIO_CELULAR_WA_URL}` equivale a `{USUARIO_CELULAR_HTML}` en PDF de cotización, pie/encabezado y correo de solicitud a proveedor: **icono + número formateado** con enlace a `https://wa.me/…`. En PDF, bloque dedicado **wa_inline** alinea icono y texto clicable (incl. centrado).
+
 ## [3.113.41-STABLE] - 2026-04-16
 
 ### Fixed
