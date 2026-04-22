@@ -2407,6 +2407,89 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * One vendor-quote event row by id (no ownership filter; caller must verify pre_cotizacion_id).
+     *
+     * @param   int  $eventId  Event id.
+     *
+     * @return  \stdClass|null
+     *
+     * @since   3.113.16
+     */
+    public function getVendorQuoteEvent(int $eventId): ?\stdClass
+    {
+        $eventId = (int) $eventId;
+        if ($eventId < 1 || !$this->hasVendorQuoteEventLogSchema()) {
+            return null;
+        }
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_precot_vendor_quote_event'))
+                ->where($db->quoteName('id') . ' = ' . $eventId)
+        );
+        $row = $db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Store vendor quote file path on one precot_vendor_quote_event row.
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id.
+     * @param   int     $eventId          Event id.
+     * @param   string  $relativePath     Path relative to site root (precot_vendor_quote/…).
+     *
+     * @return  bool
+     *
+     * @since   3.113.16
+     */
+    public function saveVendorQuoteEventAttachment(int $preCotizacionId, int $eventId, string $relativePath): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        $eventId         = (int) $eventId;
+        $relativePath    = trim(str_replace(['\\', '..'], ['/', ''], $relativePath), '/');
+        if ($preCotizacionId < 1 || $eventId < 1 || $relativePath === '' || !$this->hasVendorQuoteEventLogSchema()) {
+            return false;
+        }
+
+        $db      = $this->getDatabase();
+        $evtCols = $db->getTableColumns('#__ordenproduccion_precot_vendor_quote_event', false);
+        $evtCols = is_array($evtCols) ? array_change_key_case($evtCols, CASE_LOWER) : [];
+        if (!isset($evtCols['vendor_quote_attachment'])) {
+            return false;
+        }
+
+        $event = $this->getVendorQuoteEvent($eventId);
+        if (!$event || (int) $event->pre_cotizacion_id !== $preCotizacionId) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $prefix = 'media/com_ordenproduccion/precot_vendor_quote/';
+        if (strpos($relativePath, $prefix) !== 0) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_precot_vendor_quote_event'))
+                ->set($db->quoteName('vendor_quote_attachment') . ' = ' . $db->quote($relativePath))
+                ->where($db->quoteName('id') . ' = ' . $eventId)
+        );
+
+        return (bool) $db->execute();
+    }
+
+    /**
      * Get concepts (element labels) that require "Detalles" for a given line.
      * Pliego: one per breakdown row (label); if breakdown is empty, a single "Detalles" field is used. Elementos/Env?o: one single "Detalles" input per line (each is a single element).
      *
