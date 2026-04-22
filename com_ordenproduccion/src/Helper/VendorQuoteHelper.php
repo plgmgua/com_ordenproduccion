@@ -133,8 +133,8 @@ class VendorQuoteHelper
 
     /**
      * Build PDF using the same FPDF layout as cotización (Ajustes → PDF): encabezado, pie, CMY bars,
-     * format v1 or v2. Términos y condiciones from cotización settings are omitted (not sent on vendor requests).
-     * The price table is replaced by the vendor-request body (plain text → paragraphs).
+     * format v1 or v2. Términos, aceptación de cotización, and the price table are omitted; only the vendor letter
+     * body (plain text → paragraphs) appears after the header.
      *
      * @param   string  $bodyPlain            Vendor template body after placeholder replacement (UTF-8).
      * @param   string  $encabezadoHtml       Cotización encabezado HTML (placeholders already replaced).
@@ -251,8 +251,6 @@ class VendorQuoteHelper
         $logoWidth = isset($pdfSettings['logo_width']) ? (float) $pdfSettings['logo_width'] : 50;
         $encX      = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
         $encY      = isset($pdfSettings['encabezado_y']) ? (float) $pdfSettings['encabezado_y'] : 15;
-        $termX     = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
-        $termY     = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
         $pieX      = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
         $pieY      = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
 
@@ -283,23 +281,6 @@ class VendorQuoteHelper
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocks, 5, 10, $pageW, $marginR, 15, 4, $fix);
         }
         $pdf->Ln(6);
-
-        $lineH           = 6;
-        $contentW        = $pageW - 15 - $marginR;
-        $aceptacionLineH = 9;
-        $sigX            = ($termX > 0 ? $termX : 15);
-        $sigY            = ($termY > 0 ? $termY : $pdf->GetY());
-        $pdf->SetXY($sigX, $sigY);
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($contentW, $lineH, $fix('Aceptacion de cotizacion'), 0, 1, 'L');
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->SetX($sigX);
-        $pdf->Cell($contentW, $aceptacionLineH, $fix('Nombre'), 0, 1, 'L');
-        $pdf->SetX($sigX);
-        $pdf->Cell($contentW, $aceptacionLineH, $fix('Fecha'), 0, 1, 'L');
-        $pdf->SetX($sigX);
-        $pdf->Cell($contentW, $aceptacionLineH, $fix('Firma'), 0, 1, 'L');
-        $pdf->Ln(4);
 
         if ($pieBlocks !== []) {
             if ($pieY > 0 || $pieX > 0) {
@@ -345,8 +326,6 @@ class VendorQuoteHelper
         $logoX     = isset($pdfSettings['logo_x']) ? (float) $pdfSettings['logo_x'] : 15;
         $logoWidth = isset($pdfSettings['logo_width']) ? (float) $pdfSettings['logo_width'] : 50;
         $encX      = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
-        $termX     = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
-        $termY     = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
         $pieX      = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
         $pieY      = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
 
@@ -405,25 +384,6 @@ class VendorQuoteHelper
             $pdf->SetX(15);
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocks, 5, 10, $pageW, $marginR, 15, 4, $fix);
         }
-        $pdf->Ln(4);
-
-        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($contentW, $sectionH, $fix('Aceptacion de cotizacion'), 0, 1, 'L', true);
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFillColor(255, 255, 255);
-
-        $aceptacionLineH = 9;
-        $sigX            = ($termX > 0 ? $termX : 15);
-        $sigY            = ($termY > 0 ? $termY : $pdf->GetY());
-        $pdf->SetXY($sigX, $sigY);
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell($contentW, $aceptacionLineH, $fix('Nombre'), 0, 1, 'L');
-        $pdf->SetX($sigX);
-        $pdf->Cell($contentW, $aceptacionLineH, $fix('Fecha'), 0, 1, 'L');
-        $pdf->SetX($sigX);
-        $pdf->Cell($contentW, $aceptacionLineH, $fix('Firma'), 0, 1, 'L');
         $pdf->Ln(4);
 
         if ($pieBlocks !== []) {
