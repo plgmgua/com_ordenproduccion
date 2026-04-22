@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.41-STABLE] - 2026-04-16
+
+### Fixed
+- **WhatsApp `wa.me` en correo y PDF:** Si el campo *número de celular* tenía un valor corto o basura (p. ej. `1`) pero *teléfono* tenía el número completo, solo se usaba el celular y el enlace quedaba `https://wa.me/5021`. Ahora se elige el valor con **más dígitos normalizados** entre ambos campos. Además se lee **`rawvalue`** del campo personalizado cuando existe, en lugar de confiar solo en `value` (a veces acortado por el tipo de campo).
+
 ## [3.113.40-STABLE] - 2026-04-16
 
 ### Fixed

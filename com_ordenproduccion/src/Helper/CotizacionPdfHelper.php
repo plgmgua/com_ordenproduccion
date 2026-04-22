@@ -165,12 +165,28 @@ class CotizacionPdfHelper
         if (!$user instanceof User) {
             return '';
         }
-        $c = trim(self::getUserCustomField($user, self::USER_FIELD_CELULAR));
-        if ($c !== '') {
-            return $c;
+        // Prefer the field whose normalized digits are longest (e.g. celular="1" must not hide telefono with full number).
+        $candidates = [
+            [self::USER_FIELD_CELULAR, 2],
+            [self::USER_FIELD_TELEFONO, 1],
+        ];
+        $bestRaw   = '';
+        $bestScore = -1;
+        foreach ($candidates as [$fname, $tieBreak]) {
+            $raw = trim(self::getUserCustomField($user, $fname));
+            if ($raw === '') {
+                continue;
+            }
+            $norm  = self::normalizeCelularDigitsForWaMe($raw);
+            $dLen  = strlen($norm);
+            $score = $dLen * 10 + $tieBreak;
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestRaw   = $raw;
+            }
         }
 
-        return trim(self::getUserCustomField($user, self::USER_FIELD_TELEFONO));
+        return $bestRaw;
     }
 
     /**
@@ -312,6 +328,44 @@ class CotizacionPdfHelper
     }
 
     /**
+     * Prefer rawvalue from the fields API (full stored value); value may be display-formatted or shortened.
+     *
+     * @param   object  $field  Entry from FieldsHelper::getFields
+     *
+     * @return  string
+     *
+     * @since   3.113.41
+     */
+    private static function extractUserCustomFieldStoredValue(object $field): string
+    {
+        if (property_exists($field, 'rawvalue') && $field->rawvalue !== null && $field->rawvalue !== '') {
+            $r = $field->rawvalue;
+            if (is_string($r)) {
+                return $r;
+            }
+            if (is_int($r) || is_float($r)) {
+                return (string) $r;
+            }
+            if (is_array($r)) {
+                $parts = [];
+                foreach ($r as $v) {
+                    if (is_scalar($v) && (string) $v !== '') {
+                        $parts[] = (string) $v;
+                    }
+                }
+
+                return implode(' ', $parts);
+            }
+        }
+        if (!isset($field->value)) {
+            return '';
+        }
+        $v = $field->value;
+
+        return is_string($v) ? $v : (is_scalar($v) ? (string) $v : '');
+    }
+
+    /**
      * Get a custom user profile field value by field name (com_users.user custom fields).
      * Use the field "name" as in Users: Fields (e.g. numero-de-celular, puesto-laboral).
      *
@@ -334,9 +388,11 @@ class CotizacionPdfHelper
                 return '';
             }
             foreach ($fields as $field) {
-                if (isset($field->name) && $field->name === $fieldName && isset($field->value)) {
-                    return is_string($field->value) ? $field->value : (string) $field->value;
+                if (!isset($field->name) || $field->name !== $fieldName) {
+                    continue;
                 }
+
+                return self::extractUserCustomFieldStoredValue($field);
             }
         } catch (\Throwable $e) {
             return '';
