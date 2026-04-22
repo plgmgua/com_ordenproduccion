@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -341,6 +342,52 @@ class HtmlView extends BaseHtmlView
      * @since  3.113.0
      */
     protected $vendorQuoteTemplatesSchemaOk = false;
+
+    /**
+     * Outbound email log rows (tab=email_log).
+     *
+     * @var    array<int, object>
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogRows = [];
+
+    /**
+     * @var    int
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogTotal = 0;
+
+    /**
+     * @var    \Joomla\CMS\Pagination\Pagination|null
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogPagination = null;
+
+    /**
+     * @var    bool
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogTableAvailable = false;
+
+    /**
+     * @var    int
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogLimit = 20;
+
+    /**
+     * @var    int
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogLimitStart = 0;
+
+    /**
+     * Administración/Admon: list includes all users; Ventas: only own sends.
+     *
+     * @var    bool
+     * @since  3.113.39
+     */
+    protected $outboundEmailLogSeeAllUsers = false;
 
     /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
@@ -776,6 +823,11 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        if ($activeTab === 'email_log' && !AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
         // Sales agent filter: only Administracion/Admon see all; everyone else sees only their own records
         $salesAgentFilter = AccessHelper::getSalesAgentFilterForAdministracionView();
         // Ventas: statistics tab only from Jan 1, 2026 (year dropdown minimum; clamp so UI matches data)
@@ -874,6 +926,13 @@ class HtmlView extends BaseHtmlView
         $this->approvalGroupEditorMemberIds = [];
         $this->approvalReferenceJoomlaGroups       = [];
         $this->approvalWorkflowStepsApproverRows = [];
+        $this->outboundEmailLogRows              = [];
+        $this->outboundEmailLogTotal             = 0;
+        $this->outboundEmailLogPagination        = null;
+        $this->outboundEmailLogTableAvailable    = false;
+        $this->outboundEmailLogLimit             = 20;
+        $this->outboundEmailLogLimitStart        = 0;
+        $this->outboundEmailLogSeeAllUsers       = false;
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1250,6 +1309,33 @@ class HtmlView extends BaseHtmlView
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
                 $this->reportWorkOrders = [];
             }
+            }
+        }
+
+        if ($activeTab === 'email_log') {
+            $this->outboundEmailLogTableAvailable = OutboundEmailLogHelper::isTableAvailable();
+            $this->outboundEmailLogSeeAllUsers    = AccessHelper::isInAdministracionOrAdmonGroup();
+            $filterUid                            = $this->outboundEmailLogSeeAllUsers ? null : (int) Factory::getUser()->id;
+            $this->outboundEmailLogLimit          = max(5, min(100, (int) $input->getInt('email_log_limit', 20)));
+            $this->outboundEmailLogLimitStart     = max(0, (int) $input->getInt('email_log_limitstart', 0));
+            $pack                                 = OutboundEmailLogHelper::getListForAdministracion(
+                $this->outboundEmailLogLimitStart,
+                $this->outboundEmailLogLimit,
+                $filterUid
+            );
+            $this->outboundEmailLogRows  = $pack['rows'];
+            $this->outboundEmailLogTotal = $pack['total'];
+            if ($this->outboundEmailLogTableAvailable && $this->outboundEmailLogTotal > 0) {
+                $this->outboundEmailLogPagination = new \Joomla\CMS\Pagination\Pagination(
+                    $this->outboundEmailLogTotal,
+                    $this->outboundEmailLogLimitStart,
+                    $this->outboundEmailLogLimit,
+                    'email_log_'
+                );
+                $this->outboundEmailLogPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                $this->outboundEmailLogPagination->setAdditionalUrlParam('view', 'administracion');
+                $this->outboundEmailLogPagination->setAdditionalUrlParam('tab', 'email_log');
+                $this->outboundEmailLogPagination->setAdditionalUrlParam('email_log_limit', (string) $this->outboundEmailLogLimit);
             }
         }
 

@@ -10,12 +10,14 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Mail\Mail;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
@@ -970,6 +972,9 @@ class PaymentproofController extends BaseController
             );
         }
 
+        $toSummary = implode(', ', $emails);
+        $mailer    = null;
+
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
             $mailer->setSubject($subject);
@@ -979,8 +984,35 @@ class PaymentproofController extends BaseController
                 $mailer->addRecipient($email);
             }
             $mailer->send();
-        } catch (\Exception $e) {
-            // Log but do not block; payment was already saved
+            OutboundEmailLogHelper::log(
+                OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
+                (int) $user->id,
+                $toSummary,
+                $subject,
+                true,
+                '',
+                [
+                    'payment_proof_id' => (int) $paymentProofId,
+                    'recipients'       => array_values($emails),
+                ]
+            );
+        } catch (\Throwable $e) {
+            $detail = $e->getMessage();
+            if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
+                $detail .= ' | ' . $mailer->ErrorInfo;
+            }
+            OutboundEmailLogHelper::log(
+                OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
+                (int) $user->id,
+                $toSummary,
+                $subject,
+                false,
+                $detail,
+                [
+                    'payment_proof_id' => (int) $paymentProofId,
+                    'recipients'       => array_values($emails),
+                ]
+            );
         }
     }
 

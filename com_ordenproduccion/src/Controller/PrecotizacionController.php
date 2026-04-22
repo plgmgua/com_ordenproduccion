@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\VendorQuoteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
@@ -1230,6 +1231,18 @@ class PrecotizacionController extends BaseController
             if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
                 $detail .= ' | ' . $mailer->ErrorInfo;
             }
+            OutboundEmailLogHelper::log(
+                OutboundEmailLogHelper::CONTEXT_VENDOR_QUOTE_REQUEST,
+                (int) $user->id,
+                $to,
+                $subj,
+                false,
+                $detail,
+                [
+                    'precot_id'    => $precotId,
+                    'proveedor_id' => $proveedorId,
+                ]
+            );
             Log::add('vendorQuoteSendEmail: ' . $detail, Log::ERROR, 'com_ordenproduccion');
             $params = ComponentHelper::getParams('com_ordenproduccion');
             $showDetail = (bool) $params->get('enable_debug', 0)
@@ -1243,6 +1256,19 @@ class PrecotizacionController extends BaseController
 
             return false;
         }
+        OutboundEmailLogHelper::log(
+            OutboundEmailLogHelper::CONTEXT_VENDOR_QUOTE_REQUEST,
+            (int) $user->id,
+            $to,
+            $subj,
+            true,
+            '',
+            [
+                'precot_id'      => $precotId,
+                'proveedor_id'   => $proveedorId,
+                'proveedor_name' => (string) ($proveedor->name ?? ''),
+            ]
+        );
         $this->recordVendorQuoteEvent($precotId, $proveedorId, 'email_sent', [
             'proveedor_name' => (string) ($proveedor->name ?? ''),
             'to_email'       => $to,

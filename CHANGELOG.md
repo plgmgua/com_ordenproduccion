@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.39-STABLE] - 2026-04-16
+
+### Added
+- **Control de ventas:** Pestaña **Correos enviados** con historial de correos salientes (solicitud de cotización a proveedor y aviso por totales de comprobante no coincidentes). Tabla `#__ordenproduccion_outbound_email_log`; **Ventas** solo ven sus envíos; **Administración/Admon** ven todos.
+
 ## [3.113.38-STABLE] - 2026-04-16
 
 ### Fixed
