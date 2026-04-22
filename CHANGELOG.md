@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.45-STABLE] - 2026-04-22
+
+### Changed
+- **PDF cotización y solicitud a proveedor:** Franjas superior e inferior usan colores de marca en sRGB: Cian PMS 2925C (#009FE3), Amarillo PMS 803C (#FFED00), Magenta PMS 213C (#E6007E), en ese orden (C | Y | M). Lógica centralizada en `CotizacionFpdfBlocksHelper::drawCmyBrandBar()`.
+- **PDF cotización v2 y solicitud v2:** Barras de sección (“Datos del cliente”, “Precios”, etc.) y cabecera de tabla al tono Magenta 213C; filas alternas con tinte claro (#FFF5FA).
+
 ## [3.113.44-STABLE] - 2026-04-22
 
 ### Changed

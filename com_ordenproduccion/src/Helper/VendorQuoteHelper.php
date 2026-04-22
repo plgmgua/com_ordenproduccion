@@ -554,13 +554,7 @@ class VendorQuoteHelper
         $thirdW  = $pdf->GetPageWidth() / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
-        $pdf->SetFillColor(255, 255, 255);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         $logoPath  = isset($pdfSettings['logo_path']) ? trim((string) $pdfSettings['logo_path']) : '';
         $logoX     = isset($pdfSettings['logo_x']) ? (float) $pdfSettings['logo_x'] : 15;
@@ -614,12 +608,7 @@ class VendorQuoteHelper
         $pdf->Ln(4);
         $pdf->SetY($pdf->GetY());
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         return $pdf->Output('S');
     }
@@ -663,19 +652,13 @@ class VendorQuoteHelper
         $thirdW  = $pageW / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
-        $pdf->SetFillColor(255, 255, 255);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         $pdf->SetY($cmyBarH + 15);
 
-        $sectionR = 139;
-        $sectionG = 58;
-        $sectionB = 98;
+        $sectionR = 230;
+        $sectionG = 0;
+        $sectionB = 126;
         $sectionH = 7;
 
         if ($logoPath !== '') {
@@ -734,12 +717,7 @@ class VendorQuoteHelper
 
         $pdf->SetY($pdf->GetY() + 4);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         return $pdf->Output('S');
     }

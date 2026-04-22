@@ -19,6 +19,31 @@ use Joomla\CMS\Uri\Uri;
 class CotizacionFpdfBlocksHelper
 {
     /**
+     * Full-width three-strip bar: Cyan (PMS 2925C) | Yellow (PMS 803C) | Magenta (PMS 213C).
+     * Set position (e.g. SetY/SetX) before calling; restores fill colour to white.
+     *
+     * @param   \FPDF  $pdf
+     * @param   float  $thirdW  Segment width (typically page width / 3, mm)
+     * @param   float  $barH    Bar height (mm)
+     * @param   int    $ln      Last FPDF::Cell() line parameter (0 or 1)
+     *
+     * @return  void
+     *
+     * @since   3.113.45
+     */
+    public static function drawCmyBrandBar(\FPDF $pdf, float $thirdW, float $barH, int $ln = 1): void
+    {
+        // #009FE3, #FFED00, #E6007E (sRGB approximations for print specs)
+        $pdf->SetFillColor(0, 159, 227);
+        $pdf->Cell($thirdW, $barH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 237, 0);
+        $pdf->Cell($thirdW, $barH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(230, 0, 126);
+        $pdf->Cell($thirdW, $barH, '', 0, $ln, 'L', true);
+        $pdf->SetFillColor(255, 255, 255);
+    }
+
+    /**
      * Parse HTML into blocks with alignment (preserve WYSIWYG: left/right/center and line breaks).
      * Used for encabezado, términos and pie. Block text preserves \n for MultiCell.
      *

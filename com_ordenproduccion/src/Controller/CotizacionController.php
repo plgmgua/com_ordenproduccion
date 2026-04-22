@@ -1313,18 +1313,12 @@ class CotizacionController extends BaseController
         $pdf->SetMargins(15, 15, 15);
         $pdf->SetAutoPageBreak(true, 15);
 
-        // Top CMY bar (cyan, yellow, magenta)
+        // Top brand bar (Cyan 2925C | Yellow 803C | Magenta 213C)
         $cmyBarH = 4;
         $thirdW  = $pdf->GetPageWidth() / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
-        $pdf->SetFillColor(255, 255, 255);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         // FPDF uses Latin-1 (ISO-8859-1); shared helper matches mock FEL invoice PDF encoding.
         $fixSpanishChars = static function ($text) {
@@ -1467,17 +1461,12 @@ class CotizacionController extends BaseController
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
 
-        // Bottom CMY bar (cyan, yellow, magenta)
+        // Bottom brand bar
         $pdf->Ln(4);
         $curY = $pdf->GetY();
         $pdf->SetY($curY);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
         $dest = $forceDownload ? 'D' : 'I';
@@ -1539,32 +1528,26 @@ class CotizacionController extends BaseController
         $marginR = 15;
         $contentW = $pageW - 15 - $marginR;
 
-        // ── Top CMY bar (cyan, yellow, magenta) ──
+        // ── Top brand bar (Cyan 2925C | Yellow 803C | Magenta 213C) ──
         $cmyBarH = 4;
         $thirdW  = $pageW / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);   // Cyan
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);   // Yellow
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);   // Magenta
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
-        $pdf->SetFillColor(255, 255, 255);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         // Start content below top bar and below top margin
         $pdf->SetY($cmyBarH + 15);
 
-        // Section bar colour: compatible with CMY (dark magenta/plum)
-        $sectionR = 139;
-        $sectionG = 58;
-        $sectionB = 98;
-        $tableHeaderR = 166;
-        $tableHeaderG = 103;
-        $tableHeaderB = 134;
-        $tableLightR = 248;
-        $tableLightG = 240;
-        $tableLightB = 247;
+        // Section / table accents: brand Magenta 213C (#E6007E)
+        $sectionR = 230;
+        $sectionG = 0;
+        $sectionB = 126;
+        $tableHeaderR = 230;
+        $tableHeaderG = 0;
+        $tableHeaderB = 126;
+        $tableLightR = 255;
+        $tableLightG = 245;
+        $tableLightB = 250;
 
         // Logo
         if (!empty($logoPath)) {
@@ -1707,16 +1690,11 @@ class CotizacionController extends BaseController
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
 
-        // ── Bottom CMY bar ──
+        // ── Bottom brand bar ──
         $curY = $pdf->GetY();
         $pdf->SetY($curY + 4);
         $pdf->SetX(0);
-        $pdf->SetFillColor(0, 255, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 255, 0);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
-        $pdf->SetFillColor(255, 0, 255);
-        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
         $dest = $forceDownload ? 'D' : 'I';
