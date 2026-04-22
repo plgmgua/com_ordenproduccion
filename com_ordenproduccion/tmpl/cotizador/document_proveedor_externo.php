@@ -178,7 +178,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-price { width: 5.5rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-total { width: 5rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-actions { width: 2.75rem; padding-left: 0.2rem; padding-right: 0.2rem; }
-.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-cond { min-width: 10rem; max-width: 22rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-cond { min-width: 10rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log tr.precot-vendor-evt-cond-row td.col-evt-cond { max-width: none; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log tr.precot-vendor-evt-main-row td.col-evt-spacer { width: 0.01%; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-save { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
@@ -947,9 +949,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ACTION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_VENDOR'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_DETAIL'); ?></th>
-                        <th scope="col" class="col-evt-cond"><?php echo htmlspecialchars($colEventCondiciones); ?></th>
+                        <th scope="col" class="col-evt-spacer p-1"><span class="visually-hidden"><?php echo htmlspecialchars($colEventCondiciones); ?></span></th>
                         <th scope="col" class="col-evt-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                         <th scope="col" class="col-evt-save text-center" title="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($labelSaveEventCondiciones); ?></span><i class="fas fa-save" aria-hidden="true"></i></th>
+                    </tr>
+                    <tr>
+                        <th colspan="6" scope="colgroup" class="small fw-normal text-secondary py-1 border-top-0"><?php echo htmlspecialchars($colEventCondiciones); ?></th>
+                        <th class="border-top-0 p-0" aria-hidden="true"></th>
+                        <th class="border-top-0 p-0" aria-hidden="true"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -996,22 +1003,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             : '';
                         $evtAttachExt = $evtAttachRel !== '' ? strtolower(pathinfo($evtAttachRel, PATHINFO_EXTENSION)) : '';
                         ?>
-                    <tr>
+                    <tr class="precot-vendor-evt-main-row">
                         <td class="text-nowrap small"><?php echo htmlspecialchars(HTMLHelper::_('date', $ev->created, Text::_('DATE_FORMAT_LC6'))); ?></td>
                         <td class="small"><?php echo htmlspecialchars($actor); ?></td>
                         <td class="small"><?php echo htmlspecialchars($actionLabel); ?></td>
                         <td class="small"><?php echo htmlspecialchars($provName); ?></td>
                         <td class="small"><?php echo htmlspecialchars($detail); ?></td>
-                        <td class="col-evt-cond small p-1">
-                            <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
-                            <input type="text" class="form-control form-control-sm" name="condiciones_entrega" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
-                                   maxlength="512" value="<?php echo htmlspecialchars($evtCondiciones); ?>" autocomplete="off"
-                                   aria-label="<?php echo htmlspecialchars($colEventCondiciones); ?>">
-                            <?php else : ?>
-                            <span class="d-block px-1 py-1"><?php echo $evtCondiciones !== '' ? htmlspecialchars($evtCondiciones) : '—'; ?></span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="col-evt-attach text-center">
+                        <td class="col-evt-spacer small p-1 bg-light bg-opacity-25" aria-hidden="true">&nbsp;</td>
+                        <td class="col-evt-attach text-center align-middle" rowspan="2">
                             <div class="d-flex justify-content-center align-items-center gap-1 flex-wrap">
                                 <?php if ($evtAttachHref !== '') : ?>
                                 <button type="button" class="btn btn-sm btn-outline-primary js-vendor-line-view p-1"
@@ -1042,7 +1041,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                                 <?php endif; ?>
                             </div>
                         </td>
-                        <td class="col-evt-save text-center">
+                        <td class="col-evt-save text-center align-middle" rowspan="2">
                             <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
                             <form id="vendor-evt-cond-form-<?php echo (int) $evtId; ?>" method="post" action="<?php echo htmlspecialchars($saveVendorQuoteEventCondicionesUrl); ?>" class="mb-0">
                                 <?php echo HTMLHelper::_('form.token'); ?>
@@ -1054,6 +1053,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             </form>
                             <?php else : ?>
                             <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr class="precot-vendor-evt-cond-row">
+                        <td colspan="6" class="col-evt-cond small p-2 border-top-0">
+                            <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
+                            <input type="text" class="form-control form-control-sm" name="condiciones_entrega" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
+                                   maxlength="512" value="<?php echo htmlspecialchars($evtCondiciones); ?>" autocomplete="off"
+                                   aria-label="<?php echo htmlspecialchars($colEventCondiciones); ?>">
+                            <?php else : ?>
+                            <span class="d-block px-1 py-1"><?php echo $evtCondiciones !== '' ? htmlspecialchars($evtCondiciones) : '—'; ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
