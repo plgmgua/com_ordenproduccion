@@ -52,6 +52,10 @@ class FpdfHelper
         if ($path === null) {
             return false;
         }
+        $fontDir = \dirname($path) . '/font/';
+        if (!\defined('FPDF_FONTPATH') && \is_dir($fontDir)) {
+            \define('FPDF_FONTPATH', $fontDir);
+        }
         require_once $path;
 
         return \class_exists('FPDF', false);
