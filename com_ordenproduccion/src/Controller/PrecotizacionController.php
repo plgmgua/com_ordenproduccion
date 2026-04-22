@@ -754,7 +754,7 @@ class PrecotizacionController extends BaseController
     /**
      * Upload vendor quote file (PDF or image) for proveedor externo pre-cotización.
      *
-     * POST: id, vendor_quote_file, CSRF token. File stored under media/com_ordenproduccion/precot_vendor_quote/.
+     * POST: id, vendor_quote_file, optional line_id (proveedor_externo line), CSRF token. File stored under media/com_ordenproduccion/precot_vendor_quote/.
      *
      * @return  bool
      *
@@ -860,6 +860,57 @@ class PrecotizacionController extends BaseController
             $this->setRedirect($redir($id));
 
             return false;
+        }
+
+        $lineId = (int) $app->input->post->get('line_id', 0);
+
+        if ($lineId > 0) {
+            $line = $model->getLine($lineId);
+            if (
+                !$line
+                || (int) $line->pre_cotizacion_id !== $id
+                || (isset($line->line_type) ? (string) $line->line_type : 'pliego') !== 'proveedor_externo'
+            ) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_INVALID'), 'error');
+                $this->setRedirect($redir($id));
+
+                return false;
+            }
+
+            $uniqueName   = 'pre_' . $id . '_L' . $lineId . '_' . date('Y-m-d_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            $fullPath     = $uploadDir . '/' . $uniqueName;
+            $relativePath = 'media/com_ordenproduccion/precot_vendor_quote/' . $uniqueName;
+
+            if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_ERROR'), 'error');
+                $this->setRedirect($redir($id));
+
+                return false;
+            }
+
+            $oldRel = isset($line->vendor_quote_attachment) ? trim((string) $line->vendor_quote_attachment) : '';
+            if (!$model->saveVendorQuoteLineAttachment($id, $lineId, $relativePath)) {
+                @unlink($fullPath);
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_SCHEMA'), 'error');
+                $this->setRedirect($redir($id));
+
+                return false;
+            }
+
+            if ($oldRel !== '' && $oldRel !== $relativePath) {
+                $safePrefix = 'media/com_ordenproduccion/precot_vendor_quote/';
+                if (strpos($oldRel, $safePrefix) === 0) {
+                    $oldFull = JPATH_ROOT . '/' . $oldRel;
+                    if (is_file($oldFull)) {
+                        @unlink($oldFull);
+                    }
+                }
+            }
+
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_SAVED'));
+            $this->setRedirect($redir($id));
+
+            return true;
         }
 
         $uniqueName   = 'pre_' . $id . '_' . date('Y-m-d_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;

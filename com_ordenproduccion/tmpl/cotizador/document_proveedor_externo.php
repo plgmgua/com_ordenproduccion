@@ -138,6 +138,10 @@ if (strpos($colLeadFull, 'COM_ORDENPRODUCCION_') === 0) {
     $colLeadFull = 'Tiempo de entrega después de confirmación';
 }
 $colTotal = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL');
+$colAttach = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_ATTACH');
+if (strpos($colAttach, 'COM_ORDENPRODUCCION_') === 0) {
+    $colAttach = 'Adjunto';
+}
 $colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
 
 $user  = Factory::getUser();
@@ -181,6 +185,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-price { width: 5rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-lead { width: 22%; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-total { width: 4.25rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-actions { width: 2.75rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
     width: 100%;
@@ -205,6 +210,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .js-vendor-line-total {
     font-size: 0.9rem;
     white-space: nowrap;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-line-viewer iframe {
+    min-height: 480px;
+}
+@media (min-width: 768px) {
+    .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-line-viewer iframe {
+        min-height: min(70vh, 720px);
+    }
 }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-attachment-viewer iframe {
     min-height: 480px;
@@ -338,11 +351,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
                         <th class="col-lead" title="<?php echo htmlspecialchars($colLeadFull); ?>"><?php echo htmlspecialchars($colLeadShort); ?></th>
                         <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
+                        <th class="col-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($vendorLines as $line) :
                         $unit = round((float) ($line->price_per_sheet ?? 0), 2);
+                        $lineAttachRel = isset($line->vendor_quote_attachment) ? trim((string) $line->vendor_quote_attachment) : '';
+                        $lineAttachHref = $lineAttachRel !== ''
+                            ? rtrim(Uri::root(), '/') . '/' . str_replace('\\', '/', ltrim($lineAttachRel, '/'))
+                            : '';
+                        $lineAttachExt = $lineAttachRel !== '' ? strtolower(pathinfo($lineAttachRel, PATHINFO_EXTENSION)) : '';
                         ?>
                     <tr>
                         <td class="col-qty"><?php echo (int) $line->quantity; ?></td>
@@ -350,6 +369,19 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="col-price text-end">Q <?php echo number_format($unit, 2); ?></td>
                         <td class="col-lead"><?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?></td>
                         <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
+                        <td class="col-attach text-center">
+                            <?php if ($lineAttachHref !== '') : ?>
+                            <button type="button" class="btn btn-sm btn-outline-primary js-vendor-line-view p-1"
+                                    data-url="<?php echo htmlspecialchars($lineAttachHref); ?>"
+                                    data-ext="<?php echo htmlspecialchars($lineAttachExt); ?>"
+                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_VIEW')); ?>"
+                                    aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_VIEW')); ?>">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                            <?php else : ?>
+                            <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -390,6 +422,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
                         <th class="col-lead" title="<?php echo htmlspecialchars($colLeadFull); ?>"><?php echo htmlspecialchars($colLeadShort); ?></th>
                         <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
+                        <th class="col-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                         <th class="col-actions text-center"><span class="visually-hidden"><?php echo htmlspecialchars($colActions); ?></span></th>
                     </tr>
                 </thead>
@@ -398,6 +431,11 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         $lid = (int) $line->id;
                         $unit = round((float) ($line->price_per_sheet ?? 0), 2);
                         $tot  = round((float) ($line->total ?? 0), 2);
+                        $lineAttachRel = isset($line->vendor_quote_attachment) ? trim((string) $line->vendor_quote_attachment) : '';
+                        $lineAttachHref = $lineAttachRel !== ''
+                            ? rtrim(Uri::root(), '/') . '/' . str_replace('\\', '/', ltrim($lineAttachRel, '/'))
+                            : '';
+                        $lineAttachExt = $lineAttachRel !== '' ? strtolower(pathinfo($lineAttachRel, PATHINFO_EXTENSION)) : '';
                         ?>
                     <tr class="proveedor-externo-line-row">
                         <td class="col-qty">
@@ -415,6 +453,37 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                         <td class="col-total text-end align-middle">
                             <span class="js-vendor-line-total">Q <?php echo number_format($tot, 2); ?></span>
+                        </td>
+                        <td class="col-attach text-center align-middle">
+                            <div class="d-flex justify-content-center align-items-center gap-1 flex-wrap">
+                                <?php if ($lineAttachHref !== '') : ?>
+                                <button type="button" class="btn btn-sm btn-outline-primary js-vendor-line-view p-1"
+                                        data-url="<?php echo htmlspecialchars($lineAttachHref); ?>"
+                                        data-ext="<?php echo htmlspecialchars($lineAttachExt); ?>"
+                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_VIEW')); ?>"
+                                        aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_VIEW')); ?>">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                </button>
+                                <?php endif; ?>
+                                <?php if ($lid > 0) : ?>
+                                <form method="post" enctype="multipart/form-data" action="<?php echo htmlspecialchars($uploadVendorQuoteUrl); ?>" class="d-inline mb-0">
+                                    <?php echo HTMLHelper::_('form.token'); ?>
+                                    <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                                    <input type="hidden" name="line_id" value="<?php echo (int) $lid; ?>">
+                                    <input type="file" name="vendor_quote_file" id="vendor-line-file-<?php echo (int) $lid; ?>"
+                                           class="d-none js-vendor-line-file"
+                                           accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf"
+                                           aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_UPLOAD')); ?>">
+                                    <label for="vendor-line-file-<?php echo (int) $lid; ?>"
+                                           class="btn btn-sm btn-outline-secondary p-1 mb-0"
+                                           title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_UPLOAD')); ?>">
+                                        <i class="fas fa-paperclip" aria-hidden="true"></i><span class="visually-hidden"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_UPLOAD')); ?></span>
+                                    </label>
+                                </form>
+                                <?php else : ?>
+                                <span class="text-muted p-1" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_SAVE_FIRST')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></span>
+                                <?php endif; ?>
+                            </div>
                         </td>
                         <td class="col-actions text-center align-middle">
                             <?php if ($lid > 0) :
@@ -434,29 +503,21 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             </table>
         </div>
         <div class="d-flex flex-wrap gap-2 mt-2 align-items-center justify-content-between">
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button type="button" class="btn btn-outline-primary" id="proveedor-externo-add-line" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE'); ?>">+</button>
-                <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
-            </div>
             <?php if (!$user->guest) : ?>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open">
-                <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
-            </button>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
+                </button>
+            </div>
+            <?php else : ?>
+            <div></div>
             <?php endif; ?>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
+                <button type="button" class="btn btn-outline-primary" id="proveedor-externo-add-line" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE'); ?>">+</button>
+            </div>
         </div>
     </form>
-    <div class="mt-3 pt-3 border-top">
-        <form method="post" enctype="multipart/form-data" action="<?php echo htmlspecialchars($uploadVendorQuoteUrl); ?>" class="d-flex flex-wrap align-items-end gap-2">
-            <?php echo HTMLHelper::_('form.token'); ?>
-            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-            <div class="flex-grow-1" style="min-width: 220px; max-width: 420px;">
-                <label class="form-label small mb-1" for="vendor-quote-file-input"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_LABEL'); ?></label>
-                <input type="file" name="vendor_quote_file" id="vendor-quote-file-input" class="form-control form-control-sm"
-                       accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf">
-            </div>
-            <button type="submit" class="btn btn-outline-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_BTN'); ?></button>
-        </form>
-    </div>
     <template id="proveedor-externo-line-template">
         <tr class="proveedor-externo-line-row">
             <td class="col-qty">
@@ -474,6 +535,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             </td>
             <td class="col-total text-end align-middle">
                 <span class="js-vendor-line-total">Q 0.00</span>
+            </td>
+            <td class="col-attach text-center align-middle">
+                <span class="text-muted p-1" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_ATTACH_SAVE_FIRST')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></span>
             </td>
             <td class="col-actions text-center align-middle">
                 <button type="button" class="btn btn-sm btn-outline-secondary btn-vendor-row-action js-remove-vendor-row" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
@@ -533,6 +597,13 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 
         tbody.querySelectorAll('tr.proveedor-externo-line-row').forEach(bindRow);
 
+        tbody.addEventListener('change', function(e) {
+            var t = e.target;
+            if (t && t.classList && t.classList.contains('js-vendor-line-file') && t.files && t.files.length) {
+                t.form.submit();
+            }
+        });
+
         btnAdd.addEventListener('click', function() {
             var html = tpl.innerHTML.replace(/__I__/g, String(nextIdx));
             var wrap = document.createElement('tbody');
@@ -546,6 +617,60 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     })();
     </script>
     <?php endif; ?>
+
+    <section class="precot-vendor-line-viewer mt-3 pt-3 border-top" id="precot-vendor-line-viewer" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_VIEWER_TITLE')); ?>">
+        <h2 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_VIEWER_TITLE'); ?></h2>
+        <p class="small text-muted mb-2" id="precot-vendor-line-viewer-hint"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_VIEWER_HINT'); ?></p>
+        <div id="precot-vendor-line-viewer-body"></div>
+    </section>
+    <script>
+    (function() {
+        var viewer = document.getElementById('precot-vendor-line-viewer');
+        var bodyEl = document.getElementById('precot-vendor-line-viewer-body');
+        var hintEl = document.getElementById('precot-vendor-line-viewer-hint');
+        if (!viewer || !bodyEl) return;
+
+        var pdfHint = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_PDF_HINT')); ?>;
+        var openLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEW')); ?>;
+        var fallback = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_FALLBACK')); ?>;
+        var viewerTitle = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINE_VIEWER_TITLE')); ?>;
+
+        function escAttr(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;');
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target && e.target.closest ? e.target.closest('.js-vendor-line-view') : null;
+            if (!btn) return;
+            e.preventDefault();
+            var url = btn.getAttribute('data-url') || '';
+            var ext = (btn.getAttribute('data-ext') || '').toLowerCase();
+            if (!url) return;
+            if (hintEl) hintEl.classList.add('d-none');
+            bodyEl.innerHTML = '';
+            var isImg = ext === 'jpg' || ext === 'jpeg' || ext === 'png';
+            if (isImg) {
+                bodyEl.innerHTML = '<div class="text-center bg-light rounded border p-2">'
+                    + '<img src="' + escAttr(url) + '" alt="' + escAttr(viewerTitle) + '" class="img-fluid rounded shadow-sm" style="max-height:85vh;width:auto;">'
+                    + '</div>';
+                return;
+            }
+            if (ext === 'pdf') {
+                bodyEl.innerHTML = '<div class="border rounded overflow-hidden bg-light shadow-sm">'
+                    + '<iframe src="' + escAttr(url) + '#toolbar=1" class="w-100 border-0 d-block" title="' + escAttr(viewerTitle) + '"></iframe>'
+                    + '</div>'
+                    + '<p class="small text-muted mt-2 mb-0">' + escAttr(pdfHint)
+                    + ' <a href="' + escAttr(url) + '" target="_blank" rel="noopener">' + escAttr(openLabel) + '</a></p>';
+                return;
+            }
+            bodyEl.innerHTML = '<p class="small text-muted mb-0">' + escAttr(fallback)
+                + ' <a href="' + escAttr(url) + '" target="_blank" rel="noopener">' + escAttr(openLabel) + '</a></p>';
+        });
+    })();
+    </script>
 
     <div class="table-responsive mt-4">
         <table class="table table-sm w-auto ms-auto">

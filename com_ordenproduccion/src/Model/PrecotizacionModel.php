@@ -2043,6 +2043,19 @@ class PrecotizacionModel extends ListModel
             return false;
         }
 
+        $lineCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $lineCols = is_array($lineCols) ? array_change_key_case($lineCols, CASE_LOWER) : [];
+        if (isset($lineCols['vendor_quote_attachment'])) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('vendor_quote_attachment'))
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                    ->where($db->quoteName('id') . ' = ' . $lineId)
+            );
+            $lineAttach = trim((string) $db->loadResult());
+            $this->unlinkPrecotVendorQuoteFileIfSafe($lineAttach);
+        }
+
         $db->setQuery(
             $db->getQuery(true)
                 ->delete($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
@@ -2184,6 +2197,83 @@ class PrecotizacionModel extends ListModel
         );
 
         return (bool) $db->execute();
+    }
+
+    /**
+     * Store vendor quote file path on a single proveedor_externo line.
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id.
+     * @param   int     $lineId           Line id.
+     * @param   string  $relativePath     Path relative to site root (precot_vendor_quote/…).
+     *
+     * @return  bool
+     *
+     * @since   3.113.13
+     */
+    public function saveVendorQuoteLineAttachment(int $preCotizacionId, int $lineId, string $relativePath): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        $lineId          = (int) $lineId;
+        $relativePath    = trim(str_replace(['\\', '..'], ['/', ''], $relativePath), '/');
+        if ($preCotizacionId < 1 || $lineId < 1 || $relativePath === '') {
+            return false;
+        }
+
+        $db        = $this->getDatabase();
+        $lineCols  = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $lineCols  = is_array($lineCols) ? array_change_key_case($lineCols, CASE_LOWER) : [];
+        if (!isset($lineCols['vendor_quote_attachment'])) {
+            return false;
+        }
+
+        $ln = $this->getLine($lineId);
+        if (!$ln || (int) $ln->pre_cotizacion_id !== $preCotizacionId) {
+            return false;
+        }
+        if ((isset($ln->line_type) ? (string) $ln->line_type : 'pliego') !== 'proveedor_externo') {
+            return false;
+        }
+
+        $prefix = 'media/com_ordenproduccion/precot_vendor_quote/';
+        if (strpos($relativePath, $prefix) !== 0) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->set($db->quoteName('vendor_quote_attachment') . ' = ' . $db->quote($relativePath))
+                ->where($db->quoteName('id') . ' = ' . $lineId)
+        );
+
+        return (bool) $db->execute();
+    }
+
+    /**
+     * Delete a precot vendor quote file from disk if path is under the expected folder.
+     *
+     * @param   string|null  $relativePath  Relative path from site root.
+     *
+     * @return  void
+     *
+     * @since   3.113.13
+     */
+    protected function unlinkPrecotVendorQuoteFileIfSafe(?string $relativePath): void
+    {
+        $relativePath = trim((string) $relativePath);
+        if ($relativePath === '') {
+            return;
+        }
+
+        $safePrefix = 'media/com_ordenproduccion/precot_vendor_quote/';
+        if (strpos($relativePath, $safePrefix) !== 0) {
+            return;
+        }
+
+        $full = JPATH_ROOT . '/' . str_replace('\\', '/', $relativePath);
+        if (is_file($full)) {
+            @unlink($full);
+        }
     }
 
     /**
