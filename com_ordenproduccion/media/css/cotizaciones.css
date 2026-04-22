@@ -1,6 +1,6 @@
 /**
  * Cotizaciones (Quotations List) Styles
- * Version: 3.101.47
+ * Version: 3.113.17
  */
 
 .cotizaciones-container {
@@ -221,6 +221,48 @@
     color: white;
 }
 
+/* Filters + pagination (3.113.17) */
+.cotizaciones-filters {
+    margin-bottom: 1.25rem;
+    padding: 1rem 1rem 0.75rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+
+.cotizaciones-filters-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: flex-end;
+}
+
+.cotizaciones-filter-field {
+    flex: 1 1 140px;
+    min-width: 120px;
+}
+
+.cotizaciones-filter-field-limit {
+    flex: 0 0 100px;
+    max-width: 120px;
+}
+
+.cotizaciones-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-left: auto;
+}
+
+.cotizaciones-pagination .pagination {
+    margin-bottom: 0;
+}
+
+.cotizaciones-pagination ul.pagination {
+    margin-bottom: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .cotizaciones-container {
@@ -250,6 +292,15 @@
     .btn-new-quotation {
         width: 100%;
         justify-content: center;
+    }
+
+    .cotizaciones-filter-actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .cotizaciones-filter-actions .btn {
+        flex: 1 1 auto;
     }
 }
 

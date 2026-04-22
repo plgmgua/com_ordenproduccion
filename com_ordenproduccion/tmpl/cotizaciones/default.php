@@ -56,12 +56,65 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
         <?php endif; ?>
     </div>
 
-    <?php if (empty($this->quotations)): ?>
+    <?php
+    $qf = $this->quotationFilters ?? [];
+    $fName = isset($qf['client_name']) ? (string) $qf['client_name'] : '';
+    $fNit  = isset($qf['client_nit']) ? (string) $qf['client_nit'] : '';
+    $fFrom = isset($qf['date_from']) ? (string) $qf['date_from'] : '';
+    $fTo   = isset($qf['date_to']) ? (string) $qf['date_to'] : '';
+    $listLimit = isset($this->listLimit) ? (int) $this->listLimit : 20;
+    $totalQuot = isset($this->totalQuotations) ? (int) $this->totalQuotations : 0;
+    $hasFilters = trim($fName) !== '' || trim($fNit) !== '' || trim($fFrom) !== '' || trim($fTo) !== '';
+    $filterFormAction = Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false);
+    ?>
+    <form method="get" action="<?php echo htmlspecialchars($filterFormAction); ?>" class="cotizaciones-filters" id="cotizaciones-filters-form">
+        <input type="hidden" name="option" value="com_ordenproduccion">
+        <input type="hidden" name="view" value="cotizaciones">
+        <input type="hidden" name="limitstart" value="0">
+        <div class="cotizaciones-filters-grid">
+            <div class="cotizaciones-filter-field">
+                <label for="filter_client_name" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_CLIENT_NAME', 'Client name', 'Nombre del cliente'); ?></label>
+                <input type="text" class="form-control form-control-sm" name="filter_client_name" id="filter_client_name"
+                       value="<?php echo htmlspecialchars($fName); ?>" autocomplete="organization">
+            </div>
+            <div class="cotizaciones-filter-field">
+                <label for="filter_client_nit" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_NIT', 'NIT', 'NIT'); ?></label>
+                <input type="text" class="form-control form-control-sm" name="filter_client_nit" id="filter_client_nit"
+                       value="<?php echo htmlspecialchars($fNit); ?>" autocomplete="off">
+            </div>
+            <div class="cotizaciones-filter-field">
+                <label for="filter_date_from" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_DATE_FROM', 'Quote date from', 'Fecha desde'); ?></label>
+                <input type="date" class="form-control form-control-sm" name="filter_date_from" id="filter_date_from"
+                       value="<?php echo htmlspecialchars($fFrom); ?>">
+            </div>
+            <div class="cotizaciones-filter-field">
+                <label for="filter_date_to" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_DATE_TO', 'Quote date to', 'Fecha hasta'); ?></label>
+                <input type="date" class="form-control form-control-sm" name="filter_date_to" id="filter_date_to"
+                       value="<?php echo htmlspecialchars($fTo); ?>">
+            </div>
+            <div class="cotizaciones-filter-field cotizaciones-filter-field-limit">
+                <label for="cotizaciones_limit" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_PAGE_SIZE', 'Per page', 'Por página'); ?></label>
+                <select class="form-select form-select-sm" name="limit" id="cotizaciones_limit">
+                    <?php foreach ([10, 20, 50, 100] as $opt) : ?>
+                    <option value="<?php echo (int) $opt; ?>"<?php echo $listLimit === $opt ? ' selected' : ''; ?>><?php echo (int) $opt; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="cotizaciones-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_APPLY', 'Apply filters', 'Filtrar'); ?></button>
+                <a href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false)); ?>" class="btn btn-outline-secondary btn-sm"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_RESET', 'Clear', 'Limpiar'); ?></a>
+            </div>
+        </div>
+    </form>
+
+    <?php if ($totalQuot < 1): ?>
         <div class="no-quotations">
             <i class="fas fa-inbox fa-3x"></i>
-            <p><?php echo $l('COM_ORDENPRODUCCION_NO_QUOTATIONS_FOUND', 'No quotations found.', 'No se encontraron cotizaciones.'); ?></p>
-            <?php if ($hasVentasAccess): ?>
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion'); ?>" 
+            <p><?php echo $hasFilters
+                ? $l('COM_ORDENPRODUCCION_NO_QUOTATIONS_MATCH_FILTERS', 'No quotations match your filters.', 'No hay cotizaciones que coincidan con los filtros.')
+                : $l('COM_ORDENPRODUCCION_NO_QUOTATIONS_FOUND', 'No quotations found.', 'No se encontraron cotizaciones.'); ?></p>
+            <?php if ($hasVentasAccess && !$hasFilters): ?>
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion'); ?>"
                class="btn-new-quotation">
                 <i class="fas fa-plus"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_CREATE_FIRST_QUOTATION', 'Create First Quotation', 'Crear primera cotización'); ?>
@@ -120,5 +173,11 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                 </tbody>
             </table>
         </div>
+        <?php if ($this->pagination && $this->pagination->pagesTotal > 1) : ?>
+        <div class="cotizaciones-pagination mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="pagination"><?php echo $this->pagination->getPagesLinks(); ?></div>
+            <p class="small text-muted mb-0"><?php echo $this->pagination->getPagesCounter(); ?></p>
+        </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
