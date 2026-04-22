@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.30-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cot proveedor externo — Registro de solicitudes al proveedor:** Visible only to **Administración** / Admon, **Aprobaciones Ventas**, and super users (`AccessHelper::canViewVendorQuoteRequestLog`). One **row per proveedor** (repeated sends update the same row; list query deduplicates legacy duplicates). **Delete** removes that vendor’s log rows and attachments. Saving condiciones / per-row uploads requires the same log permission plus the existing document-edit rules.
+
 ## [3.109.70-STABLE] - 2026-04-21
 
 ### Added

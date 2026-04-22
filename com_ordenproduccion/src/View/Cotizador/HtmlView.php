@@ -159,6 +159,14 @@ class HtmlView extends BaseHtmlView
     protected $precotVendorQuoteEvents = [];
 
     /**
+     * Proveedor externo: user may see the vendor request log block (Administración, Aprobaciones Ventas).
+     *
+     * @var    bool
+     * @since  3.113.30
+     */
+    protected $canViewVendorQuoteRequestLog = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -310,8 +318,13 @@ class HtmlView extends BaseHtmlView
                         && $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked
                         && !$this->pendingSolicitudCotizacion;
-                    $this->precotVendorQuoteEvents = [];
-                    if ($docMode === 'proveedor_externo' && method_exists($precotModel, 'getVendorQuoteEvents')) {
+                    $this->canViewVendorQuoteRequestLog = AccessHelper::canViewVendorQuoteRequestLog();
+                    $this->precotVendorQuoteEvents      = [];
+                    if (
+                        $docMode === 'proveedor_externo'
+                        && $this->canViewVendorQuoteRequestLog
+                        && method_exists($precotModel, 'getVendorQuoteEvents')
+                    ) {
                         $this->precotVendorQuoteEvents = $precotModel->getVendorQuoteEvents((int) $id);
                     }
                 }

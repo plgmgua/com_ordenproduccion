@@ -775,6 +775,13 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if (!AccessHelper::canViewVendorQuoteRequestLog()) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_FORBIDDEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
         $app     = Factory::getApplication();
         $id      = (int) $app->input->post->get('id', 0);
         $eventId = (int) $app->input->post->get('event_id', 0);
@@ -802,6 +809,62 @@ class PrecotizacionController extends BaseController
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+        return true;
+    }
+
+    /**
+     * POST: id (pre-cot), proveedor_id. Deletes registro rows for that vendor (Administración / Aprobaciones Ventas).
+     *
+     * @return  bool
+     *
+     * @since   3.113.30
+     */
+    public function deleteVendorQuoteEvent()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+
+        if (!AccessHelper::canViewVendorQuoteRequestLog()) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_FORBIDDEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $app         = Factory::getApplication();
+        $id          = (int) $app->input->post->get('id', 0);
+        $proveedorId = (int) $app->input->post->get('proveedor_id', 0);
+
+        if ($id < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->deleteVendorQuoteEventsForProveedor($id, $proveedorId)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_DELETE_ERROR'), 'error');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_DELETED'));
+        }
+
+        $this->setRedirect(
+            Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false)
+        );
 
         return true;
     }
@@ -920,6 +983,13 @@ class PrecotizacionController extends BaseController
         $eventId = (int) $app->input->post->get('event_id', 0);
 
         if ($eventId > 0) {
+            if (!AccessHelper::canViewVendorQuoteRequestLog()) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_LOG_FORBIDDEN'), 'error');
+                $this->setRedirect($redir($id));
+
+                return false;
+            }
+
             $event = $model->getVendorQuoteEvent($eventId);
             if (!$event || (int) $event->pre_cotizacion_id !== $id) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ATTACH_INVALID'), 'error');

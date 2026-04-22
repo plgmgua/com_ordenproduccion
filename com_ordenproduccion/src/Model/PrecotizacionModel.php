@@ -2342,7 +2342,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Append an audit row when a user sends/requests a vendor quote (email, PDF, cellphone compose).
+     * Record a vendor quote action (email, PDF, cellphone). One row per proveedor per pre-cot: updates the existing row when present.
      *
      * @param   int     $preCotizacionId  Pre-cotización id.
      * @param   int     $proveedorId      Proveedor id (0 if unknown).
@@ -2378,17 +2378,98 @@ class PrecotizacionModel extends ListModel
         $user = Factory::getUser();
         $meta['actor_id']   = (int) $user->id;
         $meta['actor_name'] = (string) ($user->name ?? '');
+        $metaJson           = json_encode($meta, JSON_UNESCAPED_UNICODE);
+        $now                = Factory::getDate()->toSql();
+        $userId             = (int) $user->id;
+        $provId             = (int) $proveedorId;
 
-        $row                   = new \stdClass();
-        $row->pre_cotizacion_id = $preCotizacionId;
-        $row->proveedor_id     = (int) $proveedorId;
-        $row->event_type       = $eventType;
-        $row->meta             = json_encode($meta, JSON_UNESCAPED_UNICODE);
-        $row->created          = Factory::getDate()->toSql();
-        $row->created_by       = (int) $user->id;
+        $db  = $this->getDatabase();
+        $tbl = '#__ordenproduccion_precot_vendor_quote_event';
 
         try {
-            $this->getDatabase()->insertObject('#__ordenproduccion_precot_vendor_quote_event', $row);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName($tbl))
+                    ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+                    ->where($db->quoteName('proveedor_id') . ' = ' . $provId)
+                    ->order($db->quoteName('id') . ' ASC')
+            );
+            $existingRows = $db->loadObjectList();
+            $existingRows = is_array($existingRows) ? $existingRows : [];
+
+            $evtCols      = $db->getTableColumns($tbl, false);
+            $evtCols      = is_array($evtCols) ? array_change_key_case($evtCols, CASE_LOWER) : [];
+            $hasAttachCol = isset($evtCols['vendor_quote_attachment']);
+            $hasCondCol   = isset($evtCols['condiciones_entrega']);
+
+            if ($existingRows !== []) {
+                $keep   = $existingRows[array_key_last($existingRows)];
+                $keepId = (int) $keep->id;
+
+                $mergedAttach = $hasAttachCol ? trim((string) ($keep->vendor_quote_attachment ?? '')) : '';
+                $mergedCond   = $hasCondCol ? trim((string) ($keep->condiciones_entrega ?? '')) : '';
+
+                foreach ($existingRows as $r) {
+                    if ((int) $r->id === $keepId) {
+                        continue;
+                    }
+                    if ($hasAttachCol) {
+                        $oAtt = trim((string) ($r->vendor_quote_attachment ?? ''));
+                        if ($mergedAttach === '' && $oAtt !== '') {
+                            $mergedAttach = $oAtt;
+                        } elseif ($oAtt !== '' && $oAtt !== $mergedAttach) {
+                            $this->unlinkPrecotVendorQuoteFileIfSafe($oAtt);
+                        }
+                    }
+                    if ($hasCondCol) {
+                        $oC = trim((string) ($r->condiciones_entrega ?? ''));
+                        if ($mergedCond === '' && $oC !== '') {
+                            $mergedCond = $oC;
+                        }
+                    }
+                    $db->setQuery(
+                        $db->getQuery(true)
+                            ->delete($db->quoteName($tbl))
+                            ->where($db->quoteName('id') . ' = ' . (int) $r->id)
+                    );
+                    $db->execute();
+                }
+
+                $sets = [
+                    $db->quoteName('event_type') . ' = ' . $db->quote($eventType),
+                    $db->quoteName('meta') . ' = ' . $db->quote($metaJson),
+                    $db->quoteName('created') . ' = ' . $db->quote($now),
+                    $db->quoteName('created_by') . ' = ' . $userId,
+                ];
+                if ($hasAttachCol) {
+                    $sets[] = $db->quoteName('vendor_quote_attachment') . ' = '
+                        . ($mergedAttach === '' ? 'NULL' : $db->quote($mergedAttach));
+                }
+                if ($hasCondCol) {
+                    $sets[] = $db->quoteName('condiciones_entrega') . ' = '
+                        . ($mergedCond === '' ? 'NULL' : $db->quote($mergedCond));
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName($tbl))
+                        ->set($sets)
+                        ->where($db->quoteName('id') . ' = ' . $keepId)
+                );
+                $db->execute();
+
+                return true;
+            }
+
+            $row                    = new \stdClass();
+            $row->pre_cotizacion_id = $preCotizacionId;
+            $row->proveedor_id      = $provId;
+            $row->event_type        = $eventType;
+            $row->meta              = $metaJson;
+            $row->created           = $now;
+            $row->created_by        = $userId;
+
+            $db->insertObject($tbl, $row);
 
             return true;
         } catch (\Throwable $e) {
@@ -2397,10 +2478,10 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Newest-first event rows for one pre-cotización (proveedor externo).
+     * One row per proveedor (latest id), newest-first, for proveedor externo registro UI.
      *
      * @param   int  $preCotizacionId  Pre-cotización id.
-     * @param   int  $limit            Max rows.
+     * @param   int  $limit            Max vendors (rows).
      *
      * @return  array<int, \stdClass>
      *
@@ -2411,12 +2492,24 @@ class PrecotizacionModel extends ListModel
         if (!$this->hasVendorQuoteEventLogSchema() || $preCotizacionId < 1) {
             return [];
         }
-        $db = $this->getDatabase();
-        $query = $db->getQuery(true)
-            ->select('*')
+        $db      = $this->getDatabase();
+        $sub     = $db->getQuery(true)
+            ->select(
+                $db->quoteName('proveedor_id') . ', MAX(' . $db->quoteName('id') . ') AS ' . $db->quoteName('mid')
+            )
             ->from($db->quoteName('#__ordenproduccion_precot_vendor_quote_event'))
             ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
-            ->order($db->quoteName('id') . ' DESC');
+            ->group($db->quoteName('proveedor_id'));
+        $query = $db->getQuery(true)
+            ->select('e.*')
+            ->from($db->quoteName('#__ordenproduccion_precot_vendor_quote_event', 'e'))
+            ->join(
+                'INNER',
+                '(' . (string) $sub . ') AS z ON '
+                . $db->quoteName('z.proveedor_id') . ' = ' . $db->quoteName('e.proveedor_id')
+                . ' AND ' . $db->quoteName('z.mid') . ' = ' . $db->quoteName('e.id')
+            )
+            ->order($db->quoteName('e.id') . ' DESC');
         $db->setQuery($query, 0, max(1, min(500, $limit)));
 
         $rows = $db->loadObjectList();
@@ -2425,6 +2518,64 @@ class PrecotizacionModel extends ListModel
         }
 
         return $rows;
+    }
+
+    /**
+     * Remove all registro rows for one proveedor on this pre-cotización and delete stored attachments.
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id.
+     * @param   int  $proveedorId      Proveedor id.
+     *
+     * @return  bool
+     *
+     * @since   3.113.30
+     */
+    public function deleteVendorQuoteEventsForProveedor(int $preCotizacionId, int $proveedorId): bool
+    {
+        if (!$this->hasVendorQuoteEventLogSchema() || $preCotizacionId < 1) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $db  = $this->getDatabase();
+        $tbl = '#__ordenproduccion_precot_vendor_quote_event';
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName($tbl))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+                ->where($db->quoteName('proveedor_id') . ' = ' . (int) $proveedorId)
+        );
+        $rows = $db->loadObjectList();
+        if (!is_array($rows) || $rows === []) {
+            return true;
+        }
+
+        $evtCols      = $db->getTableColumns($tbl, false);
+        $evtCols      = is_array($evtCols) ? array_change_key_case($evtCols, CASE_LOWER) : [];
+        $hasAttachCol = isset($evtCols['vendor_quote_attachment']);
+
+        foreach ($rows as $r) {
+            if ($hasAttachCol && !empty($r->vendor_quote_attachment)) {
+                $this->unlinkPrecotVendorQuoteFileIfSafe((string) $r->vendor_quote_attachment);
+            }
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->delete($db->quoteName($tbl))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+                ->where($db->quoteName('proveedor_id') . ' = ' . (int) $proveedorId)
+        );
+
+        return (bool) $db->execute();
     }
 
     /**

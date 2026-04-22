@@ -195,6 +195,28 @@ class AccessHelper
     }
 
     /**
+     * Registro de solicitudes al proveedor (pre-cot proveedor externo): Administración / Admon, Aprobaciones Ventas, or super user.
+     *
+     * @return  bool
+     *
+     * @since   3.113.30
+     */
+    public static function canViewVendorQuoteRequestLog(): bool
+    {
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        return self::isInAdministracionOrAdmonGroup() || self::isInAprobacionesVentasGroup();
+    }
+
+    /**
      * Whether the user may open the Proveedores (vendors) view — list at minimum.
      * Restricted to Administración / Admon (same as other back-office tabs); not Ventas.
      *
