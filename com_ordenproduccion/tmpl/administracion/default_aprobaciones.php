@@ -50,14 +50,13 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
         <div class="alert alert-info mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_EMPTY'); ?></div>
     <?php else : ?>
         <div class="table-responsive">
-            <table class="table table-striped table-bordered align-middle">
+            <table class="table table-striped table-bordered align-middle com-ordenproduccion-approval-pending-table">
                 <thead class="table-light">
                     <tr>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_REQUEST'); ?></th>
+                        <th scope="col" class="text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_CREATED'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_TYPE'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_SUBMITTER'); ?></th>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_REFERENCE'); ?></th>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_CREATED'); ?></th>
+                        <th scope="col" class="approval-col-doc"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_DOC'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COL_ACTIONS'); ?></th>
                     </tr>
                 </thead>
@@ -86,11 +85,10 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         }
                         ?>
                         <tr>
-                            <td><?php echo (int) $rid; ?></td>
+                            <td class="text-nowrap small"><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($entityLabel($etype), ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:220px;">
                                 <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion') : ?>
                                 <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
@@ -120,3 +118,10 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
         </div>
     <?php endif; ?>
 </div>
+<style>
+.com-ordenproduccion-approval-pending-table td.approval-col-doc,
+.com-ordenproduccion-approval-pending-table th.approval-col-doc {
+    white-space: nowrap;
+    max-width: 1%;
+}
+</style>

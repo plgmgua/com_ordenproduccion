@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.34-STABLE] - 2026-04-16
+
+### Changed
+- **Aprobaciones pendientes:** Columna **Solicitud #** eliminada; **Creado** es la primera columna; **Referencia** pasa a **Doc #** con `nowrap` para que valores como `PRE-00099` no partan en dos líneas.
+
 ## [3.113.33-STABLE] - 2026-04-16
 
 ### Changed
