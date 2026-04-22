@@ -15,6 +15,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Cotizador\HtmlView $this */
 
@@ -138,25 +139,9 @@ $vendorQuoteProveedoresUrl = Route::_(
     Route::TLS_IGNORE,
     true
 );
-$vendorQuoteProveedorUrlPrefix = Route::_(
-    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedorJson&format=json&',
-    false,
-    Route::TLS_IGNORE,
-    true
-);
+/** Non-SEF index.php base so AJAX can append query params safely (SEF breaks string concat on Route URLs). */
+$vendorQuoteAjaxIndex = rtrim(Uri::root(), '/') . '/index.php';
 $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteSendEmail', false, Route::TLS_IGNORE, true);
-$vendorQuoteCellphoneUrl = Route::_(
-    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteCellphoneJson&format=json',
-    false,
-    Route::TLS_IGNORE,
-    true
-);
-$vendorQuotePdfUrlPrefix = Route::_(
-    'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteDownloadPdf&precot_id=' . $preCotizacionId . '&',
-    false,
-    Route::TLS_IGNORE,
-    true
-);
 ?>
 
 <div class="com-ordenproduccion-precotizacion-document com-ordenproduccion-precotizacion-proveedor-externo container py-4">
@@ -580,9 +565,7 @@ $vendorQuotePdfUrlPrefix = Route::_(
 
     <div class="modal fade" id="vendorQuoteModal" tabindex="-1" aria-labelledby="vendorQuoteModalTitle" aria-hidden="true"
          data-proveedores-url="<?php echo htmlspecialchars($vendorQuoteProveedoresUrl); ?>"
-         data-proveedor-url-prefix="<?php echo htmlspecialchars($vendorQuoteProveedorUrlPrefix); ?>"
-         data-cellphone-url="<?php echo htmlspecialchars($vendorQuoteCellphoneUrl); ?>"
-         data-pdf-url-prefix="<?php echo htmlspecialchars($vendorQuotePdfUrlPrefix); ?>"
+         data-ajax-index="<?php echo htmlspecialchars($vendorQuoteAjaxIndex); ?>"
          data-token-name="<?php echo htmlspecialchars($token); ?>"
          data-precot-id="<?php echo (int) $preCotizacionId; ?>">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -667,14 +650,39 @@ $vendorQuotePdfUrlPrefix = Route::_(
         var emailForm = document.getElementById('vendor-quote-email-form');
 
         var proveedoresUrl = modalEl.getAttribute('data-proveedores-url') || '';
-        var proveedorPrefix = modalEl.getAttribute('data-proveedor-url-prefix') || '';
-        var cellphoneUrl = modalEl.getAttribute('data-cellphone-url') || '';
-        var pdfPrefix = modalEl.getAttribute('data-pdf-url-prefix') || '';
+        var ajaxIndex = modalEl.getAttribute('data-ajax-index') || '';
         var tokenName = modalEl.getAttribute('data-token-name') || '';
         var precotId = modalEl.getAttribute('data-precot-id') || '0';
 
         var selectedId = 0;
         var cellLoaded = false;
+
+        /**
+         * Build index.php?option=com_ordenproduccion&task=... URLs with proper query string (works with SEF on the site).
+         *
+         * @param {string} task
+         * @param {Record<string, string>} extraParams
+         * @param {boolean} useFormatJson
+         * @return {string}
+         */
+        function buildComponentTaskUrl(task, extraParams, useFormatJson) {
+            var base = ajaxIndex || (window.location.origin + '/index.php');
+            var u = new URL(base, window.location.href);
+            u.searchParams.set('option', 'com_ordenproduccion');
+            u.searchParams.set('task', task);
+            if (useFormatJson !== false) {
+                u.searchParams.set('format', 'json');
+            }
+            if (tokenName) {
+                u.searchParams.set(tokenName, '1');
+            }
+            if (extraParams) {
+                Object.keys(extraParams).forEach(function(k) {
+                    u.searchParams.set(k, extraParams[k]);
+                });
+            }
+            return u.toString();
+        }
 
         function esc(s) {
             if (!s) return '';
@@ -745,10 +753,18 @@ $vendorQuotePdfUrlPrefix = Route::_(
                 el.classList.toggle('active', parseInt(el.getAttribute('data-id'), 10) === id);
             });
             if (emailProveedorInput) emailProveedorInput.value = String(id);
-            var url = proveedorPrefix + 'proveedor_id=' + encodeURIComponent(id) + '&' + encodeURIComponent(tokenName) + '=1';
+            var url = buildComponentTaskUrl('precotizacion.vendorQuoteProveedorJson', { proveedor_id: String(id) }, true);
             setStatus(msgs.loading);
             fetch(url, { credentials: 'same-origin' })
-                .then(function(r) { return r.json(); })
+                .then(function(r) {
+                    return r.text().then(function(t) {
+                        try {
+                            return JSON.parse(t);
+                        } catch (e) {
+                            return null;
+                        }
+                    });
+                })
                 .then(function(data) {
                     if (!data || !data.ok || !data.proveedor) {
                         setStatus(msgs.loadError);
@@ -827,8 +843,11 @@ $vendorQuotePdfUrlPrefix = Route::_(
                     return;
                 }
                 if (m === 'pdf') {
-                    var pdfUrl = pdfPrefix + 'proveedor_id=' + encodeURIComponent(selectedId) + '&' + encodeURIComponent(tokenName) + '=1';
-                    window.location.href = pdfUrl;
+                    window.location.href = buildComponentTaskUrl(
+                        'precotizacion.vendorQuoteDownloadPdf',
+                        { precot_id: String(precotId), proveedor_id: String(selectedId) },
+                        false
+                    );
                     return;
                 }
                 if (m === 'cellphone') {
@@ -841,7 +860,7 @@ $vendorQuotePdfUrlPrefix = Route::_(
                     fd.append('precot_id', precotId);
                     fd.append('proveedor_id', String(selectedId));
                     setStatus(msgs.loading);
-                    fetch(cellphoneUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                    fetch(buildComponentTaskUrl('precotizacion.vendorQuoteCellphoneJson', {}, true), { method: 'POST', body: fd, credentials: 'same-origin' })
                         .then(function(r) { return r.json(); })
                         .then(function(data) {
                             setStatus('');
