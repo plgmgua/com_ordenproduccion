@@ -113,30 +113,79 @@ class VendorQuoteHelper
     }
 
     /**
+     * Plain-text table for {LINEAS_TEXTO}: Cantidad + Descripción only (no prices), for email/PDF/cell templates.
+     *
      * @param   array<int, object>  $vendorLines
      *
      * @since   3.113.0
      */
     public static function formatLinesFull(array $vendorLines): string
     {
-        $lines = [];
-        foreach ($vendorLines as $ln) {
-            $qty  = (int) ($ln->quantity ?? 0);
-            $desc = trim((string) ($ln->vendor_descripcion ?? ''));
-            $unit = number_format((float) ($ln->price_per_sheet ?? 0), 2, '.', '');
-            $tot  = number_format((float) ($ln->total ?? 0), 2, '.', '');
-            $lead = trim((string) ($ln->vendor_tiempo_entrega ?? ''));
-            $lines[] = sprintf(
-                '• Cant. %d | %s | P. unit. Q %s | Total Q %s | Cond. entrega: %s',
-                $qty,
-                $desc !== '' ? $desc : '—',
-                $unit,
-                $tot,
-                $lead !== '' ? $lead : '—'
-            );
+        $hQty  = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_LINEAS_COL_CANTIDAD');
+        $hDesc = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_LINEAS_COL_DESCRIPCION');
+        if (strpos($hQty, 'COM_ORDENPRODUCCION_') === 0) {
+            $hQty = 'Cantidad';
+        }
+        if (strpos($hDesc, 'COM_ORDENPRODUCCION_') === 0) {
+            $hDesc = 'Descripción';
         }
 
-        return implode("\n", $lines);
+        $rows = [];
+        foreach ($vendorLines as $ln) {
+            $qty  = (string) max(0, (int) ($ln->quantity ?? 0));
+            $desc = trim((string) ($ln->vendor_descripcion ?? ''));
+            $desc = preg_replace('/\s+/u', ' ', str_replace(["\r\n", "\r", "\n"], ' ', $desc));
+            if ($desc === '') {
+                $desc = '—';
+            }
+            $rows[] = ['qty' => $qty, 'desc' => $desc];
+        }
+
+        if ($rows === []) {
+            return '';
+        }
+
+        $maxDescLen = 12;
+        foreach ($rows as $r) {
+            $maxDescLen = max($maxDescLen, mb_strlen($r['desc'], 'UTF-8'));
+        }
+        $wDesc = max(mb_strlen($hDesc, 'UTF-8'), min(72, $maxDescLen));
+        $wQty  = max(9, mb_strlen($hQty, 'UTF-8'));
+        foreach ($rows as $r) {
+            $wQty = max($wQty, mb_strlen($r['qty'], 'UTF-8'));
+        }
+
+        $bar = '+' . str_repeat('-', $wQty + 2) . '+' . str_repeat('-', $wDesc + 2) . '+';
+        $fmt = static function (string $a, string $b) use ($wQty, $wDesc): string {
+            return '| ' . self::mbVisualPad($a, $wQty) . ' | ' . self::mbVisualPad($b, $wDesc) . ' |';
+        };
+
+        $out   = [];
+        $out[] = $bar;
+        $out[] = $fmt($hQty, $hDesc);
+        $out[] = $bar;
+        foreach ($rows as $r) {
+            $out[] = $fmt($r['qty'], $r['desc']);
+        }
+        $out[] = $bar;
+
+        return implode("\n", $out);
+    }
+
+    /**
+     * Pad or truncate UTF-8 string to fixed display width (for ASCII table cells).
+     *
+     * @since  3.113.30
+     */
+    private static function mbVisualPad(string $s, int $width): string
+    {
+        $len = mb_strlen($s, 'UTF-8');
+        if ($len > $width) {
+            $s   = mb_substr($s, 0, max(0, $width - 1), 'UTF-8') . '…';
+            $len = mb_strlen($s, 'UTF-8');
+        }
+
+        return $s . str_repeat(' ', max(0, $width - $len));
     }
 
     /**
