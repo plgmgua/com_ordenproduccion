@@ -124,7 +124,7 @@ class CotizacionPdfHelper
             : ($user ? $user->get('name') : '');
 
         $agenteDeVentasCampo = $user ? self::getUserCustomField($user, self::USER_FIELD_AGENTE_DE_VENTAS) : '';
-        $celularRaw  = $user ? self::getUserCustomField($user, self::USER_FIELD_CELULAR) : '';
+        $celularRaw  = $user ? self::getUserCelularRawForWa($user) : '';
         $celular     = self::buildCelularWhatsAppHtml($celularRaw, false);
         $puesto      = $user ? self::getUserCustomField($user, self::USER_FIELD_PUESTO) : '';
         $departamento = $user ? self::getUserCustomField($user, self::USER_FIELD_DEPARTAMENTO) : '';
@@ -152,17 +152,55 @@ class CotizacionPdfHelper
     }
 
     /**
+     * Prefer custom field numero-de-celular; if empty, use telefono (office phone often holds the full mobile).
+     *
+     * @param   User|null  $user
+     *
+     * @return  string
+     *
+     * @since   3.113.40
+     */
+    public static function getUserCelularRawForWa(?User $user): string
+    {
+        if (!$user instanceof User) {
+            return '';
+        }
+        $c = trim(self::getUserCustomField($user, self::USER_FIELD_CELULAR));
+        if ($c !== '') {
+            return $c;
+        }
+
+        return trim(self::getUserCustomField($user, self::USER_FIELD_TELEFONO));
+    }
+
+    /**
      * Normalize profile cellphone to digits for https://wa.me/ (Guatemala: prefix 502 when missing).
      *
-     * @param   string  $raw  Value from custom field numero-de-celular
+     * @param   string  $raw  Value from custom field numero-de-celular (or telefono fallback)
      *
      * @return  string  Digits only (e.g. 502XXXXXXXX) or empty
      */
     public static function normalizeCelularDigitsForWaMe(string $raw): string
     {
-        $d = preg_replace('/\D+/u', '', $raw);
-        if ($d === null || $d === '') {
+        $raw = trim($raw);
+        if ($raw === '') {
             return '';
+        }
+        if (class_exists(\Normalizer::class)) {
+            $norm = \Normalizer::normalize($raw, \Normalizer::FORM_KC);
+            if (is_string($norm) && $norm !== '') {
+                $raw = $norm;
+            }
+        }
+        if (!preg_match_all('/\p{Nd}/u', $raw, $m) || empty($m[0])) {
+            return '';
+        }
+        $d = implode('', $m[0]);
+        if ($d === '') {
+            return '';
+        }
+        while (strlen($d) >= 2 && strncmp($d, '00', 2) === 0) {
+            $d = substr($d, 2);
         }
         if (strpos($d, self::CELULAR_GT_CC) === 0) {
             return $d;

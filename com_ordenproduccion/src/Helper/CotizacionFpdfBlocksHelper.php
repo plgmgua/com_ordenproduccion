@@ -116,6 +116,7 @@ class CotizacionFpdfBlocksHelper
                             $cellStyle .= 'I';
                         }
 
+                        $cellContent = self::expandAnchorHrefsForPdf($cellContent);
                         $cellText = preg_replace('/<br\s*\/?>/i', "\n", $cellContent);
                         $cellText = strip_tags($cellText);
                         $cellText = trim(preg_replace('/[ \t]+/', ' ', $cellText));
@@ -149,6 +150,8 @@ class CotizacionFpdfBlocksHelper
             if ($chunk === '') {
                 continue;
             }
+
+            $chunk = self::expandAnchorHrefsForPdf($chunk);
 
             if (strpos($chunk, '<__TABLEBLOCK__>') !== false) {
                 preg_match_all('/<__TABLEBLOCK__>(.*?)<\/__TABLEBLOCK__>/s', $chunk, $tbMatches);
@@ -210,7 +213,7 @@ class CotizacionFpdfBlocksHelper
                     },
                     $chunk
                 );
-                $extra = trim(strip_tags($remaining));
+                $extra = trim(strip_tags(self::expandAnchorHrefsForPdf($remaining)));
                 if ($extra !== '') {
                     array_unshift($textParts, $extra);
                 }
@@ -229,7 +232,7 @@ class CotizacionFpdfBlocksHelper
 
         if (empty($blocks)) {
             $text = preg_replace('/<__LISTBLOCK__>(.*?)<\/__LISTBLOCK__>/s', '$1', $html);
-            $text = strip_tags($text);
+            $text = strip_tags(self::expandAnchorHrefsForPdf($text));
             $text = trim(preg_replace('/[ \t]+/', ' ', $text));
             if ($text !== '') {
                 $blocks[] = ['type' => 'text', 'text' => $text, 'align' => 'L', 'list' => false, 'style' => ''];
@@ -384,10 +387,105 @@ class CotizacionFpdfBlocksHelper
                     $pdf->SetX($pageW - $marginR - $w);
                     $pdf->Cell($w, $lineH, $line, 0, 1, 'L');
                 }
+            } elseif ($align === 'L' && preg_match('#https?://#i', $text)) {
+                self::renderLatin1TextLinesWithHttpLinks($pdf, $text, $lineH, $textW);
             } else {
                 $pdf->MultiCell($textW, $lineH, $text, 0, $align);
             }
             $pdf->Ln($isList ? 1 : $gap);
+        }
+    }
+
+    /**
+     * FPDF strips &lt;a&gt; to inner text only; editors often keep a shortened label while href is correct.
+     * Replace each anchor with href text when it is a WhatsApp URL, when inner is empty, or when inner is
+     * a strict prefix of href (truncated URL in the label).
+     *
+     * @param   string  $html  HTML fragment
+     *
+     * @return  string
+     *
+     * @since   3.113.40
+     */
+    public static function expandAnchorHrefsForPdf(string $html): string
+    {
+        if ($html === '' || stripos($html, '<a') === false) {
+            return $html;
+        }
+        $out = preg_replace_callback(
+            '/<\s*a\b[^>]*\bhref\s*=\s*(["\'])([^"\']*)\1[^>]*>(.*?)<\s*\/\s*a\s*>/is',
+            static function (array $m): string {
+                $href = html_entity_decode(trim($m[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $href = trim($href);
+                $inner = trim(html_entity_decode(strip_tags($m[3]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($href === '') {
+                    return $inner;
+                }
+                if (preg_match('#^https?://(wa\.me/|api\.whatsapp\.com/)#i', $href)) {
+                    return $href;
+                }
+                if (preg_match('#^https?://#i', $href)) {
+                    if ($inner === '') {
+                        return $href;
+                    }
+                    $innerNorm = rtrim($inner, '/');
+                    $hrefNorm  = rtrim($href, '/');
+                    if ($innerNorm !== '' && stripos($hrefNorm, $innerNorm) === 0 && strlen($hrefNorm) > strlen($innerNorm)) {
+                        return $href;
+                    }
+                }
+
+                return $inner !== '' ? $inner : $href;
+            },
+            $html
+        );
+
+        return $out !== null ? $out : $html;
+    }
+
+    /**
+     * Left-aligned Latin-1 text with clickable http(s) segments (FPDF Write).
+     *
+     * @param   \FPDF   $pdf
+     * @param   string  $latin1Text  Already passed through encodeTextForFpdf
+     *
+     * @since   3.113.40
+     */
+    private static function renderLatin1TextLinesWithHttpLinks(\FPDF $pdf, string $latin1Text, float $lineH, float $textW): void
+    {
+        $lines = explode("\n", $latin1Text);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                $pdf->Ln($lineH);
+
+                continue;
+            }
+            if (!preg_match('#https?://#i', $line)) {
+                $pdf->MultiCell($textW, $lineH, $line, 0, 'L');
+
+                continue;
+            }
+            $parts = preg_split('#(https?://[^\s]+)#i', $line, -1, PREG_SPLIT_DELIM_CAPTURE);
+            if ($parts === false) {
+                $pdf->MultiCell($textW, $lineH, $line, 0, 'L');
+
+                continue;
+            }
+            foreach ($parts as $j => $part) {
+                if ($part === '') {
+                    continue;
+                }
+                $isUrl = ($j % 2 === 1);
+                if ($isUrl) {
+                    $pdf->SetTextColor(0, 0, 255);
+                    $pdf->Write($lineH, $part, $part);
+                    $pdf->SetTextColor(0, 0, 0);
+                } else {
+                    $pdf->Write($lineH, $part, '');
+                }
+            }
+            $pdf->Ln($lineH);
         }
     }
 }

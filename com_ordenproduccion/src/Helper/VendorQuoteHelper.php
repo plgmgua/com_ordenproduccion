@@ -132,7 +132,7 @@ class VendorQuoteHelper
 
         $celularRaw = '';
         if ($user instanceof User) {
-            $celularRaw = CotizacionPdfHelper::getUserCustomField($user, 'numero-de-celular');
+            $celularRaw = CotizacionPdfHelper::getUserCelularRawForWa($user);
         }
 
         try {

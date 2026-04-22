@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.40-STABLE] - 2026-04-16
+
+### Fixed
+- **PDF (cotización / solicitud proveedor):** En pie y encabezado, los enlaces WhatsApp (`wa.me`) a veces mostraban solo el texto del ancla (p. ej. `https://wa.me/5021`) porque FPDF hacía `strip_tags` y descartaba el `href` completo. Ahora se usa la URL del `href` cuando corresponde (incl. etiqueta truncada) y los `http(s)` en bloques alineados a la izquierda se dibujan con enlace PDF clicable (`Write`). Normalización de celular: dígitos Unicode (`\p{Nd}`), `Normalizer::FORM_KC`, quitar prefijo `00`, y si el campo *número de celular* está vacío se usa *teléfono* del perfil.
+
 ## [3.113.39-STABLE] - 2026-04-16
 
 ### Added
