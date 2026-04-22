@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\VendorQuoteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
@@ -109,6 +110,33 @@ class PrecotizacionController extends BaseController
         }
 
         return [$item, $proveedor, $vendorLines, $adm];
+    }
+
+    /**
+     * Long Spanish date for cotización PDF placeholders (e.g. 16 de abril de 2026).
+     *
+     * @param   \Joomla\CMS\Date\Date  $date
+     *
+     * @return  string
+     *
+     * @since   3.113.8
+     */
+    private function formatLongSpanishFromJoomlaDate($date): string
+    {
+        $y = (int) $date->format('Y');
+        $m = (int) $date->format('n');
+        $d = (int) $date->format('j');
+        $meses = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo',
+            4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre',
+            10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+        ];
+        if ($y < 1 || $d < 1 || !isset($meses[$m])) {
+            return '';
+        }
+
+        return $d . ' de ' . $meses[$m] . ' de ' . $y;
     }
 
     /**
@@ -1094,9 +1122,33 @@ class PrecotizacionController extends BaseController
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_TEMPLATE_MISSING'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
         }
-        $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, Factory::getUser());
+        $user = Factory::getUser();
+        $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, $user);
         $body = VendorQuoteHelper::replacePlaceholders((string) ($tpl->body ?? ''), $map);
-        $bin  = VendorQuoteHelper::renderPdfFromPlainText($body);
+
+        $pdfSettings = $adm->getCotizacionPdfSettings();
+        $fechaFormatted = $this->formatLongSpanishFromJoomlaDate(Factory::getDate());
+        $pdfContext     = [
+            'numero_cotizacion' => trim((string) ($item->number ?? '')),
+            'fecha'             => $fechaFormatted,
+            'cliente'           => trim((string) ($proveedor->name ?? '')),
+            'contacto'          => trim((string) ($proveedor->contact_name ?? '')),
+            'user'              => $user,
+        ];
+        $encabezadoHtml = CotizacionPdfHelper::replacePlaceholders($pdfSettings['encabezado'] ?? '', $pdfContext);
+        $terminosHtml   = CotizacionPdfHelper::replacePlaceholders($pdfSettings['terminos_condiciones'] ?? '', $pdfContext);
+        $pieHtml        = CotizacionPdfHelper::replacePlaceholders($pdfSettings['pie_pagina'] ?? '', $pdfContext);
+        $formatVersion  = isset($pdfSettings['format_version']) ? max(1, min(2, (int) $pdfSettings['format_version'])) : 1;
+        $sectionTitle   = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_SECTION_REQUEST');
+        $bin            = VendorQuoteHelper::renderVendorQuotePdfLikeCotizacion(
+            $body,
+            $encabezadoHtml,
+            $terminosHtml,
+            $pieHtml,
+            $pdfSettings,
+            $formatVersion,
+            $sectionTitle
+        );
         if ($bin === null) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_FAIL'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));

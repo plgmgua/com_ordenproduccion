@@ -63,7 +63,7 @@ class VendorQuoteHelper
             return trim((string) $o->{$prop});
         };
 
-        $linesText    = self::formatLinesFull($vendorLines);
+        $linesText      = self::formatLinesFull($vendorLines);
         $linesTextCorto = self::formatLinesShort($vendorLines);
 
         return [
@@ -78,7 +78,7 @@ class VendorQuoteHelper
             'PRECOT_DESCRIPCION'        => $p($precotItem, 'descripcion'),
             'PRECOT_MEDIDAS'            => $p($precotItem, 'medidas'),
             'LINEAS_TEXTO'              => $linesText,
-            'LINEAS_TEXTO_CORTO'       => $linesTextCorto,
+            'LINEAS_TEXTO_CORTO'        => $linesTextCorto,
             'USUARIO_NOMBRE'            => $user && !empty($user->name) ? (string) $user->name : '',
             'USUARIO_EMAIL'             => $user && !empty($user->email) ? (string) $user->email : '',
         ];
@@ -93,11 +93,11 @@ class VendorQuoteHelper
     {
         $lines = [];
         foreach ($vendorLines as $ln) {
-            $qty   = (int) ($ln->quantity ?? 0);
-            $desc  = trim((string) ($ln->vendor_descripcion ?? ''));
-            $unit  = number_format((float) ($ln->price_per_sheet ?? 0), 2, '.', '');
-            $tot   = number_format((float) ($ln->total ?? 0), 2, '.', '');
-            $lead  = trim((string) ($ln->vendor_tiempo_entrega ?? ''));
+            $qty  = (int) ($ln->quantity ?? 0);
+            $desc = trim((string) ($ln->vendor_descripcion ?? ''));
+            $unit = number_format((float) ($ln->price_per_sheet ?? 0), 2, '.', '');
+            $tot  = number_format((float) ($ln->total ?? 0), 2, '.', '');
+            $lead = trim((string) ($ln->vendor_tiempo_entrega ?? ''));
             $lines[] = sprintf(
                 '• Cant. %d | %s | P. unit. Q %s | Total Q %s | Cond. entrega: %s',
                 $qty,
@@ -132,40 +132,347 @@ class VendorQuoteHelper
     }
 
     /**
-     * Strip/replace characters FPDF core fonts cannot render reliably.
+     * Build PDF using the same FPDF layout as cotización (Ajustes → PDF): encabezado, términos, pie, CMY bars,
+     * format v1 or v2. The price table is replaced by the vendor-request body (plain text → paragraphs).
      *
-     * @since  3.113.0
-     */
-    public static function encodeForFpdf(string $text): string
-    {
-        $map = [
-            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
-            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
-            'Ü' => 'U', 'ü' => 'u', 'Ç' => 'C', 'ç' => 'c',
-        ];
-
-        return strtr($text, $map);
-    }
-
-    /**
-     * @return  string|null  PDF binary or null if FPDF unavailable
+     * @param   string  $bodyPlain            Vendor template body after placeholder replacement (UTF-8).
+     * @param   string  $encabezadoHtml       Cotización encabezado HTML (placeholders already replaced).
+     * @param   string  $terminosHtml         Cotización términos HTML.
+     * @param   string  $pieHtml              Cotización pie HTML.
+     * @param   array   $pdfSettings          From Administracion::getCotizacionPdfSettings().
+     * @param   int     $formatVersion        1 = classic, 2 = print-style sections.
+     * @param   string  $requestSectionTitle  Section title above the vendor letter (translated).
      *
-     * @since   3.113.0
+     * @return  string|null  PDF binary (S) or null if FPDF unavailable
+     *
+     * @since   3.113.8
      */
-    public static function renderPdfFromPlainText(string $bodyText): ?string
-    {
+    public static function renderVendorQuotePdfLikeCotizacion(
+        string $bodyPlain,
+        string $encabezadoHtml,
+        string $terminosHtml,
+        string $pieHtml,
+        array $pdfSettings,
+        int $formatVersion,
+        string $requestSectionTitle
+    ): ?string {
         if (!FpdfHelper::register()) {
             return null;
         }
+
+        $fix = static function ($text) {
+            if ($text === null || $text === '') {
+                return $text;
+            }
+
+            return CotizacionPdfHelper::encodeTextForFpdf((string) $text);
+        };
+
+        $encabezadoBlocks = CotizacionFpdfBlocksHelper::parseHtmlBlocks($encabezadoHtml, $fix);
+        $terminosBlocks   = CotizacionFpdfBlocksHelper::parseHtmlBlocks($terminosHtml, $fix);
+        $pieBlocks        = CotizacionFpdfBlocksHelper::parseHtmlBlocks($pieHtml, $fix);
+        $bodyHtml         = self::wrapPlainLetterBodyAsHtml($bodyPlain);
+        $bodyBlocks       = CotizacionFpdfBlocksHelper::parseHtmlBlocks($bodyHtml, $fix);
+
+        if ($formatVersion === 2) {
+            return self::buildVendorQuotePdfV2(
+                $encabezadoBlocks,
+                $terminosBlocks,
+                $pieBlocks,
+                $bodyBlocks,
+                $pdfSettings,
+                $requestSectionTitle,
+                $fix
+            );
+        }
+
+        return self::buildVendorQuotePdfV1(
+            $encabezadoBlocks,
+            $terminosBlocks,
+            $pieBlocks,
+            $bodyBlocks,
+            $pdfSettings,
+            $requestSectionTitle,
+            $fix
+        );
+    }
+
+    /**
+     * One &lt;p&gt; per line so parseHtmlBlocks preserves line breaks like the old plain MultiCell.
+     *
+     * @since  3.113.8
+     */
+    private static function wrapPlainLetterBodyAsHtml(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        if ($text === '') {
+            return '';
+        }
+        $out   = [];
+        $lines = explode("\n", $text);
+        foreach ($lines as $line) {
+            $out[] = '<p>' . htmlspecialchars($line, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
+        }
+
+        return implode('', $out);
+    }
+
+    /**
+     * @param   array<int, array<string, mixed>>  $encabezadoBlocks
+     * @param   array<int, array<string, mixed>>  $terminosBlocks
+     * @param   array<int, array<string, mixed>>  $pieBlocks
+     * @param   array<int, array<string, mixed>>  $bodyBlocks
+     * @param   array<string, mixed>              $pdfSettings
+     * @param   callable                          $fix
+     */
+    private static function buildVendorQuotePdfV1(
+        array $encabezadoBlocks,
+        array $terminosBlocks,
+        array $pieBlocks,
+        array $bodyBlocks,
+        array $pdfSettings,
+        string $requestSectionTitle,
+        callable $fix
+    ): string {
         $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
         $pdf->AddPage();
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+
+        $cmyBarH = 4;
+        $thirdW  = $pdf->GetPageWidth() / 3;
+        $pdf->SetY(0);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        $pdf->SetFillColor(255, 255, 255);
+
+        $logoPath  = isset($pdfSettings['logo_path']) ? trim((string) $pdfSettings['logo_path']) : '';
+        $logoX     = isset($pdfSettings['logo_x']) ? (float) $pdfSettings['logo_x'] : 15;
+        $logoY     = isset($pdfSettings['logo_y']) ? (float) $pdfSettings['logo_y'] : 15;
+        $logoWidth = isset($pdfSettings['logo_width']) ? (float) $pdfSettings['logo_width'] : 50;
+        $encX      = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
+        $encY      = isset($pdfSettings['encabezado_y']) ? (float) $pdfSettings['encabezado_y'] : 15;
+        $termX     = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
+        $termY     = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
+        $pieX      = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
+        $pieY      = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
+
         $pdf->SetFont('Arial', '', 10);
-        $bodyText = str_replace("\r\n", "\n", $bodyText);
-        $paragraphs = explode("\n", $bodyText);
-        foreach ($paragraphs as $para) {
-            $pdf->MultiCell(0, 5, self::encodeForFpdf($para), 0, 'L');
-            $pdf->Ln(1);
+        $pageW   = $pdf->GetPageWidth();
+        $marginR = 15;
+
+        if ($logoPath !== '') {
+            $resolvedLogo = CotizacionFpdfBlocksHelper::resolveImagePath($logoPath);
+            if ($resolvedLogo) {
+                $pdf->Image($resolvedLogo, $logoX, $logoY, $logoWidth);
+            }
         }
+
+        if ($encabezadoBlocks !== []) {
+            $pdf->SetXY($encX, $encY);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $encabezadoBlocks, 6, 11, $pageW, $marginR, 15, 4, $fix);
+            $pdf->SetFont('Arial', '', 10);
+        }
+
+        $pdf->Ln(4);
+
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 6, $fix($requestSectionTitle), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        if ($bodyBlocks !== []) {
+            $pdf->SetX(15);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocks, 5, 10, $pageW, $marginR, 15, 4, $fix);
+        }
+        $pdf->Ln(6);
+
+        $lineH           = 6;
+        $contentW        = $pageW - 15 - $marginR;
+        $termW           = $contentW * 0.6;
+        $aceptacionW     = $contentW * 0.4;
+        $aceptacionLineH = 9;
+        $termStartX      = ($termX > 0 ? $termX : 15);
+        $termStartY      = ($termY > 0 ? $termY : $pdf->GetY());
+        $pdf->SetXY($termStartX, $termStartY);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($termW, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
+        if ($terminosBlocks !== []) {
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fix, $termW);
+        }
+        $leftEndY    = $pdf->GetY();
+        $aceptacionX = $termStartX + $termW;
+        $pdf->SetXY($aceptacionX, $termStartY);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Nombre'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Fecha'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Firma'), 0, 1, 'L');
+        $pdf->SetY(max($leftEndY, $pdf->GetY()));
+        $pdf->Ln(4);
+
+        if ($pieBlocks !== []) {
+            if ($pieY > 0 || $pieX > 0) {
+                $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
+            }
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fix);
+        }
+
+        $pdf->Ln(4);
+        $pdf->SetY($pdf->GetY());
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+
+        return $pdf->Output('S');
+    }
+
+    /**
+     * @param   array<int, array<string, mixed>>  $encabezadoBlocks
+     * @param   array<int, array<string, mixed>>  $terminosBlocks
+     * @param   array<int, array<string, mixed>>  $pieBlocks
+     * @param   array<int, array<string, mixed>>  $bodyBlocks
+     * @param   array<string, mixed>              $pdfSettings
+     * @param   callable                          $fix
+     */
+    private static function buildVendorQuotePdfV2(
+        array $encabezadoBlocks,
+        array $terminosBlocks,
+        array $pieBlocks,
+        array $bodyBlocks,
+        array $pdfSettings,
+        string $requestSectionTitle,
+        callable $fix
+    ): string {
+        $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
+        $pdf->AddPage();
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+
+        $logoPath  = isset($pdfSettings['logo_path']) ? trim((string) $pdfSettings['logo_path']) : '';
+        $logoX     = isset($pdfSettings['logo_x']) ? (float) $pdfSettings['logo_x'] : 15;
+        $logoWidth = isset($pdfSettings['logo_width']) ? (float) $pdfSettings['logo_width'] : 50;
+        $encX      = isset($pdfSettings['encabezado_x']) ? (float) $pdfSettings['encabezado_x'] : 15;
+        $termX     = isset($pdfSettings['terminos_x']) ? (float) $pdfSettings['terminos_x'] : 0;
+        $termY     = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
+        $pieX      = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
+        $pieY      = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
+
+        $pageW   = $pdf->GetPageWidth();
+        $marginR = 15;
+        $contentW = $pageW - 15 - $marginR;
+
+        $cmyBarH = 4;
+        $thirdW  = $pageW / 3;
+        $pdf->SetY(0);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
+        $pdf->SetFillColor(255, 255, 255);
+
+        $pdf->SetY($cmyBarH + 15);
+
+        $sectionR = 139;
+        $sectionG = 58;
+        $sectionB = 98;
+        $sectionH = 7;
+
+        if ($logoPath !== '') {
+            $resolvedLogo = CotizacionFpdfBlocksHelper::resolveImagePath($logoPath);
+            if ($resolvedLogo) {
+                $pdf->Image($resolvedLogo, $logoX, $pdf->GetY(), $logoWidth);
+            }
+        }
+
+        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($contentW, $sectionH, $fix('Datos del cliente / Cotizacion'), 0, 1, 'L', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+
+        if ($encabezadoBlocks !== []) {
+            $pdf->SetXY($encX, $pdf->GetY());
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $encabezadoBlocks, 6, 10, $pageW, $marginR, 15, 4, $fix);
+        }
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Ln(4);
+
+        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($contentW, $sectionH, $fix($requestSectionTitle), 0, 1, 'L', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+
+        if ($bodyBlocks !== []) {
+            $pdf->SetX(15);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocks, 5, 10, $pageW, $marginR, 15, 4, $fix);
+        }
+        $pdf->Ln(4);
+
+        $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($contentW, $sectionH, $fix('Terminos y Condiciones'), 0, 1, 'L', true);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFillColor(255, 255, 255);
+
+        $lineH           = 6;
+        $termW           = $contentW * 0.6;
+        $aceptacionW     = $contentW * 0.4;
+        $aceptacionLineH = 9;
+        $termStartX      = ($termX > 0 ? $termX : 15);
+        $termStartY      = ($termY > 0 ? $termY : $pdf->GetY());
+        $pdf->SetXY($termStartX, $termStartY);
+        if ($terminosBlocks !== []) {
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fix, $termW);
+        }
+        $leftEndY    = $pdf->GetY();
+        $aceptacionX = $termStartX + $termW;
+        $pdf->SetXY($aceptacionX, $termStartY);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Nombre'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Fecha'), 0, 1, 'L');
+        $pdf->SetX($aceptacionX);
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fix('Firma'), 0, 1, 'L');
+        $pdf->SetY(max($leftEndY, $pdf->GetY()));
+        $pdf->Ln(4);
+
+        if ($pieBlocks !== []) {
+            if ($pieY > 0 || $pieX > 0) {
+                $pdf->SetXY($pieX > 0 ? $pieX : 15, $pieY > 0 ? $pieY : $pdf->GetY());
+            }
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fix);
+        }
+
+        $pdf->SetY($pdf->GetY() + 4);
+        $pdf->SetX(0);
+        $pdf->SetFillColor(0, 255, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 255, 0);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 0, 'L', true);
+        $pdf->SetFillColor(255, 0, 255);
+        $pdf->Cell($thirdW, $cmyBarH, '', 0, 1, 'L', true);
 
         return $pdf->Output('S');
     }
