@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.43-STABLE] - 2026-04-16
+
+### Fixed
+- **WhatsApp icono correo:** El `<img>` usa el SVG oficial (base64 / data URI) en plantillas HTML; ya no depende de la URL del sitio.
+- **WhatsApp icono PDF:** FPDF no admite SVG; se regeneró `whatsapp-icon.png` como PNG válido (GD) y se versiona `whatsapp-icon.svg`. El PNG anterior se interpretaba mal y dibujaba basura.
+- **PDF pie / wa_inline:** Se quitan envoltorios `<p>`/`<div>` del fragmento antes de detectar icono+enlace (evita bloque imagen suelto + texto centrado y saltos de página extra). Ajuste del salto de línea tras la celda del enlace.
+
 ## [3.113.42-STABLE] - 2026-04-16
 
 ### Changed

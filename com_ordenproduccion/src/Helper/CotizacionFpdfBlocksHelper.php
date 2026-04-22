@@ -358,9 +358,12 @@ class CotizacionFpdfBlocksHelper
                 }
                 $labelX = $startX + $iconWmm + ($iconWmm > 0 ? $gapMm : 0);
                 $pdf->SetXY($labelX, $rowY);
-                $pdf->Cell(0, $lineH, $label, 0, 1, 'L', false, $href);
-                $pdf->SetY(max($pdf->GetY(), $rowY + max($lineH, $iconHmm)));
-                $pdf->Ln($gap);
+                $pdf->Cell(0, $lineH, $label, 0, 0, 'L', false, $href);
+                $rowBottom = $rowY + max($lineH, $iconHmm);
+                $pdf->SetY($rowBottom);
+                if ($gap > 0) {
+                    $pdf->Ln($gap);
+                }
 
                 continue;
             }
@@ -449,6 +452,29 @@ class CotizacionFpdfBlocksHelper
     }
 
     /**
+     * Strip outer &lt;p&gt;/&lt;div&gt; wrappers TinyMCE adds so img+anchor sit in one detectable fragment.
+     *
+     * @since   3.113.43
+     */
+    private static function normalizeChunkForWaInline(string $chunk): string
+    {
+        $work = trim($chunk);
+        for ($i = 0; $i < 5; $i++) {
+            $before = $work;
+            $work = preg_replace('#^<\s*p\b[^>]*>\s*#iu', '', $work);
+            $work = preg_replace('#\s*</\s*p\s*>$#iu', '', $work);
+            $work = preg_replace('#^<\s*div\b[^>]*>\s*#iu', '', $work);
+            $work = preg_replace('#\s*</\s*div\s*>$#iu', '', $work);
+            $work = trim($work);
+            if ($work === $before) {
+                break;
+            }
+        }
+
+        return $work;
+    }
+
+    /**
      * Single-line WhatsApp control: optional one &lt;img&gt; + one wa.me (or api.whatsapp.com) &lt;a&gt;; used for PDF.
      *
      * @return  array<string, mixed>|null
@@ -457,7 +483,7 @@ class CotizacionFpdfBlocksHelper
      */
     private static function tryExtractWaInlineBlock(string $chunk, string $align, string $fontStyle): ?array
     {
-        $chunk = trim($chunk);
+        $chunk = self::normalizeChunkForWaInline(trim($chunk));
         if ($chunk === '') {
             return null;
         }
@@ -490,7 +516,7 @@ class CotizacionFpdfBlocksHelper
             return null;
         }
 
-        $linkRe = '#<\s*a\s[^>]*\bhref\s*=\s*(["\'])(https://(?:wa\.me/[^"\']+|api\.whatsapp\.com/send\?[^"\']+))\1[^>]*>([^<]*)</a>#i';
+        $linkRe = '#<\s*a\s[^>]*\bhref\s*=\s*(["\'])(https://(?:wa\.me/[^"\']+|api\.whatsapp\.com/send\?[^"\']+))\1[^>]*>([\s\S]*?)</a>#i';
         if (!preg_match_all($linkRe, $chunkNoImg, $waAll, PREG_SET_ORDER) || count($waAll) !== 1) {
             return null;
         }

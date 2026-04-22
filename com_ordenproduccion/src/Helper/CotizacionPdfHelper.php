@@ -14,7 +14,6 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 
 /**
@@ -51,8 +50,15 @@ class CotizacionPdfHelper
     /** Guatemala country calling code for WhatsApp (wa.me) normalization. */
     private const CELULAR_GT_CC = '502';
 
-    /** Site-relative path to WhatsApp icon under media/com_ordenproduccion (PDF + HTML). */
+    /** Site-relative path to WhatsApp **PNG** for FPDF (SVG is not supported by FPDF::Image). */
     private const WHATSAPP_ICON_MEDIA_PATH = 'media/com_ordenproduccion/images/whatsapp-icon.png';
+
+    /**
+     * Official-style WhatsApp mark (SVG) as base64 — used in HTML email with data URI.
+     *
+     * @since  3.113.43
+     */
+    private const WHATSAPP_ICON_SVG_BASE64 = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48cGF0aCBmaWxsPSIjMjVEMzY2IiBkPSJNNDQ4IDI1Ni4wMDNjMCAxNDEuMzc3LTExNC42MjMgMjU2LTI1NiAyNTZzLTI1Ni0xMTQuNjIzLTI1Ni0yNTYgMTE0LjYyMy0yNTYgMjU2LTI1NiAyNTYgMTE0LjYyMyAyNTYgMjU2em0tMjU2LTE5MmMtMTA1Ljg2OSAwLTE5MiA4Ni4xMzEtMTkyIDE5MiAwIDM3LjQyMSAxMC45OTkgNzIuMTc2IDI5Ljk5IDEwMS41NTFsLTMxLjk5IDkzLjA0MSA5Ni4zNjQtMzEuMTc1YzI4LjQxMiAxNS41MTIgNjAuOTQgMjQuNTgzIDk0LjYzNiAyNC41ODMgMTA1Ljg2OSAwIDE5Mi04Ni4xMzEgMTkyLTE5MiAwLTEwNS44NjktODYuMTMxLTE5Mi0xOTItMTkyem0xMDcuNzY5IDI2OS43NTJjLTQuNTM2IDEyLjc4NC0yNi41ODIgMjQuNTc1LTM2LjU2NiAyNi4xMDQtOS40MzQgMS40NDctMjEuMjc0IDIuMDYyLTYxLjg1My0xNC43ODItNTEuOTkzLTIxLjQ0MS04NS4yNTctNzMuOTYtODcuODE1LTc3LjM4NS0yLjU1OC0zLjQyNS0yMC43ODctMjcuNjU2LTIwLjc4Ny01Mi42NjMgMCAyNS4wMDcgMTMuMDI5IDM3LjQ5NiAxNy41NjQgNDIuNjk4IDQuNTM2IDUuMjAyIDkuMDcxIDYuNTAyIDEyLjE3MiA5Ljc1MiAzLjEwMSAzLjI1IDYuNTAyIDQuMDY1IDEyLjE3MiAyLjQwOCA1LjY3LTEuNjU3IDIxLjI3NC04LjMyNiAyNC4zNzUtMTYuMjUzIDMuMTAxLTcuOTI3IDMuMTAxLTE0LjY4NSAyLjE3Mi0xNi4yNTMtMC45MjktMS41NjgtMy4xMDEtMi40MDgtNi41MDItNC4wNjUtMy40MDEtMS42NTctMjEuMjc0LTguMzI2LTI0LjM3NS0xNi4yNTMtMy4xMDEtNy45MjctMy4xMDEtMTQuNjg1LTIuMTcyLTE2LjI1MyAwLjkyOS0xLjU2OCAzLjEwMS0yLjQwOCA2LjUwMi00LjA2NSAzLjQwMS0xLjY1NyAyMS4yNzQtOC4zMjYgMjQuMzc1LTE2LjI1MyAzLjEwMS03LjkyNyAzLjEwMS0xNC42ODUgMi4xNzItMTYuMjUzIi8+PC9zdmc+';
 
     /** Placeholder: puesto laboral (campo perfil puesto-laboral) */
     public const PLACEHOLDER_PUESTO = '{PUESTO}';
@@ -283,10 +289,9 @@ class CotizacionPdfHelper
         }
         $href = self::getCelularWaMeUrl($raw);
         $display = self::formatCelularDisplayGuatemala($waDigits);
-        $imgPath = self::WHATSAPP_ICON_MEDIA_PATH;
-        if ($absoluteImageUrl) {
-            $imgPath = rtrim(Uri::root(), '/') . '/' . $imgPath;
-        }
+        $imgPath = $absoluteImageUrl
+            ? ('data:image/svg+xml;base64,' . self::WHATSAPP_ICON_SVG_BASE64)
+            : self::WHATSAPP_ICON_MEDIA_PATH;
         $imgEsc = htmlspecialchars($imgPath, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $hrefEsc = htmlspecialchars($href, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $displayEsc = htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
