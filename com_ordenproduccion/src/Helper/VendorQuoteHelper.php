@@ -21,6 +21,28 @@ use Joomla\CMS\Language\Text;
 class VendorQuoteHelper
 {
     /**
+     * Marker inserted into vendor-quote PDF body instead of {LINEAS_TEXTO}; lines are drawn as an FPDF table.
+     *
+     * @since  3.113.32
+     */
+    public const PDF_BODY_LINEAS_MARKER = '__ORDOP_VENDOR_QUOTE_LINEAS__';
+
+    /**
+     * Translated string for PDF UI; falls back if com_ordenproduccion language is not loaded (avoids raw COM_… keys in PDF).
+     *
+     * @since  3.113.32
+     */
+    public static function vendorQuotePdfLabel(string $langConst, string $fallbackUtf8): string
+    {
+        $t = Text::_($langConst);
+        if ($t === '' || strpos($t, 'COM_ORDENPRODUCCION_') === 0) {
+            return $fallbackUtf8;
+        }
+
+        return $t;
+    }
+
+    /**
      * Replace {KEY} placeholders in a template string.
      *
      * @param   string  $template
@@ -58,7 +80,7 @@ class VendorQuoteHelper
         if ($html === '') {
             return '';
         }
-        $label = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_HEADER_DOC_TYPE');
+        $label = self::vendorQuotePdfLabel('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_HEADER_DOC_TYPE', 'Solicitud de cotización');
         if ($label === '') {
             return $html;
         }
@@ -306,6 +328,7 @@ class VendorQuoteHelper
      * @param   array   $pdfSettings          From Administracion::getCotizacionPdfSettings().
      * @param   int     $formatVersion        1 = classic, 2 = print-style sections.
      * @param   string  $requestSectionTitle  Section title above the vendor letter (translated).
+     * @param   array<int, object>  $vendorLines  proveedor_externo lines (for PDF table at {@see PDF_BODY_LINEAS_MARKER}).
      *
      * @return  string|null  PDF binary (S) or null if FPDF unavailable
      *
@@ -317,7 +340,8 @@ class VendorQuoteHelper
         string $pieHtml,
         array $pdfSettings,
         int $formatVersion,
-        string $requestSectionTitle
+        string $requestSectionTitle,
+        array $vendorLines = []
     ): ?string {
         if (!FpdfHelper::register()) {
             return null;
@@ -333,14 +357,17 @@ class VendorQuoteHelper
 
         $encabezadoBlocks = CotizacionFpdfBlocksHelper::parseHtmlBlocks($encabezadoHtml, $fix);
         $pieBlocks        = CotizacionFpdfBlocksHelper::parseHtmlBlocks($pieHtml, $fix);
-        $bodyHtml         = self::wrapPlainLetterBodyAsHtml($bodyPlain);
-        $bodyBlocks       = CotizacionFpdfBlocksHelper::parseHtmlBlocks($bodyHtml, $fix);
+        [$beforePlain, $afterPlain] = self::splitVendorQuotePdfBody($bodyPlain);
+        $bodyBlocksBefore = CotizacionFpdfBlocksHelper::parseHtmlBlocks(self::wrapPlainLetterBodyAsHtml($beforePlain), $fix);
+        $bodyBlocksAfter  = CotizacionFpdfBlocksHelper::parseHtmlBlocks(self::wrapPlainLetterBodyAsHtml($afterPlain), $fix);
 
         if ($formatVersion === 2) {
             return self::buildVendorQuotePdfV2(
                 $encabezadoBlocks,
                 $pieBlocks,
-                $bodyBlocks,
+                $bodyBlocksBefore,
+                $bodyBlocksAfter,
+                $vendorLines,
                 $pdfSettings,
                 $requestSectionTitle,
                 $fix
@@ -350,11 +377,88 @@ class VendorQuoteHelper
         return self::buildVendorQuotePdfV1(
             $encabezadoBlocks,
             $pieBlocks,
-            $bodyBlocks,
+            $bodyBlocksBefore,
+            $bodyBlocksAfter,
+            $vendorLines,
             $pdfSettings,
             $requestSectionTitle,
             $fix
         );
+    }
+
+    /**
+     * @return  array{0:string,1:string}  Text before and after {@see PDF_BODY_LINEAS_MARKER}
+     *
+     * @since  3.113.32
+     */
+    private static function splitVendorQuotePdfBody(string $bodyPlain): array
+    {
+        $marker = self::PDF_BODY_LINEAS_MARKER;
+        if ($bodyPlain === '' || strpos($bodyPlain, $marker) === false) {
+            return [$bodyPlain, ''];
+        }
+        $parts = explode($marker, $bodyPlain, 2);
+
+        return [(string) ($parts[0] ?? ''), (string) ($parts[1] ?? '')];
+    }
+
+    /**
+     * Cantidad / Descripción table for vendor-quote PDF (FPDF cells, not ASCII art).
+     *
+     * @param   array<int, object>  $vendorLines
+     *
+     * @since  3.113.32
+     */
+    private static function renderVendorQuoteLinesTablePdf(\FPDF $pdf, array $vendorLines, callable $fix, float $pageW, float $marginR): void
+    {
+        $rows = [];
+        foreach ($vendorLines as $ln) {
+            if ((isset($ln->line_type) ? (string) $ln->line_type : '') === 'proveedor_externo') {
+                $rows[] = $ln;
+            }
+        }
+        if ($rows === []) {
+            return;
+        }
+
+        $hQty  = self::vendorQuotePdfLabel('COM_ORDENPRODUCCION_VENDOR_QUOTE_LINEAS_COL_CANTIDAD', 'Cantidad');
+        $hDesc = self::vendorQuotePdfLabel('COM_ORDENPRODUCCION_VENDOR_QUOTE_LINEAS_COL_DESCRIPCION', 'Descripción');
+
+        $left     = 15.0;
+        $lineH    = 5.0;
+        $usableW  = $pageW - $left - $marginR;
+        $wQty     = min(32.0, max(22.0, $usableW * 0.22));
+        $wDesc    = max(40.0, $usableW - $wQty);
+
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetX($left);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell($wQty, $lineH + 1, $fix($hQty), 1, 0, 'L', true);
+        $pdf->Cell($wDesc, $lineH + 1, $fix($hDesc), 1, 1, 'L', true);
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->SetFont('Arial', '', 9);
+
+        foreach ($rows as $ln) {
+            $qty  = (string) max(0, (int) ($ln->quantity ?? 0));
+            $desc = trim((string) ($ln->vendor_descripcion ?? ''));
+            $desc = preg_replace('/\s+/u', ' ', str_replace(["\r\n", "\r", "\n"], ' ', $desc));
+            if ($desc === '') {
+                $desc = '—';
+            }
+
+            $rowX = $pdf->GetX();
+            $rowY = $pdf->GetY();
+            $pdf->SetXY($rowX + $wQty, $rowY);
+            $pdf->MultiCell($wDesc, $lineH, $fix($desc), 1, 'L');
+            $newY  = $pdf->GetY();
+            $rowHt = max($lineH, $newY - $rowY);
+
+            $pdf->SetXY($rowX, $rowY);
+            $pdf->Cell($wQty, $rowHt, $fix($qty), 1, 0, 'C');
+            $pdf->SetXY($rowX, $newY);
+        }
+
+        $pdf->Ln(3);
     }
 
     /**
@@ -380,14 +484,18 @@ class VendorQuoteHelper
     /**
      * @param   array<int, array<string, mixed>>  $encabezadoBlocks
      * @param   array<int, array<string, mixed>>  $pieBlocks
-     * @param   array<int, array<string, mixed>>  $bodyBlocks
+     * @param   array<int, array<string, mixed>>  $bodyBlocksBefore
+     * @param   array<int, array<string, mixed>>  $bodyBlocksAfter
+     * @param   array<int, object>                $vendorLines
      * @param   array<string, mixed>              $pdfSettings
      * @param   callable                          $fix
      */
     private static function buildVendorQuotePdfV1(
         array $encabezadoBlocks,
         array $pieBlocks,
-        array $bodyBlocks,
+        array $bodyBlocksBefore,
+        array $bodyBlocksAfter,
+        array $vendorLines,
         array $pdfSettings,
         string $requestSectionTitle,
         callable $fix
@@ -440,9 +548,14 @@ class VendorQuoteHelper
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(0, 6, $fix($requestSectionTitle), 0, 1, 'L');
         $pdf->SetFont('Arial', '', 10);
-        if ($bodyBlocks !== []) {
+        if ($bodyBlocksBefore !== []) {
             $pdf->SetX(15);
-            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocks, 5, 10, $pageW, $marginR, 15, 4, $fix);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocksBefore, 5, 10, $pageW, $marginR, 15, 4, $fix);
+        }
+        self::renderVendorQuoteLinesTablePdf($pdf, $vendorLines, $fix, $pageW, $marginR);
+        if ($bodyBlocksAfter !== []) {
+            $pdf->SetX(15);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocksAfter, 5, 10, $pageW, $marginR, 15, 4, $fix);
         }
         $pdf->Ln(6);
 
@@ -469,14 +582,18 @@ class VendorQuoteHelper
     /**
      * @param   array<int, array<string, mixed>>  $encabezadoBlocks
      * @param   array<int, array<string, mixed>>  $pieBlocks
-     * @param   array<int, array<string, mixed>>  $bodyBlocks
+     * @param   array<int, array<string, mixed>>  $bodyBlocksBefore
+     * @param   array<int, array<string, mixed>>  $bodyBlocksAfter
+     * @param   array<int, object>                $vendorLines
      * @param   array<string, mixed>              $pdfSettings
      * @param   callable                          $fix
      */
     private static function buildVendorQuotePdfV2(
         array $encabezadoBlocks,
         array $pieBlocks,
-        array $bodyBlocks,
+        array $bodyBlocksBefore,
+        array $bodyBlocksAfter,
+        array $vendorLines,
         array $pdfSettings,
         string $requestSectionTitle,
         callable $fix
@@ -526,7 +643,15 @@ class VendorQuoteHelper
         $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($contentW, $sectionH, $fix(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_V2_CLIENT_DOC_BAR')), 0, 1, 'L', true);
+        $pdf->Cell(
+            $contentW,
+            $sectionH,
+            $fix(self::vendorQuotePdfLabel('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_V2_CLIENT_DOC_BAR', 'Datos del cliente / Solicitud de cotización')),
+            0,
+            1,
+            'L',
+            true
+        );
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFillColor(255, 255, 255);
 
@@ -544,9 +669,14 @@ class VendorQuoteHelper
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFillColor(255, 255, 255);
 
-        if ($bodyBlocks !== []) {
+        if ($bodyBlocksBefore !== []) {
             $pdf->SetX(15);
-            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocks, 5, 10, $pageW, $marginR, 15, 4, $fix);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocksBefore, 5, 10, $pageW, $marginR, 15, 4, $fix);
+        }
+        self::renderVendorQuoteLinesTablePdf($pdf, $vendorLines, $fix, $pageW, $marginR);
+        if ($bodyBlocksAfter !== []) {
+            $pdf->SetX(15);
+            CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $bodyBlocksAfter, 5, 10, $pageW, $marginR, 15, 4, $fix);
         }
         $pdf->Ln(4);
 

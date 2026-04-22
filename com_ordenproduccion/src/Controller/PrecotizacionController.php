@@ -1224,8 +1224,12 @@ class PrecotizacionController extends BaseController
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_TEMPLATE_MISSING'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotId, false));
         }
+        $lang = Factory::getApplication()->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE)
+            || $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
         $user = Factory::getUser();
         $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, $user);
+        $map['LINEAS_TEXTO'] = VendorQuoteHelper::PDF_BODY_LINEAS_MARKER;
         $body = VendorQuoteHelper::replacePlaceholders((string) ($tpl->body ?? ''), $map);
 
         $pdfSettings = $adm->getCotizacionPdfSettings();
@@ -1242,14 +1246,18 @@ class PrecotizacionController extends BaseController
         $encabezadoHtml = VendorQuoteHelper::applyVendorQuotePdfDocTypeInHtml($encabezadoHtml);
         $pieHtml        = VendorQuoteHelper::applyVendorQuotePdfDocTypeInHtml($pieHtml);
         $formatVersion  = isset($pdfSettings['format_version']) ? max(1, min(2, (int) $pdfSettings['format_version'])) : 1;
-        $sectionTitle   = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_SECTION_REQUEST');
-        $bin            = VendorQuoteHelper::renderVendorQuotePdfLikeCotizacion(
+        $sectionTitle = VendorQuoteHelper::vendorQuotePdfLabel(
+            'COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_SECTION_REQUEST',
+            'Solicitud de cotización'
+        );
+        $bin = VendorQuoteHelper::renderVendorQuotePdfLikeCotizacion(
             $body,
             $encabezadoHtml,
             $pieHtml,
             $pdfSettings,
             $formatVersion,
-            $sectionTitle
+            $sectionTitle,
+            $vendorLines
         );
         if ($bin === null) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PDF_FAIL'), 'error');
