@@ -192,6 +192,11 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     line-height: 1.25;
 }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log tr.precot-vendor-evt-main-row td.col-evt-spacer { width: 0.01%; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log td.col-evt-cond-label {
+    max-width: 12rem;
+    white-space: normal;
+    vertical-align: top;
+}
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-save { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
@@ -960,14 +965,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ACTION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_VENDOR'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_DETAIL'); ?></th>
-                        <th scope="col" class="col-evt-spacer p-1"><span class="visually-hidden"><?php echo htmlspecialchars($colEventCondiciones); ?></span></th>
+                        <th scope="col" class="col-evt-spacer p-1" aria-hidden="true"></th>
                         <th scope="col" class="col-evt-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                         <th scope="col" class="col-evt-save text-center" title="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($labelSaveEventCondiciones); ?></span><i class="fas fa-save" aria-hidden="true"></i></th>
-                    </tr>
-                    <tr>
-                        <th colspan="6" scope="colgroup" class="small fw-normal text-secondary py-1 border-top-0"><?php echo htmlspecialchars($colEventCondiciones); ?></th>
-                        <th class="border-top-0 p-0" aria-hidden="true"></th>
-                        <th class="border-top-0 p-0" aria-hidden="true"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1068,12 +1068,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                     </tr>
                     <tr class="precot-vendor-evt-cond-row">
-                        <td colspan="6" class="col-evt-cond small p-2 border-top-0 w-100">
+                        <td class="col-evt-cond-label small border-top-0 py-2 pe-2 align-top">
                             <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
-                            <textarea name="condiciones_entrega" class="form-control" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
-                                      rows="2" autocomplete="off"
-                                      placeholder="<?php echo htmlspecialchars($colEventCondiciones); ?>"
-                                      aria-label="<?php echo htmlspecialchars($colEventCondiciones); ?>"><?php echo htmlspecialchars($evtCondiciones); ?></textarea>
+                            <label class="d-block mb-0 fw-semibold" for="vendor-evt-cond-<?php echo (int) $evtId; ?>"><?php echo htmlspecialchars($colEventCondiciones); ?></label>
+                            <?php else : ?>
+                            <span class="d-block fw-semibold"><?php echo htmlspecialchars($colEventCondiciones); ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td colspan="5" class="col-evt-cond small p-2 border-top-0 w-100">
+                            <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
+                            <textarea name="condiciones_entrega" id="vendor-evt-cond-<?php echo (int) $evtId; ?>" class="form-control" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
+                                      rows="2" autocomplete="off"><?php echo htmlspecialchars($evtCondiciones); ?></textarea>
                             <?php else : ?>
                             <div class="form-control-plaintext bg-light px-2 py-2 rounded mb-0 small" style="min-height: calc(2 * 1.25em + 0.75rem); line-height: 1.25;"><?php echo $evtCondiciones !== '' ? nl2br(htmlspecialchars($evtCondiciones, ENT_QUOTES, 'UTF-8')) : '<span class="text-muted">—</span>'; ?></div>
                             <?php endif; ?>
