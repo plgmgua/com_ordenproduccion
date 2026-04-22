@@ -27,6 +27,7 @@ $entityLabel = static function (string $entityType): string {
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
+        'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 
@@ -67,10 +68,17 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
                         $created = isset($row->created) ? (string) $row->created : '';
-                        $refDisplay = ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion')
-                            ? (string) ($row->precotizacion_number ?? '')
-                            : (string) (int) $eid;
-                        if ($refDisplay === '' && ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion')) {
+                        if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion') {
+                            $refDisplay = (string) ($row->precotizacion_number ?? '');
+                            if ($refDisplay === '') {
+                                $refDisplay = (string) (int) $eid;
+                            }
+                        } elseif ($etype === 'orden_compra') {
+                            $refDisplay = trim((string) ($row->orden_compra_number ?? ''));
+                            if ($refDisplay === '') {
+                                $refDisplay = (string) (int) $eid;
+                            }
+                        } else {
                             $refDisplay = (string) (int) $eid;
                         }
                         $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $eid, false);
@@ -95,6 +103,11 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                     <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
                                 </a>
                                 <?php else : ?>
+                                <?php if ($etype === 'orden_compra') :
+                                    $ocOpenUrl = Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . (int) $eid, false);
+                                    ?>
+                                <p class="mb-2"><a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($ocOpenUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a></p>
+                                <?php endif; ?>
                                 <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
                                     <?php echo HTMLHelper::_('form.token'); ?>
                                     <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />

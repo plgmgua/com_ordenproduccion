@@ -410,6 +410,11 @@ SELECT 'Solicitud de Cotizacion', 'Autoriza solicitar cotización al proveedor e
 FROM (SELECT 1 AS `x`) AS `t`
 WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'solicitud_cotizacion');
 
+INSERT INTO `#__ordenproduccion_approval_workflows` (`name`, `description`, `entity_type`, `published`, `created_by`)
+SELECT 'Orden de Compra', 'Aprueba la creación de órdenes de compra a proveedor desde pre-cotización (P.Unit Proveedor).', 'orden_compra', 1, 0
+FROM (SELECT 1 AS `x`) AS `t`
+WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'orden_compra');
+
 INSERT INTO `#__ordenproduccion_approval_workflow_steps` (`workflow_id`, `step_number`, `step_name`, `approver_type`, `approver_value`, `require_all`, `timeout_hours`, `timeout_action`, `created_by`)
 SELECT w.`id`, 1, 'Aprobar', 'named_group', 'Administracion', 0, 0, 'escalate', 0
 FROM `#__ordenproduccion_approval_workflows` AS w
@@ -425,6 +430,11 @@ UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
 INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
 SET s.`step_name` = 'Revisar solicitud de cotización', s.`approver_value` = 'Aprobaciones Ventas'
 WHERE w.`entity_type` = 'solicitud_cotizacion' AND s.`step_number` = 1;
+
+UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
+INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
+SET s.`step_name` = 'Revisar orden de compra', s.`approver_value` = 'Administracion,Administración'
+WHERE w.`entity_type` = 'orden_compra' AND s.`step_number` = 1;
 
 -- Telegram bot: per-user chat_id (3.105.0)
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_telegram_users` (
@@ -544,6 +554,42 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_precot_vendor_quote_event` (
     KEY `idx_created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='Audit log for vendor quote requests on external-vendor pre-cotizaciones';
+
+-- Orden de compra (purchase order) 3.113.47
+CREATE TABLE IF NOT EXISTS `#__ordenproduccion_orden_compra` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `number` varchar(32) NOT NULL COMMENT 'ORC-00001',
+    `precotizacion_id` int unsigned NOT NULL,
+    `proveedor_id` int unsigned NOT NULL,
+    `vendor_quote_event_id` int unsigned DEFAULT NULL,
+    `condiciones_entrega` text COMMENT 'Copied from event / editable snapshot',
+    `proveedor_snapshot` mediumtext COMMENT 'JSON: vendor fields at creation',
+    `currency` varchar(8) NOT NULL DEFAULT 'Q',
+    `total_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+    `workflow_status` varchar(32) NOT NULL DEFAULT 'pending_approval' COMMENT 'pending_approval|approved|rejected',
+    `approval_request_id` int unsigned DEFAULT NULL,
+    `state` tinyint NOT NULL DEFAULT 1,
+    `created` datetime NOT NULL,
+    `created_by` int NOT NULL DEFAULT 0,
+    `modified` datetime DEFAULT NULL,
+    `modified_by` int NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_oc_number` (`number`),
+    KEY `idx_precot_prov` (`precotizacion_id`, `proveedor_id`),
+    KEY `idx_wf_status` (`workflow_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `#__ordenproduccion_orden_compra_line` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `orden_compra_id` int unsigned NOT NULL,
+    `precotizacion_line_id` int unsigned NOT NULL,
+    `quantity` int NOT NULL DEFAULT 1,
+    `descripcion` text,
+    `vendor_unit_price` decimal(12,2) NOT NULL DEFAULT 0.00 COMMENT 'P.Unit Proveedor',
+    `line_total` decimal(14,2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (`id`),
+    KEY `idx_orden_compra` (`orden_compra_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Outbound email audit log (3.113.39): vendor quote + payment proof mismatch notifications
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_outbound_email_log` (

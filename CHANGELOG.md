@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.47-STABLE] - 2026-04-16
+
+### Added
+- **Orden de compra (ORC-00000):** Tablas, numeración propia, líneas desde pre-cotización (P.Unit Proveedor × cantidad), snapshot de proveedor y condiciones de entrega desde el registro al proveedor.
+- **Flujo «Orden de Compra»** (`entity_type` `orden_compra`): solicitud con `entity_id` = id de orden; aprobación/rechazo actualiza `workflow_status`; icono de factura en registro al proveedor (columna antes de eliminar).
+- **Vista de sitio** `view=ordencompra` con tipo de menú independiente; acceso como Proveedores (Administración / Admon). Listado, detalle y eliminación de borradores pendientes (cancela la solicitud de aprobación vinculada).
+
 ## [3.113.46-STABLE] - 2026-04-22
 
 ### Changed

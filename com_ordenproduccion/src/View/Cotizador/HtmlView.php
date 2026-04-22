@@ -143,6 +143,30 @@ class HtmlView extends BaseHtmlView
     protected $vendorQuoteSolicitudApproved = false;
 
     /**
+     * Document: orden de compra workflow published.
+     *
+     * @var    bool
+     * @since  3.113.47
+     */
+    protected $ordenCompraWorkflowAvailable = false;
+
+    /**
+     * Document: proveedor_id => true when an OC is already pending for this pre-cot + vendor.
+     *
+     * @var    array<int, bool>
+     * @since  3.113.47
+     */
+    protected $ordenCompraPendingByProveedorId = [];
+
+    /**
+     * Document: all proveedor_externo lines have qty and P.Unit Proveedor ready for OC.
+     *
+     * @var    bool
+     * @since  3.113.47
+     */
+    protected $ordenCompraLinesReady = false;
+
+    /**
      * Precotizacion model (document/details layout) for breakdown adjustment helpers in layout.
      *
      * @var    \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel|null
@@ -277,6 +301,9 @@ class HtmlView extends BaseHtmlView
                     $this->pendingSolicitudCotizacion           = false;
                     $this->canRequestSolicitudCotizacion        = false;
                     $this->vendorQuoteSolicitudApproved         = false;
+                    $this->ordenCompraWorkflowAvailable         = false;
+                    $this->ordenCompraPendingByProveedorId      = [];
+                    $this->ordenCompraLinesReady                = false;
                     $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
                     try {
                         $wf = new ApprovalWorkflowService();
@@ -300,6 +327,14 @@ class HtmlView extends BaseHtmlView
                                     ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION,
                                     (int) $id
                                 );
+                                $this->ordenCompraWorkflowAvailable = $wf->isWorkflowPublishedForEntity(
+                                    ApprovalWorkflowService::ENTITY_ORDEN_COMPRA
+                                );
+                                $ocModel = $mvcFactory->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+                                if ($ocModel && method_exists($ocModel, 'getPendingProveedorIdsForPrecot')) {
+                                    $this->ordenCompraPendingByProveedorId = $ocModel->getPendingProveedorIdsForPrecot((int) $id);
+                                }
+                                $this->ordenCompraLinesReady = $precotModel->allProveedorExternoLinesReadyForOrdenCompra((int) $id);
                             }
                         }
                     } catch (\Throwable $e) {
@@ -308,6 +343,9 @@ class HtmlView extends BaseHtmlView
                         $this->solicitudCotizacionWorkflowAvailable = false;
                         $this->pendingSolicitudCotizacion           = false;
                         $this->vendorQuoteSolicitudApproved           = false;
+                        $this->ordenCompraWorkflowAvailable           = false;
+                        $this->ordenCompraPendingByProveedorId        = [];
+                        $this->ordenCompraLinesReady                  = false;
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserEditPreCotizacionDocument((int) $id)

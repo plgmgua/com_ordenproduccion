@@ -2237,6 +2237,51 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Whether every proveedor_externo line has quantity ≥ 1 and P.Unit Proveedor &gt; 0 (for orden de compra).
+     *
+     * @since   3.113.47
+     */
+    public function allProveedorExternoLinesReadyForOrdenCompra(int $preCotizacionId): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $db   = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['vendor_precio_unit_proveedor'])) {
+            return false;
+        }
+
+        $lines = $this->getLines($preCotizacionId);
+        $found = false;
+        foreach ($lines as $ln) {
+            if ((isset($ln->line_type) ? (string) $ln->line_type : '') !== 'proveedor_externo') {
+                continue;
+            }
+            $found = true;
+            $qty   = (int) ($ln->quantity ?? 0);
+            $pup   = (float) ($ln->vendor_precio_unit_proveedor ?? 0);
+            if ($qty < 1 || $pup <= 0.0) {
+                return false;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
      * Store relative path (media/com_ordenproduccion/precot_vendor_quote/…) for vendor quote file on pre-cot header.
      *
      * @param   int     $preCotizacionId  Pre-cotización id.

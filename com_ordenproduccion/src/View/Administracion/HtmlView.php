@@ -1389,6 +1389,7 @@ class HtmlView extends BaseHtmlView
                     $user = Factory::getUser();
                     $this->approvalPendingRows = $approvalService->getMyPendingApprovalRows((int) $user->id);
                     $preCotIds = [];
+                    $ocIds     = [];
                     foreach ($this->approvalPendingRows as $prow) {
                         $et = strtolower(trim((string) ($prow->entity_type ?? '')));
                         if (
@@ -1398,6 +1399,11 @@ class HtmlView extends BaseHtmlView
                             $eid = (int) ($prow->entity_id ?? 0);
                             if ($eid > 0) {
                                 $preCotIds[$eid] = true;
+                            }
+                        } elseif ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
+                            $oid = (int) ($prow->entity_id ?? 0);
+                            if ($oid > 0) {
+                                $ocIds[$oid] = true;
                             }
                         }
                     }
@@ -1436,6 +1442,39 @@ class HtmlView extends BaseHtmlView
                             }
                         } catch (\Throwable $e) {
                             // leave rows without precotizacion_number
+                        }
+                    }
+                    if ($ocIds !== []) {
+                        try {
+                            $db  = Factory::getContainer()->get(DatabaseInterface::class);
+                            $ids = array_keys($ocIds);
+                            $ids = array_values(array_filter(array_map('intval', $ids), static function ($v) {
+                                return $v > 0;
+                            }));
+                            if ($ids !== []) {
+                                $q = $db->getQuery(true)
+                                    ->select($db->quoteName('id') . ', ' . $db->quoteName('number'))
+                                    ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+                                    ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+                                $db->setQuery($q);
+                                $ocRows = $db->loadObjectList() ?: [];
+                                $byOcId = [];
+                                foreach ($ocRows as $or) {
+                                    $oid = (int) $or->id;
+                                    $raw = trim((string) ($or->number ?? ''));
+                                    $byOcId[$oid] = $raw !== '' ? $raw : ('ORC-' . str_pad((string) $oid, 5, '0', STR_PAD_LEFT));
+                                }
+                                foreach ($this->approvalPendingRows as $prow) {
+                                    $et = strtolower(trim((string) ($prow->entity_type ?? '')));
+                                    if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
+                                        $oid = (int) ($prow->entity_id ?? 0);
+                                        $prow->orden_compra_number = $oid > 0
+                                            ? ($byOcId[$oid] ?? ('ORC-' . str_pad((string) $oid, 5, '0', STR_PAD_LEFT)))
+                                            : '';
+                                    }
+                                }
+                            }
+                        } catch (\Throwable $e) {
                         }
                     }
                     $approvalService->enrichPendingRowsWithSubmitterDisplay($this->approvalPendingRows);

@@ -240,6 +240,16 @@ class AccessHelper
     }
 
     /**
+     * Orden de compra (purchase orders) list/detail — same access as Proveedores (Administración / Admon).
+     *
+     * @since   3.113.47
+     */
+    public static function canViewOrdenCompra(): bool
+    {
+        return self::canViewProveedores();
+    }
+
+    /**
      * Whether the current user may register a **new** vendor (Proveedores).
      * Allowed: global config admins and members of the **Administracion / Administración** group (incl. id 12).
      * Not allowed: **Admon-only** users (they may still view/edit existing if they pass the tab ACL).

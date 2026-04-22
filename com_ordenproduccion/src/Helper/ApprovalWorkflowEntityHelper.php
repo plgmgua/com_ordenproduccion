@@ -259,4 +259,27 @@ class ApprovalWorkflowEntityHelper
             }
         }
     }
+
+    /**
+     * @since  3.113.47
+     */
+    public static function applyOrdenCompraWorkflowOutcome(DatabaseInterface $db, int $ordenCompraId, string $status): void
+    {
+        $ordenCompraId = (int) $ordenCompraId;
+        $status        = strtolower(trim($status));
+        if ($ordenCompraId < 1 || !in_array($status, ['approved', 'rejected'], true)) {
+            return;
+        }
+
+        $wfStatus = $status === 'approved' ? 'approved' : 'rejected';
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_orden_compra'))
+                ->set($db->quoteName('workflow_status') . ' = ' . $db->quote($wfStatus))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id)
+                ->where($db->quoteName('id') . ' = ' . $ordenCompraId)
+        );
+        $db->execute();
+    }
 }

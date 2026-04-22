@@ -154,6 +154,14 @@ $canPedirCotizacionProveedorAprobaciones = AccessHelper::canViewVendorQuoteReque
 $canAttachVendorQuoteEvent    = !$precotizacionLocked && $canEditDocument && !$user->guest;
 $canEditVendorQuoteEventLogRow = $canAttachVendorQuoteEvent && $canViewVendorQuoteRequestLog;
 $deleteVendorQuoteEventUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteVendorQuoteEvent', false, Route::TLS_IGNORE, true);
+$createOrdenCompraUrl      = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.createOrdenCompraRequest', false, Route::TLS_IGNORE, true);
+$ordenCompraWorkflowAvailable     = isset($this->ordenCompraWorkflowAvailable) ? (bool) $this->ordenCompraWorkflowAvailable : false;
+$ordenCompraPendingByProveedorId  = (isset($this->ordenCompraPendingByProveedorId) && is_array($this->ordenCompraPendingByProveedorId))
+    ? $this->ordenCompraPendingByProveedorId : [];
+$ordenCompraLinesReady = isset($this->ordenCompraLinesReady) ? (bool) $this->ordenCompraLinesReady : false;
+$canSubmitOrdenCompraBase = $canEditDocument && !$precotizacionLocked && !$user->guest
+    && $ordenCompraWorkflowAvailable && $ordenCompraLinesReady;
+$colOrdenCompra = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ORDEN_COMPRA');
 $token = Session::getFormToken();
 $vendorQuoteProveedoresUrl = Route::_(
     'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedoresJson&format=json&' . $token . '=1',
@@ -216,6 +224,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-save { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-oc { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-delete { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
     width: 100%;
@@ -1093,6 +1102,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th scope="col" class="col-evt-spacer p-1" aria-hidden="true"></th>
                         <th scope="col" class="col-evt-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                         <th scope="col" class="col-evt-save text-center" title="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($labelSaveEventCondiciones); ?></span><i class="fas fa-save" aria-hidden="true"></i></th>
+                        <th scope="col" class="col-evt-oc text-center" title="<?php echo htmlspecialchars($colOrdenCompra); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colOrdenCompra); ?></span><i class="fas fa-money-bill-wave" aria-hidden="true"></i></th>
                         <th scope="col" class="col-evt-delete text-center" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_DELETE')); ?>"><span class="visually-hidden"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_DELETE')); ?></span><i class="fas fa-trash" aria-hidden="true"></i></th>
                     </tr>
                 </thead>
@@ -1189,6 +1199,28 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                                     <i class="fas fa-save" aria-hidden="true"></i>
                                 </button>
                             </form>
+                            <?php else : ?>
+                            <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="col-evt-oc text-center align-middle" rowspan="2">
+                            <?php
+                            $pendingOcThisVendor = !empty($ordenCompraPendingByProveedorId[$evtProveedorId]);
+                            ?>
+                            <?php if ($canSubmitOrdenCompraBase && $evtProveedorId > 0 && !$pendingOcThisVendor) : ?>
+                            <form method="post" action="<?php echo htmlspecialchars($createOrdenCompraUrl); ?>" class="mb-0">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                                <input type="hidden" name="proveedor_id" value="<?php echo (int) $evtProveedorId; ?>">
+                                <input type="hidden" name="event_id" value="<?php echo (int) $evtId; ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-success p-1"
+                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>"
+                                        aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>">
+                                    <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                            <?php elseif ($pendingOcThisVendor) : ?>
+                            <span class="small text-muted" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_PENDING_HINT')); ?>">…</span>
                             <?php else : ?>
                             <span class="text-muted small">—</span>
                             <?php endif; ?>

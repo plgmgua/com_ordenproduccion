@@ -36,6 +36,9 @@ class ApprovalWorkflowService
     /** Pre-cotización proveedor externo: solicitud de cotización (entity_id = pre_cotización id). */
     public const ENTITY_SOLICITUD_COTIZACION = 'solicitud_cotizacion';
 
+    /** Orden de compra: entity_id = #__ordenproduccion_orden_compra.id */
+    public const ENTITY_ORDEN_COMPRA = 'orden_compra';
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -604,6 +607,10 @@ class ApprovalWorkflowService
                 );
                 break;
 
+            case self::ENTITY_ORDEN_COMPRA:
+                ApprovalWorkflowEntityHelper::applyOrdenCompraWorkflowOutcome($this->db, $eid, 'approved');
+                break;
+
             default:
                 break;
         }
@@ -627,6 +634,10 @@ class ApprovalWorkflowService
         switch ($type) {
             case self::ENTITY_TIMESHEET:
                 ApprovalWorkflowEntityHelper::applyTimesheetWeekRejectedFromMetadata($this->db, $meta, $eid);
+                break;
+
+            case self::ENTITY_ORDEN_COMPRA:
+                ApprovalWorkflowEntityHelper::applyOrdenCompraWorkflowOutcome($this->db, $eid, 'rejected');
                 break;
 
             default:

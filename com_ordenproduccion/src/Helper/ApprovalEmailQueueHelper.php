@@ -98,6 +98,24 @@ class ApprovalEmailQueueHelper
             return 'PA-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
         }
 
+        if ($type === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
+            try {
+                $q = $db->getQuery(true)
+                    ->select($db->quoteName('number'))
+                    ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+                    ->where($db->quoteName('id') . ' = ' . $pk)
+                    ->setLimit(1);
+                $db->setQuery($q);
+                $num = trim((string) $db->loadResult());
+                if ($num !== '') {
+                    return $num;
+                }
+            } catch (\Throwable $e) {
+            }
+
+            return 'ORC-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
+        }
+
         if (
             $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             && $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
