@@ -85,7 +85,6 @@ $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adiciona
 $displayTotal = $linesTotalFinal + $margenAdicional;
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 $canSeeVendorPup         = AccessHelper::canEditProveedorExternoPrecioUnitProveedor();
-$canPedirCotizacionProveedorAprobaciones = AccessHelper::isInAprobacionesVentasGroup();
 
 $labelFacturar = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR');
 if (strpos($labelFacturar, 'COM_ORDENPRODUCCION_') === 0) {
@@ -150,6 +149,8 @@ $canReqSolicitudCot      = isset($this->canRequestSolicitudCotizacion) ? (bool) 
 $vendorQuoteApprOk       = isset($this->vendorQuoteSolicitudApproved) ? (bool) $this->vendorQuoteSolicitudApproved : false;
 $showVendorQuoteModalBtn = !$user->guest && (!$solicitudCotWf || $vendorQuoteApprOk);
 $canViewVendorQuoteRequestLog = isset($this->canViewVendorQuoteRequestLog) ? (bool) $this->canViewVendorQuoteRequestLog : false;
+/** Admin / Aprobaciones Ventas: single "Pedir cotización a proveedor" opens the vendor modal (procesar); paper-plane modal hidden to avoid duplicating Contactar. */
+$canPedirCotizacionProveedorAprobaciones = AccessHelper::canViewVendorQuoteRequestLog();
 $canAttachVendorQuoteEvent    = !$precotizacionLocked && $canEditDocument && !$user->guest;
 $canEditVendorQuoteEventLogRow = $canAttachVendorQuoteEvent && $canViewVendorQuoteRequestLog;
 $deleteVendorQuoteEventUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteVendorQuoteEvent', false, Route::TLS_IGNORE, true);
@@ -418,7 +419,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 </button>
             </form>
             <?php endif; ?>
-            <?php if ($showVendorQuoteModalBtn) :
+            <?php if ($showVendorQuoteModalBtn && !$canViewVendorQuoteRequestLog) :
                 $modalBtnClass = ($solicitudCotWf && $vendorQuoteApprOk) ? 'btn btn-outline-primary' : 'btn btn-primary';
                 $modalBtnLabel = ($solicitudCotWf && $vendorQuoteApprOk)
                     ? Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT')
@@ -529,7 +530,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     </button>
                 </form>
                 <?php endif; ?>
-                <?php if ($showVendorQuoteModalBtn) :
+                <?php if ($showVendorQuoteModalBtn && !$canViewVendorQuoteRequestLog) :
                     $modalBtnClass = ($solicitudCotWf && $vendorQuoteApprOk) ? 'btn btn-outline-primary' : 'btn btn-primary';
                     $modalBtnLabel = ($solicitudCotWf && $vendorQuoteApprOk)
                         ? Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT')

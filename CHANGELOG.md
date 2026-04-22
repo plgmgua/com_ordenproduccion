@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.35-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cot proveedor externo:** Para **Administración** / **Aprobaciones Ventas** (mismo criterio que el registro al proveedor), un solo botón **Pedir cotización a proveedor** abre el modal con modo *procesar*; se oculta el botón del avión (Contactar / Solicitar vía modal) para no duplicar la misma acción. **Solicitar cotización externa** (flujo de aprobación) no cambia.
+
 ## [3.113.34-STABLE] - 2026-04-16
 
 ### Changed
