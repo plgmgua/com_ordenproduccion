@@ -1274,14 +1274,15 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 .replace(/</g, '&lt;');
         }
 
-        document.addEventListener('click', function(e) {
-            var btn = e.target && e.target.closest ? e.target.closest('.js-vendor-line-view') : null;
-            if (!btn) return;
-            e.preventDefault();
-            var url = btn.getAttribute('data-url') || '';
-            var ext = (btn.getAttribute('data-ext') || '').toLowerCase();
-            if (!url) return;
-            if (hintEl) hintEl.classList.add('d-none');
+        function showVendorLinePreview(url, ext) {
+            url = (url || '').trim();
+            if (!url) {
+                return;
+            }
+            ext = (ext || '').toLowerCase();
+            if (hintEl) {
+                hintEl.classList.add('d-none');
+            }
             bodyEl.innerHTML = '';
             var isImg = ext === 'jpg' || ext === 'jpeg' || ext === 'png';
             if (isImg) {
@@ -1292,7 +1293,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             }
             if (ext === 'pdf') {
                 bodyEl.innerHTML = '<div class="border rounded overflow-hidden bg-light shadow-sm">'
-                    + '<iframe src="' + escAttr(url) + '#toolbar=1" class="w-100 border-0 d-block" title="' + escAttr(viewerTitle) + '"></iframe>'
+                    + '<iframe src="' + escAttr(url) + '#toolbar=1" class="w-100 border-0 d-block" style="min-height:70vh;" title="' + escAttr(viewerTitle) + '"></iframe>'
                     + '</div>'
                     + '<p class="small text-muted mt-2 mb-0">' + escAttr(pdfHint)
                     + ' <a href="' + escAttr(url) + '" target="_blank" rel="noopener">' + escAttr(openLabel) + '</a></p>';
@@ -1300,7 +1301,24 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             }
             bodyEl.innerHTML = '<p class="small text-muted mb-0">' + escAttr(fallback)
                 + ' <a href="' + escAttr(url) + '" target="_blank" rel="noopener">' + escAttr(openLabel) + '</a></p>';
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target && e.target.closest ? e.target.closest('.js-vendor-line-view') : null;
+            if (!btn) {
+                return;
+            }
+            e.preventDefault();
+            showVendorLinePreview(btn.getAttribute('data-url'), btn.getAttribute('data-ext'));
         });
+
+        var firstPreviewBtn = document.querySelector('.precot-vendor-quote-event-log .js-vendor-line-view[data-url]');
+        if (firstPreviewBtn) {
+            showVendorLinePreview(
+                firstPreviewBtn.getAttribute('data-url'),
+                firstPreviewBtn.getAttribute('data-ext')
+            );
+        }
     })();
     </script>
     <?php endif; ?>

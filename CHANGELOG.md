@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.31-STABLE] - 2026-04-16
+
+### Changed
+- **Registro de solicitudes al proveedor:** La vista previa del adjunto carga automáticamente el **primer** archivo disponible al abrir el documento; el botón del ojo sigue cambiando la vista cuando hay varios proveedores con adjunto.
+
 ## [3.113.30-STABLE] - 2026-04-16
 
 ### Changed
