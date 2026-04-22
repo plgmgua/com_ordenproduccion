@@ -1115,7 +1115,7 @@ class PrecotizacionController extends BaseController
         $user = Factory::getUser();
         $map  = VendorQuoteHelper::buildPlaceholderMap($proveedor, $item, $vendorLines, $user);
         $subj = VendorQuoteHelper::replacePlaceholders((string) ($tpl->subject ?? ''), $map);
-        $body = VendorQuoteHelper::replacePlaceholders((string) ($tpl->body ?? ''), $map);
+        $bodyHtml = VendorQuoteHelper::buildVendorQuoteEmailBodyHtml((string) ($tpl->body ?? ''), $map, $vendorLines);
         $to   = trim((string) ($proveedor->contact_email ?? ''));
         if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_EMAIL_INVALID'), 'error');
@@ -1126,7 +1126,7 @@ class PrecotizacionController extends BaseController
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
             $mailer->setSubject($subj);
-            $mailer->setBody(nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8')));
+            $mailer->setBody(VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml));
             $mailer->isHtml(true);
             $mailer->addRecipient($to);
             $mailer->send();

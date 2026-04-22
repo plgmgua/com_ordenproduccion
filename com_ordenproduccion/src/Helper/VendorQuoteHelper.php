@@ -189,6 +189,93 @@ class VendorQuoteHelper
     }
 
     /**
+     * HTML &lt;table&gt; for {LINEAS_TEXTO} in vendor-quote **email** only (Cantidad + Descripción, no prices).
+     * Cell text is escaped. Output is a single line (no raw newlines) so nl2br on the message body does not break the table.
+     *
+     * @param   array<int, object>  $vendorLines
+     *
+     * @return  string  Safe HTML fragment (empty string if no lines)
+     *
+     * @since   3.113.31
+     */
+    public static function formatLinesFullHtml(array $vendorLines): string
+    {
+        $hQty  = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_LINEAS_COL_CANTIDAD');
+        $hDesc = Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_LINEAS_COL_DESCRIPCION');
+        if (strpos($hQty, 'COM_ORDENPRODUCCION_') === 0) {
+            $hQty = 'Cantidad';
+        }
+        if (strpos($hDesc, 'COM_ORDENPRODUCCION_') === 0) {
+            $hDesc = 'Descripción';
+        }
+
+        $esc = static function (string $s): string {
+            return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        };
+
+        $rowsHtml = [];
+        foreach ($vendorLines as $ln) {
+            $qty  = max(0, (int) ($ln->quantity ?? 0));
+            $desc = trim((string) ($ln->vendor_descripcion ?? ''));
+            $desc = preg_replace('/\s+/u', ' ', str_replace(["\r\n", "\r", "\n"], ' ', $desc));
+            if ($desc === '') {
+                $desc = '—';
+            }
+            $rowsHtml[] = '<tr><td style="vertical-align:top;border:1px solid #ccc;padding:8px;white-space:nowrap;">'
+                . $esc((string) $qty) . '</td><td style="vertical-align:top;border:1px solid #ccc;padding:8px;">'
+                . $esc($desc) . '</td></tr>';
+        }
+
+        if ($rowsHtml === []) {
+            return '';
+        }
+
+        return '<table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:12px 0;max-width:100%;">'
+            . '<thead><tr><th scope="col" style="text-align:left;border:1px solid #ccc;padding:8px;background:#f5f5f5;">'
+            . $esc($hQty) . '</th><th scope="col" style="text-align:left;border:1px solid #ccc;padding:8px;background:#f5f5f5;">'
+            . $esc($hDesc) . '</th></tr></thead><tbody>'
+            . implode('', $rowsHtml) . '</tbody></table>';
+    }
+
+    /**
+     * Apply placeholders for HTML email: escape all values except LINEAS_TEXTO (replaced with {@see formatLinesFullHtml()}).
+     * Template line breaks become &lt;br&gt; (nl2br); table fragment must not contain raw newlines.
+     *
+     * @param   string  $template     Raw template body from DB
+     * @param   array<string, string>  $map      From {@see buildPlaceholderMap()} (unescaped)
+     * @param   array<int, object>  $vendorLines
+     *
+     * @since   3.113.31
+     */
+    public static function buildVendorQuoteEmailBodyHtml(string $template, array $map, array $vendorLines): string
+    {
+        $tableHtml = self::formatLinesFullHtml($vendorLines);
+        $mapOut    = [];
+        foreach ($map as $key => $value) {
+            $mapOut[$key] = $key === 'LINEAS_TEXTO'
+                ? $tableHtml
+                : htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        }
+        $body = self::replacePlaceholders($template, $mapOut);
+
+        return nl2br($body, false);
+    }
+
+    /**
+     * Minimal HTML document wrapper for vendor-quote emails.
+     *
+     * @since   3.113.31
+     */
+    public static function wrapVendorQuoteEmailDocument(string $innerHtml): string
+    {
+        return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '</head><body style="margin:0;padding:20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#222;">'
+            . $innerHtml
+            . '</body></html>';
+    }
+
+    /**
      * @param   array<int, object>  $vendorLines
      *
      * @since   3.113.0
