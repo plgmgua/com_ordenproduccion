@@ -99,6 +99,18 @@ class QuotationController extends BaseController
         }
         $update = (object) ['id' => $id, 'state' => 0, 'modified' => Factory::getDate()->toSql(), 'modified_by' => $user->id];
         $db->updateObject('#__ordenproduccion_quotations', $update, 'id');
+
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        if (isset($itemCols['pre_cotizacion_id'])) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_quotation_items'))
+                    ->set($db->quoteName('pre_cotizacion_id') . ' = NULL')
+                    ->where($db->quoteName('quotation_id') . ' = ' . (int) $id)
+            )->execute();
+        }
+
         $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_QUOTATION_DELETED', $row->quotation_number), 'success');
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones'));
     }

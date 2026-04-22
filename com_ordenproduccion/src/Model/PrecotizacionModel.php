@@ -418,8 +418,8 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Check if this pre-cotizaci?n is used in any quotation (quotation_items.pre_cotizacion_id).
-     * When true, the pre-cotizaci?n must not be modified or deleted.
+     * Check if this pre-cotizaci?n is used on any **active** quotation line (quotation_items.pre_cotizacion_id
+     * with parent quotations.state = 1). Soft-deleted quotations do not block the pre-cotizaci?n.
      *
      * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
      * @return  bool
@@ -437,12 +437,30 @@ class PrecotizacionModel extends ListModel
         if (!isset($cols['pre_cotizacion_id'])) {
             return false;
         }
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        if (!isset($qCols['state'])) {
+            $query = $db->getQuery(true)
+                ->select('1')
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+                ->setLimit(1);
+            $db->setQuery($query);
+
+            return (bool) $db->loadResult();
+        }
         $query = $db->getQuery(true)
             ->select('1')
-            ->from($db->quoteName('#__ordenproduccion_quotation_items'))
-            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+            )
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->where($db->quoteName('q.state') . ' = 1')
             ->setLimit(1);
         $db->setQuery($query);
+
         return (bool) $db->loadResult();
     }
 
