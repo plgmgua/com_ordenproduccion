@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.38-STABLE] - 2026-04-16
+
+### Fixed
+- **PDF cotización y solicitud al proveedor (encabezado/pie desde Ajustes):** Las variables `{USUARIO_CELULAR_WA_URL}`, `{USUARIO_CELULAR_HTML}` y `{USUARIO_CELULAR}` solo existían en el mapa de solicitud proveedor; el pie de cotización usa `CotizacionPdfHelper::replacePlaceholders` y dejaba el texto literal. Ahora se sustituyen igual que en correo (HTML+icono, URL wa.me, texto plano).
+
 ## [3.113.37-STABLE] - 2026-04-16
 
 ### Fixed

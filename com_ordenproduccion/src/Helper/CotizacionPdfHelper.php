@@ -21,7 +21,7 @@ use Joomla\CMS\User\User;
  * Placeholders supported in Ajustes de Cotización (PDF template).
  * Use these in Encabezado, Términos y Condiciones, Pie de página; they are replaced when generating the PDF.
  * User profile fields use Joomla custom field names: numero-de-celular, puesto-laboral, departamento, telefono, agente-de-ventas.
- * {CELULAR} expands to a WhatsApp icon + linked number (Guatemala +502) for PDF and HTML.
+ * {CELULAR} and {USUARIO_CELULAR_HTML}: WhatsApp icon + link (+502). {USUARIO_CELULAR_WA_URL}: solo URL. {USUARIO_CELULAR}: texto crudo.
  */
 class CotizacionPdfHelper
 {
@@ -36,6 +36,17 @@ class CotizacionPdfHelper
 
     /** Placeholder: número de celular (campo perfil numero-de-celular) */
     public const PLACEHOLDER_CELULAR = '{CELULAR}';
+
+    /**
+     * Same output as {CELULAR} (icon + link). Alias for text copied from plantillas solicitud proveedor.
+     */
+    public const PLACEHOLDER_USUARIO_CELULAR_HTML = '{USUARIO_CELULAR_HTML}';
+
+    /** Plain wa.me URL (texto; campo perfil numero-de-celular). */
+    public const PLACEHOLDER_USUARIO_CELULAR_WA_URL = '{USUARIO_CELULAR_WA_URL}';
+
+    /** Celular sin formato (texto plano del perfil). */
+    public const PLACEHOLDER_USUARIO_CELULAR = '{USUARIO_CELULAR}';
 
     /** Guatemala country calling code for WhatsApp (wa.me) normalization. */
     private const CELULAR_GT_CC = '502';
@@ -80,6 +91,9 @@ class CotizacionPdfHelper
             self::PLACEHOLDER_AGENTE_VENTAS       => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_AGENTE_VENTAS',
             self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_AGENTE_DE_VENTAS_CAMPO',
             self::PLACEHOLDER_CELULAR             => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_CELULAR',
+            self::PLACEHOLDER_USUARIO_CELULAR_HTML => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_USUARIO_CELULAR_HTML',
+            self::PLACEHOLDER_USUARIO_CELULAR_WA_URL => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_USUARIO_CELULAR_WA_URL',
+            self::PLACEHOLDER_USUARIO_CELULAR   => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_USUARIO_CELULAR',
             self::PLACEHOLDER_PUESTO              => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_PUESTO',
             self::PLACEHOLDER_DEPARTAMENTO       => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_DEPARTAMENTO',
             self::PLACEHOLDER_TELEFONO           => 'COM_ORDENPRODUCCION_COTIZACION_PDF_VAR_TELEFONO',
@@ -116,6 +130,8 @@ class CotizacionPdfHelper
         $departamento = $user ? self::getUserCustomField($user, self::USER_FIELD_DEPARTAMENTO) : '';
         $telefono    = $user ? self::getUserCustomField($user, self::USER_FIELD_TELEFONO) : '';
 
+        $waUrl = self::getCelularWaMeUrl($celularRaw);
+
         $replacements = [
             self::PLACEHOLDER_NUMERO_COTIZACION   => $numeroCotizacion,
             self::PLACEHOLDER_FECHA               => $fecha,
@@ -124,6 +140,9 @@ class CotizacionPdfHelper
             self::PLACEHOLDER_AGENTE_VENTAS       => $agenteVentas,
             self::PLACEHOLDER_AGENTE_DE_VENTAS_CAMPO => $agenteDeVentasCampo,
             self::PLACEHOLDER_CELULAR             => $celular,
+            self::PLACEHOLDER_USUARIO_CELULAR_HTML => $celular,
+            self::PLACEHOLDER_USUARIO_CELULAR_WA_URL => $waUrl,
+            self::PLACEHOLDER_USUARIO_CELULAR     => $celularRaw,
             self::PLACEHOLDER_PUESTO              => $puesto,
             self::PLACEHOLDER_DEPARTAMENTO        => $departamento,
             self::PLACEHOLDER_TELEFONO            => $telefono,
