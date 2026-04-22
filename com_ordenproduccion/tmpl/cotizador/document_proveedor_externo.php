@@ -114,6 +114,9 @@ $vendorQuoteAttachRel   = (isset($item->vendor_quote_attachment) && is_string($i
 $vendorQuoteAttachHref  = $vendorQuoteAttachRel !== ''
     ? rtrim(Uri::root(), '/') . '/' . str_replace('\\', '/', ltrim($vendorQuoteAttachRel, '/'))
     : '';
+$vendorAttachExt        = $vendorQuoteAttachRel !== '' ? strtolower(pathinfo($vendorQuoteAttachRel, PATHINFO_EXTENSION)) : '';
+$vendorAttachIsImage    = in_array($vendorAttachExt, ['jpg', 'jpeg', 'png'], true);
+$vendorAttachIsPdf      = ($vendorAttachExt === 'pdf');
 $badgeVendor        = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_BADGE');
 if (strpos($badgeVendor, 'COM_ORDENPRODUCCION_') === 0) {
     $badgeVendor = 'Proveedor externo';
@@ -202,6 +205,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .js-vendor-line-total {
     font-size: 0.9rem;
     white-space: nowrap;
+}
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-attachment-viewer iframe {
+    min-height: 480px;
+}
+@media (min-width: 768px) {
+    .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-attachment-viewer iframe {
+        min-height: min(70vh, 720px);
+    }
 }
 </style>
     <nav class="mb-3">
@@ -920,5 +931,34 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         }
     })();
     </script>
+    <?php endif; ?>
+
+    <?php if ($vendorQuoteAttachHref !== '') : ?>
+    <section class="precot-vendor-attachment-viewer mt-4 pt-4 border-top" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_TITLE')); ?>">
+        <h2 class="h6 mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_TITLE'); ?></h2>
+        <?php if ($vendorAttachIsImage) : ?>
+        <div class="text-center bg-light rounded border p-2">
+            <img src="<?php echo htmlspecialchars($vendorQuoteAttachHref); ?>"
+                 alt="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_TITLE')); ?>"
+                 class="img-fluid rounded shadow-sm"
+                 style="max-height: 85vh; width: auto;">
+        </div>
+        <?php elseif ($vendorAttachIsPdf) : ?>
+        <div class="border rounded overflow-hidden bg-light shadow-sm">
+            <iframe src="<?php echo htmlspecialchars($vendorQuoteAttachHref); ?>#toolbar=1"
+                    class="w-100 border-0 d-block"
+                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_TITLE')); ?>"></iframe>
+        </div>
+        <p class="small text-muted mt-2 mb-0">
+            <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_PDF_HINT'); ?>
+            <a href="<?php echo htmlspecialchars($vendorQuoteAttachHref); ?>" target="_blank" rel="noopener"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEW'); ?></a>
+        </p>
+        <?php else : ?>
+        <p class="small text-muted mb-0">
+            <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEWER_FALLBACK'); ?>
+            <a href="<?php echo htmlspecialchars($vendorQuoteAttachHref); ?>" target="_blank" rel="noopener"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ATTACH_VIEW'); ?></a>
+        </p>
+        <?php endif; ?>
+    </section>
     <?php endif; ?>
 </div>
