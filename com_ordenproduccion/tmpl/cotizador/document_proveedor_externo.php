@@ -85,6 +85,7 @@ $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adiciona
 $displayTotal = $linesTotalFinal + $margenAdicional;
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 $canSeeVendorPup         = AccessHelper::canEditProveedorExternoPrecioUnitProveedor();
+$canPedirCotizacionProveedorAprobaciones = AccessHelper::isInAprobacionesVentasGroup();
 
 $labelFacturar = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR');
 if (strpos($labelFacturar, 'COM_ORDENPRODUCCION_') === 0) {
@@ -423,6 +424,11 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo $modalBtnLabel; ?>
             </button>
             <?php endif; ?>
+            <?php if ($canPedirCotizacionProveedorAprobaciones) : ?>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" data-vendor-quote-mode="procesar" id="btn-vendor-quote-pedir-proveedor-readonly">
+                <i class="fas fa-handshake" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_PEDIR_PROVEEDOR'); ?>
+            </button>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     <?php else :
@@ -527,6 +533,11 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     ?>
                 <button type="button" class="<?php echo htmlspecialchars($modalBtnClass, ENT_QUOTES, 'UTF-8'); ?>" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-edit">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo $modalBtnLabel; ?>
+                </button>
+                <?php endif; ?>
+                <?php if ($canPedirCotizacionProveedorAprobaciones) : ?>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" data-vendor-quote-mode="procesar" id="btn-vendor-quote-pedir-proveedor-edit">
+                    <i class="fas fa-handshake" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_PEDIR_PROVEEDOR'); ?>
                 </button>
                 <?php endif; ?>
             </div>
@@ -708,6 +719,10 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             <div class="list-group small" id="vendor-quote-proveedor-list" role="listbox" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_SELECT_VENDOR')); ?>"></div>
                         </div>
                         <div class="col-md-7">
+                            <div id="vendor-quote-detail-panel" class="d-none border rounded p-2 mb-3 small bg-light">
+                                <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_VENDOR_DETAIL_TITLE'); ?></div>
+                                <dl class="row mb-0" id="vendor-quote-detail-dl"></dl>
+                            </div>
                             <div id="vendor-quote-method-wrap" class="d-none">
                                 <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_METHOD_LABEL'); ?></div>
                                 <div class="form-check">
@@ -755,7 +770,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             noPhone: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_NO_PHONE')); ?>,
             sendEmail: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_SEND_EMAIL')); ?>,
             composeCell: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_COMPOSE_CELL')); ?>,
-            downloadPdf: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_DOWNLOAD_PDF')); ?>
+            downloadPdf: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_DOWNLOAD_PDF')); ?>,
+            procesar: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_ACTION_PROCESAR')); ?>,
+            det: {
+                name: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NAME')); ?>,
+                nit: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_NIT')); ?>,
+                address: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_ADDRESS')); ?>,
+                phone: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_PHONE')); ?>,
+                contact_name: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_NAME')); ?>,
+                contact_cellphone: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_CELL')); ?>,
+                contact_email: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PROVEEDORES_CONTACT_EMAIL')); ?>
+            }
         };
 
         var listEl = document.getElementById('vendor-quote-proveedor-list');
@@ -777,6 +802,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 
         var selectedId = 0;
         var cellLoaded = false;
+        var uiMode = 'default';
+        var detailPanel = document.getElementById('vendor-quote-detail-panel');
+        var detailDl = document.getElementById('vendor-quote-detail-dl');
 
         /**
          * Build index.php?option=com_ordenproduccion&task=... URLs with proper query string (works with SEF on the site).
@@ -818,6 +846,11 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             if (!btnPrimary) return;
             var m = getMethod();
             cellPanel.classList.add('d-none');
+            if (uiMode === 'procesar') {
+                btnPrimary.textContent = msgs.procesar;
+                btnPrimary.classList.remove('d-none');
+                return;
+            }
             if (m === 'email') {
                 btnPrimary.textContent = msgs.sendEmail;
                 btnPrimary.classList.remove('d-none');
@@ -828,6 +861,36 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 btnPrimary.textContent = msgs.downloadPdf;
                 btnPrimary.classList.remove('d-none');
             }
+        }
+
+        function fillVendorDetail(p) {
+            if (!detailDl || !detailPanel || !p) {
+                return;
+            }
+            detailDl.innerHTML = '';
+            var L = msgs.det || {};
+            function addRow(label, val) {
+                var s = val == null ? '' : String(val).trim();
+                if (!s) {
+                    return;
+                }
+                var dt = document.createElement('dt');
+                dt.className = 'col-sm-4 text-muted';
+                dt.textContent = label;
+                var dd = document.createElement('dd');
+                dd.className = 'col-sm-8 mb-1';
+                dd.textContent = s;
+                detailDl.appendChild(dt);
+                detailDl.appendChild(dd);
+            }
+            addRow(L.name || '', p.name);
+            addRow(L.nit || '', p.nit);
+            addRow(L.address || '', p.address);
+            addRow(L.phone || '', p.phone);
+            addRow(L.contact_name || '', p.contact_name);
+            addRow(L.contact_cellphone || '', p.contact_cellphone);
+            addRow(L.contact_email || '', p.contact_email);
+            detailPanel.classList.remove('d-none');
         }
 
         function resetModal() {
@@ -841,6 +904,8 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             telLink.classList.add('d-none');
             phoneHint.textContent = '';
             if (emailProveedorInput) emailProveedorInput.value = '';
+            if (detailPanel) detailPanel.classList.add('d-none');
+            if (detailDl) detailDl.innerHTML = '';
         }
 
         function renderDetail() {
@@ -873,6 +938,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         setStatus(msgs.loadError);
                         return;
                     }
+                    fillVendorDetail(data.proveedor);
                     renderDetail();
                     setStatus('');
                 })
@@ -910,7 +976,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 });
         }
 
-        modalEl.addEventListener('show.bs.modal', function() {
+        modalEl.addEventListener('show.bs.modal', function(ev) {
+            var trg = ev.relatedTarget || null;
+            uiMode = (trg && trg.getAttribute('data-vendor-quote-mode') === 'procesar') ? 'procesar' : 'default';
             resetModal();
             loadProveedores();
         });
