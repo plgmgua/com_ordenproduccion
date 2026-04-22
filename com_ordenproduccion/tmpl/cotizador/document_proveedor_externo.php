@@ -893,6 +893,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         false
                     );
                     window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                    var modalApi = window.bootstrap && window.bootstrap.Modal;
+                    if (modalApi) {
+                        var inst = modalApi.getInstance(modalEl);
+                        if (inst) {
+                            inst.hide();
+                        }
+                    }
+                    window.location.reload();
                     return;
                 }
                 if (m === 'cellphone') {
