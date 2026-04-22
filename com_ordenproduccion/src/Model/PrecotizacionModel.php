@@ -2088,7 +2088,7 @@ class PrecotizacionModel extends ListModel
      * Batch-save external-vendor quote lines from the document form.
      *
      * @param   int    $preCotizacionId  Pre-cotización id.
-     * @param   array  $rows             Rows with id (0 = new), quantity, price_per_sheet, vendor_descripcion, vendor_tiempo_entrega.
+     * @param   array  $rows             Rows with id (0 = new), quantity, price_per_sheet, vendor_descripcion.
      *
      * @return  bool
      *
@@ -2125,13 +2125,12 @@ class PrecotizacionModel extends ListModel
                 $qty  = max(1, (int) ($row['quantity'] ?? 1));
                 $unit = round((float) ($row['price_per_sheet'] ?? 0), 2);
                 $desc = trim((string) ($row['vendor_descripcion'] ?? ''));
-                $tiempo = trim((string) ($row['vendor_tiempo_entrega'] ?? ''));
 
                 $payload = [
                     'quantity'              => $qty,
                     'price_per_sheet'       => $unit,
                     'vendor_descripcion'    => $desc,
-                    'vendor_tiempo_entrega' => $tiempo,
+                    'vendor_tiempo_entrega' => '',
                 ];
 
                 if ($lid > 0) {
@@ -2483,6 +2482,62 @@ class PrecotizacionModel extends ListModel
             $db->getQuery(true)
                 ->update($db->quoteName('#__ordenproduccion_precot_vendor_quote_event'))
                 ->set($db->quoteName('vendor_quote_attachment') . ' = ' . $db->quote($relativePath))
+                ->where($db->quoteName('id') . ' = ' . $eventId)
+        );
+
+        return (bool) $db->execute();
+    }
+
+    /**
+     * Store condiciones de entrega on one precot_vendor_quote_event row.
+     *
+     * @param   int     $preCotizacionId  Pre-cotización id.
+     * @param   int     $eventId          Event id.
+     * @param   string  $text             Plain text (max 512).
+     *
+     * @return  bool
+     *
+     * @since   3.113.19
+     */
+    public function saveVendorQuoteEventCondicionesEntrega(int $preCotizacionId, int $eventId, string $text): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        $eventId         = (int) $eventId;
+        if ($preCotizacionId < 1 || $eventId < 1 || !$this->hasVendorQuoteEventLogSchema()) {
+            return false;
+        }
+
+        $db      = $this->getDatabase();
+        $evtCols = $db->getTableColumns('#__ordenproduccion_precot_vendor_quote_event', false);
+        $evtCols = is_array($evtCols) ? array_change_key_case($evtCols, CASE_LOWER) : [];
+        if (!isset($evtCols['condiciones_entrega'])) {
+            return false;
+        }
+
+        $event = $this->getVendorQuoteEvent($eventId);
+        if (!$event || (int) $event->pre_cotizacion_id !== $preCotizacionId) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $text = trim($text);
+        if (strlen($text) > 512) {
+            $text = substr($text, 0, 512);
+        }
+        $value = $text !== '' ? $text : null;
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_precot_vendor_quote_event'))
+                ->set($db->quoteName('condiciones_entrega') . ' = ' . ($value === null ? 'NULL' : $db->quote($value)))
                 ->where($db->quoteName('id') . ' = ' . $eventId)
         );
 

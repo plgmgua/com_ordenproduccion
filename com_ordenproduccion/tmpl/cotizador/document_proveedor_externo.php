@@ -108,6 +108,7 @@ if (strpos($placeholderMedidas, 'COM_ORDENPRODUCCION_') === 0) {
 $medidasValue = isset($item->medidas) ? (string) $item->medidas : '';
 
 $saveVendorLinesUrl     = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveProveedorExternoLines');
+$saveVendorQuoteEventCondicionesUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveVendorQuoteEventCondiciones', false, Route::TLS_IGNORE, true);
 $uploadVendorQuoteUrl   = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.uploadVendorQuoteAttachment', false, Route::TLS_IGNORE, true);
 $vendorQuoteAttachRel   = (isset($item->vendor_quote_attachment) && is_string($item->vendor_quote_attachment))
     ? trim($item->vendor_quote_attachment) : '';
@@ -121,31 +122,22 @@ $badgeVendor        = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_BADGE');
 if (strpos($badgeVendor, 'COM_ORDENPRODUCCION_') === 0) {
     $badgeVendor = 'Proveedor externo';
 }
-$tfootLabelSpan = 5;
-
 $colQty   = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY');
 $colDesc  = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_DESC');
 $colPrice = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE_SHORT');
 if (strpos($colPrice, 'COM_ORDENPRODUCCION_') === 0) {
     $colPrice = 'Precio';
 }
-$colLeadShort = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME_SHORT');
-if (strpos($colLeadShort, 'COM_ORDENPRODUCCION_') === 0) {
-    $colLeadShort = 'Condiciones de entrega';
-}
-$colLeadFull = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_LEAD_TIME');
-if (strpos($colLeadFull, 'COM_ORDENPRODUCCION_') === 0) {
-    $colLeadFull = 'Tiempo de entrega después de confirmación';
-}
 $colTotal = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL');
 $colAttach = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_ATTACH');
 if (strpos($colAttach, 'COM_ORDENPRODUCCION_') === 0) {
     $colAttach = 'Adjunto';
 }
+$colEventCondiciones = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_CONDICIONES');
+$labelSaveEventCondiciones = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_CONDICIONES_SAVE');
 $colActions = Text::_('COM_ORDENPRODUCCION_ACTIONS');
-$canAttachVendorQuoteEvent = !$precotizacionLocked && $canEditDocument && !$user->guest;
-
 $user  = Factory::getUser();
+$canAttachVendorQuoteEvent = !$precotizacionLocked && $canEditDocument && !$user->guest;
 $token = Session::getFormToken();
 $vendorQuoteProveedoresUrl = Route::_(
     'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedoresJson&format=json&' . $token . '=1',
@@ -182,12 +174,13 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     font-weight: 600;
 }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-qty { width: 4.25rem; }
-.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-desc { width: 36%; }
-.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-price { width: 5rem; }
-.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-lead { width: 22%; }
-.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-total { width: 4.25rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-desc { width: 52%; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-price { width: 5.5rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-total { width: 5rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table .col-actions { width: 2.75rem; padding-left: 0.2rem; padding-right: 0.2rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-cond { min-width: 10rem; max-width: 22rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-save { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
     width: 100%;
     min-width: 0;
@@ -350,7 +343,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
                         <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
                         <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
-                        <th class="col-lead" title="<?php echo htmlspecialchars($colLeadFull); ?>"><?php echo htmlspecialchars($colLeadShort); ?></th>
                         <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
                     </tr>
                 </thead>
@@ -362,7 +354,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="col-qty"><?php echo (int) $line->quantity; ?></td>
                         <td class="col-desc"><?php echo nl2br(htmlspecialchars((string) ($line->vendor_descripcion ?? ''))); ?></td>
                         <td class="col-price text-end">Q <?php echo number_format($unit, 2); ?></td>
-                        <td class="col-lead"><?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?></td>
                         <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -384,7 +375,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 'id'                  => 0,
                 'quantity'            => 1,
                 'vendor_descripcion'  => '',
-                'vendor_tiempo_entrega' => '',
                 'price_per_sheet'     => 0,
                 'total'               => 0,
                 'line_type'           => 'proveedor_externo',
@@ -405,7 +395,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
                         <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
                         <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
-                        <th class="col-lead" title="<?php echo htmlspecialchars($colLeadFull); ?>"><?php echo htmlspecialchars($colLeadShort); ?></th>
                         <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
                         <th class="col-actions text-center"><span class="visually-hidden"><?php echo htmlspecialchars($colActions); ?></span></th>
                     </tr>
@@ -426,9 +415,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                         <td class="col-price">
                             <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[<?php echo $i; ?>][price_per_sheet]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($unit, 2, '.', '')); ?>">
-                        </td>
-                        <td class="col-lead">
-                            <input type="text" class="form-control form-control-sm" name="lines[<?php echo $i; ?>][vendor_tiempo_entrega]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" maxlength="512" value="<?php echo htmlspecialchars((string) ($line->vendor_tiempo_entrega ?? '')); ?>" autocomplete="off" aria-label="<?php echo htmlspecialchars($colLeadFull); ?>">
                         </td>
                         <td class="col-total text-end align-middle">
                             <span class="js-vendor-line-total">Q <?php echo number_format($tot, 2); ?></span>
@@ -477,9 +463,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <td class="col-price">
                 <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[__I__][price_per_sheet]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="0.00">
             </td>
-            <td class="col-lead">
-                <input type="text" class="form-control form-control-sm" name="lines[__I__][vendor_tiempo_entrega]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" maxlength="512" value="" autocomplete="off">
-            </td>
             <td class="col-total text-end align-middle">
                 <span class="js-vendor-line-total">Q 0.00</span>
             </td>
@@ -525,11 +508,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         var q = row.querySelector('.js-vendor-qty');
                         var pr = row.querySelector('.js-vendor-price');
                         var ta = row.querySelector('textarea[name*="[vendor_descripcion]"]');
-                        var tt = row.querySelector('input[name*="[vendor_tiempo_entrega]"]');
                         if (q) q.value = '1';
                         if (pr) pr.value = '0.00';
                         if (ta) ta.value = '';
-                        if (tt) tt.value = '';
                         updateRowTotal(row);
                         return;
                     }
@@ -966,7 +947,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ACTION'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_VENDOR'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_DETAIL'); ?></th>
+                        <th scope="col" class="col-evt-cond"><?php echo htmlspecialchars($colEventCondiciones); ?></th>
                         <th scope="col" class="col-evt-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
+                        <th scope="col" class="col-evt-save text-center" title="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($labelSaveEventCondiciones); ?></span><i class="fas fa-save" aria-hidden="true"></i></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1006,6 +989,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             $provName = '#' . (int) $ev->proveedor_id;
                         }
                         $evtId = (int) ($ev->id ?? 0);
+                        $evtCondiciones = isset($ev->condiciones_entrega) ? trim((string) $ev->condiciones_entrega) : '';
                         $evtAttachRel = isset($ev->vendor_quote_attachment) ? trim((string) $ev->vendor_quote_attachment) : '';
                         $evtAttachHref = $evtAttachRel !== ''
                             ? rtrim(Uri::root(), '/') . '/' . str_replace('\\', '/', ltrim($evtAttachRel, '/'))
@@ -1018,6 +1002,15 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="small"><?php echo htmlspecialchars($actionLabel); ?></td>
                         <td class="small"><?php echo htmlspecialchars($provName); ?></td>
                         <td class="small"><?php echo htmlspecialchars($detail); ?></td>
+                        <td class="col-evt-cond small p-1">
+                            <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
+                            <input type="text" class="form-control form-control-sm" name="condiciones_entrega" form="vendor-evt-cond-form-<?php echo (int) $evtId; ?>"
+                                   maxlength="512" value="<?php echo htmlspecialchars($evtCondiciones); ?>" autocomplete="off"
+                                   aria-label="<?php echo htmlspecialchars($colEventCondiciones); ?>">
+                            <?php else : ?>
+                            <span class="d-block px-1 py-1"><?php echo $evtCondiciones !== '' ? htmlspecialchars($evtCondiciones) : '—'; ?></span>
+                            <?php endif; ?>
+                        </td>
                         <td class="col-evt-attach text-center">
                             <div class="d-flex justify-content-center align-items-center gap-1 flex-wrap">
                                 <?php if ($evtAttachHref !== '') : ?>
@@ -1048,6 +1041,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                                 <span class="text-muted small">—</span>
                                 <?php endif; ?>
                             </div>
+                        </td>
+                        <td class="col-evt-save text-center">
+                            <?php if ($canAttachVendorQuoteEvent && $evtId > 0) : ?>
+                            <form id="vendor-evt-cond-form-<?php echo (int) $evtId; ?>" method="post" action="<?php echo htmlspecialchars($saveVendorQuoteEventCondicionesUrl); ?>" class="mb-0">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+                                <input type="hidden" name="event_id" value="<?php echo (int) $evtId; ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-primary p-1" title="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>" aria-label="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>">
+                                    <i class="fas fa-save" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                            <?php else : ?>
+                            <span class="text-muted small">—</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>

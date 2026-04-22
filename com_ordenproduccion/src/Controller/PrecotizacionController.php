@@ -699,7 +699,7 @@ class PrecotizacionController extends BaseController
     /**
      * Save all external-vendor lines from the proveedor document form (batch POST).
      *
-     * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion, vendor_tiempo_entrega.
+     * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion.
      *
      * @return  bool
      *
@@ -744,6 +744,61 @@ class PrecotizacionController extends BaseController
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
         } else {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVED'));
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+        return true;
+    }
+
+    /**
+     * POST: id (pre_cotizacion_id), event_id, condiciones_entrega. Saves delivery conditions on one registro row.
+     *
+     * @return  bool
+     *
+     * @since   3.113.19
+     */
+    public function saveVendorQuoteEventCondiciones()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+
+        $app     = Factory::getApplication();
+        $id      = (int) $app->input->post->get('id', 0);
+        $eventId = (int) $app->input->post->get('event_id', 0);
+        $text    = $app->input->post->get('condiciones_entrega', '', 'string');
+
+        if ($id < 1 || $eventId < 1) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($id, 'html')) {
+            return false;
+        }
+        if ($this->denyIfNotEditableDocument($id, 'html')) {
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->saveVendorQuoteEventCondicionesEntrega($id, $eventId, $text)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_CONDICIONES_SAVE_ERROR'), 'error');
+        } else {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_CONDICIONES_SAVED'));
         }
 
         $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
