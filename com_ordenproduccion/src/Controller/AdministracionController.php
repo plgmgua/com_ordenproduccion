@@ -699,6 +699,132 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save work order numbering (next sequence, prefix, format) — Ajustes → Numeración órdenes.
+     *
+     * @return  void
+     *
+     * @since   3.113.94
+     */
+    public function saveWorkOrderNumbering()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $returnSubtab = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $next  = isset($jform['next_order_number']) ? (int) $jform['next_order_number'] : 0;
+        $prefix = isset($jform['order_prefix']) ? trim((string) $jform['order_prefix']) : '';
+        $format = isset($jform['order_format']) ? trim((string) $jform['order_format']) : '';
+
+        if ($next < 1 || $next > 999999) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_INVALID_NEXT'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        if ($prefix === '' || \strlen($prefix) > 10) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_INVALID_PREFIX'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        $allowed = ['PREFIX-NUMBER', 'NUMBER', 'PREFIX-NUMBER-YEAR', 'NUMBER-YEAR'];
+
+        if (!\in_array($format, $allowed, true)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_INVALID_FORMAT'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        $settingsModel = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+
+        if ($settingsModel->saveWorkOrderNumbering($next, $prefix, $format)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_SAVED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), 'error');
+        }
+
+        $returnUrl = $app->input->post->getString('return_url', '');
+        if ($returnUrl !== '' && strpos($returnUrl, 'option=com_ordenproduccion') !== false) {
+            $app->redirect($returnUrl);
+        } else {
+            $app->redirect($returnSubtab);
+        }
+    }
+
+    /**
+     * Set next_order_number from MAX existing órdenes numeric suffix + 1 (Ajustes → Numeración órdenes).
+     *
+     * @return  void
+     *
+     * @since   3.113.94
+     */
+    public function resyncWorkOrderNumbering()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $returnSubtab = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        $settingsModel = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+        $newCounter    = $settingsModel->resyncOrderCounter();
+
+        if ($newCounter > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_SYNC_OK', $newCounter), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_SYNC_FAIL'), 'error');
+        }
+
+        $app->redirect($returnSubtab);
+    }
+
+    /**
      * Save approval workflow definitions (Ajustes → Flujos de aprobaciones).
      *
      * @return  void

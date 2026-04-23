@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.94-STABLE] - 2026-04-16
+
+### Added
+- **Administración → Ajustes → Numeración órdenes:** Pantalla para editar el **siguiente número**, **prefijo** y **formato** de las órdenes de trabajo (tabla `#__ordenproduccion_settings`, misma lógica que webhooks y backend). Incluye **sincronizar contador** a partir del máximo sufijo en órdenes existentes.
+
+### Changed
+- **Ajuste de contador:** `resyncOrderCounter` considera `order_number` y `orden_de_trabajo` según existan en la tabla de órdenes; si no hay fila de ajustes, crea una al sincronizar.
+
 ## [3.113.93-STABLE] - 2026-04-16
 
 ### Changed

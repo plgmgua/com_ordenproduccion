@@ -330,6 +330,14 @@ class HtmlView extends BaseHtmlView
     protected $solicitudOrdenUrl = '';
 
     /**
+     * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
+     *
+     * @var    \stdClass|null
+     * @since  3.113.94
+     */
+    protected $workOrderNumbering = null;
+
+    /**
      * Solicitud de cotización a proveedor: templates per channel (Ajustes → Solicitud de cotización).
      *
      * @var    array<string, \stdClass|null>
@@ -1605,6 +1613,16 @@ class HtmlView extends BaseHtmlView
                 $this->solicitudOrdenUrl = $statsModel->getSolicitudOrdenUrl();
             } catch (\Exception $e) {
                 $this->solicitudOrdenUrl = '';
+            }
+        }
+
+        $this->workOrderNumbering = null;
+        if ($activeTab === 'ajustes' && $activeSubTab === 'numeracion_ordenes') {
+            try {
+                $settingsModel            = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+                $this->workOrderNumbering = $settingsModel->getWorkOrderNumberingRow();
+            } catch (\Throwable $e) {
+                $this->workOrderNumbering = null;
             }
         }
 

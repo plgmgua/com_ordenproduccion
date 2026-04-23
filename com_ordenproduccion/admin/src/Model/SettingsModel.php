@@ -692,13 +692,32 @@ class SettingsModel extends BaseModel
         try {
             $db = Factory::getDbo();
 
-            // Extract the numeric suffix from order_number values in the format 'PREFIX-NNNNNN'
-            $query = "SELECT MAX(CAST(SUBSTRING_INDEX(order_number, '-', -1) AS UNSIGNED)) "
-                   . "FROM " . $db->quoteName('#__ordenproduccion_ordenes');
-            $db->setQuery($query);
-            $maxNum = (int) $db->loadResult();
+            $maxNum = 0;
+            $cols   = array_change_key_case((array) $db->getTableColumns('#__ordenproduccion_ordenes'), CASE_LOWER);
+
+            if (\array_key_exists('order_number', $cols)) {
+                $query = 'SELECT MAX(CAST(SUBSTRING_INDEX(' . $db->quoteName('order_number') . ", '-', -1) AS UNSIGNED)) "
+                    . 'FROM ' . $db->quoteName('#__ordenproduccion_ordenes')
+                    . ' WHERE ' . $db->quoteName('order_number') . " <> ''";
+                $db->setQuery($query);
+                $maxNum = max($maxNum, (int) $db->loadResult());
+            }
+
+            if (\array_key_exists('orden_de_trabajo', $cols)) {
+                $query = 'SELECT MAX(CAST(SUBSTRING_INDEX(' . $db->quoteName('orden_de_trabajo') . ", '-', -1) AS UNSIGNED)) "
+                    . 'FROM ' . $db->quoteName('#__ordenproduccion_ordenes')
+                    . ' WHERE ' . $db->quoteName('orden_de_trabajo') . " <> ''";
+                $db->setQuery($query);
+                $maxNum = max($maxNum, (int) $db->loadResult());
+            }
 
             $newCounter = max($maxNum + 1, 1000); // never go below 1000
+
+            $this->ensureSettingsTableExists();
+
+            if ($this->getSavedSettings() === null) {
+                return $this->saveWorkOrderNumbering($newCounter, 'ORD', 'PREFIX-NUMBER') ? $newCounter : 0;
+            }
 
             $updateQuery = $db->getQuery(true)
                 ->update($db->quoteName('#__ordenproduccion_settings'))
@@ -710,6 +729,106 @@ class SettingsModel extends BaseModel
             return $newCounter;
         } catch (\Exception $e) {
             return 0;
+        }
+    }
+
+    /**
+     * Settings row fields used for webhook / work order numbering (site Administración).
+     *
+     * @return  \stdClass  Object with next_order_number, order_prefix, order_format
+     *
+     * @since   3.113.94
+     */
+    public function getWorkOrderNumberingRow(): \stdClass
+    {
+        $this->ensureSettingsTableExists();
+        $row = $this->getSavedSettings();
+
+        if (!$row) {
+            return (object) [
+                'next_order_number' => 1000,
+                'order_prefix'        => 'ORD',
+                'order_format'        => 'PREFIX-NUMBER',
+            ];
+        }
+
+        return (object) [
+            'next_order_number' => (int) ($row->next_order_number ?? 1000),
+            'order_prefix'        => (string) ($row->order_prefix ?? 'ORD'),
+            'order_format'        => (string) ($row->order_format ?? 'PREFIX-NUMBER'),
+        ];
+    }
+
+    /**
+     * Persist next numeric sequence, prefix and format for órdenes de trabajo (new orders / webhooks).
+     *
+     * @return  boolean  True on success
+     *
+     * @since   3.113.94
+     */
+    public function saveWorkOrderNumbering(int $nextNumber, string $orderPrefix, string $orderFormat): bool
+    {
+        if ($nextNumber < 1 || $nextNumber > 999999) {
+            return false;
+        }
+
+        $orderPrefix = trim($orderPrefix);
+
+        if ($orderPrefix === '' || \strlen($orderPrefix) > 10) {
+            return false;
+        }
+
+        $allowed = ['PREFIX-NUMBER', 'NUMBER', 'PREFIX-NUMBER-YEAR', 'NUMBER-YEAR'];
+
+        if (!\in_array($orderFormat, $allowed, true)) {
+            return false;
+        }
+
+        try {
+            $this->ensureSettingsTableExists();
+            $db = Factory::getDbo();
+
+            $query = $db->getQuery(true)
+                ->select('id')
+                ->from($db->quoteName('#__ordenproduccion_settings'))
+                ->where($db->quoteName('id') . ' = 1');
+            $db->setQuery($query);
+            $exists = (int) $db->loadResult() > 0;
+
+            if ($exists) {
+                $q = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_order_number') . ' = ' . $nextNumber)
+                    ->set($db->quoteName('order_prefix') . ' = ' . $db->quote($orderPrefix))
+                    ->set($db->quoteName('order_format') . ' = ' . $db->quote($orderFormat))
+                    ->where($db->quoteName('id') . ' = 1');
+                $db->setQuery($q);
+                $db->execute();
+            } else {
+                $insertQuery = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_settings'))
+                    ->columns([
+                        'id',
+                        'next_order_number',
+                        'order_prefix',
+                        'order_format',
+                        'auto_increment',
+                        'items_per_page',
+                        'show_creation_date',
+                        'show_modification_date',
+                        'default_order_status',
+                    ])
+                    ->values(
+                        '1, ' . $nextNumber . ', ' . $db->quote($orderPrefix) . ', ' . $db->quote($orderFormat)
+                        . ', 1, 20, 1, 1, ' . $db->quote('nueva')
+                    );
+                $db->setQuery($insertQuery);
+                $db->execute();
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
