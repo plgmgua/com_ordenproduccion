@@ -2604,6 +2604,60 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Delete draft or pending-approval orden de compra from the pre-cot editor (JSON).
+     *
+     * POST: orden_compra_id, CSRF token.
+     *
+     * @return  void
+     *
+     * @since   3.113.54
+     */
+    public function deleteOrdenCompra(): void
+    {
+        if (!Session::checkToken('post')) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JINVALID_TOKEN')]);
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+        }
+
+        $ocId = (int) $this->input->post->getInt('orden_compra_id', 0);
+        if ($ocId < 1) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_ID')]);
+        }
+
+        $app     = Factory::getApplication();
+        $ocModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+        if (!$ocModel || !$ocModel->hasSchema()) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_SCHEMA_MISSING')]);
+        }
+
+        $header = $ocModel->getItemById($ocId);
+        if (!$header) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_NOT_FOUND')]);
+        }
+
+        $precotId = (int) ($header->precotizacion_id ?? 0);
+        $precotModel = $this->getModel('Precotizacion', 'Site');
+        if (!$this->canUserCreateOrdenCompraForPrecot($precotModel, $precotId)) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+        }
+
+        if (!$ocModel->deleteOrden($ocId)) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_FAILED'),
+            ]);
+        }
+
+        $this->ordenCompraEditorJsonResponse(true, [
+            'message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETED'),
+        ]);
+    }
+
+    /**
      * If the current user may not edit this pre-cotización document (e.g. offer template owned by someone else), respond and return true.
      *
      * @param   int     $preCotizacionId  Pre-cotización id

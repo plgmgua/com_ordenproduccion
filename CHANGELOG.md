@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.54-STABLE] - 2026-04-22
+
+### Added
+- **Orden de compra (modal pre-cot):** Botón **Eliminar orden de compra** en el editor; tarea `precotizacion.deleteOrdenCompra` (JSON) con la misma autorización que abrir el editor; borra borradores o pendientes de aprobación (cancela solicitud vinculada si aplica).
+
 ## [3.113.53-STABLE] - 2026-04-22
 
 ### Fixed

@@ -161,6 +161,7 @@ $deleteVendorQuoteEventUrl = Route::_('index.php?option=com_ordenproduccion&task
 $openOrdenCompraEditorUrl   = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.openOrdenCompraEditor', false, Route::TLS_IGNORE, true);
 $saveOrdenCompraDraftUrl    = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOrdenCompraDraft', false, Route::TLS_IGNORE, true);
 $submitOrdenCompraApprovalUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.submitOrdenCompraForApproval', false, Route::TLS_IGNORE, true);
+$deleteOrdenCompraUrl       = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteOrdenCompra', false, Route::TLS_IGNORE, true);
 $ordenCompraWorkflowAvailable       = isset($this->ordenCompraWorkflowAvailable) ? (bool) $this->ordenCompraWorkflowAvailable : false;
 $ordenCompraTablesAvailable         = isset($this->ordenCompraTablesAvailable) ? (bool) $this->ordenCompraTablesAvailable : false;
 $ordenCompraExistingCountForPrecot  = isset($this->ordenCompraExistingCountForPrecot) ? (int) $this->ordenCompraExistingCountForPrecot : 0;
@@ -1371,6 +1372,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                                     data-open-url="<?php echo htmlspecialchars($openOrdenCompraEditorUrl, ENT_QUOTES, 'UTF-8'); ?>"
                                     data-save-url="<?php echo htmlspecialchars($saveOrdenCompraDraftUrl, ENT_QUOTES, 'UTF-8'); ?>"
                                     data-submit-url="<?php echo htmlspecialchars($submitOrdenCompraApprovalUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-delete-url="<?php echo htmlspecialchars($deleteOrdenCompraUrl, ENT_QUOTES, 'UTF-8'); ?>"
                                     data-token-name="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>"
                                     data-precot-id="<?php echo (int) $preCotizacionId; ?>"
                                     data-proveedor-id="<?php echo (int) $evtProveedorId; ?>"
@@ -1573,7 +1575,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             </tfoot>
                         </table>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
+                    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                        <button type="button" class="btn btn-outline-danger" id="ordenCompraEditorDeleteBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_DELETE'); ?></button>
+                        <span class="flex-grow-1"></span>
                         <button type="button" class="btn btn-primary" id="ordenCompraEditorSaveBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SAVE'); ?></button>
                         <button type="button" class="btn btn-success" id="ordenCompraEditorSubmitBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SUBMIT_APPROVAL'); ?></button>
                     </div>
@@ -1609,7 +1613,8 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         var pdfIframe = document.getElementById('ordenCompraEditorPdf');
         var saveBtn = document.getElementById('ordenCompraEditorSaveBtn');
         var submitBtn = document.getElementById('ordenCompraEditorSubmitBtn');
-        var state = { ordenCompraId: 0, currency: 'Q', saveUrl: '', submitUrl: '', tokenName: '' };
+        var deleteBtn = document.getElementById('ordenCompraEditorDeleteBtn');
+        var state = { ordenCompraId: 0, currency: 'Q', saveUrl: '', submitUrl: '', deleteUrl: '', tokenName: '' };
 
         function esc(s) {
             var d = document.createElement('div');
@@ -1729,6 +1734,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             var openUrl = btn.getAttribute('data-open-url');
             state.saveUrl = btn.getAttribute('data-save-url');
             state.submitUrl = btn.getAttribute('data-submit-url');
+            state.deleteUrl = btn.getAttribute('data-delete-url');
             state.tokenName = btn.getAttribute('data-token-name');
             postForm(openUrl, {
                 id: btn.getAttribute('data-precot-id'),
@@ -1838,6 +1844,40 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     window.location.reload();
                 }).catch(function() {
                     submitBtn.disabled = false;
+                    window.alert('Error de red');
+                });
+            });
+        }
+
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                if (!state.ordenCompraId || !state.deleteUrl) {
+                    return;
+                }
+                if (!window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_CONFIRM')); ?>)) {
+                    return;
+                }
+                deleteBtn.disabled = true;
+                postForm(state.deleteUrl, { orden_compra_id: String(state.ordenCompraId) }).then(function(data) {
+                    deleteBtn.disabled = false;
+                    if (!data || !data.success) {
+                        window.alert(data && data.message ? data.message : 'Error');
+                        return;
+                    }
+                    var md = getBsModal();
+                    if (md) {
+                        md.hide();
+                    }
+                    state.ordenCompraId = 0;
+                    document.querySelectorAll('.js-orden-compra-open-editor').forEach(function(b) {
+                        b.removeAttribute('data-oc-confirmed');
+                    });
+                    if (data.message) {
+                        window.alert(data.message);
+                    }
+                    window.location.reload();
+                }).catch(function() {
+                    deleteBtn.disabled = false;
                     window.alert('Error de red');
                 });
             });
