@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.61-STABLE] - 2026-04-23
+
+### Fixed
+- **Popup pre-cotización (`cotizador` layout `details`):** Si `document_mode = proveedor_externo`, la tabla usa las mismas columnas que el documento (Cant., Descripción, Precio unidad, P.Unit Proveedor, Total) sin filas pliego/desglose anidadas. En modo pliego, el **pie de tabla** usa `colspan="5"` sobre 6 columnas (antes 4, desalineado).
+
 ## [3.113.60-STABLE] - 2026-04-23
 
 ### Changed
