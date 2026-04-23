@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
 /**
@@ -411,6 +412,7 @@ class AjaxController extends BaseController
                             'valor_final' => $value,
                             'pre_cotizacion_id' => $preId,
                             'pre_cotizacion_total' => $baseTotal,
+                            'line_images_json' => QuotationLineImagesHelper::normalizeJsonFromInput(isset($line['line_images_json']) ? (string) $line['line_images_json'] : ''),
                         ];
                         $totalAmount += $value;
                     }
@@ -429,6 +431,7 @@ class AjaxController extends BaseController
                             'valor_unitario' => $valorUnitario,
                             'subtotal' => $subtotal,
                             'pre_cotizacion_id' => null,
+                            'line_images_json' => '[]',
                         ];
                         $totalAmount += $subtotal;
                     }
@@ -475,6 +478,7 @@ class AjaxController extends BaseController
             $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
             $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
             $hasValorFinal = isset($itemCols['valor_final']);
+            $hasLineImages = isset($itemCols['line_images_json']);
             if ($result) {
                 $quotationId = $quotationData->id;
                 
@@ -494,7 +498,7 @@ class AjaxController extends BaseController
                     if ($hasValorFinal && isset($item['valor_final'])) {
                         $itemData->valor_final = $item['valor_final'];
                     }
-                    $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
+                    $db->insertObject('#__ordenproduccion_quotation_items', $itemData, 'id');
                     if (isset($item['pre_cotizacion_id']) && (int) $item['pre_cotizacion_id'] > 0) {
                         $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0;
                         $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
@@ -532,6 +536,28 @@ class AjaxController extends BaseController
                                 $db->setQuery($q)->execute();
                             } catch (\Exception $e) {
                             }
+                        }
+                    }
+                    if ($hasLineImages && !empty($itemData->id)) {
+                        $norm = isset($item['line_images_json']) ? (string) $item['line_images_json'] : '[]';
+                        if ($norm === '' || $norm === '[]') {
+                            $db->setQuery(
+                                $db->getQuery(true)
+                                    ->update($db->quoteName('#__ordenproduccion_quotation_items'))
+                                    ->set($db->quoteName('line_images_json') . ' = NULL')
+                                    ->where($db->quoteName('id') . ' = ' . (int) $itemData->id)
+                            )->execute();
+                        } else {
+                            $final = QuotationLineImagesHelper::finalizeJsonForQuotation((int) $quotationId, (int) $user->id, $norm);
+                            $uq = $db->getQuery(true)
+                                ->update($db->quoteName('#__ordenproduccion_quotation_items'))
+                                ->where($db->quoteName('id') . ' = ' . (int) $itemData->id);
+                            if ($final === '[]') {
+                                $uq->set($db->quoteName('line_images_json') . ' = NULL');
+                            } else {
+                                $uq->set($db->quoteName('line_images_json') . ' = ' . $db->quote($final));
+                            }
+                            $db->setQuery($uq)->execute();
                         }
                     }
                 }
@@ -659,6 +685,7 @@ class AjaxController extends BaseController
                     'valor_final' => $value,
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
                     'pre_cotizacion_total' => $baseTotal,
+                    'line_images_json' => QuotationLineImagesHelper::normalizeJsonFromInput(isset($line['line_images_json']) ? (string) $line['line_images_json'] : ''),
                 ];
                 $totalAmount += $value;
             }
@@ -693,6 +720,7 @@ class AjaxController extends BaseController
             $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
             $hasPreCotizacionId = isset($itemCols['pre_cotizacion_id']);
             $hasValorFinal = isset($itemCols['valor_final']);
+            $hasLineImages = isset($itemCols['line_images_json']);
             foreach ($lineItems as $item) {
                 $itemData = (object) [
                     'quotation_id' => $quotationId,
@@ -709,7 +737,7 @@ class AjaxController extends BaseController
                 if ($hasValorFinal && isset($item['valor_final'])) {
                     $itemData->valor_final = $item['valor_final'];
                 }
-                $db->insertObject('#__ordenproduccion_quotation_items', $itemData);
+                $db->insertObject('#__ordenproduccion_quotation_items', $itemData, 'id');
                 if (isset($item['pre_cotizacion_id']) && (int) $item['pre_cotizacion_id'] > 0) {
                     $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0;
                     $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
@@ -749,6 +777,28 @@ class AjaxController extends BaseController
                         }
                     }
                 }
+                if ($hasLineImages && !empty($itemData->id)) {
+                    $norm = isset($item['line_images_json']) ? (string) $item['line_images_json'] : '[]';
+                    if ($norm === '' || $norm === '[]') {
+                        $db->setQuery(
+                            $db->getQuery(true)
+                                ->update($db->quoteName('#__ordenproduccion_quotation_items'))
+                                ->set($db->quoteName('line_images_json') . ' = NULL')
+                                ->where($db->quoteName('id') . ' = ' . (int) $itemData->id)
+                        )->execute();
+                    } else {
+                        $final = QuotationLineImagesHelper::finalizeJsonForQuotation((int) $quotationId, (int) $user->id, $norm);
+                        $uq = $db->getQuery(true)
+                            ->update($db->quoteName('#__ordenproduccion_quotation_items'))
+                            ->where($db->quoteName('id') . ' = ' . (int) $itemData->id);
+                        if ($final === '[]') {
+                            $uq->set($db->quoteName('line_images_json') . ' = NULL');
+                        } else {
+                            $uq->set($db->quoteName('line_images_json') . ' = ' . $db->quote($final));
+                        }
+                        $db->setQuery($uq)->execute();
+                    }
+                }
             }
             echo json_encode([
                 'success' => true,
@@ -759,6 +809,67 @@ class AjaxController extends BaseController
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => 'Error updating quotation: ' . $e->getMessage()]);
         }
+        exit;
+    }
+
+    /**
+     * Upload one image for a quotation line (staging or q{id}/). JSON task for edit form.
+     *
+     * @return  void
+     *
+     * @since   3.113.85
+     */
+    public function uploadQuotationLineImage()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => 'Login required']);
+            exit;
+        }
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => 'Invalid token']);
+            exit;
+        }
+        $userGroups = $user->getAuthorisedGroups();
+        $db         = Factory::getDbo();
+        $query      = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
+        $db->setQuery($query);
+        $ventasGroupId = (int) $db->loadResult();
+        if (!$ventasGroupId || !in_array($ventasGroupId, $userGroups, true)) {
+            echo json_encode(['success' => false, 'message' => 'Access denied']);
+            exit;
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId > 0) {
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1');
+            $db->setQuery($query);
+            $qRow = $db->loadObject();
+            if (!$qRow || !AccessHelper::userCanAccessQuotationRow($qRow)) {
+                echo json_encode(['success' => false, 'message' => 'Quotation not found']);
+                exit;
+            }
+            $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+            if (isset($qCols['cotizacion_confirmada']) && (int) ($qRow->cotizacion_confirmada ?? 0) === 1) {
+                $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT')]);
+                exit;
+            }
+        }
+
+        $file = $app->input->files->get('image', [], 'array');
+        $res  = QuotationLineImagesHelper::processUploadedFile(is_array($file) ? $file : null, (int) $user->id, $quotationId);
+        echo json_encode($res);
         exit;
     }
 

@@ -460,4 +460,80 @@ class CotizacionPdfHelper
 
         return str_replace("\0", '', $text);
     }
+
+    /**
+     * Draw images for one quotation line below the text row: height 1 in (25.4 mm), proportional width, horizontal flow with wrap.
+     *
+     * @return float Y (mm) below the image block, or $yTop when there are no images
+     */
+    public static function renderQuotationLineItemImages(
+        \FPDF $pdf,
+        float $yTop,
+        float $xStart,
+        float $maxRightX,
+        ?string $lineImagesJson,
+        float $gapMm = 2.0
+    ): float {
+        $paths = QuotationLineImagesHelper::absolutePathsFromJson($lineImagesJson ?? '');
+        if ($paths === []) {
+            return $yTop;
+        }
+
+        $hTarget = 25.4;
+        $yLine   = $yTop;
+        $xCur    = $xStart;
+        $rowBottom = $yTop;
+        $trigger = isset($pdf->PageBreakTrigger) ? (float) $pdf->PageBreakTrigger : ($pdf->GetPageHeight() - 20);
+
+        foreach ($paths as $abs) {
+            $info = @getimagesize($abs);
+            if ($info === false || ($info[0] ?? 0) < 1 || ($info[1] ?? 0) < 1) {
+                continue;
+            }
+            $iw = (float) $info[0];
+            $ih = (float) $info[1];
+            if ($ih < 0.001) {
+                continue;
+            }
+
+            $wAtH = $hTarget * ($iw / $ih);
+            if ($xCur + $wAtH > $maxRightX && $xCur > $xStart + 0.01) {
+                $yLine    = $rowBottom + $gapMm;
+                $xCur     = $xStart;
+                $rowBottom = $yLine;
+            }
+
+            $avail = $maxRightX - $xCur;
+            if ($wAtH > $avail && $avail > 0.5) {
+                $wDraw = $avail;
+                $hDraw = $wDraw * ($ih / $iw);
+            } else {
+                $wDraw = $wAtH;
+                $hDraw = $hTarget;
+            }
+
+            if ($yLine + $hDraw > $trigger - 2) {
+                $pdf->AddPage();
+                $yLine     = $pdf->GetY() + 2;
+                $xCur      = $xStart;
+                $rowBottom = $yLine;
+                $trigger   = isset($pdf->PageBreakTrigger) ? (float) $pdf->PageBreakTrigger : ($pdf->GetPageHeight() - 20);
+                $avail     = $maxRightX - $xCur;
+                $wAtH      = $hTarget * ($iw / $ih);
+                if ($wAtH > $avail && $avail > 0.5) {
+                    $wDraw = $avail;
+                    $hDraw = $wDraw * ($ih / $iw);
+                } else {
+                    $wDraw = $wAtH;
+                    $hDraw = $hTarget;
+                }
+            }
+
+            $pdf->Image($abs, $xCur, $yLine, $wDraw, $hDraw);
+            $xCur += $wDraw + $gapMm;
+            $rowBottom = max($rowBottom, $yLine + $hDraw);
+        }
+
+        return $rowBottom + $gapMm;
+    }
 }

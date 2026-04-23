@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.85-STABLE] - 2026-04-16
+
+### Added
+- **Cotización — imágenes por línea:** Columna **Imágenes** en edición y en vista: adjuntar una o varias imágenes (JPEG/PNG/GIF) por línea (clip + subida vía `ajax.uploadQuotationLineImage`). Rutas en `line_images_json` (migración `3.113.85_quotation_items_line_images.sql`). Archivos en `media/com_ordenproduccion/quotation_line_images/` (staging si la cotización aún no existe; carpeta `q{id}` cuando sí).
+- **PDF cotización (v1 y v2):** Debajo de cada línea se dibujan las imágenes en fila, **altura 25,4 mm (1 in)** y ancho proporcional; salto de línea si no caben.
+
 ## [3.113.84-STABLE] - 2026-04-16
 
 ### Changed

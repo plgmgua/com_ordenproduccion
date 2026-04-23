@@ -234,6 +234,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
+                        <th style="width: 11%;" class="text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
                         <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                     </tr>
                 </thead>
@@ -264,6 +265,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         $lineTotal = $valorFinal;
                         $unitPriceDisplay = $qty > 0 ? ($lineTotal / $qty) : 0;
                         $desc = isset($item->descripcion) ? $item->descripcion : '';
+                        $lineImagesJsonForRow = '[]';
+                        if (!empty($item->line_images_json)) {
+                            $lineImagesJsonForRow = (string) $item->line_images_json;
+                        }
                     ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
@@ -278,6 +283,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                 <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
                             </div>
                         </td>
+                        <td class="align-middle cotizacion-line-images-cell">
+                            <input type="hidden" class="line-images-json-input" name="lines[<?php echo $lineIndex; ?>][line_images_json]" value="<?php echo htmlspecialchars($lineImagesJsonForRow, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+                            <div class="line-images-preview d-flex flex-wrap gap-1 align-items-center mb-1"></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>">
+                                <i class="fas fa-paperclip" aria-hidden="true"></i>
+                            </button>
+                        </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button>
@@ -289,6 +302,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <tr>
                         <td colspan="5" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 90px; background: #f8f9fa;"></td>
+                        <td></td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -332,6 +346,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
     let lineIndex = <?php echo isset($lineIndex) ? (int)$lineIndex : 0; ?>;
+    var msgLineAttach = <?php echo json_encode($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>;
 
     // Pre-cotización descriptions from server (reliable for long/special chars), fallback to data-descripcion
     var precotizacionDescriptions = <?php echo json_encode($precotizacionDescriptions ?? []); ?>;
@@ -511,8 +526,17 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
                 '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
+                '<td class="align-middle cotizacion-line-images-cell">' +
+                '<input type="hidden" class="line-images-json-input" name="lines[' + lineIndex + '][line_images_json]" value="[]">' +
+                '<input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">' +
+                '<div class="line-images-preview d-flex flex-wrap gap-1 align-items-center mb-1"></div>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" title="' + escapeAttr(msgLineAttach) + '"><i class="fas fa-paperclip" aria-hidden="true"></i></button>' +
+                '</td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)"><i class="fas fa-save"></i></button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);
+            if (typeof window.initLineImagesRow === 'function') {
+                window.initLineImagesRow(tr);
+            }
             var qtyInput = tr.querySelector('.line-cantidad-input');
             if (qtyInput) qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
             var valueInput = tr.querySelector('.line-value-input');
@@ -539,6 +563,124 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     });
     updateTotal();
     tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) { updateUnitPriceDisplay(tr); });
+
+    var opUploadToken = <?php echo json_encode(Session::getFormToken()); ?>;
+    var opSiteRoot = <?php echo json_encode(Uri::root()); ?>;
+
+    function syncLineImagesHidden(tr) {
+        var inp = tr.querySelector('.line-images-json-input');
+        if (inp) {
+            inp.value = JSON.stringify(tr.lineImagePaths || []);
+        }
+    }
+
+    function createLineImageThumb(tr, path) {
+        var wrap = document.createElement('span');
+        wrap.className = 'position-relative d-inline-block';
+        var img = document.createElement('img');
+        img.src = opSiteRoot.replace(/\/$/, '') + '/' + String(path).replace(/^\//, '');
+        img.alt = '';
+        img.style.cssText = 'max-height:44px;width:auto;border-radius:2px;border:1px solid #dee2e6;';
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'btn btn-sm btn-link text-danger p-0 ms-1 align-top';
+        x.innerHTML = '&times;';
+        x.setAttribute('aria-label', 'Remove');
+        x.addEventListener('click', function() {
+            var i = (tr.lineImagePaths || []).indexOf(path);
+            if (i >= 0) {
+                tr.lineImagePaths.splice(i, 1);
+            }
+            syncLineImagesHidden(tr);
+            wrap.remove();
+        });
+        wrap.appendChild(img);
+        wrap.appendChild(x);
+        return wrap;
+    }
+
+    function bindQuotationLineImages(tr) {
+        var attach = tr.querySelector('.btn-line-attach');
+        var fileInp = tr.querySelector('.line-image-file-input');
+        if (!attach || !fileInp) {
+            return;
+        }
+        attach.addEventListener('click', function() {
+            fileInp.click();
+        });
+        fileInp.addEventListener('change', function() {
+            if (!this.files || !this.files.length) {
+                return;
+            }
+            var qidEl = document.getElementById('quotation_id');
+            var qidVal = qidEl && qidEl.value ? parseInt(qidEl.value, 10) : 0;
+            var files = this.files;
+            var chain = Promise.resolve();
+            for (var i = 0; i < files.length; i++) {
+                (function(file) {
+                    chain = chain.then(function() {
+                        var fd = new FormData();
+                        fd.append(opUploadToken, '1');
+                        fd.append('quotation_id', String(qidVal));
+                        fd.append('image', file);
+                        return fetch(opSiteRoot + 'index.php?option=com_ordenproduccion&task=ajax.uploadQuotationLineImage', {
+                            method: 'POST',
+                            body: fd,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        }).then(function(r) {
+                            return r.json();
+                        }).then(function(data) {
+                            if (!data || !data.success || !data.path) {
+                                alert((data && data.message) ? data.message : 'Upload failed');
+                                return;
+                            }
+                            if (!tr.lineImagePaths) {
+                                tr.lineImagePaths = [];
+                            }
+                            tr.lineImagePaths.push(data.path);
+                            syncLineImagesHidden(tr);
+                            var prev = tr.querySelector('.line-images-preview');
+                            if (prev) {
+                                prev.appendChild(createLineImageThumb(tr, data.path));
+                            }
+                        });
+                    });
+                })(files[i]);
+            }
+            chain.then(function() {
+                fileInp.value = '';
+            });
+        });
+    }
+
+    function initLineImagesRow(tr) {
+        tr.lineImagePaths = [];
+        var inp = tr.querySelector('.line-images-json-input');
+        if (inp && inp.value) {
+            try {
+                tr.lineImagePaths = JSON.parse(inp.value);
+            } catch (e1) {
+                tr.lineImagePaths = [];
+            }
+            if (!Array.isArray(tr.lineImagePaths)) {
+                tr.lineImagePaths = [];
+            }
+        }
+        var prev = tr.querySelector('.line-images-preview');
+        if (prev) {
+            prev.innerHTML = '';
+            (tr.lineImagePaths || []).forEach(function(p) {
+                if (typeof p === 'string' && p !== '') {
+                    prev.appendChild(createLineImageThumb(tr, p));
+                }
+            });
+        }
+        bindQuotationLineImages(tr);
+    }
+
+    tbody.querySelectorAll('tr.quotation-item-row').forEach(initLineImagesRow);
+    window.initLineImagesRow = initLineImagesRow;
+
     window.removeQuotationLine = removeLine;
     window.saveQuotationLine = saveLine;
     window.updateQuotationTotal = updateTotal;
