@@ -181,7 +181,7 @@ class OrdencompraApprovedPdfBuilder
                 $pdf->AddPage('P', self::pageSizeMm());
                 $pdf->useTemplate($tpl, 0, 0, self::PAGE_W_MM, self::PAGE_H_MM, false);
                 $pageNum++;
-                self::stampPageFraction($pdf, $pageNum, $totalPages);
+                self::stampPageFraction($pdf, $pageNum, $totalPages, $i === 1);
             }
             @unlink($tmpOcPdf);
 
@@ -204,14 +204,14 @@ class OrdencompraApprovedPdfBuilder
                     self::placeImportedTemplateScaledToLetter($pdf, $tpl);
                     self::drawCmyEdgeBars($pdf);
                     $pageNum++;
-                    self::stampPageFraction($pdf, $pageNum, $totalPages);
+                    self::stampPageFraction($pdf, $pageNum, $totalPages, false);
                 }
             } elseif ($vendorAbs !== null && $vendorKind === 'image') {
                 $pdf->AddPage('P', self::pageSizeMm());
                 self::placeRasterImageScaledToLetter($pdf, (string) $vendorAbs);
                 self::drawCmyEdgeBars($pdf);
                 $pageNum++;
-                self::stampPageFraction($pdf, $pageNum, $totalPages);
+                self::stampPageFraction($pdf, $pageNum, $totalPages, false);
             }
 
             $pdf->Output('F', $outAbs);
@@ -355,8 +355,11 @@ class OrdencompraApprovedPdfBuilder
 
     /**
      * Page indicator top-right (e.g. 2/7) — one continuous sequence for OC + embedded vendor pages.
+     *
+     * On the first ORC page, sit below the title row (see OrdencompraPdfHelper OC_TOP_MARGIN_MM + OC_TITLE_ROW_H_MM)
+     * so "n/total" does not crowd ORDEN DE COMPRA. Other pages keep a compact top-right stamp.
      */
-    private static function stampPageFraction(Fpdi $pdf, int $current, int $total): void
+    private static function stampPageFraction(Fpdi $pdf, int $current, int $total, bool $orcFirstPage = false): void
     {
         if ($total < 1) {
             $total = 1;
@@ -371,7 +374,8 @@ class OrdencompraApprovedPdfBuilder
         $cellW = 28.0;
         $cellH = 7.0;
         $x     = $pw - 10.0 - $cellW;
-        $y     = 8.0;
+        // Mirror com_ordenproduccion OrdencompraPdfHelper: body starts OC_TOP_MARGIN_MM, title row OC_TITLE_ROW_H_MM.
+        $y = $orcFirstPage ? (24.0 + 8.0 + 2.0) : 8.0;
         $pdf->SetFillColor(255, 255, 255);
         $pdf->SetTextColor(40, 40, 40);
         $pdf->Rect($x, $y, $cellW, $cellH, 'F');

@@ -39,13 +39,13 @@ final class OrdencompraPdfDocument extends \FPDF
 
         // Page 1: fecha is drawn in the body under the title (avoids overlap). Continuation pages: here.
         if ($this->fechaLine !== '' && $this->PageNo() > 1) {
-            $this->SetFont('Arial', '', 9);
+            $this->SetFont('Arial', 'B', 11);
             $this->SetTextColor(60, 60, 60);
             $pw    = $this->GetPageWidth();
             $cellW = 85.0;
             $x     = $pw - 10.0 - $cellW;
             $this->SetXY($x, self::CMY_BAR_H + 11);
-            $this->Cell($cellW, 5, CotizacionPdfHelper::encodeTextForFpdf($this->fechaLine), 0, 0, 'R');
+            $this->Cell($cellW, 6, CotizacionPdfHelper::encodeTextForFpdf($this->fechaLine), 0, 0, 'R');
             $this->SetTextColor(0, 0, 0);
         }
     }
@@ -94,8 +94,14 @@ class OrdencompraPdfHelper
     /** @var float  Vertical space (mm) below title row before fecha — two lines ≈ 2 × 5 mm. */
     private const OC_DATE_BELOW_TITLE_MM = 10.0;
 
-    /** @var float  Extra space (mm) below logo/fecha block before Proveedor (~3 text lines). */
-    private const OC_GAP_BEFORE_PROVEEDOR_MM = 15.0;
+    /** @var float  Extra space (mm) below logo/fecha block before Proveedor (~3 text lines + 5 body lines). */
+    private const OC_GAP_BEFORE_PROVEEDOR_MM = 40.0;
+
+    /** @var int  Date line font size (pt); page 1 body + continuation header. */
+    private const OC_DATE_FONT_PT = 11;
+
+    /** @var float  Date Cell height (mm), matches OC_DATE_FONT_PT. */
+    private const OC_DATE_CELL_H_MM = 6.0;
 
     /**
      * Build FPDF instance (caller must Output).
@@ -234,15 +240,15 @@ class OrdencompraPdfHelper
 
         $titleRowBottom = $bodyTopY + self::OC_TITLE_ROW_H_MM;
         $dateY          = $titleRowBottom + self::OC_DATE_BELOW_TITLE_MM;
-        $pdf->SetFont('Arial', '', 9);
+        $pdf->SetFont('Arial', 'B', self::OC_DATE_FONT_PT);
         $pdf->SetTextColor(60, 60, 60);
         $cellWDate = 85.0;
         $xDate     = $pageW - 10.0 - $cellWDate;
         $pdf->SetXY($xDate, $dateY);
-        $pdf->Cell($cellWDate, 5, CotizacionPdfHelper::encodeTextForFpdf($fechaHoy), 0, 0, 'R');
+        $pdf->Cell($cellWDate, self::OC_DATE_CELL_H_MM, CotizacionPdfHelper::encodeTextForFpdf($fechaHoy), 0, 0, 'R');
         $pdf->SetTextColor(0, 0, 0);
 
-        $dateBottom     = $dateY + 5.0;
+        $dateBottom     = $dateY + self::OC_DATE_CELL_H_MM;
         $logoBottom     = $bodyTopY + $logoHmm;
         $headerBlockEnd = max($dateBottom, $logoBottom) + self::OC_GAP_BEFORE_PROVEEDOR_MM;
         $pdf->SetXY($left, $headerBlockEnd);

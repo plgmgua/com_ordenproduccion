@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.82-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra (combinado):** El sello **página/total** en la **primera** hoja del ORC se dibuja **debajo** de la fila del título (ya no en la franja superior junto al rótulo), para evitar solaparse con «ORDEN DE COMPRA …». Las demás hojas mantienen el sello compacto arriba a la derecha.
+- **PDF orden de compra:** La **fecha** pasa a **negrita** y **+2 pt** (11 pt). Más **25 mm** de separación antes de la línea **Proveedor** (equivalente a ~5 líneas de cuerpo), arrastrando PRE, tabla y bloques siguientes.
+
 ## [3.113.81-STABLE] - 2026-04-16
 
 ### Changed
