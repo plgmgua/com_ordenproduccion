@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.83-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra:** El título (y logo) baja **dos líneas** (~10 mm) respecto al margen superior.
+- **PDF combinado (sello página/total):** Texto alineado arriba a la derecha con **márgenes mínimos** (bajo la franja CMY), **sin rectángulo de fondo** (totalmente transparente sobre la página).
+
 ## [3.113.82-STABLE] - 2026-04-16
 
 ### Changed
