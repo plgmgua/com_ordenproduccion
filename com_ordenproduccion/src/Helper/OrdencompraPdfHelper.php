@@ -1,6 +1,6 @@
 <?php
 /**
- * Minimal FPDF for orden de compra (preview / print).
+ * FPDF document for orden de compra (generated only after approval; used in combined PDF).
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @since       3.113.52
@@ -15,19 +15,12 @@ use Joomla\CMS\Language\Text;
 class OrdencompraPdfHelper
 {
     /**
-     * Stream PDF inline (browser viewer).
+     * Build FPDF instance (caller must Output).
      *
-     * @param   object              $header  Row from #__ordenproduccion_orden_compra (+ optional precot_number)
-     * @param   array<int, object>  $lines   orden_compra_line rows
+     * @param   array<int, object>  $lines  orden_compra_line rows
      */
-    public static function streamInline(object $header, array $lines): void
+    private static function buildPdf(object $header, array $lines): \FPDF
     {
-        if (!is_file(JPATH_ROOT . '/fpdf/fpdf.php')) {
-            return;
-        }
-
-        require_once JPATH_ROOT . '/fpdf/fpdf.php';
-
         $fix = static function (?string $text): string {
             if ($text === null || $text === '') {
                 return '';
@@ -45,11 +38,11 @@ class OrdencompraPdfHelper
             }
         }
 
-        $num   = trim((string) ($header->number ?? ''));
+        $num    = trim((string) ($header->number ?? ''));
         $precot = trim((string) ($header->precot_number ?? ''));
-        $curr  = trim((string) ($header->currency ?? 'Q'));
-        $total = (float) ($header->total_amount ?? 0);
-        $cond  = trim((string) ($header->condiciones_entrega ?? ''));
+        $curr   = trim((string) ($header->currency ?? 'Q'));
+        $total  = (float) ($header->total_amount ?? 0);
+        $cond   = trim((string) ($header->condiciones_entrega ?? ''));
 
         $hCant = $fix(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_COL_QTY'));
         if ($hCant === 'COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_COL_QTY') {
@@ -96,7 +89,7 @@ class OrdencompraPdfHelper
 
         $pdf->SetFont('Arial', 'B', 14);
         $pdf->SetX($left);
-        $pdf->Cell($usableW, 8, $title . ($num !== '' ? ' — ' . $fix($num) : ''), 0, 1, 'L');
+        $pdf->Cell($usableW, 8, $title . ($num !== '' ? ' - ' . $fix($num) : ''), 0, 1, 'L');
         $pdf->SetFont('Arial', '', 10);
         if ($precot !== '') {
             $pdf->SetX($left);
@@ -109,10 +102,10 @@ class OrdencompraPdfHelper
         $pdf->Ln(2);
 
         $lineH = 5.0;
-        $wQty   = 18.0;
-        $wUnit  = 28.0;
-        $wSub   = 28.0;
-        $wDesc  = max(30.0, $usableW - $wQty - $wUnit - $wSub);
+        $wQty  = 18.0;
+        $wUnit = 28.0;
+        $wSub  = 28.0;
+        $wDesc = max(30.0, $usableW - $wQty - $wUnit - $wSub);
 
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(240, 240, 240);
@@ -129,7 +122,7 @@ class OrdencompraPdfHelper
             $d   = trim((string) ($ln->descripcion ?? ''));
             $d   = preg_replace('/\s+/u', ' ', str_replace(["\r\n", "\r", "\n"], ' ', $d));
             if ($d === '') {
-                $d = '—';
+                $d = '-';
             }
             $pu  = (float) ($ln->vendor_unit_price ?? 0);
             $sub = (float) ($ln->line_total ?? 0);
@@ -170,7 +163,48 @@ class OrdencompraPdfHelper
         $pdf->SetX(0);
         CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
-        $fn = 'orden-compra-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $num !== '' ? $num : 'borrador') . '.pdf';
+        return $pdf;
+    }
+
+    /**
+     * Write orden de compra PDF to disk (single-document pages, before merging vendor quote).
+     *
+     * @param   array<int, object>  $lines  orden_compra_line rows
+     */
+    public static function writePdfFile(string $absolutePath, object $header, array $lines): bool
+    {
+        if (!is_file(JPATH_ROOT . '/fpdf/fpdf.php')) {
+            return false;
+        }
+
+        require_once JPATH_ROOT . '/fpdf/fpdf.php';
+
+        try {
+            $pdf = self::buildPdf($header, $lines);
+            $pdf->Output('F', $absolutePath);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return is_file($absolutePath) && filesize($absolutePath) > 0;
+    }
+
+    /**
+     * Stream PDF inline (e.g. recovery); prefer serving stored approved combined file from the controller.
+     *
+     * @param   array<int, object>  $lines  orden_compra_line rows
+     */
+    public static function streamInline(object $header, array $lines): void
+    {
+        if (!is_file(JPATH_ROOT . '/fpdf/fpdf.php')) {
+            return;
+        }
+
+        require_once JPATH_ROOT . '/fpdf/fpdf.php';
+
+        $num = trim((string) ($header->number ?? ''));
+        $pdf = self::buildPdf($header, $lines);
+        $fn  = 'orden-compra-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $num !== '' ? $num : 'borrador') . '.pdf';
         $pdf->Output('I', $fn);
     }
 }

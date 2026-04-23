@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Session\Session;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Ordencompra\HtmlView $this */
 
@@ -78,6 +79,13 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                     <dd class="col-sm-9"><?php echo nl2br(htmlspecialchars((string) $item->condiciones_entrega, ENT_QUOTES, 'UTF-8')); ?></dd>
                     <?php endif; ?>
                 </dl>
+                <?php if (strtolower((string) ($item->workflow_status ?? '')) === 'approved') :
+                    $ocPdfHref = Route::_('index.php?option=com_ordenproduccion&task=ordencompra.pdf&id=' . (int) ($item->id ?? 0) . '&tmpl=component&' . Session::getFormToken() . '=1', false);
+                ?>
+                <p class="mb-0 mt-2">
+                    <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars($ocPdfHref, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DOWNLOAD_APPROVED_PDF'); ?></a>
+                </p>
+                <?php endif; ?>
                 <?php
                 $ocWf = strtolower((string) ($item->workflow_status ?? ''));
                 if ($ocWf === 'pending_approval' || $ocWf === 'draft') :

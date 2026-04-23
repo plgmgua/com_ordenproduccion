@@ -573,6 +573,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_orden_compra` (
     `created_by` int NOT NULL DEFAULT 0,
     `modified` datetime DEFAULT NULL,
     `modified_by` int NOT NULL DEFAULT 0,
+    `approved_pdf_path` varchar(512) DEFAULT NULL COMMENT 'Relative path: media/com_ordenproduccion/orden_compra_approved/…',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_oc_number` (`number`),
     KEY `idx_precot_prov` (`precotizacion_id`, `proveedor_id`),

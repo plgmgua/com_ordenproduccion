@@ -27,6 +27,7 @@ use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 
 /**
  * Pre-Cotización controller: create, addLine, delete, deleteLine.
@@ -2364,13 +2365,30 @@ class PrecotizacionController extends BaseController
             ];
         }
 
-        $token  = Session::getFormToken();
-        $pdfUrl = Route::_(
-            'index.php?option=com_ordenproduccion&task=ordencompra.pdf&id=' . $ocId . '&tmpl=component&' . $token . '=1',
-            false,
-            Route::TLS_IGNORE,
-            true
-        );
+        $evtAttachId = (int) ($header->vendor_quote_event_id ?? 0);
+        if ($evtAttachId < 1 && $eventId > 0) {
+            $evtAttachId = $eventId;
+        }
+        $vendorQuoteUrl  = '';
+        $vendorQuoteKind = '';
+        if ($evtAttachId > 0) {
+            $evA = $precotModel->getVendorQuoteEvent($evtAttachId);
+            $vqRel = '';
+            if ($evA && (int) ($evA->pre_cotizacion_id ?? 0) === $id) {
+                $vqRel = trim((string) ($evA->vendor_quote_attachment ?? ''));
+            }
+            if ($vqRel !== '' && strpos($vqRel, '..') === false) {
+                $ext = strtolower((string) pathinfo($vqRel, PATHINFO_EXTENSION));
+                if ($ext === 'pdf') {
+                    $vendorQuoteKind = 'pdf';
+                } elseif (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+                    $vendorQuoteKind = 'image';
+                }
+                if ($vendorQuoteKind !== '') {
+                    $vendorQuoteUrl = rtrim(Uri::root(), '/') . '/' . str_replace('\\', '/', ltrim($vqRel, '/'));
+                }
+            }
+        }
 
         $proveedorName = '';
         $snapH         = isset($header->proveedor_snapshot) ? trim((string) $header->proveedor_snapshot) : '';
@@ -2392,7 +2410,8 @@ class PrecotizacionController extends BaseController
             'condiciones_entrega' => (string) ($header->condiciones_entrega ?? ''),
             'proveedor_name'    => $proveedorName,
             'lines'             => $linesOut,
-            'pdf_url'           => $pdfUrl,
+            'vendor_quote_url'  => $vendorQuoteUrl,
+            'vendor_quote_kind' => $vendorQuoteKind,
             'precotizacion_id'  => $id,
             'workflow_published' => $wfPub,
         ]);
@@ -2481,14 +2500,6 @@ class PrecotizacionController extends BaseController
             ];
         }
 
-        $token  = Session::getFormToken();
-        $pdfUrl = Route::_(
-            'index.php?option=com_ordenproduccion&task=ordencompra.pdf&id=' . $ocId . '&tmpl=component&' . $token . '=1',
-            false,
-            Route::TLS_IGNORE,
-            true
-        );
-
         $this->ordenCompraEditorJsonResponse(true, [
             'message'      => $this->precotLang(
                 'COM_ORDENPRODUCCION_ORDENCOMPRA_DRAFT_SAVED',
@@ -2497,7 +2508,6 @@ class PrecotizacionController extends BaseController
             ),
             'total_amount' => round((float) ($header->total_amount ?? 0), 2),
             'lines'        => $linesOut,
-            'pdf_url'      => $pdfUrl,
         ]);
     }
 

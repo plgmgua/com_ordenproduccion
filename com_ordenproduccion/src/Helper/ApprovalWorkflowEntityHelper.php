@@ -9,6 +9,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Log\Log;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
@@ -281,5 +282,17 @@ class ApprovalWorkflowEntityHelper
                 ->where($db->quoteName('id') . ' = ' . $ordenCompraId)
         );
         $db->execute();
+
+        if ($status === 'approved') {
+            try {
+                OrdencompraApprovedPdfBuilder::buildAndStore($ordenCompraId);
+            } catch (\Throwable $e) {
+                Log::add(
+                    'Orden compra approved PDF: ' . $e->getMessage(),
+                    Log::WARNING,
+                    'com_ordenproduccion'
+                );
+            }
+        }
     }
 }

@@ -14,7 +14,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdencompraPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdencompraApprovedPdfBuilder;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -27,7 +27,8 @@ use Joomla\CMS\Session\Session;
 class OrdencompraController extends BaseController
 {
     /**
-     * Stream purchase order PDF (inline viewer). CSRF token required (request).
+     * Stream approved purchase order PDF (orden de compra + vendor quote). CSRF token required (request).
+     * File is generated when the workflow marks the order as approved.
      *
      * @return  void
      *
@@ -66,8 +67,36 @@ class OrdencompraController extends BaseController
             $app->close();
         }
 
-        $lines = $model->getLines($id);
-        OrdencompraPdfHelper::streamInline($header, $lines);
+        if (strtolower((string) ($header->workflow_status ?? '')) !== 'approved') {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $rel = trim((string) ($header->approved_pdf_path ?? ''));
+        $abs = ($rel !== '' && strpos($rel, '..') === false)
+            ? JPATH_ROOT . '/' . str_replace('\\', '/', ltrim($rel, '/')) : '';
+
+        if ($rel === '' || !is_file($abs)) {
+            OrdencompraApprovedPdfBuilder::buildAndStore($id);
+            $header = $model->getItemById($id);
+            $rel    = trim((string) ($header->approved_pdf_path ?? ''));
+            $abs    = ($rel !== '' && strpos($rel, '..') === false)
+                ? JPATH_ROOT . '/' . str_replace('\\', '/', ltrim($rel, '/')) : '';
+        }
+
+        if ($rel === '' || !is_file($abs)) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $fname = 'orden-compra-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', (string) ($header->number ?? $id)) . '.pdf';
+        if (method_exists($app, 'clearHeaders')) {
+            $app->clearHeaders();
+        }
+        $app->setHeader('Content-Type', 'application/pdf', true);
+        $app->setHeader('Content-Disposition', 'inline; filename="' . $fname . '"', true);
+        $app->sendHeaders();
+        readfile($abs);
         $app->close();
     }
 

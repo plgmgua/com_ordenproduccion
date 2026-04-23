@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.55-STABLE] - 2026-04-22
+
+### Added
+- **Orden de compra:** Columna `approved_pdf_path`; librería **FPDI** (MIT) en `site/libraries/setasign-fpdi` para fusionar PDFs.
+- Tras **aprobación** del flujo: se genera un PDF combinado (páginas del ORC generadas con FPDF + todas las páginas del PDF del proveedor, o una página con imagen JPG/PNG) en `media/com_ordenproduccion/orden_compra_approved/`.
+- Vista **ordencompra** (detalle aprobado): enlace para abrir el PDF aprobado.
+
+### Changed
+- **Modal editor (pre-cot):** La vista previa muestra el **adjunto del registro al proveedor** (PDF o imagen), no un borrador del ORC. El texto del modal explica que el PDF formal se crea solo al aprobar.
+- **`ordencompra.pdf`:** Solo para órdenes **aprobadas**; sirve el archivo guardado (o intenta regenerarlo si falta).
+- **Borrador / guardar:** Ya no devuelven URL de PDF del ORC.
+
+### Fixed
+- Título en PDF del ORC: separador ASCII y texto vía `encodeTextForFpdf` para evitar caracteres corruptos (p. ej. guión largo mal codificado).
+
 ## [3.113.54-STABLE] - 2026-04-22
 
 ### Added

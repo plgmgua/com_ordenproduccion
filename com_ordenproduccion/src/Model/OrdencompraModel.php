@@ -245,6 +245,30 @@ class OrdencompraModel extends BaseDatabaseModel
     }
 
     /**
+     * Relative path (from site root) to the final combined PDF after approval.
+     */
+    public function setApprovedPdfPath(int $ordenCompraId, string $relativePath): void
+    {
+        if (!$this->hasSchema() || $ordenCompraId < 1 || $relativePath === '') {
+            return;
+        }
+        if (strpos($relativePath, '..') !== false) {
+            return;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_orden_compra'))
+                ->set($db->quoteName('approved_pdf_path') . ' = ' . $db->quote($relativePath))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id)
+                ->where($db->quoteName('id') . ' = ' . $ordenCompraId)
+        );
+        $db->execute();
+    }
+
+    /**
      * Proveedor ids that already have a pending-approval orden de compra for this pre-cotización.
      *
      * @return array<int, true>

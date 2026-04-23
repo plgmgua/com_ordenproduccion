@@ -1581,10 +1581,15 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <button type="button" class="btn btn-primary" id="ordenCompraEditorSaveBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SAVE'); ?></button>
                         <button type="button" class="btn btn-success" id="ordenCompraEditorSubmitBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SUBMIT_APPROVAL'); ?></button>
                     </div>
-                    <div class="border rounded overflow-hidden bg-light" style="min-height: 50vh;">
-                        <iframe id="ordenCompraEditorPdf" class="w-100 border-0 d-block" style="min-height: 50vh;" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_PDF_TITLE')); ?>"></iframe>
+                    <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_TITLE'); ?></h3>
+                    <div class="border rounded overflow-hidden bg-light position-relative" style="min-height: 50vh;">
+                        <iframe id="ordenCompraVendorQuotePdf" class="w-100 border-0 d-block" style="min-height: 50vh; display: none;" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_TITLE')); ?>"></iframe>
+                        <div id="ordenCompraVendorQuoteImgWrap" class="p-2 text-center d-none" style="min-height: 50vh;">
+                            <img id="ordenCompraVendorQuoteImg" class="img-fluid rounded shadow-sm" alt="" style="max-height: 75vh; width: auto;">
+                        </div>
+                        <p id="ordenCompraVendorQuoteEmpty" class="small text-muted p-4 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_EMPTY'); ?></p>
                     </div>
-                    <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_PDF_HINT'); ?></p>
+                    <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_HINT'); ?></p>
                 </div>
             </div>
         </div>
@@ -1610,7 +1615,10 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         var totalCell = document.getElementById('ordenCompraEditorTotalCell');
         var titleEl = document.getElementById('ordenCompraEditorModalTitle');
         var metaEl = document.getElementById('ordenCompraEditorMeta');
-        var pdfIframe = document.getElementById('ordenCompraEditorPdf');
+        var vendorPdfFrame = document.getElementById('ordenCompraVendorQuotePdf');
+        var vendorImgWrap = document.getElementById('ordenCompraVendorQuoteImgWrap');
+        var vendorImg = document.getElementById('ordenCompraVendorQuoteImg');
+        var vendorEmpty = document.getElementById('ordenCompraVendorQuoteEmpty');
         var saveBtn = document.getElementById('ordenCompraEditorSaveBtn');
         var submitBtn = document.getElementById('ordenCompraEditorSubmitBtn');
         var deleteBtn = document.getElementById('ordenCompraEditorDeleteBtn');
@@ -1718,6 +1726,39 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             return fetch(url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function(r) { return r.json(); });
         }
 
+        function showVendorQuotePreview(kind, url) {
+            if (vendorPdfFrame) {
+                vendorPdfFrame.style.display = 'none';
+                vendorPdfFrame.src = 'about:blank';
+            }
+            if (vendorImgWrap) {
+                vendorImgWrap.classList.add('d-none');
+            }
+            if (vendorImg) {
+                vendorImg.removeAttribute('src');
+            }
+            if (vendorEmpty) {
+                vendorEmpty.style.display = 'block';
+            }
+            if (!url || !kind) {
+                return;
+            }
+            if (vendorEmpty) {
+                vendorEmpty.style.display = 'none';
+            }
+            var ts = '_ts=' + Date.now();
+            var sep = url.indexOf('?') >= 0 ? '&' : '?';
+            if (kind === 'pdf' && vendorPdfFrame) {
+                vendorPdfFrame.style.display = 'block';
+                vendorPdfFrame.src = url + sep + ts + (url.indexOf('#') >= 0 ? '' : '#toolbar=1');
+                return;
+            }
+            if (kind === 'image' && vendorImg && vendorImgWrap) {
+                vendorImg.src = url + sep + ts;
+                vendorImgWrap.classList.remove('d-none');
+            }
+        }
+
         function openEditor(btn) {
             var n = parseInt(btn.getAttribute('data-existing-count') || '0', 10);
             var msg = btn.getAttribute('data-confirm-existing-msg') || '';
@@ -1750,7 +1791,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 state.currency = data.currency || 'Q';
                 if (titleEl) {
                     titleEl.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_TITLE')); ?>
-                        + (data.number ? ' — ' + data.number : '');
+                        + (data.number ? ' - ' + data.number : '');
                 }
                 var meta = [];
                 if (data.proveedor_name) {
@@ -1763,9 +1804,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     metaEl.innerHTML = meta.map(esc).join('<br>');
                 }
                 renderLines(data.lines);
-                if (pdfIframe && data.pdf_url) {
-                    pdfIframe.src = data.pdf_url + (data.pdf_url.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
-                }
+                showVendorQuotePreview(data.vendor_quote_kind || '', data.vendor_quote_url || '');
                 if (submitBtn) {
                     submitBtn.disabled = !data.workflow_published;
                     submitBtn.title = data.workflow_published ? '' : <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_WORKFLOW_NOT_AVAILABLE')); ?>;
@@ -1808,9 +1847,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     if (data.lines) {
                         state.currency = state.currency || 'Q';
                         renderLines(data.lines);
-                    }
-                    if (pdfIframe && data.pdf_url) {
-                        pdfIframe.src = data.pdf_url + (data.pdf_url.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
                     }
                 }).catch(function() {
                     saveBtn.disabled = false;
