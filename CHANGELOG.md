@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.91-STABLE] - 2026-04-16
+
+### Changed
+- **PDF cotización (v1 y v2):** Las imágenes por línea van en una **fila de tabla** con las mismas cinco columnas (Codigo, Cant., Descripcion, Precio unit., Subtotal): celdas vacías con borde y las imágenes solo dentro de **Descripcion**. Alternancia de color (v2) aplica también a esa fila.
+
 ## [3.113.90-STABLE] - 2026-04-16
 
 ### Changed

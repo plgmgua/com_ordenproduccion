@@ -1416,14 +1416,19 @@ class CotizacionController extends BaseController
             $pdf->Cell($colUnit, $rowH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R');
             $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($lineTotal, 2), 1, 1, 'R');
 
-            $imgX0    = $rowX + $colCodigo + $colCant;
-            $imgX1    = $rowX + $colCodigo + $colCant + $colDesc + $colUnit + $colSub;
-            $yAfterIm = CotizacionPdfHelper::renderQuotationLineItemImages(
+            $rowBottomY = $rowY + $rowH;
+            $yAfterIm   = CotizacionPdfHelper::renderQuotationLineItemImagesTableRow(
                 $pdf,
-                $newY + 1.0,
-                $imgX0,
-                $imgX1,
-                isset($item->line_images_json) ? (string) $item->line_images_json : null
+                $rowX,
+                $rowBottomY,
+                $colCodigo,
+                $colCant,
+                $colDesc,
+                $colUnit,
+                $colSub,
+                isset($item->line_images_json) ? (string) $item->line_images_json : null,
+                $lineH,
+                false
             );
             $pdf->SetXY($rowX, $yAfterIm);
         }
@@ -1646,17 +1651,25 @@ class CotizacionController extends BaseController
             $pdf->Cell($colUnit, $rowH, $currency . ' ' . number_format($unit, 4), 1, 0, 'R', $fill);
             $pdf->Cell($colSub, $rowH, $currency . ' ' . number_format($lineTotal, 2), 1, 1, 'R', $fill);
             if ($fill) {
+                $pdf->SetFillColor($tableLightR, $tableLightG, $tableLightB);
+            }
+            $rowBottomY = $rowY + $rowH;
+            $yAfterIm   = CotizacionPdfHelper::renderQuotationLineItemImagesTableRow(
+                $pdf,
+                $rowX,
+                $rowBottomY,
+                $colCodigo,
+                $colCant,
+                $colDesc,
+                $colUnit,
+                $colSub,
+                isset($item->line_images_json) ? (string) $item->line_images_json : null,
+                $lineH,
+                $fill
+            );
+            if ($fill) {
                 $pdf->SetFillColor(255, 255, 255);
             }
-            $imgX0    = $rowX + $colCodigo + $colCant;
-            $imgX1    = $rowX + $colCodigo + $colCant + $colDesc + $colUnit + $colSub;
-            $yAfterIm = CotizacionPdfHelper::renderQuotationLineItemImages(
-                $pdf,
-                $newY + 1.0,
-                $imgX0,
-                $imgX1,
-                isset($item->line_images_json) ? (string) $item->line_images_json : null
-            );
             $pdf->SetXY($rowX, $yAfterIm);
             $rowIndex++;
         }
