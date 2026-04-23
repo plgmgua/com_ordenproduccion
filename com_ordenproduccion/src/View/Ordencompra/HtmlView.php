@@ -19,6 +19,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Pagination\Pagination;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 
@@ -48,6 +49,9 @@ class HtmlView extends BaseHtmlView
     /** @var bool  Current user may approve/reject this orden (pending step assignee) */
     protected $canActOnOrdenCompraApproval = false;
 
+    /** @var Pagination|null  List pagination (list view only) */
+    protected $pagination = null;
+
     /**
      * @param   string|null  $tpl
      *
@@ -75,10 +79,11 @@ class HtmlView extends BaseHtmlView
         $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
 
-        $this->schemaOk = $model && method_exists($model, 'hasSchema') && $model->hasSchema();
-        $this->items    = [];
-        $this->item     = null;
-        $this->lines    = [];
+        $this->schemaOk   = $model && method_exists($model, 'hasSchema') && $model->hasSchema();
+        $this->items      = [];
+        $this->item       = null;
+        $this->lines      = [];
+        $this->pagination = null;
 
         if (!$this->schemaOk) {
             parent::display($tpl);
@@ -133,7 +138,26 @@ class HtmlView extends BaseHtmlView
                 }
             }
         } else {
-            $this->items = $model->getListItems();
+            $limit = $app->getUserStateFromRequest(
+                'com_ordenproduccion.ordencompra.list.limit',
+                'limit',
+                (int) $app->get('list_limit', 20),
+                'uint'
+            );
+            if ($limit < 1) {
+                $limit = 20;
+            }
+            $limit = min($limit, 500);
+
+            $limitstart = $app->input->getUint('limitstart', 0);
+            $total      = method_exists($model, 'getListTotal') ? $model->getListTotal() : 0;
+
+            if ($total > 0 && $limit > 0 && $limitstart >= $total) {
+                $limitstart = (int) (max(0, (int) floor(($total - 1) / $limit)) * $limit);
+            }
+
+            $this->items      = $model->getListItems($limitstart, $limit);
+            $this->pagination = new Pagination($total, $limitstart, $limit);
         }
 
         if ($this->item) {

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.92-STABLE] - 2026-04-16
+
+### Added
+- **Órdenes de compra (lista):** Paginación con límite por página (misma preferencia global `list_limit` que otras listas) y contador de resultados; la consulta excluye filas con estado `deleted`.
+- **Órdenes de compra (acciones):** Botón **Eliminar** junto a **Ver** para borradores, pendientes de aprobación y **rechazadas** (eliminación lógica); las aprobadas siguen sin eliminación desde la lista.
+
 ## [3.113.91-STABLE] - 2026-04-16
 
 ### Changed

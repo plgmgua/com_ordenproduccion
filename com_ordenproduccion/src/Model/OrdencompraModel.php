@@ -95,13 +95,43 @@ class OrdencompraModel extends BaseDatabaseModel
     }
 
     /**
-     * @return array<int, object>
+     * Rows in the list view (excludes soft-deleted).
+     *
+     * @since  3.113.92
      */
-    public function getListItems(): array
+    public function getListTotal(): int
+    {
+        if (!$this->hasSchema()) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $q  = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_orden_compra', 'o'))
+            ->where($db->quoteName('o.workflow_status') . ' != ' . $db->quote('deleted'));
+        $db->setQuery($q);
+
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * @param   int  $limitStart  Offset for pagination
+     * @param   int  $limit       Page size (max 500)
+     *
+     * @return  array<int, object>
+     */
+    public function getListItems(int $limitStart = 0, int $limit = 20): array
     {
         if (!$this->hasSchema()) {
             return [];
         }
+
+        if ($limit < 1) {
+            $limit = 20;
+        }
+
+        $limit = min($limit, 500);
 
         $db = $this->getDatabase();
         $q  = $db->getQuery(true)
@@ -110,9 +140,10 @@ class OrdencompraModel extends BaseDatabaseModel
             ->leftJoin(
                 $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p') . ' ON ' . $db->quoteName('p.id') . ' = ' . $db->quoteName('o.precotizacion_id')
             )
+            ->where($db->quoteName('o.workflow_status') . ' != ' . $db->quote('deleted'))
             ->order($db->quoteName('o.id') . ' DESC');
 
-        $db->setQuery($q, 0, 500);
+        $db->setQuery($q, $limitStart, $limit);
 
         return $db->loadObjectList() ?: [];
     }
@@ -166,7 +197,7 @@ class OrdencompraModel extends BaseDatabaseModel
 
         $row = $this->getItemById($id);
         $st  = strtolower((string) ($row->workflow_status ?? ''));
-        if (!$row || !in_array($st, ['pending_approval', self::WORKFLOW_STATUS_DRAFT], true)) {
+        if (!$row || !in_array($st, ['pending_approval', self::WORKFLOW_STATUS_DRAFT, 'rejected'], true)) {
             return false;
         }
 

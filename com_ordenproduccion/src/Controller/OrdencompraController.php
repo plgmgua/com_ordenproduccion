@@ -209,7 +209,7 @@ class OrdencompraController extends BaseController
     }
 
     /**
-     * Delete a pending-approval orden de compra (removes lines).
+     * Soft-delete an orden de compra (draft, pending approval, or rejected).
      *
      * @return  void
      */
