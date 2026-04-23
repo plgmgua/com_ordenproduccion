@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.81-STABLE] - 2026-04-16
+
+### Changed
+- **Correo transaccional:** Los envíos que antes agrupaban destinatarios en un solo mensaje (To del sitio + BCC) pasan a **un envío por dirección** (cola SMTP / `mail()` por destinatario). Afecta aprobación de orden de compra (solicitante + proveedor opcional), notificación de comprobante a administración, y correo de cotización al proveedor. El registro en `outbound_email_log` usa una fila por destinatario; el meta puede incluir `batch_recipient_index` / `batch_recipient_total`.
+
 ## [3.113.80-STABLE] - 2026-04-16
 
 ### Changed

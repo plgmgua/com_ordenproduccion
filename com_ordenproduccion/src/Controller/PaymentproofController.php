@@ -11,6 +11,7 @@ use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Mail\Mail;
+use Joomla\CMS\Mail\MailHelper;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
@@ -974,48 +975,71 @@ class PaymentproofController extends BaseController
             );
         }
 
-        $toSummary = 'BCC: ' . implode(', ', $emails);
-        $mailer    = null;
-
-        try {
-            $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
-            $mailer->setSubject($subject);
-            $mailer->setBody($body);
-            $mailer->isHtml(false);
-            MailBccHelper::applySiteToWithBcc($mailer, array_values($emails));
-            $mailDiag = MailSendHelper::sendChecked($mailer);
-            OutboundEmailLogHelper::log(
-                OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
-                (int) $user->id,
-                $toSummary,
-                $subject,
-                true,
-                '',
-                [
-                    'payment_proof_id' => (int) $paymentProofId,
-                    'recipients'       => array_values($emails),
-                    'body_text'        => $body,
-                    'mail_diag'        => $mailDiag,
-                ]
-            );
-        } catch (\Throwable $e) {
-            $detail = $e->getMessage();
-            if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
-                $detail .= ' | ' . $mailer->ErrorInfo;
+        $uniqueEmails = [];
+        $seen         = [];
+        foreach ($emails as $raw) {
+            $e = trim((string) $raw);
+            if ($e === '' || !MailHelper::isEmailAddress($e)) {
+                continue;
             }
-            OutboundEmailLogHelper::log(
-                OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
-                (int) $user->id,
-                $toSummary,
-                $subject,
-                false,
-                $detail,
-                [
-                    'payment_proof_id' => (int) $paymentProofId,
-                    'recipients'       => array_values($emails),
-                    'body_text'        => $body,
-                ]
-            );
+            $k = strtolower($e);
+            if (isset($seen[$k])) {
+                continue;
+            }
+            $seen[$k]       = true;
+            $uniqueEmails[] = $e;
+        }
+        if ($uniqueEmails === []) {
+            return;
+        }
+
+        $batchTotal = \count($uniqueEmails);
+        foreach ($uniqueEmails as $idx => $oneEmail) {
+            $mailer = null;
+            try {
+                $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
+                $mailer->setSubject($subject);
+                $mailer->setBody($body);
+                $mailer->isHtml(false);
+                MailBccHelper::applySingleRecipient($mailer, $oneEmail);
+                $mailDiag = MailSendHelper::sendChecked($mailer);
+                OutboundEmailLogHelper::log(
+                    OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
+                    (int) $user->id,
+                    $oneEmail,
+                    $subject,
+                    true,
+                    '',
+                    [
+                        'payment_proof_id'      => (int) $paymentProofId,
+                        'recipients_all'        => $uniqueEmails,
+                        'body_text'             => $body,
+                        'mail_diag'             => $mailDiag,
+                        'batch_recipient_index' => $idx + 1,
+                        'batch_recipient_total' => $batchTotal,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                $detail = $e->getMessage();
+                if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
+                    $detail .= ' | ' . $mailer->ErrorInfo;
+                }
+                OutboundEmailLogHelper::log(
+                    OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
+                    (int) $user->id,
+                    $oneEmail,
+                    $subject,
+                    false,
+                    $detail,
+                    [
+                        'payment_proof_id'     => (int) $paymentProofId,
+                        'recipients_all'       => $uniqueEmails,
+                        'body_text'            => $body,
+                        'batch_recipient_index' => $idx + 1,
+                        'batch_recipient_total' => $batchTotal,
+                    ]
+                );
+            }
         }
     }
 

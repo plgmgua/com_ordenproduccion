@@ -1233,7 +1233,7 @@ class PrecotizacionController extends BaseController
             return false;
         }
         $wrappedVendorQuoteBody = VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml);
-        $toSummary              = 'BCC: ' . $to;
+        $toSummary              = $to;
         $mailer                 = null;
         $mailDiag               = [];
         try {
@@ -1250,7 +1250,7 @@ class PrecotizacionController extends BaseController
                     // Reply-To is optional
                 }
             }
-            MailBccHelper::applySiteToWithBcc($mailer, [$to]);
+            MailBccHelper::applySingleRecipient($mailer, $to);
             $mailDiag = MailSendHelper::sendChecked($mailer);
         } catch (\Throwable $e) {
             $detail = $e->getMessage();

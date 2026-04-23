@@ -1,6 +1,6 @@
 <?php
 /**
- * Email to the purchase-order requester when an ORC is approved (optional BCC to vendor).
+ * Email to the purchase-order requester when an ORC is approved (optional separate send to vendor).
  * Subject/body templates: workflow row (orden_compra) or language defaults; placeholders like Telegram.
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
@@ -165,62 +165,81 @@ final class OrdencompraApprovedMailHelper
             }
         }
 
-        $bccList = [$toEmail];
-        if ($ccVendor && $vendorEmailResolved !== '' && MailHelper::isEmailAddress($vendorEmailResolved)) {
-            $bccList[] = $vendorEmailResolved;
+        $recipientList = [];
+        $seenR         = [];
+        foreach ([$toEmail] as $addr) {
+            $addr = trim((string) $addr);
+            if ($addr === '' || !MailHelper::isEmailAddress($addr)) {
+                continue;
+            }
+            $key = strtolower($addr);
+            if (!isset($seenR[$key])) {
+                $seenR[$key]     = true;
+                $recipientList[] = $addr;
+            }
         }
-        $toSummary = 'BCC: ' . implode(', ', $bccList);
-
-        $mailer = null;
-
-        try {
-            $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
-            $mailer->setSubject($subject);
-            $mailer->setBody($body);
-            $mailer->isHtml(true);
-            MailBccHelper::applySiteToWithBcc($mailer, $bccList);
-            if ($absPdf !== '') {
-                $attachName = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $orcNumber) . '.pdf';
-                $mailer->addAttachment($absPdf, $attachName);
+        if ($ccVendor && $vendorEmailResolved !== '' && MailHelper::isEmailAddress($vendorEmailResolved)) {
+            $ve = trim($vendorEmailResolved);
+            $vk = strtolower($ve);
+            if (!isset($seenR[$vk])) {
+                $recipientList[] = $ve;
             }
-            $mailDiag = MailSendHelper::sendChecked($mailer);
+        }
 
-            OutboundEmailLogHelper::log(
-                OutboundEmailLogHelper::CONTEXT_ORDENCOMPRA_APPROVED,
-                $submitterId,
-                $toSummary,
-                $subject,
-                true,
-                '',
-                [
-                    'orden_compra_id'         => $ordenCompraId,
-                    'orc_number'              => $orcNumber,
-                    'approve_email_cc_vendor' => $ccVendor ? 1 : 0,
-                    'vendor_email'            => $vendorEmailResolved,
-                    'had_pdf_attachment'      => $absPdf !== '' ? 1 : 0,
-                    'body_html'               => $body,
-                    'mail_diag'               => $mailDiag,
-                ]
-            );
-        } catch (\Throwable $e) {
-            $detail = $e->getMessage();
-            if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
-                $detail .= ' | ' . $mailer->ErrorInfo;
+        $batchTotal = \count($recipientList);
+        $baseMeta   = [
+            'orden_compra_id'         => $ordenCompraId,
+            'orc_number'              => $orcNumber,
+            'approve_email_cc_vendor' => $ccVendor ? 1 : 0,
+            'vendor_email'            => $vendorEmailResolved,
+            'had_pdf_attachment'      => $absPdf !== '' ? 1 : 0,
+            'body_html'               => $body,
+            'batch_recipient_total'   => $batchTotal,
+        ];
+
+        foreach ($recipientList as $idx => $oneTo) {
+            $mailer = null;
+            try {
+                $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
+                $mailer->setSubject($subject);
+                $mailer->setBody($body);
+                $mailer->isHtml(true);
+                MailBccHelper::applySingleRecipient($mailer, $oneTo);
+                if ($absPdf !== '') {
+                    $attachName = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $orcNumber) . '.pdf';
+                    $mailer->addAttachment($absPdf, $attachName);
+                }
+                $mailDiag = MailSendHelper::sendChecked($mailer);
+
+                OutboundEmailLogHelper::log(
+                    OutboundEmailLogHelper::CONTEXT_ORDENCOMPRA_APPROVED,
+                    $submitterId,
+                    $oneTo,
+                    $subject,
+                    true,
+                    '',
+                    array_merge($baseMeta, [
+                        'mail_diag'               => $mailDiag,
+                        'batch_recipient_index'   => $idx + 1,
+                    ])
+                );
+            } catch (\Throwable $e) {
+                $detail = $e->getMessage();
+                if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
+                    $detail .= ' | ' . $mailer->ErrorInfo;
+                }
+                OutboundEmailLogHelper::log(
+                    OutboundEmailLogHelper::CONTEXT_ORDENCOMPRA_APPROVED,
+                    $submitterId,
+                    $oneTo,
+                    $subject,
+                    false,
+                    $detail,
+                    array_merge($baseMeta, [
+                        'batch_recipient_index' => $idx + 1,
+                    ])
+                );
             }
-            OutboundEmailLogHelper::log(
-                OutboundEmailLogHelper::CONTEXT_ORDENCOMPRA_APPROVED,
-                $submitterId,
-                $toSummary,
-                $subject,
-                false,
-                $detail,
-                [
-                    'orden_compra_id'         => $ordenCompraId,
-                    'orc_number'              => $orcNumber,
-                    'approve_email_cc_vendor' => $ccVendor ? 1 : 0,
-                    'body_html'               => $body,
-                ]
-            );
         }
     }
 
