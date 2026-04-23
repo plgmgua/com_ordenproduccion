@@ -704,7 +704,7 @@ class PrecotizacionController extends BaseController
      * Save all external-vendor lines from the proveedor document form (batch POST).
      *
      * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion, vendor_precio_unit_proveedor (groups 12/16 only).
-     * If the pre-cot is linked to a cotización, only Administración / Admon (or super user) may POST, and only vendor_precio_unit_proveedor is applied per line.
+     * If the pre-cot is linked to a cotización, only Administración / Admon (or super user) may POST; per line only price_per_sheet (Precio unidad), recalculated total, and vendor_precio_unit_proveedor are applied.
      *
      * @return  bool
      *
@@ -750,7 +750,7 @@ class PrecotizacionController extends BaseController
             if (!$model->saveProveedorExternoVendorUnitPricesOnly($id, is_array($lines) ? $lines : [])) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
             } else {
-                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_PUP_SAVED'));
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADMIN_LOCKED_PRICES_SAVED'));
                 if (method_exists($model, 'allProveedorExternoLinesHavePositiveUnitPrices')
                     && $model->allProveedorExternoLinesHavePositiveUnitPrices($id)) {
                     try {

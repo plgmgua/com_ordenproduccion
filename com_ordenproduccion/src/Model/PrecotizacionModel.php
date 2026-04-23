@@ -2188,10 +2188,11 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Update only vendor_precio_unit_proveedor on existing proveedor_externo lines (e.g. pre-cot linked to cotización; Administración).
+     * Update Precio unidad (price_per_sheet), line total (qty × unit), and P.Unit Proveedor on existing proveedor_externo lines
+     * when pre-cot is linked to cotización (Administración). Quantity and description are not changed.
      *
      * @param   int                $preCotizacionId  Pre-cotización id.
-     * @param   array<int, mixed>  $rows             Rows with id (&gt;0) and vendor_precio_unit_proveedor; other keys ignored.
+     * @param   array<int, mixed>  $rows             Rows with id (&gt;0), price_per_sheet, vendor_precio_unit_proveedor.
      *
      * @return  bool
      *
@@ -2217,7 +2218,7 @@ class PrecotizacionModel extends ListModel
         $db = $this->getDatabase();
         $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
         $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
-        if (!isset($columns['vendor_precio_unit_proveedor'])) {
+        if (!isset($columns['vendor_precio_unit_proveedor']) || !isset($columns['price_per_sheet'])) {
             return false;
         }
 
@@ -2243,9 +2244,15 @@ class PrecotizacionModel extends ListModel
                     throw new \RuntimeException('invalid line type');
                 }
 
-                $pup = round((float) ($row['vendor_precio_unit_proveedor'] ?? 0), 2);
+                $qty  = max(1, (int) ($ln->quantity ?? 1));
+                $unit = round((float) ($row['price_per_sheet'] ?? $ln->price_per_sheet ?? 0), 2);
+                $pup  = round((float) ($row['vendor_precio_unit_proveedor'] ?? $ln->vendor_precio_unit_proveedor ?? 0), 2);
+                $tot  = round($qty * $unit, 2);
+
                 $obj = (object) [
-                    'id'                         => $lid,
+                    'id'                           => $lid,
+                    'price_per_sheet'              => $unit,
+                    'total'                        => $tot,
                     'vendor_precio_unit_proveedor' => $pup,
                 ];
                 $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');

@@ -455,8 +455,13 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         <?php if (empty($vendorLines)) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
-        <?php $savePupOnlyFormId = 'proveedor-externo-pup-only-form'; ?>
-        <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="<?php echo htmlspecialchars($savePupOnlyFormId); ?>" class="d-none" aria-hidden="true">
+        <?php
+        $adminLockedPricesFormId = 'proveedor-externo-admin-locked-prices-form';
+        $adminLockedEnableLabel  = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADMIN_LOCKED_ENABLE_EDIT');
+        $adminLockedSaveLabel    = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADMIN_LOCKED_SAVE');
+        ?>
+        <div class="js-admin-locked-prices-wrap">
+        <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="<?php echo htmlspecialchars($adminLockedPricesFormId); ?>" class="d-none" aria-hidden="true">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
         </form>
@@ -478,33 +483,41 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         $lid  = (int) $line->id;
                         $unit = round((float) ($line->price_per_sheet ?? 0), 2);
                         $pup  = round((float) ($line->vendor_precio_unit_proveedor ?? 0), 2);
+                        $tot  = round((float) ($line->total ?? 0), 2);
                         ?>
-                    <tr>
-                        <td class="col-qty"><?php echo (int) $line->quantity; ?></td>
+                    <tr class="js-admin-locked-price-row">
+                        <td class="col-qty js-admin-locked-qty"><?php echo (int) $line->quantity; ?></td>
                         <td class="col-desc"><?php echo nl2br(htmlspecialchars((string) ($line->vendor_descripcion ?? ''))); ?></td>
-                        <td class="col-price text-end">Q <?php echo number_format($unit, 2); ?></td>
+                        <td class="col-price">
+                            <?php if ($lid > 0) : ?>
+                            <input type="hidden" name="lines[<?php echo (int) $i; ?>][id]" value="<?php echo $lid; ?>" form="<?php echo htmlspecialchars($adminLockedPricesFormId); ?>">
+                            <input type="number" class="form-control form-control-sm text-end js-admin-locked-line-input js-admin-locked-price" name="lines[<?php echo (int) $i; ?>][price_per_sheet]" form="<?php echo htmlspecialchars($adminLockedPricesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($unit, 2, '.', '')); ?>" title="<?php echo htmlspecialchars($colPrice); ?>" aria-label="<?php echo htmlspecialchars($colPrice); ?>" readonly tabindex="-1">
+                            <?php else : ?>
+                            <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </td>
                         <?php if ($showVendorPupColumn) : ?>
                         <td class="col-pup">
                             <?php if ($lid > 0) : ?>
-                            <input type="hidden" name="lines[<?php echo (int) $i; ?>][id]" value="<?php echo $lid; ?>" form="<?php echo htmlspecialchars($savePupOnlyFormId); ?>">
-                            <input type="number" class="form-control form-control-sm text-end" name="lines[<?php echo (int) $i; ?>][vendor_precio_unit_proveedor]" form="<?php echo htmlspecialchars($savePupOnlyFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($pup, 2, '.', '')); ?>" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>" aria-label="<?php echo htmlspecialchars($colPUnitProveedor); ?>">
+                            <input type="number" class="form-control form-control-sm text-end js-admin-locked-line-input js-admin-locked-pup" name="lines[<?php echo (int) $i; ?>][vendor_precio_unit_proveedor]" form="<?php echo htmlspecialchars($adminLockedPricesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($pup, 2, '.', '')); ?>" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>" aria-label="<?php echo htmlspecialchars($colPUnitProveedor); ?>" readonly tabindex="-1">
                             <?php else : ?>
                             <span class="text-muted small">—</span>
                             <?php endif; ?>
                         </td>
                         <?php endif; ?>
-                        <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
+                        <td class="col-total text-end align-middle"><span class="js-admin-locked-line-total">Q <?php echo number_format($tot, 2); ?></span></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-        <?php endif; ?>
         <?php if (!$user->guest) : ?>
         <div class="d-flex flex-wrap justify-content-end gap-2 mt-2 align-items-center">
-            <?php if (!empty($vendorLines)) : ?>
-            <button type="submit" form="<?php echo htmlspecialchars($savePupOnlyFormId); ?>" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_PUP_SAVE_BTN'); ?></button>
-            <?php endif; ?>
+            <button type="button" class="btn btn-primary js-admin-locked-prices-btn"
+                    data-form-id="<?php echo htmlspecialchars($adminLockedPricesFormId, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-label-enable="<?php echo htmlspecialchars($adminLockedEnableLabel, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-label-save="<?php echo htmlspecialchars($adminLockedSaveLabel, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-editing="0"><?php echo htmlspecialchars($adminLockedEnableLabel); ?></button>
             <?php if ($solicitudCotWf && $pendingSolicitudCot) : ?>
             <button type="button" class="btn btn-primary" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
@@ -533,6 +546,62 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <i class="fas fa-handshake" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_PEDIR_PROVEEDOR'); ?>
             </button>
             <?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <script>
+        (function() {
+            var wrap = document.querySelector('.js-admin-locked-prices-wrap');
+            if (!wrap) {
+                return;
+            }
+            function parseQty(td) {
+                var n = parseInt(String(td && td.textContent ? td.textContent : '').trim(), 10);
+                return isFinite(n) && n > 0 ? n : 1;
+            }
+            function updateRowTotal(row) {
+                var qty = parseQty(row.querySelector('.js-admin-locked-qty'));
+                var priceEl = row.querySelector('.js-admin-locked-price');
+                var out = row.querySelector('.js-admin-locked-line-total');
+                if (!priceEl || !out) {
+                    return;
+                }
+                var p = parseFloat(String(priceEl.value).replace(',', '.'));
+                p = isFinite(p) ? Math.round(p * 100) / 100 : 0;
+                var t = Math.round(qty * p * 100) / 100;
+                out.textContent = 'Q ' + t.toFixed(2);
+            }
+            wrap.querySelectorAll('.js-admin-locked-price-row').forEach(function(row) {
+                var priceEl = row.querySelector('.js-admin-locked-price');
+                if (priceEl) {
+                    priceEl.addEventListener('input', function() { updateRowTotal(row); });
+                }
+            });
+            wrap.addEventListener('click', function(e) {
+                var btn = e.target && e.target.closest ? e.target.closest('.js-admin-locked-prices-btn') : null;
+                if (!btn || !wrap.contains(btn)) {
+                    return;
+                }
+                e.preventDefault();
+                var editing = btn.getAttribute('data-editing') === '1';
+                var formId = btn.getAttribute('data-form-id');
+                var form = formId ? document.getElementById(formId) : null;
+                if (!editing) {
+                    wrap.querySelectorAll('.js-admin-locked-line-input').forEach(function(inp) {
+                        inp.removeAttribute('readonly');
+                        inp.removeAttribute('tabindex');
+                    });
+                    btn.setAttribute('data-editing', '1');
+                    btn.textContent = btn.getAttribute('data-label-save') || '';
+                    return;
+                }
+                if (form && typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else if (form) {
+                    form.submit();
+                }
+            });
+        })();
+        </script>
         </div>
         <?php endif; ?>
     <?php else :

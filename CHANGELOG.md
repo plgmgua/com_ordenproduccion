@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.51-STABLE] - 2026-04-16
+
+### Changed
+- **Proveedor externo (pre-cot vinculada, Administración):** Precio unidad y P.Unit Proveedor se editan con el mismo botón: primero habilita los campos, segundo envía el guardado. El modelo recalcula el total de línea (cantidad × Precio unidad).
+
 ## [3.113.50-STABLE] - 2026-04-16
 
 ### Added
