@@ -16,6 +16,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
@@ -142,6 +143,8 @@ class HtmlView extends BaseHtmlView
         } else {
             $this->document->setTitle(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_LIST_TITLE'));
         }
+
+        HTMLHelper::_('bootstrap.modal');
 
         parent::display($tpl);
     }

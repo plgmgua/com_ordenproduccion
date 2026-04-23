@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.58-STABLE] - 2026-04-23
+
+### Added
+- **Orden de compra (listado y detalle):** El número de **pre-cotización** es un enlace que abre un **modal** con el mismo contenido que en la vista de cotización (`task=ajax.getPrecotizacionDetails`, layout `details` del cotizador). Carga de Bootstrap modal en la vista.
+
 ## [3.113.57-STABLE] - 2026-04-23
 
 ### Added

@@ -12,6 +12,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Ordencompra\HtmlView $this */
 
@@ -78,7 +79,18 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
             <div class="card-body">
                 <dl class="row mb-0 small">
                     <dt class="col-sm-3"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_COL_PRECOT'); ?></dt>
-                    <dd class="col-sm-9"><?php echo htmlspecialchars((string) ($item->precot_number ?? ''), ENT_QUOTES, 'UTF-8'); ?></dd>
+                    <dd class="col-sm-9"><?php
+                        $detailPreId = (int) ($item->precotizacion_id ?? 0);
+                        $detailPreNum = trim((string) ($item->precot_number ?? ''));
+                        if ($detailPreNum === '' && $detailPreId > 0) {
+                            $detailPreNum = 'PRE-' . $detailPreId;
+                        }
+                        if ($detailPreId > 0) :
+                            ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $detailPreId; ?>" data-pre-number="<?php echo htmlspecialchars($detailPreNum, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($detailPreNum, ENT_QUOTES, 'UTF-8'); ?></a><?php
+                        else :
+                            echo htmlspecialchars($detailPreNum !== '' ? $detailPreNum : '—', ENT_QUOTES, 'UTF-8');
+                        endif;
+                    ?></dd>
                     <dt class="col-sm-3"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_COL_PROVEEDOR'); ?></dt>
                     <dd class="col-sm-9"><?php echo htmlspecialchars($proveedorNameFromSnapshot(isset($item->proveedor_snapshot) ? (string) $item->proveedor_snapshot : '') ?: ('#' . (int) ($item->proveedor_id ?? 0)), ENT_QUOTES, 'UTF-8'); ?></dd>
                     <dt class="col-sm-3"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_COL_TOTAL'); ?></dt>
@@ -205,10 +217,21 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                         if ($pname === '') {
                             $pname = '#' . (int) ($row->proveedor_id ?? 0);
                         }
+                        $listPreId = (int) ($row->precotizacion_id ?? 0);
+                        $listPreNum = trim((string) ($row->precot_number ?? ''));
+                        if ($listPreNum === '' && $listPreId > 0) {
+                            $listPreNum = 'PRE-' . $listPreId;
+                        }
                         ?>
                     <tr>
                         <td><?php echo htmlspecialchars((string) ($row->number ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                        <td><?php echo htmlspecialchars((string) ($row->precot_number ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?php
+                        if ($listPreId > 0) :
+                            ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $listPreId; ?>" data-pre-number="<?php echo htmlspecialchars($listPreNum, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($listPreNum, ENT_QUOTES, 'UTF-8'); ?></a><?php
+                        else :
+                            echo htmlspecialchars($listPreNum !== '' ? $listPreNum : '—', ENT_QUOTES, 'UTF-8');
+                        endif;
+                        ?></td>
                         <td><?php echo htmlspecialchars($pname, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars((string) ($row->currency ?? 'Q'), ENT_QUOTES, 'UTF-8'); ?> <?php echo htmlspecialchars(number_format((float) ($row->total_amount ?? 0), 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($statusLabel((string) ($row->workflow_status ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
@@ -233,3 +256,54 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
         </div>
     <?php endif; ?>
 </div>
+<?php if ($schemaOk) : ?>
+<!-- Modal: Pre-Cotización details (same as cotización view — ajax.getPrecotizacionDetails) -->
+<div class="modal fade" id="precotizacionDetailModal" tabindex="-1" aria-labelledby="precotizacionDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="precotizacionDetailModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JLIB_HTML_BEHAVIOR_CLOSE'), ENT_QUOTES, 'UTF-8'); ?>"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="precotizacionDetailContent" class="overflow-auto" style="max-height: 70vh;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var precotizacionDetailBase = <?php echo json_encode(Uri::root()); ?>;
+    var precotizacionDetailToken = <?php echo json_encode(Session::getFormToken() . '=1'); ?>;
+    var msgLoading = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_LOADING')); ?>;
+    var msgNotFound = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND')); ?>;
+    var msgLoadError = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ERROR_LOADING_QUOTATION')); ?>;
+    document.addEventListener('click', function(e) {
+        var link = e.target && e.target.closest && e.target.closest('.precotizacion-detail-link');
+        if (!link) return;
+        e.preventDefault();
+        var preId = link.getAttribute('data-pre-id');
+        var preNumber = link.getAttribute('data-pre-number') || ('PRE-' + preId);
+        if (!preId) return;
+        var modal = document.getElementById('precotizacionDetailModal');
+        var contentEl = document.getElementById('precotizacionDetailContent');
+        var titleEl = document.getElementById('precotizacionDetailModalLabel');
+        if (!modal || !contentEl) return;
+        if (titleEl) titleEl.textContent = preNumber;
+        contentEl.innerHTML = '<div class="p-3 text-muted text-center"><span class="spinner-border spinner-border-sm me-2"></span>' + msgLoading + '</div>';
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        } else {
+            modal.classList.add('show');
+            modal.style.display = 'block';
+        }
+        var url = precotizacionDetailBase + 'index.php?option=com_ordenproduccion&task=ajax.getPrecotizacionDetails&format=raw&id=' + encodeURIComponent(preId) + '&' + precotizacionDetailToken;
+        fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+            contentEl.innerHTML = html || '<p class="p-3 text-muted">' + msgNotFound + '</p>';
+        }).catch(function() {
+            contentEl.innerHTML = '<p class="p-3 text-danger">' + msgLoadError + '</p>';
+        });
+    });
+})();
+</script>
+<?php endif; ?>
