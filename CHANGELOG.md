@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.87-STABLE] - 2026-04-16
+
+### Fixed
+- **Cotización — adjuntos por línea:** Mensajes de error legibles siempre: `Text::_` más texto de respaldo EN/ES si la clave no se cargó. La tarea AJAX `uploadQuotationLineImage` carga los `.ini` desde `JPATH_SITE` y desde `components/com_ordenproduccion` antes de responder.
+- **UI:** Botón de adjuntar usa `aria-label` en lugar de `title` para evitar el tooltip del navegador sobre el desplegable de pre-cotización; mayor `z-index` en el select.
+
+### Changed
+- **Cotización — formatos de imagen:** Además de JPEG/PNG/GIF, se aceptan BMP, WebP y TIFF (y similares decodificables). Lo que no es JPEG/PNG/GIF se normaliza a **PNG** al guardar (FPDF). TIFF y algunos formatos usan **Imagick** si está instalado; si no, se intenta GD/`imagecreatefromstring`.
+
 ## [3.113.86-STABLE] - 2026-04-16
 
 ### Fixed

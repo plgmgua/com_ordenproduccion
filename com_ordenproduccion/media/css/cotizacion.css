@@ -66,6 +66,8 @@
     border-radius: 4px;
 }
 .cotizacion-precotizacion-select {
+    position: relative;
+    z-index: 3;
     min-width: 320px;
     max-width: 480px;
 }

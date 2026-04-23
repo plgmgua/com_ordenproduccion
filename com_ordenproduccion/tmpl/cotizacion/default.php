@@ -285,9 +285,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         </td>
                         <td class="align-middle cotizacion-line-images-cell">
                             <input type="hidden" class="line-images-json-input" name="lines[<?php echo $lineIndex; ?>][line_images_json]" value="<?php echo htmlspecialchars($lineImagesJsonForRow, ENT_QUOTES, 'UTF-8'); ?>">
-                            <input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+                            <input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff,.tif,.tiff" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
                             <div class="line-images-preview d-flex flex-wrap gap-1 align-items-center mb-1"></div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>">
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" aria-label="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>">
                                 <i class="fas fa-paperclip" aria-hidden="true"></i>
                             </button>
                         </td>
@@ -528,9 +528,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
                 '<td class="align-middle cotizacion-line-images-cell">' +
                 '<input type="hidden" class="line-images-json-input" name="lines[' + lineIndex + '][line_images_json]" value="[]">' +
-                '<input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">' +
+                '<input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff,.tif,.tiff" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">' +
                 '<div class="line-images-preview d-flex flex-wrap gap-1 align-items-center mb-1"></div>' +
-                '<button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" title="' + escapeAttr(msgLineAttach) + '"><i class="fas fa-paperclip" aria-hidden="true"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" aria-label="' + escapeAttr(msgLineAttach) + '"><i class="fas fa-paperclip" aria-hidden="true"></i></button>' +
                 '</td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)"><i class="fas fa-save"></i></button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(tr);

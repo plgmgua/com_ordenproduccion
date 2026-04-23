@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Language\Text;
 
@@ -24,53 +25,78 @@ final class QuotationLineImagesHelper
     private const MAX_BYTES = 5242880;
 
     /**
-     * FPDF Image(): jpeg/png/gif only (no webp).
-     *
-     * @return array<string, string>
+     * Translated string, or English/Spanish fallback if the key is not loaded (e.g. early bootstrap).
      */
-    private static function allowedMimeToExt(): array
+    private static function lang(string $key, string $en, ?string $es = null): string
     {
-        return [
-            'image/jpeg'  => 'jpg',
-            'image/png'   => 'png',
-            'image/x-png' => 'png',
-            'image/gif'   => 'gif',
-        ];
+        $t = Text::_($key);
+        if ($t !== $key && $t !== '') {
+            return $t;
+        }
+        $tag = Factory::getApplication()->getLanguage()->getTag();
+        if ($es !== null && (str_starts_with($tag, 'es') || str_contains($tag, 'es-'))) {
+            return $es;
+        }
+
+        return $en;
     }
 
     /**
-     * @return array{mime: string, ext: string}|null
+     * FPDF handles JPEG, PNG, GIF natively; other rasters are normalized to PNG.
      */
-    private static function detectImageMimeAndExt(string $tmpPath): ?array
+    private static function convertRasterToPng(string $tmpPath, int $iType): ?string
     {
-        $map = self::allowedMimeToExt();
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime  = $finfo->file($tmpPath) ?: '';
-        if (isset($map[$mime])) {
-            return ['mime' => $mime, 'ext' => $map[$mime]];
+        if (class_exists(\Imagick::class)) {
+            try {
+                $im = new \Imagick($tmpPath);
+                $im->setImageFormat('png');
+                $blob = $im->getImageBlob();
+                $im->clear();
+                if (is_string($blob) && $blob !== '') {
+                    return $blob;
+                }
+            } catch (\Throwable $e) {
+                // Fall through to GD.
+            }
         }
-        $imgInfo = @getimagesize($tmpPath);
-        if (!is_array($imgInfo) || !isset($imgInfo[2])) {
-            return null;
-        }
-        switch ($imgInfo[2]) {
-            case IMAGETYPE_JPEG:
-                $mime = 'image/jpeg';
+
+        $im = false;
+        switch ($iType) {
+            case IMAGETYPE_WEBP:
+                if (\function_exists('imagecreatefromwebp')) {
+                    $im = @imagecreatefromwebp($tmpPath);
+                }
                 break;
-            case IMAGETYPE_PNG:
-                $mime = 'image/png';
-                break;
-            case IMAGETYPE_GIF:
-                $mime = 'image/gif';
+            case IMAGETYPE_BMP:
+                if (\function_exists('imagecreatefrombmp')) {
+                    $im = @imagecreatefrombmp($tmpPath);
+                }
                 break;
             default:
-                return null;
+                break;
         }
-        if (!isset($map[$mime])) {
+
+        if (\defined('IMAGETYPE_AVIF') && $iType === \constant('IMAGETYPE_AVIF') && \function_exists('imagecreatefromavif')) {
+            $im = @imagecreatefromavif($tmpPath);
+        }
+
+        if ($im === false) {
+            $raw = @file_get_contents($tmpPath);
+            if ($raw !== false && $raw !== '') {
+                $im = @imagecreatefromstring($raw);
+            }
+        }
+
+        if ($im === false) {
             return null;
         }
 
-        return ['mime' => $mime, 'ext' => $map[$mime]];
+        ob_start();
+        $ok = @imagepng($im);
+        imagedestroy($im);
+        $png = ob_get_clean();
+
+        return ($ok && is_string($png) && $png !== '') ? $png : null;
     }
 
     /**
@@ -168,11 +194,6 @@ final class QuotationLineImagesHelper
         if ($size < 1 || $size > self::MAX_BYTES) {
             return ['success' => false, 'message' => 'File too large'];
         }
-        $detected = self::detectImageMimeAndExt($file['tmp_name']);
-        if ($detected === null) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_TYPE')];
-        }
-        $ext = $detected['ext'];
 
         if ($quotationId > 0) {
             $sub = self::REL_BASE . '/q' . $quotationId;
@@ -181,20 +202,80 @@ final class QuotationLineImagesHelper
         }
         $absDir = JPATH_ROOT . '/' . $sub;
         if (!is_dir($absDir) && !Folder::create($absDir)) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_CREATE_DIR')];
+            return [
+                'success' => false,
+                'message' => self::lang(
+                    'COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_CREATE_DIR',
+                    'Could not create the upload folder. Ask the administrator to allow writes under media/com_ordenproduccion/quotation_line_images (and its parent folders).',
+                    'No se pudo crear la carpeta de subidas. Pida al administrador que permita escritura en media/com_ordenproduccion/quotation_line_images (y carpetas superiores).'
+                ),
+            ];
         }
         if (!is_writable($absDir)) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_NOT_WRITABLE')];
+            return [
+                'success' => false,
+                'message' => self::lang(
+                    'COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_NOT_WRITABLE',
+                    'The upload folder is not writable. Ask the administrator to fix permissions on media/com_ordenproduccion/quotation_line_images.',
+                    'La carpeta de subidas no tiene permiso de escritura. Pida al administrador que corrija permisos en media/com_ordenproduccion/quotation_line_images.'
+                ),
+            ];
         }
+
         $origStem = pathinfo((string) ($file['name'] ?? 'image'), PATHINFO_FILENAME);
         $name     = preg_replace('/[^a-zA-Z0-9._-]+/', '_', (string) $origStem) ?: 'image';
-        $target   = $absDir . '/' . uniqid('up_', true) . '_' . $name . '.' . $ext;
-        if (!move_uploaded_file($file['tmp_name'], $target)) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_SAVE')];
-        }
-        $rel = $sub . '/' . basename($target);
+        $uniqBase = $absDir . '/' . uniqid('up_', true) . '_' . $name;
 
-        return ['success' => true, 'path' => $rel];
+        $tmp  = $file['tmp_name'];
+        $info = @getimagesize($tmp);
+        $iType = (is_array($info) && isset($info[2])) ? (int) $info[2] : 0;
+
+        if (\in_array($iType, [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF], true)) {
+            $ext = match ($iType) {
+                IMAGETYPE_JPEG => 'jpg',
+                IMAGETYPE_PNG => 'png',
+                IMAGETYPE_GIF => 'gif',
+            };
+            $target = $uniqBase . '.' . $ext;
+            if (!move_uploaded_file($tmp, $target)) {
+                return [
+                    'success' => false,
+                    'message' => self::lang(
+                        'COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_SAVE',
+                        'Could not save the uploaded file. Check server write permissions.',
+                        'No se pudo guardar el archivo. Compruebe permisos de escritura en el servidor.'
+                    ),
+                ];
+            }
+
+            return ['success' => true, 'path' => $sub . '/' . basename($target)];
+        }
+
+        $pngBlob = self::convertRasterToPng($tmp, $iType);
+        if ($pngBlob === null) {
+            return [
+                'success' => false,
+                'message' => self::lang(
+                    'COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_TYPE',
+                    'This file is not a supported image, or the server cannot decode it. Use JPEG, PNG, GIF, BMP, WebP, or TIFF. For TIFF, the Imagick PHP extension may be required.',
+                    'El archivo no es una imagen admitida o el servidor no puede decodificarla. Use JPEG, PNG, GIF, BMP, WebP o TIFF. Para TIFF puede hacer falta la extensión PHP Imagick.'
+                ),
+            ];
+        }
+
+        $target = $uniqBase . '.png';
+        if (file_put_contents($target, $pngBlob) === false) {
+            return [
+                'success' => false,
+                'message' => self::lang(
+                    'COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_SAVE',
+                    'Could not save the uploaded file. Check server write permissions.',
+                    'No se pudo guardar el archivo. Compruebe permisos de escritura en el servidor.'
+                ),
+            ];
+        }
+
+        return ['success' => true, 'path' => $sub . '/' . basename($target)];
     }
 
     /**
