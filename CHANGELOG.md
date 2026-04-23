@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.67-STABLE] - 2026-04-16
+
+### Changed
+- **Administración → Correos enviados:** Tabla más compacta (tipografía y celdas), meta JSON en una línea con recorte en lugar de JSON formateado; paginación visible siempre que haya registros; etiqueta legible para el tipo `ordencompra_approved`.
+
 ## [3.113.66-STABLE] - 2026-04-23
 
 ### Fixed
