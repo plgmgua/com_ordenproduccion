@@ -301,7 +301,11 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-desc {
-    width: 52%;
+    width: 40%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-images {
+    width: 15%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-unit {
@@ -309,7 +313,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-sub {
-    width: 16%;
+    width: 13%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-pre {
@@ -321,7 +325,11 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-desc {
-    width: 48%;
+    width: 34%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-images {
+    width: 12%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-unit {
@@ -329,11 +337,11 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-sub {
-    width: 13%;
+    width: 12%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-action {
-    width: 11%;
+    width: 14%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-pre {
@@ -372,40 +380,31 @@
     vertical-align: middle;
 }
 
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-images,
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-images {
+    vertical-align: middle;
+}
+
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-action,
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-action {
     vertical-align: middle;
 }
 
-/* Cotización display: line image thumbnails on row below the line */
-.cotizacion-display .cotizacion-line-thumbs-row td.cotizacion-line-thumbs-cell {
-    background: #f8f9fa;
-    border-top: none !important;
-    padding-top: 0.35rem;
-    padding-bottom: 0.85rem;
-    vertical-align: top;
-}
-
-.cotizacion-display .cotizacion-line-thumbs-label {
-    font-weight: 600;
-}
-
-.cotizacion-display .cotizacion-line-thumb-link {
-    display: block;
+/* Cotización display: line images column (aligned with edit form preview size) */
+.cotizacion-display .cotizacion-display-line-image-link {
     line-height: 0;
-    transition: opacity 0.15s ease;
 }
 
-.cotizacion-display .cotizacion-line-thumb-link:hover {
-    opacity: 0.88;
+.cotizacion-display .cotizacion-display-line-image-link:hover {
+    opacity: 0.9;
 }
 
-.cotizacion-display .cotizacion-line-thumb-img {
-    max-height: 120px;
-    max-width: 180px;
+.cotizacion-display .cotizacion-display-line-image-thumb {
+    max-height: 48px;
     width: auto;
-    height: auto;
+    max-width: 72px;
     object-fit: contain;
+    display: block;
 }
 
 /* Responsive Design */
@@ -430,9 +429,9 @@
         font-size: 13px;
     }
 
-    .cotizacion-display .cotizacion-line-thumb-img {
-        max-height: 88px;
-        max-width: 100%;
+    .cotizacion-display .cotizacion-display-line-image-thumb {
+        max-height: 40px;
+        max-width: 64px;
     }
 
     .form-actions {

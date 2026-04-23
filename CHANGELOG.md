@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.90-STABLE] - 2026-04-16
+
+### Changed
+- **Cotización (vista):** Columna **Imágenes** de nuevo en la tabla de líneas (como en edición): miniaturas enlazadas en la misma fila; se quitó la fila extra debajo de cada línea. Ajuste de anchos de columna y pie de tabla.
+
 ## [3.113.89-STABLE] - 2026-04-16
 
 ### Fixed

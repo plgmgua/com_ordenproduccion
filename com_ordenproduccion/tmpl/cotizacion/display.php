@@ -448,6 +448,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                     <col class="col-cotizacion-desc">
                     <col class="col-cotizacion-unit">
                     <col class="col-cotizacion-sub">
+                    <col class="col-cotizacion-images">
                     <col class="col-cotizacion-action">
                 </colgroup>
                 <?php else : ?>
@@ -457,6 +458,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                     <col class="col-cotizacion-desc">
                     <col class="col-cotizacion-unit">
                     <col class="col-cotizacion-sub">
+                    <col class="col-cotizacion-images">
                 </colgroup>
                 <?php endif; ?>
                 <thead>
@@ -466,6 +468,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <th class="col-cotizacion-desc"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th class="col-cotizacion-unit text-end text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th class="col-cotizacion-sub text-end text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th class="col-cotizacion-images text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
                         <?php if ($quotationConfirmed) : ?>
                         <th class="col-cotizacion-action text-center text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                         <?php endif; ?>
@@ -494,7 +497,6 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             }
                             $thumbPaths[] = $norm;
                         }
-                        $lineColspan = $quotationConfirmed ? 6 : 5;
                     ?>
                         <tr>
                             <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
@@ -502,6 +504,21 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             <td class="col-cotizacion-desc"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
                             <td class="col-cotizacion-unit text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
                             <td class="col-cotizacion-sub text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
+                            <td class="col-cotizacion-images align-middle cotizacion-line-images-cell">
+                                <?php if ($thumbPaths !== []) : ?>
+                                    <div class="cotizacion-display-line-images d-flex flex-wrap gap-1 align-items-center">
+                                        <?php foreach ($thumbPaths as $rel) :
+                                            $u = Uri::root() . ltrim($rel, '/');
+                                            ?>
+                                            <a href="<?php echo htmlspecialchars($u, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" class="cotizacion-display-line-image-link d-inline-block">
+                                                <img src="<?php echo htmlspecialchars($u, ENT_QUOTES, 'UTF-8'); ?>" alt="" class="cotizacion-display-line-image-thumb rounded border" loading="lazy" decoding="async"/>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else : ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
                             <?php if ($quotationConfirmed) : ?>
                             <td class="col-cotizacion-action text-center align-middle">
                                 <?php if ($preId > 0) : ?>
@@ -521,25 +538,6 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             </td>
                             <?php endif; ?>
                         </tr>
-                        <?php if ($thumbPaths !== []) : ?>
-                        <tr class="cotizacion-line-thumbs-row">
-                            <td class="cotizacion-line-thumbs-cell" colspan="<?php echo (int) $lineColspan; ?>">
-                                <div class="cotizacion-line-thumbs-label small text-muted mb-1">
-                                    <i class="fas fa-images" aria-hidden="true"></i>
-                                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes')); ?>
-                                </div>
-                                <div class="cotizacion-line-thumbs d-flex flex-wrap align-items-center gap-2">
-                                    <?php foreach ($thumbPaths as $rel) :
-                                        $u = Uri::root() . ltrim($rel, '/');
-                                        ?>
-                                        <a href="<?php echo htmlspecialchars($u, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" class="cotizacion-line-thumb-link">
-                                            <img src="<?php echo htmlspecialchars($u, ENT_QUOTES, 'UTF-8'); ?>" alt="" class="cotizacion-line-thumb-img rounded border shadow-sm" loading="lazy" decoding="async"/>
-                                        </a>
-                                    <?php endforeach; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endif; ?>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
@@ -548,9 +546,11 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
                         <td></td>
+                        <td></td>
                         <?php else : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                        <td></td>
                         <?php endif; ?>
                     </tr>
                 </tfoot>
