@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.84-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra (cabecera):** El título baja **10 mm** más. Título y fecha comparten el mismo bloque alineado a la derecha (`Cell` de ancho casi página con `R`, margen derecho 10 mm) para que el texto quede alineado con el borde útil. La **fecha** va **inmediatamente debajo** del título (separación 0,5 mm). La fecha en páginas de continuación usa el mismo criterio de margen derecho.
+
 ## [3.113.83-STABLE] - 2026-04-16
 
 ### Changed
