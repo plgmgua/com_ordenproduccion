@@ -833,6 +833,316 @@ class SettingsModel extends BaseModel
     }
 
     /**
+     * Add orden de compra numbering columns when missing (e.g. before DB updater runs).
+     *
+     * @return  void
+     *
+     * @since   3.113.96
+     */
+    protected function ensureOrdenCompraNumberingColumns(): void
+    {
+        try {
+            $db   = Factory::getDbo();
+            $cols = array_change_key_case((array) $db->getTableColumns('#__ordenproduccion_settings'), CASE_LOWER);
+
+            if (isset($cols['next_orden_compra_number'], $cols['orden_compra_prefix'], $cols['orden_compra_number_width'])) {
+                return;
+            }
+
+            $db->setQuery(
+                'ALTER TABLE ' . $db->quoteName('#__ordenproduccion_settings')
+                . ' ADD COLUMN ' . $db->quoteName('next_orden_compra_number') . ' int(11) NOT NULL DEFAULT 1,'
+                . ' ADD COLUMN ' . $db->quoteName('orden_compra_prefix') . " varchar(10) NOT NULL DEFAULT 'ORC',"
+                . ' ADD COLUMN ' . $db->quoteName('orden_compra_number_width') . ' tinyint(3) unsigned NOT NULL DEFAULT 5'
+            );
+            $db->execute();
+        } catch (\Throwable $e) {
+            // Table or column missing / already migrated.
+        }
+    }
+
+    /**
+     * @return  \stdClass  next_orden_compra_number, orden_compra_prefix, orden_compra_number_width
+     *
+     * @since   3.113.96
+     */
+    public function getOrdenCompraNumberingRow(): \stdClass
+    {
+        $this->ensureSettingsTableExists();
+        $this->ensureOrdenCompraNumberingColumns();
+        $row = $this->getSavedSettings();
+
+        if (!$row) {
+            return (object) [
+                'next_orden_compra_number'   => 1,
+                'orden_compra_prefix'        => 'ORC',
+                'orden_compra_number_width'  => 5,
+            ];
+        }
+
+        $w = (int) ($row->orden_compra_number_width ?? 5);
+
+        return (object) [
+            'next_orden_compra_number'  => (int) ($row->next_orden_compra_number ?? 1),
+            'orden_compra_prefix'       => (string) ($row->orden_compra_prefix ?? 'ORC'),
+            'orden_compra_number_width' => max(3, min(8, $w > 0 ? $w : 5)),
+        ];
+    }
+
+    /**
+     * @since   3.113.96
+     */
+    public function saveOrdenCompraNumbering(int $nextNumber, string $ordenCompraPrefix, int $numberWidth): bool
+    {
+        if ($nextNumber < 1 || $nextNumber > 999999) {
+            return false;
+        }
+
+        $ordenCompraPrefix = trim($ordenCompraPrefix);
+
+        if ($ordenCompraPrefix === '' || \strlen($ordenCompraPrefix) > 10) {
+            return false;
+        }
+
+        $numberWidth = max(3, min(8, $numberWidth));
+
+        try {
+            $this->ensureSettingsTableExists();
+            $this->ensureOrdenCompraNumberingColumns();
+            $db = Factory::getDbo();
+
+            $query = $db->getQuery(true)
+                ->select('id')
+                ->from($db->quoteName('#__ordenproduccion_settings'))
+                ->where($db->quoteName('id') . ' = 1');
+            $db->setQuery($query);
+            $exists = (int) $db->loadResult() > 0;
+
+            if ($exists) {
+                $q = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_orden_compra_number') . ' = ' . $nextNumber)
+                    ->set($db->quoteName('orden_compra_prefix') . ' = ' . $db->quote($ordenCompraPrefix))
+                    ->set($db->quoteName('orden_compra_number_width') . ' = ' . $numberWidth)
+                    ->where($db->quoteName('id') . ' = 1');
+                $db->setQuery($q);
+                $db->execute();
+            } else {
+                $insertQuery = $db->getQuery(true)
+                    ->insert($db->quoteName('#__ordenproduccion_settings'))
+                    ->columns([
+                        'id',
+                        'next_order_number',
+                        'order_prefix',
+                        'order_format',
+                        'auto_increment',
+                        'items_per_page',
+                        'show_creation_date',
+                        'show_modification_date',
+                        'default_order_status',
+                        'next_orden_compra_number',
+                        'orden_compra_prefix',
+                        'orden_compra_number_width',
+                    ])
+                    ->values(
+                        '1, 1000, ' . $db->quote('ORD') . ', ' . $db->quote('PREFIX-NUMBER')
+                        . ', 1, 20, 1, 1, ' . $db->quote('nueva') . ', '
+                        . $nextNumber . ', ' . $db->quote($ordenCompraPrefix) . ', ' . $numberWidth
+                    );
+                $db->setQuery($insertQuery);
+                $db->execute();
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Set next_orden_compra_number from MAX existing `number` for current prefix pattern + 1.
+     *
+     * @return  int  New counter or 0 on failure
+     *
+     * @since   3.113.96
+     */
+    public function resyncOrdenCompraCounter(): int
+    {
+        try {
+            $this->ensureSettingsTableExists();
+            $this->ensureOrdenCompraNumberingColumns();
+            $db = Factory::getDbo();
+
+            $saved  = $this->getSavedSettings();
+            $prefix = $saved ? trim((string) ($saved->orden_compra_prefix ?? 'ORC')) : 'ORC';
+            $prefix = $prefix !== '' ? $prefix : 'ORC';
+            $like   = $prefix . '-%';
+
+            $q = 'SELECT MAX(CAST(SUBSTRING_INDEX(' . $db->quoteName('number') . ", '-', -1) AS UNSIGNED)) "
+                . 'FROM ' . $db->quoteName('#__ordenproduccion_orden_compra')
+                . ' WHERE ' . $db->quoteName('number') . ' LIKE ' . $db->quote($like);
+            $db->setQuery($q);
+            $maxNum     = (int) $db->loadResult();
+            $newCounter = max($maxNum + 1, 1);
+
+            if ($saved === null) {
+                $w = 5;
+
+                return $this->saveOrdenCompraNumbering($newCounter, $prefix, $w) ? $newCounter : 0;
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_orden_compra_number') . ' = ' . $newCounter)
+                    ->where($db->quoteName('id') . ' = 1')
+            );
+            $db->execute();
+
+            return $newCounter;
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Allocate next orden de compra `number` (transaction + collision skip on #__ordenproduccion_orden_compra).
+     *
+     * @since   3.113.96
+     */
+    public function getNextOrdenCompraNumber(): string
+    {
+        try {
+            $db = Factory::getDbo();
+            $this->ensureSettingsTableExists();
+            $this->ensureOrdenCompraNumberingColumns();
+            $db->transactionStart();
+
+            try {
+                $query = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('next_orden_compra_number'),
+                        $db->quoteName('orden_compra_prefix'),
+                        $db->quoteName('orden_compra_number_width'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_settings'))
+                    ->where($db->quoteName('id') . ' = 1')
+                    ->setLimit(1);
+                $db->setQuery($query . ' FOR UPDATE');
+                $settings = $db->loadObject();
+
+                if (!$settings) {
+                    $insertQuery = $db->getQuery(true)
+                        ->insert($db->quoteName('#__ordenproduccion_settings'))
+                        ->columns([
+                            'id',
+                            'next_order_number',
+                            'order_prefix',
+                            'order_format',
+                            'auto_increment',
+                            'items_per_page',
+                            'show_creation_date',
+                            'show_modification_date',
+                            'default_order_status',
+                            'next_orden_compra_number',
+                            'orden_compra_prefix',
+                            'orden_compra_number_width',
+                        ])
+                        ->values(
+                            '1, 1000, ' . $db->quote('ORD') . ', ' . $db->quote('PREFIX-NUMBER')
+                            . ', 1, 20, 1, 1, ' . $db->quote('nueva') . ', 1, '
+                            . $db->quote('ORC') . ', 5'
+                        );
+                    $db->setQuery($insertQuery);
+                    $db->execute();
+                    $settings = (object) [
+                        'next_orden_compra_number'  => 1,
+                        'orden_compra_prefix'       => 'ORC',
+                        'orden_compra_number_width' => 5,
+                    ];
+                }
+
+                $prefix = trim((string) ($settings->orden_compra_prefix ?? 'ORC'));
+                if ($prefix === '') {
+                    $prefix = 'ORC';
+                }
+                $width = max(3, min(8, (int) ($settings->orden_compra_number_width ?? 5)));
+                $n     = (int) ($settings->next_orden_compra_number ?? 1);
+                if ($n < 1) {
+                    $n = 1;
+                }
+
+                $build = static function (int $num) use ($prefix, $width): string {
+                    return $prefix . '-' . str_pad((string) $num, $width, '0', STR_PAD_LEFT);
+                };
+
+                $candidate    = $build($n);
+                $maxAttempts  = 1000;
+                $attempts     = 0;
+
+                while ($attempts < $maxAttempts) {
+                    $existsQuery = $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+                        ->where($db->quoteName('number') . ' = ' . $db->quote($candidate));
+                    $db->setQuery($existsQuery);
+
+                    if ((int) $db->loadResult() === 0) {
+                        break;
+                    }
+                    $n++;
+                    $candidate = $build($n);
+                    $attempts++;
+                }
+
+                $updateQuery = $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_settings'))
+                    ->set($db->quoteName('next_orden_compra_number') . ' = ' . (int) ($n + 1))
+                    ->set($db->quoteName('orden_compra_prefix') . ' = ' . $db->quote($prefix))
+                    ->set($db->quoteName('orden_compra_number_width') . ' = ' . $width)
+                    ->where($db->quoteName('id') . ' = 1');
+                $db->setQuery($updateQuery);
+                $db->execute();
+                $db->transactionCommit();
+
+                return $candidate;
+            } catch (\Throwable $e) {
+                $db->transactionRollback();
+                throw $e;
+            }
+        } catch (\Throwable $e) {
+            Factory::getApplication()->enqueueMessage(
+                'Error generating orden de compra number: ' . $e->getMessage(),
+                'error'
+            );
+
+            return 'ORC-' . date('YmdHis');
+        }
+    }
+
+    /**
+     * Preview next orden de compra number (no increment).
+     *
+     * @since   3.113.96
+     */
+    public function getNextOrdenCompraNumberPreview(): string
+    {
+        try {
+            $row = $this->getOrdenCompraNumberingRow();
+            $n   = (int) $row->next_orden_compra_number;
+            if ($n < 1) {
+                $n = 1;
+            }
+            $prefix = trim((string) $row->orden_compra_prefix) ?: 'ORC';
+            $w      = (int) $row->orden_compra_number_width;
+
+            return $prefix . '-' . str_pad((string) $n, $w, '0', STR_PAD_LEFT);
+        } catch (\Throwable $e) {
+            return 'ORC-' . date('YmdHis');
+        }
+    }
+
+    /**
      * Method to get the model state.
      *
      * @param   string  $property  Optional property name

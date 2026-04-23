@@ -827,6 +827,132 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save orden de compra numbering (Ajustes / Productos → Numeración).
+     *
+     * @return  void
+     *
+     * @since   3.113.96
+     */
+    public function saveOrdenCompraNumbering()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $returnSubtab = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform_oc', [], 'array');
+        $next  = isset($jform['next_orden_compra_number']) ? (int) $jform['next_orden_compra_number'] : 0;
+        $prefix = isset($jform['orden_compra_prefix']) ? trim((string) $jform['orden_compra_prefix']) : '';
+        $width = isset($jform['orden_compra_number_width']) ? (int) $jform['orden_compra_number_width'] : 5;
+
+        if ($next < 1 || $next > 999999) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_INVALID_NEXT'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        if ($prefix === '' || \strlen($prefix) > 10) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_INVALID_PREFIX'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        if ($width < 3 || $width > 8) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_INVALID_WIDTH'), 'error');
+            $app->redirect($returnSubtab);
+
+            return;
+        }
+
+        $settingsModel = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+
+        if ($settingsModel->saveOrdenCompraNumbering($next, $prefix, $width)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SAVED'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), 'error');
+        }
+
+        $returnUrl = $app->input->post->getString('return_url', '');
+        if ($returnUrl !== '' && strpos($returnUrl, 'option=com_ordenproduccion') !== false) {
+            $app->redirect($returnUrl);
+        } else {
+            $app->redirect($returnSubtab);
+        }
+    }
+
+    /**
+     * Resync orden de compra counter from existing `number` values.
+     *
+     * @return  void
+     *
+     * @since   3.113.96
+     */
+    public function resyncOrdenCompraNumbering()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $returnSubtab = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes', false);
+        $returnUrl    = $app->input->post->getString('return_url', '');
+        $redirectOk   = ($returnUrl !== '' && strpos($returnUrl, 'option=com_ordenproduccion') !== false) ? $returnUrl : $returnSubtab;
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectOk);
+
+            return;
+        }
+
+        $settingsModel = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+        $newCounter    = $settingsModel->resyncOrdenCompraCounter();
+
+        if ($newCounter > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SYNC_OK', $newCounter), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SYNC_FAIL'), 'error');
+        }
+
+        $app->redirect($redirectOk);
+    }
+
+    /**
      * Save approval workflow definitions (Ajustes → Flujos de aprobaciones).
      *
      * @return  void

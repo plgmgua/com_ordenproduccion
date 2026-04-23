@@ -37,17 +37,22 @@ class OrdencompraModel extends BaseDatabaseModel
 
     public function getNextNumber(): string
     {
-        $db = $this->getDatabase();
-        $query = $db->getQuery(true)
-            ->select('MAX(CAST(SUBSTRING(' . $db->quoteName('number') . ', 5) AS UNSIGNED))')
-            ->from($db->quoteName('#__ordenproduccion_orden_compra'))
-            ->where($db->quoteName('number') . ' LIKE ' . $db->quote('ORC-%'));
+        try {
+            $settingsModel = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
 
-        $db->setQuery($query);
-        $max  = (int) $db->loadResult();
-        $next = $max + 1;
+            return $settingsModel->getNextOrdenCompraNumber();
+        } catch (\Throwable $e) {
+            $db = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('MAX(CAST(SUBSTRING(' . $db->quoteName('number') . ', 5) AS UNSIGNED))')
+                ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+                ->where($db->quoteName('number') . ' LIKE ' . $db->quote('ORC-%'));
+            $db->setQuery($query);
+            $max  = (int) $db->loadResult();
+            $next = $max + 1;
 
-        return 'ORC-' . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+            return 'ORC-' . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        }
     }
 
     /**

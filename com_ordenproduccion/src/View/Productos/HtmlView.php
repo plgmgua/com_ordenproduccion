@@ -225,6 +225,14 @@ class HtmlView extends BaseHtmlView
     protected $workOrderNumbering = null;
 
     /**
+     * Orden de compra numbering for section=ajustes, tab=numeracion_ordenes.
+     *
+     * @var    \stdClass|null
+     * @since  3.113.96
+     */
+    protected $ordenCompraNumbering = null;
+
+    /**
      * Envios list (for section=envios)
      *
      * @var    array
@@ -390,10 +398,12 @@ class HtmlView extends BaseHtmlView
 
         if ($this->section === 'ajustes' && $this->activeTab === 'numeracion_ordenes') {
             try {
-                $settingsModel            = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
-                $this->workOrderNumbering = $settingsModel->getWorkOrderNumberingRow();
+                $settingsModel              = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+                $this->workOrderNumbering   = $settingsModel->getWorkOrderNumberingRow();
+                $this->ordenCompraNumbering = $settingsModel->getOrdenCompraNumberingRow();
             } catch (\Throwable $e) {
-                $this->workOrderNumbering = null;
+                $this->workOrderNumbering   = null;
+                $this->ordenCompraNumbering = null;
             }
             $this->returnUrlAjustesCotizacion = Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=numeracion_ordenes', false);
         }

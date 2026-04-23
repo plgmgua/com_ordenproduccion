@@ -35,6 +35,17 @@ $format   = (string) ($row->order_format ?? 'PREFIX-NUMBER');
 $preview  = (new SettingsModel())->getNextOrderNumberPreview();
 $resyncUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.resyncWorkOrderNumbering', false);
 $saveUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveWorkOrderNumbering', false);
+
+$ocRow = $this->ordenCompraNumbering ?? null;
+if (!\is_object($ocRow)) {
+    $ocRow = (new SettingsModel())->getOrdenCompraNumberingRow();
+}
+$ocNext   = (int) ($ocRow->next_orden_compra_number ?? 1);
+$ocPrefix = (string) ($ocRow->orden_compra_prefix ?? 'ORC');
+$ocWidth  = (int) ($ocRow->orden_compra_number_width ?? 5);
+$ocPreview = (new SettingsModel())->getNextOrdenCompraNumberPreview();
+$ocSaveUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveOrdenCompraNumbering', false);
+$ocResyncUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.resyncOrdenCompraNumbering', false);
 ?>
 <div class="card">
     <div class="card-header">
@@ -107,6 +118,74 @@ $saveUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.
         </form>
     </div>
 </div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h2 class="card-title mb-0">
+            <i class="fas fa-file-invoice-dollar"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_TITLE'); ?>
+        </h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-4">
+            <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_DESC'); ?>
+        </p>
+
+        <form action="<?php echo htmlspecialchars($ocSaveUrl, ENT_QUOTES, 'UTF-8'); ?>" method="post" id="ajustes-numeracion-oc-form" class="mb-4">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <?php if (!empty($this->returnUrlAjustesCotizacion)) : ?>
+                <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($this->returnUrlAjustesCotizacion, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endif; ?>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="jform_oc_next_orden_compra_number" class="form-label fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_NEXT_LABEL'); ?></label>
+                    <input type="number" name="jform_oc[next_orden_compra_number]" id="jform_oc_next_orden_compra_number" class="form-control" min="1" max="999999" required
+                           value="<?php echo (int) $ocNext; ?>">
+                    <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_NEXT_DESC'); ?></div>
+                </div>
+                <div class="col-md-4">
+                    <label for="jform_oc_orden_compra_prefix" class="form-label fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_PREFIX_LABEL'); ?></label>
+                    <input type="text" name="jform_oc[orden_compra_prefix]" id="jform_oc_orden_compra_prefix" class="form-control" maxlength="10" required
+                           value="<?php echo htmlspecialchars($ocPrefix, ENT_QUOTES, 'UTF-8'); ?>">
+                    <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_PREFIX_DESC'); ?></div>
+                </div>
+                <div class="col-md-4">
+                    <label for="jform_oc_orden_compra_number_width" class="form-label fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_WIDTH_LABEL'); ?></label>
+                    <input type="number" name="jform_oc[orden_compra_number_width]" id="jform_oc_orden_compra_number_width" class="form-control" min="3" max="8" required
+                           value="<?php echo (int) $ocWidth; ?>">
+                    <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_WIDTH_DESC'); ?></div>
+                </div>
+            </div>
+
+            <p class="mt-3 mb-2 small">
+                <strong><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_PREVIEW_LABEL'); ?>:</strong>
+                <span id="numeracion-oc-preview" class="text-primary"><?php echo htmlspecialchars($ocPreview, ENT_QUOTES, 'UTF-8'); ?></span>
+            </p>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> <?php echo Text::_('JSAVE'); ?>
+                </button>
+            </div>
+        </form>
+
+        <hr class="my-4">
+
+        <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SYNC_TITLE'); ?></h3>
+        <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SYNC_DESC'); ?></p>
+        <form action="<?php echo htmlspecialchars($ocResyncUrl, ENT_QUOTES, 'UTF-8'); ?>" method="post"
+              onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SYNC_CONFIRM')); ?>);">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <?php if (!empty($this->returnUrlAjustesCotizacion)) : ?>
+                <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($this->returnUrlAjustesCotizacion, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endif; ?>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-sync-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_OC_SYNC_BTN'); ?>
+            </button>
+        </form>
+    </div>
+</div>
 <script>
 (function () {
     function padNum(n) {
@@ -140,5 +219,25 @@ $saveUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.
     if (p) p.addEventListener('input', refresh);
     if (f) f.addEventListener('change', refresh);
     if (o) o.addEventListener('input', refresh);
+
+    function padWidth(num, w) {
+        var n = Math.max(0, parseInt(num, 10) || 0);
+        var width = Math.max(3, Math.min(8, parseInt(w, 10) || 5));
+        var s = String(n);
+        while (s.length < width) { s = '0' + s; }
+        return s;
+    }
+    var ocp = document.getElementById('jform_oc_orden_compra_prefix');
+    var ocw = document.getElementById('jform_oc_orden_compra_number_width');
+    var ocn = document.getElementById('jform_oc_next_orden_compra_number');
+    var ocOut = document.getElementById('numeracion-oc-preview');
+    function refreshOc() {
+        if (!ocOut || !ocp || !ocw || !ocn) return;
+        var pref = (ocp.value || 'ORC').trim() || 'ORC';
+        ocOut.textContent = pref + '-' + padWidth(ocn.value, ocw.value);
+    }
+    if (ocp) ocp.addEventListener('input', refreshOc);
+    if (ocw) ocw.addEventListener('input', refreshOc);
+    if (ocn) ocn.addEventListener('input', refreshOc);
 })();
 </script>

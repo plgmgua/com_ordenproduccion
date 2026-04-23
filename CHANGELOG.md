@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.96-STABLE] - 2026-04-16
+
+### Added
+- **Numeración órdenes de compra:** Campos en `#__ordenproduccion_settings` (`next_orden_compra_number`, `orden_compra_prefix`, `orden_compra_number_width`), migración `3.113.96.sql`, asignación transaccional en `SettingsModel::getNextOrdenCompraNumber()` con salto de duplicados, sincronización desde órdenes existentes, y segunda tarjeta en la misma pestaña **Numeración órdenes** (Administración de Imprenta y Control de ventas).
+- Tareas `administracion.saveOrdenCompraNumbering` y `administracion.resyncOrdenCompraNumbering`.
+
+### Changed
+- **`OrdencompraModel::getNextNumber()`** usa la configuración anterior; si falla, mantiene el cálculo por MAX sobre `ORC-%`.
+
 ## [3.113.95-STABLE] - 2026-04-16
 
 ### Added

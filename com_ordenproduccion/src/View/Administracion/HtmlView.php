@@ -338,6 +338,14 @@ class HtmlView extends BaseHtmlView
     protected $workOrderNumbering = null;
 
     /**
+     * Orden de compra numbering for ajustes > numeracion_ordenes.
+     *
+     * @var    \stdClass|null
+     * @since  3.113.96
+     */
+    protected $ordenCompraNumbering = null;
+
+    /**
      * Solicitud de cotización a proveedor: templates per channel (Ajustes → Solicitud de cotización).
      *
      * @var    array<string, \stdClass|null>
@@ -1616,13 +1624,16 @@ class HtmlView extends BaseHtmlView
             }
         }
 
-        $this->workOrderNumbering = null;
+        $this->workOrderNumbering   = null;
+        $this->ordenCompraNumbering = null;
         if ($activeTab === 'ajustes' && $activeSubTab === 'numeracion_ordenes') {
             try {
-                $settingsModel            = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
-                $this->workOrderNumbering = $settingsModel->getWorkOrderNumberingRow();
+                $settingsModel              = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+                $this->workOrderNumbering   = $settingsModel->getWorkOrderNumberingRow();
+                $this->ordenCompraNumbering = $settingsModel->getOrdenCompraNumberingRow();
             } catch (\Throwable $e) {
-                $this->workOrderNumbering = null;
+                $this->workOrderNumbering   = null;
+                $this->ordenCompraNumbering = null;
             }
         }
 
