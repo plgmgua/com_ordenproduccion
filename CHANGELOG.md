@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.77-STABLE] - 2026-04-16
+
+### Fixed
+- **PDF aprobado combinado:** La franja CMY inferior en páginas del proveedor usaba `Cell()` de FPDF junto al borde de página; el salto automático de página insertaba **una hoja en blanco** y el sello **página/total** quedaba en la página equivocada. Las franjas se dibujan ahora con `Rect()` (sin disparar el page break). El sello usa fondo `Rect` + `Cell` sin relleno para seguir evitando cortes raros.
+- **Totales de página:** `total` en el sello usa el conteo real de páginas del OC en el merge (`$n`) más el conteo del PDF incrustado (`countPdfPages`); se registra advertencia si precarga y merge difieren.
+
 ## [3.113.76-STABLE] - 2026-04-16
 
 ### Changed

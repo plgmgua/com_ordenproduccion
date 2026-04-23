@@ -141,8 +141,7 @@ class OrdencompraApprovedPdfBuilder
 
         $nOcPages = 0;
         try {
-            $cnt = new Fpdi('P', 'mm', self::pageSizeMm());
-            $nOcPages = (int) $cnt->setSourceFile($tmpOcPdf);
+            $nOcPages = self::countPdfPages($tmpOcPdf);
         } catch (\Throwable $e) {
             @unlink($tmpOcPdf);
             Log::add('OrdencompraApprovedPdfBuilder: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
@@ -153,23 +152,30 @@ class OrdencompraApprovedPdfBuilder
         $nVendorPdf = 0;
         if ($vendorAbs !== null && $vendorKind === 'pdf' && is_file($vendorAbs)) {
             try {
-                $cntV = new Fpdi('P', 'mm', self::pageSizeMm());
-                $nVendorPdf = (int) $cntV->setSourceFile($vendorAbs);
+                $nVendorPdf = self::countPdfPages($vendorAbs);
             } catch (\Throwable $e) {
                 $nVendorPdf = 0;
             }
         }
         $nImgPage = ($vendorAbs !== null && $vendorKind === 'image' && is_file((string) $vendorAbs)) ? 1 : 0;
-        $totalPages = $nOcPages + $nVendorPdf + $nImgPage;
-        if ($totalPages < 1) {
-            $totalPages = 1;
-        }
 
         $pageNum = 0;
 
         try {
             $pdf = new Fpdi('P', 'mm', self::pageSizeMm());
             $n   = (int) $pdf->setSourceFile($tmpOcPdf);
+            if ($n !== $nOcPages) {
+                Log::add(
+                    \sprintf(
+                        'OrdencompraApprovedPdfBuilder: OC page count mismatch (precount %d, merge %d); using merge count for loops.',
+                        $nOcPages,
+                        $n
+                    ),
+                    Log::WARNING,
+                    'com_ordenproduccion'
+                );
+            }
+            $totalPages = max(1, $n + $nVendorPdf + $nImgPage);
             for ($i = 1; $i <= $n; $i++) {
                 $tpl = $pdf->importPage($i);
                 $pdf->AddPage('P', self::pageSizeMm());
@@ -181,6 +187,17 @@ class OrdencompraApprovedPdfBuilder
 
             if ($vendorAbs !== null && $vendorKind === 'pdf' && $nVendorPdf > 0) {
                 $nv = (int) $pdf->setSourceFile($vendorAbs);
+                if ($nv !== $nVendorPdf) {
+                    Log::add(
+                        \sprintf(
+                            'OrdencompraApprovedPdfBuilder: vendor PDF page count mismatch (precount %d, merge %d).',
+                            $nVendorPdf,
+                            $nv
+                        ),
+                        Log::WARNING,
+                        'com_ordenproduccion'
+                    );
+                }
                 for ($j = 1; $j <= $nv; $j++) {
                     $tpl = $pdf->importPage($j);
                     $pdf->AddPage('P', self::pageSizeMm());
@@ -212,6 +229,18 @@ class OrdencompraApprovedPdfBuilder
         $ocModel->setApprovedPdfPath($ordenCompraId, $outRel);
 
         return true;
+    }
+
+    /**
+     * Reliable page count for merge totals (separate FPDI instance; same parser as merge).
+     *
+     * @throws  \Throwable
+     */
+    private static function countPdfPages(string $absolutePath): int
+    {
+        $reader = new Fpdi('P', 'mm', self::pageSizeMm());
+
+        return (int) $reader->setSourceFile($absolutePath);
     }
 
     /**
@@ -294,15 +323,34 @@ class OrdencompraApprovedPdfBuilder
 
     /**
      * CMY brand bars at top and bottom of the current page (vendor quote / image pages in the merged PDF).
+     *
+     * Uses Rect() instead of Cell(): FPDF Cell() enforces auto page-break when y+h exceeds PageBreakTrigger,
+     * which fired for the bottom bar near the page edge and inserted an extra blank page; overlays (page stamp)
+     * then landed on the wrong page.
      */
     private static function drawCmyEdgeBars(Fpdi $pdf): void
     {
         $h      = self::CMY_BAR_H_MM;
-        $thirdW = $pdf->GetPageWidth() / 3.0;
-        $pdf->SetXY(0, 0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $h, 1);
-        $pdf->SetXY(0, $pdf->GetPageHeight() - $h);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $h, 1);
+        $pw     = $pdf->GetPageWidth();
+        $ph     = $pdf->GetPageHeight();
+        $thirdW = $pw / 3.0;
+        $yB     = $ph - $h;
+
+        $pdf->SetFillColor(0, 159, 227);
+        $pdf->Rect(0, 0, $thirdW, $h, 'F');
+        $pdf->SetFillColor(255, 237, 0);
+        $pdf->Rect($thirdW, 0, $thirdW, $h, 'F');
+        $pdf->SetFillColor(230, 0, 126);
+        $pdf->Rect(2 * $thirdW, 0, $thirdW, $h, 'F');
+
+        $pdf->SetFillColor(0, 159, 227);
+        $pdf->Rect(0, $yB, $thirdW, $h, 'F');
+        $pdf->SetFillColor(255, 237, 0);
+        $pdf->Rect($thirdW, $yB, $thirdW, $h, 'F');
+        $pdf->SetFillColor(230, 0, 126);
+        $pdf->Rect(2 * $thirdW, $yB, $thirdW, $h, 'F');
+
+        $pdf->SetFillColor(255, 255, 255);
     }
 
     /**
@@ -321,11 +369,13 @@ class OrdencompraApprovedPdfBuilder
         $pdf->SetFont('Helvetica', 'B', 11);
         $pw    = $pdf->GetPageWidth();
         $cellW = 28.0;
+        $cellH = 7.0;
         $x     = $pw - 10.0 - $cellW;
         $y     = 8.0;
-        $pdf->SetXY($x, $y);
         $pdf->SetFillColor(255, 255, 255);
         $pdf->SetTextColor(40, 40, 40);
-        $pdf->Cell($cellW, 7, $txt, 0, 0, 'R', true);
+        $pdf->Rect($x, $y, $cellW, $cellH, 'F');
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($cellW, $cellH, $txt, 0, 0, 'R', false);
     }
 }
