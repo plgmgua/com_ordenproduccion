@@ -134,7 +134,8 @@ class ApprovalWorkflowService
             ->where($this->db->quoteName('s.status') . ' = ' . $this->db->quote('pending'))
             ->where($this->db->quoteName('r.status') . ' = ' . $this->db->quote('pending'))
             ->where($this->db->quoteName('s.step_number') . ' = ' . $this->db->quoteName('r.current_step_number'))
-            ->order($this->db->quoteName('r.created') . ' DESC');
+            ->order($this->db->quoteName('r.created') . ' ASC')
+            ->order($this->db->quoteName('r.id') . ' ASC');
 
         $this->db->setQuery($q);
 

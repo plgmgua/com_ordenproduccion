@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.56-STABLE] - 2026-04-22
+
+### Changed
+- **Aprobaciones pendientes (servicio + módulo):** `getMyPendingApprovalRows` ordena por **`r.created` ASC** (más antigua primero) y `r.id` ASC. Enlace **orden de compra** en `RecordLink`; tipo abreviado y número ORC en el módulo.
+- **Vista orden de compra (detalle):** Visor del **adjunto del proveedor** (PDF o imagen) debajo de la tabla de líneas, desde el evento vinculado.
+
+### Updated
+- **mod_ordop_pending_approvals** 1.2.9-STABLE: soporte visual y de enlace para flujos `orden_compra`.
+
 ## [3.113.55-STABLE] - 2026-04-22
 
 ### Added

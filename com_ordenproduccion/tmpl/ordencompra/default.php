@@ -123,6 +123,33 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                 </tbody>
             </table>
         </div>
+        <?php
+        $vqUrl  = isset($this->vendorQuoteUrl) ? trim((string) $this->vendorQuoteUrl) : '';
+        $vqKind = isset($this->vendorQuoteKind) ? strtolower(trim((string) $this->vendorQuoteKind)) : '';
+        ?>
+        <?php if ($vqUrl !== '' && ($vqKind === 'pdf' || $vqKind === 'image')) : ?>
+        <section class="ordencompra-vendor-quote-preview mt-4 pt-3 border-top" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_TITLE'), ENT_QUOTES, 'UTF-8'); ?>">
+            <h2 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_TITLE'); ?></h2>
+            <?php if ($vqKind === 'pdf') : ?>
+            <div class="border rounded overflow-hidden bg-light shadow-sm">
+                <iframe src="<?php echo htmlspecialchars($vqUrl, ENT_QUOTES, 'UTF-8'); ?>#toolbar=1"
+                        class="w-100 border-0 d-block"
+                        style="min-height: 60vh;"
+                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_PREVIEW_TITLE'), ENT_QUOTES, 'UTF-8'); ?>"></iframe>
+            </div>
+            <?php else : ?>
+            <div class="text-center bg-light rounded border p-2">
+                <img src="<?php echo htmlspecialchars($vqUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                     alt=""
+                     class="img-fluid rounded shadow-sm"
+                     style="max-height: 85vh; width: auto;">
+            </div>
+            <?php endif; ?>
+            <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DETAIL_VENDOR_QUOTE_HINT'); ?></p>
+        </section>
+        <?php elseif ((int) ($item->vendor_quote_event_id ?? 0) > 0) : ?>
+        <p class="small text-muted mt-4 pt-3 border-top mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DETAIL_VENDOR_QUOTE_NONE'); ?></p>
+        <?php endif; ?>
     <?php else : ?>
         <div class="table-responsive">
             <table class="table table-striped table-sm align-middle">

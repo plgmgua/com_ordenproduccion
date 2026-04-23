@@ -22,6 +22,7 @@ $entityLabel = static function (string $entityType): string {
     $map        = [
         'cotizacion_confirmation' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_CONFIRMATION',
         'orden_status'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_STATUS',
+        'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
@@ -76,18 +77,25 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         $isDiscount     = $etype === 'solicitud_descuento';
                         $isPreCotVendor = $etype === 'solicitud_cotizacion';
                         $isPaymentProof = $etype === 'payment_proof';
+                        $isOrdenCompra  = $etype === 'orden_compra';
                         $tipoLabel      = $isDiscount
                             ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_DESCUENTO')
                             : ($isPreCotVendor
                                 ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_VENDOR_QUOTE')
                                 : ($isPaymentProof
                                     ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_PAGO')
-                                    : $entityLabel($etype)));
+                                    : ($isOrdenCompra
+                                        ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_ORDEN_COMPRA')
+                                        : $entityLabel($etype))));
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
                         if ($isDiscount || $isPreCotVendor) {
                             $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
                                 ? (string) $row->precotizacion_number
                                 : ($eid > 0 ? 'PRE-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT) : '');
+                        } elseif ($isOrdenCompra) {
+                            $idLabel = isset($row->orden_compra_number) && (string) $row->orden_compra_number !== ''
+                                ? (string) $row->orden_compra_number
+                                : ($eid > 0 ? '#' . $eid : '');
                         } else {
                             $idLabel = (string) $eid;
                         }

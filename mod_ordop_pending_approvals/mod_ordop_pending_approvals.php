@@ -77,6 +77,29 @@ if ($rows !== []) {
             }
         }
     }
+    $ordenCompraIds = [];
+    foreach ($rows as $row) {
+        $et = strtolower(trim((string) ($row->entity_type ?? '')));
+        if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
+            $eid = (int) ($row->entity_id ?? 0);
+            if ($eid > 0) {
+                $ordenCompraIds[$eid] = true;
+            }
+        }
+    }
+    $ordenCompraNumberById = [];
+    if ($ordenCompraIds !== []) {
+        $ocIdList = implode(',', array_map('intval', array_keys($ordenCompraIds)));
+        $qOc       = $db->getQuery(true)
+            ->select($db->quoteName('id') . ', ' . $db->quoteName('number'))
+            ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+            ->where($db->quoteName('id') . ' IN (' . $ocIdList . ')');
+        $db->setQuery($qOc);
+        $ocRows = $db->loadObjectList() ?: [];
+        foreach ($ocRows as $ocr) {
+            $ordenCompraNumberById[(int) $ocr->id] = trim((string) ($ocr->number ?? ''));
+        }
+    }
     $preCotNumberById = [];
     if ($preCotIds !== []) {
         $ids = array_values(array_filter(array_map('intval', array_keys($preCotIds)), static function ($v) {
@@ -105,6 +128,12 @@ if ($rows !== []) {
             $eid = (int) ($row->entity_id ?? 0);
             $row->precotizacion_number = $eid > 0
                 ? ($preCotNumberById[$eid] ?? $formatPreCotDisplayNumber($eid, ''))
+                : '';
+        }
+        if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
+            $eid = (int) ($row->entity_id ?? 0);
+            $row->orden_compra_number = $eid > 0
+                ? ($ordenCompraNumberById[$eid] ?? '')
                 : '';
         }
     }
