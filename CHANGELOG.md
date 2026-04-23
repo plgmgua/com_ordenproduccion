@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.60-STABLE] - 2026-04-23
+
+### Changed
+- **Orden de compra (detalle):** Bloques **Aprobar** y **Rechazar** en una misma fila (dos columnas desde `md`; en pantallas pequeñas se apilan).
+
 ## [3.113.59-STABLE] - 2026-04-23
 
 ### Changed

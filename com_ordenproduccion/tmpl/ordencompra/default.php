@@ -105,23 +105,29 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                 <?php if ($ocWf === 'pending_approval' && $canActApproval && $ocApprovalReqId > 0) : ?>
                 <div class="mt-3 pt-3 border-top ordencompra-approval-actions">
                     <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVAL_ACTIONS_INTRO'); ?></p>
-                    <form method="post" action="<?php echo htmlspecialchars($approveWfUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mb-3">
-                        <?php echo HTMLHelper::_('form.token'); ?>
-                        <input type="hidden" name="request_id" value="<?php echo $ocApprovalReqId; ?>">
-                        <input type="hidden" name="return" value="<?php echo htmlspecialchars($ocReturnB64, ENT_QUOTES, 'UTF-8'); ?>">
-                        <label class="form-label small mb-0" for="oc-approval-approve-comment"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
-                        <textarea class="form-control form-control-sm mb-2" id="oc-approval-approve-comment" name="comment" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
-                        <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
-                    </form>
-                    <form method="post" action="<?php echo htmlspecialchars($rejectWfUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                          onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_REJECT_CONFIRM')); ?>);">
-                        <?php echo HTMLHelper::_('form.token'); ?>
-                        <input type="hidden" name="request_id" value="<?php echo $ocApprovalReqId; ?>">
-                        <input type="hidden" name="return" value="<?php echo htmlspecialchars($ocReturnB64, ENT_QUOTES, 'UTF-8'); ?>">
-                        <label class="form-label small mb-0" for="oc-approval-reject-comment"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
-                        <textarea class="form-control form-control-sm mb-2" id="oc-approval-reject-comment" name="comment" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
-                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
-                    </form>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-md-6">
+                            <form method="post" action="<?php echo htmlspecialchars($approveWfUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mb-0">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="request_id" value="<?php echo $ocApprovalReqId; ?>">
+                                <input type="hidden" name="return" value="<?php echo htmlspecialchars($ocReturnB64, ENT_QUOTES, 'UTF-8'); ?>">
+                                <label class="form-label small mb-0" for="oc-approval-approve-comment"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
+                                <textarea class="form-control form-control-sm mb-2" id="oc-approval-approve-comment" name="comment" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
+                                <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
+                            </form>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <form method="post" action="<?php echo htmlspecialchars($rejectWfUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mb-0"
+                                  onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_REJECT_CONFIRM')); ?>);">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="request_id" value="<?php echo $ocApprovalReqId; ?>">
+                                <input type="hidden" name="return" value="<?php echo htmlspecialchars($ocReturnB64, ENT_QUOTES, 'UTF-8'); ?>">
+                                <label class="form-label small mb-0" for="oc-approval-reject-comment"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
+                                <textarea class="form-control form-control-sm mb-2" id="oc-approval-reject-comment" name="comment" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
+                                <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <?php endif; ?>
                 <?php if ($ocWf === 'approved') :
