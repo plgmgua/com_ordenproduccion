@@ -183,7 +183,7 @@ final class OrdencompraApprovedMailHelper
                 $attachName = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $orcNumber) . '.pdf';
                 $mailer->addAttachment($absPdf, $attachName);
             }
-            MailSendHelper::sendChecked($mailer);
+            $mailDiag = MailSendHelper::sendChecked($mailer);
 
             OutboundEmailLogHelper::log(
                 OutboundEmailLogHelper::CONTEXT_ORDENCOMPRA_APPROVED,
@@ -199,6 +199,7 @@ final class OrdencompraApprovedMailHelper
                     'vendor_email'            => $vendorEmailResolved,
                     'had_pdf_attachment'      => $absPdf !== '' ? 1 : 0,
                     'body_html'               => $body,
+                    'mail_diag'               => $mailDiag,
                 ]
             );
         } catch (\Throwable $e) {

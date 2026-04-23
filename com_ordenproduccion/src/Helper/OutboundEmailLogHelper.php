@@ -10,6 +10,7 @@
 namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Log\Log;
 use Joomla\Database\DatabaseInterface;
 
 /**
@@ -103,7 +104,11 @@ final class OutboundEmailLogHelper
             $db->setQuery($query);
             $db->execute();
         } catch (\Throwable $e) {
-            // Never break the main request if logging fails (e.g. table not migrated yet).
+            Log::add(
+                'OutboundEmailLogHelper: could not persist row — ' . $e->getMessage(),
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
         }
     }
 

@@ -983,7 +983,7 @@ class PaymentproofController extends BaseController
             $mailer->setBody($body);
             $mailer->isHtml(false);
             MailBccHelper::applySiteToWithBcc($mailer, array_values($emails));
-            MailSendHelper::sendChecked($mailer);
+            $mailDiag = MailSendHelper::sendChecked($mailer);
             OutboundEmailLogHelper::log(
                 OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
                 (int) $user->id,
@@ -995,6 +995,7 @@ class PaymentproofController extends BaseController
                     'payment_proof_id' => (int) $paymentProofId,
                     'recipients'       => array_values($emails),
                     'body_text'        => $body,
+                    'mail_diag'        => $mailDiag,
                 ]
             );
         } catch (\Throwable $e) {

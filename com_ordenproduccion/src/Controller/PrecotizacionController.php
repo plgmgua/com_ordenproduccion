@@ -1235,6 +1235,7 @@ class PrecotizacionController extends BaseController
         $wrappedVendorQuoteBody = VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml);
         $toSummary              = 'BCC: ' . $to;
         $mailer                 = null;
+        $mailDiag               = [];
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
             // Same order as Joomla\CMS\Mail\Mail::sendMail(): subject, body, then isHtml.
@@ -1250,7 +1251,7 @@ class PrecotizacionController extends BaseController
                 }
             }
             MailBccHelper::applySiteToWithBcc($mailer, [$to]);
-            MailSendHelper::sendChecked($mailer);
+            $mailDiag = MailSendHelper::sendChecked($mailer);
         } catch (\Throwable $e) {
             $detail = $e->getMessage();
             if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {
@@ -1294,6 +1295,7 @@ class PrecotizacionController extends BaseController
                 'proveedor_id'   => $proveedorId,
                 'proveedor_name' => (string) ($proveedor->name ?? ''),
                 'body_html'      => $wrappedVendorQuoteBody,
+                'mail_diag'      => $mailDiag,
             ]
         );
         $this->recordVendorQuoteEvent($precotId, $proveedorId, 'email_sent', [

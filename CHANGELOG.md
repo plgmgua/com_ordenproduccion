@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.75-STABLE] - 2026-04-16
+
+### Added
+- **Correos enviados / diagnóstico:** Tras cada envío exitoso, el meta JSON incluye `mail_diag` (transporte `mail`/`smtp`/…, recuentos To/CC/BCC antes del envío, última respuesta SMTP truncada si aplica, `mailer_error_info` si PHPMailer la rellena, y `delivery_hints` cuando el transporte es PHP `mail` o no hay BCC).
+
+### Fixed
+- **Registro de correo:** Si falla el `INSERT` en `#__ordenproduccion_outbound_email_log`, ahora se escribe un aviso en el log de Joomla (`com_ordenproduccion`) en lugar de fallar en silencio (antes el envío podía ser correcto pero no aparecía fila en administración).
+
 ## [3.113.74-STABLE] - 2026-04-16
 
 ### Changed
