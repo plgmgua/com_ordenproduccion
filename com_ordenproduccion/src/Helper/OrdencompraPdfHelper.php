@@ -14,8 +14,54 @@ use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 
+/**
+ * Letter PDF with CMY bars on every page (Header/Footer).
+ *
+ * @since  3.113.72
+ */
+final class OrdencompraPdfDocument extends \FPDF
+{
+    private const CMY_BAR_H = 4.0;
+
+    /** Date line (Spanish) shown top-right under the brand bar. */
+    public string $fechaLine = '';
+
+    public function __construct()
+    {
+        parent::__construct('P', 'mm', [215.9, 279.4]);
+    }
+
+    public function Header(): void
+    {
+        $thirdW = $this->GetPageWidth() / 3;
+        $this->SetXY(0, 0);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_BAR_H, 1);
+
+        if ($this->fechaLine !== '') {
+            $this->SetFont('Arial', '', 9);
+            $this->SetTextColor(60, 60, 60);
+            $pw    = $this->GetPageWidth();
+            $cellW = 85.0;
+            $x     = $pw - 10.0 - $cellW;
+            $this->SetXY($x, self::CMY_BAR_H + 11);
+            $this->Cell($cellW, 5, CotizacionPdfHelper::encodeTextForFpdf($this->fechaLine), 0, 0, 'R');
+            $this->SetTextColor(0, 0, 0);
+        }
+    }
+
+    public function Footer(): void
+    {
+        $thirdW = $this->GetPageWidth() / 3;
+        $this->SetXY(0, $this->GetPageHeight() - self::CMY_BAR_H);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_BAR_H, 1);
+    }
+}
+
 class OrdencompraPdfHelper
 {
+    /** @var float  Space before PRE: line (1 in ≈ 25.4 mm). */
+    private const GAP_BEFORE_PRE_MM = 25.4;
+
     /**
      * Build FPDF instance (caller must Output).
      *
@@ -76,9 +122,9 @@ class OrdencompraPdfHelper
         if ($lblProv === 'COM_ORDENPRODUCCION_ORDENCOMPRA_COL_PROVEEDOR') {
             $lblProv = 'Proveedor';
         }
-        $lblCond = $fix(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_COL_CONDICIONES'));
-        if ($lblCond === 'COM_ORDENPRODUCCION_ORDENCOMPRA_COL_CONDICIONES') {
-            $lblCond = 'Condiciones de entrega';
+        $lblCondBox = $fix(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_PDF_COND_PROVEEDOR'));
+        if ($lblCondBox === 'COM_ORDENPRODUCCION_ORDENCOMPRA_PDF_COND_PROVEEDOR') {
+            $lblCondBox = 'Condiciones de entrega del proveedor';
         }
 
         $pdfSettings = [
@@ -113,57 +159,57 @@ class OrdencompraPdfHelper
             ? ($dPart . ' de ' . $meses[$mPart] . ' de ' . $yPart)
             : $fix($now->format('Y-m-d'));
 
-        $cmyBarH = 4;
+        $cmyBarH = 4.0;
 
-        $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
-        $pdf->AddPage();
-        $pdf->SetMargins(15, 15, 15);
+        $pdf            = new OrdencompraPdfDocument();
+        $pdf->fechaLine = $fechaHoy;
+        $pdf->SetMargins(15, 34, 15);
         $pdf->SetAutoPageBreak(true, $cmyBarH + 14);
+        $pdf->AddPage();
 
         $pageW   = $pdf->GetPageWidth();
         $marginR = 15;
         $left    = 15.0;
         $usableW = $pageW - $left - $marginR;
-        $thirdW  = $pageW / 3;
 
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->SetXY($left, 15);
-        $pdf->Cell($usableW, 5, $fix($fechaHoy), 0, 1, 'R');
-        $belowDateY = $pdf->GetY() + 2;
+        $bodyTopY = $pdf->GetY();
 
-        $logoPath   = trim((string) ($pdfSettings['logo_path'] ?? ''));
-        $logoX      = (float) ($pdfSettings['logo_x'] ?? 15);
-        $logoWidth  = (float) ($pdfSettings['logo_width'] ?? 50);
-        $logoY      = max($belowDateY, (float) ($pdfSettings['logo_y'] ?? 15));
+        $logoPath  = trim((string) ($pdfSettings['logo_path'] ?? ''));
+        $logoWidth = (float) ($pdfSettings['logo_width'] ?? 50);
+        $logoX     = $left;
+
+        $logoY   = $bodyTopY;
+        $logoHmm = 0.0;
         if ($logoPath !== '') {
             $resolvedLogo = CotizacionFpdfBlocksHelper::resolveImagePath($logoPath);
             if ($resolvedLogo !== null && \is_file($resolvedLogo)) {
-                $hmm = $logoWidth * 0.35;
-                $info = @\getimagesize($resolvedLogo);
+                $logoHmm = $logoWidth * 0.35;
+                $info    = @\getimagesize($resolvedLogo);
                 if ($info !== false && ($info[0] ?? 0) > 0 && ($info[1] ?? 0) > 0) {
-                    $hmm = $logoWidth * ((float) $info[1] / (float) $info[0]);
+                    $logoHmm = $logoWidth * ((float) $info[1] / (float) $info[0]);
                 }
                 $pdf->Image($resolvedLogo, $logoX, $logoY, $logoWidth);
-                $pdf->SetY($logoY + $hmm + 3);
-            } else {
-                $pdf->SetY($belowDateY);
             }
-        } else {
-            $pdf->SetY($belowDateY);
         }
 
+        $titleLine = $title . ($num !== '' ? ' - ' . $fix($num) : '');
+        $titleY    = $logoY + ($logoHmm > 0 ? $logoHmm + 4 : 2);
         $pdf->SetFont('Arial', 'B', 14);
-        $pdf->SetX($left);
-        $pdf->Cell($usableW, 8, $title . ($num !== '' ? ' - ' . $fix($num) : ''), 0, 1, 'L');
+        $pdf->SetXY($left, $titleY);
+        $pdf->Cell($usableW, 8, $titleLine, 0, 1, 'R');
+
         $pdf->SetFont('Arial', '', 10);
-        if ($precot !== '') {
-            $pdf->SetX($left);
-            $pdf->Cell($usableW, 5, $fix('PRE: ' . $precot), 0, 1, 'L');
-        }
         if ($proveedorName !== '') {
             $pdf->SetX($left);
             $pdf->Cell($usableW, 5, $lblProv . ': ' . $proveedorName, 0, 1, 'L');
         }
+
+        if ($precot !== '') {
+            $pdf->Ln(self::GAP_BEFORE_PRE_MM);
+            $pdf->SetX($left);
+            $pdf->Cell($usableW, 5, $fix('PRE: ' . $precot), 0, 1, 'L');
+        }
+
         $pdf->Ln(2);
 
         $lineH = 5.0;
@@ -171,6 +217,7 @@ class OrdencompraPdfHelper
         $wUnit = 28.0;
         $wSub  = 28.0;
         $wDesc = max(30.0, $usableW - $wQty - $wUnit - $wSub);
+        $tblW  = $wQty + $wDesc + $wUnit + $wSub;
 
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(240, 240, 240);
@@ -217,14 +264,13 @@ class OrdencompraPdfHelper
             $pdf->Ln(4);
             $pdf->SetX($left);
             $pdf->SetFont('Arial', 'B', 9);
-            $pdf->Cell($usableW, 5, $lblCond, 0, 1, 'L');
+            $pdf->SetFillColor(245, 245, 245);
+            $pdf->Cell($tblW, 6, $lblCondBox, 'LTR', 1, 'L', true);
             $pdf->SetFont('Arial', '', 9);
             $pdf->SetX($left);
-            $pdf->MultiCell($usableW, 5, $fix($cond), 0, 'L');
+            $pdf->SetFillColor(255, 255, 255);
+            $pdf->MultiCell($tblW, 5, $fix($cond), 'LBR', 'L', true);
         }
-
-        $pdf->SetXY(0, $pdf->GetPageHeight() - $cmyBarH);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         return $pdf;
     }

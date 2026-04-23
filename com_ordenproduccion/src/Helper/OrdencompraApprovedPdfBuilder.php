@@ -159,6 +159,7 @@ class OrdencompraApprovedPdfBuilder
                     $tpl = $pdf->importPage($j);
                     $pdf->AddPage();
                     $pdf->useTemplate($tpl, 0, 0, null, null, true);
+                    self::drawCmyEdgeBars($pdf);
                     $pageNum++;
                     self::stampPageFraction($pdf, $pageNum, $totalPages);
                 }
@@ -167,6 +168,7 @@ class OrdencompraApprovedPdfBuilder
                 $pdf->SetMargins(15, 15, 15);
                 $iw = $pdf->GetPageWidth() - 30;
                 $pdf->Image($vendorAbs, 15, 20, $iw, 0);
+                self::drawCmyEdgeBars($pdf);
                 $pageNum++;
                 self::stampPageFraction($pdf, $pageNum, $totalPages);
             }
@@ -186,6 +188,19 @@ class OrdencompraApprovedPdfBuilder
         $ocModel->setApprovedPdfPath($ordenCompraId, $outRel);
 
         return true;
+    }
+
+    /**
+     * CMY brand bars at top and bottom of the current page (vendor quote / image pages in the merged PDF).
+     */
+    private static function drawCmyEdgeBars(\setasign\Fpdi\Fpdi $pdf): void
+    {
+        $h      = 4.0;
+        $thirdW = $pdf->GetPageWidth() / 3.0;
+        $pdf->SetXY(0, 0);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $h, 1);
+        $pdf->SetXY(0, $pdf->GetPageHeight() - $h);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $h, 1);
     }
 
     /**

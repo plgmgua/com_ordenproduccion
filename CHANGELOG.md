@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.72-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra:** Logo arriba a la izquierda; fecha arriba a la derecha (cabecera); título `ORDEN DE COMPRA - …` debajo alineado a la derecha; 1 in de separación antes de la línea PRE; condiciones en caja con etiqueta «Condiciones de entrega del proveedor»; franjas CMY en todas las páginas del OC vía Header/Footer. **PDF combinado:** mismas franjas arriba y abajo en páginas del proveedor (PDF/imagen).
+
 ## [3.113.71-STABLE] - 2026-04-16
 
 ### Changed
