@@ -313,6 +313,17 @@ class ApprovalEmailQueueHelper
             $vars = array_merge($vars, self::buildPaymentProofTemplateVars($db, $request));
         }
 
+        /*
+         * Step-assignment Telegram/email templates may use {actor_name} for “who triggered this request”.
+         * Outcome notifications pass actor_* in $base (the approver who decided). Assign notifications do not;
+         * use the submitter (e.g. orden de compra creator) so placeholders are not left literal.
+         */
+        if (!array_key_exists('actor_name', $base)) {
+            $vars['actor_name']     = $vars['submitter_name'] ?? '';
+            $vars['actor_username'] = $vars['submitter_username'] ?? '';
+            $vars['actor_id']       = $vars['submitter_id'] ?? '0';
+        }
+
         return $vars;
     }
 

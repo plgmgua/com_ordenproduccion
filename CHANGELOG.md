@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.62-STABLE] - 2026-04-23
+
+### Fixed
+- **Telegram aprobaciones (asignación):** `{actor_name}`, `{actor_username}` y `{actor_id}` se rellenan con el **solicitante** de la solicitud (quien creó/envió la orden de compra u otro flujo) cuando la plantilla de **asignación** no aporta `actor_*` (antes solo existían en el mensaje de **resultado**). Documentación de variables en idiomas.
+
 ## [3.113.61-STABLE] - 2026-04-23
 
 ### Fixed
