@@ -23,6 +23,12 @@ final class OrdencompraPdfDocument extends \FPDF
 {
     private const CMY_BAR_H = 4.0;
 
+    /**
+     * Inset from physical page right edge (mm) for title + fecha on page 1 body and continuation header.
+     * Keep in sync with OrdencompraPdfHelper layout.
+     */
+    public const HEADER_RIGHT_INSET_MM = 10.0;
+
     /** Date line (Spanish) shown top-right under the brand bar. */
     public string $fechaLine = '';
 
@@ -41,11 +47,9 @@ final class OrdencompraPdfDocument extends \FPDF
         if ($this->fechaLine !== '' && $this->PageNo() > 1) {
             $this->SetFont('Arial', 'B', 11);
             $this->SetTextColor(60, 60, 60);
-            $pw    = $this->GetPageWidth();
-            $cellW = 85.0;
-            $x     = $pw - 10.0 - $cellW;
-            $this->SetXY($x, self::CMY_BAR_H + 11);
-            $this->Cell($cellW, 6, CotizacionPdfHelper::encodeTextForFpdf($this->fechaLine), 0, 0, 'R');
+            $pw = $this->GetPageWidth();
+            $this->SetXY(0.0, self::CMY_BAR_H + 11);
+            $this->Cell($pw - self::HEADER_RIGHT_INSET_MM, 6, CotizacionPdfHelper::encodeTextForFpdf($this->fechaLine), 0, 0, 'R');
             $this->SetTextColor(0, 0, 0);
         }
     }
@@ -94,8 +98,11 @@ class OrdencompraPdfHelper
     /** @var float  Extra drop (mm) for title + logo start — two body lines below top margin. */
     private const OC_TITLE_DROP_TWO_LINES_MM = 10.0;
 
-    /** @var float  Vertical space (mm) below title row before fecha — two lines ≈ 2 × 5 mm. */
-    private const OC_DATE_BELOW_TITLE_MM = 10.0;
+    /** @var float  Additional drop (mm) for title + logo — +1 cm requested. */
+    private const OC_TITLE_DROP_EXTRA_1_CM_MM = 10.0;
+
+    /** @var float  Vertical gap (mm) between title row bottom and fecha — consecutive line. */
+    private const OC_DATE_BELOW_TITLE_MM = 0.5;
 
     /** @var float  Extra space (mm) below logo/fecha block before Proveedor (~3 text lines + 5 body lines). */
     private const OC_GAP_BEFORE_PROVEEDOR_MM = 40.0;
@@ -216,7 +223,7 @@ class OrdencompraPdfHelper
         $left    = 15.0;
         $usableW = $pageW - $left - $marginR;
 
-        $bodyTopY = $pdf->GetY() + self::OC_TITLE_DROP_TWO_LINES_MM;
+        $bodyTopY = $pdf->GetY() + self::OC_TITLE_DROP_TWO_LINES_MM + self::OC_TITLE_DROP_EXTRA_1_CM_MM;
 
         $logoPath  = trim((string) ($pdfSettings['logo_path'] ?? ''));
         $logoWidth = (float) ($pdfSettings['logo_width'] ?? 50);
@@ -238,17 +245,16 @@ class OrdencompraPdfHelper
 
         $titleLine = $title . ($num !== '' ? ' - ' . $fix($num) : '');
         $pdf->SetFont('Arial', 'B', 14);
-        $pdf->SetXY($left, $bodyTopY);
-        $pdf->Cell($usableW, self::OC_TITLE_ROW_H_MM, $titleLine, 0, 0, 'R');
+        $rightBlockW = $pageW - OrdencompraPdfDocument::HEADER_RIGHT_INSET_MM;
+        $pdf->SetXY(0.0, $bodyTopY);
+        $pdf->Cell($rightBlockW, self::OC_TITLE_ROW_H_MM, $titleLine, 0, 0, 'R');
 
         $titleRowBottom = $bodyTopY + self::OC_TITLE_ROW_H_MM;
         $dateY          = $titleRowBottom + self::OC_DATE_BELOW_TITLE_MM;
         $pdf->SetFont('Arial', 'B', self::OC_DATE_FONT_PT);
         $pdf->SetTextColor(60, 60, 60);
-        $cellWDate = 85.0;
-        $xDate     = $pageW - 10.0 - $cellWDate;
-        $pdf->SetXY($xDate, $dateY);
-        $pdf->Cell($cellWDate, self::OC_DATE_CELL_H_MM, CotizacionPdfHelper::encodeTextForFpdf($fechaHoy), 0, 0, 'R');
+        $pdf->SetXY(0.0, $dateY);
+        $pdf->Cell($rightBlockW, self::OC_DATE_CELL_H_MM, CotizacionPdfHelper::encodeTextForFpdf($fechaHoy), 0, 0, 'R');
         $pdf->SetTextColor(0, 0, 0);
 
         $dateBottom     = $dateY + self::OC_DATE_CELL_H_MM;
