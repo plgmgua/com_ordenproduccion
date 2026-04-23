@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\VendorQuoteHelper;
@@ -2137,178 +2138,11 @@ class PrecotizacionController extends BaseController
     }
 
     /**
-     * Create orden de compra (lines from P.Unit Proveedor) and submit approval workflow "Orden de Compra".
-     *
-     * POST: id (pre-cot), proveedor_id, event_id (precot_vendor_quote_event, optional), CSRF token.
-     *
-     * @return  bool
-     *
-     * @since   3.113.47
+     * @return array<int, array<string, mixed>>
      */
-    public function createOrdenCompraRequest()
+    private function buildOrdenCompraLinePayloadsFromPrecot($precotModel, int $precotId): array
     {
-        if (!Session::checkToken('post')) {
-            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $rid = (int) $this->input->getInt('id', 0);
-            $this->setRedirect(
-                $rid > 0
-                    ? Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $rid, false)
-                    : Route::_('index.php?option=com_ordenproduccion&view=cotizador', false)
-            );
-
-            return false;
-        }
-
-        $user = Factory::getUser();
-        if ($user->guest) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
-
-            return false;
-        }
-
-        $id = (int) $this->input->post->getInt('id', 0);
-        if ($id < 1) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
-
-            return false;
-        }
-
-        $precotModel = $this->getModel('Precotizacion', 'Site');
-        if (!$this->canUserCreateOrdenCompraForPrecot($precotModel, $id)) {
-            $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        $item        = $precotModel->getItem($id);
-        $mode        = $item && isset($item->document_mode) ? (string) $item->document_mode : '';
-        if ($mode !== 'proveedor_externo') {
-            $this->setMessage(
-                $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_WRONG_DOCUMENT_MODE',
-                    'Solo aplica a pre-cotizaciones en modo proveedor externo.',
-                    'This action only applies to external-vendor pre-cotizaciones.'
-                ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        $proveedorId = (int) $this->input->post->getInt('proveedor_id', 0);
-        $eventId     = (int) $this->input->post->getInt('event_id', 0);
-        if ($proveedorId < 1) {
-            $this->setMessage(
-                $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_PROVEEDOR',
-                    'Proveedor no válido.',
-                    'Invalid vendor.'
-                ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        $app     = Factory::getApplication();
-        $ocModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
-            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
-        if (!$ocModel || !method_exists($ocModel, 'hasSchema') || !$ocModel->hasSchema()) {
-            $this->setMessage(
-                $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_SCHEMA_MISSING',
-                    'La función orden de compra no está disponible en la base de datos.',
-                    'Purchase order feature is not available (database).'
-                ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        if (!$precotModel->allProveedorExternoLinesReadyForOrdenCompra($id)) {
-            $this->setMessage(
-                $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_LINES_NOT_READY',
-                    'Todas las líneas proveedor externo deben tener cantidad ≥ 1 y P.Unit Proveedor mayor que 0.',
-                    'Every external-vendor line must have quantity ≥ 1 and vendor unit price &gt; 0.'
-                ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        $existingOcCount = method_exists($ocModel, 'countForPrecotizacion') ? $ocModel->countForPrecotizacion($id) : 0;
-        $confirmExisting = (int) $this->input->post->getInt('confirm_existing_orden_compra', 0);
-        if ($existingOcCount > 0 && $confirmExisting !== 1) {
-            $this->setMessage(
-                $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_CONFIRM_REQUIRED',
-                    'Debe confirmar en el navegador que desea crear otra orden de compra aunque ya exista una para esta pre-cotización.',
-                    'Use the browser confirmation to proceed when a purchase order already exists for this pre-cotización.'
-                ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        $condiciones = '';
-        if ($eventId > 0) {
-            $ev = $precotModel->getVendorQuoteEvent($eventId);
-            if (
-                !$ev
-                || (int) ($ev->pre_cotizacion_id ?? 0) !== $id
-                || (int) ($ev->proveedor_id ?? 0) !== $proveedorId
-            ) {
-                $this->setMessage(
-                    $this->precotLang(
-                        'COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_EVENT',
-                        'El registro de solicitud no coincide con la pre-cotización o el proveedor.',
-                        'The vendor request row does not match this pre-cotización or vendor.'
-                    ),
-                    'error'
-                );
-                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-                return false;
-            }
-            $condiciones = trim((string) ($ev->condiciones_entrega ?? ''));
-        }
-
-        $adminModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
-            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
-        $prov       = $adminModel && method_exists($adminModel, 'getProveedorById')
-            ? $adminModel->getProveedorById($proveedorId) : null;
-        if (!$prov) {
-            $this->setMessage(
-                $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_PROVEEDOR_NOT_FOUND',
-                    'No se encontró el proveedor.',
-                    'Vendor not found.'
-                ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
-        }
-
-        $snapshot = json_encode((array) $prov, JSON_UNESCAPED_UNICODE);
-        if ($snapshot === false) {
-            $snapshot = '{}';
-        }
-
-        $lines        = $precotModel->getLines($id);
+        $lines        = $precotModel->getLines($precotId);
         $linePayloads = [];
         foreach ($lines as $ln) {
             if ((isset($ln->line_type) ? (string) $ln->line_type : '') !== 'proveedor_externo') {
@@ -2329,95 +2163,444 @@ class PrecotizacionController extends BaseController
             ];
         }
 
+        return $linePayloads;
+    }
+
+    private function ordenCompraEditorJsonResponse(bool $success, array $payload = []): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        echo json_encode(array_merge(['success' => $success], $payload));
+        $app->close();
+    }
+
+    /**
+     * Open orden de compra editor: create or reuse draft, return JSON for modal (lines + PDF URL).
+     *
+     * POST: id (pre-cot), proveedor_id, event_id, confirm_existing_orden_compra (0|1), CSRF token.
+     *
+     * @return  void
+     *
+     * @since   3.113.52
+     */
+    public function openOrdenCompraEditor(): void
+    {
+        if (!Session::checkToken('post')) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JINVALID_TOKEN')]);
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+        }
+
+        $id          = (int) $this->input->post->getInt('id', 0);
+        $proveedorId = (int) $this->input->post->getInt('proveedor_id', 0);
+        $eventId     = (int) $this->input->post->getInt('event_id', 0);
+
+        if ($id < 1) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')]);
+        }
+
+        $precotModel = $this->getModel('Precotizacion', 'Site');
+        if (!$this->canUserCreateOrdenCompraForPrecot($precotModel, $id)) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+        }
+
+        $item = $precotModel->getItem($id);
+        $mode = $item && isset($item->document_mode) ? (string) $item->document_mode : '';
+        if ($mode !== 'proveedor_externo') {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_WRONG_DOCUMENT_MODE',
+                    'Solo aplica a pre-cotizaciones en modo proveedor externo.',
+                    'This action only applies to external-vendor pre-cotizaciones.'
+                ),
+            ]);
+        }
+
+        if ($proveedorId < 1) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_PROVEEDOR',
+                    'Proveedor no válido.',
+                    'Invalid vendor.'
+                ),
+            ]);
+        }
+
+        $app     = Factory::getApplication();
+        $ocModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+        if (!$ocModel || !method_exists($ocModel, 'hasSchema') || !$ocModel->hasSchema()) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_SCHEMA_MISSING',
+                    'La función orden de compra no está disponible en la base de datos.',
+                    'Purchase order feature is not available (database).'
+                ),
+            ]);
+        }
+
+        if (!$precotModel->allProveedorExternoLinesReadyForOrdenCompra($id)) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_LINES_NOT_READY',
+                    'Todas las líneas proveedor externo deben tener cantidad ≥ 1 y P.Unit Proveedor mayor que 0.',
+                    'Every external-vendor line must have quantity ≥ 1 and vendor unit price &gt; 0.'
+                ),
+            ]);
+        }
+
+        if ($ocModel->getPendingIdForPrecotProveedor($id, $proveedorId) > 0) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_PENDING_BLOCK_EDITOR',
+                    'Ya existe una orden de compra pendiente de aprobación para este proveedor en esta pre-cotización.',
+                    'A purchase order is already pending approval for this vendor on this pre-cotización.'
+                ),
+            ]);
+        }
+
+        $existingOcCount = method_exists($ocModel, 'countForPrecotizacion') ? $ocModel->countForPrecotizacion($id) : 0;
+        $confirmExisting = (int) $this->input->post->getInt('confirm_existing_orden_compra', 0);
+        if ($existingOcCount > 0 && $confirmExisting !== 1) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_CONFIRM_REQUIRED',
+                    'Debe confirmar en el navegador que desea crear otra orden de compra aunque ya exista una para esta pre-cotización.',
+                    'Use the browser confirmation to proceed when a purchase order already exists for this pre-cotización.'
+                ),
+                'needs_confirm' => true,
+            ]);
+        }
+
+        $condiciones = '';
+        if ($eventId > 0) {
+            $ev = $precotModel->getVendorQuoteEvent($eventId);
+            if (
+                !$ev
+                || (int) ($ev->pre_cotizacion_id ?? 0) !== $id
+                || (int) ($ev->proveedor_id ?? 0) !== $proveedorId
+            ) {
+                $this->ordenCompraEditorJsonResponse(false, [
+                    'message' => $this->precotLang(
+                        'COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_EVENT',
+                        'El registro de solicitud no coincide con la pre-cotización o el proveedor.',
+                        'The vendor request row does not match this pre-cotización or vendor.'
+                    ),
+                ]);
+            }
+            $condiciones = trim((string) ($ev->condiciones_entrega ?? ''));
+        }
+
+        $adminModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+        $prov       = $adminModel && method_exists($adminModel, 'getProveedorById')
+            ? $adminModel->getProveedorById($proveedorId) : null;
+        if (!$prov) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_PROVEEDOR_NOT_FOUND',
+                    'No se encontró el proveedor.',
+                    'Vendor not found.'
+                ),
+            ]);
+        }
+
+        $snapshot = json_encode((array) $prov, JSON_UNESCAPED_UNICODE);
+        if ($snapshot === false) {
+            $snapshot = '{}';
+        }
+
+        $linePayloads = $this->buildOrdenCompraLinePayloadsFromPrecot($precotModel, $id);
         if ($linePayloads === []) {
-            $this->setMessage(
-                $this->precotLang(
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
                     'COM_ORDENPRODUCCION_ORDENCOMPRA_NO_VENDOR_LINES',
                     'No hay líneas proveedor externo para la orden de compra.',
                     'There are no external-vendor lines for the purchase order.'
                 ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
+            ]);
         }
 
         $vendorEvtId = $eventId > 0 ? $eventId : null;
-        $ocId        = $ocModel->createPendingOrdenCompra(
-            $id,
-            $proveedorId,
-            $vendorEvtId,
-            $condiciones,
-            $snapshot,
-            'Q',
-            $linePayloads,
-            (int) $user->id
-        );
+        $ocId        = $ocModel->getDraftIdForPrecotProveedor($id, $proveedorId);
 
         if ($ocId < 1) {
-            $this->setMessage(
-                $this->precotLang(
+            $ocId = $ocModel->createPendingOrdenCompra(
+                $id,
+                $proveedorId,
+                $vendorEvtId,
+                $condiciones,
+                $snapshot,
+                'Q',
+                $linePayloads,
+                (int) $user->id,
+                OrdencompraModel::WORKFLOW_STATUS_DRAFT
+            );
+        }
+
+        if ($ocId < 1) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
                     'COM_ORDENPRODUCCION_ORDENCOMPRA_CREATE_FAILED',
                     'No se pudo crear la orden de compra.',
                     'Could not create the purchase order.'
                 ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+            ]);
+        }
 
-            return false;
+        $header = $ocModel->getItemById($ocId);
+        $ocLines = $ocModel->getLines($ocId);
+        $linesOut = [];
+        foreach ($ocLines as $ln) {
+            $linesOut[] = [
+                'id'                => (int) ($ln->id ?? 0),
+                'quantity'          => (int) ($ln->quantity ?? 0),
+                'descripcion'       => (string) ($ln->descripcion ?? ''),
+                'vendor_unit_price' => round((float) ($ln->vendor_unit_price ?? 0), 2),
+                'line_total'        => round((float) ($ln->line_total ?? 0), 2),
+            ];
+        }
+
+        $token  = Session::getFormToken();
+        $pdfUrl = Route::_(
+            'index.php?option=com_ordenproduccion&task=ordencompra.pdf&id=' . $ocId . '&tmpl=component&' . $token . '=1',
+            false,
+            Route::TLS_IGNORE,
+            true
+        );
+
+        $proveedorName = '';
+        $snapH         = isset($header->proveedor_snapshot) ? trim((string) $header->proveedor_snapshot) : '';
+        if ($snapH !== '') {
+            $d = json_decode($snapH, true);
+            if (is_array($d)) {
+                $proveedorName = trim((string) ($d['name'] ?? ''));
+            }
+        }
+
+        $wf    = new ApprovalWorkflowService();
+        $wfPub = $wf->hasSchema() && $wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_ORDEN_COMPRA);
+
+        $this->ordenCompraEditorJsonResponse(true, [
+            'orden_compra_id'   => $ocId,
+            'number'            => (string) ($header->number ?? ''),
+            'currency'          => (string) ($header->currency ?? 'Q'),
+            'total_amount'      => round((float) ($header->total_amount ?? 0), 2),
+            'condiciones_entrega' => (string) ($header->condiciones_entrega ?? ''),
+            'proveedor_name'    => $proveedorName,
+            'lines'             => $linesOut,
+            'pdf_url'           => $pdfUrl,
+            'precotizacion_id'  => $id,
+            'workflow_published' => $wfPub,
+        ]);
+    }
+
+    /**
+     * Save draft orden de compra lines (no workflow).
+     *
+     * POST: orden_compra_id, lines[][id,quantity,descripcion,vendor_unit_price], CSRF token.
+     *
+     * @return  void
+     *
+     * @since   3.113.52
+     */
+    public function saveOrdenCompraDraft(): void
+    {
+        if (!Session::checkToken('post')) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JINVALID_TOKEN')]);
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+        }
+
+        $ocId = (int) $this->input->post->getInt('orden_compra_id', 0);
+        if ($ocId < 1) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_ID')]);
+        }
+
+        $app     = Factory::getApplication();
+        $ocModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+        if (!$ocModel || !$ocModel->hasSchema()) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_SCHEMA_MISSING')]);
+        }
+
+        $header = $ocModel->getItemById($ocId);
+        if (!$header || strtolower((string) ($header->workflow_status ?? '')) !== OrdencompraModel::WORKFLOW_STATUS_DRAFT) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_NOT_DRAFT',
+                    'La orden de compra no está en borrador.',
+                    'The purchase order is not a draft.'
+                ),
+            ]);
+        }
+
+        $precotId = (int) ($header->precotizacion_id ?? 0);
+        $precotModel = $this->getModel('Precotizacion', 'Site');
+        if (!$this->canUserCreateOrdenCompraForPrecot($precotModel, $precotId)) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+        }
+
+        $lines = $this->input->post->get('lines', [], 'array');
+        if (!is_array($lines) || $lines === []) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_LINES_EMPTY',
+                    'No se recibieron líneas.',
+                    'No lines were submitted.'
+                ),
+            ]);
+        }
+
+        if (!$ocModel->saveOrdenCompraDraftLines($ocId, $lines)) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_SAVE_FAILED',
+                    'No se pudieron guardar las líneas.',
+                    'Could not save lines.'
+                ),
+            ]);
+        }
+
+        $header = $ocModel->getItemById($ocId);
+        $ocLines = $ocModel->getLines($ocId);
+        $linesOut = [];
+        foreach ($ocLines as $ln) {
+            $linesOut[] = [
+                'id'                => (int) ($ln->id ?? 0),
+                'quantity'          => (int) ($ln->quantity ?? 0),
+                'descripcion'       => (string) ($ln->descripcion ?? ''),
+                'vendor_unit_price' => round((float) ($ln->vendor_unit_price ?? 0), 2),
+                'line_total'        => round((float) ($ln->line_total ?? 0), 2),
+            ];
+        }
+
+        $token  = Session::getFormToken();
+        $pdfUrl = Route::_(
+            'index.php?option=com_ordenproduccion&task=ordencompra.pdf&id=' . $ocId . '&tmpl=component&' . $token . '=1',
+            false,
+            Route::TLS_IGNORE,
+            true
+        );
+
+        $this->ordenCompraEditorJsonResponse(true, [
+            'message'      => $this->precotLang(
+                'COM_ORDENPRODUCCION_ORDENCOMPRA_DRAFT_SAVED',
+                'Borrador guardado.',
+                'Draft saved.'
+            ),
+            'total_amount' => round((float) ($header->total_amount ?? 0), 2),
+            'lines'        => $linesOut,
+            'pdf_url'      => $pdfUrl,
+        ]);
+    }
+
+    /**
+     * Submit draft orden de compra to approval workflow.
+     *
+     * POST: orden_compra_id, CSRF token.
+     *
+     * @return  void
+     *
+     * @since   3.113.52
+     */
+    public function submitOrdenCompraForApproval(): void
+    {
+        if (!Session::checkToken('post')) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JINVALID_TOKEN')]);
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+        }
+
+        $ocId = (int) $this->input->post->getInt('orden_compra_id', 0);
+        if ($ocId < 1) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_INVALID_ID')]);
+        }
+
+        $app     = Factory::getApplication();
+        $ocModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+        if (!$ocModel || !$ocModel->hasSchema()) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_SCHEMA_MISSING')]);
+        }
+
+        $header = $ocModel->getItemById($ocId);
+        if (!$header || strtolower((string) ($header->workflow_status ?? '')) !== OrdencompraModel::WORKFLOW_STATUS_DRAFT) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_NOT_DRAFT',
+                    'La orden de compra no está en borrador.',
+                    'The purchase order is not a draft.'
+                ),
+            ]);
+        }
+
+        $precotId = (int) ($header->precotizacion_id ?? 0);
+        $precotModel = $this->getModel('Precotizacion', 'Site');
+        if (!$this->canUserCreateOrdenCompraForPrecot($precotModel, $precotId)) {
+            $this->ordenCompraEditorJsonResponse(false, ['message' => Text::_('JERROR_ALERTNOAUTHOR')]);
         }
 
         $wf = new ApprovalWorkflowService();
         if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_ORDEN_COMPRA)) {
-            $ocModel->deleteOrden($ocId);
-            $this->setMessage(
-                $this->precotLang(
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
                     'COM_ORDENPRODUCCION_ORDENCOMPRA_WORKFLOW_NOT_AVAILABLE',
                     'El flujo de aprobación de orden de compra no está disponible.',
                     'The purchase order approval workflow is not available.'
                 ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
+            ]);
         }
 
-        $meta = json_encode([
-            'precotizacion_id'     => $id,
+        if ($wf->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_ORDEN_COMPRA, $ocId) !== null) {
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_REQUEST_ALREADY_PENDING',
+                    'Ya hay una solicitud de aprobación para esta orden.',
+                    'An approval request already exists for this order.'
+                ),
+            ]);
+        }
+
+        $item = $precotModel->getItem($precotId);
+        $proveedorId = (int) ($header->proveedor_id ?? 0);
+        $meta          = json_encode([
+            'precotizacion_id'     => $precotId,
             'precotizacion_number' => (string) ($item->number ?? ''),
             'proveedor_id'         => $proveedorId,
         ], JSON_UNESCAPED_UNICODE);
 
         $rid = $wf->createRequest(ApprovalWorkflowService::ENTITY_ORDEN_COMPRA, $ocId, (int) $user->id, $meta ?: null);
         if ($rid < 1) {
-            $ocModel->deleteOrden($ocId);
-            $this->setMessage(
-                $this->precotLang(
+            $this->ordenCompraEditorJsonResponse(false, [
+                'message' => $this->precotLang(
                     'COM_ORDENPRODUCCION_ORDENCOMPRA_REQUEST_FAILED',
                     'No se pudo enviar la solicitud de aprobación.',
                     'Could not submit the approval request.'
                 ),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-            return false;
+            ]);
         }
 
         $ocModel->setApprovalRequestId($ocId, $rid);
-        $this->setMessage(
-            $this->precotLang(
+        $ocModel->updateWorkflowStatus($ocId, 'pending_approval');
+
+        $this->ordenCompraEditorJsonResponse(true, [
+            'message' => $this->precotLang(
                 'COM_ORDENPRODUCCION_ORDENCOMPRA_REQUEST_CREATED',
                 'Orden de compra enviada a aprobación (Administración).',
                 'Purchase order sent for approval (Administración).'
-            )
-        );
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
-
-        return true;
+            ),
+            'precotizacion_id' => $precotId,
+        ]);
     }
 
     /**

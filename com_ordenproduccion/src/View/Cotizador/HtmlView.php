@@ -151,6 +151,14 @@ class HtmlView extends BaseHtmlView
     protected $ordenCompraWorkflowAvailable = false;
 
     /**
+     * Document: orden de compra DB tables exist (draft editor / PDF without requiring workflow).
+     *
+     * @var    bool
+     * @since  3.113.52
+     */
+    protected $ordenCompraTablesAvailable = false;
+
+    /**
      * Document: count of órdenes de compra for this pre-cot (any vendor / status); for confirm-before-submit UI.
      *
      * @var    int
@@ -302,6 +310,7 @@ class HtmlView extends BaseHtmlView
                     $this->canRequestSolicitudCotizacion        = false;
                     $this->vendorQuoteSolicitudApproved         = false;
                     $this->ordenCompraWorkflowAvailable         = false;
+                    $this->ordenCompraTablesAvailable           = false;
                     $this->ordenCompraExistingCountForPrecot   = 0;
                     $this->ordenCompraLinesReady                = false;
                     $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
@@ -331,6 +340,9 @@ class HtmlView extends BaseHtmlView
                                     ApprovalWorkflowService::ENTITY_ORDEN_COMPRA
                                 );
                                 $ocModel = $mvcFactory->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+                                if ($ocModel && method_exists($ocModel, 'hasSchema') && $ocModel->hasSchema()) {
+                                    $this->ordenCompraTablesAvailable = true;
+                                }
                                 if ($ocModel && method_exists($ocModel, 'countForPrecotizacion')) {
                                     $this->ordenCompraExistingCountForPrecot = $ocModel->countForPrecotizacion((int) $id);
                                 }
@@ -344,6 +356,7 @@ class HtmlView extends BaseHtmlView
                         $this->pendingSolicitudCotizacion           = false;
                         $this->vendorQuoteSolicitudApproved           = false;
                         $this->ordenCompraWorkflowAvailable           = false;
+                        $this->ordenCompraTablesAvailable             = false;
                         $this->ordenCompraExistingCountForPrecot      = 0;
                         $this->ordenCompraLinesReady                  = false;
                     }

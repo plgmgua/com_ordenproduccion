@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.52-STABLE] - 2026-04-16
+
+### Added
+- **Orden de compra (modal):** API `workflow_published` flag; **Request approval** stays disabled with tooltip when the orden de compra workflow is not published.
+- **Language (en-GB / es-ES):** Modal strings (columns, save, submit, PDF hint), draft/editor errors, draft status label, PDF document title constant.
+
+### Changed
+- **Vista orden de compra:** Estado **Borrador** en listado y detalle; botón eliminar también para borradores (además de pendiente de aprobación). Textos de confirmación y error de borrado alineados con borradores.
+
 ## [3.113.51-STABLE] - 2026-04-16
 
 ### Changed

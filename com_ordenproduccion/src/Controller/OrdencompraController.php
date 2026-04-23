@@ -14,6 +14,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdencompraPdfHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -25,6 +26,98 @@ use Joomla\CMS\Session\Session;
  */
 class OrdencompraController extends BaseController
 {
+    /**
+     * Stream purchase order PDF (inline viewer). CSRF token required (request).
+     *
+     * @return  void
+     *
+     * @since   3.113.52
+     */
+    public function pdf(): void
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('request')) {
+            $app->setHeader('HTTP/1.1 403 Forbidden', true);
+            $app->close();
+        }
+
+        $id = (int) $app->input->getInt('id', 0);
+        if ($id < 1) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+        if (!$model || !method_exists($model, 'hasSchema') || !$model->hasSchema()) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        if (!$this->canUserAccessOrdenCompraPdf($model, $id)) {
+            $app->setHeader('HTTP/1.1 403 Forbidden', true);
+            $app->close();
+        }
+
+        $header = $model->getItemById($id);
+        if (!$header) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $lines = $model->getLines($id);
+        OrdencompraPdfHelper::streamInline($header, $lines);
+        $app->close();
+    }
+
+    /**
+     * @param   \Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel  $ocModel
+     */
+    private function canUserAccessOrdenCompraPdf($ocModel, int $ocId): bool
+    {
+        if (AccessHelper::canViewOrdenCompra()) {
+            return true;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || $ocId < 1) {
+            return false;
+        }
+
+        $row = $ocModel->getItemById($ocId);
+        if (!$row) {
+            return false;
+        }
+
+        $precotId = (int) ($row->precotizacion_id ?? 0);
+        if ($precotId < 1) {
+            return false;
+        }
+
+        $precotModel = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (!$precotModel) {
+            return false;
+        }
+
+        if (AccessHelper::canViewVendorQuoteRequestLog()) {
+            return true;
+        }
+
+        if (AccessHelper::canViewAllPrecotizaciones()) {
+            return true;
+        }
+
+        if ($precotModel->canUserEditPreCotizacionDocument($precotId)) {
+            return true;
+        }
+
+        $item = $precotModel->getItem($precotId);
+
+        return $item && (int) $item->created_by === (int) $user->id;
+    }
+
     /**
      * Delete a pending-approval orden de compra (removes lines).
      *

@@ -16,6 +16,9 @@ use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 
 class OrdencompraModel extends BaseDatabaseModel
 {
+    /** Saved locally until user requests approval. */
+    public const WORKFLOW_STATUS_DRAFT = 'draft';
+
     public function hasSchema(): bool
     {
         $db     = $this->getDatabase();
@@ -161,13 +164,14 @@ class OrdencompraModel extends BaseDatabaseModel
         }
 
         $row = $this->getItemById($id);
-        if (!$row || (string) ($row->workflow_status ?? '') !== 'pending_approval') {
+        $st  = strtolower((string) ($row->workflow_status ?? ''));
+        if (!$row || !in_array($st, ['pending_approval', self::WORKFLOW_STATUS_DRAFT], true)) {
             return false;
         }
 
         $reqId  = (int) ($row->approval_request_id ?? 0);
         $userId = (int) Factory::getUser()->id;
-        if ($reqId > 0 && $userId > 0) {
+        if ($st === 'pending_approval' && $reqId > 0 && $userId > 0) {
             $wf = new ApprovalWorkflowService($this->getDatabase());
             if (!$wf->cancelRequest($reqId, $userId, 'orden_compra_deleted')) {
                 return false;
@@ -224,7 +228,7 @@ class OrdencompraModel extends BaseDatabaseModel
         }
 
         $status = strtolower(trim($status));
-        if (!in_array($status, ['pending_approval', 'approved', 'rejected'], true)) {
+        if (!in_array($status, ['pending_approval', 'approved', 'rejected', self::WORKFLOW_STATUS_DRAFT], true)) {
             return;
         }
 
@@ -271,9 +275,117 @@ class OrdencompraModel extends BaseDatabaseModel
     }
 
     /**
+     * Latest draft orden de compra for this pre-cotización and proveedor (if any).
+     */
+    public function getDraftIdForPrecotProveedor(int $precotId, int $proveedorId): int
+    {
+        if (!$this->hasSchema() || $precotId < 1 || $proveedorId < 1) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $q  = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+            ->where($db->quoteName('precotizacion_id') . ' = ' . $precotId)
+            ->where($db->quoteName('proveedor_id') . ' = ' . $proveedorId)
+            ->where($db->quoteName('workflow_status') . ' = ' . $db->quote(self::WORKFLOW_STATUS_DRAFT))
+            ->order($db->quoteName('id') . ' DESC')
+            ->setLimit(1);
+        $db->setQuery($q);
+
+        return (int) $db->loadResult();
+    }
+
+    /**
+     * Update orden de compra lines (draft only). Rows: id = orden_compra_line.id, quantity, descripcion, vendor_unit_price.
+     *
+     * @param   array<int, array<string, mixed>>  $rows
+     */
+    public function saveOrdenCompraDraftLines(int $ordenCompraId, array $rows): bool
+    {
+        $ordenCompraId = (int) $ordenCompraId;
+        if (!$this->hasSchema() || $ordenCompraId < 1) {
+            return false;
+        }
+
+        $header = $this->getItemById($ordenCompraId);
+        if (!$header || strtolower((string) ($header->workflow_status ?? '')) !== self::WORKFLOW_STATUS_DRAFT) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->transactionStart();
+
+        try {
+            $sum = 0.0;
+
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $lineId = (int) ($row['id'] ?? 0);
+                if ($lineId < 1) {
+                    continue;
+                }
+
+                $q0 = $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_orden_compra_line'))
+                    ->where($db->quoteName('id') . ' = ' . $lineId)
+                    ->where($db->quoteName('orden_compra_id') . ' = ' . $ordenCompraId)
+                    ->setLimit(1);
+                $db->setQuery($q0);
+                if ((int) $db->loadResult() !== $lineId) {
+                    throw new \RuntimeException('line mismatch');
+                }
+
+                $qty  = max(1, (int) ($row['quantity'] ?? 1));
+                $desc = trim((string) ($row['descripcion'] ?? ''));
+                $pup  = round((float) ($row['vendor_unit_price'] ?? 0), 2);
+                $lt   = round($qty * $pup, 2);
+                $sum += $lt;
+
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_orden_compra_line'))
+                        ->set($db->quoteName('quantity') . ' = ' . $qty)
+                        ->set($db->quoteName('descripcion') . ' = ' . $db->quote($desc))
+                        ->set($db->quoteName('vendor_unit_price') . ' = ' . $db->quote(number_format($pup, 2, '.', '')))
+                        ->set($db->quoteName('line_total') . ' = ' . $db->quote(number_format($lt, 2, '.', '')))
+                        ->where($db->quoteName('id') . ' = ' . $lineId)
+                );
+                $db->execute();
+            }
+
+            $sum = round($sum, 2);
+            $now = Factory::getDate()->toSql();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_orden_compra'))
+                    ->set($db->quoteName('total_amount') . ' = ' . $db->quote(number_format($sum, 2, '.', '')))
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id)
+                    ->where($db->quoteName('id') . ' = ' . $ordenCompraId)
+            );
+            $db->execute();
+
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Insert header + lines in one transaction. Returns new orden_compra id or 0.
      *
      * @param array<int, array{precotizacion_line_id:int, quantity:int, descripcion:string, vendor_unit_price:float, line_total:float}> $lines
+     * @param string $workflowStatus draft | pending_approval
      */
     public function createPendingOrdenCompra(
         int $precotizacionId,
@@ -283,9 +395,15 @@ class OrdencompraModel extends BaseDatabaseModel
         string $proveedorSnapshotJson,
         string $currency,
         array $lines,
-        int $userId
+        int $userId,
+        string $workflowStatus = 'pending_approval'
     ): int {
         if (!$this->hasSchema() || $precotizacionId < 1 || $proveedorId < 1 || $userId < 1 || $lines === []) {
+            return 0;
+        }
+
+        $workflowStatus = strtolower(trim($workflowStatus));
+        if (!in_array($workflowStatus, ['pending_approval', self::WORKFLOW_STATUS_DRAFT], true)) {
             return 0;
         }
 
@@ -333,7 +451,7 @@ class OrdencompraModel extends BaseDatabaseModel
                     $db->quote($proveedorSnapshotJson),
                     $db->quote($currency),
                     $db->quote(number_format($total, 2, '.', '')),
-                    $db->quote('pending_approval'),
+                    $db->quote($workflowStatus),
                     'NULL',
                     '1',
                     $db->quote($now),

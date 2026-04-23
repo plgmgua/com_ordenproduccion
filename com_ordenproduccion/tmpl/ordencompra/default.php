@@ -23,6 +23,9 @@ $deleteUrl  = Route::_('index.php?option=com_ordenproduccion&task=ordencompra.de
 
 $statusLabel = static function (string $s): string {
     $s = strtolower(trim($s));
+    if ($s === 'draft') {
+        return Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_STATUS_DRAFT');
+    }
     if ($s === 'pending_approval') {
         return Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_STATUS_PENDING');
     }
@@ -75,7 +78,10 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                     <dd class="col-sm-9"><?php echo nl2br(htmlspecialchars((string) $item->condiciones_entrega, ENT_QUOTES, 'UTF-8')); ?></dd>
                     <?php endif; ?>
                 </dl>
-                <?php if (strtolower((string) ($item->workflow_status ?? '')) === 'pending_approval') : ?>
+                <?php
+                $ocWf = strtolower((string) ($item->workflow_status ?? ''));
+                if ($ocWf === 'pending_approval' || $ocWf === 'draft') :
+                ?>
                 <form method="post" action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mt-3"
                       onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_CONFIRM')); ?>);">
                     <?php echo HTMLHelper::_('form.token'); ?>
@@ -143,7 +149,10 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                         <td><?php echo htmlspecialchars($statusLabel((string) ($row->workflow_status ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="text-nowrap">
                             <a class="btn btn-sm btn-primary" href="<?php echo htmlspecialchars($detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_VIEW'); ?></a>
-                            <?php if (strtolower((string) ($row->workflow_status ?? '')) === 'pending_approval') : ?>
+                            <?php
+                            $rwf = strtolower((string) ($row->workflow_status ?? ''));
+                            if ($rwf === 'pending_approval' || $rwf === 'draft') :
+                            ?>
                             <form method="post" action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline"
                                   onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_CONFIRM')); ?>);">
                                 <?php echo HTMLHelper::_('form.token'); ?>

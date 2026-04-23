@@ -158,11 +158,14 @@ $canEditVendorQuoteEventLogRow = !$user->guest && $canViewVendorQuoteRequestLog
     && ($precotizacionLocked || $canEditDocument);
 $canAttachVendorQuoteEvent = $canEditVendorQuoteEventLogRow;
 $deleteVendorQuoteEventUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteVendorQuoteEvent', false, Route::TLS_IGNORE, true);
-$createOrdenCompraUrl      = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.createOrdenCompraRequest', false, Route::TLS_IGNORE, true);
+$openOrdenCompraEditorUrl   = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.openOrdenCompraEditor', false, Route::TLS_IGNORE, true);
+$saveOrdenCompraDraftUrl    = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveOrdenCompraDraft', false, Route::TLS_IGNORE, true);
+$submitOrdenCompraApprovalUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.submitOrdenCompraForApproval', false, Route::TLS_IGNORE, true);
 $ordenCompraWorkflowAvailable       = isset($this->ordenCompraWorkflowAvailable) ? (bool) $this->ordenCompraWorkflowAvailable : false;
+$ordenCompraTablesAvailable         = isset($this->ordenCompraTablesAvailable) ? (bool) $this->ordenCompraTablesAvailable : false;
 $ordenCompraExistingCountForPrecot  = isset($this->ordenCompraExistingCountForPrecot) ? (int) $this->ordenCompraExistingCountForPrecot : 0;
 $ordenCompraLinesReady              = isset($this->ordenCompraLinesReady) ? (bool) $this->ordenCompraLinesReady : false;
-$canShowOrdenCompraButton           = !$user->guest && $ordenCompraWorkflowAvailable && $ordenCompraLinesReady;
+$canShowOrdenCompraButton           = !$user->guest && $ordenCompraTablesAvailable && $ordenCompraLinesReady;
 $ordenCompraConfirmExistingMsg      = Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_CONFIRM_EXISTING_MSG');
 $colOrdenCompra = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ORDEN_COMPRA');
 $token = Session::getFormToken();
@@ -1364,21 +1367,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                         <td class="col-evt-oc text-center align-middle" rowspan="2">
                             <?php if ($canShowOrdenCompraButton && $evtProveedorId > 0) : ?>
-                            <form method="post" action="<?php echo htmlspecialchars($createOrdenCompraUrl); ?>"
-                                  class="mb-0 js-orden-compra-request-form"
-                                  data-existing-count="<?php echo (int) $ordenCompraExistingCountForPrecot; ?>"
-                                  data-confirm-existing-msg="<?php echo htmlspecialchars($ordenCompraConfirmExistingMsg, ENT_QUOTES, 'UTF-8'); ?>">
-                                <?php echo HTMLHelper::_('form.token'); ?>
-                                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
-                                <input type="hidden" name="proveedor_id" value="<?php echo (int) $evtProveedorId; ?>">
-                                <input type="hidden" name="event_id" value="<?php echo (int) $evtId; ?>">
-                                <input type="hidden" name="confirm_existing_orden_compra" value="0" class="js-oc-confirm-existing">
-                                <button type="submit" class="btn btn-sm btn-outline-success p-1"
-                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>"
-                                        aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>">
-                                    <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-success p-1 js-orden-compra-open-editor"
+                                    data-open-url="<?php echo htmlspecialchars($openOrdenCompraEditorUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-save-url="<?php echo htmlspecialchars($saveOrdenCompraDraftUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-submit-url="<?php echo htmlspecialchars($submitOrdenCompraApprovalUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-token-name="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-precot-id="<?php echo (int) $preCotizacionId; ?>"
+                                    data-proveedor-id="<?php echo (int) $evtProveedorId; ?>"
+                                    data-event-id="<?php echo (int) $evtId; ?>"
+                                    data-existing-count="<?php echo (int) $ordenCompraExistingCountForPrecot; ?>"
+                                    data-confirm-existing-msg="<?php echo htmlspecialchars($ordenCompraConfirmExistingMsg, ENT_QUOTES, 'UTF-8'); ?>"
+                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>"
+                                    aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>">
+                                <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                            </button>
                             <?php else : ?>
                             <span class="text-muted small">—</span>
                             <?php endif; ?>
@@ -1442,22 +1444,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             var msg = f.getAttribute('data-confirm') || '';
             if (msg && !window.confirm(msg)) {
                 e.preventDefault();
-            }
-        }, true);
-        document.addEventListener('submit', function(e) {
-            var f = e.target;
-            if (!f || !f.classList || !f.classList.contains('js-orden-compra-request-form')) {
-                return;
-            }
-            var flag = f.querySelector('.js-oc-confirm-existing');
-            var n = parseInt(f.getAttribute('data-existing-count') || '0', 10);
-            if (n > 0 && flag && String(flag.value) !== '1') {
-                e.preventDefault();
-                var msg = f.getAttribute('data-confirm-existing-msg') || '';
-                if (window.confirm(msg)) {
-                    flag.value = '1';
-                    f.submit();
-                }
             }
         }, true);
     })();
@@ -1558,4 +1544,286 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         <?php endif; ?>
     </section>
     <?php endif; ?>
+
+    <div class="modal fade" id="ordenCompraEditorModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="ordenCompraEditorModalTitle"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_TITLE'); ?></h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2" id="ordenCompraEditorMeta"></p>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-bordered align-middle" id="ordenCompraEditorTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_COL_QTY'); ?></th>
+                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_COL_DESC'); ?></th>
+                                    <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_COL_UNIT'); ?></th>
+                                    <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_COL_SUB'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordenCompraEditorTbody"></tbody>
+                            <tfoot>
+                                <tr class="table-secondary fw-semibold">
+                                    <td colspan="3" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_TOTAL'); ?></td>
+                                    <td class="text-end" id="ordenCompraEditorTotalCell">—</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-primary" id="ordenCompraEditorSaveBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SAVE'); ?></button>
+                        <button type="button" class="btn btn-success" id="ordenCompraEditorSubmitBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SUBMIT_APPROVAL'); ?></button>
+                    </div>
+                    <div class="border rounded overflow-hidden bg-light" style="min-height: 50vh;">
+                        <iframe id="ordenCompraEditorPdf" class="w-100 border-0 d-block" style="min-height: 50vh;" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_PDF_TITLE')); ?>"></iframe>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_PDF_HINT'); ?></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var modalEl = document.getElementById('ordenCompraEditorModal');
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            return;
+        }
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var tbody = document.getElementById('ordenCompraEditorTbody');
+        var totalCell = document.getElementById('ordenCompraEditorTotalCell');
+        var titleEl = document.getElementById('ordenCompraEditorModalTitle');
+        var metaEl = document.getElementById('ordenCompraEditorMeta');
+        var pdfIframe = document.getElementById('ordenCompraEditorPdf');
+        var saveBtn = document.getElementById('ordenCompraEditorSaveBtn');
+        var submitBtn = document.getElementById('ordenCompraEditorSubmitBtn');
+        var state = { ordenCompraId: 0, currency: 'Q', saveUrl: '', submitUrl: '', tokenName: '' };
+
+        function esc(s) {
+            var d = document.createElement('div');
+            d.textContent = s == null ? '' : String(s);
+            return d.innerHTML;
+        }
+
+        function parseNum(v) {
+            var n = parseFloat(String(v).replace(',', '.'));
+            return isFinite(n) ? n : 0;
+        }
+
+        function recalcTotal() {
+            if (!tbody || !totalCell) {
+                return;
+            }
+            var sum = 0;
+            tbody.querySelectorAll('tr').forEach(function(tr) {
+                var q = tr.querySelector('.js-oc-qty');
+                var u = tr.querySelector('.js-oc-unit');
+                if (q && u) {
+                    var qty = Math.max(1, parseInt(String(q.value), 10) || 1);
+                    var unit = Math.round(parseNum(u.value) * 100) / 100;
+                    sum += Math.round(qty * unit * 100) / 100;
+                }
+            });
+            totalCell.textContent = state.currency + ' ' + sum.toFixed(2);
+        }
+
+        function updateRowSub(tr) {
+            var q = tr.querySelector('.js-oc-qty');
+            var u = tr.querySelector('.js-oc-unit');
+            var subEl = tr.querySelector('.js-oc-line-sub');
+            if (!q || !u || !subEl) {
+                return;
+            }
+            var qty = Math.max(1, parseInt(String(q.value), 10) || 1);
+            if (String(q.value) !== String(qty)) {
+                q.value = qty;
+            }
+            var unit = Math.round(parseNum(u.value) * 100) / 100;
+            u.value = unit.toFixed(2);
+            var sub = Math.round(qty * unit * 100) / 100;
+            subEl.textContent = state.currency + ' ' + sub.toFixed(2);
+        }
+
+        function renderLines(lines) {
+            if (!tbody) {
+                return;
+            }
+            tbody.innerHTML = '';
+            (lines || []).forEach(function(ln) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = ''
+                    + '<td><input type="number" class="form-control form-control-sm js-oc-qty" min="1" step="1" value="' + esc(ln.quantity) + '" data-line-id="' + esc(ln.id) + '"></td>'
+                    + '<td><textarea class="form-control form-control-sm js-oc-desc" rows="2">' + esc(ln.descripcion) + '</textarea></td>'
+                    + '<td class="text-end"><input type="number" class="form-control form-control-sm text-end js-oc-unit" min="0" step="0.01" value="' + esc(Number(ln.vendor_unit_price).toFixed(2)) + '"></td>'
+                    + '<td class="text-end js-oc-line-sub">' + esc(state.currency + ' ' + Number(ln.line_total).toFixed(2)) + '</td>';
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('tr').forEach(function(tr) {
+                tr.querySelectorAll('.js-oc-qty, .js-oc-unit').forEach(function(inp) {
+                    inp.addEventListener('input', function() { updateRowSub(tr); recalcTotal(); });
+                });
+                updateRowSub(tr);
+            });
+            recalcTotal();
+        }
+
+        function collectLinesPayload() {
+            var rows = [];
+            tbody.querySelectorAll('tr').forEach(function(tr) {
+                var q = tr.querySelector('.js-oc-qty');
+                if (!q) {
+                    return;
+                }
+                rows.push({
+                    id: parseInt(q.getAttribute('data-line-id'), 10) || 0,
+                    quantity: Math.max(1, parseInt(String(q.value), 10) || 1),
+                    descripcion: tr.querySelector('.js-oc-desc') ? String(tr.querySelector('.js-oc-desc').value) : '',
+                    vendor_unit_price: parseNum(tr.querySelector('.js-oc-unit') ? tr.querySelector('.js-oc-unit').value : '0')
+                });
+            });
+            return rows;
+        }
+
+        function postForm(url, fields) {
+            var fd = new FormData();
+            fd.append(state.tokenName, '1');
+            Object.keys(fields || {}).forEach(function(k) {
+                if (k === 'lines') {
+                    (fields.lines || []).forEach(function(row, i) {
+                        Object.keys(row).forEach(function(k2) {
+                            fd.append('lines[' + i + '][' + k2 + ']', row[k2]);
+                        });
+                    });
+                } else {
+                    fd.append(k, fields[k]);
+                }
+            });
+            return fetch(url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function(r) { return r.json(); });
+        }
+
+        function openEditor(btn) {
+            var n = parseInt(btn.getAttribute('data-existing-count') || '0', 10);
+            var msg = btn.getAttribute('data-confirm-existing-msg') || '';
+            var confirmVal = '0';
+            if (n > 0) {
+                if (btn.getAttribute('data-oc-confirmed') !== '1') {
+                    if (!window.confirm(msg)) {
+                        return;
+                    }
+                    btn.setAttribute('data-oc-confirmed', '1');
+                }
+                confirmVal = '1';
+            }
+            var openUrl = btn.getAttribute('data-open-url');
+            state.saveUrl = btn.getAttribute('data-save-url');
+            state.submitUrl = btn.getAttribute('data-submit-url');
+            state.tokenName = btn.getAttribute('data-token-name');
+            postForm(openUrl, {
+                id: btn.getAttribute('data-precot-id'),
+                proveedor_id: btn.getAttribute('data-proveedor-id'),
+                event_id: btn.getAttribute('data-event-id'),
+                confirm_existing_orden_compra: confirmVal
+            }).then(function(data) {
+                if (!data || !data.success) {
+                    window.alert(data && data.message ? data.message : 'Error');
+                    return;
+                }
+                state.ordenCompraId = data.orden_compra_id;
+                state.currency = data.currency || 'Q';
+                if (titleEl) {
+                    titleEl.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_TITLE')); ?>
+                        + (data.number ? ' — ' + data.number : '');
+                }
+                var meta = [];
+                if (data.proveedor_name) {
+                    meta.push(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_COL_PROVEEDOR')); ?> + ': ' + data.proveedor_name);
+                }
+                if (data.condiciones_entrega) {
+                    meta.push(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_COL_CONDICIONES')); ?> + ': ' + data.condiciones_entrega);
+                }
+                if (metaEl) {
+                    metaEl.innerHTML = meta.map(esc).join('<br>');
+                }
+                renderLines(data.lines);
+                if (pdfIframe && data.pdf_url) {
+                    pdfIframe.src = data.pdf_url + (data.pdf_url.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = !data.workflow_published;
+                    submitBtn.title = data.workflow_published ? '' : <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_WORKFLOW_NOT_AVAILABLE')); ?>;
+                }
+                modal.show();
+            }).catch(function() {
+                window.alert('Error de red');
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target && e.target.closest ? e.target.closest('.js-orden-compra-open-editor') : null;
+            if (!btn) {
+                return;
+            }
+            e.preventDefault();
+            openEditor(btn);
+        });
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                if (!state.ordenCompraId || !state.saveUrl) {
+                    return;
+                }
+                saveBtn.disabled = true;
+                postForm(state.saveUrl, {
+                    orden_compra_id: String(state.ordenCompraId),
+                    lines: collectLinesPayload()
+                }).then(function(data) {
+                    saveBtn.disabled = false;
+                    if (!data || !data.success) {
+                        window.alert(data && data.message ? data.message : 'Error');
+                        return;
+                    }
+                    if (data.lines) {
+                        state.currency = state.currency || 'Q';
+                        renderLines(data.lines);
+                    }
+                    if (pdfIframe && data.pdf_url) {
+                        pdfIframe.src = data.pdf_url + (data.pdf_url.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
+                    }
+                }).catch(function() {
+                    saveBtn.disabled = false;
+                    window.alert('Error de red');
+                });
+            });
+        }
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function() {
+                if (!state.ordenCompraId || !state.submitUrl) {
+                    return;
+                }
+                if (!window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_SUBMIT_CONFIRM')); ?>)) {
+                    return;
+                }
+                submitBtn.disabled = true;
+                postForm(state.submitUrl, { orden_compra_id: String(state.ordenCompraId) }).then(function(data) {
+                    submitBtn.disabled = false;
+                    if (!data || !data.success) {
+                        window.alert(data && data.message ? data.message : 'Error');
+                        return;
+                    }
+                    modal.hide();
+                    if (data.message) {
+                        window.alert(data.message);
+                    }
+                    window.location.reload();
+                }).catch(function() {
+                    submitBtn.disabled = false;
+                    window.alert('Error de red');
+                });
+            });
+        }
+    })();
+    </script>
 </div>
