@@ -89,7 +89,12 @@ class OrdencompraPdfHelper
         $left    = 15.0;
         $usableW = $pageW - $left - $marginR;
 
-        $pdf->SetY(14);
+        $cmyBarH = 4;
+        $thirdW  = $pageW / 3;
+        $pdf->SetY(0);
+        $pdf->SetX(0);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
+        $pdf->SetY($cmyBarH + 12);
 
         $pdf->SetFont('Arial', 'B', 14);
         $pdf->SetX($left);
@@ -163,6 +168,9 @@ class OrdencompraPdfHelper
         }
 
         $pdf->Ln(6);
+        $pdf->SetY($pdf->GetY() + 2);
+        $pdf->SetX(0);
+        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         return $pdf;
     }

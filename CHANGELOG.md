@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.66-STABLE] - 2026-04-23
+
+### Fixed
+- **PDF orden de compra:** Franjas CMYK de marca (cabecera y pie) restauradas en el documento generado por `OrdencompraPdfHelper`; la numeración de páginas en el PDF combinado aprobado se mantiene.
+
 ## [3.113.65-STABLE] - 2026-04-23
 
 ### Added
