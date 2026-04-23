@@ -2188,6 +2188,82 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Update only vendor_precio_unit_proveedor on existing proveedor_externo lines (e.g. pre-cot linked to cotización; Administración).
+     *
+     * @param   int                $preCotizacionId  Pre-cotización id.
+     * @param   array<int, mixed>  $rows             Rows with id (&gt;0) and vendor_precio_unit_proveedor; other keys ignored.
+     *
+     * @return  bool
+     *
+     * @since   3.113.50
+     */
+    public function saveProveedorExternoVendorUnitPricesOnly(int $preCotizacionId, array $rows): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        if (!isset($columns['vendor_precio_unit_proveedor'])) {
+            return false;
+        }
+
+        try {
+            $db->transactionStart();
+
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $lid = (int) ($row['id'] ?? 0);
+                if ($lid < 1) {
+                    continue;
+                }
+
+                $ln = $this->getLine($lid);
+                if (!$ln || (int) $ln->pre_cotizacion_id !== $preCotizacionId) {
+                    throw new \RuntimeException('line document mismatch');
+                }
+                $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
+                if ($lt !== 'proveedor_externo') {
+                    throw new \RuntimeException('invalid line type');
+                }
+
+                $pup = round((float) ($row['vendor_precio_unit_proveedor'] ?? 0), 2);
+                $obj = (object) [
+                    'id'                         => $lid,
+                    'vendor_precio_unit_proveedor' => $pup,
+                ];
+                $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+            }
+
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            return false;
+        }
+
+        $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+
+        return true;
+    }
+
+    /**
      * Whether every proveedor_externo line has Precio unidad (price_per_sheet) and P.Unit Proveedor greater than 0.
      *
      * @param   int  $preCotizacionId  Pre-cotización id.

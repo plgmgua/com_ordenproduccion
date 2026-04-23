@@ -85,6 +85,9 @@ $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adiciona
 $displayTotal = $linesTotalFinal + $margenAdicional;
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 $canSeeVendorPup         = AccessHelper::canEditProveedorExternoPrecioUnitProveedor();
+$canAdminEditPupWhenLocked = $precotizacionLocked && AccessHelper::canAdministracionEditProveedorExternoPupWhenQuotationLocked();
+$linesTableLocked          = $precotizacionLocked || !$canEditDocument;
+$showVendorPupColumn       = $canSeeVendorPup || $canAdminEditPupWhenLocked;
 
 $labelFacturar = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR');
 if (strpos($labelFacturar, 'COM_ORDENPRODUCCION_') === 0) {
@@ -315,6 +318,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         }
     ?>
     <div class="alert alert-info mb-3"><?php echo htmlspecialchars($msgLocked); ?></div>
+    <?php if ($canAdminEditPupWhenLocked) : ?>
+    <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_PUP_LOCKED_ADMIN_HINT'); ?></p>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($ofertaViewOnly) :
@@ -377,7 +383,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     </p>
     <?php endif; ?>
 
-    <?php if ($precotizacionLocked || !$canEditDocument) : ?>
+    <?php if ($linesTableLocked && !$canAdminEditPupWhenLocked) : ?>
         <?php if (empty($vendorLines)) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
@@ -388,7 +394,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
                         <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
                         <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
-                        <?php if ($canSeeVendorPup) : ?>
+                        <?php if ($showVendorPupColumn) : ?>
                         <th class="col-pup text-end" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>"><?php echo htmlspecialchars($colPUnitProveedor); ?></th>
                         <?php endif; ?>
                         <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
@@ -403,7 +409,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="col-qty"><?php echo (int) $line->quantity; ?></td>
                         <td class="col-desc"><?php echo nl2br(htmlspecialchars((string) ($line->vendor_descripcion ?? ''))); ?></td>
                         <td class="col-price text-end">Q <?php echo number_format($unit, 2); ?></td>
-                        <?php if ($canSeeVendorPup) : ?>
+                        <?php if ($showVendorPupColumn) : ?>
                         <td class="col-pup text-end">Q <?php echo number_format($pup, 2); ?></td>
                         <?php endif; ?>
                         <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
@@ -445,6 +451,90 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <?php endif; ?>
         </div>
         <?php endif; ?>
+    <?php elseif ($linesTableLocked && $canAdminEditPupWhenLocked) : ?>
+        <?php if (empty($vendorLines)) : ?>
+            <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
+        <?php else : ?>
+        <?php $savePupOnlyFormId = 'proveedor-externo-pup-only-form'; ?>
+        <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="<?php echo htmlspecialchars($savePupOnlyFormId); ?>" class="d-none" aria-hidden="true">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+        </form>
+        <div class="pre-cot-vendor-lines-wrap">
+            <table class="table table-sm table-bordered pre-cot-vendor-lines-table">
+                <thead>
+                    <tr>
+                        <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
+                        <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
+                        <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <th class="col-pup text-end" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>"><?php echo htmlspecialchars($colPUnitProveedor); ?></th>
+                        <?php endif; ?>
+                        <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($vendorLines as $i => $line) :
+                        $lid  = (int) $line->id;
+                        $unit = round((float) ($line->price_per_sheet ?? 0), 2);
+                        $pup  = round((float) ($line->vendor_precio_unit_proveedor ?? 0), 2);
+                        ?>
+                    <tr>
+                        <td class="col-qty"><?php echo (int) $line->quantity; ?></td>
+                        <td class="col-desc"><?php echo nl2br(htmlspecialchars((string) ($line->vendor_descripcion ?? ''))); ?></td>
+                        <td class="col-price text-end">Q <?php echo number_format($unit, 2); ?></td>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup">
+                            <?php if ($lid > 0) : ?>
+                            <input type="hidden" name="lines[<?php echo (int) $i; ?>][id]" value="<?php echo $lid; ?>" form="<?php echo htmlspecialchars($savePupOnlyFormId); ?>">
+                            <input type="number" class="form-control form-control-sm text-end" name="lines[<?php echo (int) $i; ?>][vendor_precio_unit_proveedor]" form="<?php echo htmlspecialchars($savePupOnlyFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($pup, 2, '.', '')); ?>" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>" aria-label="<?php echo htmlspecialchars($colPUnitProveedor); ?>">
+                            <?php else : ?>
+                            <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </td>
+                        <?php endif; ?>
+                        <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+        <?php if (!$user->guest) : ?>
+        <div class="d-flex flex-wrap justify-content-end gap-2 mt-2 align-items-center">
+            <?php if (!empty($vendorLines)) : ?>
+            <button type="submit" form="<?php echo htmlspecialchars($savePupOnlyFormId); ?>" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_PUP_SAVE_BTN'); ?></button>
+            <?php endif; ?>
+            <?php if ($solicitudCotWf && $pendingSolicitudCot) : ?>
+            <button type="button" class="btn btn-primary" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
+            </button>
+            <?php elseif ($solicitudCotWf && $canReqSolicitudCot) : ?>
+            <form method="post" action="<?php echo htmlspecialchars($solicitarCotProveedorUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
+                </button>
+            </form>
+            <?php endif; ?>
+            <?php if ($showVendorQuoteModalBtn && !$canViewVendorQuoteRequestLog) :
+                $modalBtnClass = ($solicitudCotWf && $vendorQuoteApprOk) ? 'btn btn-outline-primary' : 'btn btn-primary';
+                $modalBtnLabel = ($solicitudCotWf && $vendorQuoteApprOk)
+                    ? Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT')
+                    : Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN');
+                ?>
+            <button type="button" class="<?php echo htmlspecialchars($modalBtnClass, ENT_QUOTES, 'UTF-8'); ?>" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-puponly">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo $modalBtnLabel; ?>
+            </button>
+            <?php endif; ?>
+            <?php if ($canPedirCotizacionProveedorAprobaciones) : ?>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" data-vendor-quote-mode="procesar" id="btn-vendor-quote-pedir-proveedor-puponly">
+                <i class="fas fa-handshake" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_PEDIR_PROVEEDOR'); ?>
+            </button>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
     <?php else :
     if ($vendorLines === []) {
         $vendorLines = [
@@ -473,7 +563,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th class="col-qty"><?php echo htmlspecialchars($colQty); ?></th>
                         <th class="col-desc"><?php echo htmlspecialchars($colDesc); ?></th>
                         <th class="col-price text-end" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE')); ?>"><?php echo htmlspecialchars($colPrice); ?></th>
-                        <?php if ($canSeeVendorPup) : ?>
+                        <?php if ($showVendorPupColumn) : ?>
                         <th class="col-pup text-end" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>"><?php echo htmlspecialchars($colPUnitProveedor); ?></th>
                         <?php endif; ?>
                         <th class="col-total text-end"><?php echo htmlspecialchars($colTotal); ?></th>
@@ -498,7 +588,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="col-price">
                             <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[<?php echo $i; ?>][price_per_sheet]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($unit, 2, '.', '')); ?>">
                         </td>
-                        <?php if ($canSeeVendorPup) : ?>
+                        <?php if ($showVendorPupColumn) : ?>
                         <td class="col-pup">
                             <input type="number" class="form-control form-control-sm text-end js-vendor-pup" name="lines[<?php echo $i; ?>][vendor_precio_unit_proveedor]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($pup, 2, '.', '')); ?>" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>" aria-label="<?php echo htmlspecialchars($colPUnitProveedor); ?>">
                         </td>
@@ -575,7 +665,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <td class="col-price">
                 <input type="number" class="form-control form-control-sm text-end js-vendor-price" name="lines[__I__][price_per_sheet]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="0.00">
             </td>
-            <?php if ($canSeeVendorPup) : ?>
+            <?php if ($showVendorPupColumn) : ?>
             <td class="col-pup">
                 <input type="number" class="form-control form-control-sm text-end js-vendor-pup" name="lines[__I__][vendor_precio_unit_proveedor]" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="0.00" title="<?php echo htmlspecialchars($colPUnitProveedor); ?>" aria-label="<?php echo htmlspecialchars($colPUnitProveedor); ?>">
             </td>

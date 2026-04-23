@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.50-STABLE] - 2026-04-16
+
+### Added
+- **Proveedor externo (pre-cot vinculada):** Usuarios de Administración / Admon (y superusuario) pueden editar y guardar solo el **P.Unit Proveedor** en las líneas aunque la pre-cotización esté vinculada a una cotización; el resto del documento sigue bloqueado. Tarea `saveProveedorExternoLines` aplica solo esos importes vía `saveProveedorExternoVendorUnitPricesOnly`.
+
 ## [3.113.49-STABLE] - 2026-04-16
 
 ### Fixed

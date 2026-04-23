@@ -195,6 +195,29 @@ class AccessHelper
     }
 
     /**
+     * Administración / Admon (or super user): may update P.Unit Proveedor on proveedor externo lines when the pre-cot is linked to a cotización (document otherwise locked).
+     * Does not include Aprobaciones Ventas-only users.
+     *
+     * @return  bool
+     *
+     * @since   3.113.50
+     */
+    public static function canAdministracionEditProveedorExternoPupWhenQuotationLocked(): bool
+    {
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        return self::isInAdministracionOrAdmonGroup();
+    }
+
+    /**
      * Registro de solicitudes al proveedor (pre-cot proveedor externo): Administración / Admon, Aprobaciones Ventas, or super user.
      *
      * @return  bool

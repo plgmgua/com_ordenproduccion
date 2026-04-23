@@ -704,6 +704,7 @@ class PrecotizacionController extends BaseController
      * Save all external-vendor lines from the proveedor document form (batch POST).
      *
      * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion, vendor_precio_unit_proveedor (groups 12/16 only).
+     * If the pre-cot is linked to a cotización, only Administración / Admon (or super user) may POST, and only vendor_precio_unit_proveedor is applied per line.
      *
      * @return  bool
      *
@@ -735,27 +736,51 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->isPrecotizacionLocked($id, 'html')) {
-            return false;
-        }
-        if ($this->denyIfNotEditableDocument($id, 'html')) {
-            return false;
-        }
-
-        $lines = $app->input->post->get('lines', [], 'array');
         $model = $this->getModel('Precotizacion', 'Site');
-        if (!$model->saveProveedorExternoLines($id, is_array($lines) ? $lines : [])) {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
-        } else {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVED'));
-            if (method_exists($model, 'allProveedorExternoLinesHavePositiveUnitPrices')
-                && $model->allProveedorExternoLinesHavePositiveUnitPrices($id)) {
-                try {
-                    $wf = new ApprovalWorkflowService();
-                    if ($wf->completePendingSolicitudCotizacionIfAny($id, (int) $user->id)) {
-                        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SOLICITUD_COT_AUTO_COMPLETED'), 'success');
+        $linkedToCot = $model->isAssociatedWithQuotation($id);
+
+        if ($linkedToCot) {
+            if (!AccessHelper::canAdministracionEditProveedorExternoPupWhenQuotationLocked()) {
+                $this->isPrecotizacionLocked($id, 'html');
+
+                return false;
+            }
+
+            $lines = $app->input->post->get('lines', [], 'array');
+            if (!$model->saveProveedorExternoVendorUnitPricesOnly($id, is_array($lines) ? $lines : [])) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
+            } else {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_PUP_SAVED'));
+                if (method_exists($model, 'allProveedorExternoLinesHavePositiveUnitPrices')
+                    && $model->allProveedorExternoLinesHavePositiveUnitPrices($id)) {
+                    try {
+                        $wf = new ApprovalWorkflowService();
+                        if ($wf->completePendingSolicitudCotizacionIfAny($id, (int) $user->id)) {
+                            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SOLICITUD_COT_AUTO_COMPLETED'), 'success');
+                        }
+                    } catch (\Throwable $e) {
                     }
-                } catch (\Throwable $e) {
+                }
+            }
+        } else {
+            if ($this->denyIfNotEditableDocument($id, 'html')) {
+                return false;
+            }
+
+            $lines = $app->input->post->get('lines', [], 'array');
+            if (!$model->saveProveedorExternoLines($id, is_array($lines) ? $lines : [])) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
+            } else {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVED'));
+                if (method_exists($model, 'allProveedorExternoLinesHavePositiveUnitPrices')
+                    && $model->allProveedorExternoLinesHavePositiveUnitPrices($id)) {
+                    try {
+                        $wf = new ApprovalWorkflowService();
+                        if ($wf->completePendingSolicitudCotizacionIfAny($id, (int) $user->id)) {
+                            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SOLICITUD_COT_AUTO_COMPLETED'), 'success');
+                        }
+                    } catch (\Throwable $e) {
+                    }
                 }
             }
         }
