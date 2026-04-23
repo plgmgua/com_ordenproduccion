@@ -21,7 +21,7 @@ HTMLHelper::_('form.csrf');
 $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
-/** @var \Grimpsa\Component\Ordenproduccion\Site\View\Administracion\HtmlView $this */
+/** @var \Grimpsa\Component\Ordenproduccion\Site\View\Administracion\HtmlView|\Grimpsa\Component\Ordenproduccion\Site\View\Productos\HtmlView $this */
 
 $row = $this->workOrderNumbering;
 if (!\is_object($row)) {
@@ -98,6 +98,9 @@ $saveUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.
         <form action="<?php echo htmlspecialchars($resyncUrl, ENT_QUOTES, 'UTF-8'); ?>" method="post"
               onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_SYNC_CONFIRM')); ?>);">
             <?php echo HTMLHelper::_('form.token'); ?>
+            <?php if (!empty($this->returnUrlAjustesCotizacion)) : ?>
+                <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($this->returnUrlAjustesCotizacion, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endif; ?>
             <button type="submit" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-sync-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_SYNC_BTN'); ?>
             </button>

@@ -104,6 +104,12 @@ $l = function ($key, $fallback) {
                         <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_CLICKS', 'Clicks'); ?>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $ajustesTab === 'numeracion_ordenes' ? 'active' : ''; ?>"
+                       href="<?php echo Route::_($baseUrl . '&section=ajustes&tab=numeracion_ordenes'); ?>">
+                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_NUMERACION_ORDENES', 'Numeración órdenes'); ?>
+                    </a>
+                </li>
             </ul>
             <?php if ($ajustesTab === 'clicks') : ?>
             <div class="card">
@@ -161,6 +167,8 @@ $l = function ($key, $fallback) {
             </div>
             <?php elseif ($ajustesTab === 'ajustes_cotizacion') : ?>
                 <?php include __DIR__ . '/../administracion/default_ajustes_ajustes_cotizacion.php'; ?>
+            <?php elseif ($ajustesTab === 'numeracion_ordenes') : ?>
+                <?php include __DIR__ . '/../administracion/default_ajustes_numeracion_ordenes.php'; ?>
             <?php else : ?>
             <div class="card">
                 <div class="card-header">

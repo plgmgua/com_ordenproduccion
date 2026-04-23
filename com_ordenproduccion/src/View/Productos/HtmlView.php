@@ -217,6 +217,14 @@ class HtmlView extends BaseHtmlView
     protected $returnUrlAjustesCotizacion = '';
 
     /**
+     * Work order numbering (#__ordenproduccion_settings) for section=ajustes, tab=numeracion_ordenes.
+     *
+     * @var    \stdClass|null
+     * @since  3.113.95
+     */
+    protected $workOrderNumbering = null;
+
+    /**
      * Envios list (for section=envios)
      *
      * @var    array
@@ -378,6 +386,16 @@ class HtmlView extends BaseHtmlView
                 $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
             }
             $this->returnUrlAjustesCotizacion = Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=ajustes_cotizacion', false);
+        }
+
+        if ($this->section === 'ajustes' && $this->activeTab === 'numeracion_ordenes') {
+            try {
+                $settingsModel            = new \Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel();
+                $this->workOrderNumbering = $settingsModel->getWorkOrderNumberingRow();
+            } catch (\Throwable $e) {
+                $this->workOrderNumbering = null;
+            }
+            $this->returnUrlAjustesCotizacion = Route::_('index.php?option=com_ordenproduccion&view=productos&section=ajustes&tab=numeracion_ordenes', false);
         }
 
         if ($this->section === 'ajustes' && $this->activeTab === 'clicks') {

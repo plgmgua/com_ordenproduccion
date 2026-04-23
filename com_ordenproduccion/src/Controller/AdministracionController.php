@@ -804,10 +804,12 @@ class AdministracionController extends BaseController
         }
 
         $returnSubtab = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes', false);
+        $returnUrl    = $app->input->post->getString('return_url', '');
+        $redirectOk   = ($returnUrl !== '' && strpos($returnUrl, 'option=com_ordenproduccion') !== false) ? $returnUrl : $returnSubtab;
 
         if (!Session::checkToken('post')) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
-            $app->redirect($returnSubtab);
+            $app->redirect($redirectOk);
 
             return;
         }
@@ -821,7 +823,7 @@ class AdministracionController extends BaseController
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_NUMERACION_ORDEN_SYNC_FAIL'), 'error');
         }
 
-        $app->redirect($returnSubtab);
+        $app->redirect($redirectOk);
     }
 
     /**

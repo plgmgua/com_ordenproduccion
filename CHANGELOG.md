@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.95-STABLE] - 2026-04-16
+
+### Added
+- **Administración de Imprenta (Productos) → Ajustes:** subpestaña **Numeración órdenes** con el mismo formulario de secuencia de órdenes de trabajo; guardar y sincronizar redirigen de vuelta a esta vista (`return_url`). La sincronización (`resyncWorkOrderNumbering`) respeta `return_url` en todos los desvíos.
+
 ## [3.113.94-STABLE] - 2026-04-16
 
 ### Added
