@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.68-STABLE] - 2026-04-16
+
+### Added
+- **Correos enviados:** El registro guarda el cuerpo del mensaje (`body_html` / `body_text`) para órden de compra aprobada, solicitud a proveedor y aviso de comprobante; en administración el detalle se muestra en una fila desplegable con vista previa HTML en iframe aislado (sin adjuntos) o texto plano.
+
+### Changed
+- **Outbound email log:** Límite de meta ampliado (MEDIUMTEXT); truncado por campo y por tamaño total del JSON en lugar del tope fijo de 60 KB.
+
 ## [3.113.67-STABLE] - 2026-04-16
 
 ### Changed

@@ -994,6 +994,7 @@ class PaymentproofController extends BaseController
                 [
                     'payment_proof_id' => (int) $paymentProofId,
                     'recipients'       => array_values($emails),
+                    'body_text'        => $body,
                 ]
             );
         } catch (\Throwable $e) {
@@ -1011,6 +1012,7 @@ class PaymentproofController extends BaseController
                 [
                     'payment_proof_id' => (int) $paymentProofId,
                     'recipients'       => array_values($emails),
+                    'body_text'        => $body,
                 ]
             );
         }

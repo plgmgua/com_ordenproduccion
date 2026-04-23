@@ -200,6 +200,7 @@ final class OrdencompraApprovedMailHelper
                     'approve_email_cc_vendor' => $ccVendor ? 1 : 0,
                     'vendor_email'            => $vendorEmailResolved,
                     'had_pdf_attachment'      => $absPdf !== '' ? 1 : 0,
+                    'body_html'               => $body,
                 ]
             );
         } catch (\Throwable $e) {
@@ -218,6 +219,7 @@ final class OrdencompraApprovedMailHelper
                     'orden_compra_id'         => $ordenCompraId,
                     'orc_number'              => $orcNumber,
                     'approve_email_cc_vendor' => $ccVendor ? 1 : 0,
+                    'body_html'               => $body,
                 ]
             );
         }

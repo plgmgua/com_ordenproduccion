@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Administracion\HtmlView $this */
@@ -24,6 +25,10 @@ $ctxLabels = [
     OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH  => Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_CONTEXT_PAYMENTPROOF_MISMATCH'),
     OutboundEmailLogHelper::CONTEXT_ORDENCOMPRA_APPROVED   => Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_CONTEXT_ORDENCOMPRA_APPROVED'),
 ];
+
+if ($schemaOk && $rows !== []) {
+    HTMLHelper::_('bootstrap.collapse');
+}
 
 ?>
 <div class="admin-dashboard outbound-email-log px-2 py-1 mx-auto" style="max-width: 1400px; font-size: 0.8125rem;">
@@ -44,6 +49,9 @@ $ctxLabels = [
             <table class="table table-hover table-sm align-middle mb-0 small">
                 <thead class="table-light">
                     <tr class="text-muted" style="font-size: 0.75rem;">
+                        <th class="py-1" scope="col" style="width: 2.25rem;">
+                            <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_EXPAND'); ?></span>
+                        </th>
                         <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_DATE'); ?></th>
                         <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_STATUS'); ?></th>
                         <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_CONTEXT'); ?></th>
@@ -51,12 +59,14 @@ $ctxLabels = [
                         <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_SUBJECT'); ?></th>
                         <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_USER'); ?></th>
                         <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_ERROR'); ?></th>
-                        <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_COL_META'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($rows as $row) : ?>
+                    <?php foreach ($rows as $idx => $row) : ?>
                         <?php
+                        $rowId = (int) ($row->id ?? 0);
+                        $collapseId = 'oel-detail-' . ($rowId > 0 ? $rowId : ('n' . (int) $idx));
+
                         $ok    = (int) ($row->status ?? 0) === 1;
                         $ctx   = (string) ($row->context_type ?? '');
                         $ctxLb = (string) ($ctxLabels[$ctx] ?? $ctx);
@@ -68,20 +78,33 @@ $ctxLabels = [
                             $actor = htmlspecialchars($actor, ENT_QUOTES, 'UTF-8')
                                 . ($u !== '' ? ' <span class="text-muted">(' . htmlspecialchars($u, ENT_QUOTES, 'UTF-8') . ')</span>' : '');
                         }
+
                         $metaRaw = (string) ($row->meta ?? '');
-                        $metaOut = '—';
-                        $metaTitle = '';
-                        if ($metaRaw !== '') {
-                            $decoded = json_decode($metaRaw, true);
-                            if (is_array($decoded)) {
-                                $metaCompact = json_encode($decoded, JSON_UNESCAPED_UNICODE);
-                                $metaOut     = htmlspecialchars((string) $metaCompact, ENT_QUOTES, 'UTF-8');
-                                $metaTitle   = htmlspecialchars((string) $metaCompact, ENT_QUOTES, 'UTF-8');
-                            } else {
-                                $metaOut   = htmlspecialchars($metaRaw, ENT_QUOTES, 'UTF-8');
-                                $metaTitle = $metaOut;
-                            }
+                        $decoded = $metaRaw !== '' ? json_decode($metaRaw, true) : null;
+                        $bodyHtml = '';
+                        $bodyText = '';
+                        $bodyTrunc = false;
+                        $displayMeta = [];
+
+                        if (is_array($decoded)) {
+                            $bodyHtml  = trim((string) ($decoded['body_html'] ?? ''));
+                            $bodyText  = trim((string) ($decoded['body_text'] ?? ''));
+                            $bodyTrunc = !empty($decoded['body_html_truncated'])
+                                || !empty($decoded['body_text_truncated'])
+                                || !empty($decoded['storage_truncated']);
+                            $displayMeta = $decoded;
+                            unset($displayMeta['body_html'], $displayMeta['body_text']);
                         }
+
+                        $metaJsonPretty = '';
+                        if ($displayMeta !== []) {
+                            $metaJsonPretty = htmlspecialchars(
+                                (string) json_encode($displayMeta, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            );
+                        }
+
                         $errRaw = trim((string) ($row->error_message ?? ''));
                         $errDisp = $errRaw === '' ? '' : htmlspecialchars($errRaw, ENT_QUOTES, 'UTF-8');
                         $errLen  = function_exists('mb_strlen') ? mb_strlen($errRaw, 'UTF-8') : strlen($errRaw);
@@ -93,8 +116,22 @@ $ctxLabels = [
                             $errShort = $errDisp;
                             $errTitle = '';
                         }
+
+                        $iframeSrcdoc = $bodyHtml !== '' ? htmlspecialchars($bodyHtml, ENT_QUOTES, 'UTF-8') : '';
                         ?>
                         <tr class="py-0">
+                            <td class="py-1 align-middle">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                        style="line-height: 1; min-width: 1.5rem;"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#<?php echo $collapseId; ?>"
+                                        aria-expanded="false"
+                                        aria-controls="<?php echo $collapseId; ?>"
+                                        title="<?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_BTN_EXPAND'); ?>">
+                                    <span class="fas fa-chevron-down small" aria-hidden="true"></span>
+                                </button>
+                            </td>
                             <td class="py-1 text-nowrap"><?php echo htmlspecialchars((string) ($row->created ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="py-1">
                                 <?php if ($ok) : ?>
@@ -108,12 +145,36 @@ $ctxLabels = [
                             <td class="py-1 text-break"><?php echo htmlspecialchars((string) ($row->subject ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="py-1"><?php echo $actor; ?></td>
                             <td class="py-1 text-break"<?php echo $errTitle !== '' ? ' title="' . $errTitle . '"' : ''; ?>><?php echo $errShort === '' ? '—' : $errShort; ?></td>
-                            <td class="py-1">
-                                <?php if ($metaOut !== '—') : ?>
-                                <div class="text-muted mb-0 text-break outbound-email-meta-cell" style="max-width: 14rem; max-height: 3.6em; overflow: auto; line-height: 1.25; font-size: 0.75rem;" title="<?php echo $metaTitle; ?>"><?php echo $metaOut; ?></div>
-                                <?php else : ?>
-                                —
-                                <?php endif; ?>
+                        </tr>
+                        <tr class="border-0">
+                            <td colspan="8" class="p-0 border-0 bg-light">
+                                <div class="collapse px-2 py-2 border-top" id="<?php echo $collapseId; ?>">
+                                    <div class="fw-semibold mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_PREVIEW_AS_RECEIVED'); ?></div>
+                                    <?php if ($bodyTrunc) : ?>
+                                        <p class="text-warning small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_PREVIEW_TRUNCATED'); ?></p>
+                                    <?php endif; ?>
+
+                                    <?php if ($bodyHtml !== '') : ?>
+                                        <p class="text-muted mb-1" style="font-size: 0.7rem;"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_PREVIEW_HTML_NOTE'); ?></p>
+                                        <iframe class="w-100 rounded border bg-white"
+                                                style="height: min(420px, 55vh);"
+                                                title="<?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_PREVIEW_AS_RECEIVED'); ?>"
+                                                sandbox=""
+                                                srcdoc="<?php echo $iframeSrcdoc; ?>"></iframe>
+                                    <?php elseif ($bodyText !== '') : ?>
+                                        <div class="border rounded bg-white p-2 text-break font-monospace"
+                                             style="font-size: 0.75rem; white-space: pre-wrap;"><?php echo nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8')); ?></div>
+                                    <?php else : ?>
+                                        <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_PREVIEW_NO_BODY'); ?></p>
+                                    <?php endif; ?>
+
+                                    <?php if ($metaJsonPretty !== '') : ?>
+                                        <details class="mt-2 small">
+                                            <summary class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_OUTBOUND_EMAIL_PREVIEW_META'); ?></summary>
+                                            <pre class="small mb-0 mt-1 p-2 bg-white border rounded" style="max-height: 200px; overflow: auto;"><?php echo $metaJsonPretty; ?></pre>
+                                        </details>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

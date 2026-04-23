@@ -1230,12 +1230,13 @@ class PrecotizacionController extends BaseController
 
             return false;
         }
+        $wrappedVendorQuoteBody = VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml);
         $mailer = null;
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
             // Same order as Joomla\CMS\Mail\Mail::sendMail(): subject, body, then isHtml.
             $mailer->setSubject($subj);
-            $mailer->setBody(VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml));
+            $mailer->setBody($wrappedVendorQuoteBody);
             $mailer->isHtml(true);
             $replyEmail = trim((string) $user->email);
             if ($replyEmail !== '' && MailHelper::isEmailAddress($replyEmail)) {
@@ -1262,6 +1263,7 @@ class PrecotizacionController extends BaseController
                 [
                     'precot_id'    => $precotId,
                     'proveedor_id' => $proveedorId,
+                    'body_html'    => $wrappedVendorQuoteBody,
                 ]
             );
             Log::add('vendorQuoteSendEmail: ' . $detail, Log::ERROR, 'com_ordenproduccion');
@@ -1288,6 +1290,7 @@ class PrecotizacionController extends BaseController
                 'precot_id'      => $precotId,
                 'proveedor_id'   => $proveedorId,
                 'proveedor_name' => (string) ($proveedor->name ?? ''),
+                'body_html'      => $wrappedVendorQuoteBody,
             ]
         );
         $this->recordVendorQuoteEvent($precotId, $proveedorId, 'email_sent', [
