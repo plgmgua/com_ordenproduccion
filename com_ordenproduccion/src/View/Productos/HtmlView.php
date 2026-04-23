@@ -302,8 +302,11 @@ class HtmlView extends BaseHtmlView
         if (!in_array($this->section, ['pliegos', 'elementos', 'parametros', 'envios', 'ofertas', 'ajustes', 'tarjeta_credito'], true)) {
             $this->section = 'pliegos';
         }
-        $defaultTab = ($this->section === 'ajustes') ? 'cotizaciones' : 'sizes';
+        $defaultTab = ($this->section === 'ajustes') ? 'ajustes_cotizacion' : 'sizes';
         $this->activeTab = $input->get('tab', $defaultTab, 'cmd');
+        if ($this->section === 'ajustes' && $this->activeTab === 'cotizaciones') {
+            $this->activeTab = 'ajustes_cotizacion';
+        }
 
         if ($this->section === 'tarjeta_credito') {
             $this->setLayout('tarjeta_credito');

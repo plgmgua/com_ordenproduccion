@@ -21,7 +21,7 @@ $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
 $baseOfertas = $baseUrl . '&section=ofertas';
 $baseEnvios = $baseUrl . '&section=envios';
-$baseAjustes = $baseUrl . '&section=ajustes&tab=cotizaciones';
+$baseAjustes = $baseUrl . '&section=ajustes&tab=ajustes_cotizacion';
 $baseTarjeta = $baseUrl . '&section=tarjeta_credito';
 
 $l = function ($key, $fallback) {

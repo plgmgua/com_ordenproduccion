@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.98-STABLE] - 2026-04-16
+
+### Removed
+- **Ajustes:** Eliminada la subpestaña **Cotizaciones** (vacía) en Control de ventas y Administración de Imprenta. La pestaña **Ajustes** abre por defecto **Ajustes de Cotización** (`subtab=ajustes_cotizacion` / `tab=ajustes_cotizacion`). Las URLs antiguas con `subtab=cotizaciones` o `tab=cotizaciones` se normalizan a esa vista.
+
 ## [3.113.97-STABLE] - 2026-04-16
 
 ### Removed

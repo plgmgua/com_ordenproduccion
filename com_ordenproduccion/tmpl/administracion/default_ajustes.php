@@ -1,6 +1,6 @@
 <?php
 /**
- * Ajustes tab (Administracion only): subtabs for Cotizaciones, etc.
+ * Ajustes tab (Administracion only): subtabs for quotation settings, etc.
  *
  * @package     Joomla.Site
  * @subpackage  com_ordenproduccion
@@ -13,7 +13,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
 $app = Factory::getApplication();
-$activeSubTab = isset($this->activeSubTab) ? $this->activeSubTab : 'cotizaciones';
+$activeSubTab = isset($this->activeSubTab) ? $this->activeSubTab : 'ajustes_cotizacion';
 $app->input->set('subtab', $activeSubTab);
 
 $lang = $app->getLanguage();
@@ -51,11 +51,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 .subtab-content { margin-top: 0; }
 </style>
 <div class="ajustes-subtabs">
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones'); ?>"
-       class="ajustes-subtab <?php echo $activeSubTab === 'cotizaciones' ? 'subtab-active' : ''; ?>">
-        <i class="fas fa-file-invoice"></i>
-        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_COTIZACIONES'); ?>
-    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'ajustes_cotizacion' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-cog"></i>
@@ -108,6 +103,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     <?php elseif ($activeSubTab === 'anular_orden'): ?>
         <?php include __DIR__ . '/default_ajustes_anular_orden.php'; ?>
     <?php else: ?>
-        <?php include __DIR__ . '/default_ajustes_cotizaciones.php'; ?>
+        <?php include __DIR__ . '/default_ajustes_ajustes_cotizacion.php'; ?>
     <?php endif; ?>
 </div>

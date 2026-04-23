@@ -853,8 +853,11 @@ class HtmlView extends BaseHtmlView
             $this->currentMonth = 0; // All year
         }
 
-        // Get active subtab: for herramientas default banks, for ajustes default cotizaciones
-        $activeSubTab = $input->get('subtab', ($activeTab === 'ajustes' ? 'cotizaciones' : 'banks'), 'string');
+        // Get active subtab: for herramientas default banks, for ajustes default ajustes_cotizacion
+        $activeSubTab = $input->get('subtab', ($activeTab === 'ajustes' ? 'ajustes_cotizacion' : 'banks'), 'string');
+        if ($activeTab === 'ajustes' && $activeSubTab === 'cotizaciones') {
+            $activeSubTab = 'ajustes_cotizacion';
+        }
         $this->activeSubTab = $activeSubTab;
 
         // Get statistics model and data (filtered by sales agent when Ventas)

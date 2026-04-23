@@ -23,7 +23,7 @@ $baseElementos = $baseUrl . '&section=elementos';
 $baseParametros = $baseUrl . '&section=parametros';
 $baseOfertas = $baseUrl . '&section=ofertas';
 $baseEnvios = $baseUrl . '&section=envios';
-$baseAjustes = $baseUrl . '&section=ajustes&tab=cotizaciones';
+$baseAjustes = $baseUrl . '&section=ajustes&tab=ajustes_cotizacion';
 $baseTarjetaCredito = $baseUrl . '&section=tarjeta_credito';
 
 // Fallback to human-friendly labels when language file is not loaded (e.g. after deploy)
@@ -83,15 +83,9 @@ $l = function ($key, $fallback) {
 
         <?php if ($section === 'ajustes') : ?>
             <?php
-            $ajustesTab = $this->activeTab ?? 'cotizaciones';
+            $ajustesTab = $this->activeTab ?? 'ajustes_cotizacion';
             ?>
             <ul class="nav nav-pills mb-3">
-                <li class="nav-item">
-                    <a class="nav-link <?php echo $ajustesTab === 'cotizaciones' ? 'active' : ''; ?>"
-                       href="<?php echo Route::_($baseUrl . '&section=ajustes&tab=cotizaciones'); ?>">
-                        <?php echo $l('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_COTIZACIONES', 'Cotizaciones'); ?>
-                    </a>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link <?php echo $ajustesTab === 'ajustes_cotizacion' ? 'active' : ''; ?>"
                        href="<?php echo Route::_($baseUrl . '&section=ajustes&tab=ajustes_cotizacion'); ?>">
@@ -170,7 +164,7 @@ $l = function ($key, $fallback) {
             <?php elseif ($ajustesTab === 'numeracion_ordenes') : ?>
                 <?php include __DIR__ . '/../administracion/default_ajustes_numeracion_ordenes.php'; ?>
             <?php else : ?>
-                <?php include __DIR__ . '/../administracion/default_ajustes_cotizaciones.php'; ?>
+                <?php include __DIR__ . '/../administracion/default_ajustes_ajustes_cotizacion.php'; ?>
             <?php endif; ?>
         <?php elseif ($section === 'elementos') : ?>
             <?php if (empty($this->elementosTableExists)) : ?>

@@ -163,7 +163,7 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-tools"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_HERRAMIENTAS'); ?>
     </a>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=cotizaciones'); ?>"
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion'); ?>"
        class="admin-tab <?php echo $activeTab === 'ajustes' ? 'active' : ''; ?>">
         <i class="fas fa-cog"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_AJUSTES'); ?>
