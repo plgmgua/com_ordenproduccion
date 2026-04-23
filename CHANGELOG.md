@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.88-STABLE] - 2026-04-16
+
+### Changed
+- **Cotización (vista):** Las imágenes por línea se muestran en una **fila debajo** de cada línea (miniaturas más grandes, enlace a tamaño completo), en lugar de una columna «Imágenes» en la tabla. Rutas validadas con el prefijo `QuotationLineImagesHelper::REL_BASE`.
+
 ## [3.113.87-STABLE] - 2026-04-16
 
 ### Fixed
