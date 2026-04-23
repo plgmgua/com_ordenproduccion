@@ -74,8 +74,27 @@ final class OrdencompraPdfDocument extends \FPDF
 
 class OrdencompraPdfHelper
 {
-    /** @var float  Space before PRE: line (1 in ≈ 25.4 mm). */
+    /**
+     * When there is no proveedor line, keep a larger gap before PRE so the block stays separated from the title row.
+     *
+     * @var float
+     */
     private const GAP_BEFORE_PRE_MM = 25.4;
+
+    /** @var float  Space between Proveedor line and PRE line (compact block). */
+    private const GAP_PROVEEDOR_TO_PRE_MM = 6.0;
+
+    /** @var float  Max logo width (mm) on orden de compra — smaller “red box” footprint. */
+    private const OC_LOGO_MAX_WIDTH_MM = 36.0;
+
+    /** @var float  Scale applied to administración logo_width before capping. */
+    private const OC_LOGO_WIDTH_FACTOR = 0.72;
+
+    /** @var float  Title row height (mm), aligned with logo top band. */
+    private const OC_TITLE_ROW_H_MM = 8.0;
+
+    /** @var float  Top body margin (mm); fits title under header date without huge gap. */
+    private const OC_TOP_MARGIN_MM = 24.0;
 
     /**
      * Build FPDF instance (caller must Output).
@@ -178,7 +197,7 @@ class OrdencompraPdfHelper
 
         $pdf            = new OrdencompraPdfDocument();
         $pdf->fechaLine = $fechaHoy;
-        $pdf->SetMargins(15, 34, 15);
+        $pdf->SetMargins(15, self::OC_TOP_MARGIN_MM, 15);
         $pdf->SetAutoPageBreak(true, $cmyBarH + 14);
         $pdf->AddPage();
 
@@ -189,9 +208,13 @@ class OrdencompraPdfHelper
 
         $bodyTopY = $pdf->GetY();
 
-        $logoPath  = trim((string) ($pdfSettings['logo_path'] ?? ''));
-        $logoWidth = (float) ($pdfSettings['logo_width'] ?? 50);
-        $logoX     = $left;
+        $logoPath = trim((string) ($pdfSettings['logo_path'] ?? ''));
+        $cfgW     = (float) ($pdfSettings['logo_width'] ?? 50);
+        $logoWidth = min(
+            self::OC_LOGO_MAX_WIDTH_MM,
+            max(12.0, $cfgW * self::OC_LOGO_WIDTH_FACTOR)
+        );
+        $logoX = $left;
 
         $logoY   = $bodyTopY;
         $logoHmm = 0.0;
@@ -208,19 +231,23 @@ class OrdencompraPdfHelper
         }
 
         $titleLine = $title . ($num !== '' ? ' - ' . $fix($num) : '');
-        $titleY    = $logoY + ($logoHmm > 0 ? $logoHmm + 4 : 2);
         $pdf->SetFont('Arial', 'B', 14);
-        $pdf->SetXY($left, $titleY);
-        $pdf->Cell($usableW, 8, $titleLine, 0, 1, 'R');
+        $pdf->SetXY($left, $bodyTopY);
+        $pdf->Cell($usableW, self::OC_TITLE_ROW_H_MM, $titleLine, 0, 0, 'R');
+
+        $headerBlockBottom = max($bodyTopY + $logoHmm, $bodyTopY + self::OC_TITLE_ROW_H_MM) + 3.0;
+        $pdf->SetXY($left, $headerBlockBottom);
 
         $pdf->SetFont('Arial', '', 10);
         if ($proveedorName !== '') {
-            $pdf->SetX($left);
             $pdf->Cell($usableW, 5, $lblProv . ': ' . $proveedorName, 0, 1, 'L');
         }
 
         if ($precot !== '') {
-            $pdf->lnWithPageBreakIfNeeded((float) self::GAP_BEFORE_PRE_MM);
+            $gapBeforePre = $proveedorName !== ''
+                ? (float) self::GAP_PROVEEDOR_TO_PRE_MM
+                : (float) self::GAP_BEFORE_PRE_MM;
+            $pdf->lnWithPageBreakIfNeeded($gapBeforePre);
             $pdf->SetX($left);
             $pdf->Cell($usableW, 5, $fix('PRE: ' . $precot), 0, 1, 'L');
         }

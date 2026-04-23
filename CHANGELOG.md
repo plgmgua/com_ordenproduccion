@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.78-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra:** Logo más pequeño (tope 36 mm y 72 % del ancho configurado). Título `ORDEN DE COMPRA - …` en la **misma franja superior** que el logo, **alineado a la derecha** (zona bajo la fecha), con margen superior de cuerpo 24 mm. **Proveedor** y **PRE:** en bloque seguido con 6 mm entre ellos cuando hay proveedor; si no hay proveedor se mantiene el espacio mayor antes de PRE.
+
 ## [3.113.77-STABLE] - 2026-04-16
 
 ### Fixed
