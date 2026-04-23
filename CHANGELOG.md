@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.93-STABLE] - 2026-04-16
+
+### Changed
+- **Órdenes de compra:** La eliminación lógica desde lista y detalle también está permitida para órdenes **aprobadas** (útil para limpiar pruebas). No se intenta cancelar el flujo de aprobación si el estado ya no es pendiente.
+
 ## [3.113.92-STABLE] - 2026-04-16
 
 ### Added

@@ -137,7 +137,7 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                     <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars($ocPdfHref, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DOWNLOAD_APPROVED_PDF'); ?></a>
                 </p>
                 <?php endif; ?>
-                <?php if ($ocWf === 'pending_approval' || $ocWf === 'draft' || $ocWf === 'rejected') : ?>
+                <?php if ($ocWf === 'pending_approval' || $ocWf === 'draft' || $ocWf === 'rejected' || $ocWf === 'approved') : ?>
                 <form method="post" action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mt-3"
                       onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_CONFIRM')); ?>);">
                     <?php echo HTMLHelper::_('form.token'); ?>
@@ -245,7 +245,7 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                             <?php $rwf = strtolower((string) ($row->workflow_status ?? '')); ?>
                             <div class="d-inline-flex flex-wrap align-items-center gap-1">
                                 <a class="btn btn-sm btn-primary" href="<?php echo htmlspecialchars($detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_VIEW'); ?></a>
-                                <?php if ($rwf === 'pending_approval' || $rwf === 'draft' || $rwf === 'rejected') : ?>
+                                <?php if ($rwf === 'pending_approval' || $rwf === 'draft' || $rwf === 'rejected' || $rwf === 'approved') : ?>
                                 <form method="post" action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline m-0"
                                       onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_CONFIRM')); ?>);">
                                     <?php echo HTMLHelper::_('form.token'); ?>

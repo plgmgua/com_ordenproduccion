@@ -197,12 +197,13 @@ class OrdencompraModel extends BaseDatabaseModel
 
         $row = $this->getItemById($id);
         $st  = strtolower((string) ($row->workflow_status ?? ''));
-        if (!$row || !in_array($st, ['pending_approval', self::WORKFLOW_STATUS_DRAFT, 'rejected'], true)) {
+        if (!$row || !in_array($st, ['pending_approval', self::WORKFLOW_STATUS_DRAFT, 'rejected', 'approved'], true)) {
             return false;
         }
 
         $reqId  = (int) ($row->approval_request_id ?? 0);
         $userId = (int) Factory::getUser()->id;
+        // Approved/rejected requests are not `pending`; cancel only applies while workflow is open.
         if ($st === 'pending_approval' && $reqId > 0 && $userId > 0) {
             $wf = new ApprovalWorkflowService($this->getDatabase());
             if (!$wf->cancelRequest($reqId, $userId, 'orden_compra_deleted')) {
