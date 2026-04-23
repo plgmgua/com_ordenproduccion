@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.74-STABLE] - 2026-04-16
+
+### Changed
+- **Correos transaccionales:** Las direcciones reales van en **BCC**; el **To** visible es el correo del sitio (`mailfrom` en Configuración global → Servidor → Correo), para cumplir SMTP y ocultar destinatarios entre sí. Afecta: solicitud de cotización a proveedor, notificación de orden de compra aprobada (solicitante + opción «CC proveedor» ahora como BCC adicional), y avisos de comprobante con totales discrepantes.
+
 ## [3.113.73-STABLE] - 2026-04-16
 
 ### Fixed

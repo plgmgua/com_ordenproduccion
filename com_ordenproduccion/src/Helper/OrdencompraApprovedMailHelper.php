@@ -1,6 +1,6 @@
 <?php
 /**
- * Email to the purchase-order requester when an ORC is approved (optional CC to vendor).
+ * Email to the purchase-order requester when an ORC is approved (optional BCC to vendor).
  * Subject/body templates: workflow row (orden_compra) or language defaults; placeholders like Telegram.
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
@@ -165,10 +165,11 @@ final class OrdencompraApprovedMailHelper
             }
         }
 
-        $toSummary = $toEmail;
+        $bccList = [$toEmail];
         if ($ccVendor && $vendorEmailResolved !== '' && MailHelper::isEmailAddress($vendorEmailResolved)) {
-            $toSummary .= ' (CC: ' . $vendorEmailResolved . ')';
+            $bccList[] = $vendorEmailResolved;
         }
+        $toSummary = 'BCC: ' . implode(', ', $bccList);
 
         $mailer = null;
 
@@ -177,10 +178,7 @@ final class OrdencompraApprovedMailHelper
             $mailer->setSubject($subject);
             $mailer->setBody($body);
             $mailer->isHtml(true);
-            $mailer->addRecipient($toEmail);
-            if ($ccVendor && $vendorEmailResolved !== '' && MailHelper::isEmailAddress($vendorEmailResolved)) {
-                $mailer->addCc($vendorEmailResolved);
-            }
+            MailBccHelper::applySiteToWithBcc($mailer, $bccList);
             if ($absPdf !== '') {
                 $attachName = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $orcNumber) . '.pdf';
                 $mailer->addAttachment($absPdf, $attachName);

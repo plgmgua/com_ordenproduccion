@@ -17,6 +17,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\MailBccHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
@@ -973,7 +974,7 @@ class PaymentproofController extends BaseController
             );
         }
 
-        $toSummary = implode(', ', $emails);
+        $toSummary = 'BCC: ' . implode(', ', $emails);
         $mailer    = null;
 
         try {
@@ -981,9 +982,7 @@ class PaymentproofController extends BaseController
             $mailer->setSubject($subject);
             $mailer->setBody($body);
             $mailer->isHtml(false);
-            foreach ($emails as $email) {
-                $mailer->addRecipient($email);
-            }
+            MailBccHelper::applySiteToWithBcc($mailer, array_values($emails));
             MailSendHelper::sendChecked($mailer);
             OutboundEmailLogHelper::log(
                 OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,

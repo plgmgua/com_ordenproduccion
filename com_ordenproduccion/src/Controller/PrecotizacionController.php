@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\MailBccHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\VendorQuoteHelper;
@@ -1232,7 +1233,8 @@ class PrecotizacionController extends BaseController
             return false;
         }
         $wrappedVendorQuoteBody = VendorQuoteHelper::wrapVendorQuoteEmailDocument($bodyHtml);
-        $mailer = null;
+        $toSummary              = 'BCC: ' . $to;
+        $mailer                 = null;
         try {
             $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
             // Same order as Joomla\CMS\Mail\Mail::sendMail(): subject, body, then isHtml.
@@ -1247,7 +1249,7 @@ class PrecotizacionController extends BaseController
                     // Reply-To is optional
                 }
             }
-            $mailer->addRecipient($to);
+            MailBccHelper::applySiteToWithBcc($mailer, [$to]);
             MailSendHelper::sendChecked($mailer);
         } catch (\Throwable $e) {
             $detail = $e->getMessage();
@@ -1257,7 +1259,7 @@ class PrecotizacionController extends BaseController
             OutboundEmailLogHelper::log(
                 OutboundEmailLogHelper::CONTEXT_VENDOR_QUOTE_REQUEST,
                 (int) $user->id,
-                $to,
+                $toSummary,
                 $subj,
                 false,
                 $detail,
@@ -1283,7 +1285,7 @@ class PrecotizacionController extends BaseController
         OutboundEmailLogHelper::log(
             OutboundEmailLogHelper::CONTEXT_VENDOR_QUOTE_REQUEST,
             (int) $user->id,
-            $to,
+            $toSummary,
             $subj,
             true,
             '',
