@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.69-STABLE] - 2026-04-16
+
+### Fixed
+- **Correo transaccional:** Tras `send()`, si Joomla/PHPMailer devuelve `false` sin excepción (p. ej. `throw_exceptions` desactivado o fallo tras reintento SMTP), ya no se registra como enviado correctamente; se usa `MailSendHelper::sendChecked()` y se registra el error con `ErrorInfo` / log.
+
 ## [3.113.68-STABLE] - 2026-04-16
 
 ### Added

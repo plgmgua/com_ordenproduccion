@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\VendorQuoteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -1247,7 +1248,7 @@ class PrecotizacionController extends BaseController
                 }
             }
             $mailer->addRecipient($to);
-            $mailer->send();
+            MailSendHelper::sendChecked($mailer);
         } catch (\Throwable $e) {
             $detail = $e->getMessage();
             if ($mailer instanceof Mail && !empty($mailer->ErrorInfo)) {

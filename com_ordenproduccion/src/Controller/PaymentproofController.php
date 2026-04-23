@@ -17,6 +17,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -983,7 +984,7 @@ class PaymentproofController extends BaseController
             foreach ($emails as $email) {
                 $mailer->addRecipient($email);
             }
-            $mailer->send();
+            MailSendHelper::sendChecked($mailer);
             OutboundEmailLogHelper::log(
                 OutboundEmailLogHelper::CONTEXT_PAYMENTPROOF_MISMATCH,
                 (int) $user->id,
