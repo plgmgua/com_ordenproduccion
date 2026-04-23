@@ -55,6 +55,21 @@ final class OrdencompraPdfDocument extends \FPDF
         $this->SetXY(0, $this->GetPageHeight() - self::CMY_BAR_H);
         CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_BAR_H, 1);
     }
+
+    /**
+     * Move down by $h mm. FPDF::Ln() does not check page breaks; this adds a page first when needed
+     * so the cursor is not left past PageBreakTrigger (which produced extra or nearly blank pages).
+     */
+    public function lnWithPageBreakIfNeeded(float $h): void
+    {
+        if ($h <= 0) {
+            return;
+        }
+        if ($this->y + $h > $this->PageBreakTrigger) {
+            $this->AddPage();
+        }
+        $this->Ln($h);
+    }
 }
 
 class OrdencompraPdfHelper
@@ -205,7 +220,7 @@ class OrdencompraPdfHelper
         }
 
         if ($precot !== '') {
-            $pdf->Ln(self::GAP_BEFORE_PRE_MM);
+            $pdf->lnWithPageBreakIfNeeded((float) self::GAP_BEFORE_PRE_MM);
             $pdf->SetX($left);
             $pdf->Cell($usableW, 5, $fix('PRE: ' . $precot), 0, 1, 'L');
         }

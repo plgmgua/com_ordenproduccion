@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.73-STABLE] - 2026-04-16
+
+### Fixed
+- **PDF orden de compra:** El espacio de 1 in antes de la línea PRE ya no usa solo `Ln()` sin comprobación de salto de página (FPDF no pagina en `Ln`), evitando páginas en blanco o casi vacías cuando el bloque superior quedaba cerca del final de página.
+
 ## [3.113.72-STABLE] - 2026-04-16
 
 ### Changed
