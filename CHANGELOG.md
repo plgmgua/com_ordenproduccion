@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.70-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra:** Franja CMYK solo al borde inferior de la página; cabecera con fecha actual en español alineada a la derecha (mismo criterio que cotización) y logo desde Ajustes de cotización PDF (`getCotizacionPdfSettings`).
+
 ## [3.113.69-STABLE] - 2026-04-16
 
 ### Fixed

@@ -10,6 +10,8 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
+use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 
 class OrdencompraPdfHelper
@@ -79,22 +81,76 @@ class OrdencompraPdfHelper
             $lblCond = 'Condiciones de entrega';
         }
 
+        $pdfSettings = [
+            'logo_path'   => '',
+            'logo_x'      => 15.0,
+            'logo_y'      => 15.0,
+            'logo_width'  => 50.0,
+        ];
+        try {
+            $adm = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            if ($adm instanceof AdministracionModel) {
+                $loaded = $adm->getCotizacionPdfSettings();
+                if (is_array($loaded)) {
+                    $pdfSettings = array_merge($pdfSettings, $loaded);
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $now   = Factory::getDate();
+        $yPart = (int) $now->format('Y');
+        $mPart = (int) $now->format('n');
+        $dPart = (int) $now->format('j');
+        $meses = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo',
+            4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre',
+            10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+        ];
+        $fechaHoy = (isset($meses[$mPart]) && $yPart > 0 && $dPart > 0)
+            ? ($dPart . ' de ' . $meses[$mPart] . ' de ' . $yPart)
+            : $fix($now->format('Y-m-d'));
+
+        $cmyBarH = 4;
+
         $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
         $pdf->AddPage();
         $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 20);
+        $pdf->SetAutoPageBreak(true, $cmyBarH + 14);
 
         $pageW   = $pdf->GetPageWidth();
         $marginR = 15;
         $left    = 15.0;
         $usableW = $pageW - $left - $marginR;
-
-        $cmyBarH = 4;
         $thirdW  = $pageW / 3;
-        $pdf->SetY(0);
-        $pdf->SetX(0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
-        $pdf->SetY($cmyBarH + 12);
+
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->SetXY($left, 15);
+        $pdf->Cell($usableW, 5, $fix($fechaHoy), 0, 1, 'R');
+        $belowDateY = $pdf->GetY() + 2;
+
+        $logoPath   = trim((string) ($pdfSettings['logo_path'] ?? ''));
+        $logoX      = (float) ($pdfSettings['logo_x'] ?? 15);
+        $logoWidth  = (float) ($pdfSettings['logo_width'] ?? 50);
+        $logoY      = max($belowDateY, (float) ($pdfSettings['logo_y'] ?? 15));
+        if ($logoPath !== '') {
+            $resolvedLogo = CotizacionFpdfBlocksHelper::resolveImagePath($logoPath);
+            if ($resolvedLogo !== null && \is_file($resolvedLogo)) {
+                $hmm = $logoWidth * 0.35;
+                $info = @\getimagesize($resolvedLogo);
+                if ($info !== false && ($info[0] ?? 0) > 0 && ($info[1] ?? 0) > 0) {
+                    $hmm = $logoWidth * ((float) $info[1] / (float) $info[0]);
+                }
+                $pdf->Image($resolvedLogo, $logoX, $logoY, $logoWidth);
+                $pdf->SetY($logoY + $hmm + 3);
+            } else {
+                $pdf->SetY($belowDateY);
+            }
+        } else {
+            $pdf->SetY($belowDateY);
+        }
 
         $pdf->SetFont('Arial', 'B', 14);
         $pdf->SetX($left);
@@ -167,9 +223,7 @@ class OrdencompraPdfHelper
             $pdf->MultiCell($usableW, 5, $fix($cond), 0, 'L');
         }
 
-        $pdf->Ln(6);
-        $pdf->SetY($pdf->GetY() + 2);
-        $pdf->SetX(0);
+        $pdf->SetXY(0, $pdf->GetPageHeight() - $cmyBarH);
         CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
 
         return $pdf;
