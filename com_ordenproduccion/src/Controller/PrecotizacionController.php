@@ -2089,6 +2089,35 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Who may submit orden de compra: vendor-log viewers, list viewers, editor, or owner (allows locked / linked COT).
+     *
+     * @since  3.113.48
+     */
+    private function canUserCreateOrdenCompraForPrecot($precotModel, int $preCotId): bool
+    {
+        $user = Factory::getUser();
+        if ($user->guest || $preCotId < 1) {
+            return false;
+        }
+
+        if (AccessHelper::canViewVendorQuoteRequestLog()) {
+            return true;
+        }
+
+        if (AccessHelper::canViewAllPrecotizaciones()) {
+            return true;
+        }
+
+        if ($precotModel->canUserEditPreCotizacionDocument($preCotId)) {
+            return true;
+        }
+
+        $item = $precotModel->getItem($preCotId);
+
+        return $item && (int) $item->created_by === (int) $user->id;
+    }
+
+    /**
      * Create orden de compra (lines from P.Unit Proveedor) and submit approval workflow "Orden de Compra".
      *
      * POST: id (pre-cot), proveedor_id, event_id (precot_vendor_quote_event, optional), CSRF token.
@@ -2127,15 +2156,14 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->denyIfNotEditableDocument($id, 'html')) {
-            return false;
-        }
-
-        if ($this->isPrecotizacionLocked($id, 'html')) {
-            return false;
-        }
-
         $precotModel = $this->getModel('Precotizacion', 'Site');
+        if (!$this->canUserCreateOrdenCompraForPrecot($precotModel, $id)) {
+            $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
         $item        = $precotModel->getItem($id);
         $mode        = $item && isset($item->document_mode) ? (string) $item->document_mode : '';
         if ($mode !== 'proveedor_externo') {
@@ -2199,14 +2227,16 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($ocModel->getPendingIdForPrecotProveedor($id, $proveedorId) > 0) {
+        $existingOcCount = method_exists($ocModel, 'countForPrecotizacion') ? $ocModel->countForPrecotizacion($id) : 0;
+        $confirmExisting = (int) $this->input->post->getInt('confirm_existing_orden_compra', 0);
+        if ($existingOcCount > 0 && $confirmExisting !== 1) {
             $this->setMessage(
                 $this->precotLang(
-                    'COM_ORDENPRODUCCION_ORDENCOMPRA_ALREADY_PENDING',
-                    'Ya hay una orden de compra pendiente de aprobación para este proveedor en esta pre-cotización.',
-                    'A purchase order is already pending approval for this vendor on this pre-cotización.'
+                    'COM_ORDENPRODUCCION_ORDENCOMPRA_CONFIRM_REQUIRED',
+                    'Debe confirmar en el navegador que desea crear otra orden de compra aunque ya exista una para esta pre-cotización.',
+                    'Use the browser confirmation to proceed when a purchase order already exists for this pre-cotización.'
                 ),
-                'notice'
+                'error'
             );
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
 

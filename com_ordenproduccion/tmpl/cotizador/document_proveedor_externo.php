@@ -155,12 +155,11 @@ $canAttachVendorQuoteEvent    = !$precotizacionLocked && $canEditDocument && !$u
 $canEditVendorQuoteEventLogRow = $canAttachVendorQuoteEvent && $canViewVendorQuoteRequestLog;
 $deleteVendorQuoteEventUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteVendorQuoteEvent', false, Route::TLS_IGNORE, true);
 $createOrdenCompraUrl      = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.createOrdenCompraRequest', false, Route::TLS_IGNORE, true);
-$ordenCompraWorkflowAvailable     = isset($this->ordenCompraWorkflowAvailable) ? (bool) $this->ordenCompraWorkflowAvailable : false;
-$ordenCompraPendingByProveedorId  = (isset($this->ordenCompraPendingByProveedorId) && is_array($this->ordenCompraPendingByProveedorId))
-    ? $this->ordenCompraPendingByProveedorId : [];
-$ordenCompraLinesReady = isset($this->ordenCompraLinesReady) ? (bool) $this->ordenCompraLinesReady : false;
-$canSubmitOrdenCompraBase = $canEditDocument && !$precotizacionLocked && !$user->guest
-    && $ordenCompraWorkflowAvailable && $ordenCompraLinesReady;
+$ordenCompraWorkflowAvailable       = isset($this->ordenCompraWorkflowAvailable) ? (bool) $this->ordenCompraWorkflowAvailable : false;
+$ordenCompraExistingCountForPrecot  = isset($this->ordenCompraExistingCountForPrecot) ? (int) $this->ordenCompraExistingCountForPrecot : 0;
+$ordenCompraLinesReady              = isset($this->ordenCompraLinesReady) ? (bool) $this->ordenCompraLinesReady : false;
+$canShowOrdenCompraButton           = !$user->guest && $ordenCompraWorkflowAvailable && $ordenCompraLinesReady;
+$ordenCompraConfirmExistingMsg      = Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_CONFIRM_EXISTING_MSG');
 $colOrdenCompra = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ORDEN_COMPRA');
 $token = Session::getFormToken();
 $vendorQuoteProveedoresUrl = Route::_(
@@ -1204,23 +1203,22 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             <?php endif; ?>
                         </td>
                         <td class="col-evt-oc text-center align-middle" rowspan="2">
-                            <?php
-                            $pendingOcThisVendor = !empty($ordenCompraPendingByProveedorId[$evtProveedorId]);
-                            ?>
-                            <?php if ($canSubmitOrdenCompraBase && $evtProveedorId > 0 && !$pendingOcThisVendor) : ?>
-                            <form method="post" action="<?php echo htmlspecialchars($createOrdenCompraUrl); ?>" class="mb-0">
+                            <?php if ($canShowOrdenCompraButton && $evtProveedorId > 0) : ?>
+                            <form method="post" action="<?php echo htmlspecialchars($createOrdenCompraUrl); ?>"
+                                  class="mb-0 js-orden-compra-request-form"
+                                  data-existing-count="<?php echo (int) $ordenCompraExistingCountForPrecot; ?>"
+                                  data-confirm-existing-msg="<?php echo htmlspecialchars($ordenCompraConfirmExistingMsg, ENT_QUOTES, 'UTF-8'); ?>">
                                 <?php echo HTMLHelper::_('form.token'); ?>
                                 <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
                                 <input type="hidden" name="proveedor_id" value="<?php echo (int) $evtProveedorId; ?>">
                                 <input type="hidden" name="event_id" value="<?php echo (int) $evtId; ?>">
+                                <input type="hidden" name="confirm_existing_orden_compra" value="0" class="js-oc-confirm-existing">
                                 <button type="submit" class="btn btn-sm btn-outline-success p-1"
                                         title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>"
                                         aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>">
                                     <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
                                 </button>
                             </form>
-                            <?php elseif ($pendingOcThisVendor) : ?>
-                            <span class="small text-muted" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_PENDING_HINT')); ?>">…</span>
                             <?php else : ?>
                             <span class="text-muted small">—</span>
                             <?php endif; ?>
@@ -1284,6 +1282,22 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             var msg = f.getAttribute('data-confirm') || '';
             if (msg && !window.confirm(msg)) {
                 e.preventDefault();
+            }
+        }, true);
+        document.addEventListener('submit', function(e) {
+            var f = e.target;
+            if (!f || !f.classList || !f.classList.contains('js-orden-compra-request-form')) {
+                return;
+            }
+            var flag = f.querySelector('.js-oc-confirm-existing');
+            var n = parseInt(f.getAttribute('data-existing-count') || '0', 10);
+            if (n > 0 && flag && String(flag.value) !== '1') {
+                e.preventDefault();
+                var msg = f.getAttribute('data-confirm-existing-msg') || '';
+                if (window.confirm(msg)) {
+                    flag.value = '1';
+                    f.submit();
+                }
             }
         }, true);
     })();

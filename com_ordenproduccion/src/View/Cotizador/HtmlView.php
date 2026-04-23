@@ -151,12 +151,12 @@ class HtmlView extends BaseHtmlView
     protected $ordenCompraWorkflowAvailable = false;
 
     /**
-     * Document: proveedor_id => true when an OC is already pending for this pre-cot + vendor.
+     * Document: count of órdenes de compra for this pre-cot (any vendor / status); for confirm-before-submit UI.
      *
-     * @var    array<int, bool>
-     * @since  3.113.47
+     * @var    int
+     * @since  3.113.48
      */
-    protected $ordenCompraPendingByProveedorId = [];
+    protected $ordenCompraExistingCountForPrecot = 0;
 
     /**
      * Document: all proveedor_externo lines have qty and P.Unit Proveedor ready for OC.
@@ -302,7 +302,7 @@ class HtmlView extends BaseHtmlView
                     $this->canRequestSolicitudCotizacion        = false;
                     $this->vendorQuoteSolicitudApproved         = false;
                     $this->ordenCompraWorkflowAvailable         = false;
-                    $this->ordenCompraPendingByProveedorId      = [];
+                    $this->ordenCompraExistingCountForPrecot   = 0;
                     $this->ordenCompraLinesReady                = false;
                     $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
                     try {
@@ -331,8 +331,8 @@ class HtmlView extends BaseHtmlView
                                     ApprovalWorkflowService::ENTITY_ORDEN_COMPRA
                                 );
                                 $ocModel = $mvcFactory->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
-                                if ($ocModel && method_exists($ocModel, 'getPendingProveedorIdsForPrecot')) {
-                                    $this->ordenCompraPendingByProveedorId = $ocModel->getPendingProveedorIdsForPrecot((int) $id);
+                                if ($ocModel && method_exists($ocModel, 'countForPrecotizacion')) {
+                                    $this->ordenCompraExistingCountForPrecot = $ocModel->countForPrecotizacion((int) $id);
                                 }
                                 $this->ordenCompraLinesReady = $precotModel->allProveedorExternoLinesReadyForOrdenCompra((int) $id);
                             }
@@ -344,7 +344,7 @@ class HtmlView extends BaseHtmlView
                         $this->pendingSolicitudCotizacion           = false;
                         $this->vendorQuoteSolicitudApproved           = false;
                         $this->ordenCompraWorkflowAvailable           = false;
-                        $this->ordenCompraPendingByProveedorId        = [];
+                        $this->ordenCompraExistingCountForPrecot      = 0;
                         $this->ordenCompraLinesReady                  = false;
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable

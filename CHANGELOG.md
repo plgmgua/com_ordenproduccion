@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.48-STABLE] - 2026-04-16
+
+### Changed
+- **Orden de compra (pre-cot proveedor externo):** El botón en el registro al proveedor se muestra siempre que el flujo y las líneas lo permitan (incl. pre-cot bloqueada por cotización). Si ya existe alguna OC para esa pre-cotización, el navegador pide confirmación antes de enviar; el servidor exige `confirm_existing_orden_compra=1`.
+
 ## [3.113.47-STABLE] - 2026-04-16
 
 ### Added

@@ -70,6 +70,27 @@ class OrdencompraModel extends BaseDatabaseModel
     }
 
     /**
+     * How many órdenes de compra exist for this pre-cotización (any vendor, any workflow status).
+     *
+     * @since  3.113.48
+     */
+    public function countForPrecotizacion(int $precotId): int
+    {
+        if (!$this->hasSchema() || $precotId < 1) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $q  = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+            ->where($db->quoteName('precotizacion_id') . ' = ' . $precotId);
+        $db->setQuery($q);
+
+        return (int) $db->loadResult();
+    }
+
+    /**
      * @return array<int, object>
      */
     public function getListItems(): array
