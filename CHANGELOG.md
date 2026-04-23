@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.59-STABLE] - 2026-04-23
+
+### Changed
+- **Administración → Aprobaciones (tabla):** Para **orden de compra** solo se muestra **Abrir orden de compra**; aprobar/rechazar y notas quedan en la vista detalle del ORC.
+
 ## [3.113.58-STABLE] - 2026-04-23
 
 ### Added
