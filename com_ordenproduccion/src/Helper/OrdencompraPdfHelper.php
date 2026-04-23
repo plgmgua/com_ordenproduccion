@@ -91,6 +91,9 @@ class OrdencompraPdfHelper
     /** @var float  Top body margin (mm); fits title under header date without huge gap. */
     private const OC_TOP_MARGIN_MM = 24.0;
 
+    /** @var float  Extra drop (mm) for title + logo start — two body lines below top margin. */
+    private const OC_TITLE_DROP_TWO_LINES_MM = 10.0;
+
     /** @var float  Vertical space (mm) below title row before fecha — two lines ≈ 2 × 5 mm. */
     private const OC_DATE_BELOW_TITLE_MM = 10.0;
 
@@ -213,7 +216,7 @@ class OrdencompraPdfHelper
         $left    = 15.0;
         $usableW = $pageW - $left - $marginR;
 
-        $bodyTopY = $pdf->GetY();
+        $bodyTopY = $pdf->GetY() + self::OC_TITLE_DROP_TWO_LINES_MM;
 
         $logoPath  = trim((string) ($pdfSettings['logo_path'] ?? ''));
         $logoWidth = (float) ($pdfSettings['logo_width'] ?? 50);

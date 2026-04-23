@@ -181,7 +181,7 @@ class OrdencompraApprovedPdfBuilder
                 $pdf->AddPage('P', self::pageSizeMm());
                 $pdf->useTemplate($tpl, 0, 0, self::PAGE_W_MM, self::PAGE_H_MM, false);
                 $pageNum++;
-                self::stampPageFraction($pdf, $pageNum, $totalPages, $i === 1);
+                self::stampPageFraction($pdf, $pageNum, $totalPages);
             }
             @unlink($tmpOcPdf);
 
@@ -204,14 +204,14 @@ class OrdencompraApprovedPdfBuilder
                     self::placeImportedTemplateScaledToLetter($pdf, $tpl);
                     self::drawCmyEdgeBars($pdf);
                     $pageNum++;
-                    self::stampPageFraction($pdf, $pageNum, $totalPages, false);
+                    self::stampPageFraction($pdf, $pageNum, $totalPages);
                 }
             } elseif ($vendorAbs !== null && $vendorKind === 'image') {
                 $pdf->AddPage('P', self::pageSizeMm());
                 self::placeRasterImageScaledToLetter($pdf, (string) $vendorAbs);
                 self::drawCmyEdgeBars($pdf);
                 $pageNum++;
-                self::stampPageFraction($pdf, $pageNum, $totalPages, false);
+                self::stampPageFraction($pdf, $pageNum, $totalPages);
             }
 
             $pdf->Output('F', $outAbs);
@@ -355,11 +355,9 @@ class OrdencompraApprovedPdfBuilder
 
     /**
      * Page indicator top-right (e.g. 2/7) — one continuous sequence for OC + embedded vendor pages.
-     *
-     * On the first ORC page, sit below the title row (see OrdencompraPdfHelper OC_TOP_MARGIN_MM + OC_TITLE_ROW_H_MM)
-     * so "n/total" does not crowd ORDEN DE COMPRA. Other pages keep a compact top-right stamp.
+     * Flush to the top-right (minimal inset), no background fill.
      */
-    private static function stampPageFraction(Fpdi $pdf, int $current, int $total, bool $orcFirstPage = false): void
+    private static function stampPageFraction(Fpdi $pdf, int $current, int $total): void
     {
         if ($total < 1) {
             $total = 1;
@@ -370,16 +368,14 @@ class OrdencompraApprovedPdfBuilder
 
         $txt = $current . '/' . $total;
         $pdf->SetFont('Helvetica', 'B', 11);
-        $pw    = $pdf->GetPageWidth();
-        $cellW = 28.0;
-        $cellH = 7.0;
-        $x     = $pw - 10.0 - $cellW;
-        // Mirror com_ordenproduccion OrdencompraPdfHelper: body starts OC_TOP_MARGIN_MM, title row OC_TITLE_ROW_H_MM.
-        $y = $orcFirstPage ? (24.0 + 8.0 + 2.0) : 8.0;
-        $pdf->SetFillColor(255, 255, 255);
+        $pw = $pdf->GetPageWidth();
+        /** @var float  Inset from top of page below CMY bar (mm). */
+        $topInset = self::CMY_BAR_H_MM + 0.6;
+        /** @var float  Inset from right sheet edge (mm). */
+        $rightInset = 1.5;
+        $lineH      = 5.0;
         $pdf->SetTextColor(40, 40, 40);
-        $pdf->Rect($x, $y, $cellW, $cellH, 'F');
-        $pdf->SetXY($x, $y);
-        $pdf->Cell($cellW, $cellH, $txt, 0, 0, 'R', false);
+        $pdf->SetXY(0.0, $topInset);
+        $pdf->Cell($pw - $rightInset, $lineH, $txt, 0, 0, 'R', false);
     }
 }
