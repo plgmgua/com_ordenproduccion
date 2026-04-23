@@ -11,6 +11,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Filesystem\Folder;
+use Joomla\CMS\Language\Text;
+
 /**
  * @since  3.113.85
  */
@@ -20,11 +23,54 @@ final class QuotationLineImagesHelper
 
     private const MAX_BYTES = 5242880;
 
-    /** @var list<string> */
+    /**
+     * FPDF Image(): jpeg/png/gif only (no webp).
+     *
+     * @return array<string, string>
+     */
     private static function allowedMimeToExt(): array
     {
-        // FPDF Image(): jpeg/png/gif only (no webp).
-        return ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
+        return [
+            'image/jpeg'  => 'jpg',
+            'image/png'   => 'png',
+            'image/x-png' => 'png',
+            'image/gif'   => 'gif',
+        ];
+    }
+
+    /**
+     * @return array{mime: string, ext: string}|null
+     */
+    private static function detectImageMimeAndExt(string $tmpPath): ?array
+    {
+        $map = self::allowedMimeToExt();
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime  = $finfo->file($tmpPath) ?: '';
+        if (isset($map[$mime])) {
+            return ['mime' => $mime, 'ext' => $map[$mime]];
+        }
+        $imgInfo = @getimagesize($tmpPath);
+        if (!is_array($imgInfo) || !isset($imgInfo[2])) {
+            return null;
+        }
+        switch ($imgInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $mime = 'image/jpeg';
+                break;
+            case IMAGETYPE_PNG:
+                $mime = 'image/png';
+                break;
+            case IMAGETYPE_GIF:
+                $mime = 'image/gif';
+                break;
+            default:
+                return null;
+        }
+        if (!isset($map[$mime])) {
+            return null;
+        }
+
+        return ['mime' => $mime, 'ext' => $map[$mime]];
     }
 
     /**
@@ -69,7 +115,7 @@ final class QuotationLineImagesHelper
         $destDirRel = self::REL_BASE . '/q' . $quotationId;
         $destDirAbs = JPATH_ROOT . '/' . $destDirRel;
         if (!is_dir($destDirAbs)) {
-            @mkdir($destDirAbs, 0755, true);
+            Folder::create($destDirAbs);
         }
         $stagingPrefix = self::REL_BASE . '/staging/u' . $userId . '/';
         $qPrefix       = self::REL_BASE . '/q' . $quotationId . '/';
@@ -122,13 +168,11 @@ final class QuotationLineImagesHelper
         if ($size < 1 || $size > self::MAX_BYTES) {
             return ['success' => false, 'message' => 'File too large'];
         }
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime  = $finfo->file($file['tmp_name']) ?: '';
-        $map   = self::allowedMimeToExt();
-        if (!isset($map[$mime])) {
-            return ['success' => false, 'message' => 'Invalid image type'];
+        $detected = self::detectImageMimeAndExt($file['tmp_name']);
+        if ($detected === null) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_TYPE')];
         }
-        $ext = $map[$mime];
+        $ext = $detected['ext'];
 
         if ($quotationId > 0) {
             $sub = self::REL_BASE . '/q' . $quotationId;
@@ -136,13 +180,17 @@ final class QuotationLineImagesHelper
             $sub = self::REL_BASE . '/staging/u' . $userId;
         }
         $absDir = JPATH_ROOT . '/' . $sub;
-        if (!is_dir($absDir)) {
-            @mkdir($absDir, 0755, true);
+        if (!is_dir($absDir) && !Folder::create($absDir)) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_CREATE_DIR')];
         }
-        $name     = preg_replace('/[^a-zA-Z0-9._-]+/', '_', (string) ($file['name'] ?? 'image')) ?: 'image';
+        if (!is_writable($absDir)) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_NOT_WRITABLE')];
+        }
+        $origStem = pathinfo((string) ($file['name'] ?? 'image'), PATHINFO_FILENAME);
+        $name     = preg_replace('/[^a-zA-Z0-9._-]+/', '_', (string) $origStem) ?: 'image';
         $target   = $absDir . '/' . uniqid('up_', true) . '_' . $name . '.' . $ext;
-        if (!@move_uploaded_file($file['tmp_name'], $target)) {
-            return ['success' => false, 'message' => 'Save failed'];
+        if (!move_uploaded_file($file['tmp_name'], $target)) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGE_ERR_SAVE')];
         }
         $rel = $sub . '/' . basename($target);
 

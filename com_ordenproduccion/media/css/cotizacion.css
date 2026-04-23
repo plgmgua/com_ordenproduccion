@@ -58,6 +58,8 @@
 
 /* Add-line block: dropdown first, then Cantidad + Descripción below */
 .cotizacion-add-line-block {
+    position: relative;
+    z-index: 2;
     padding: 8px 10px;
     background: #f8f9fa;
     border: 1px solid #dee2e6;
@@ -92,6 +94,19 @@
 .items-table td:first-child {
     width: 10%;
     max-width: 120px;
+}
+
+/* Line images: keep attach control inside its column (avoid overlap with add-line controls on small widths) */
+.items-table .cotizacion-line-images-cell {
+    vertical-align: top;
+    min-width: 4.5rem;
+    position: relative;
+    z-index: 0;
+}
+.items-table .cotizacion-line-images-cell .btn-line-attach {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Tables */

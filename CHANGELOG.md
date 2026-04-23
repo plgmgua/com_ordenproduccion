@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.86-STABLE] - 2026-04-16
+
+### Fixed
+- **Cotización — adjuntos por línea:** Subida de imágenes más robusta: creación de carpetas con la API de Joomla (`Folder::create`), comprobación de escritura antes de `move_uploaded_file`, mensajes de error traducidos (carpeta no creada / no escribible / guardado fallido). Soporte de MIME `image/x-png` y detección por `getimagesize` cuando `finfo` no coincide. Nombre de archivo sin doble extensión (p. ej. `foto.png` ya no produce `foto.png.png`).
+
+### Changed
+- **Cotización (CSS):** Bloque «agregar línea» con `z-index` para reducir solapamientos visuales; celda de imágenes con alineación y ancho mínimo.
+
 ## [3.113.85-STABLE] - 2026-04-16
 
 ### Added
