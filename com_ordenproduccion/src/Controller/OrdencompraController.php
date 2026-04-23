@@ -15,6 +15,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdencompraApprovedPdfBuilder;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdencompraPdfHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -98,6 +99,66 @@ class OrdencompraController extends BaseController
         $app->sendHeaders();
         readfile($abs);
         $app->close();
+    }
+
+    /**
+     * Stream ORC-only PDF for draft / pending_approval / rejected (not the combined approved file).
+     *
+     * @return  void
+     *
+     * @since   3.113.65
+     */
+    public function previewPdf(): void
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('request')) {
+            $app->setHeader('HTTP/1.1 403 Forbidden', true);
+            $app->close();
+        }
+
+        $id = (int) $app->input->getInt('id', 0);
+        if ($id < 1) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+        if (!$model || !method_exists($model, 'hasSchema') || !$model->hasSchema()) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        if (!$this->canUserAccessOrdenCompraPdf($model, $id)) {
+            $app->setHeader('HTTP/1.1 403 Forbidden', true);
+            $app->close();
+        }
+
+        $header = $model->getItemById($id);
+        if (!$header) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $st = strtolower((string) ($header->workflow_status ?? ''));
+        if ($st === 'deleted' || $st === 'approved') {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        $lines = $model->getLines($id);
+        if ($lines === []) {
+            $app->setHeader('HTTP/1.1 404 Not Found', true);
+            $app->close();
+        }
+
+        if (!is_file(JPATH_ROOT . '/fpdf/fpdf.php')) {
+            $app->setHeader('HTTP/1.1 503 Service Unavailable', true);
+            $app->close();
+        }
+
+        OrdencompraPdfHelper::streamInline($header, $lines);
     }
 
     /**

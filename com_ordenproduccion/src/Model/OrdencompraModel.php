@@ -319,6 +319,40 @@ class OrdencompraModel extends BaseDatabaseModel
     }
 
     /**
+     * Latest orden de compra for pre-cot + vendor (any status except deleted).
+     *
+     * @return  object|null  { id, workflow_status }
+     *
+     * @since   3.113.65
+     */
+    public function getLatestOrdenCompraSummaryForPrecotProveedor(int $precotId, int $proveedorId): ?object
+    {
+        if (!$this->hasSchema() || $precotId < 1 || $proveedorId < 1) {
+            return null;
+        }
+
+        $db = $this->getDatabase();
+        $q  = $db->getQuery(true)
+            ->select([
+                $db->quoteName('id'),
+                $db->quoteName('workflow_status'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_orden_compra'))
+            ->where($db->quoteName('precotizacion_id') . ' = ' . $precotId)
+            ->where($db->quoteName('proveedor_id') . ' = ' . $proveedorId)
+            ->where($db->quoteName('workflow_status') . ' != ' . $db->quote('deleted'))
+            ->order($db->quoteName('id') . ' DESC')
+            ->setLimit(1);
+        $db->setQuery($q);
+        $row = $db->loadObject();
+        if (!$row || (int) ($row->id ?? 0) < 1) {
+            return null;
+        }
+
+        return $row;
+    }
+
+    /**
      * Update orden de compra lines (draft only). Rows: id = orden_compra_line.id, quantity, descripcion, vendor_unit_price.
      *
      * @param   array<int, array<string, mixed>>  $rows

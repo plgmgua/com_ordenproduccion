@@ -169,6 +169,12 @@ $ordenCompraLinesReady              = isset($this->ordenCompraLinesReady) ? (boo
 $canShowOrdenCompraButton           = !$user->guest && $ordenCompraTablesAvailable && $ordenCompraLinesReady;
 $ordenCompraConfirmExistingMsg      = Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_CONFIRM_EXISTING_MSG');
 $colOrdenCompra = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_COL_ORDEN_COMPRA');
+$labelOrdenCompraViewPdf = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_VIEW_PDF');
+if (strpos($labelOrdenCompraViewPdf, 'COM_ORDENPRODUCCION_') === 0) {
+    $labelOrdenCompraViewPdf = 'Ver orden de compra (PDF)';
+}
+$ordenCompraLatestByProveedor = isset($this->ordenCompraLatestByProveedor) && is_array($this->ordenCompraLatestByProveedor)
+    ? $this->ordenCompraLatestByProveedor : [];
 $token = Session::getFormToken();
 $vendorQuoteProveedoresUrl = Route::_(
     'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedoresJson&format=json&' . $token . '=1',
@@ -231,7 +237,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-attach { width: 5.5rem; padding-left: 0.25rem; padding-right: 0.25rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-save { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
-.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-oc { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
+.com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-oc { width: 3.1rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .precot-vendor-quote-event-log .col-evt-delete { width: 2.85rem; padding-left: 0.2rem; padding-right: 0.2rem; }
 .com-ordenproduccion-precotizacion-proveedor-externo .pre-cot-vendor-lines-table textarea.form-control {
     width: 100%;
@@ -1265,7 +1271,13 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <th scope="col" class="col-evt-spacer p-1" aria-hidden="true"></th>
                         <th scope="col" class="col-evt-attach text-center" title="<?php echo htmlspecialchars($colAttach); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colAttach); ?></span><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                         <th scope="col" class="col-evt-save text-center" title="<?php echo htmlspecialchars($labelSaveEventCondiciones); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($labelSaveEventCondiciones); ?></span><i class="fas fa-save" aria-hidden="true"></i></th>
-                        <th scope="col" class="col-evt-oc text-center" title="<?php echo htmlspecialchars($colOrdenCompra); ?>"><span class="visually-hidden"><?php echo htmlspecialchars($colOrdenCompra); ?></span><i class="fas fa-money-bill-wave" aria-hidden="true"></i></th>
+                        <th scope="col" class="col-evt-oc text-center" title="<?php echo htmlspecialchars($colOrdenCompra); ?>">
+                            <span class="visually-hidden"><?php echo htmlspecialchars($colOrdenCompra); ?></span>
+                            <span class="d-inline-flex flex-column align-items-center gap-0 lh-1" aria-hidden="true">
+                                <i class="fas fa-file-pdf text-secondary" style="font-size: 0.65rem;"></i>
+                                <i class="fas fa-money-bill-wave"></i>
+                            </span>
+                        </th>
                         <th scope="col" class="col-evt-delete text-center" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_DELETE')); ?>"><span class="visually-hidden"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_DELETE')); ?></span><i class="fas fa-trash" aria-hidden="true"></i></th>
                     </tr>
                 </thead>
@@ -1367,25 +1379,51 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             <?php endif; ?>
                         </td>
                         <td class="col-evt-oc text-center align-middle" rowspan="2">
-                            <?php if ($canShowOrdenCompraButton && $evtProveedorId > 0) : ?>
-                            <button type="button" class="btn btn-sm btn-outline-success p-1 js-orden-compra-open-editor"
-                                    data-open-url="<?php echo htmlspecialchars($openOrdenCompraEditorUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-save-url="<?php echo htmlspecialchars($saveOrdenCompraDraftUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-submit-url="<?php echo htmlspecialchars($submitOrdenCompraApprovalUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-delete-url="<?php echo htmlspecialchars($deleteOrdenCompraUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-token-name="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-precot-id="<?php echo (int) $preCotizacionId; ?>"
-                                    data-proveedor-id="<?php echo (int) $evtProveedorId; ?>"
-                                    data-event-id="<?php echo (int) $evtId; ?>"
-                                    data-existing-count="<?php echo (int) $ordenCompraExistingCountForPrecot; ?>"
-                                    data-confirm-existing-msg="<?php echo htmlspecialchars($ordenCompraConfirmExistingMsg, ENT_QUOTES, 'UTF-8'); ?>"
-                                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>"
-                                    aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>">
-                                <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
-                            </button>
-                            <?php else : ?>
-                            <span class="text-muted small">—</span>
-                            <?php endif; ?>
+                            <?php
+                            $ocRowSnap = isset($ordenCompraLatestByProveedor[$evtProveedorId]) ? $ordenCompraLatestByProveedor[$evtProveedorId] : null;
+                            $ocViewId  = $ocRowSnap ? (int) ($ocRowSnap->id ?? 0) : 0;
+                            $ocViewHref = '';
+                            if ($ocViewId > 0 && $ordenCompraTablesAvailable) {
+                                $ocSt = strtolower((string) ($ocRowSnap->workflow_status ?? ''));
+                                $ocPdfTask = ($ocSt === 'approved') ? 'ordencompra.pdf' : 'ordencompra.previewPdf';
+                                $ocViewHref = Route::_(
+                                    'index.php?option=com_ordenproduccion&task=' . $ocPdfTask . '&id=' . $ocViewId . '&tmpl=component&' . $token . '=1',
+                                    false,
+                                    Route::TLS_IGNORE,
+                                    true
+                                );
+                            }
+                            ?>
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <?php if ($ocViewHref !== '') : ?>
+                                <a href="<?php echo htmlspecialchars($ocViewHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                   class="btn btn-sm btn-outline-secondary p-1"
+                                   target="_blank" rel="noopener noreferrer"
+                                   title="<?php echo htmlspecialchars($labelOrdenCompraViewPdf, ENT_QUOTES, 'UTF-8'); ?>"
+                                   aria-label="<?php echo htmlspecialchars($labelOrdenCompraViewPdf, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fas fa-file-pdf" aria-hidden="true"></i>
+                                </a>
+                                <?php endif; ?>
+                                <?php if ($canShowOrdenCompraButton && $evtProveedorId > 0) : ?>
+                                <button type="button" class="btn btn-sm btn-outline-success p-1 js-orden-compra-open-editor"
+                                        data-open-url="<?php echo htmlspecialchars($openOrdenCompraEditorUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-save-url="<?php echo htmlspecialchars($saveOrdenCompraDraftUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-submit-url="<?php echo htmlspecialchars($submitOrdenCompraApprovalUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-delete-url="<?php echo htmlspecialchars($deleteOrdenCompraUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-token-name="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-precot-id="<?php echo (int) $preCotizacionId; ?>"
+                                        data-proveedor-id="<?php echo (int) $evtProveedorId; ?>"
+                                        data-event-id="<?php echo (int) $evtId; ?>"
+                                        data-existing-count="<?php echo (int) $ordenCompraExistingCountForPrecot; ?>"
+                                        data-confirm-existing-msg="<?php echo htmlspecialchars($ordenCompraConfirmExistingMsg, ENT_QUOTES, 'UTF-8'); ?>"
+                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>"
+                                        aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_EVENT_ORDEN_COMPRA_SUBMIT')); ?>">
+                                    <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                                </button>
+                                <?php elseif ($ocViewHref === '') : ?>
+                                <span class="text-muted small">—</span>
+                                <?php endif; ?>
+                            </div>
                         </td>
                         <td class="col-evt-delete text-center align-middle" rowspan="2">
                             <?php if ($canViewVendorQuoteRequestLog) : ?>

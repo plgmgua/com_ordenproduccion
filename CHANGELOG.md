@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.65-STABLE] - 2026-04-23
+
+### Added
+- **Registro solicitudes al proveedor:** Botón **ver orden de compra (PDF)** encima del ícono de solicitud; abre el PDF aprobado (combinado) o la vista previa del borrador / pendiente. Nueva tarea `ordencompra.previewPdf` y mapa `ordenCompraLatestByProveedor` en la vista del cotizador.
+
 ## [3.113.64-STABLE] - 2026-04-23
 
 ### Added

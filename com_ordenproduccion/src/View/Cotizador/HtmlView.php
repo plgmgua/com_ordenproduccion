@@ -191,6 +191,14 @@ class HtmlView extends BaseHtmlView
     protected $precotVendorQuoteEvents = [];
 
     /**
+     * proveedor_id => latest orden_compra row summary (id, workflow_status), excluding deleted.
+     *
+     * @var    array<int, object>
+     * @since  3.113.65
+     */
+    protected $ordenCompraLatestByProveedor = [];
+
+    /**
      * Proveedor externo: user may see the vendor request log block (Administración, Aprobaciones Ventas).
      *
      * @var    bool
@@ -313,6 +321,7 @@ class HtmlView extends BaseHtmlView
                     $this->ordenCompraTablesAvailable           = false;
                     $this->ordenCompraExistingCountForPrecot   = 0;
                     $this->ordenCompraLinesReady                = false;
+                    $this->ordenCompraLatestByProveedor         = [];
                     $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
                     try {
                         $wf = new ApprovalWorkflowService();
@@ -359,6 +368,7 @@ class HtmlView extends BaseHtmlView
                         $this->ordenCompraTablesAvailable             = false;
                         $this->ordenCompraExistingCountForPrecot      = 0;
                         $this->ordenCompraLinesReady                  = false;
+                        $this->ordenCompraLatestByProveedor           = [];
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserEditPreCotizacionDocument((int) $id)
@@ -377,6 +387,27 @@ class HtmlView extends BaseHtmlView
                         && method_exists($precotModel, 'getVendorQuoteEvents')
                     ) {
                         $this->precotVendorQuoteEvents = $precotModel->getVendorQuoteEvents((int) $id);
+                    }
+                    if (
+                        $docMode === 'proveedor_externo'
+                        && $this->ordenCompraTablesAvailable
+                        && $this->precotVendorQuoteEvents !== []
+                    ) {
+                        $ocLatestModel = $mvcFactory->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
+                        if ($ocLatestModel && method_exists($ocLatestModel, 'getLatestOrdenCompraSummaryForPrecotProveedor')) {
+                            $seenProv = [];
+                            foreach ($this->precotVendorQuoteEvents as $evRow) {
+                                $ppid = (int) ($evRow->proveedor_id ?? 0);
+                                if ($ppid < 1 || isset($seenProv[$ppid])) {
+                                    continue;
+                                }
+                                $seenProv[$ppid] = true;
+                                $summary = $ocLatestModel->getLatestOrdenCompraSummaryForPrecotProveedor((int) $id, $ppid);
+                                if ($summary !== null) {
+                                    $this->ordenCompraLatestByProveedor[$ppid] = $summary;
+                                }
+                            }
+                        }
                     }
                 }
             }
