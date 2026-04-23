@@ -36,6 +36,9 @@ $statusLabel = static function (string $s): string {
     if ($s === 'rejected') {
         return Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_STATUS_REJECTED');
     }
+    if ($s === 'deleted') {
+        return Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_STATUS_DELETED');
+    }
 
     return $s;
 };
@@ -58,6 +61,14 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
     <?php if (!$schemaOk) : ?>
         <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_SCHEMA_MISSING'); ?></div>
     <?php elseif ($item) : ?>
+        <?php
+        $ocWf = strtolower((string) ($item->workflow_status ?? ''));
+        $canActApproval = !empty($this->canActOnOrdenCompraApproval);
+        $ocApprovalReqId = (int) ($item->approval_request_id ?? 0);
+        $approveWfUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow', false);
+        $rejectWfUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectApprovalWorkflow', false);
+        $ocReturnB64  = base64_encode(Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . (int) ($item->id ?? 0), false));
+        ?>
         <p class="mb-2">
             <a href="<?php echo htmlspecialchars($listUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-secondary">
                 <?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_BACK_LIST'); ?>
@@ -79,17 +90,36 @@ $proveedorNameFromSnapshot = static function (?string $json): string {
                     <dd class="col-sm-9"><?php echo nl2br(htmlspecialchars((string) $item->condiciones_entrega, ENT_QUOTES, 'UTF-8')); ?></dd>
                     <?php endif; ?>
                 </dl>
-                <?php if (strtolower((string) ($item->workflow_status ?? '')) === 'approved') :
+                <?php if ($ocWf === 'pending_approval' && $canActApproval && $ocApprovalReqId > 0) : ?>
+                <div class="mt-3 pt-3 border-top ordencompra-approval-actions">
+                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVAL_ACTIONS_INTRO'); ?></p>
+                    <form method="post" action="<?php echo htmlspecialchars($approveWfUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mb-3">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="request_id" value="<?php echo $ocApprovalReqId; ?>">
+                        <input type="hidden" name="return" value="<?php echo htmlspecialchars($ocReturnB64, ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label small mb-0" for="oc-approval-approve-comment"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
+                        <textarea class="form-control form-control-sm mb-2" id="oc-approval-approve-comment" name="comment" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
+                        <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
+                    </form>
+                    <form method="post" action="<?php echo htmlspecialchars($rejectWfUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                          onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_REJECT_CONFIRM')); ?>);">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="request_id" value="<?php echo $ocApprovalReqId; ?>">
+                        <input type="hidden" name="return" value="<?php echo htmlspecialchars($ocReturnB64, ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label small mb-0" for="oc-approval-reject-comment"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
+                        <textarea class="form-control form-control-sm mb-2" id="oc-approval-reject-comment" name="comment" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
+                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
+                    </form>
+                </div>
+                <?php endif; ?>
+                <?php if ($ocWf === 'approved') :
                     $ocPdfHref = Route::_('index.php?option=com_ordenproduccion&task=ordencompra.pdf&id=' . (int) ($item->id ?? 0) . '&tmpl=component&' . Session::getFormToken() . '=1', false);
                 ?>
                 <p class="mb-0 mt-2">
                     <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars($ocPdfHref, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DOWNLOAD_APPROVED_PDF'); ?></a>
                 </p>
                 <?php endif; ?>
-                <?php
-                $ocWf = strtolower((string) ($item->workflow_status ?? ''));
-                if ($ocWf === 'pending_approval' || $ocWf === 'draft') :
-                ?>
+                <?php if ($ocWf === 'pending_approval' || $ocWf === 'draft') : ?>
                 <form method="post" action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mt-3"
                       onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_DELETE_CONFIRM')); ?>);">
                     <?php echo HTMLHelper::_('form.token'); ?>

@@ -510,6 +510,38 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Whether the user has a pending step on the request's current step (may approve or reject).
+     *
+     * @since  3.113.57
+     */
+    public function canUserActOnPendingStep(int $requestId, int $userId): bool
+    {
+        if (!$this->hasSchema() || $requestId < 1 || $userId < 1) {
+            return false;
+        }
+
+        $req = $this->loadRequest($requestId);
+
+        if ($req === null || $req->status !== 'pending') {
+            return false;
+        }
+
+        $stepNum = (int) $req->current_step_number;
+
+        $q = $this->db->getQuery(true)
+            ->select($this->db->quoteName('id'))
+            ->from($this->db->quoteName('#__ordenproduccion_approval_request_steps'))
+            ->where($this->db->quoteName('request_id') . ' = ' . (int) $requestId)
+            ->where($this->db->quoteName('step_number') . ' = ' . $stepNum)
+            ->where($this->db->quoteName('approver_user_id') . ' = ' . (int) $userId)
+            ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'))
+            ->setLimit(1);
+        $this->db->setQuery($q);
+
+        return (int) $this->db->loadResult() > 0;
+    }
+
+    /**
      * Approve a pending step row for the current user.
      */
     public function approve(int $requestId, int $userId, string $comments = ''): bool

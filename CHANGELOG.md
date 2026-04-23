@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.57-STABLE] - 2026-04-23
+
+### Added
+- **Orden de compra (detalle):** Botones **Aprobar** y **Rechazar** para el aprobador asignado en el paso actual (mismo flujo que la pestaña Aprobaciones, con `return` a la vista del ORC). Nuevo helper `ApprovalWorkflowService::canUserActOnPendingStep`.
+- **Estado Borrada:** Al usar **Eliminar**, la orden pasa a `workflow_status = deleted` (registro conservado para historial) en lugar de borrarse de la base; `countForPrecotizacion` excluye borradas al pedir confirmación por “otra orden”.
+
+### Changed
+- Etiquetas de estado en listado/detalle: **Pendiente** (pendiente de aprobación), **Aprobada**, **Rechazada**, **Borrada**; borrador sigue como **Borrador**.
+
 ## [3.113.56-STABLE] - 2026-04-22
 
 ### Changed

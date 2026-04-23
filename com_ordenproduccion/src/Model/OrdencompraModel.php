@@ -87,7 +87,8 @@ class OrdencompraModel extends BaseDatabaseModel
         $q  = $db->getQuery(true)
             ->select('COUNT(*)')
             ->from($db->quoteName('#__ordenproduccion_orden_compra'))
-            ->where($db->quoteName('precotizacion_id') . ' = ' . $precotId);
+            ->where($db->quoteName('precotizacion_id') . ' = ' . $precotId)
+            ->where($db->quoteName('workflow_status') . ' != ' . $db->quote('deleted'));
         $db->setQuery($q);
 
         return (int) $db->loadResult();
@@ -179,24 +180,20 @@ class OrdencompraModel extends BaseDatabaseModel
         }
 
         $db = $this->getDatabase();
-
+        $now = Factory::getDate()->toSql();
         try {
-            $db->transactionStart();
-            $delL = $db->getQuery(true)
-                ->delete($db->quoteName('#__ordenproduccion_orden_compra_line'))
-                ->where($db->quoteName('orden_compra_id') . ' = ' . $id);
-            $db->setQuery($delL);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_orden_compra'))
+                    ->set($db->quoteName('workflow_status') . ' = ' . $db->quote('deleted'))
+                    ->set($db->quoteName('state') . ' = 0')
+                    ->set($db->quoteName('approval_request_id') . ' = NULL')
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->set($db->quoteName('modified_by') . ' = ' . $userId)
+                    ->where($db->quoteName('id') . ' = ' . $id)
+            );
             $db->execute();
-
-            $delO = $db->getQuery(true)
-                ->delete($db->quoteName('#__ordenproduccion_orden_compra'))
-                ->where($db->quoteName('id') . ' = ' . $id);
-            $db->setQuery($delO);
-            $db->execute();
-            $db->transactionCommit();
         } catch (\Throwable $e) {
-            $db->transactionRollback();
-
             return false;
         }
 
@@ -228,7 +225,7 @@ class OrdencompraModel extends BaseDatabaseModel
         }
 
         $status = strtolower(trim($status));
-        if (!in_array($status, ['pending_approval', 'approved', 'rejected', self::WORKFLOW_STATUS_DRAFT], true)) {
+        if (!in_array($status, ['pending_approval', 'approved', 'rejected', 'deleted', self::WORKFLOW_STATUS_DRAFT], true)) {
             return;
         }
 

@@ -566,7 +566,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_orden_compra` (
     `proveedor_snapshot` mediumtext COMMENT 'JSON: vendor fields at creation',
     `currency` varchar(8) NOT NULL DEFAULT 'Q',
     `total_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
-    `workflow_status` varchar(32) NOT NULL DEFAULT 'pending_approval' COMMENT 'pending_approval|approved|rejected',
+    `workflow_status` varchar(32) NOT NULL DEFAULT 'pending_approval' COMMENT 'draft|pending_approval|approved|rejected|deleted',
     `approval_request_id` int unsigned DEFAULT NULL,
     `state` tinyint NOT NULL DEFAULT 1,
     `created` datetime NOT NULL,

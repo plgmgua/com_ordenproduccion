@@ -14,6 +14,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Ordencompra;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -42,6 +43,9 @@ class HtmlView extends BaseHtmlView
 
     /** @var string  pdf|image|'' */
     protected $vendorQuoteKind = '';
+
+    /** @var bool  Current user may approve/reject this orden (pending step assignee) */
+    protected $canActOnOrdenCompraApproval = false;
 
     /**
      * @param   string|null  $tpl
@@ -90,6 +94,17 @@ class HtmlView extends BaseHtmlView
                 return;
             }
             $this->lines = $model->getLines($id);
+
+            $this->canActOnOrdenCompraApproval = false;
+            $wfSt                              = strtolower((string) ($this->item->workflow_status ?? ''));
+            $reqId                             = (int) ($this->item->approval_request_id ?? 0);
+            if ($wfSt === 'pending_approval' && $reqId > 0) {
+                $user = Factory::getUser();
+                if (!$user->guest) {
+                    $wfSvc = new ApprovalWorkflowService();
+                    $this->canActOnOrdenCompraApproval = $wfSvc->canUserActOnPendingStep($reqId, (int) $user->id);
+                }
+            }
 
             $this->vendorQuoteUrl  = '';
             $this->vendorQuoteKind = '';
