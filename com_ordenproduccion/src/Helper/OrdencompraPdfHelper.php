@@ -37,7 +37,8 @@ final class OrdencompraPdfDocument extends \FPDF
         $this->SetXY(0, 0);
         CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_BAR_H, 1);
 
-        if ($this->fechaLine !== '') {
+        // Page 1: fecha is drawn in the body under the title (avoids overlap). Continuation pages: here.
+        if ($this->fechaLine !== '' && $this->PageNo() > 1) {
             $this->SetFont('Arial', '', 9);
             $this->SetTextColor(60, 60, 60);
             $pw    = $this->GetPageWidth();
@@ -89,6 +90,12 @@ class OrdencompraPdfHelper
 
     /** @var float  Top body margin (mm); fits title under header date without huge gap. */
     private const OC_TOP_MARGIN_MM = 24.0;
+
+    /** @var float  Vertical space (mm) below title row before fecha — two lines ≈ 2 × 5 mm. */
+    private const OC_DATE_BELOW_TITLE_MM = 10.0;
+
+    /** @var float  Extra space (mm) below logo/fecha block before Proveedor (~3 text lines). */
+    private const OC_GAP_BEFORE_PROVEEDOR_MM = 15.0;
 
     /**
      * Build FPDF instance (caller must Output).
@@ -225,8 +232,20 @@ class OrdencompraPdfHelper
         $pdf->SetXY($left, $bodyTopY);
         $pdf->Cell($usableW, self::OC_TITLE_ROW_H_MM, $titleLine, 0, 0, 'R');
 
-        $headerBlockBottom = max($bodyTopY + $logoHmm, $bodyTopY + self::OC_TITLE_ROW_H_MM) + 3.0;
-        $pdf->SetXY($left, $headerBlockBottom);
+        $titleRowBottom = $bodyTopY + self::OC_TITLE_ROW_H_MM;
+        $dateY          = $titleRowBottom + self::OC_DATE_BELOW_TITLE_MM;
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->SetTextColor(60, 60, 60);
+        $cellWDate = 85.0;
+        $xDate     = $pageW - 10.0 - $cellWDate;
+        $pdf->SetXY($xDate, $dateY);
+        $pdf->Cell($cellWDate, 5, CotizacionPdfHelper::encodeTextForFpdf($fechaHoy), 0, 0, 'R');
+        $pdf->SetTextColor(0, 0, 0);
+
+        $dateBottom     = $dateY + 5.0;
+        $logoBottom     = $bodyTopY + $logoHmm;
+        $headerBlockEnd = max($dateBottom, $logoBottom) + self::OC_GAP_BEFORE_PROVEEDOR_MM;
+        $pdf->SetXY($left, $headerBlockEnd);
 
         $pdf->SetFont('Arial', '', 10);
         if ($proveedorName !== '') {

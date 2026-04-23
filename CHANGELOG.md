@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.80-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra:** La fecha ya no va en la cabecera de la **página 1** (evita solaparse con el título); se dibuja en el cuerpo **dos líneas (10 mm) debajo** de la fila del título, alineada a la derecha. En páginas **siguientes** la fecha sigue en la cabecera. Añadidos **15 mm** entre el bloque logo/fecha y la línea **Proveedor** para bajar el resto del contenido.
+
 ## [3.113.79-STABLE] - 2026-04-16
 
 ### Changed
