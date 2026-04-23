@@ -1588,10 +1588,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     <script>
     (function() {
         var modalEl = document.getElementById('ordenCompraEditorModal');
-        if (!modalEl || typeof bootstrap === 'undefined') {
+        if (!modalEl) {
             return;
         }
-        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var modalInstance = null;
+        function getBsModal() {
+            if (modalInstance) {
+                return modalInstance;
+            }
+            if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                return null;
+            }
+            modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            return modalInstance;
+        }
         var tbody = document.getElementById('ordenCompraEditorTbody');
         var totalCell = document.getElementById('ordenCompraEditorTotalCell');
         var titleEl = document.getElementById('ordenCompraEditorModalTitle');
@@ -1754,7 +1764,12 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     submitBtn.disabled = !data.workflow_published;
                     submitBtn.title = data.workflow_published ? '' : <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_WORKFLOW_NOT_AVAILABLE')); ?>;
                 }
-                modal.show();
+                var m = getBsModal();
+                if (!m) {
+                    window.alert(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_BOOTSTRAP_MISSING')); ?>);
+                    return;
+                }
+                m.show();
             }).catch(function() {
                 window.alert('Error de red');
             });
@@ -1813,7 +1828,10 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         window.alert(data && data.message ? data.message : 'Error');
                         return;
                     }
-                    modal.hide();
+                    var mh = getBsModal();
+                    if (mh) {
+                        mh.hide();
+                    }
                     if (data.message) {
                         window.alert(data.message);
                     }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.53-STABLE] - 2026-04-22
+
+### Fixed
+- **Orden de compra (registro al proveedor):** El script del modal comprobaba `bootstrap` al parsear la página; con Bootstrap cargado después (p. ej. `defer`), salía antes de registrar el clic y el botón no hacía nada. Ahora solo exige el nodo del modal y crea la instancia de `bootstrap.Modal` de forma diferida al abrir.
+
 ## [3.113.52-STABLE] - 2026-04-16
 
 ### Added
