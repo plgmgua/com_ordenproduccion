@@ -84,12 +84,6 @@ class OrdencompraPdfHelper
     /** @var float  Space between Proveedor line and PRE line (compact block). */
     private const GAP_PROVEEDOR_TO_PRE_MM = 6.0;
 
-    /** @var float  Max logo width (mm) on orden de compra — smaller “red box” footprint. */
-    private const OC_LOGO_MAX_WIDTH_MM = 36.0;
-
-    /** @var float  Scale applied to administración logo_width before capping. */
-    private const OC_LOGO_WIDTH_FACTOR = 0.72;
-
     /** @var float  Title row height (mm), aligned with logo top band. */
     private const OC_TITLE_ROW_H_MM = 8.0;
 
@@ -208,13 +202,9 @@ class OrdencompraPdfHelper
 
         $bodyTopY = $pdf->GetY();
 
-        $logoPath = trim((string) ($pdfSettings['logo_path'] ?? ''));
-        $cfgW     = (float) ($pdfSettings['logo_width'] ?? 50);
-        $logoWidth = min(
-            self::OC_LOGO_MAX_WIDTH_MM,
-            max(12.0, $cfgW * self::OC_LOGO_WIDTH_FACTOR)
-        );
-        $logoX = $left;
+        $logoPath  = trim((string) ($pdfSettings['logo_path'] ?? ''));
+        $logoWidth = (float) ($pdfSettings['logo_width'] ?? 50);
+        $logoX     = $left;
 
         $logoY   = $bodyTopY;
         $logoHmm = 0.0;

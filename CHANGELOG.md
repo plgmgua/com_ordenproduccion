@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.79-STABLE] - 2026-04-16
+
+### Changed
+- **PDF orden de compra:** El ancho del logo vuelve a usar solo el valor de **Ajustes de cotización PDF** (`logo_width`), sin tope ni factor de escala adicionales.
+
 ## [3.113.78-STABLE] - 2026-04-16
 
 ### Changed
