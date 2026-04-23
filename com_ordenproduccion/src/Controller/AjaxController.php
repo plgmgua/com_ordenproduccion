@@ -337,6 +337,7 @@ class AjaxController extends BaseController
             $clientId = $input->getString('client_id', '');
             $salesAgent = $input->getString('sales_agent', '');
             $lines = $input->get('lines', [], 'array');
+            $lines = QuotationLineImagesHelper::mergeLineImagesJsonFromRequest($lines);
             $items = $input->get('items', [], 'array');
             
             // Validate required fields
@@ -637,6 +638,7 @@ class AjaxController extends BaseController
         $clientId = $input->getString('client_id', '');
         $salesAgent = $input->getString('sales_agent', '');
         $lines = $input->get('lines', [], 'array');
+        $lines = QuotationLineImagesHelper::mergeLineImagesJsonFromRequest($lines);
         if (empty($clientName) || empty($clientNit)) {
             echo json_encode(['success' => false, 'message' => 'Missing required fields']);
             exit;

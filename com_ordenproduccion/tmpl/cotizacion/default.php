@@ -745,7 +745,12 @@ function submitQuotationForm(event) {
     .then(function(data) {
         if (data.success) {
             alert(data.message || ('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_CREATED_SUCCESS', 'Quotation saved successfully.', 'Cotización guardada correctamente.')); ?>: ' + (data.quotation_number || '')));
-            window.location.href = 'index.php?option=com_ordenproduccion&view=cotizaciones';
+            var savedId = data.quotation_id ? String(data.quotation_id) : (quotationId && quotationId.value ? String(quotationId.value) : '');
+            if (savedId) {
+                window.location.href = 'index.php?option=com_ordenproduccion&view=cotizacion&id=' + encodeURIComponent(savedId);
+            } else {
+                window.location.href = 'index.php?option=com_ordenproduccion&view=cotizaciones';
+            }
         } else {
             throw new Error(data.message || 'Error saving quotation');
         }

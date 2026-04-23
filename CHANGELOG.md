@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.89-STABLE] - 2026-04-16
+
+### Fixed
+- **Cotización — imágenes por línea:** Al guardar con «Guardar cotización», el JSON en `lines[*][line_images_json]` quedaba vacío porque el filtro de `Input::get(..., 'array')` de Joomla altera el valor. Se fusiona `line_images_json` desde `$_POST` y se sigue normalizando con `QuotationLineImagesHelper`.
+
+### Changed
+- **Cotización (edición):** Tras guardar correctamente, la redirección va a la **vista de la cotización** (`view=cotizacion&id=…`) en lugar de la lista de cotizaciones.
+
 ## [3.113.88-STABLE] - 2026-04-16
 
 ### Changed

@@ -127,6 +127,39 @@ final class QuotationLineImagesHelper
     }
 
     /**
+     * Joomla Input::get(..., 'array') often mangles JSON strings in nested fields. Merge raw POST values
+     * for line_images_json only (still normalized later via normalizeJsonFromInput).
+     *
+     * @param  array<int|string, mixed>  $lines
+     * @return array<int|string, mixed>
+     */
+    public static function mergeLineImagesJsonFromRequest(array $lines): array
+    {
+        $postLines = (isset($_POST['lines']) && is_array($_POST['lines'])) ? $_POST['lines'] : null;
+        if ($postLines === null) {
+            return $lines;
+        }
+        foreach ($lines as $idx => $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            $rawBlock = $postLines[$idx] ?? null;
+            if ($rawBlock === null) {
+                $rawBlock = $postLines[(string) $idx] ?? null;
+            }
+            if (!is_array($rawBlock) || !array_key_exists('line_images_json', $rawBlock)) {
+                continue;
+            }
+            $rawJson = $rawBlock['line_images_json'];
+            if (is_string($rawJson)) {
+                $lines[$idx]['line_images_json'] = $rawJson;
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
      * After quotation save: move staging files into q{quotationId}/ and return cleaned JSON.
      */
     public static function finalizeJsonForQuotation(int $quotationId, int $userId, string $json): string
