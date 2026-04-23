@@ -462,6 +462,7 @@ class OrdencompraModel extends BaseDatabaseModel
                     $db->quoteName('created'),
                     $db->quoteName('created_by'),
                     $db->quoteName('modified_by'),
+                    $db->quoteName('approve_email_cc_vendor'),
                 ])
                 ->values(implode(',', [
                     $db->quote($number),
@@ -477,6 +478,7 @@ class OrdencompraModel extends BaseDatabaseModel
                     '1',
                     $db->quote($now),
                     (string) (int) $userId,
+                    '0',
                     '0',
                 ]));
             $db->setQuery($ins);
@@ -525,5 +527,35 @@ class OrdencompraModel extends BaseDatabaseModel
         }
 
         return $ocId;
+    }
+
+    /**
+     * Persist whether the approved-PO notification should CC the vendor contact email.
+     *
+     * @since  3.113.63
+     */
+    public function setApproveEmailCcVendor(int $ordenCompraId, bool $ccVendor): bool
+    {
+        if (!$this->hasSchema() || $ordenCompraId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_orden_compra'))
+                ->set($db->quoteName('approve_email_cc_vendor') . ' = ' . ($ccVendor ? '1' : '0'))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) Factory::getUser()->id)
+                ->where($db->quoteName('id') . ' = ' . $ordenCompraId)
+        );
+
+        try {
+            $db->execute();
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return true;
     }
 }

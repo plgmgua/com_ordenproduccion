@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.63-STABLE] - 2026-04-23
+
+### Added
+- **Orden de compra (modal pre-cot):** Opción por radio para que, al aprobar, el correo vaya solo al solicitante o al solicitante con **CC al correo del proveedor**; se muestra el email del proveedor. Tras la aprobación se envía notificación al solicitante (PDF adjunto si se generó) y registro en el log de correos salientes (`ordencompra_approved`). Columna `approve_email_cc_vendor` en `#__ordenproduccion_orden_compra`.
+
 ## [3.113.62-STABLE] - 2026-04-23
 
 ### Fixed

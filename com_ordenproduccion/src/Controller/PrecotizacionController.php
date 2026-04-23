@@ -2402,6 +2402,9 @@ class PrecotizacionController extends BaseController
         $wf    = new ApprovalWorkflowService();
         $wfPub = $wf->hasSchema() && $wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_ORDEN_COMPRA);
 
+        $vendorEmail = trim((string) ($prov->contact_email ?? ''));
+        $approveCc   = !empty($header->approve_email_cc_vendor) ? 1 : 0;
+
         $this->ordenCompraEditorJsonResponse(true, [
             'orden_compra_id'   => $ocId,
             'number'            => (string) ($header->number ?? ''),
@@ -2409,6 +2412,8 @@ class PrecotizacionController extends BaseController
             'total_amount'      => round((float) ($header->total_amount ?? 0), 2),
             'condiciones_entrega' => (string) ($header->condiciones_entrega ?? ''),
             'proveedor_name'    => $proveedorName,
+            'vendor_email'      => $vendorEmail,
+            'approve_email_cc_vendor' => $approveCc,
             'lines'             => $linesOut,
             'vendor_quote_url'  => $vendorQuoteUrl,
             'vendor_quote_kind' => $vendorQuoteKind,
@@ -2485,6 +2490,11 @@ class PrecotizacionController extends BaseController
                     'Could not save lines.'
                 ),
             ]);
+        }
+
+        $ccVendor = (int) $this->input->post->getInt('approve_email_cc_vendor', 0) === 1;
+        if (method_exists($ocModel, 'setApproveEmailCcVendor')) {
+            $ocModel->setApproveEmailCcVendor($ocId, $ccVendor);
         }
 
         $header = $ocModel->getItemById($ocId);
@@ -2583,6 +2593,12 @@ class PrecotizacionController extends BaseController
 
         $item = $precotModel->getItem($precotId);
         $proveedorId = (int) ($header->proveedor_id ?? 0);
+
+        $ccVendor = (int) $this->input->post->getInt('approve_email_cc_vendor', 0) === 1;
+        if (method_exists($ocModel, 'setApproveEmailCcVendor')) {
+            $ocModel->setApproveEmailCcVendor($ocId, $ccVendor);
+        }
+
         $meta          = json_encode([
             'precotizacion_id'     => $precotId,
             'precotizacion_number' => (string) ($item->number ?? ''),

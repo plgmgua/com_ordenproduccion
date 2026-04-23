@@ -1575,6 +1575,24 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                             </tfoot>
                         </table>
                     </div>
+                    <div class="mb-3 border rounded p-3 bg-light" id="ordenCompraApproveEmailBlock">
+                        <div class="mb-2">
+                            <span class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_EMAIL_LABEL'); ?></span>
+                            <span id="ordenCompraVendorEmailDisplay" class="fw-semibold ms-1"></span>
+                        </div>
+                        <p class="small text-warning mb-2 d-none" id="ordenCompraVendorEmailMissing" role="status"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_VENDOR_EMAIL_MISSING'); ?></p>
+                        <fieldset class="mb-0">
+                            <legend class="col-form-label small pt-0 fw-semibold"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_APPROVE_EMAIL_LEGEND'); ?></legend>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="oc_approve_email_cc_vendor" id="ocApproveEmailCc0" value="0" checked>
+                                <label class="form-check-label" for="ocApproveEmailCc0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_APPROVE_EMAIL_REQUESTER_ONLY'); ?></label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="oc_approve_email_cc_vendor" id="ocApproveEmailCc1" value="1">
+                                <label class="form-check-label" for="ocApproveEmailCc1"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_APPROVE_EMAIL_CC_VENDOR'); ?></label>
+                            </div>
+                        </fieldset>
+                    </div>
                     <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
                         <button type="button" class="btn btn-outline-danger" id="ordenCompraEditorDeleteBtn"><?php echo Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_MODAL_DELETE'); ?></button>
                         <span class="flex-grow-1"></span>
@@ -1692,6 +1710,46 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             recalcTotal();
         }
 
+        function approveEmailCcValue() {
+            var r1 = document.getElementById('ocApproveEmailCc1');
+            if (r1 && r1.checked && !r1.disabled) {
+                return '1';
+            }
+            return '0';
+        }
+
+        function applyApproveEmailUi(data) {
+            var ve = document.getElementById('ordenCompraVendorEmailDisplay');
+            var vm = document.getElementById('ordenCompraVendorEmailMissing');
+            var r0 = document.getElementById('ocApproveEmailCc0');
+            var r1 = document.getElementById('ocApproveEmailCc1');
+            if (!ve || !r0 || !r1) {
+                return;
+            }
+            var vem = (data && data.vendor_email) ? String(data.vendor_email).trim() : '';
+            if (vem) {
+                ve.textContent = vem;
+                if (vm) {
+                    vm.classList.add('d-none');
+                }
+                r1.disabled = false;
+            } else {
+                ve.textContent = '—';
+                if (vm) {
+                    vm.classList.remove('d-none');
+                }
+                r1.disabled = true;
+                if (r1.checked) {
+                    r0.checked = true;
+                }
+            }
+            if (parseInt(data && data.approve_email_cc_vendor, 10) === 1 && !r1.disabled) {
+                r1.checked = true;
+            } else {
+                r0.checked = true;
+            }
+        }
+
         function collectLinesPayload() {
             var rows = [];
             tbody.querySelectorAll('tr').forEach(function(tr) {
@@ -1804,6 +1862,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     metaEl.innerHTML = meta.map(esc).join('<br>');
                 }
                 renderLines(data.lines);
+                applyApproveEmailUi(data);
                 showVendorQuotePreview(data.vendor_quote_kind || '', data.vendor_quote_url || '');
                 if (submitBtn) {
                     submitBtn.disabled = !data.workflow_published;
@@ -1837,6 +1896,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 saveBtn.disabled = true;
                 postForm(state.saveUrl, {
                     orden_compra_id: String(state.ordenCompraId),
+                    approve_email_cc_vendor: approveEmailCcValue(),
                     lines: collectLinesPayload()
                 }).then(function(data) {
                     saveBtn.disabled = false;
@@ -1864,7 +1924,10 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     return;
                 }
                 submitBtn.disabled = true;
-                postForm(state.submitUrl, { orden_compra_id: String(state.ordenCompraId) }).then(function(data) {
+                postForm(state.submitUrl, {
+                    orden_compra_id: String(state.ordenCompraId),
+                    approve_email_cc_vendor: approveEmailCcValue()
+                }).then(function(data) {
                     submitBtn.disabled = false;
                     if (!data || !data.success) {
                         window.alert(data && data.message ? data.message : 'Error');

@@ -293,6 +293,16 @@ class ApprovalWorkflowEntityHelper
                     'com_ordenproduccion'
                 );
             }
+
+            try {
+                OrdencompraApprovedMailHelper::sendApprovedNotification($ordenCompraId);
+            } catch (\Throwable $e) {
+                Log::add(
+                    'Orden compra approved email: ' . $e->getMessage(),
+                    Log::WARNING,
+                    'com_ordenproduccion'
+                );
+            }
         }
     }
 }

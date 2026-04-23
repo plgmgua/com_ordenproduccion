@@ -23,6 +23,9 @@ final class OutboundEmailLogHelper
 
     public const CONTEXT_PAYMENTPROOF_MISMATCH = 'paymentproof_mismatch';
 
+    /** @since  3.113.63 */
+    public const CONTEXT_ORDENCOMPRA_APPROVED = 'ordencompra_approved';
+
     /**
      * Record one outbound email attempt (success or failure).
      *
