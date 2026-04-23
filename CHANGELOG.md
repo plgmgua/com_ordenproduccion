@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.97-STABLE] - 2026-04-16
+
+### Removed
+- **Ajustes → Cotizaciones:** Eliminada la acción de reiniciar (truncar) pre-cotizaciones y cotizaciones desde el frontend (Control de ventas y Administración de Imprenta), y el método de controlador `resetCotizacionesPrecotizaciones`.
+
 ## [3.113.96-STABLE] - 2026-04-16
 
 ### Added
