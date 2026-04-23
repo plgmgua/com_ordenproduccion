@@ -102,12 +102,11 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                 <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                     <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
                                 </a>
-                                <?php else : ?>
-                                <?php if ($etype === 'orden_compra') :
+                                <?php elseif ($etype === 'orden_compra') :
                                     $ocOpenUrl = Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . (int) $eid, false);
                                     ?>
-                                <p class="mb-2"><a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($ocOpenUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a></p>
-                                <?php endif; ?>
+                                <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($ocOpenUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a>
+                                <?php else : ?>
                                 <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
                                     <?php echo HTMLHelper::_('form.token'); ?>
                                     <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
