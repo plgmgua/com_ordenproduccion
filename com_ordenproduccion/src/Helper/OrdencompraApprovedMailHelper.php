@@ -1,6 +1,7 @@
 <?php
 /**
  * Email to the purchase-order requester when an ORC is approved (optional CC to vendor).
+ * Subject/body templates: workflow row (orden_compra) or language defaults; placeholders like Telegram.
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @copyright   (C) 2026 Grimpsa. All rights reserved.
@@ -19,6 +20,9 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Mail\Mail;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\Mail\MailHelper;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
+use Joomla\CMS\User\User;
 use Joomla\CMS\User\UserFactoryInterface;
 use Joomla\Database\DatabaseInterface;
 
@@ -39,6 +43,8 @@ final class OrdencompraApprovedMailHelper
             return;
         }
 
+        TelegramNotificationHelper::ensureTelegramLanguageLoaded();
+
         $app     = Factory::getApplication();
         $ocModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Ordencompra', 'Site', ['ignore_request' => true]);
@@ -56,6 +62,7 @@ final class OrdencompraApprovedMailHelper
             ->select([
                 $db->quoteName('submitter_id'),
                 $db->quoteName('id'),
+                $db->quoteName('workflow_id'),
             ])
             ->from($db->quoteName('#__ordenproduccion_approval_requests'))
             ->where($db->quoteName('entity_type') . ' = ' . $db->quote(ApprovalWorkflowService::ENTITY_ORDEN_COMPRA))
@@ -76,7 +83,7 @@ final class OrdencompraApprovedMailHelper
                 $ordenCompraId,
                 0,
                 '',
-                Text::sprintf('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_SUBJECT', '#' . $ordenCompraId),
+                self::fallbackSubjectLine($ordenCompraId, $header),
                 'No submitter user id'
             );
 
@@ -92,23 +99,62 @@ final class OrdencompraApprovedMailHelper
                 $ordenCompraId,
                 $submitterId,
                 $toEmail,
-                Text::sprintf('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_SUBJECT', '#' . $ordenCompraId),
+                self::fallbackSubjectLine($ordenCompraId, $header),
                 'Invalid requester email'
             );
 
             return;
         }
 
+        $wfRow = null;
+        if ($req && (int) ($req->workflow_id ?? 0) > 0) {
+            $wfId = (int) $req->workflow_id;
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_approval_workflows'))
+                    ->where($db->quoteName('id') . ' = ' . $wfId)
+                    ->setLimit(1)
+            );
+            $wfRow = $db->loadObject();
+        }
+
+        $vendorEmailResolved = self::resolveVendorContactEmail($header, $app);
+        $vars                = self::buildTemplateVars($req, $wfRow, $submitter, $header, $ordenCompraId, $vendorEmailResolved);
+
+        $wfSubj = $wfRow && isset($wfRow->email_ordencompra_approved_subject)
+            ? trim((string) $wfRow->email_ordencompra_approved_subject) : '';
+        $wfBodyRaw = $wfRow && isset($wfRow->email_ordencompra_approved_body)
+            ? (string) $wfRow->email_ordencompra_approved_body : '';
+
+        $subjectTpl = $wfSubj !== ''
+            ? $wfSubj
+            : Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_TPL_SUBJECT_DEFAULT');
+        $bodyTpl = trim($wfBodyRaw) !== ''
+            ? $wfBodyRaw
+            : Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_TPL_BODY_DEFAULT');
+
+        $subject = TelegramNotificationHelper::replaceTemplatePlaceholders($subjectTpl, $vars);
+        $subject = trim(html_entity_decode(strip_tags($subject), ENT_QUOTES, 'UTF-8'));
+        if ($subject === '') {
+            $subject = self::fallbackSubjectLine($ordenCompraId, $header);
+        }
+
+        $bodyVars = self::escapeVarsForHtmlEmail($vars);
+        $body     = TelegramNotificationHelper::replaceTemplatePlaceholders($bodyTpl, $bodyVars);
+        if (trim($body) === '') {
+            $body = TelegramNotificationHelper::replaceTemplatePlaceholders(
+                Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_TPL_BODY_DEFAULT'),
+                $bodyVars
+            );
+        }
+
+        $ccVendor = (int) ($header->approve_email_cc_vendor ?? 0) === 1;
+
         $orcNumber = trim((string) ($header->number ?? ''));
         if ($orcNumber === '') {
             $orcNumber = (string) $ordenCompraId;
         }
-
-        $subject = Text::sprintf('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_SUBJECT', $orcNumber);
-        $body    = Text::sprintf('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_BODY_HTML', htmlspecialchars($orcNumber, ENT_QUOTES, 'UTF-8'));
-
-        $ccVendor = (int) ($header->approve_email_cc_vendor ?? 0) === 1;
-        $vendorEmail = self::resolveVendorContactEmail($header, $app);
 
         $relPdf = trim((string) ($header->approved_pdf_path ?? ''));
         $absPdf = '';
@@ -120,8 +166,8 @@ final class OrdencompraApprovedMailHelper
         }
 
         $toSummary = $toEmail;
-        if ($ccVendor && $vendorEmail !== '' && MailHelper::isEmailAddress($vendorEmail)) {
-            $toSummary .= ' (CC: ' . $vendorEmail . ')';
+        if ($ccVendor && $vendorEmailResolved !== '' && MailHelper::isEmailAddress($vendorEmailResolved)) {
+            $toSummary .= ' (CC: ' . $vendorEmailResolved . ')';
         }
 
         $mailer = null;
@@ -132,8 +178,8 @@ final class OrdencompraApprovedMailHelper
             $mailer->setBody($body);
             $mailer->isHtml(true);
             $mailer->addRecipient($toEmail);
-            if ($ccVendor && $vendorEmail !== '' && MailHelper::isEmailAddress($vendorEmail)) {
-                $mailer->addCc($vendorEmail);
+            if ($ccVendor && $vendorEmailResolved !== '' && MailHelper::isEmailAddress($vendorEmailResolved)) {
+                $mailer->addCc($vendorEmailResolved);
             }
             if ($absPdf !== '') {
                 $attachName = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $orcNumber) . '.pdf';
@@ -152,7 +198,7 @@ final class OrdencompraApprovedMailHelper
                     'orden_compra_id'         => $ordenCompraId,
                     'orc_number'              => $orcNumber,
                     'approve_email_cc_vendor' => $ccVendor ? 1 : 0,
-                    'vendor_email'            => $vendorEmail,
+                    'vendor_email'            => $vendorEmailResolved,
                     'had_pdf_attachment'      => $absPdf !== '' ? 1 : 0,
                 ]
             );
@@ -175,6 +221,114 @@ final class OrdencompraApprovedMailHelper
                 ]
             );
         }
+    }
+
+    /**
+     * @param   object|null  $req  approval_requests row
+     *
+     * @return  array<string, string>
+     */
+    private static function buildTemplateVars(?object $req, ?object $workflow, User $recipient, object $header, int $ordenCompraId, string $vendorEmail): array
+    {
+        $app      = Factory::getApplication();
+        $siteName = (string) $app->get('sitename', '');
+
+        $relAdmin = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones', false);
+        $root     = rtrim(Uri::root(), '/');
+        $approvalUrl = $root . '/' . ltrim((string) $relAdmin, '/');
+
+        $relOc = Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . $ordenCompraId, false);
+        $ordenCompraUrl = $root . '/' . ltrim((string) $relOc, '/');
+
+        $orcNumber = trim((string) ($header->number ?? ''));
+        if ($orcNumber === '') {
+            $orcNumber = (string) $ordenCompraId;
+        }
+
+        $precotNum = trim((string) ($header->precot_number ?? ''));
+        $proveedorName = '';
+        $snap          = isset($header->proveedor_snapshot) ? trim((string) $header->proveedor_snapshot) : '';
+        if ($snap !== '') {
+            $d = json_decode($snap, true);
+            if (is_array($d)) {
+                $proveedorName = trim((string) ($d['name'] ?? ''));
+            }
+        }
+
+        $curr = trim((string) ($header->currency ?? 'Q'));
+        $tot  = (float) ($header->total_amount ?? 0);
+
+        $vars = [
+            'orc_number'        => $orcNumber,
+            'entity_id'         => $orcNumber,
+            'precot_number'     => $precotNum,
+            'proveedor_name'    => $proveedorName,
+            'vendor_email'      => $vendorEmail,
+            'total_amount'      => number_format($tot, 2, '.', ''),
+            'currency'          => $curr,
+            'request_id'        => $req ? (string) (int) ($req->id ?? 0) : '0',
+            'entity_type'       => ApprovalWorkflowService::ENTITY_ORDEN_COMPRA,
+            'workflow_name'     => $workflow ? trim((string) ($workflow->name ?? '')) : '',
+            'workflow_description' => $workflow ? trim((string) ($workflow->description ?? '')) : '',
+            'recipient_name'    => trim((string) $recipient->name),
+            'recipient_username' => trim((string) $recipient->username),
+            'recipient_id'      => (string) (int) $recipient->id,
+            'submitter_id'      => $req ? (string) (int) ($req->submitter_id ?? 0) : (string) (int) ($header->created_by ?? 0),
+            'submitter_name'    => '',
+            'submitter_username' => '',
+            'site_name'         => $siteName,
+            'approval_url'      => $approvalUrl,
+            'orden_compra_url'  => $ordenCompraUrl,
+            'actor_name'        => '',
+            'actor_username'    => '',
+            'actor_id'          => '0',
+        ];
+
+        $sid = (int) $vars['submitter_id'];
+        if ($sid > 0) {
+            try {
+                $sub = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($sid);
+                if (!$sub->guest) {
+                    $vars['submitter_name']     = trim((string) $sub->name);
+                    $vars['submitter_username'] = trim((string) $sub->username);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $vars['actor_name']     = $vars['submitter_name'];
+        $vars['actor_username'] = $vars['submitter_username'];
+        $vars['actor_id']       = $vars['submitter_id'];
+
+        return $vars;
+    }
+
+    /**
+     * @param   array<string, string>  $vars
+     *
+     * @return  array<string, string>
+     */
+    private static function escapeVarsForHtmlEmail(array $vars): array
+    {
+        $out = [];
+        foreach ($vars as $k => $v) {
+            $out[$k] = htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+        }
+
+        return $out;
+    }
+
+    private static function fallbackSubjectLine(int $ordenCompraId, object $header): string
+    {
+        $orc = trim((string) ($header->number ?? ''));
+        if ($orc === '') {
+            $orc = '#' . $ordenCompraId;
+        }
+
+        return TelegramNotificationHelper::replaceTemplatePlaceholders(
+            Text::_('COM_ORDENPRODUCCION_ORDENCOMPRA_APPROVED_EMAIL_TPL_SUBJECT_DEFAULT'),
+            ['orc_number' => $orc]
+        );
     }
 
     private static function resolveVendorContactEmail(object $header, $app): string

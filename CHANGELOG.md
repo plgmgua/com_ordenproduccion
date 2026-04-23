@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.64-STABLE] - 2026-04-23
+
+### Added
+- **Orden de compra (correo al aprobar):** Plantillas editables en Ajustes → Flujos → flujo **orden_compra** (asunto + cuerpo HTML con marcadores `{orc_number}`, `{orden_compra_url}`, etc., como Telegram). Valores por defecto en idiomas con `{orc_number}` en lugar de `%s`.
+
+### Fixed
+- **Correo ORC aprobada:** Carga del idioma del componente antes de armar asunto/cuerpo (evita que Gmail muestre claves `COM_ORDENPRODUCCION_*` sin traducir).
+- **PDF orden de compra:** Sin franjas CMYK superior/inferior; etiquetas Proveedor / Condiciones con respaldo legible si falta traducción.
+- **PDF aprobado combinado:** Numeración `1/N` arriba a la derecha en **todas** las páginas (orden + cotización adjunta).
+
 ## [3.113.63-STABLE] - 2026-04-23
 
 ### Added

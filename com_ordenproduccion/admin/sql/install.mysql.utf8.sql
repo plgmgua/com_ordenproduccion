@@ -261,6 +261,8 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_approval_workflows` (
     `email_body_assign` mediumtext,
     `email_subject_decided` varchar(255) DEFAULT NULL,
     `email_body_decided` mediumtext,
+    `email_ordencompra_approved_subject` varchar(255) DEFAULT NULL COMMENT 'PO approved email subject template',
+    `email_ordencompra_approved_body` mediumtext COMMENT 'PO approved email HTML body template',
     `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `created_by` int(11) NOT NULL DEFAULT 0,
     `modified` datetime DEFAULT NULL,

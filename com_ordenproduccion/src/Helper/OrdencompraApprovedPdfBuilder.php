@@ -113,6 +113,34 @@ class OrdencompraApprovedPdfBuilder
         $outAbs  = $dir . '/' . $outName;
         $outRel  = 'media/com_ordenproduccion/orden_compra_approved/' . $outName;
 
+        $nOcPages = 0;
+        try {
+            $cnt = new \setasign\Fpdi\Fpdi();
+            $nOcPages = (int) $cnt->setSourceFile($tmpOcPdf);
+        } catch (\Throwable $e) {
+            @unlink($tmpOcPdf);
+            Log::add('OrdencompraApprovedPdfBuilder: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        $nVendorPdf = 0;
+        if ($vendorAbs !== null && $vendorKind === 'pdf' && is_file($vendorAbs)) {
+            try {
+                $cntV = new \setasign\Fpdi\Fpdi();
+                $nVendorPdf = (int) $cntV->setSourceFile($vendorAbs);
+            } catch (\Throwable $e) {
+                $nVendorPdf = 0;
+            }
+        }
+        $nImgPage = ($vendorAbs !== null && $vendorKind === 'image' && is_file((string) $vendorAbs)) ? 1 : 0;
+        $totalPages = $nOcPages + $nVendorPdf + $nImgPage;
+        if ($totalPages < 1) {
+            $totalPages = 1;
+        }
+
+        $pageNum = 0;
+
         try {
             $pdf = new \setasign\Fpdi\Fpdi();
             $n   = (int) $pdf->setSourceFile($tmpOcPdf);
@@ -120,21 +148,27 @@ class OrdencompraApprovedPdfBuilder
                 $tpl = $pdf->importPage($i);
                 $pdf->AddPage();
                 $pdf->useTemplate($tpl, 0, 0, null, null, true);
+                $pageNum++;
+                self::stampPageFraction($pdf, $pageNum, $totalPages);
             }
             @unlink($tmpOcPdf);
 
-            if ($vendorAbs !== null && $vendorKind === 'pdf') {
+            if ($vendorAbs !== null && $vendorKind === 'pdf' && $nVendorPdf > 0) {
                 $nv = (int) $pdf->setSourceFile($vendorAbs);
                 for ($j = 1; $j <= $nv; $j++) {
                     $tpl = $pdf->importPage($j);
                     $pdf->AddPage();
                     $pdf->useTemplate($tpl, 0, 0, null, null, true);
+                    $pageNum++;
+                    self::stampPageFraction($pdf, $pageNum, $totalPages);
                 }
             } elseif ($vendorAbs !== null && $vendorKind === 'image') {
                 $pdf->AddPage();
                 $pdf->SetMargins(15, 15, 15);
                 $iw = $pdf->GetPageWidth() - 30;
                 $pdf->Image($vendorAbs, 15, 20, $iw, 0);
+                $pageNum++;
+                self::stampPageFraction($pdf, $pageNum, $totalPages);
             }
 
             $pdf->Output('F', $outAbs);
@@ -152,5 +186,29 @@ class OrdencompraApprovedPdfBuilder
         $ocModel->setApprovedPdfPath($ordenCompraId, $outRel);
 
         return true;
+    }
+
+    /**
+     * Page indicator top-right (e.g. 1/3) after importing a page.
+     */
+    private static function stampPageFraction(\setasign\Fpdi\Fpdi $pdf, int $current, int $total): void
+    {
+        if ($total < 1) {
+            $total = 1;
+        }
+        if ($current < 1) {
+            $current = 1;
+        }
+
+        $txt = $current . '/' . $total;
+        $pdf->SetFont('Helvetica', '', 9);
+        $pw   = $pdf->GetPageWidth();
+        $cellW = 24.0;
+        $x     = $pw - 10.0 - $cellW;
+        $y     = 8.0;
+        $pdf->SetXY($x, $y);
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->SetTextColor(40, 40, 40);
+        $pdf->Cell($cellW, 6, $txt, 0, 0, 'R', true);
     }
 }

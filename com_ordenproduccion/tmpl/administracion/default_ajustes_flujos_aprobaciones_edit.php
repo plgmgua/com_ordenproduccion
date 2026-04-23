@@ -121,6 +121,22 @@ $formId = 'adminFormApprovalWorkflowsSave';
                 <p class="small text-muted mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_VARS_PAYMENT_PROOF'); ?></p>
                 <?php endif; ?>
             </div>
+            <?php if ($etype === 'orden_compra') : ?>
+            <div class="col-12">
+                <h4 class="h6 mt-3 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_OC_APPROVED_EMAIL_SECTION'); ?></h4>
+                <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_OC_APPROVED_EMAIL_INTRO'); ?></p>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="awf-oc-mail-subj-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_OC_APPROVED_EMAIL_SUBJECT'); ?></label>
+                <input type="text" class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_ordencompra_approved_subject]" id="awf-oc-mail-subj-<?php echo $wid; ?>" maxlength="255"
+                    value="<?php echo htmlspecialchars((string) ($wf->email_ordencompra_approved_subject ?? ''), ENT_QUOTES, 'UTF-8'); ?>" />
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="awf-oc-mail-body-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_OC_APPROVED_EMAIL_BODY'); ?></label>
+                <textarea class="form-control font-monospace small" name="awf_workflow[<?php echo $wid; ?>][email_ordencompra_approved_body]" id="awf-oc-mail-body-<?php echo $wid; ?>" rows="8"><?php echo htmlspecialchars((string) ($wf->email_ordencompra_approved_body ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_OC_APPROVED_EMAIL_VARS'); ?></p>
+            </div>
+            <?php endif; ?>
         </div>
 
         <p class="small text-muted mt-3 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_HELP_APPROVER'); ?></p>

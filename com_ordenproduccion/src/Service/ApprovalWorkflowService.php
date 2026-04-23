@@ -1660,12 +1660,31 @@ class ApprovalWorkflowService
         $emailBodyAssign     = isset($data['email_body_assign']) ? (string) $data['email_body_assign'] : '';
         $emailSubjectDecided = isset($data['email_subject_decided']) ? trim((string) $data['email_subject_decided']) : '';
         $emailBodyDecided    = isset($data['email_body_decided']) ? (string) $data['email_body_decided'] : '';
+        $emailOcApprovedSubj = isset($data['email_ordencompra_approved_subject']) ? trim((string) $data['email_ordencompra_approved_subject']) : '';
+        $emailOcApprovedBody = isset($data['email_ordencompra_approved_body']) ? (string) $data['email_ordencompra_approved_body'] : '';
 
         if (strlen($emailSubjectAssign) > 255) {
             $emailSubjectAssign = substr($emailSubjectAssign, 0, 255);
         }
         if (strlen($emailSubjectDecided) > 255) {
             $emailSubjectDecided = substr($emailSubjectDecided, 0, 255);
+        }
+        if (strlen($emailOcApprovedSubj) > 255) {
+            $emailOcApprovedSubj = substr($emailOcApprovedSubj, 0, 255);
+        }
+
+        $entityType = '';
+        try {
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select($this->db->quoteName('entity_type'))
+                    ->from($this->db->quoteName('#__ordenproduccion_approval_workflows'))
+                    ->where($this->db->quoteName('id') . ' = ' . $workflowId)
+                    ->setLimit(1)
+            );
+            $entityType = (string) $this->db->loadResult();
+        } catch (\Throwable $e) {
+            return false;
         }
 
         try {
@@ -1689,8 +1708,20 @@ class ApprovalWorkflowService
                 ->set(
                     $this->db->quoteName('email_body_decided') . ' = '
                     . ($emailBodyDecided === '' ? 'NULL' : $this->db->quote($emailBodyDecided))
+                );
+
+            if ($entityType === self::ENTITY_ORDEN_COMPRA) {
+                $q->set(
+                    $this->db->quoteName('email_ordencompra_approved_subject') . ' = '
+                    . ($emailOcApprovedSubj === '' ? 'NULL' : $this->db->quote($emailOcApprovedSubj))
                 )
-                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                    ->set(
+                        $this->db->quoteName('email_ordencompra_approved_body') . ' = '
+                        . ($emailOcApprovedBody === '' ? 'NULL' : $this->db->quote($emailOcApprovedBody))
+                    );
+            }
+
+            $q->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
                 ->set($this->db->quoteName('modified_by') . ' = ' . (string) $uid)
                 ->where($this->db->quoteName('id') . ' = ' . $workflowId);
             $this->db->setQuery($q);
