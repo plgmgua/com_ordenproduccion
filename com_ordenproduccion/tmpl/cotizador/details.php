@@ -87,10 +87,134 @@ if ($item) {
         : null;
 }
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+
+$docMode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+$isProveedorExternoDoc = ($docMode === 'proveedor_externo');
+$vendorLines           = [];
+if ($isProveedorExternoDoc) {
+    foreach ($lines as $ln) {
+        $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
+        if ($lt === 'proveedor_externo') {
+            $vendorLines[] = $ln;
+        }
+    }
+}
+
+$colQtyPe   = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY');
+$colDescPe  = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_DESC');
+$colPricePe = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_PRICE_SHORT');
+if (strpos($colPricePe, 'COM_ORDENPRODUCCION_') === 0) {
+    $colPricePe = 'Precio unidad';
+}
+$colPupPe = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_P_UNIT_PROVEEDOR');
+if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
+    $colPupPe = 'P.Unit Proveedor';
+}
 ?>
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'); ?></p>
+    <?php elseif ($isProveedorExternoDoc && $vendorLines === []) : ?>
+        <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
+        <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?>:</strong> Q 0.00 &rarr; <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q 0.00</p>
+    <?php elseif ($isProveedorExternoDoc) :
+        /** Five columns (Cant., Desc., Precio unidad, P.Unit Prov., Total) — matches document proveedor_externo. */
+        $tfootLabelSpanPe = 4;
+        ?>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm com-ordenproduccion-precot-details-vendor">
+                <thead>
+                    <tr>
+                        <th class="text-nowrap"><?php echo htmlspecialchars($colQtyPe); ?></th>
+                        <th><?php echo htmlspecialchars($colDescPe); ?></th>
+                        <th class="text-end text-nowrap"><?php echo htmlspecialchars($colPricePe); ?></th>
+                        <th class="text-end text-nowrap"><?php echo htmlspecialchars($colPupPe); ?></th>
+                        <th class="text-end text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($vendorLines as $line) :
+                        $qty  = (int) ($line->quantity ?? 1);
+                        $desc = (string) ($line->vendor_descripcion ?? '');
+                        $unit = round((float) ($line->price_per_sheet ?? 0), 2);
+                        $pup  = round((float) ($line->vendor_precio_unit_proveedor ?? 0), 2);
+                        $tot  = round((float) ($line->total ?? 0), 2);
+                        ?>
+                    <tr>
+                        <td class="text-nowrap"><?php echo $qty; ?></td>
+                        <td><?php echo nl2br(htmlspecialchars($desc, ENT_QUOTES, 'UTF-8')); ?></td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($unit, 2); ?></td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($pup, 2); ?></td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($tot, 2); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
+                    </tr>
+                    <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
+                    <?php $margenTotal = $margenAmount + $margenAdicional; ?>
+                    <tr class="margen-total-row">
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <?php echo number_format($margenTotal, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($paramComision != 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BONO_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($comisionAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($margenAdicional > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($margenAdicional, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <tr class="table-secondary fw-bold">
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($displayTotal, 2); ?></td>
+                    </tr>
+                    <?php if ($tcCuotasSel > 0 && $totalConTarjeta !== null && $totalConTarjeta > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end">
+                            <?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_CARGO_ROW', $tcCuotasSel, number_format($tcTasa, 2)); ?>
+                        </td>
+                        <td class="text-end">Q <?php echo number_format($tcMonto, 2); ?></td>
+                    </tr>
+                    <tr class="table-primary fw-bold">
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_CON_TARJETA'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($totalConTarjeta, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($comisionMargenAdicionalAmount > 0) : ?>
+                    <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
+                    <tr class="comision-margen-adicional-row">
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> Q <?php echo number_format($totalComision, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
+                        <td class="text-end">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                </tfoot>
+            </table>
+        </div>
+        <style>
+        .comision-margen-adicional-row td { background-color: #e7f1ff !important; color: #004085; font-weight: 500; }
+        .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
+        </style>
     <?php elseif (empty($lines)) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?>:</strong> Q 0.00 &rarr; <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q 0.00</p>
@@ -191,7 +315,10 @@ $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <?php $tfootLabelSpan = 4; ?>
+                    <?php
+                    /** Six columns: label cells span the first five, amount in the last. */
+                    $tfootLabelSpan = 5;
+                    ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
