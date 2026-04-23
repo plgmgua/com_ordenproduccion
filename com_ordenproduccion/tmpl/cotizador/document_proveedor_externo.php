@@ -151,8 +151,9 @@ $showVendorQuoteModalBtn = !$user->guest && (!$solicitudCotWf || $vendorQuoteApp
 $canViewVendorQuoteRequestLog = isset($this->canViewVendorQuoteRequestLog) ? (bool) $this->canViewVendorQuoteRequestLog : false;
 /** Admin / Aprobaciones Ventas: single "Pedir cotización a proveedor" opens the vendor modal (procesar); paper-plane modal hidden to avoid duplicating Contactar. */
 $canPedirCotizacionProveedorAprobaciones = AccessHelper::canViewVendorQuoteRequestLog();
-$canAttachVendorQuoteEvent    = !$precotizacionLocked && $canEditDocument && !$user->guest;
-$canEditVendorQuoteEventLogRow = $canAttachVendorQuoteEvent && $canViewVendorQuoteRequestLog;
+$canEditVendorQuoteEventLogRow = !$user->guest && $canViewVendorQuoteRequestLog
+    && ($precotizacionLocked || $canEditDocument);
+$canAttachVendorQuoteEvent = $canEditVendorQuoteEventLogRow;
 $deleteVendorQuoteEventUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.deleteVendorQuoteEvent', false, Route::TLS_IGNORE, true);
 $createOrdenCompraUrl      = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.createOrdenCompraRequest', false, Route::TLS_IGNORE, true);
 $ordenCompraWorkflowAvailable       = isset($this->ordenCompraWorkflowAvailable) ? (bool) $this->ordenCompraWorkflowAvailable : false;

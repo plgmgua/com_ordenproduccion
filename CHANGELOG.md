@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.49-STABLE] - 2026-04-16
+
+### Fixed
+- **Registro solicitudes al proveedor:** Tras vincular la pre-cotización a una cotización, usuarios con permiso de ver el registro pueden seguir adjuntando archivos y guardando condiciones de entrega en las filas del registro (antes quedaban bloqueados en UI y en `uploadVendorQuoteAttachment` / `saveVendorQuoteEventCondiciones`).
+
 ## [3.113.48-STABLE] - 2026-04-16
 
 ### Changed

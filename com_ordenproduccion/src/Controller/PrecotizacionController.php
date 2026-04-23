@@ -808,10 +808,7 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->isPrecotizacionLocked($id, 'html')) {
-            return false;
-        }
-        if ($this->denyIfNotEditableDocument($id, 'html')) {
+        if (!$this->allowVendorQuoteRegistroManagement($id)) {
             return false;
         }
 
@@ -922,10 +919,7 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->isPrecotizacionLocked($id, 'html')) {
-            return false;
-        }
-        if ($this->denyIfNotEditableDocument($id, 'html')) {
+        if (!$this->allowVendorQuoteRegistroManagement($id)) {
             return false;
         }
 
@@ -2469,6 +2463,33 @@ class PrecotizacionController extends BaseController
             }
         } catch (\Throwable $e) {
         }
+    }
+
+    /**
+     * Vendor quote registro (adjunto / condiciones): allow if pre-cot not linked to COT, or linked but user may view vendor request log.
+     *
+     * @return  bool  true if allowed; if false, may have set message + redirect (quotation-locked without log access).
+     *
+     * @since   3.113.49
+     */
+    private function allowVendorQuoteRegistroManagement(int $preCotizacionId): bool
+    {
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+
+        if ($model->isAssociatedWithQuotation($preCotizacionId)) {
+            if (AccessHelper::canViewVendorQuoteRequestLog()) {
+                return true;
+            }
+            $this->isPrecotizacionLocked($preCotizacionId, 'html');
+
+            return false;
+        }
+
+        return !$this->denyIfNotEditableDocument($preCotizacionId, 'html');
     }
 
     /**
