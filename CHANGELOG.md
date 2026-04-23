@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.71-STABLE] - 2026-04-16
+
+### Changed
+- **PDF aprobado combinado (ORC + cotización):** Numeración de página arriba a la derecha en negrita y +2 pt (11 pt).
+
 ## [3.113.70-STABLE] - 2026-04-16
 
 ### Changed

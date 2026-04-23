@@ -201,14 +201,14 @@ class OrdencompraApprovedPdfBuilder
         }
 
         $txt = $current . '/' . $total;
-        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->SetFont('Helvetica', 'B', 11);
         $pw   = $pdf->GetPageWidth();
-        $cellW = 24.0;
+        $cellW = 28.0;
         $x     = $pw - 10.0 - $cellW;
         $y     = 8.0;
         $pdf->SetXY($x, $y);
         $pdf->SetFillColor(255, 255, 255);
         $pdf->SetTextColor(40, 40, 40);
-        $pdf->Cell($cellW, 6, $txt, 0, 0, 'R', true);
+        $pdf->Cell($cellW, 7, $txt, 0, 0, 'R', true);
     }
 }
