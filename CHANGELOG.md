@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.76-STABLE] - 2026-04-16
+
+### Changed
+- **PDF aprobado combinado (ORC + cotización):** Todas las páginas usan tamaño **carta (215,9 × 279,4 mm)**. Las páginas importadas del PDF del proveedor se **escalan para caber** en el área útil (márgenes y franjas CMY), sin agrandar por encima del 100 %, para reducir páginas en blanco o páginas sobredimensionadas. La numeración **actual/total** sigue una sola secuencia en todo el documento (OC + incrustadas). La página de **imagen** del proveedor usa el mismo criterio de encaje.
+
 ## [3.113.75-STABLE] - 2026-04-16
 
 ### Added
