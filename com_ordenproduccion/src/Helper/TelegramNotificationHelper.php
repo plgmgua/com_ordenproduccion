@@ -926,6 +926,7 @@ class TelegramNotificationHelper
             'orden_de_trabajo'  => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_LABELS'),
             'order_numbers'     => 'A-100, A-101',
             'client_names'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'sales_agent'       => trim((string) $user->name),
             'sales_agents'      => trim((string) $user->name),
             'registrant_name'   => trim((string) $user->name),
             'registrant_login'  => trim((string) $user->username),
@@ -960,6 +961,7 @@ class TelegramNotificationHelper
             'orden_de_trabajo'  => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_ORDEN_LABELS'),
             'order_numbers'     => 'A-100, A-101',
             'client_names'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'sales_agent'       => trim((string) $user->name),
             'sales_agents'      => trim((string) $user->name),
             'registrant_name'   => trim((string) $user->name),
             'registrant_login'  => trim((string) $user->username),
@@ -1071,6 +1073,10 @@ class TelegramNotificationHelper
 
         $proofNumber = 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT);
 
+        // Singular alias for templates that use {sales_agent} (same data as {sales_agents}, cf. invoice/envío).
+        $salesAgentsLine = implode(', ', $agents);
+        $salesAgentToken = $salesAgentsLine !== '' ? $salesAgentsLine : '—';
+
         // Nota / acciones (stored as mismatch_note; includes ISR notes, admin text, etc.)
         $proofNote = '';
         if (isset($proof->mismatch_note)) {
@@ -1095,7 +1101,8 @@ class TelegramNotificationHelper
             'orden_de_trabajo'  => implode(', ', array_filter($labels, static fn ($x) => $x !== '')),
             'order_numbers'     => implode(', ', array_unique($orderNums)),
             'client_names'      => implode(', ', $clients),
-            'sales_agents'      => implode(', ', $agents),
+            'sales_agent'       => $salesAgentToken,
+            'sales_agents'      => $salesAgentsLine,
             'registrant_name'   => $regName !== '' ? $regName : '—',
             'registrant_login'  => $regLogin,
             'verifier_name'     => $verifierName,

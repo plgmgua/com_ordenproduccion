@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.113.99-STABLE] - 2026-04-16
+
+### Fixed
+- **Telegram comprobantes:** Las plantillas DM/canal que usan `{sales_agent}` (como en factura/envío) no recibían esa clave en `buildPaymentProofTemplateVars`, solo `{sales_agents}`, por lo que el texto salía literal. Ahora `{sales_agent}` se rellena con los mismos agentes de las órdenes vinculadas (lista separada por comas; `—` si no hay).
+
 ## [3.113.98-STABLE] - 2026-04-16
 
 ### Removed
