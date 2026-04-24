@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.0-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización proveedor externo:** Con flujo **Solicitud de cotización** activo, el botón principal vuelve a ser **Solicitar cotización externa** (`precotizacion.solicitarCotizacionProveedor`) hasta que exista una solicitud aprobada; ya no se sustituye por **Contactar proveedor** como acción principal tras aprobar. **Contactar proveedor** (modal correo/celular/PDF) solo se muestra en secundario (outline) cuando ya hay aprobación previa. Sin flujo publicado, el comportamiento sigue siendo abrir el modal directamente con la misma etiqueta de solicitud.
+- **Módulo Aprobaciones pendientes:** tipo abreviado de solicitud de cotización externa mostrado como **Cot. Ext.** (antes Cot. Prov.).
+
 ## [3.113.99-STABLE] - 2026-04-16
 
 ### Fixed
