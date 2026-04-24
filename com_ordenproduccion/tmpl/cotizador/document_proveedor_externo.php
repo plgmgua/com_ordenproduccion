@@ -155,8 +155,6 @@ $canViewVendorQuoteRequestLog = isset($this->canViewVendorQuoteRequestLog) ? (bo
 $showSolicitarCotizacionExternaBtn = $solicitudCotWf && $canReqSolicitudCot && !$vendorQuoteApprOk;
 // Sin flujo en Ajustes: mismo modal de proveedor que antes (correo / celular / PDF).
 $showVendorQuoteDirectModalBtn = !$user->guest && !$solicitudCotWf && !$canViewVendorQuoteRequestLog;
-// Tras al menos una solicitud aprobada: contactar proveedor (modal) sin sustituir el flujo inicial.
-$showVendorQuoteContactAfterApprovalBtn = !$user->guest && $solicitudCotWf && $vendorQuoteApprOk && !$canViewVendorQuoteRequestLog;
 /** Admin / Aprobaciones Ventas: "Pedir cotización a proveedor" abre el modal en modo procesar. */
 $canPedirCotizacionProveedorAprobaciones = AccessHelper::canViewVendorQuoteRequestLog();
 $canEditVendorQuoteEventLogRow = !$user->guest && $canViewVendorQuoteRequestLog
@@ -454,11 +452,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
             </button>
             <?php endif; ?>
-            <?php if ($showVendorQuoteContactAfterApprovalBtn) : ?>
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-contact-after-approval-readonly">
-                <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT'); ?>
-            </button>
-            <?php endif; ?>
             <?php if ($canPedirCotizacionProveedorAprobaciones) : ?>
             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" data-vendor-quote-mode="procesar" id="btn-vendor-quote-pedir-proveedor-readonly">
                 <i class="fas fa-handshake" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_PEDIR_PROVEEDOR'); ?>
@@ -549,11 +542,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <?php if ($showVendorQuoteDirectModalBtn) : ?>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-puponly">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
-            </button>
-            <?php endif; ?>
-            <?php if ($showVendorQuoteContactAfterApprovalBtn) : ?>
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-contact-after-approval-puponly">
-                <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT'); ?>
             </button>
             <?php endif; ?>
             <?php if ($canPedirCotizacionProveedorAprobaciones) : ?>
@@ -716,11 +704,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <?php if ($showVendorQuoteDirectModalBtn) : ?>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-edit">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
-                </button>
-                <?php endif; ?>
-                <?php if ($showVendorQuoteContactAfterApprovalBtn) : ?>
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-contact-after-approval-edit">
-                    <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_BTN_CONTACT'); ?>
                 </button>
                 <?php endif; ?>
                 <?php if ($canPedirCotizacionProveedorAprobaciones) : ?>
