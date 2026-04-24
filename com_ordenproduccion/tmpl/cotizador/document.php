@@ -176,6 +176,9 @@ $rejectSinDescuentoUrl = Route::_(
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
 $pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
+$solicitudDescuentoLatestNote = isset($this->solicitudDescuentoLatestNote)
+    ? trim((string) $this->solicitudDescuentoLatestNote)
+    : '';
 $itemIdForRoutes            = (int) Factory::getApplication()->getInput()->getInt('Itemid', 0);
 $solicitarDescuentoAction   = Route::_(
     'index.php?option=com_ordenproduccion&task=precotizacion.solicitarDescuento'
@@ -510,19 +513,6 @@ $solicitarDescuentoAction   = Route::_(
         </form>
         <?php endif; ?>
         <?php endif; ?>
-        <?php if ($discountWorkflowAvailable && !$precotizacionLocked) : ?>
-            <?php if ($canRequestSolicitudDescuento) : ?>
-        <form method="post" action="<?php echo htmlspecialchars($solicitarDescuentoAction, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
-            <input type="hidden" name="option" value="com_ordenproduccion" />
-            <input type="hidden" name="task" value="precotizacion.solicitarDescuento" />
-            <?php echo HTMLHelper::_('form.token'); ?>
-            <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
-            <button type="submit" class="btn btn-outline-warning btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_BTN'); ?></button>
-        </form>
-            <?php elseif ($pendingSolicitudDescuento) : ?>
-        <span class="badge bg-warning text-dark align-self-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></span>
-            <?php endif; ?>
-        <?php endif; ?>
     </div>
 
     <h2 class="h5 mt-4"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINES'); ?></h2>
@@ -821,6 +811,53 @@ $solicitarDescuentoAction   = Route::_(
         .comision-margen-adicional-row td { background-color: #e7f1ff !important; color: #004085; font-weight: 500; }
         .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
         </style>
+    <?php endif; ?>
+
+    <?php if ($discountWorkflowAvailable) : ?>
+    <div class="mt-3 text-end precotizacion-discount-footer">
+        <?php if ($solicitudDescuentoLatestNote !== '') : ?>
+        <div class="text-start ms-auto mb-3" style="max-width: 42rem; margin-left: auto !important;">
+            <div class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_NOTE_LABEL'); ?></div>
+            <div class="border rounded p-2 bg-light small text-body"><?php echo nl2br(htmlspecialchars($solicitudDescuentoLatestNote, ENT_QUOTES, 'UTF-8')); ?></div>
+        </div>
+        <?php endif; ?>
+        <div class="d-inline-flex flex-wrap justify-content-end align-items-center gap-2">
+            <?php if ($canRequestSolicitudDescuento) : ?>
+            <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#precotizacionSolicitarDescuentoModal">
+                <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_BTN'); ?>
+            </button>
+            <?php elseif ($pendingSolicitudDescuento) : ?>
+            <span class="badge bg-warning text-dark"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></span>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php if ($canRequestSolicitudDescuento) : ?>
+    <div class="modal fade" id="precotizacionSolicitarDescuentoModal" tabindex="-1" aria-labelledby="precotizacionSolicitarDescuentoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="<?php echo htmlspecialchars($solicitarDescuentoAction, ENT_QUOTES, 'UTF-8'); ?>">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="precotizacionSolicitarDescuentoModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_MODAL_TITLE'); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCANCEL'); ?>"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        <input type="hidden" name="option" value="com_ordenproduccion" />
+                        <input type="hidden" name="task" value="precotizacion.solicitarDescuento" />
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
+                        <label for="discount_request_note" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_NOTE_FIELD'); ?></label>
+                        <textarea class="form-control" name="discount_request_note" id="discount_request_note" rows="4" maxlength="2000" required></textarea>
+                        <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_NOTE_HINT'); ?></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                        <button type="submit" class="btn btn-warning"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_SOLICITAR_DESCUENTO_SUBMIT'); ?></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 </div>
 

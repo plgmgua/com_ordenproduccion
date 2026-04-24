@@ -1943,10 +1943,6 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->isPrecotizacionLocked($id, 'html')) {
-            return false;
-        }
-
         $wf = new ApprovalWorkflowService();
         if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO)) {
             $this->setMessage(
@@ -1976,7 +1972,40 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        $rid = $wf->createRequest(ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO, $id, (int) $user->id);
+        $note = trim((string) $this->input->post->getString('discount_request_note', ''));
+        if ($note === '') {
+            $this->setMessage(
+                $this->precotLang(
+                    'COM_ORDENPRODUCCION_DISCOUNT_REQUEST_NOTE_REQUIRED',
+                    'Escriba una nota que explique la solicitud de descuento.',
+                    'Please enter a note explaining the discount request.'
+                ),
+                'error'
+            );
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        if (function_exists('mb_strlen')) {
+            if (mb_strlen($note) > 2000) {
+                $note = mb_substr($note, 0, 2000);
+            }
+        } elseif (strlen($note) > 2000) {
+            $note = substr($note, 0, 2000);
+        }
+
+        $metadataJson = json_encode(['request_note' => $note], JSON_UNESCAPED_UNICODE);
+        if ($metadataJson === false) {
+            $metadataJson = '{"request_note":""}';
+        }
+
+        $rid = $wf->createRequest(
+            ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
+            $id,
+            (int) $user->id,
+            $metadataJson
+        );
         if ($rid < 1) {
             $this->setMessage(
                 $this->precotLang(

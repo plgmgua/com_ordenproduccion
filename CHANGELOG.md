@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.2-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización — Solicitar descuento:** El botón pasa a mostrarse debajo de la tabla de totales. Al pulsarlo se abre un modal para escribir una nota obligatoria; el texto se guarda en los metadatos de la solicitud y se muestra debajo de los totales (última solicitud). La acción sigue disponible aunque la pre-cotización ya esté vinculada a una cotización formal.
+
 ## [3.114.1-STABLE] - 2026-04-16
 
 ### Changed

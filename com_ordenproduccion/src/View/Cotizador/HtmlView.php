@@ -111,6 +111,14 @@ class HtmlView extends BaseHtmlView
     protected $canRequestSolicitudDescuento = false;
 
     /**
+     * Document: note text from the latest solicitud de descuento request metadata (if any).
+     *
+     * @var    string
+     * @since  3.114.2
+     */
+    protected $solicitudDescuentoLatestNote = '';
+
+    /**
      * Document (proveedor_externo): solicitud de cotización workflow is installed and published.
      *
      * @var    bool
@@ -313,6 +321,7 @@ class HtmlView extends BaseHtmlView
                     $this->discountWorkflowAvailable   = false;
                     $this->pendingSolicitudDescuento     = false;
                     $this->canRequestSolicitudDescuento  = false;
+                    $this->solicitudDescuentoLatestNote  = '';
                     $this->solicitudCotizacionWorkflowAvailable = false;
                     $this->pendingSolicitudCotizacion           = false;
                     $this->canRequestSolicitudCotizacion        = false;
@@ -333,6 +342,18 @@ class HtmlView extends BaseHtmlView
                                 ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
                                 (int) $id
                             ) !== null;
+                            if ($this->discountWorkflowAvailable) {
+                                $latestDisc = $wf->getLatestRequestForEntity(
+                                    ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
+                                    (int) $id
+                                );
+                                if ($latestDisc !== null && isset($latestDisc->metadata) && $latestDisc->metadata !== null && $latestDisc->metadata !== '') {
+                                    $meta = json_decode((string) $latestDisc->metadata, true);
+                                    if (is_array($meta) && isset($meta['request_note'])) {
+                                        $this->solicitudDescuentoLatestNote = trim((string) $meta['request_note']);
+                                    }
+                                }
+                            }
                             if ($docMode === 'proveedor_externo') {
                                 $this->solicitudCotizacionWorkflowAvailable = $wf->isWorkflowPublishedForEntity(
                                     ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -369,10 +390,10 @@ class HtmlView extends BaseHtmlView
                         $this->ordenCompraExistingCountForPrecot      = 0;
                         $this->ordenCompraLinesReady                  = false;
                         $this->ordenCompraLatestByProveedor           = [];
+                        $this->solicitudDescuentoLatestNote           = '';
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserEditPreCotizacionDocument((int) $id)
-                        && !$this->precotizacionLocked
                         && !$this->pendingSolicitudDescuento;
                     $this->canRequestSolicitudCotizacion = $docMode === 'proveedor_externo'
                         && $this->solicitudCotizacionWorkflowAvailable

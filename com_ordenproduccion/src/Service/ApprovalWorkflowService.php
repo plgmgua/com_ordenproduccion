@@ -89,6 +89,31 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Most recent approval request row for an entity (any status), by primary key desc.
+     *
+     * @since  3.114.2
+     */
+    public function getLatestRequestForEntity(string $entityType, int $entityId): ?object
+    {
+        if (!$this->hasSchema() || $entityId < 1 || $entityType === '') {
+            return null;
+        }
+
+        $query = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_requests'))
+            ->where($this->db->quoteName('entity_type') . ' = ' . $this->db->quote($entityType))
+            ->where($this->db->quoteName('entity_id') . ' = ' . (int) $entityId)
+            ->order($this->db->quoteName('id') . ' DESC')
+            ->setLimit(1);
+
+        $this->db->setQuery($query);
+        $row = $this->db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
      * Whether any approval request for this entity was completed with status approved.
      *
      * @since   3.113.26
