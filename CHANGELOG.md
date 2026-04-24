@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.1-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización proveedor externo:** Tras completar el flujo (precios guardados por aprobador / solicitud aprobada), ya no se muestra el botón **Contactar proveedor**. Quienes usan **Pedir cotización a proveedor** (Aprobaciones) siguen teniendo el modal en modo procesar.
+
 ## [3.114.0-STABLE] - 2026-04-16
 
 ### Changed
