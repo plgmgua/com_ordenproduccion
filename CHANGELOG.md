@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.7-STABLE] - 2026-04-16
+
+### Fixed
+- **Aprobaciones pendientes:** Las filas de solicitud de descuento o cotización externa cuyo `entity_id` ya no corresponde a una pre-cotización publicada (`state = 1`) dejan de mostrarse y la solicitud pasa a **cancelada** (auditoría `pre_cotizacion_missing`). Corrige entradas colgadas como PRE-00166 tras borrar la pre-cot.
+
 ## [3.114.6-STABLE] - 2026-04-16
 
 ### Fixed

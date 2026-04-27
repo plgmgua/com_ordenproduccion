@@ -138,7 +138,36 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Whether a pre-cotización row exists and is published (for approval entity checks).
+     *
+     * @since  3.114.7
+     */
+    private function preCotizacionExistsPublished(int $preCotizacionId): bool
+    {
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select('1')
+                ->from($this->db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($this->db->quoteName('id') . ' = ' . (int) $preCotizacionId)
+                ->where($this->db->quoteName('state') . ' = 1')
+                ->setLimit(1);
+            $this->db->setQuery($q);
+
+            return (int) $this->db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Pending approval rows for a user (for UI).
+     *
+     * Rows tied to a deleted or unpublished pre-cotización (discount / vendor-quote) are cancelled
+     * and omitted so the module and Aprobaciones screen do not show stale entries.
      *
      * @return  array<int, object>
      */
@@ -164,7 +193,32 @@ class ApprovalWorkflowService
 
         $this->db->setQuery($q);
 
-        return $this->db->loadObjectList() ?: [];
+        $rows = $this->db->loadObjectList() ?: [];
+        if ($rows === []) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $et = strtolower(trim((string) ($row->entity_type ?? '')));
+            if ($et === self::ENTITY_SOLICITUD_DESCUENTO || $et === self::ENTITY_SOLICITUD_COTIZACION) {
+                $eid = (int) ($row->entity_id ?? 0);
+                if ($eid > 0 && !$this->preCotizacionExistsPublished($eid)) {
+                    $rid = (int) ($row->id ?? 0);
+                    if ($rid > 0) {
+                        try {
+                            $this->cancelRequest($rid, $userId, 'pre_cotizacion_missing');
+                        } catch (\Throwable $e) {
+                        }
+                    }
+
+                    continue;
+                }
+            }
+            $out[] = $row;
+        }
+
+        return $out;
     }
 
     /**
