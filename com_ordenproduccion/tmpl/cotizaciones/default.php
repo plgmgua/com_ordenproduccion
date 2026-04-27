@@ -128,11 +128,11 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                     <tr>
                         <th><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NUMBER', 'Quotation Number', 'Número de cotización'); ?></th>
                         <th><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_QUOTE_DATE', 'Quotation Date', 'Fecha de cotización'); ?></th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_TOTAL_AMOUNT', 'Total Amount', 'Monto total'); ?></th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Status', 'Estado'); ?></th>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_ACTIONS', 'Actions', 'Acciones'); ?></th>
+                        <th class="col-cot-nit"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
+                        <th class="col-cot-date"><?php echo $l('COM_ORDENPRODUCCION_QUOTE_DATE', 'Quotation Date', 'Fecha de cotización'); ?></th>
+                        <th class="col-cot-amount"><?php echo $l('COM_ORDENPRODUCCION_TOTAL_AMOUNT', 'Total Amount', 'Monto total'); ?></th>
+                        <th class="col-cot-status"><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Status', 'Estado'); ?></th>
+                        <th class="col-cot-actions"><?php echo $l('COM_ORDENPRODUCCION_ACTIONS', 'Actions', 'Acciones'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -144,12 +144,12 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                             </a>
                         </td>
                         <td><?php echo htmlspecialchars($quotation->client_name); ?></td>
-                        <td><?php echo htmlspecialchars($quotation->client_nit); ?></td>
-                        <td><?php echo htmlspecialchars(CotizacionHelper::formatQuoteDateYmd($quotation->quote_date ?? '')); ?></td>
-                        <td class="amount">
+                        <td class="col-cot-nit"><?php echo htmlspecialchars($quotation->client_nit); ?></td>
+                        <td class="col-cot-date"><?php echo htmlspecialchars(CotizacionHelper::formatQuoteDateYmd($quotation->quote_date ?? '')); ?></td>
+                        <td class="amount col-cot-amount">
                             <?php echo $quotation->currency . ' ' . number_format($quotation->total_amount, 2); ?>
                         </td>
-                        <td>
+                        <td class="col-cot-status">
                             <?php
                             $estadoInfo = CotizacionHelper::resolveQuotationListEstado($quotation);
                             ?>
@@ -157,7 +157,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                                 <?php echo htmlspecialchars($l($estadoInfo['langKey'], $estadoInfo['fallbackEn'], $estadoInfo['fallbackEs'])); ?>
                             </span>
                         </td>
-                        <td class="actions">
+                        <td class="actions col-cot-actions">
                             <?php if ($hasVentasAccess): ?>
                             <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=quotation.delete', false); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DELETE_CONFIRM', 'Delete this quotation? This cannot be undone.', '¿Eliminar esta cotización? No se puede deshacer.')); ?>');">
                                 <?php echo HTMLHelper::_('form.token'); ?>
@@ -174,7 +174,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
             </table>
         </div>
         <?php if ($this->pagination && $this->pagination->pagesTotal > 1) : ?>
-        <div class="cotizaciones-pagination mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="cotizaciones-pagination mt-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="pagination"><?php echo $this->pagination->getPagesLinks(); ?></div>
             <p class="small text-muted mb-0"><?php echo $this->pagination->getPagesCounter(); ?></p>
         </div>

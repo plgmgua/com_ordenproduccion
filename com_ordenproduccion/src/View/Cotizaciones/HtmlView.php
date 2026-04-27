@@ -187,7 +187,7 @@ class HtmlView extends BaseHtmlView
                 'com_ordenproduccion.cotizaciones',
                 'media/com_ordenproduccion/css/cotizaciones.css',
                 [],
-                ['version' => '3.113.17']
+                ['version' => '3.114.15']
             );
         } catch (\Exception $e) {
             Factory::getApplication()->enqueueMessage($e->getMessage(), 'error');

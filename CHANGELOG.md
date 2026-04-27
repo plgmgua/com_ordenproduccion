@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.15-STABLE] - 2026-04-16
+
+### Changed
+- **Lista de cotizaciones (sitio):** Estilos más compactos: menos padding en contenedor, cabecera y filtros; tabla con tipografía y celdas más ajustadas, badges y botón eliminar más pequeños; columnas NIT, fecha, monto, estado y acciones con anchos acotados; monto con cifras tabulares y sin salto de línea.
+
 ## [3.114.14-STABLE] - 2026-04-16
 
 ### Changed

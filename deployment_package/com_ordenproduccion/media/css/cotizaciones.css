@@ -1,47 +1,50 @@
 /**
  * Cotizaciones (Quotations List) Styles
- * Version: 3.52.0
+ * Version: 3.114.15
  */
 
 .cotizaciones-container {
     max-width: 1400px;
-    margin: 20px auto;
-    padding: 20px;
+    margin: 12px auto;
+    padding: 12px 14px;
     background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .cotizaciones-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
     border-bottom: 2px solid #007cba;
 }
 
 .cotizaciones-header h2 {
     color: #007cba;
     margin: 0;
-    font-size: 28px;
+    font-size: 1.35rem;
     font-weight: 600;
+    line-height: 1.2;
 }
 
 .cotizaciones-header h2 i {
-    margin-right: 10px;
+    margin-right: 8px;
+    font-size: 0.95em;
 }
 
 .btn-new-quotation {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
+    gap: 6px;
+    padding: 7px 14px;
     background: #28a745;
     color: white;
     text-decoration: none;
     border-radius: 4px;
     font-weight: 600;
+    font-size: 0.875rem;
     transition: all 0.3s;
 }
 
@@ -81,6 +84,8 @@
     background: #fff;
     border: 1px solid #dee2e6;
     border-radius: 4px;
+    font-size: 0.8125rem;
+    line-height: 1.3;
 }
 
 .quotations-table thead {
@@ -89,15 +94,19 @@
 }
 
 .quotations-table th {
-    padding: 15px 12px;
+    padding: 6px 8px;
     text-align: left;
     font-weight: 600;
+    font-size: 0.75rem;
     border: 1px solid #0066a0;
+    vertical-align: middle;
+    line-height: 1.25;
 }
 
 .quotations-table td {
-    padding: 12px;
+    padding: 5px 8px;
     border: 1px solid #dee2e6;
+    vertical-align: middle;
 }
 
 .quotations-table tbody tr {
@@ -113,19 +122,53 @@
     color: #007cba;
 }
 
+.quotations-table .col-cot-nit {
+    width: 4.5rem;
+    max-width: 6rem;
+    white-space: nowrap;
+}
+
+.quotations-table .col-cot-date {
+    width: 6.5rem;
+    white-space: nowrap;
+}
+
+.quotations-table .col-cot-amount {
+    width: 7rem;
+}
+
+.quotations-table .col-cot-status {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.quotations-table .col-cot-actions {
+    width: 3rem;
+    text-align: center;
+}
+
 .amount {
     font-weight: 600;
     text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Status Badges */
 .status-badge {
     display: inline-block;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
+    line-height: 1.2;
+}
+
+/* Lista de cotizaciones: Creada / Confirmada / Facturada (preserve translated casing) */
+.status-badge.status-badge--quotation {
+    text-transform: none;
+    letter-spacing: 0.02em;
 }
 
 .status-draft {
@@ -148,10 +191,25 @@
     color: #721c24;
 }
 
+.status-creada {
+    background: #e7f1ff;
+    color: #0b5ed7;
+}
+
+.status-confirmada {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-facturada {
+    background: #d4edda;
+    color: #155724;
+}
+
 /* Action Buttons */
 .actions {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     justify-content: center;
 }
 
@@ -159,11 +217,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 4px;
     color: white;
     text-decoration: none;
+    font-size: 0.8rem;
     transition: all 0.3s;
 }
 
@@ -189,35 +248,102 @@
     color: white;
 }
 
+.btn-delete {
+    background: #dc3545;
+}
+
+.btn-delete:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+/* Filters + pagination */
+.cotizaciones-filters {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.65rem 0.45rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.cotizaciones-filters-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.65rem;
+    align-items: flex-end;
+}
+
+.cotizaciones-filter-field {
+    flex: 1 1 140px;
+    min-width: 120px;
+}
+
+.cotizaciones-filter-field-limit {
+    flex: 0 0 100px;
+    max-width: 120px;
+}
+
+.cotizaciones-filters .form-label.small {
+    margin-bottom: 0.15rem;
+    font-size: 0.7rem;
+}
+
+.cotizaciones-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    margin-left: auto;
+}
+
+.cotizaciones-pagination .pagination {
+    margin-bottom: 0;
+}
+
+.cotizaciones-pagination ul.pagination {
+    margin-bottom: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .cotizaciones-container {
-        padding: 15px;
-        margin: 10px;
+        padding: 10px;
+        margin: 8px;
     }
 
     .cotizaciones-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 15px;
+        gap: 10px;
     }
 
     .cotizaciones-header h2 {
-        font-size: 22px;
+        font-size: 1.15rem;
     }
 
     .quotations-table {
-        font-size: 13px;
+        font-size: 0.78rem;
     }
 
     .quotations-table th,
     .quotations-table td {
-        padding: 8px;
+        padding: 5px 6px;
     }
 
     .btn-new-quotation {
         width: 100%;
         justify-content: center;
+    }
+
+    .cotizaciones-filter-actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .cotizaciones-filter-actions .btn {
+        flex: 1 1 auto;
     }
 }
 
