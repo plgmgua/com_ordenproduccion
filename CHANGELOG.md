@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.4-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización proveedor externo:** El botón **Pedir precios** (y variantes del mismo flujo) vuelve a estilo **azul** (`btn-primary`); **Guardar para continuar** y **Guardar líneas** siguen en verde.
+
 ## [3.114.3-STABLE] - 2026-04-16
 
 ### Changed
