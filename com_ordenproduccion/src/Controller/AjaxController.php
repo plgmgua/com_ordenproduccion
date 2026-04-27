@@ -390,12 +390,14 @@ class AjaxController extends BaseController
                 foreach ($lines as $lineOrder => $line) {
                     $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
                     $value = isset($line['value']) ? (float) $line['value'] : 0;
-                    $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 1;
-                    if ($cantidad < 0.001) {
-                        $cantidad = 1;
-                    }
+                    $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 0;
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
+                        if ($cantidad < 0.001) {
+                            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+                            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_CANTIDAD_REQUIRED')]);
+                            exit;
+                        }
                         $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
                         $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
                         if ($value < $minTotal) {
@@ -663,10 +665,14 @@ class AjaxController extends BaseController
         foreach ($lines as $lineOrder => $line) {
             $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
             $value = isset($line['value']) ? (float) $line['value'] : 0;
-            $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 1;
-            if ($cantidad < 0.001) $cantidad = 1;
+            $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 0;
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
+                if ($cantidad < 0.001) {
+                    $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+                    echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_CANTIDAD_REQUIRED')]);
+                    exit;
+                }
                 $baseTotal = null;
                 if ($preId > 0 && $precotModel) {
                     $baseTotal = (float) $precotModel->getTotalForPreCotizacion($preId);

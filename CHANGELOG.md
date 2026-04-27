@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.13-STABLE] - 2026-04-16
+
+### Changed
+- **Cotización — líneas desde pre-cotización:** Solo se copia la **descripción** al elegir la pre-cotización. La **cantidad** de cada línea queda en **0** hasta que el usuario la completa; no se puede **guardar** la cotización (ni la línea con el botón guardar) si alguna cantidad sigue en cero. Validación en formulario y en `ajax.createQuotation` / `ajax.updateQuotation`.
+
 ## [3.114.12-STABLE] - 2026-04-16
 
 ### Added

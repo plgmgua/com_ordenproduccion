@@ -180,7 +180,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <i class="fas fa-list"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ITEMS', 'Quotation Details', 'Detalles de la cotización'); ?>
             </h4>
-            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation, quantity and a custom description (required). Total is the sum of all line values.', 'Agregue líneas seleccionando una Pre-Cotización, cantidad y descripción personalizada (obligatoria). El total es la suma de todas las líneas.'); ?></p>
+            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation (description is filled automatically). Set quantity on each line (must be greater than zero before saving). Total is the sum of all line values.', 'Agregue líneas eligiendo una Pre-Cotización (la descripción se copia sola). Indique la cantidad en cada línea (debe ser mayor que cero para poder guardar). El total es la suma de todos los valores.'); ?></p>
             <?php if (empty($this->preCotizacionesList)) : ?>
                 <p class="alert alert-info"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES', 'You have no Pre-Quotations yet. Create one from Pre-Cotizaciones first.', 'Aún no tiene Pre-Cotizaciones. Cree una en Pre-Cotizaciones primero.'); ?></p>
             <?php endif; ?>
@@ -202,9 +202,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                             if (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== '') {
                                 $tcAttr = ' data-total-con-tarjeta="' . htmlspecialchars(number_format((float) $pre->total_con_tarjeta, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                             }
-                            $defaultQty = isset($pre->quotation_default_cantidad) ? max(1, (int) $pre->quotation_default_cantidad) : 1;
                         ?>
-                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>" data-default-cantidad="<?php echo (int) $defaultQty; ?>"<?php echo $tcAttr; ?>>
+                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
@@ -213,7 +212,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <div class="cotizacion-add-line-row-second d-flex flex-wrap align-items-end gap-2">
                     <div class="cotizacion-add-cantidad">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
-                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="1" aria-label="Cantidad">
+                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="0" step="1" value="0" aria-label="Cantidad">
                     </div>
                     <div class="cotizacion-add-descripcion">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
@@ -249,8 +248,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         if ($preId > 0) {
                             $preNum = !empty($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : ('PRE-' . $preId);
                         }
-                        $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
-                        if ($qty < 1) $qty = 1;
+                        $qty = isset($item->cantidad) ? (int) $item->cantidad : 0;
+                        if ($qty < 0) {
+                            $qty = 0;
+                        }
                         $preTotal = isset($item->pre_cotizacion_total) ? (float) $item->pre_cotizacion_total : null;
                         $preTc = (isset($item->pre_cotizacion_total_con_tarjeta) && $item->pre_cotizacion_total_con_tarjeta !== null && $item->pre_cotizacion_total_con_tarjeta !== '')
                             ? (float) $item->pre_cotizacion_total_con_tarjeta
@@ -273,7 +274,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                        <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="<?php echo $qty; ?>"></td>
+                        <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="0" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
@@ -361,18 +362,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 ? String(precotizacionDescriptions[preId])
                 : (opt.getAttribute('data-descripcion') || '');
             descEl.value = preDesc;
-            if (cantidadEl) {
-                var dq = parseInt(opt.getAttribute('data-default-cantidad') || '1', 10);
-                if (isNaN(dq) || dq < 1) {
-                    dq = 1;
-                }
-                cantidadEl.value = String(dq);
-            }
         } else {
             descEl.value = '';
-            if (cantidadEl) {
-                cantidadEl.value = '1';
-            }
         }
     }
 
@@ -415,7 +406,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         var valueInp = row.querySelector('input[name*="[value]"]');
         var span = row.querySelector('.line-precio-unidad');
         if (!span || !qtyInp || !valueInp) return;
-        var q = parseFloat(qtyInp.value, 10) || 1;
+        var q = parseFloat(String(qtyInp.value).trim().replace(',', '.'), 10);
+        if (isNaN(q) || q < 0) q = 0;
         var raw = String(valueInp.value).trim().replace(',', '.');
         var sub = parseFloat(raw, 10);
         if (isNaN(sub)) sub = 0;
@@ -465,16 +457,29 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     function onRowCantidadChange(row) {
         var qtyInp = row.querySelector('input[name*="[cantidad]"]');
         if (qtyInp) {
-            var q = parseInt(qtyInp.value, 10) || 1;
-            if (q < 1) { qtyInp.value = 1; }
+            var q = parseInt(qtyInp.value, 10);
+            if (isNaN(q) || q < 0) {
+                qtyInp.value = '0';
+            }
             updateUnitPriceDisplay(row);
             updateTotal();
         }
     }
 
+    var msgCantidadRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_QUOTATION_LINE_CANTIDAD_REQUIRED', 'Enter a quantity greater than zero for each line.', 'Indique una cantidad mayor que cero en cada línea.')); ?>;
+
     function saveLine(btn) {
         var tr = btn.closest('tr');
         if (!tr) return;
+        var qtyInpCheck = tr.querySelector('input[name*="[cantidad]"]');
+        if (qtyInpCheck) {
+            var qc = parseInt(qtyInpCheck.value, 10);
+            if (isNaN(qc) || qc < 1) {
+                alert(msgCantidadRequired);
+                qtyInpCheck.focus();
+                return;
+            }
+        }
         onValorFinalBlur(tr);
         onRowCantidadChange(tr);
         var saveBtn = tr.querySelector('.btn-save-line');
@@ -508,8 +513,6 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         btnAdd.addEventListener('click', function() {
             var opt = selectEl.options[selectEl.selectedIndex];
             if (!opt || !opt.value) return;
-            var qty = parseInt(cantidadEl && cantidadEl.value ? cantidadEl.value : 1, 10) || 1;
-            if (qty < 1) qty = 1;
             var desc = (descEl && descEl.value) ? String(descEl.value).trim() : '';
             if (!desc) {
                 alert('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DESCRIPTION_REQUIRED', 'Custom description is required.', 'La descripción personalizada es obligatoria.')); ?>');
@@ -529,10 +532,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             tr.setAttribute('data-unit', String(baseTotal));
             tr.setAttribute('data-subtotal-ref', String(baseTotal));
             tr.setAttribute('data-min-valor', String(minValorLine));
-            var unitPrice = (qty > 0 && minValorLine > 0) ? (minValorLine / qty).toFixed(4) : '0.0000';
+            var unitPrice = '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
-                '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="1" step="1" value="' + qty + '"></td>' +
+                '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="0" step="1" value="0"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
@@ -556,7 +559,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 valueInput.addEventListener('blur', function() { onValorFinalBlur(tr); });
             }
             if (descEl) descEl.value = '';
-            if (cantidadEl) cantidadEl.value = '1';
+            if (cantidadEl) cantidadEl.value = '0';
             selectEl.selectedIndex = 0;
             opt.remove();
             updateTotal();
@@ -733,6 +736,19 @@ function submitQuotationForm(event) {
     if (!tbody || tbody.querySelectorAll('tr.quotation-item-row').length === 0) {
         alert('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_ADD_AT_LEAST_ONE_LINE', 'Please add at least one line.', 'Agregue al menos una línea.')); ?>');
         return;
+    }
+    var msgCantidadReq = <?php echo json_encode($l('COM_ORDENPRODUCCION_QUOTATION_LINE_CANTIDAD_REQUIRED', 'Enter a quantity greater than zero for each line.', 'Indique una cantidad mayor que cero en cada línea.')); ?>;
+    var rowsCant = tbody.querySelectorAll('tr.quotation-item-row');
+    for (var ri = 0; ri < rowsCant.length; ri++) {
+        var qinp = rowsCant[ri].querySelector('input.line-cantidad-input');
+        if (qinp) {
+            var qv = parseInt(qinp.value, 10);
+            if (isNaN(qv) || qv < 1) {
+                alert(msgCantidadReq);
+                qinp.focus();
+                return;
+            }
+        }
     }
     const submitButton = event.target.querySelector('.btn-submit');
     submitButton.disabled = true;

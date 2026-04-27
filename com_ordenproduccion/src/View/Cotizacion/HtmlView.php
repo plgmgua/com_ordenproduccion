@@ -372,14 +372,11 @@ class HtmlView extends BaseHtmlView
                         continue;
                     }
                     $list[] = (object) [
-                        'id'                         => (int) $item->id,
-                        'number'                     => $item->number ?? ('PRE-' . $item->id),
-                        'total'                      => $item->total,
-                        'total_con_tarjeta'          => isset($item->total_con_tarjeta) ? $item->total_con_tarjeta : null,
-                        'descripcion'                => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
-                        'quotation_default_cantidad' => isset($item->quotation_default_cantidad)
-                            ? max(1, (int) $item->quotation_default_cantidad)
-                            : 1,
+                        'id'                  => (int) $item->id,
+                        'number'              => $item->number ?? ('PRE-' . $item->id),
+                        'total'               => $item->total,
+                        'total_con_tarjeta'   => isset($item->total_con_tarjeta) ? $item->total_con_tarjeta : null,
+                        'descripcion'         => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
                     ];
                 }
                 $this->preCotizacionesList = $list;

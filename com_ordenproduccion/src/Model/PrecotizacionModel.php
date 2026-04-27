@@ -1182,7 +1182,7 @@ class PrecotizacionModel extends ListModel
     /**
      * Get pre-cotizaciones for the quotation line selector: current user's non-offer rows only (offers cannot be linked to a cotización).
      *
-     * @return  \stdClass[]  List of objects with id, number, total, descripcion, oferta, quotation_default_cantidad
+     * @return  \stdClass[]  List of objects with id, number, total, descripcion, oferta
      * @since   3.95.0
      */
     public function getItemsForQuotationLineSelector()
@@ -1220,57 +1220,16 @@ class PrecotizacionModel extends ListModel
                 $tc = round((float) $row->total_con_tarjeta_snapshot, 2);
                 $totalConTarjeta = $tc > 0 ? $tc : null;
             }
-            $defaultCantidad = $this->getDefaultQuotationLineCantidadForPreCotizacion((int) $row->id);
             $list[] = (object) [
-                'id'                         => (int) $row->id,
-                'number'                     => $row->number ?? ('PRE-' . $row->id),
-                'total'                      => $total,
-                'total_con_tarjeta'          => $totalConTarjeta,
-                'descripcion'                => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
-                'oferta'                     => !empty($row->oferta),
-                'quotation_default_cantidad' => $defaultCantidad,
+                'id'                  => (int) $row->id,
+                'number'              => $row->number ?? ('PRE-' . $row->id),
+                'total'               => $total,
+                'total_con_tarjeta'   => $totalConTarjeta,
+                'descripcion'         => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
+                'oferta'              => !empty($row->oferta),
             ];
         }
         return $list;
-    }
-
-    /**
-     * Suggested quotation line quantity (`cantidad`) when linking this pre-cotización: quantity of the first
-     * non-envío line (pliego, proveedor_externo, elementos), minimum 1.
-     *
-     * @param   int  $preCotizacionId  Pre-cotización id
-     *
-     * @return  int
-     *
-     * @since   3.114.12
-     */
-    public function getDefaultQuotationLineCantidadForPreCotizacion(int $preCotizacionId): int
-    {
-        if ($preCotizacionId < 1) {
-            return 1;
-        }
-
-        return $this->deriveDefaultQuotationCantidadFromPreCotLines($this->getLines($preCotizacionId));
-    }
-
-    /**
-     * @param   array<int, \stdClass>  $lines  Rows from getLines()
-     *
-     * @since   3.114.12
-     */
-    protected function deriveDefaultQuotationCantidadFromPreCotLines(array $lines): int
-    {
-        foreach ($lines as $line) {
-            $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
-            if ($lineType === 'envio') {
-                continue;
-            }
-            $qty = isset($line->quantity) ? (int) $line->quantity : 1;
-
-            return max(1, $qty);
-        }
-
-        return 1;
     }
 
     /**
