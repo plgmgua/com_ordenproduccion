@@ -202,8 +202,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                             if (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== '') {
                                 $tcAttr = ' data-total-con-tarjeta="' . htmlspecialchars(number_format((float) $pre->total_con_tarjeta, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                             }
+                            $defaultQty = isset($pre->quotation_default_cantidad) ? max(1, (int) $pre->quotation_default_cantidad) : 1;
                         ?>
-                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
+                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>" data-default-cantidad="<?php echo (int) $defaultQty; ?>"<?php echo $tcAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
@@ -360,8 +361,18 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 ? String(precotizacionDescriptions[preId])
                 : (opt.getAttribute('data-descripcion') || '');
             descEl.value = preDesc;
+            if (cantidadEl) {
+                var dq = parseInt(opt.getAttribute('data-default-cantidad') || '1', 10);
+                if (isNaN(dq) || dq < 1) {
+                    dq = 1;
+                }
+                cantidadEl.value = String(dq);
+            }
         } else {
             descEl.value = '';
+            if (cantidadEl) {
+                cantidadEl.value = '1';
+            }
         }
     }
 

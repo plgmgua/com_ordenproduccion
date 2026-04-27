@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.12-STABLE] - 2026-04-16
+
+### Added
+- **Cotización / pre-cotización:** Al elegir una pre-cotización para una línea, la **cantidad** del formulario se rellena con la cantidad de la primera línea de producto (pliego / proveedor externo / otros elementos; se omiten envíos). Antes solo se autocompletaba la descripción.
+
 ## [3.114.11-STABLE] - 2026-04-16
 
 ### Changed
