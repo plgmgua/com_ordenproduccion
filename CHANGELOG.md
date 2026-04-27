@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.14-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización (documento):** El campo **Tipo de elemento** es obligatorio en **Cálculo de folios**, **Otros elementos** y **Añadir envío** (validación en formulario y en `precotizacion.addLine`, `editLine`, `addLineElemento`, `addLineEnvio`). Al abrir **Añadir envío**, el tipo de elemento se precarga con **Envio** (cadena traducible `COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT`).
+
 ## [3.114.13-STABLE] - 2026-04-16
 
 ### Changed

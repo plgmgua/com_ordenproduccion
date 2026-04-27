@@ -321,8 +321,22 @@ class PrecotizacionController extends BaseController
             $breakdown = [];
         }
 
+        $tipoElemento = trim($app->input->get('tipo_elemento', '', 'string'));
+        if ($tipoElemento === '') {
+            $msg = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_REQUIRED');
+            if ($format === 'json' || $app->input->getBool('ajax')) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                $app->close();
+            }
+            $this->setMessage($msg, 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+            return false;
+        }
+
         $data = [
-            'tipo_elemento'          => trim($app->input->get('tipo_elemento', '', 'string')),
+            'tipo_elemento'          => $tipoElemento,
             'quantity'               => (int) $app->input->get('quantity', 1),
             'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
             'size_id'                => (int) $app->input->get('size_id', 0),
@@ -415,8 +429,16 @@ class PrecotizacionController extends BaseController
             $breakdown = [];
         }
 
+        $tipoElemento = trim($app->input->get('tipo_elemento', '', 'string'));
+        if ($tipoElemento === '') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+            return false;
+        }
+
         $data = [
-            'tipo_elemento'          => trim($app->input->get('tipo_elemento', '', 'string')),
+            'tipo_elemento'          => $tipoElemento,
             'quantity'               => (int) $app->input->get('quantity', 1),
             'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
             'size_id'                => (int) $app->input->get('size_id', 0),
@@ -565,10 +587,18 @@ class PrecotizacionController extends BaseController
         $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
         $elementoId = (int) $app->input->post->get('elemento_id', 0);
         $quantity = (int) $app->input->post->get('quantity', 1);
+        $tipoElemento = trim($app->input->post->get('tipo_elemento', '', 'string'));
 
         if ($preCotizacionId < 1 || $elementoId < 1 || $quantity < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        if ($tipoElemento === '') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
             return false;
         }
 
@@ -604,7 +634,7 @@ class PrecotizacionController extends BaseController
 
         $data = [
             'line_type'             => 'elementos',
-            'tipo_elemento'         => trim($app->input->post->get('tipo_elemento', '', 'string')),
+            'tipo_elemento'         => $tipoElemento,
             'elemento_id'           => $elementoId,
             'quantity'              => $quantity,
             'price_per_sheet'       => $unitPrice,
@@ -649,10 +679,18 @@ class PrecotizacionController extends BaseController
         $preCotizacionId = (int) $app->input->post->get('id', 0) ?: (int) $app->input->post->get('pre_cotizacion_id', 0);
         $envioId = (int) $app->input->post->get('envio_id', 0);
         $envioValor = $app->input->post->get('envio_valor', null, 'raw');
+        $tipoElemento = trim($app->input->post->get('tipo_elemento', '', 'string'));
 
         if ($preCotizacionId < 1 || $envioId < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+            return false;
+        }
+
+        if ($tipoElemento === '') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
             return false;
         }
 
@@ -687,7 +725,7 @@ class PrecotizacionController extends BaseController
         $tipoEnvio = isset($envio->tipo) ? (string) $envio->tipo : 'fixed';
         $data = [
             'line_type'   => 'envio',
-            'tipo_elemento' => trim($app->input->post->get('tipo_elemento', '', 'string')),
+            'tipo_elemento' => $tipoElemento,
             'envio_id'    => $envioId,
             'envio_valor' => $tipoEnvio === 'custom' ? (float) $envioValor : null,
         ];

@@ -1065,7 +1065,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
 
                     <div class="mb-2">
                         <label for="pliego_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
-                        <input type="text" id="pliego_modal_tipo_elemento" name="tipo_elemento" class="form-control" maxlength="255" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="text" id="pliego_modal_tipo_elemento" name="tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
                     <div class="row mb-2">
                         <div class="col-md-4">
@@ -1184,7 +1184,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="elementos_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
-                        <input type="text" name="tipo_elemento" id="elementos_modal_tipo_elemento" class="form-control" maxlength="255" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="text" name="tipo_elemento" id="elementos_modal_tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
                     <div class="mb-3">
                         <label for="elementos_modal_elemento_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ELEMENTO_LINE'); ?></label>
@@ -1224,7 +1224,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="envio_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
-                        <input type="text" name="tipo_elemento" id="envio_modal_tipo_elemento" class="form-control" maxlength="255" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="text" name="tipo_elemento" id="envio_modal_tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" value="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
                     <div class="mb-3">
                         <label for="envio_modal_envio_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_METHOD'); ?></label>
@@ -1261,8 +1261,11 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         else if (isCustom && document.getElementById('envio_modal_valor')) document.getElementById('envio_modal_valor').setAttribute('required', 'required');
     }
     if (sel) sel.addEventListener('change', toggleCustom);
+    var envioTipoDefault = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT')); ?>;
     if (document.getElementById('envioLineModal')) {
         document.getElementById('envioLineModal').addEventListener('show.bs.modal', function() {
+            var te = document.getElementById('envio_modal_tipo_elemento');
+            if (te) te.value = envioTipoDefault;
             if (sel) sel.selectedIndex = 0;
             if (document.getElementById('envio_modal_valor')) document.getElementById('envio_modal_valor').value = '';
             toggleCustom();
@@ -1302,8 +1305,19 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
     var precotShowLineBreakdownDetail = <?php echo $canSeePrecotInternalTax ? 'true' : 'false'; ?>;
     var modalTitle = document.getElementById('pliegoLineModalLabel');
     var pliegoModal = document.getElementById('pliegoLineModal');
+    var pliegoTipoElemento = document.getElementById('pliego_modal_tipo_elemento');
+    var msgTipoElementoRequired = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_REQUIRED')); ?>;
 
     var lastCalc = null;
+
+    function pliegoTipoElementoFilled() {
+        return pliegoTipoElemento && pliegoTipoElemento.value.trim() !== '';
+    }
+
+    function updatePliegoSubmitEnabled() {
+        if (!submitBtn) return;
+        submitBtn.disabled = !lastCalc || !pliegoTipoElementoFilled();
+    }
 
     function escapeHtml(s) {
         if (s == null) return '';
@@ -1385,7 +1399,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
             document.getElementById('pliego_modal_total_display').textContent = '-';
             lastCalc = null;
             if (calcDetail) calcDetail.style.display = 'none';
-            if (submitBtn) submitBtn.disabled = true;
+            updatePliegoSubmitEnabled();
             return;
         }
         var tiroRetiro = (retiro && retiro.checked) ? 'retiro' : 'tiro';
@@ -1405,13 +1419,13 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                     document.getElementById('pliego_modal_total_display').textContent = 'Q ' + (data.total != null ? Number(data.total).toFixed(2) : '-');
                     lastCalc = { price_per_sheet: data.price_per_sheet, total: data.total, rows: data.rows || [] };
                     renderBreakdownTable(lastCalc.rows, data.total);
-                    if (submitBtn) submitBtn.disabled = false;
+                    updatePliegoSubmitEnabled();
                 } else {
                     document.getElementById('pliego_modal_price_display').textContent = '-';
                     document.getElementById('pliego_modal_total_display').textContent = data.message || '-';
                     lastCalc = null;
                     if (calcDetail) calcDetail.style.display = 'none';
-                    if (submitBtn) submitBtn.disabled = true;
+                    updatePliegoSubmitEnabled();
                 }
             })
             .catch(function() {
@@ -1419,7 +1433,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                 document.getElementById('pliego_modal_total_display').textContent = '-';
                 lastCalc = null;
                 if (calcDetail) calcDetail.style.display = 'none';
-                if (submitBtn) submitBtn.disabled = true;
+                updatePliegoSubmitEnabled();
             });
     }
 
@@ -1427,11 +1441,20 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         if (el) el.addEventListener('change', recalc);
     });
     if (qty) qty.addEventListener('input', recalc);
+    if (pliegoTipoElemento) {
+        pliegoTipoElemento.addEventListener('input', updatePliegoSubmitEnabled);
+        pliegoTipoElemento.addEventListener('change', updatePliegoSubmitEnabled);
+    }
     document.querySelectorAll('.pliego-modal-process-cb').forEach(function(cb) { cb.addEventListener('change', recalc); });
 
     if (submitBtn && form) {
         submitBtn.addEventListener('click', function() {
             if (!lastCalc) return;
+            if (!pliegoTipoElementoFilled()) {
+                alert(msgTipoElementoRequired);
+                if (pliegoTipoElemento) pliegoTipoElemento.focus();
+                return;
+            }
             document.getElementById('pliego_modal_price_per_sheet').value = lastCalc.price_per_sheet;
             document.getElementById('pliego_modal_total').value = lastCalc.total;
             document.getElementById('pliego_modal_breakdown').value = JSON.stringify(lastCalc.rows || []);
@@ -1442,7 +1465,6 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         });
     }
 
-    var pliegoTipoElemento = document.getElementById('pliego_modal_tipo_elemento');
     function setAddMode() {
         if (lineIdInput) lineIdInput.value = '';
         if (form) form.action = form.getAttribute('data-add-action') || form.action;
@@ -1461,7 +1483,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         if (calcDetail) calcDetail.style.display = 'none';
         document.getElementById('pliego_modal_price_display').textContent = '-';
         document.getElementById('pliego_modal_total_display').textContent = '-';
-        if (submitBtn) submitBtn.disabled = true;
+        updatePliegoSubmitEnabled();
         filterSizeDropdown();
         filterLaminationBySize();
         updateLaminationVisibility();
@@ -1507,7 +1529,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         document.getElementById('pliego_modal_price_per_sheet').value = line.price_per_sheet != null && line.price_per_sheet !== '' ? line.price_per_sheet : '';
         document.getElementById('pliego_modal_total').value = line.total != null && line.total !== '' ? line.total : '';
         document.getElementById('pliego_modal_breakdown').value = (line.breakdown && line.breakdown.length) ? JSON.stringify(line.breakdown) : '[]';
-        if (submitBtn) submitBtn.disabled = false;
+        updatePliegoSubmitEnabled();
         filterSizeDropdown();
         filterLaminationBySize();
         updateLaminationVisibility();
