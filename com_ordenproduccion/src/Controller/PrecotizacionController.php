@@ -1504,6 +1504,20 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if ($descripcion === '') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCRIPCION_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        if (isset($tableCols['medidas']) && $medidas === '') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_MEDIDAS_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
         if ($medidas !== '' && !isset($tableCols['medidas'])) {
             Factory::getApplication()->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS_RUN_SQL'), 'warning');
         }

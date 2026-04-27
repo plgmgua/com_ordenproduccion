@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.3-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización proveedor externo:** El botón de guardar descripción/medidas pasa debajo del cuadro de medidas, alineado a la derecha, texto **Guardar para continuar** y estilo verde. **Descripción** y **Medidas** son obligatorias (HTML5 + validación en `saveDescripcion`). En tablas de líneas solo lectura, si todo el **Precio unidad** sigue en cero se ocultan las columnas de precio y total. **Solicitar cotización externa** pasa a **Pedir precios**, botón verde debajo de **Guardar líneas**, misma anchura en bloque; otros accesos al mismo flujo usan el mismo estilo verde.
+- **Pre-cotización (documento pliego):** **Descripción** y **Medidas** obligatorias al guardar (misma validación servidor).
+
 ## [3.114.2-STABLE] - 2026-04-16
 
 ### Changed

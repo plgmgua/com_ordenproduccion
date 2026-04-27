@@ -309,13 +309,13 @@ $solicitarDescuentoAction   = Route::_(
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
             <div class="flex-grow-1 d-flex" style="min-width: 200px;">
-                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="3" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="min-height: 5.5rem; resize:vertical;"><?php echo htmlspecialchars($descripcionValue); ?></textarea>
+                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control flex-grow-1" rows="3" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="min-height: 5.5rem; resize:vertical;" required><?php echo htmlspecialchars($descripcionValue); ?></textarea>
             </div>
             <div class="d-flex flex-column flex-grow-1" style="min-width: 200px; max-width: 360px;">
                 <label class="form-label fw-bold mb-1" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
                 <textarea name="medidas" id="precotizacion-medidas" class="form-control flex-grow-1" rows="3" autocomplete="off" maxlength="512"
                           placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
-                          style="min-height: 5.5rem; resize:vertical;"><?php echo htmlspecialchars($medidasValue); ?></textarea>
+                          style="min-height: 5.5rem; resize:vertical;" required><?php echo htmlspecialchars($medidasValue); ?></textarea>
             </div>
         </form>
         <?php endif; ?>
