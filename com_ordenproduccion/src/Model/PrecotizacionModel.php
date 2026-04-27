@@ -599,6 +599,9 @@ class PrecotizacionModel extends ListModel
     /**
      * Document editing: non–offer rows — owner or Administracion/Admon/super user. Offer rows — owner only.
      *
+     * If the pre-cotización is already on an active cotización line, only **Aprobaciones Ventas** or
+     * a **super user** (`core.admin`) may edit; owner and other Administración users may not.
+     *
      * @param   int  $preCotizacionId  Published pre-cotización id
      *
      * @return  bool
@@ -609,6 +612,56 @@ class PrecotizacionModel extends ListModel
     {
         $preCotizacionId = (int) $preCotizacionId;
         if ($preCotizacionId < 1) {
+            return false;
+        }
+        $item = $this->getItem($preCotizacionId);
+        if (!$item || (int) $item->state !== 1) {
+            return false;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            return false;
+        }
+        $isOwner = (int) $item->created_by === (int) $user->id;
+        $db      = $this->getDatabase();
+        $cols    = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $colsLc  = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (isset($colsLc['oferta']) && !empty($item->oferta)) {
+            if ($this->isAssociatedWithQuotation($preCotizacionId)) {
+                return AccessHelper::isInAprobacionesVentasGroup() || $user->authorise('core.admin');
+            }
+
+            return $isOwner;
+        }
+
+        if ($this->isAssociatedWithQuotation($preCotizacionId)) {
+            return AccessHelper::isInAprobacionesVentasGroup() || $user->authorise('core.admin');
+        }
+
+        return $isOwner
+            || AccessHelper::isInAdministracionOrAdmonGroup()
+            || $user->authorise('core.admin');
+    }
+
+    /**
+     * Whether the user may start workflow-only actions (solicitar descuento, solicitar cotización proveedor).
+     *
+     * Same audience as document edit **before** the associated-cotización rule: owner, Administración/Admon,
+     * or super user; offer rows — owner only. Not allowed once a linked cotización is **confirmada**.
+     *
+     * @param   int  $preCotizacionId  Published pre-cotización id
+     *
+     * @return  bool
+     *
+     * @since   3.114.10
+     */
+    public function canUserSubmitPreCotizacionWorkflowRequests(int $preCotizacionId): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
             return false;
         }
         $item = $this->getItem($preCotizacionId);

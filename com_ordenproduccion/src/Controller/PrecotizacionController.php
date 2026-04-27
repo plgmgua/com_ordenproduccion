@@ -1953,7 +1953,11 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->denyIfNotEditableDocument($id, 'html')) {
+        $precotModel = $this->getModel('Precotizacion', 'Site');
+        if (!$precotModel->canUserSubmitPreCotizacionWorkflowRequests($id)) {
+            $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
             return false;
         }
 
@@ -2081,7 +2085,11 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->denyIfNotEditableDocument($id, 'html')) {
+        $model = $this->getModel('Precotizacion', 'Site');
+        if (!$model->canUserSubmitPreCotizacionWorkflowRequests($id)) {
+            $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
             return false;
         }
 
@@ -2089,7 +2097,6 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        $model = $this->getModel('Precotizacion', 'Site');
         $item  = $model->getItem($id);
         $mode  = $item && isset($item->document_mode) ? (string) $item->document_mode : '';
         if ($mode !== 'proveedor_externo') {

@@ -305,13 +305,8 @@ class HtmlView extends BaseHtmlView
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
                     $this->precotizacionLocked = $precotModel->isAssociatedWithConfirmedQuotation((int) $id);
-                    $isOwner        = (int) ($this->item->created_by ?? 0) === (int) $user->id;
-                    $canAdminPrecot = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
-                    if (!empty($this->item->oferta)) {
-                        $this->precotizacionDocumentEditable = !$this->precotizacionLocked && $isOwner;
-                    } else {
-                        $this->precotizacionDocumentEditable = !$this->precotizacionLocked && ($isOwner || $canAdminPrecot);
-                    }
+                    $this->precotizacionDocumentEditable = $precotModel->canUserEditPreCotizacionDocument((int) $id)
+                        && !$this->precotizacionLocked;
                     // Backfill totals snapshot (3.86.0) when not yet stored so first view persists historical totals
                     if (!empty($this->lines) && (!isset($this->item->lines_subtotal) || $this->item->lines_subtotal === null || $this->item->lines_subtotal === '')) {
                         $precotModel->refreshPreCotizacionTotalsSnapshot($id);
@@ -393,11 +388,11 @@ class HtmlView extends BaseHtmlView
                         $this->solicitudDescuentoLatestNote           = '';
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
-                        && $precotModel->canUserEditPreCotizacionDocument((int) $id)
+                        && $precotModel->canUserSubmitPreCotizacionWorkflowRequests((int) $id)
                         && !$this->pendingSolicitudDescuento;
                     $this->canRequestSolicitudCotizacion = $docMode === 'proveedor_externo'
                         && $this->solicitudCotizacionWorkflowAvailable
-                        && $precotModel->canUserEditPreCotizacionDocument((int) $id)
+                        && $precotModel->canUserSubmitPreCotizacionWorkflowRequests((int) $id)
                         && !$this->precotizacionLocked
                         && !$this->pendingSolicitudCotizacion;
                     $this->canViewVendorQuoteRequestLog = AccessHelper::canViewVendorQuoteRequestLog();

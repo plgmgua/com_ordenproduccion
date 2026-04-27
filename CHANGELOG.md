@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.10-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización vinculada (COT no confirmada):** Solo integrantes del grupo **Aprobaciones Ventas** o un **superusuario** pueden editar el documento (líneas, descripción, etc.). El autor y demás usuarios (p. ej. Administración sin ese grupo) quedan en solo lectura. Siguen pudiendo **enviar** solicitudes de descuento o de cotización a proveedor mientras la cotización vinculada no esté confirmada (`canUserSubmitPreCotizacionWorkflowRequests`).
+
 ## [3.114.9-STABLE] - 2026-04-16
 
 ### Changed
