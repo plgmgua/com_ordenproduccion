@@ -13,7 +13,9 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Installer\InstallerAdapter;
+use Joomla\CMS\Installer\Installer;
 use Joomla\CMS\Language\LanguageHelper;
 use Joomla\CMS\Log\Log;
 
@@ -68,6 +70,77 @@ function copyAdminLanguageToSystem(InstallerAdapter $parent)
     }
 
     return true;
+}
+
+/**
+ * Copy bundled Global Configuration sync plugin and register it via the extension installer.
+ *
+ * @return  bool
+ */
+function ordenproduccionInstallBundledOpAdmlangPlugin()
+{
+    $bundled = __DIR__ . '/admin/bundledplugins/system/op_admlang';
+    $dest = JPATH_PLUGINS . '/system/op_admlang';
+
+    if (!is_dir($bundled) || !defined('JPATH_PLUGINS')) {
+        return true;
+    }
+
+    try {
+        if (is_dir($dest)) {
+            Folder::delete($dest);
+        }
+
+        if (!Folder::copy($bundled, $dest, '', true)) {
+            Log::add('com_ordenproduccion: bundled op_admlang plugin copy failed.', Log::WARNING, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        $installer = new Installer();
+
+        if (!$installer->install($dest)) {
+            Log::add('com_ordenproduccion: Installer could not register plg_system_op_admlang.', Log::WARNING, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        ordenproduccionEnableBundledPlugin();
+    } catch (\Throwable $e) {
+        try {
+            Log::add(
+                'com_ordenproduccion: ordenproduccionInstallBundledOpAdmlangPlugin: ' . $e->getMessage(),
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+        } catch (\Throwable $ignore) {
+            // ignore logging failures
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Ensures bundled sync plugin is enabled after install/update.
+ *
+ * @return void
+ */
+function ordenproduccionEnableBundledPlugin(): void
+{
+    try {
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__extensions'))
+            ->set($db->quoteName('enabled') . ' = 1')
+            ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+            ->where($db->quoteName('folder') . ' = ' . $db->quote('system'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote('op_admlang'));
+        $db->setQuery($query)->execute();
+    } catch (\Throwable $e) {
+    }
 }
 
 /**
@@ -192,6 +265,7 @@ function ensureCotizacionMenuItem()
 function com_install($parent)
 {
     copyAdminLanguageToSystem($parent);
+    ordenproduccionInstallBundledOpAdmlangPlugin();
     ensureCotizacionMenuItem();
     return true;
 }
@@ -206,6 +280,7 @@ function com_install($parent)
 function com_update($parent)
 {
     copyAdminLanguageToSystem($parent);
+    ordenproduccionInstallBundledOpAdmlangPlugin();
     ensureCotizacionMenuItem();
     return true;
 }

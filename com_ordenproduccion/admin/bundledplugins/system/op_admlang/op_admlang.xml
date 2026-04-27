@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="system" version="5.0" method="upgrade">
+    <name>COM_ordenproduccion — admin language sync (Global Configuration labels)</name>
+    <author>Grimpsa</author>
+    <creationDate>April 2026</creationDate>
+    <copyright>(C) 2026 Grimpsa.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <description>Copies administrator/components/com_ordenproduccion/language translations into administrator/language so Joomla’s first language load sees all keys.</description>
+    <version>3.114.17</version>
+    <files>
+        <filename plugin="op_admlang">op_admlang.php</filename>
+    </files>
+</extension>
