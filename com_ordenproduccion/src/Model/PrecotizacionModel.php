@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -2029,6 +2030,15 @@ class PrecotizacionModel extends ListModel
 
         if ($this->isAssociatedWithQuotation($id)) {
             return false;
+        }
+
+        try {
+            $wf = new ApprovalWorkflowService();
+            if ($wf->hasSchema()) {
+                $wf->cancelPendingRequestsForPreCotizacion($id, (int) Factory::getUser()->id);
+            }
+        } catch (\Throwable $e) {
+            // Deleting the pre-cotización must proceed even if workflow cleanup fails
         }
 
         $db = $this->getDatabase();

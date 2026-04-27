@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.6-STABLE] - 2026-04-16
+
+### Fixed
+- **Pre-cotización:** Al eliminar una pre-cotización (sin cotización vinculada), las solicitudes de aprobación **pendientes** asociadas (`solicitud_descuento`, `solicitud_cotizacion`) se **cancelan** automáticamente para que no queden colgadas en Aprobaciones.
+
 ## [3.114.5-STABLE] - 2026-04-16
 
 ### Added

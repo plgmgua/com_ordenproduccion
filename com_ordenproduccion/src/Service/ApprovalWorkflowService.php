@@ -632,6 +632,42 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Cancel every pending approval whose entity is this pre-cotización (discount / vendor-quote flows).
+     *
+     * @return  int  Number of requests successfully cancelled
+     *
+     * @since   3.114.6
+     */
+    public function cancelPendingRequestsForPreCotizacion(int $preCotizacionId, int $actorUserId): int
+    {
+        if (!$this->hasSchema() || $preCotizacionId < 1) {
+            return 0;
+        }
+
+        $types = [
+            $this->db->quote(self::ENTITY_SOLICITUD_DESCUENTO),
+            $this->db->quote(self::ENTITY_SOLICITUD_COTIZACION),
+        ];
+        $query = $this->db->getQuery(true)
+            ->select($this->db->quoteName('id'))
+            ->from($this->db->quoteName('#__ordenproduccion_approval_requests'))
+            ->where($this->db->quoteName('entity_id') . ' = ' . (int) $preCotizacionId)
+            ->where($this->db->quoteName('entity_type') . ' IN (' . implode(',', $types) . ')')
+            ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'));
+        $this->db->setQuery($query);
+        $ids = $this->db->loadColumn() ?: [];
+        $n   = 0;
+        foreach ($ids as $rid) {
+            $rid = (int) $rid;
+            if ($rid > 0 && $this->cancelRequest($rid, $actorUserId, 'pre_cotizacion_deleted')) {
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
+    /**
      * Apply entity-side updates when approved.
      *
      * @param   int  $actorUserId  User who completed the final approval step
