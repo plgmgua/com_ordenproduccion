@@ -36,6 +36,7 @@ $entityLabel = static function (string $entityType): string {
 
 $approveAction = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow');
 $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectApprovalWorkflow');
+$cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelApprovalWorkflow');
 ?>
 
 <div class="approval-workflow-section" style="background:#fff;padding:25px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
@@ -97,15 +98,29 @@ $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($entityLabel($etype), ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td style="min-width:220px;">
+                            <td style="min-width:260px;">
                                 <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion') : ?>
-                                <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                                    <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
-                                </a>
+                                <div class="d-flex flex-wrap gap-1 align-items-center">
+                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
+                                    </a>
+                                    <form method="post" action="<?php echo $cancelAction; ?>" class="d-inline" onsubmit="return confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_CONFIRM')); ?>);">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_DISMISS'); ?></button>
+                                    </form>
+                                </div>
                                 <?php elseif ($etype === 'orden_compra') :
                                     $ocOpenUrl = Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . (int) $eid, false);
                                     ?>
-                                <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($ocOpenUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a>
+                                <div class="d-flex flex-wrap gap-1 align-items-center">
+                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($ocOpenUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a>
+                                    <form method="post" action="<?php echo $cancelAction; ?>" class="d-inline" onsubmit="return confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_CONFIRM')); ?>);">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_DISMISS'); ?></button>
+                                    </form>
+                                </div>
                                 <?php else : ?>
                                 <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
                                     <?php echo HTMLHelper::_('form.token'); ?>

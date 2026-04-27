@@ -686,6 +686,80 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Cancel a pending request by the assigned approver (Administración → Aprobaciones).
+     *
+     * Allowed for pre-cotización discount/quote flows and purchase orders shown with “open only” actions.
+     * For {@see self::ENTITY_ORDEN_COMPRA}, sets workflow outcome to rejected (same as rejecting the request).
+     *
+     * @since  3.114.8
+     */
+    public function cancelPendingRequestByApprover(int $requestId, int $approverUserId, string $reason = 'approver_dismissed'): bool
+    {
+        if (!$this->hasSchema() || $requestId < 1 || $approverUserId < 1) {
+            return false;
+        }
+
+        if (!$this->canUserActOnPendingStep($requestId, $approverUserId)) {
+            return false;
+        }
+
+        $req = $this->loadRequest($requestId);
+
+        if ($req === null || $req->status !== 'pending') {
+            return false;
+        }
+
+        $type = strtolower(trim((string) ($req->entity_type ?? '')));
+        $allowed = [
+            self::ENTITY_SOLICITUD_DESCUENTO,
+            self::ENTITY_SOLICITUD_COTIZACION,
+            self::ENTITY_ORDEN_COMPRA,
+        ];
+
+        if (!in_array($type, $allowed, true)) {
+            return false;
+        }
+
+        $old = $req->status;
+        $eid = (int) ($req->entity_id ?? 0);
+
+        $this->db->transactionStart();
+
+        try {
+            if ($type === self::ENTITY_ORDEN_COMPRA && $eid > 0) {
+                ApprovalWorkflowEntityHelper::applyOrdenCompraWorkflowOutcome($this->db, $eid, 'rejected');
+            }
+
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_requests'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('cancelled'))
+                ->set($this->db->quoteName('completed') . ' = ' . $this->db->quote(Factory::getDate()->toSql()))
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote(Factory::getDate()->toSql()))
+                ->where($this->db->quoteName('id') . ' = ' . (int) $requestId);
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            $q2 = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_request_steps'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('skipped'))
+                ->set($this->db->quoteName('decided_date') . ' = ' . $this->db->quote(Factory::getDate()->toSql()))
+                ->where($this->db->quoteName('request_id') . ' = ' . (int) $requestId)
+                ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'));
+            $this->db->setQuery($q2);
+            $this->db->execute();
+
+            ApprovalAuditHelper::log($requestId, 'cancelled', $approverUserId, $old, 'cancelled', $reason);
+            $this->db->transactionCommit();
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Cancel every pending approval whose entity is this pre-cotización (discount / vendor-quote flows).
      *
      * @return  int  Number of requests successfully cancelled

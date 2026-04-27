@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.8-STABLE] - 2026-04-16
+
+### Added
+- **Aprobaciones:** Botón **Quitar** en filas de pre-cotización (descuento / cotización externa) y orden de compra para cancelar la solicitud pendiente como aprobador asignado. En órdenes de compra, el estado del flujo pasa a rechazado (igual que un rechazo).
+
 ## [3.114.7-STABLE] - 2026-04-16
 
 ### Fixed

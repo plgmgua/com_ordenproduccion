@@ -1905,6 +1905,69 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Remove a pending approval from the list (pre-cotización or orden de compra rows on Aprobaciones).
+     *
+     * @return  void
+     *
+     * @since   3.114.8
+     */
+    public function cancelApprovalWorkflow()
+    {
+        $app      = Factory::getApplication();
+        $redirect = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=aprobaciones', false);
+
+        $returnPost = $app->input->post->get('return', '', 'string');
+        if ($returnPost !== '') {
+            $decoded = base64_decode($returnPost, true);
+            if ($decoded === false || $decoded === '') {
+                $decoded = base64_decode($returnPost);
+            }
+            if (is_string($decoded) && $decoded !== '' && Uri::isInternal($decoded)) {
+                $redirect = $decoded;
+            }
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirect);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirect);
+
+            return;
+        }
+
+        $requestId = $app->input->post->getInt('request_id', 0);
+        if ($requestId <= 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST'), 'warning');
+            $app->redirect($redirect);
+
+            return;
+        }
+
+        $svc = new ApprovalWorkflowService();
+        if (!$svc->hasSchema()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING'), 'error');
+            $app->redirect($redirect);
+
+            return;
+        }
+
+        if ($svc->cancelPendingRequestByApprover($requestId, (int) $user->id)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISSED_OK'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_FAILED'), 'warning');
+        }
+
+        $app->redirect($redirect);
+    }
+
+    /**
      * @param   string  $action  approve|reject
      *
      * @return  void
