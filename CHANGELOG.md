@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.11-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización:** Eliminado el aviso gris de “cotización vinculada no confirmada” en el documento (pliego y proveedor externo).
+
 ## [3.114.10-STABLE] - 2026-04-16
 
 ### Changed
