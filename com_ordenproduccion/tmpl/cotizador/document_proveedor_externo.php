@@ -456,20 +456,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         <?php if (!$user->guest) : ?>
         <div class="d-flex flex-wrap justify-content-end gap-2 mt-2 align-items-center">
             <?php if ($solicitudCotWf && $pendingSolicitudCot) : ?>
-            <button type="button" class="btn btn-success" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
+            <button type="button" class="btn btn-primary" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
             </button>
             <?php elseif ($showSolicitarCotizacionExternaBtn) : ?>
             <form method="post" action="<?php echo htmlspecialchars($solicitarCotProveedorUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
                 <?php echo HTMLHelper::_('form.token'); ?>
                 <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-primary">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
                 </button>
             </form>
             <?php endif; ?>
             <?php if ($showVendorQuoteDirectModalBtn) : ?>
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-readonly">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-readonly">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
             </button>
             <?php endif; ?>
@@ -548,20 +548,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     data-label-save="<?php echo htmlspecialchars($adminLockedSaveLabel, ENT_QUOTES, 'UTF-8'); ?>"
                     data-editing="0"><?php echo htmlspecialchars($adminLockedEnableLabel); ?></button>
             <?php if ($solicitudCotWf && $pendingSolicitudCot) : ?>
-            <button type="button" class="btn btn-success" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
+            <button type="button" class="btn btn-primary" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
             </button>
             <?php elseif ($showSolicitarCotizacionExternaBtn) : ?>
             <form method="post" action="<?php echo htmlspecialchars($solicitarCotProveedorUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline mb-0">
                 <?php echo HTMLHelper::_('form.token'); ?>
                 <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-primary">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
                 </button>
             </form>
             <?php endif; ?>
             <?php if ($showVendorQuoteDirectModalBtn) : ?>
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-puponly">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-puponly">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
             </button>
             <?php endif; ?>
@@ -710,7 +710,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <?php if (!$user->guest) : ?>
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <?php if ($showVendorQuoteDirectModalBtn) : ?>
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-edit">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vendorQuoteModal" id="btn-vendor-quote-open-edit">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
                 </button>
                 <?php endif; ?>
@@ -726,14 +726,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <div class="d-flex flex-column gap-2 align-items-stretch precot-vendor-save-stack" style="min-width: 220px; max-width: 100%;">
                 <button type="submit" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="btn btn-success w-100"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
                 <?php if (!$user->guest && $solicitudCotWf && $pendingSolicitudCot) : ?>
-                <button type="button" class="btn btn-success w-100" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
+                <button type="button" class="btn btn-primary w-100" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
                     <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
                 </button>
                 <?php elseif (!$user->guest && $showSolicitarCotizacionExternaBtn) : ?>
                 <form method="post" action="<?php echo htmlspecialchars($solicitarCotProveedorUrl, ENT_QUOTES, 'UTF-8'); ?>" class="mb-0 w-100">
                     <?php echo HTMLHelper::_('form.token'); ?>
                     <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
-                    <button type="submit" class="btn btn-success w-100">
+                    <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-paper-plane" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_REQUEST_QUOTE_BTN'); ?>
                     </button>
                 </form>
