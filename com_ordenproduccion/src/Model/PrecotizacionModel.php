@@ -184,6 +184,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableColsLc['facturar'])) {
             $cols[] = 'a.facturar';
         }
+        if (isset($tableColsLc['document_mode'])) {
+            $cols[] = 'a.document_mode';
+        }
         if ($canViewAllPrecot) {
             $cols[] = 'u.name AS created_by_name';
         }

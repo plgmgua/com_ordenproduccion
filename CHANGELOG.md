@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.5-STABLE] - 2026-04-16
+
+### Added
+- **Listado pre-cotizaciones:** Columna **Int./Ext.** (pliego = interno, proveedor externo = externo). El listado ahora selecciona `document_mode` en la consulta cuando la columna existe.
+
 ## [3.114.4-STABLE] - 2026-04-16
 
 ### Changed

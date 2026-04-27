@@ -40,7 +40,7 @@ $dateIn = static function (string $key) use ($fv) : string {
 
     return strlen($s) >= 10 ? substr($s, 0, 10) : '';
 };
-$colCount = 6 + (!empty($this->showSalesAgentColumn) ? 1 : 0) + ($showOfertaColumn ? 1 : 0) + ($showFacturarColumn ? 1 : 0);
+$colCount = 7 + (!empty($this->showSalesAgentColumn) ? 1 : 0) + ($showOfertaColumn ? 1 : 0) + ($showFacturarColumn ? 1 : 0);
 $listLimit = (int) $state->get('list.limit', 20);
 $filterFormAction = Route::_('index.php?option=com_ordenproduccion&view=cotizador', false);
 $filterClearUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&filter_reset=1', false);
@@ -190,6 +190,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION'); ?></th>
                     <th scope="col" class="col-cotizacion-num"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_QUOTATION_COLUMN'); ?></th>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CLIENT'); ?></th>
+                    <th scope="col" class="text-center col-precot-scope"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_COL_SCOPE'); ?></th>
                     <?php if ($showOfertaColumn) : ?>
                     <th scope="col" class="text-center"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OFERTA'); ?></th>
                     <?php endif; ?>
@@ -254,6 +255,15 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                                 }
                             }
                             echo $clientNames !== [] ? htmlspecialchars(implode(', ', $clientNames)) : '—';
+                            ?>
+                        </td>
+                        <td class="text-center col-precot-scope">
+                            <?php
+                            $docModeRow = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+                            $isExtRow   = ($docModeRow === 'proveedor_externo');
+                            echo '<span class="' . ($isExtRow ? 'text-primary' : 'text-muted') . '">'
+                                . htmlspecialchars($isExtRow ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SCOPE_EXTERNAL') : Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SCOPE_INTERNAL'))
+                                . '</span>';
                             ?>
                         </td>
                         <?php if ($showOfertaColumn) : ?>
@@ -331,6 +341,10 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
     min-width: 7.25rem;
 }
 .precotizacion-list-table-wrap .precotizacion-list-table .col-facturar-short {
+    white-space: nowrap;
+    width: 1%;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table .col-precot-scope {
     white-space: nowrap;
     width: 1%;
 }
