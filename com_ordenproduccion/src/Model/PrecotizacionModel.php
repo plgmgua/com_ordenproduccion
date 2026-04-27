@@ -469,6 +469,55 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * True when this pre-cotización appears on at least one active quotation line whose parent
+     * cotización is **confirmada** (`cotizacion_confirmada` = 1).
+     *
+     * If `cotizacion_confirmada` column is missing, falls back to `isAssociatedWithQuotation()`
+     * (legacy: any link locks).
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id
+     *
+     * @return  bool
+     *
+     * @since   3.114.9
+     */
+    public function isAssociatedWithConfirmedQuotation($preCotizacionId)
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['pre_cotizacion_id'])) {
+            return false;
+        }
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        if (!isset($qCols['state'])) {
+            return $this->isAssociatedWithQuotation($preCotizacionId);
+        }
+        if (!isset($qCols['cotizacion_confirmada'])) {
+            return $this->isAssociatedWithQuotation($preCotizacionId);
+        }
+        $query = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+            )
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->where($db->quoteName('q.state') . ' = 1')
+            ->where($db->quoteName('q.cotizacion_confirmada') . ' = 1')
+            ->setLimit(1);
+        $db->setQuery($query);
+
+        return (bool) $db->loadResult();
+    }
+
+    /**
      * Pre-cotizaciones linked to this quotation's lines that have facturar = 1.
      *
      * @param   int  $quotationId  Quotation id.
@@ -603,7 +652,7 @@ class PrecotizacionModel extends ListModel
         if ($user->guest || !AccessHelper::isInAprobacionesVentasGroup()) {
             return false;
         }
-        if ($this->isAssociatedWithQuotation($preCotizacionId)) {
+        if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
             return false;
         }
         $db = $this->getDatabase();

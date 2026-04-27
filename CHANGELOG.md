@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.9-STABLE] - 2026-04-16
+
+### Changed
+- **Pre-cotización vinculada:** El bloqueo de edición (y el tope que impedía a **Aprobaciones Ventas** aplicar descuentos por subtotales) solo aplica cuando la cotización formal está **confirmada** (`cotizacion_confirmada`). Si la COT está vinculada pero aún no confirmada, la pre-cotización sigue editable y los aprobadores pueden completar la solicitud de descuento como antes.
+
 ## [3.114.8-STABLE] - 2026-04-16
 
 ### Added

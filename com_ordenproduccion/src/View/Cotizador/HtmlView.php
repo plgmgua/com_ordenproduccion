@@ -304,7 +304,7 @@ class HtmlView extends BaseHtmlView
                 $this->tarjetaCreditoRates = $this->tarjetaCreditoTableExists ? $productosModel->getTarjetaCreditoRates() : [];
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
-                    $this->precotizacionLocked = !empty($this->associatedQuotations);
+                    $this->precotizacionLocked = $precotModel->isAssociatedWithConfirmedQuotation((int) $id);
                     $isOwner        = (int) ($this->item->created_by ?? 0) === (int) $user->id;
                     $canAdminPrecot = AccessHelper::isInAdministracionOrAdmonGroup() || $user->authorise('core.admin');
                     if (!empty($this->item->oferta)) {

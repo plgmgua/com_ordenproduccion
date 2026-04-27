@@ -329,6 +329,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         echo implode(', ', $links);
         ?>
     </div>
+    <?php if (!$precotizacionLocked) : ?>
+    <div class="alert alert-secondary mb-3 py-2 small"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINKED_UNCONFIRMED_HINT'); ?></div>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($precotizacionLocked) :

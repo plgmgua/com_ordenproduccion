@@ -2843,7 +2843,7 @@ class PrecotizacionController extends BaseController
     private function isPrecotizacionLocked($preCotizacionId, $format = 'html', $messageKey = 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY')
     {
         $model = $this->getModel('Precotizacion', 'Site');
-        if (!$model->isAssociatedWithQuotation($preCotizacionId)) {
+        if (!$model->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
             return false;
         }
         $msg = Text::_($messageKey);
