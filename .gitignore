@@ -46,6 +46,9 @@ composer.lock
 /administrator/cache/
 /administrator/logs/
 
+# Vendor snapshot (porting reference only)
+/_vendor_Grimpsa_MisClientes/
+
 # Component specific
 /media/com_ordenproduccion/tmp/
 /media/com_ordenproduccion/cache/

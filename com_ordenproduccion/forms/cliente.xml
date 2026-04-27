@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="details" label="COM_ORDENPRODUCCION_CLIENTES_FIELDSET_DETAILS">
+        <field
+            name="id"
+            type="hidden"
+        />
+
+        <field
+            name="name"
+            type="text"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_NAME"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_NAME_DESC"
+            class="form-control"
+            required="true"
+        />
+
+        <field
+            name="type"
+            type="list"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_TYPE"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_TYPE_DESC"
+            default="contact"
+        >
+            <option value="contact">COM_ORDENPRODUCCION_CLIENTES_TYPE_CONTACT</option>
+            <option value="invoice">COM_ORDENPRODUCCION_CLIENTES_TYPE_INVOICE</option>
+            <option value="delivery">COM_ORDENPRODUCCION_CLIENTES_TYPE_DELIVERY</option>
+        </field>
+
+        <field
+            name="email"
+            type="email"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_EMAIL"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_EMAIL_DESC"
+            class="form-control"
+        />
+
+        <field
+            name="vat"
+            type="text"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_VAT"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_VAT_DESC"
+            class="form-control"
+        />
+
+        <field
+            name="phone"
+            type="tel"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_PHONE"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_PHONE_DESC"
+            class="form-control"
+        />
+
+        <field
+            name="mobile"
+            type="tel"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_MOBILE"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_MOBILE_DESC"
+            class="form-control"
+        />
+
+        <field
+            name="street"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_STREET"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_STREET_DESC"
+            class="form-control"
+            rows="3"
+        />
+
+        <field
+            name="city"
+            type="text"
+            label="COM_ORDENPRODUCCION_CLIENTES_FIELD_CITY"
+            description="COM_ORDENPRODUCCION_CLIENTES_FIELD_CITY_DESC"
+            class="form-control"
+        />
+    </fieldset>
+</form>

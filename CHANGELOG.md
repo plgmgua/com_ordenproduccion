@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.16-STABLE] - 2026-04-16
+
+### Added
+- **Clientes (Odoo):** Sección en el sitio (`view=clientes`, `view=cliente`) integrada con Odoo (`res.partner`) usando los mismos parámetros del componente que `com_odoocontacts`: URL Odoo, base de datos, ID de usuario, clave API, contactos por página y URLs de destino para cotización / OT / OTE. Configuración en **Opciones del componente** (fieldset «Odoo Connection Settings» / `clientes_odoo`). Idiomas en-GB y es-ES y tipos de menú con títulos traducibles.
+
+### Migration
+- Sitios con **com_odoocontacts** instalado: copiar los parámetros de conexión Odoo y URLs a **Componentes → Orden de Producción → Opciones** (apartado Odoo), sustituir ítems de menú por `option=com_ordenproduccion&view=clientes` (y edición `view=cliente&layout=edit`), y desinstalar el paquete antiguo para evitar duplicar la integración.
+
 ## [3.114.15-STABLE] - 2026-04-16
 
 ### Changed
