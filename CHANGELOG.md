@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.14-STABLE] - 2026-04-27
+
+### Fixed
+- **OT desde cotización:** Antes **no** se guardaban en la nueva orden **`delivery_date` / `fecha_de_entrega`** ni las **medidas** del documento PRE. El paso 3 solo enviaba fecha al guardado de instrucciones; ahora `opOtCreateOrdenFromWizard` también envía **`ot_fecha_entrega`** al crear la OT y **`OrdenFromQuotationService`** rellena `fecha_de_entrega`/`delivery_date` y `medidas_en_pulgadas`/`dimensions` desde el campo **Medidas** de la pre-cotización.
+- **`mirrorOrdenSpanishAliasColumns`:** Replica entrega fecha y medidas entre pares ES/EN (`fecha_de_entrega`↔`delivery_date`, `medidas_en_pulgadas`↔`dimensions`) tras el insert.
+
 ## [3.115.13-STABLE] - 2026-04-27
 
 ### Added

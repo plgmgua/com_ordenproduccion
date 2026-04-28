@@ -1054,6 +1054,7 @@ class CotizacionController extends BaseController
      *  - instrucciones_entrega
      *  - contact_person_name
      *  - contact_person_phone
+     *  - ot_fecha_entrega (Y-m-d from step 3 date input when present)
      *
      * Returns JSON: { success, message, order_id?, redirect_url? }
      *
@@ -1118,6 +1119,7 @@ class CotizacionController extends BaseController
             'instrucciones_entrega' => (string) $app->input->post->get('instrucciones_entrega', '', 'raw'),
             'contact_person_name' => (string) $app->input->post->get('contact_person_name', '', 'string'),
             'contact_person_phone' => (string) $app->input->post->get('contact_person_phone', '', 'string'),
+            'ot_fecha_entrega' => (string) $app->input->post->get('ot_fecha_entrega', '', 'string'),
         ];
 
         $built = $service->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
@@ -1255,6 +1257,8 @@ class CotizacionController extends BaseController
         $mirrorPair($cols, $lowerToKey, 'descripcion_de_trabajo', 'work_description');
         $mirrorPair($cols, $lowerToKey, 'nombre_del_cliente', 'client_name');
         $mirrorPair($cols, $lowerToKey, 'orden_de_trabajo', 'order_number');
+        $mirrorPair($cols, $lowerToKey, 'fecha_de_entrega', 'delivery_date');
+        $mirrorPair($cols, $lowerToKey, 'medidas_en_pulgadas', 'dimensions');
 
         return $cols;
     }

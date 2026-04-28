@@ -92,7 +92,8 @@ class OrdenFromQuotationService
      * @param   int    $quotationId          Cotización PK
      * @param   int    $preCotizacionId      PRE PK (must match a quotation item line)
      * @param   array  $wizard               Optional: tipo_entrega (domicilio|recoger), delivery_address,
-     *                                       instrucciones_entrega, contact_person_name, contact_person_phone
+     *                                       instrucciones_entrega, contact_person_name, contact_person_phone,
+     *                                       ot_fecha_entrega (Y-m-d, wizard step 3)
      * @param   User   $user                 Current user (created_by / modified_by)
      * @param   bool   $requireConfirmed     If true, quotation must have cotizacion_confirmada = 1 when column exists
      *
@@ -182,6 +183,8 @@ class OrdenFromQuotationService
 
         $workDesc = $this->composeWorkDescription($qRow, $preItem, $itemRow);
 
+        $deliveryDateYmd = $this->normalizeDeliveryDateYmd(trim((string) ($wizard['ot_fecha_entrega'] ?? '')));
+
         $formLike = $this->wizardToFormLikeArray($wizard);
 
         $shippingType    = $this->deriveShippingType($formLike);
@@ -234,6 +237,16 @@ class OrdenFromQuotationService
 
         $payload = array_merge($payload, $mapBool);
 
+        if ($deliveryDateYmd !== null) {
+            $payload['delivery_date']   = $deliveryDateYmd;
+            $payload['fecha_de_entrega'] = $deliveryDateYmd;
+        }
+
+        $medidasCols = $this->medidasPayloadForOrdenesTable($preItem, $ordenActualByLower);
+        if ($medidasCols !== []) {
+            $payload = array_merge($payload, $medidasCols);
+        }
+
         if (isset($ordenActualByLower['client_id']) && $clientId !== null && $clientId !== '') {
             $payload['client_id'] = $clientId;
         }
@@ -255,6 +268,8 @@ class OrdenFromQuotationService
             'confirmation_id'       => $confirmation ? (int) ($confirmation->id ?? 0) : null,
             'line_detalles_snapshot'=> $this->decodeLineDetallesSnapshot($confirmation),
             'wizard_tipo_entrega'   => isset($wizard['tipo_entrega']) ? (string) $wizard['tipo_entrega'] : null,
+            'ot_fecha_entrega'       => $deliveryDateYmd,
+            'pre_medidas'           => isset($preItem->medidas) ? trim((string) $preItem->medidas) : '',
         ];
 
         $ordenSourceJson = json_encode($jsonPayload, JSON_UNESCAPED_UNICODE);
@@ -353,6 +368,83 @@ class OrdenFromQuotationService
             'ojetes'              => $no,
             'perforado'           => $no,
         ];
+    }
+
+    /**
+     * Normalize wizard / POST date to Y-m-d for `delivery_date` / `fecha_de_entrega`, or null if empty/invalid.
+     */
+    protected function normalizeDeliveryDateYmd(string $raw): ?string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw, $m)) {
+            $y = (int) $m[1];
+            $mo = (int) $m[2];
+            $d = (int) $m[3];
+            if (checkdate($mo, $d, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $mo, $d);
+            }
+
+            return null;
+        }
+
+        try {
+            return Factory::getDate($raw)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Fill `dimensions` and/or `medidas_en_pulgadas` from pre-cotización `medidas` when those columns exist.
+     *
+     * @param   array<string,string>  $ordenActualByLower  lowercase column name → actual DB name
+     *
+     * @return  array<string,string>
+     */
+    protected function medidasPayloadForOrdenesTable(object $preItem, array $ordenActualByLower): array
+    {
+        $raw = isset($preItem->medidas) ? trim((string) $preItem->medidas) : '';
+        if ($raw === '') {
+            return [];
+        }
+
+        $out = [];
+        if (isset($ordenActualByLower['dimensions'])) {
+            $field = $ordenActualByLower['dimensions'];
+            $out[$field] = $this->truncateUtf8($raw, 255);
+        }
+
+        if (isset($ordenActualByLower['medidas_en_pulgadas'])) {
+            $field = $ordenActualByLower['medidas_en_pulgadas'];
+            $out[$field] = $this->truncateUtf8($raw, 100);
+        }
+
+        return $out;
+    }
+
+    protected function truncateUtf8(string $s, int $maxLen): string
+    {
+        if ($maxLen < 1) {
+            return '';
+        }
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            if (\mb_strlen($s, 'UTF-8') <= $maxLen) {
+                return $s;
+            }
+
+            return \mb_substr($s, 0, $maxLen, 'UTF-8');
+        }
+
+        if (\strlen($s) <= $maxLen) {
+            return $s;
+        }
+
+        return \substr($s, 0, $maxLen);
     }
 
     protected function wizardToFormLikeArray(array $wizard): array

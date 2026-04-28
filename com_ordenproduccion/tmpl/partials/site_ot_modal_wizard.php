@@ -1402,6 +1402,10 @@ function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
     if (instructions) fd.append('instrucciones_entrega', String(instructions));
     if (contactName) fd.append('contact_person_name', String(contactName));
     if (contactPhone) fd.append('contact_person_phone', String(contactPhone));
+    var otFechaCre = document.getElementById('otStep3FechaEntrega');
+    if (otFechaCre && otFechaCre.value) {
+        fd.append('ot_fecha_entrega', String(otFechaCre.value));
+    }
     if (comOpOtFormTokenName) fd.append(String(comOpOtFormTokenName), '1');
 
     var submitBtn = document.getElementById('otBtnSubmit');
