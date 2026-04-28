@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.7-STABLE] - 2026-04-27
+
+### Added
+- **OT desde cotización (paso 3):** Registro estructurado en el log de Joomla (`Log::ERROR`, categoría `com_ordenproduccion`) en cada fallo de `createOrdenFromQuotation`: etapa (`build_orden_insert_data_failed`, `orden_table_check_failed`, etc.), `quotation_id`, `pre_cotizacion_id`, `user_id`, mensaje de error, `error_code` en bruto (p. ej. `COM_*` antes de traducir), muestra de claves de columna y snapshot de longitud/vacío de campos clave de la orden (número de OT, cliente, descripción).
+
 ## [3.115.6-STABLE] - 2026-04-27
 
 ### Fixed

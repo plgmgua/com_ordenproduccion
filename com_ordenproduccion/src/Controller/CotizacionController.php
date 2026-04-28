@@ -1122,12 +1122,25 @@ class CotizacionController extends BaseController
 
         $built = $service->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
         if (empty($built['success'])) {
-            echo json_encode(['success' => false, 'message' => (string) ($built['message'] ?? 'Could not build work order')]);
+            $wm = (string) ($built['message'] ?? 'Could not build work order');
+            $this->logOtWizardCreateFailure(
+                'build_orden_insert_data_failed',
+                ['quotation_id' => $quotationId, 'pre_cotizacion_id' => $preCotizacionId],
+                [],
+                $wm
+            );
+            echo json_encode(['success' => false, 'message' => $wm]);
             $app->close();
         }
 
         $cols = isset($built['columns']) && is_array($built['columns']) ? $built['columns'] : [];
         if ($cols === []) {
+            $this->logOtWizardCreateFailure(
+                'no_insertable_columns',
+                ['quotation_id' => $quotationId, 'pre_cotizacion_id' => $preCotizacionId],
+                [],
+                'No insertable columns for work order table'
+            );
             echo json_encode(['success' => false, 'message' => 'No insertable columns for work order table']);
             $app->close();
         }
@@ -1137,7 +1150,8 @@ class CotizacionController extends BaseController
         $cols = $this->filterOrdeneInsertRowForMysqlEnums($db, $cols);
         $cols = $this->mirrorOrdenSpanishAliasColumns($cols);
 
-        $persist = $this->persistNewOrdenRow($db, $cols);
+        $wizardCtx = ['quotation_id' => $quotationId, 'pre_cotizacion_id' => $preCotizacionId];
+        $persist = $this->persistNewOrdenRow($db, $cols, $wizardCtx);
         if (empty($persist['success'])) {
             $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
@@ -1150,6 +1164,12 @@ class CotizacionController extends BaseController
 
         $newId = (int) ($persist['order_id'] ?? 0);
         if ($newId < 1) {
+            $this->logOtWizardCreateFailure(
+                'missing_order_id_after_persist',
+                ['quotation_id' => $quotationId, 'pre_cotizacion_id' => $preCotizacionId],
+                $cols,
+                'persist returned success:true but missing order_id.'
+            );
             $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
             if (!empty($persist['detail'])) {
@@ -1240,15 +1260,89 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Safe snippet of orden / client / description columns for troubleshooting ( lengths, empty flags, previews ).
+     *
+     * @param   array<string,mixed>  $cols  Row after ENUM filter + mirror
+     *
+     * @return  array<string,array<string,mixed>>
+     *
+     * @since   3.115.7
+     */
+    private function snapshotOrdenKeyFieldsForLog(array $cols): array
+    {
+        $watch = ['orden_de_trabajo', 'order_number', 'nombre_del_cliente', 'client_name', 'descripcion_de_trabajo', 'work_description'];
+        $out   = [];
+
+        foreach ($cols as $k => $v) {
+            if (!\is_string($k) || $k === '') {
+                continue;
+            }
+
+            foreach ($watch as $t) {
+                if (strcasecmp($k, $t) === 0) {
+                    $s = $v !== null ? trim((string) $v) : '';
+                    $out[$k] = [
+                        'len' => \strlen($s),
+                        'empty' => ($s === ''),
+                        'preview' => \strlen($s) > 120 ? substr($s, 0, 120) . '…' : $s,
+                    ];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Writes Joomla log entry (category com_ordenproduccion, ERROR). Enable global debug or set log priorities in
+     * Joomla to capture; does not depend on component enable_debug.
+     *
+     * @param   string               $stage    build|no_columns|persist|missing_order_id_after_persist|…
+     * @param   array<string,int>    $wizard    quotation_id, pre_cotizacion_id
+     * @param   array<string,mixed>  $cols      Columns after ENUM filter + mirror (for field snapshot)
+     * @param   string               $detail    Message shown or returned to client / raw table error / SQL line
+     * @param   string|null          $rawCode   e.g. COM_* before translation; optional
+     *
+     * @since   3.115.7
+     */
+    private function logOtWizardCreateFailure(string $stage, array $wizard, array $cols, string $detail, ?string $rawCode = null): void
+    {
+        $keys = array_keys($cols);
+        $payload = [
+            'component' => 'com_ordenproduccion',
+            'task' => 'createOrdenFromQuotation',
+            'stage' => $stage,
+            'quotation_id' => (int) ($wizard['quotation_id'] ?? 0),
+            'pre_cotizacion_id' => (int) ($wizard['pre_cotizacion_id'] ?? 0),
+            'user_id' => (int) Factory::getUser()->id,
+            'detail' => \strlen($detail) > 900 ? substr($detail, 0, 900) . '…' : ($detail !== '' ? $detail : '(empty)'),
+            'order_field_snapshot' => $this->snapshotOrdenKeyFieldsForLog($cols),
+            'column_key_count' => \count($keys),
+            'column_keys_sample' => \array_slice($keys, 0, 80),
+        ];
+
+        if ($rawCode !== null && $rawCode !== '') {
+            $payload['error_code'] = \strlen($rawCode) > 200 ? substr($rawCode, 0, 200) . '…' : $rawCode;
+        }
+
+        Log::add(
+            'OT wizard create failed: ' . json_encode($payload, JSON_UNESCAPED_UNICODE),
+            Log::ERROR,
+            'com_ordenproduccion'
+        );
+    }
+
+    /**
      * Persist OT row using Administrator OrdenesTable (preferred; runs check/store). Falls back to insertObject.
      *
      * @param   \Joomla\Database\DatabaseDriver  $db
      * @param   array<string,mixed>               $cols
+     * @param   array<string,int>                 $wizardContext  quotation_id, pre_cotizacion_id (for logs)
      * @return  array{success?:bool, order_id?:int, detail?:string}
      *
      * @since   3.115.6
      */
-    private function persistNewOrdenRow($db, array $cols): array
+    private function persistNewOrdenRow($db, array $cols, array $wizardContext = []): array
     {
         $row = [];
         foreach ($cols as $k => $v) {
@@ -1272,23 +1366,35 @@ class CotizacionController extends BaseController
                 $orderTable = new \Grimpsa\Component\Ordenproduccion\Administrator\Table\OrdenesTable($db);
 
                 if (!$orderTable->bind($row)) {
+                    $msg = $this->collectOrdenTableErrorMessage($orderTable);
+                    $detail = $this->summarizeOrdenPersistenceError($msg);
+                    $this->logOtWizardCreateFailure('orden_table_bind_failed', $wizardContext, $cols, $detail, $msg !== '' ? $msg : null);
+
                     return [
                         'success' => false,
-                        'detail' => $this->summarizeOrdenPersistenceError($this->collectOrdenTableErrorMessage($orderTable)),
+                        'detail' => $detail,
                     ];
                 }
 
                 if (!$orderTable->check()) {
+                    $raw = $this->collectOrdenTableErrorMessage($orderTable);
+                    $detail = $this->summarizeOrdenPersistenceError($this->translateLikelyLangConstant($raw));
+                    $this->logOtWizardCreateFailure('orden_table_check_failed', $wizardContext, $cols, $detail, $raw !== '' ? $raw : null);
+
                     return [
                         'success' => false,
-                        'detail' => $this->summarizeOrdenPersistenceError($this->translateLikelyLangConstant($this->collectOrdenTableErrorMessage($orderTable))),
+                        'detail' => $detail,
                     ];
                 }
 
                 if (!$orderTable->store()) {
+                    $msg = $this->collectOrdenTableErrorMessage($orderTable);
+                    $detail = $this->summarizeOrdenPersistenceError($msg);
+                    $this->logOtWizardCreateFailure('orden_table_store_failed', $wizardContext, $cols, $detail, $msg !== '' ? $msg : null);
+
                     return [
                         'success' => false,
-                        'detail' => $this->summarizeOrdenPersistenceError($this->collectOrdenTableErrorMessage($orderTable)),
+                        'detail' => $detail,
                     ];
                 }
 
@@ -1297,24 +1403,44 @@ class CotizacionController extends BaseController
                     return ['success' => true, 'order_id' => $newId];
                 }
 
+                $msg = $this->collectOrdenTableErrorMessage($orderTable) ?: 'Store finished without primary key.';
+                $detail = $this->summarizeOrdenPersistenceError($msg);
+                $this->logOtWizardCreateFailure('orden_table_store_missing_id', $wizardContext, $cols, $detail, $msg);
+
                 return [
                     'success' => false,
-                    'detail' => $this->summarizeOrdenPersistenceError($this->collectOrdenTableErrorMessage($orderTable) ?: 'Store finished without primary key.'),
+                    'detail' => $detail,
                 ];
             } catch (\Throwable $e) {
+                $this->logOtWizardCreateFailure(
+                    'orden_table_exception',
+                    $wizardContext,
+                    $cols,
+                    $e->getMessage(),
+                    $e->getFile() . ':' . (string) $e->getLine()
+                );
                 Log::add('persistNewOrdenRow OrdenesTable: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
                 // Fallback below
             }
+        } else {
+            $this->logOtWizardCreateFailure(
+                'orden_table_file_missing',
+                $wizardContext,
+                $cols,
+                'Administrator OrdenesTable.php not found at expected path.'
+            );
         }
 
         try {
             $insertRow = (object) $row;
             if (!$db->insertObject('#__ordenproduccion_ordenes', $insertRow, 'id')) {
                 $diag = method_exists($db, 'getErrorMsg') ? trim((string) $db->getErrorMsg()) : '';
+                $detail = $this->summarizeOrdenPersistenceError($diag !== '' ? $diag : 'insertObject returned false.');
+                $this->logOtWizardCreateFailure('insert_object_failed', $wizardContext, $cols, $detail, $diag !== '' ? $diag : null);
 
                 return [
                     'success' => false,
-                    'detail' => $this->summarizeOrdenPersistenceError($diag !== '' ? $diag : 'insertObject returned false.'),
+                    'detail' => $detail,
                 ];
             }
 
@@ -1329,13 +1455,18 @@ class CotizacionController extends BaseController
             }
 
             $diag = method_exists($db, 'getErrorMsg') ? trim((string) $db->getErrorMsg()) : '';
+            $detail = $this->summarizeOrdenPersistenceError($diag !== '' ? $diag : 'Missing insert id after insertObject.');
+            $this->logOtWizardCreateFailure('insert_object_missing_pk', $wizardContext, $cols, $detail, $diag !== '' ? $diag : null);
 
             return [
                 'success' => false,
-                'detail' => $this->summarizeOrdenPersistenceError($diag !== '' ? $diag : 'Missing insert id after insertObject.'),
+                'detail' => $detail,
             ];
         } catch (\Throwable $e) {
-            return ['success' => false, 'detail' => $this->summarizeOrdenPersistenceError($e->getMessage())];
+            $detail = $this->summarizeOrdenPersistenceError($e->getMessage());
+            $this->logOtWizardCreateFailure('insert_object_exception', $wizardContext, $cols, $detail, $e->getFile() . ':' . (string) $e->getLine());
+
+            return ['success' => false, 'detail' => $detail];
         }
     }
 
