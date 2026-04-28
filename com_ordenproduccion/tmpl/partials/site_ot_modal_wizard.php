@@ -8,6 +8,29 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 
+// Load component language from package (covers tag-specific files) so Text::_ never shows raw keys on locales without merged INI.
+$lang = Factory::getLanguage();
+$lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
+if (!\function_exists('op_ot_wizard_label')) {
+    /**
+     * Return translation or Spanish/English fallbacks when the INI key is missing (e.g. es-GT without override).
+     */
+    function op_ot_wizard_label(string $key, string $es, string $en): string
+    {
+        $t = Text::_($key);
+        if ($t !== $key) {
+            return $t;
+        }
+        $tag = strtolower(Factory::getLanguage()->getTag());
+        if (\strpos($tag, 'en') === 0) {
+            return $en;
+        }
+
+        return $es;
+    }
+}
+
 /** @var array $wizardParams */
 $params           = isset($wizardParams['params']) ? $wizardParams['params'] : ComponentHelper::getParams('com_ordenproduccion');
 $user             = $wizardParams['user'] ?? Factory::getUser();
@@ -20,11 +43,50 @@ $cotOtStepTotal    = $cotOtStep3Enabled ? 3 : 2;
 $cotOtReturnUrlJs  = $submitReturnOnly && $returnUrl !== ''
     ? $returnUrl
     : Route::_('index.php?option=com_ordenproduccion&view=cotizaciones');
-$step3BarLabel       = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_PROGRESS');
-$step3Intro          = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_INFO');
-$step3EmptyFallback  = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_NO_FIELDS');
-$otProgressDeliver   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP1_DELIVERY');
-$otProgressContact   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP2_CONTACT');
+$step3BarLabel       = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_PROGRESS',
+    'Paso 3: Instrucciones por proceso',
+    'Step 3: Process instructions'
+);
+$step3Intro          = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_INFO',
+    'Revise y edite las instrucciones por proceso para esta línea. Se guardarán al crear la orden de trabajo.',
+    'Review and edit process instructions for this line. They will be saved when you create the work order.'
+);
+$step3EmptyFallback  = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_NO_FIELDS',
+    'No se encontraron campos de instrucción para esta pre-cotización.',
+    'No instruction fields found for this pre-quotation.'
+);
+$otProgressDeliver   = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP1_DELIVERY',
+    'Paso 1: Dirección de entrega',
+    'Step 1: Delivery address'
+);
+$otProgressContact   = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP2_CONTACT',
+    'Paso 2: Persona de contacto',
+    'Step 2: Contact person'
+);
+$otWizardModalTitle  = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_MODAL_TITLE',
+    'Crear orden de trabajo',
+    'Create work order'
+);
+$otWizardSubmitBtn   = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_SUBMIT_BTN',
+    'Crear orden de trabajo',
+    'Create work order'
+);
+$otWizardNextBtn     = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_CONFIRMAR_NEXT',
+    'Siguiente',
+    'Next'
+);
+$otWizardLangIsEn    = (strpos(strtolower(Factory::getLanguage()->getTag()), 'en') === 0);
+$otStepIndicatorInitial = $otWizardLangIsEn
+    ? sprintf('(Step 1 of %d)', (int) $cotOtStepTotal)
+    : sprintf('(Paso 1 de %d)', (int) $cotOtStepTotal);
 
 ?>
 <!-- OT (Orden de Trabajo) Modal — same UI as Mis Clientes (wizard) -->
@@ -33,7 +95,7 @@ $otProgressContact   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP2_CON
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title" id="otModalLabel">
-                    <i class="fas fa-truck"></i> <?php echo Text::_('COM_ORDENPRODUCCION_OT_WIZARD_MODAL_TITLE'); ?> <span id="otStepIndicator"><?php echo htmlspecialchars(sprintf('(Paso 1 de %d)', (int) $cotOtStepTotal), ENT_QUOTES, 'UTF-8'); ?></span>
+                    <i class="fas fa-truck"></i> <?php echo htmlspecialchars($otWizardModalTitle, ENT_QUOTES, 'UTF-8'); ?> <span id="otStepIndicator"><?php echo htmlspecialchars($otStepIndicatorInitial, ENT_QUOTES, 'UTF-8'); ?></span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -41,7 +103,7 @@ $otProgressContact   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP2_CON
                 <!-- Progress Bar -->
                 <div class="progress mb-4" style="height: 25px;">
                     <div id="otProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-                        Paso 1: Dirección de Entrega
+                        <?php echo htmlspecialchars($otProgressDeliver, ENT_QUOTES, 'UTF-8'); ?>
                     </div>
                 </div>
                 
@@ -299,11 +361,11 @@ $otProgressContact   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP2_CON
                 </button>
                 <?php if ($cotOtStep3Enabled) : ?>
                 <button type="button" id="otBtnNextStep2" class="btn btn-primary" onclick="goToStep3()" style="display: none;">
-                    <i class="fas fa-arrow-right"></i> <?php echo Text::_('COM_ORDENPRODUCCION_CONFIRMAR_NEXT'); ?>
+                    <i class="fas fa-arrow-right"></i> <?php echo htmlspecialchars($otWizardNextBtn, ENT_QUOTES, 'UTF-8'); ?>
                 </button>
                 <?php endif; ?>
                 <button type="button" id="otBtnSubmit" class="btn btn-success" onclick="submitOT()" style="display: none;">
-                    <i class="fas fa-check"></i> <?php echo Text::_('COM_ORDENPRODUCCION_OT_WIZARD_SUBMIT_BTN'); ?>
+                    <i class="fas fa-check"></i> <?php echo htmlspecialchars($otWizardSubmitBtn, ENT_QUOTES, 'UTF-8'); ?>
                 </button>
             </div>
         </div>
@@ -327,6 +389,7 @@ var otWizardProgressLabels = <?php echo json_encode([
     $otProgressContact,
     $step3BarLabel,
 ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var otWizardLangIsEn = <?php echo json_encode((bool) $otWizardLangIsEn); ?>;
 var otStep3MissingBlockMsg = <?php echo json_encode($step3EmptyFallback); ?>;
 
 function showNotification(message, type) {
@@ -401,7 +464,9 @@ function otWizardApplyStepUi(step) {
     var total = comOpOtWizardStepTotal || 2;
     var ind = document.getElementById('otStepIndicator');
     if (ind) {
-        ind.textContent = '(Paso ' + step + ' de ' + total + ')';
+        ind.textContent = otWizardLangIsEn
+            ? ('(Step ' + step + ' of ' + total + ')')
+            : ('(Paso ' + step + ' de ' + total + ')');
     }
     var bar = document.getElementById('otProgressBar');
     if (!bar || !otWizardProgressLabels || !otWizardProgressLabels.length) {

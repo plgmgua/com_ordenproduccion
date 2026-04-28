@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.1-STABLE] - 2026-04-16
+
+### Fixed
+- **Asistente OT (cotización):** Títulos y botones mostraban claves `COM_ORDENPRODUCCION_OT_WIZARD_*` cuando el idioma del sitio no tenía esas cadenas; se carga el idioma del componente, se añade `op_ot_wizard_label()` con textos de respaldo ES/EN, y el indicador de paso/progreso respeta `en-*` vs español.
+
 ## [3.115.0-STABLE] - 2026-04-16
 
 ### Added
