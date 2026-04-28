@@ -40,6 +40,8 @@ if (!$quotation) {
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
+$wizClientIdTrimForOt = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
+$wizClientNumericForOt = $wizClientIdTrimForOt !== '' && ctype_digit($wizClientIdTrimForOt);
 $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
 $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
@@ -522,16 +524,29 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             <?php if ($quotationConfirmed) : ?>
                             <td class="col-cotizacion-action text-center align-middle">
                                 <?php if ($preId > 0) : ?>
+                                    <?php if ($wizClientNumericForOt) : ?>
                                     <button type="button"
-                                        class="btn btn-sm btn-outline-success instrucciones-orden-trigger px-2 py-1"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#instruccionesOrdenModal"
+                                        class="btn btn-sm btn-outline-success cotizacion-ot-wizard-trigger px-2 py-1"
                                         data-pre-cotizacion-id="<?php echo (int) $preId; ?>"
                                         data-quotation-id="<?php echo (int) $quotationId; ?>"
+                                        data-client-id="<?php echo (int) $wizClientIdTrimForOt; ?>"
+                                        data-client-name="<?php echo htmlspecialchars($quotation->client_name ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-client-vat="<?php echo htmlspecialchars($quotation->client_nit ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                                         title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?>">
                                         <i class="fas fa-print" aria-hidden="true"></i>
                                         <span class="visually-hidden"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?></span>
                                     </button>
+                                    <?php else : ?>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary px-2 py-1 disabled" disabled
+                                        title="<?php echo htmlspecialchars($l(
+                                            'COM_ORDENPRODUCCION_OT_WIZARD_CLIENT_ID_REQUIRED_HINT',
+                                            'Set Client ID (API) on this quotation to load Odoo delivery addresses and contacts.',
+                                            'Asigne Client ID (API) en esta cotización para cargar direcciones y contactos de Odoo.'
+                                        )); ?>">
+                                        <i class="fas fa-print" aria-hidden="true"></i>
+                                        <span class="visually-hidden"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?></span>
+                                    </button>
+                                    <?php endif; ?>
                                 <?php else : ?>
                                     <span class="text-muted">—</span>
                                 <?php endif; ?>
@@ -587,6 +602,37 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             <?php endif; ?>
         </div>
     </div>
+
+    <?php
+    // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
+    if ($quotationConfirmed) {
+        $wizardParams = [
+            'params'               => Factory::getApplication()->bootComponent('com_ordenproduccion')->getParams(),
+            'user'                 => Factory::getUser(),
+            'submit_mode_return'   => true,
+            'return_url'           => Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false),
+        ];
+        include __DIR__ . '/partials/site_ot_modal_wizard.php';
+    }
+    ?>
+<?php if ($quotationConfirmed) : ?>
+<script>
+(function() {
+    document.querySelectorAll('.cotizacion-ot-wizard-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var cid = parseInt(btn.getAttribute('data-client-id') || '0', 10);
+            var name = btn.getAttribute('data-client-name') || '';
+            var vat = btn.getAttribute('data-client-vat') || '';
+            if (!cid || typeof openOTModal !== 'function') {
+                return;
+            }
+            openOTModal(cid, name, vat);
+        });
+    });
+})();
+</script>
+<?php endif; ?>
 </div>
 
 <!-- Modal: archivos opcionales + Finalizar confirmación -->

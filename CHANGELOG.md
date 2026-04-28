@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.24-STABLE] - 2026-04-16
+
+### Changed
+- **Cotización confirmada (detalle):** El botón por línea **Generar orden de trabajo** abre el mismo asistente que **Mis Clientes** (paso 1: entrega e instrucciones; paso 2: persona de contacto). El envío por ahora solo **vuelve a la vista de la cotización** (sin destino externo). Si falta **Client ID (API)**, el botón queda deshabilitado.
+
 ## [3.114.23-STABLE] - 2026-04-28
 
 ### Changed
