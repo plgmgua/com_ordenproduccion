@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.10-STABLE] - 2026-04-28
+
+### Fixed
+- **OT desde cotización (paso 3):** El array con número de OT, cliente, descripción, montos e metadatos (`$mapBool`) **no se fusionaba** con `$payload` antes de `filterColumnsForOrdenesTable`, de modo que sólo quedaban valores por defecto de procesos + `client_id` / `pre_cotizacion_id` / `orden_source_json` — `OrdenesTable::check()` fallaba con `COM_ORDENPRODUCCION_ERROR_ORDER_NUMBER_REQUIRED`.
+
 ## [3.115.9-STABLE] - 2026-04-28
 
 ### Added

@@ -228,6 +228,8 @@ class OrdenFromQuotationService
             'version'                => '3.115.0',
         ];
 
+        $payload = array_merge($payload, $mapBool);
+
         if (isset($ordenActualByLower['client_id']) && $clientId !== null && $clientId !== '') {
             $payload['client_id'] = $clientId;
         }
