@@ -608,10 +608,13 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
     // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
     if ($quotationConfirmed) {
         $wizardParams = [
-            'params'               => ComponentHelper::getParams('com_ordenproduccion'),
-            'user'                 => Factory::getUser(),
-            'submit_mode_return'   => true,
-            'return_url'           => Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false),
+            'params'                            => ComponentHelper::getParams('com_ordenproduccion'),
+            'user'                              => Factory::getUser(),
+            'submit_mode_return'                => true,
+            'return_url'                        => Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false),
+            /** Paso 3: mismos campos que #instruccionesOrdenModal (detalle por proceso) */
+            'cotizacion_ot_step3_instructions'  => $instruccionesModalCanSave && $lineDetallesTableOk,
+            'cot_ot_save_instrucciones_json_url'=> $instruccionesSaveJsonUrl,
         ];
         $otWizardPartial = JPATH_SITE . '/components/com_ordenproduccion/tmpl/partials/site_ot_modal_wizard.php';
         if (\is_file($otWizardPartial)) {
@@ -642,7 +645,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             return;
         }
         try {
-            fn(cid, name, vat);
+            var preId = parseInt(btn.getAttribute('data-pre-cotizacion-id') || '0', 10);
+            fn(cid, name, vat, preId);
         } catch (e) {
             if (typeof console !== 'undefined' && console.error) {
                 console.error(e);
