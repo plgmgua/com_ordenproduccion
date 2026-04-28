@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -607,7 +608,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
     // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
     if ($quotationConfirmed) {
         $wizardParams = [
-            'params'               => Factory::getApplication()->bootComponent('com_ordenproduccion')->getParams(),
+            'params'               => ComponentHelper::getParams('com_ordenproduccion'),
             'user'                 => Factory::getUser(),
             'submit_mode_return'   => true,
             'return_url'           => Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false),

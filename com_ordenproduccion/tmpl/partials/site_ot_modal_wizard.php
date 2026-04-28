@@ -2,12 +2,13 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 
 /** @var array $wizardParams */
-$params           = isset($wizardParams['params']) ? $wizardParams['params'] : Factory::getApplication()->bootComponent('com_ordenproduccion')->getParams();
+$params           = isset($wizardParams['params']) ? $wizardParams['params'] : ComponentHelper::getParams('com_ordenproduccion');
 $user             = $wizardParams['user'] ?? Factory::getUser();
 $submitReturnOnly = !empty($wizardParams['submit_mode_return']);
 $returnUrl        = isset($wizardParams['return_url']) ? (string) $wizardParams['return_url'] : '';
