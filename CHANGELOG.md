@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.15-STABLE] - 2026-04-27
+
+### Changed
+- **Asistente OT paso 3:** **Fecha de entrega** y **Descripción** (instrucciones generales) son obligatorias: validación en el modal, marca `*` en etiquetas; envío **`ot_wizard_step3_finalize`** con save JSON; servidor valida antes de persistir líneas/detalle y **`createOrdenFromQuotation`** valida fecha y descripción (`ot_instrucciones_generales`) en POST.
+
 ## [3.115.14-STABLE] - 2026-04-27
 
 ### Fixed

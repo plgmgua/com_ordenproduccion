@@ -986,6 +986,28 @@ class CotizacionController extends BaseController
                 }
             }
         }
+        $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+        $instruccionesSaveOnly = (int) $app->input->post->get('instrucciones_save_only', 0) === 1;
+        $finalizeWizardStep3 = $isAjax && $instruccionesSaveOnly
+            && (int) $app->input->post->get('ot_wizard_step3_finalize', 0) === 1;
+        if ($finalizeWizardStep3 && $preCotizacionId > 0) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            $fechaRaw = trim((string) $app->input->post->get('ot_fecha_entrega', ''));
+            $instrGen = $app->input->post->get('ot_instrucciones_generales', '', 'raw');
+            $instrGen = \is_string($instrGen) ? trim($instrGen) : '';
+            $fechaOk = false;
+            if ($fechaRaw !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fechaRaw, $xm)) {
+                $fechaOk = checkdate((int) $xm[2], (int) $xm[3], (int) $xm[1]);
+            }
+            if (!$fechaOk || $instrGen === '') {
+                $app->setHeader('Content-Type', 'application/json', true);
+                $msg = !$fechaOk
+                    ? Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA')
+                    : Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_DESCRIPCION');
+                echo json_encode(['success' => false, 'message' => $msg]);
+                $app->close();
+            }
+        }
         $detallePost = $app->input->post->get('detalle', [], 'array');
         foreach ($preCotizacionIds as $pid) {
             $lines = $precotModel->getLines($pid);
@@ -1005,8 +1027,6 @@ class CotizacionController extends BaseController
             $this->persistPreCotizacionOtWizardExtras($db, $preCotizacionId, $app->input);
         }
         $nextStep = (int) $app->input->post->get('next_step', 0);
-        $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
-        $instruccionesSaveOnly = (int) $app->input->post->get('instrucciones_save_only', 0) === 1;
         if ($preCotizacionId > 0 && $instruccionesSaveOnly) {
             $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
             if ($isAjax) {
@@ -1120,7 +1140,31 @@ class CotizacionController extends BaseController
             'contact_person_name' => (string) $app->input->post->get('contact_person_name', '', 'string'),
             'contact_person_phone' => (string) $app->input->post->get('contact_person_phone', '', 'string'),
             'ot_fecha_entrega' => (string) $app->input->post->get('ot_fecha_entrega', '', 'string'),
+            'ot_instrucciones_generales' => (string) $app->input->post->get('ot_instrucciones_generales', '', 'string'),
         ];
+
+        $otFe = trim((string) ($wizard['ot_fecha_entrega'] ?? ''));
+        $otDesc = trim((string) ($wizard['ot_instrucciones_generales'] ?? ''));
+        $fechaOk = false;
+        if ($otFe !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $otFe, $mm)) {
+            $fechaOk = checkdate((int) $mm[2], (int) $mm[3], (int) $mm[1]);
+        }
+        if (!$fechaOk) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA'),
+            ]);
+            $app->close();
+        }
+        if ($otDesc === '') {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_DESCRIPCION'),
+            ]);
+            $app->close();
+        }
 
         $built = $service->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
         if (empty($built['success'])) {

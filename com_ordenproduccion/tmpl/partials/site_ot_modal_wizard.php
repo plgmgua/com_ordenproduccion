@@ -65,10 +65,25 @@ $otStep3FechaLabel   = op_ot_wizard_label(
     'Fecha de entrega',
     'Delivery date'
 );
-$otStep3InstrLabel   = op_ot_wizard_label(
-    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_INSTRUCCIONES',
-    'Instrucciones',
-    'Instructions'
+$otStep3DescLabel   = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_DESCRIPCION',
+    'Descripción',
+    'Description'
+);
+$otStep3ErrFecha    = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA',
+    'Ingrese la fecha de entrega.',
+    'Please enter the delivery date.'
+);
+$otStep3ErrDesc     = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_DESCRIPCION',
+    'Ingrese la descripción (instrucciones generales).',
+    'Please enter the description (general instructions).'
+);
+$otFldRequiredTitle = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_FIELD_REQUIRED',
+    'Required',
+    'Obligatorio'
 );
 $otProgressDeliver   = op_ot_wizard_label(
     'COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP1_DELIVERY',
@@ -349,14 +364,14 @@ $otStepIndicatorInitial = $otWizardLangIsEn
                         <?php echo htmlspecialchars($step3Intro); ?>
                     </div>
                     <div class="mb-3">
-                        <label for="otStep3FechaEntrega" class="form-label"><?php echo htmlspecialchars($otStep3FechaLabel, ENT_QUOTES, 'UTF-8'); ?></label>
-                        <input type="date" class="form-control" id="otStep3FechaEntrega" autocomplete="off" />
+                        <label for="otStep3FechaEntrega" class="form-label"><?php echo htmlspecialchars($otStep3FechaLabel, ENT_QUOTES, 'UTF-8'); ?> <span class="text-danger" title="<?php echo htmlspecialchars($otFldRequiredTitle, ENT_QUOTES, 'UTF-8'); ?>">*</span></label>
+                        <input type="date" class="form-control" id="otStep3FechaEntrega" name="otStep3FechaEntrega" autocomplete="off" required aria-required="true" />
                     </div>
                     <div id="otStep3InstructionsRoot" class="ot-step3-instructions-root"></div>
                     <p id="otStep3NoFields" class="text-muted small mb-0" style="display: none;"></p>
                     <div class="mb-0 mt-3">
-                        <label for="otStep3InstruccionesGenerales" class="form-label"><?php echo htmlspecialchars($otStep3InstrLabel, ENT_QUOTES, 'UTF-8'); ?></label>
-                        <textarea class="form-control" id="otStep3InstruccionesGenerales" rows="3" placeholder=""></textarea>
+                        <label for="otStep3InstruccionesGenerales" class="form-label"><?php echo htmlspecialchars($otStep3DescLabel, ENT_QUOTES, 'UTF-8'); ?> <span class="text-danger" title="<?php echo htmlspecialchars($otFldRequiredTitle, ENT_QUOTES, 'UTF-8'); ?>">*</span></label>
+                        <textarea class="form-control" id="otStep3InstruccionesGenerales" name="otStep3InstruccionesGenerales" rows="3" placeholder="" required aria-required="true"></textarea>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -413,6 +428,29 @@ var otWizardProgressLabels = <?php echo json_encode([
 ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var otWizardLangIsEn = <?php echo json_encode((bool) $otWizardLangIsEn); ?>;
 var otStep3MissingBlockMsg = <?php echo json_encode($step3EmptyFallback); ?>;
+var otStep3ErrFechaMsg = <?php echo json_encode($otStep3ErrFecha); ?>;
+var otStep3ErrDescMsg = <?php echo json_encode($otStep3ErrDesc); ?>;
+
+function validateOtWizardStep3FieldsOrAlert() {
+    if (!comOpOtUseThreeSteps || otWizardCurrentStep !== 3) {
+        return true;
+    }
+    var fe = document.getElementById('otStep3FechaEntrega');
+    var ig = document.getElementById('otStep3InstruccionesGenerales');
+    var fv = fe && fe.value ? String(fe.value).trim() : '';
+    var dv = ig && ig.value ? String(ig.value).trim() : '';
+    if (!fv) {
+        alert(otStep3ErrFechaMsg || '');
+        if (fe && fe.focus) fe.focus();
+        return false;
+    }
+    if (!dv) {
+        alert(otStep3ErrDescMsg || '');
+        if (ig && ig.focus) ig.focus();
+        return false;
+    }
+    return true;
+}
 
 function showNotification(message, type) {
     // Create notification element
@@ -1306,6 +1344,9 @@ function submitOT() {
     window.location.href = retUrl;
 }
 function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
+    if (!validateOtWizardStep3FieldsOrAlert()) {
+        return;
+    }
     var pid = parseInt(String(comOpOtWizardPreId || '0'), 10);
     var formEl = pid ? document.getElementById('instrucciones-orden-form-' + pid) : null;
     if (!formEl || !comOpOtSaveInstruccionesJsonUrl) {
@@ -1324,6 +1365,7 @@ function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
     if (otIgEl) {
         fd.append('ot_instrucciones_generales', otIgEl.value || '');
     }
+    fd.append('ot_wizard_step3_finalize', '1');
     fetch(comOpOtSaveInstruccionesJsonUrl, {
         method: 'POST',
         body: fd,
@@ -1361,6 +1403,9 @@ function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
 }
 
 function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
+    if (!validateOtWizardStep3FieldsOrAlert()) {
+        return;
+    }
     if (!instruccionesFormEl || !comOpOtCreateOrdenJsonUrl) {
         opOtUnmountStep3InstructionsIfMounted();
         opOtHideOtModal();
@@ -1405,6 +1450,10 @@ function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
     var otFechaCre = document.getElementById('otStep3FechaEntrega');
     if (otFechaCre && otFechaCre.value) {
         fd.append('ot_fecha_entrega', String(otFechaCre.value));
+    }
+    var otDescCre = document.getElementById('otStep3InstruccionesGenerales');
+    if (otDescCre) {
+        fd.append('ot_instrucciones_generales', String((otDescCre.value || '').trim()));
     }
     if (comOpOtFormTokenName) fd.append(String(comOpOtFormTokenName), '1');
 
