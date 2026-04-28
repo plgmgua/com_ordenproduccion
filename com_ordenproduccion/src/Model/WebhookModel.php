@@ -696,7 +696,15 @@ class WebhookModel extends BaseDatabaseModel
         if (isset($formData['shipping_type'])) {
             return $formData['shipping_type'];
         }
-        
+
+        // Legacy payloads: pickup is often only indicated in direccion_entrega ("Recoger en Oficina")
+        // without tipo_entrega / shipping_type (ConvertForms → webhook).
+        $direccionRaw = isset($formData['direccion_entrega']) ? trim((string) $formData['direccion_entrega']) : '';
+        if ($direccionRaw !== ''
+            && preg_match('/recoge(r)?\b.*\boficina/ui', $direccionRaw)) {
+            return 'Recoge en oficina';
+        }
+
         // Default to "Entrega a domicilio"
         return 'Entrega a domicilio';
     }
