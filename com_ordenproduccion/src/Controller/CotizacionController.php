@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\File;
+use Joomla\CMS\Input\Input;
 use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -855,6 +856,78 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Save OT wizard step 3 header fields on pre-cotización when posting with a single pre_cotizacion_id.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   int                                   $preCotizacionId
+     * @param   Input                                 $input
+     *
+     * @return  void
+     *
+     * @since   3.115.2
+     */
+    private function persistPreCotizacionOtWizardExtras($db, int $preCotizacionId, Input $input): void
+    {
+        if ($preCotizacionId < 1) {
+            return;
+        }
+
+        $cols = $db->getTableColumns($db->replacePrefix('#__ordenproduccion_pre_cotizacion'), false);
+        if (!is_array($cols)) {
+            return;
+        }
+
+        $colsLower = array_change_key_case($cols, CASE_LOWER);
+        $hasFecha    = isset($colsLower['ot_fecha_entrega']);
+        $hasInstr    = isset($colsLower['ot_instrucciones_generales']);
+
+        if (!$hasFecha && !$hasInstr) {
+            return;
+        }
+
+        $fechaRaw = trim((string) $input->post->get('ot_fecha_entrega', ''));
+        $instrRaw = $input->post->get('ot_instrucciones_generales', '', 'raw');
+        $instrRaw = is_string($instrRaw) ? trim($instrRaw) : '';
+
+        $fechaSql = null;
+        if ($fechaRaw !== '') {
+            if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fechaRaw, $m)
+                && checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+                $fechaSql = $fechaRaw;
+            }
+        }
+
+        $instrStored = $instrRaw === '' ? null : $instrRaw;
+
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+            ->where($db->quoteName('id') . ' = ' . (int) $preCotizacionId);
+
+        if ($hasFecha) {
+            if ($fechaSql === null) {
+                $query->set($db->quoteName('ot_fecha_entrega') . ' = NULL');
+            } else {
+                $query->set($db->quoteName('ot_fecha_entrega') . ' = ' . $db->quote($fechaSql));
+            }
+        }
+
+        if ($hasInstr) {
+            if ($instrStored === null) {
+                $query->set($db->quoteName('ot_instrucciones_generales') . ' = NULL');
+            } else {
+                $query->set($db->quoteName('ot_instrucciones_generales') . ' = ' . $db->quote($instrStored));
+            }
+        }
+
+        try {
+            $db->setQuery($query);
+            $db->execute();
+        } catch (\Throwable $e) {
+            // Ignore if migration not applied yet or column mismatch
+        }
+    }
+
+    /**
      * Save "Detalles" (instructions) per line/concept.
      * POST: quotation_id (required), optional pre_cotizacion_id, detalle[line_id][concepto_key] = value.
      * Optional instrucciones_save_only=1 with format=json: persist detalles only (no notify/webhook); used by the quotation display modal.
@@ -924,6 +997,9 @@ class CotizacionController extends BaseController
                 }
                 $precotModel->saveLineDetalles($lineId, $keyToDetalle, $keyToLabel);
             }
+        }
+        if ($preCotizacionId > 0) {
+            $this->persistPreCotizacionOtWizardExtras($db, $preCotizacionId, $app->input);
         }
         $nextStep = (int) $app->input->post->get('next_step', 0);
         $isAjax = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';

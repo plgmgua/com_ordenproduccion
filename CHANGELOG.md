@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.2-STABLE] - 2026-04-16
+
+### Added
+- **Asistente OT (cotización confirmada), paso 3:** Campos **Fecha de entrega** (primero) e **Instrucciones** generales (al final); se envían con el guardado de instrucciones por proceso y se persisten en `#__ordenproduccion_pre_cotizacion` como `ot_fecha_entrega` y `ot_instrucciones_generales` (migración `3.115.2.sql`).
+
 ## [3.115.1-STABLE] - 2026-04-16
 
 ### Fixed

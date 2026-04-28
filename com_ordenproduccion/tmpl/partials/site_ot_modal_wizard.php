@@ -58,6 +58,16 @@ $step3EmptyFallback  = op_ot_wizard_label(
     'No se encontraron campos de instrucción para esta pre-cotización.',
     'No instruction fields found for this pre-quotation.'
 );
+$otStep3FechaLabel   = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_FECHA_ENTREGA',
+    'Fecha de entrega',
+    'Delivery date'
+);
+$otStep3InstrLabel   = op_ot_wizard_label(
+    'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_INSTRUCCIONES',
+    'Instrucciones',
+    'Instructions'
+);
 $otProgressDeliver   = op_ot_wizard_label(
     'COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP1_DELIVERY',
     'Paso 1: Dirección de entrega',
@@ -336,8 +346,16 @@ $otStepIndicatorInitial = $otWizardLangIsEn
                         <i class="fas fa-info-circle"></i>
                         <?php echo htmlspecialchars($step3Intro); ?>
                     </div>
+                    <div class="mb-3">
+                        <label for="otStep3FechaEntrega" class="form-label"><?php echo htmlspecialchars($otStep3FechaLabel, ENT_QUOTES, 'UTF-8'); ?></label>
+                        <input type="date" class="form-control" id="otStep3FechaEntrega" autocomplete="off" />
+                    </div>
                     <div id="otStep3InstructionsRoot" class="ot-step3-instructions-root"></div>
                     <p id="otStep3NoFields" class="text-muted small mb-0" style="display: none;"></p>
+                    <div class="mb-0 mt-3">
+                        <label for="otStep3InstruccionesGenerales" class="form-label"><?php echo htmlspecialchars($otStep3InstrLabel, ENT_QUOTES, 'UTF-8'); ?></label>
+                        <textarea class="form-control" id="otStep3InstruccionesGenerales" rows="3" placeholder=""></textarea>
+                    </div>
                 </div>
                 <?php endif; ?>
                 
@@ -564,6 +582,14 @@ function openOTModal(clientId, clientName, clientVat, preCotizacionId) {
     document.getElementById('otManualCity').value = '';
     document.getElementById('otSaveAddressToOdoo').checked = false;
     document.getElementById('otDeliveryInstructions').value = '';
+    var otFe = document.getElementById('otStep3FechaEntrega');
+    var otIg = document.getElementById('otStep3InstruccionesGenerales');
+    if (otFe) {
+        otFe.value = '';
+    }
+    if (otIg) {
+        otIg.value = '';
+    }
     document.getElementById('otSaveAddressButtonContainer').style.display = 'none';
     
     // Hide new address form and reset button
@@ -1286,6 +1312,14 @@ function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
     var submitBtn = document.getElementById('otBtnSubmit');
     if (submitBtn) submitBtn.disabled = true;
     var fd = new FormData(formEl);
+    var otFeEl = document.getElementById('otStep3FechaEntrega');
+    var otIgEl = document.getElementById('otStep3InstruccionesGenerales');
+    if (otFeEl) {
+        fd.append('ot_fecha_entrega', otFeEl.value || '');
+    }
+    if (otIgEl) {
+        fd.append('ot_instrucciones_generales', otIgEl.value || '');
+    }
     fetch(comOpOtSaveInstruccionesJsonUrl, {
         method: 'POST',
         body: fd,

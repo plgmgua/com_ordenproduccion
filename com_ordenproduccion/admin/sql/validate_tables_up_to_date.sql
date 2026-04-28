@@ -118,6 +118,8 @@ FROM (
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'lines_subtotal'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'total_final'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'margen_adicional'
+    UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'ot_fecha_entrega'
+    UNION SELECT 'joomla_ordenproduccion_pre_cotizacion', 'ot_instrucciones_generales'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion_line', 'tipo_elemento'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion_line_detalles', 'concepto_key'
     UNION SELECT 'joomla_ordenproduccion_pre_cotizacion_confirmation', 'quotation_id'
