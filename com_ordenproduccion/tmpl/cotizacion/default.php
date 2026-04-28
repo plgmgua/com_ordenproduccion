@@ -191,6 +191,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <option value=""><?php echo $l('COM_ORDENPRODUCCION_SELECT_PRE_COTIZACION', 'Select Pre-Quotation...', 'Seleccionar Pre-Cotización...'); ?></option>
                         <?php
                         $precotizacionDescriptions = [];
+                        $initialWarmupPreId        = !$isEdit ? (int) ($this->initialPrecotizacionId ?? 0) : 0;
                         foreach ($this->preCotizacionesList ?? [] as $pre) :
                             $desc = isset($pre->descripcion) ? trim((string) $pre->descripcion) : '';
                             $precotizacionDescriptions[(int) $pre->id] = $desc;
@@ -198,12 +199,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                             if (mb_strlen($label) > 120) {
                                 $label = mb_substr($label, 0, 117) . '...';
                             }
+                            $precotIdLoop = (int) $pre->id;
+                            $warmSelected = $initialWarmupPreId > 0 && $initialWarmupPreId === $precotIdLoop;
                             $tcAttr = '';
                             if (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== '') {
                                 $tcAttr = ' data-total-con-tarjeta="' . htmlspecialchars(number_format((float) $pre->total_con_tarjeta, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                             }
                         ?>
-                            <option value="<?php echo (int) $pre->id; ?>" data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
+                            <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
@@ -353,8 +356,34 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     var initialPrecotizacionFirstQty = <?php echo !$isEdit ? (int) ($this->initialPrecotizacionFirstLineQty ?? 0) : 0; ?>;
     var msgLineAttach = <?php echo json_encode($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>;
 
+    (function mergePreFromUrl() {
+        try {
+            var sp = new URLSearchParams(window.location.search || '');
+            var u = parseInt(sp.get('precotizacion_id') || sp.get('pre_cotizacion_id') || '0', 10);
+            if (!isNaN(u) && u > 0 && (!initialPrecotizacionId || initialPrecotizacionId < 1)) {
+                initialPrecotizacionId = u;
+            }
+        } catch (e) {}
+    })();
+
     // Pre-cotización descriptions from server (reliable for long/special chars), fallback to data-descripcion
     var precotizacionDescriptions = <?php echo json_encode($precotizacionDescriptions ?? []); ?>;
+
+    function deriveDescFromPrecotOption(opt) {
+        if (!opt || !opt.value) {
+            return '';
+        }
+        var pid = String(opt.value);
+        if (precotizacionDescriptions[pid] !== undefined && precotizacionDescriptions[pid] !== null && String(precotizacionDescriptions[pid]).trim() !== '') {
+            return String(precotizacionDescriptions[pid]).trim();
+        }
+        var da = opt.getAttribute('data-descripcion');
+        if (da && String(da).trim() !== '') {
+            return String(da).trim();
+        }
+        var num = opt.getAttribute('data-number');
+        return num ? String(num).trim() : '';
+    }
 
     function fillDescriptionFromPrecotizacion() {
         if (!selectEl || !descEl) return;
@@ -362,8 +391,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (opt && opt.value) {
             var preId = String(opt.value);
             var preDesc = (precotizacionDescriptions[preId] !== undefined && precotizacionDescriptions[preId] !== null)
-                ? String(precotizacionDescriptions[preId])
-                : (opt.getAttribute('data-descripcion') || '');
+                ? String(precotizacionDescriptions[preId]).trim()
+                : '';
+            if (preDesc === '') {
+                preDesc = (opt.getAttribute('data-descripcion') || '').trim();
+            }
+            if (preDesc === '') {
+                preDesc = (opt.getAttribute('data-number') || '').trim();
+            }
             descEl.value = preDesc;
         } else {
             descEl.value = '';
@@ -518,6 +553,12 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             if (!opt || !opt.value) return;
             var desc = (descEl && descEl.value) ? String(descEl.value).trim() : '';
             if (!desc) {
+                desc = deriveDescFromPrecotOption(opt);
+                if (descEl && desc) {
+                    descEl.value = desc;
+                }
+            }
+            if (!desc) {
                 alert('<?php echo addslashes($l('COM_ORDENPRODUCCION_QUOTATION_DESCRIPTION_REQUIRED', 'Custom description is required.', 'La descripción personalizada es obligatoria.')); ?>');
                 if (descEl) descEl.focus();
                 return;
@@ -581,6 +622,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (warmOpt && warmOpt.value) {
             selectEl.value = String(initialPrecotizacionId);
             fillDescriptionFromPrecotizacion();
+            if (descEl && !String(descEl.value).trim()) {
+                var bf = deriveDescFromPrecotOption(warmOpt);
+                if (bf) descEl.value = bf;
+            }
             if (cantidadEl && initialPrecotizacionFirstQty > 0) {
                 cantidadEl.value = String(initialPrecotizacionFirstQty);
             }

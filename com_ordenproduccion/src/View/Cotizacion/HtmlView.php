@@ -16,6 +16,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -587,7 +588,14 @@ class HtmlView extends BaseHtmlView
             return (int) $_GET['pre_cotizacion_id'];
         }
 
-        return 0;
+        $uri = Uri::getInstance();
+        $q   = (int) $uri->getVar('precotizacion_id', 0);
+        if ($q > 0) {
+            return $q;
+        }
+        $q = (int) $uri->getVar('pre_cotizacion_id', 0);
+
+        return $q > 0 ? $q : 0;
     }
 
     /**

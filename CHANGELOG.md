@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.22-STABLE] - 2026-04-16
+
+### Fixed
+- **Cotización (precotización_id en URL):** Lectura adicional desde **`Uri::getInstance()`**. En el navegador, **`precotizacion_id`/`pre_cotizacion_id`** si el servidor devolviera 0. Descripción obligatoria: si la PRE no tiene texto, se usa **`data-number`** (p. ej. PRE-00321) para poder **Agregar línea**. La opción del desplegable queda **`selected`** en HTML cuando el warmup aplica.
+
 ## [3.114.21-STABLE] - 2026-04-16
 
 ### Fixed
