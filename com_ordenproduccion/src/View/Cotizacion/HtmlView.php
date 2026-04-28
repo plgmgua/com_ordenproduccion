@@ -398,22 +398,28 @@ class HtmlView extends BaseHtmlView
                 $this->preCotizacionesList = $list;
 
                 if (!$this->quotation) {
-                    $wantPreId = (int) $input->getInt('precotizacion_id', 0);
-                    if ($wantPreId < 1) {
-                        $wantPreId = (int) $input->getInt('pre_cotizacion_id', 0);
-                    }
-                    if ($wantPreId > 0) {
-                        $allowed = false;
-                        foreach ($list as $pc) {
-                            if ((int) ($pc->id ?? 0) === $wantPreId) {
-                                $allowed = true;
-                                break;
-                            }
-                        }
-                        if ($allowed) {
+                    $wantPreId = $this->readPrecotizacionIdFromRequest($input);
+
+                    if ($wantPreId > 0 && $precotModel->canUserEditPreCotizacionDocument($wantPreId)
+                        && !$precotModel->isAssociatedWithQuotation($wantPreId)) {
+                        $warm = $this->buildPrecotWarmupOption($wantPreId, $precotModel);
+                        if ($warm !== null) {
                             $this->initialPrecotizacionId           = $wantPreId;
                             $precotLines                             = $precotModel->getLines($wantPreId);
-                            $this->initialPrecotizacionFirstLineQty = $this->getFirstNonEnvioLineQuantityFromPreLines(is_array($precotLines) ? $precotLines : []);
+                            $this->initialPrecotizacionFirstLineQty = $this->getFirstNonEnvioLineQuantityFromPreLines(
+                                is_array($precotLines) ? $precotLines : []
+                            );
+                            $inDropdown = false;
+                            foreach ($list as $pc) {
+                                if ((int) ($pc->id ?? 0) === $wantPreId) {
+                                    $inDropdown = true;
+                                    break;
+                                }
+                            }
+                            if (!$inDropdown) {
+                                array_unshift($list, $warm);
+                                $this->preCotizacionesList = $list;
+                            }
                         }
                     }
                 }
@@ -431,10 +437,7 @@ class HtmlView extends BaseHtmlView
                     . ($input->getString('address', '') !== '' ? '&address=' . urlencode($input->getString('address')) : '')
                     . ($input->getString('contact_person_name', '') !== '' ? '&contact_person_name=' . urlencode($input->getString('contact_person_name')) : '')
                     . ($input->getString('contact_person_phone', '') !== '' ? '&contact_person_phone=' . urlencode($input->getString('contact_person_phone')) : '');
-                $wantPreGuest = (int) $input->getInt('precotizacion_id', 0);
-                if ($wantPreGuest < 1) {
-                    $wantPreGuest = (int) $input->getInt('pre_cotizacion_id', 0);
-                }
+                $wantPreGuest = $this->readPrecotizacionIdFromRequest($input);
                 if ($wantPreGuest > 0) {
                     $returnUrl .= '&precotizacion_id=' . $wantPreGuest;
                 }
@@ -541,6 +544,91 @@ class HtmlView extends BaseHtmlView
         }
 
         return $blocks;
+    }
+
+    /**
+     * Reads precotizacion_id / pre_cotizacion_id from merged input and PHP $_GET (SEF/router edge cases).
+     *
+     * @param   mixed  $input  Application input (\Joomla\Input\Input)
+     *
+     * @return  int
+     *
+     * @since   3.114.21
+     */
+    protected function readPrecotizacionIdFromRequest($input): int
+    {
+        $id = (int) $input->getInt('precotizacion_id', 0);
+        if ($id < 1) {
+            $id = (int) $input->getInt('pre_cotizacion_id', 0);
+        }
+
+        return $this->finalizePrecotIdResolution($id);
+    }
+
+    /**
+     * Fallback when Input omits vars (legacy / edge URL handling).
+     *
+     * @param   int  $id  Resolved id so far (may be 0)
+     *
+     * @return  int
+     *
+     * @since   3.114.21
+     */
+    protected function finalizePrecotIdResolution(int $id): int
+    {
+        $id = (int) $id;
+        if ($id > 0) {
+            return $id;
+        }
+        if (isset($_GET['precotizacion_id'])) {
+            return (int) $_GET['precotizacion_id'];
+        }
+        if (isset($_GET['pre_cotizacion_id'])) {
+            return (int) $_GET['pre_cotizacion_id'];
+        }
+
+        return 0;
+    }
+
+    /**
+     * Builds one PRE row for dropdown + warmup (aligned with crear línea totals, excludes oferta).
+     *
+     * @param   int  $id
+     *
+     * @return  \stdClass|null
+     *
+     * @since   3.114.21
+     */
+    protected function buildPrecotWarmupOption(int $id, $precotModel): ?\stdClass
+    {
+        $id = (int) $id;
+        if ($id < 1 || $precotModel === null) {
+            return null;
+        }
+
+        $item = $precotModel->getItem($id);
+        if (!$item) {
+            return null;
+        }
+
+        $db        = Factory::getDbo();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        if (isset($tableCols['oferta']) && !empty($item->oferta)) {
+            return null;
+        }
+
+        $total       = round((float) $precotModel->getTotalForPreCotizacion($id), 2);
+        $totalTarjRaw = $precotModel->getTotalConTarjetaForPreCotizacion($id);
+        $totalTarj   = ($totalTarjRaw !== null && (float) $totalTarjRaw > 0) ? round((float) $totalTarjRaw, 2) : null;
+
+        return (object) [
+            'id'                  => $id,
+            'number'              => isset($item->number) ? (string) $item->number : ('PRE-' . $id),
+            'total'               => $total,
+            'total_con_tarjeta'   => $totalTarj,
+            'descripcion'         => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
+        ];
     }
 
     /**

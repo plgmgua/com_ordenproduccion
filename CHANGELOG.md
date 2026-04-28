@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.21-STABLE] - 2026-04-16
+
+### Fixed
+- **Cotización nueva (precotización_id en URL):** La primera línea no se creaba cuando el usuario **no era el autor** del documento PRE pero sí podía editarlo (Administración, etc.). El listado solo mostraba `created_by`; ahora la validación y el calentamiento usan **`canUserEditPreCotizacionDocument`** y la PRE se inserta en el desplegable si faltaba. Lectura robusta del id desde **`$_GET`** ante rutas borrosas.
+
 ## [3.114.20-STABLE] - 2026-04-16
 
 ### Added
