@@ -4,6 +4,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 
@@ -12,6 +13,18 @@ $params           = isset($wizardParams['params']) ? $wizardParams['params'] : C
 $user             = $wizardParams['user'] ?? Factory::getUser();
 $submitReturnOnly = !empty($wizardParams['submit_mode_return']);
 $returnUrl        = isset($wizardParams['return_url']) ? (string) $wizardParams['return_url'] : '';
+$cotOtStep3Enabled = !empty($wizardParams['cotizacion_ot_step3_instructions']);
+$cotOtSaveInstrUrl = isset($wizardParams['cot_ot_save_instrucciones_json_url'])
+    ? (string) $wizardParams['cot_ot_save_instrucciones_json_url'] : '';
+$cotOtStepTotal    = $cotOtStep3Enabled ? 3 : 2;
+$cotOtReturnUrlJs  = $submitReturnOnly && $returnUrl !== ''
+    ? $returnUrl
+    : Route::_('index.php?option=com_ordenproduccion&view=cotizaciones');
+$step3BarLabel       = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_PROGRESS');
+$step3Intro          = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_INFO');
+$step3EmptyFallback  = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_NO_FIELDS');
+$otProgressDeliver   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP1_DELIVERY');
+$otProgressContact   = Text::_('COM_ORDENPRODUCCION_OT_WIZARD_PROGRESS_STEP2_CONTACT');
 
 ?>
 <!-- OT (Orden de Trabajo) Modal — same UI as Mis Clientes (wizard) -->
@@ -20,7 +33,7 @@ $returnUrl        = isset($wizardParams['return_url']) ? (string) $wizardParams[
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title" id="otModalLabel">
-                    <i class="fas fa-truck"></i> Crear Orden de Trabajo <span id="otStepIndicator">(Paso 1 de 2)</span>
+                    <i class="fas fa-truck"></i> <?php echo Text::_('COM_ORDENPRODUCCION_OT_WIZARD_MODAL_TITLE'); ?> <span id="otStepIndicator"><?php echo htmlspecialchars(sprintf('(Paso 1 de %d)', (int) $cotOtStepTotal), ENT_QUOTES, 'UTF-8'); ?></span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -255,6 +268,16 @@ $returnUrl        = isset($wizardParams['return_url']) ? (string) $wizardParams[
                         </div>
                     </div>
                 </div>
+                <?php if ($cotOtStep3Enabled) : ?>
+                <div id="otStep3" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <?php echo htmlspecialchars($step3Intro); ?>
+                    </div>
+                    <div id="otStep3InstructionsRoot" class="ot-step3-instructions-root"></div>
+                    <p id="otStep3NoFields" class="text-muted small mb-0" style="display: none;"></p>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Hidden fields for form data -->
                 <input type="hidden" id="otClientId" value="" />
@@ -268,14 +291,19 @@ $returnUrl        = isset($wizardParams['return_url']) ? (string) $wizardParams[
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i> Cancelar
                 </button>
-                <button type="button" id="otBtnBack" class="btn btn-outline-secondary" onclick="goToStep1()" style="display: none;">
+                <button type="button" id="otBtnBack" class="btn btn-outline-secondary" onclick="goOtWizardBack()" style="display: none;">
                     <i class="fas fa-arrow-left"></i> Atrás
                 </button>
                 <button type="button" id="otBtnNext" class="btn btn-primary" onclick="goToStep2()">
                     <i class="fas fa-arrow-right"></i> Siguiente
                 </button>
+                <?php if ($cotOtStep3Enabled) : ?>
+                <button type="button" id="otBtnNextStep2" class="btn btn-primary" onclick="goToStep3()" style="display: none;">
+                    <i class="fas fa-arrow-right"></i> <?php echo Text::_('COM_ORDENPRODUCCION_CONFIRMAR_NEXT'); ?>
+                </button>
+                <?php endif; ?>
                 <button type="button" id="otBtnSubmit" class="btn btn-success" onclick="submitOT()" style="display: none;">
-                    <i class="fas fa-check"></i> Crear Orden de Trabajo
+                    <i class="fas fa-check"></i> <?php echo Text::_('COM_ORDENPRODUCCION_OT_WIZARD_SUBMIT_BTN'); ?>
                 </button>
             </div>
         </div>
@@ -287,6 +315,19 @@ var otDestinationUrl = <?php echo json_encode((string) $params->get('ot_destinat
 var cotizacionDestinationUrl = <?php echo json_encode((string) $params->get('cotizacion_destination_url', '')); ?>;
 var oteDestinationUrl = <?php echo json_encode((string) $params->get('ote_destination_url', '')); ?>;
 var otDebugMode = <?php echo $params->get('enable_debug', 0) ? 'true' : 'false'; ?>;
+var comOpOtWizardStepTotal = <?php echo (int) $cotOtStepTotal; ?>;
+var comOpOtUseThreeSteps = <?php echo $cotOtStep3Enabled ? 'true' : 'false'; ?>;
+var comOpOtSaveInstruccionesJsonUrl = <?php echo json_encode($cotOtSaveInstrUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var comOpOtReturnAfterSubmitUrl = <?php echo json_encode($cotOtReturnUrlJs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var cotOtSubmitReturnOnly = <?php echo $submitReturnOnly ? 'true' : 'false'; ?>;
+var comOpOtWizardPreId = 0;
+var otWizardCurrentStep = 1;
+var otWizardProgressLabels = <?php echo json_encode([
+    $otProgressDeliver,
+    $otProgressContact,
+    $step3BarLabel,
+], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var otStep3MissingBlockMsg = <?php echo json_encode($step3EmptyFallback); ?>;
 
 function showNotification(message, type) {
     // Create notification element
@@ -338,8 +379,111 @@ function opOtShowOtModalBackdrop() {
     document.body.classList.add('modal-open');
     return false;
 }
-function openOTModal(clientId, clientName, clientVat) {
-    // Set client information
+function opOtHideOtModal() {
+    var modalEl = document.getElementById('otModal');
+    if (!modalEl) {
+        return;
+    }
+    var ModalCtor = opOtGetBootstrapModalCtor();
+    if (ModalCtor && typeof ModalCtor.getOrCreateInstance === 'function') {
+        var inst = ModalCtor.getInstance(modalEl) || ModalCtor.getOrCreateInstance(modalEl);
+        if (inst && typeof inst.hide === 'function') {
+            inst.hide();
+            return;
+        }
+    }
+    modalEl.classList.remove('show');
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.style.display = 'none';
+    document.body.classList.remove('modal-open');
+}
+function otWizardApplyStepUi(step) {
+    var total = comOpOtWizardStepTotal || 2;
+    var ind = document.getElementById('otStepIndicator');
+    if (ind) {
+        ind.textContent = '(Paso ' + step + ' de ' + total + ')';
+    }
+    var bar = document.getElementById('otProgressBar');
+    if (!bar || !otWizardProgressLabels || !otWizardProgressLabels.length) {
+        return;
+    }
+    if (total <= 2) {
+        if (step === 1) {
+            bar.style.width = '50%';
+            bar.textContent = otWizardProgressLabels[0] || '';
+        } else {
+            bar.style.width = '100%';
+            bar.textContent = otWizardProgressLabels[1] || '';
+        }
+        return;
+    }
+    var pct = step === 1 ? '33%' : (step === 2 ? '66%' : '100%');
+    bar.style.width = pct;
+    bar.textContent = otWizardProgressLabels[step - 1] || '';
+}
+function opOtUnmountStep3InstructionsIfMounted() {
+    var modal = document.getElementById('instruccionesOrdenModal');
+    var modalBody = modal && modal.querySelector('.modal-body');
+    var root = document.getElementById('otStep3InstructionsRoot');
+    if (!modalBody || !root) {
+        return;
+    }
+    var blocks = root.querySelectorAll('.instrucciones-orden-block');
+    blocks.forEach(function(block) {
+        block.classList.add('d-none');
+        modalBody.appendChild(block);
+    });
+}
+function opOtMountInstructionsIntoWizardStep3() {
+    var root = document.getElementById('otStep3InstructionsRoot');
+    var emptyEl = document.getElementById('otStep3NoFields');
+    var modal = document.getElementById('instruccionesOrdenModal');
+    if (!comOpOtUseThreeSteps || !root || !modal) {
+        return;
+    }
+    var pid = parseInt(String(comOpOtWizardPreId || '0'), 10) || 0;
+    root.innerHTML = '';
+    if (emptyEl) {
+        emptyEl.style.display = 'none';
+        emptyEl.textContent = '';
+    }
+    if (!pid) {
+        if (emptyEl) {
+            emptyEl.textContent = otStep3MissingBlockMsg || '';
+            emptyEl.style.display = '';
+        }
+        return;
+    }
+    var modalBody = modal.querySelector('.modal-body');
+    var sel = modalBody.querySelector('.instrucciones-orden-block[data-pre-cotizacion-id="' + pid + '"]');
+    if (!sel) {
+        if (emptyEl) {
+            emptyEl.textContent = otStep3MissingBlockMsg || '';
+            emptyEl.style.display = '';
+        }
+        return;
+    }
+    sel.classList.remove('d-none');
+    root.appendChild(sel);
+}
+function validateOtContactInputs() {
+    var selectedRadio = document.querySelector('input[name="otContact"]:checked');
+    var manualName = document.getElementById('otManualContactName').value.trim();
+    var manualPhone = document.getElementById('otManualContactPhone').value.trim();
+    if (selectedRadio) {
+        return true;
+    }
+    return !!(manualName && manualPhone);
+}
+function openOTModal(clientId, clientName, clientVat, preCotizacionId) {
+    preCotizacionId = parseInt(preCotizacionId === undefined || preCotizacionId === null ? '0' : preCotizacionId, 10);
+    if (isNaN(preCotizacionId)) {
+        preCotizacionId = 0;
+    }
+    comOpOtWizardPreId = preCotizacionId;
+    otWizardCurrentStep = 1;
+    opOtUnmountStep3InstructionsIfMounted();
+
     document.getElementById('otClientId').value = clientId;
     document.getElementById('otClientName').textContent = clientName;
     document.getElementById('otClientVat').textContent = clientVat || 'N/A';
@@ -408,16 +552,22 @@ function openOTModal(clientId, clientName, clientVat) {
         }
     });
     
-    // Reset to Step 1
+    // Reset UI: Step 1
     document.getElementById('otStep1').style.display = 'block';
     document.getElementById('otStep2').style.display = 'none';
+    var otStep3El = document.getElementById('otStep3');
+    if (otStep3El) {
+        otStep3El.style.display = 'none';
+    }
     document.getElementById('otBtnNext').style.display = 'inline-block';
     document.getElementById('otBtnBack').style.display = 'none';
     document.getElementById('otBtnSubmit').style.display = 'none';
-    document.getElementById('otProgressBar').style.width = '50%';
-    document.getElementById('otProgressBar').textContent = 'Paso 1: Dirección de Entrega';
-    document.getElementById('otStepIndicator').textContent = '(Paso 1 de 2)';
-    
+    var nt2 = document.getElementById('otBtnNextStep2');
+    if (nt2) {
+        nt2.style.display = 'none';
+    }
+    otWizardApplyStepUi(1);
+
     // Load child contacts and parent contact via AJAX
     loadChildContacts(clientId, clientName);
     
@@ -429,6 +579,14 @@ function openOTModal(clientId, clientName, clientVat) {
 }
 
 window.openOTModal = openOTModal;
+(function () {
+    var otRoot = document.getElementById('otModal');
+    if (otRoot) {
+        otRoot.addEventListener('hidden.bs.modal', function () {
+            opOtUnmountStep3InstructionsIfMounted();
+        });
+    }
+})();
 
 // Load credit limit for the selected client
 function loadCreditLimit(clientId) {
@@ -915,33 +1073,84 @@ function goToStep2() {
     // Hide Step 1, Show Step 2
     document.getElementById('otStep1').style.display = 'none';
     document.getElementById('otStep2').style.display = 'block';
-    
-    // Update buttons
+
     document.getElementById('otBtnNext').style.display = 'none';
     document.getElementById('otBtnBack').style.display = 'inline-block';
+
+    document.getElementById('otBtnSubmit').style.display = 'none';
+    var nt2 = document.getElementById('otBtnNextStep2');
+    if (comOpOtUseThreeSteps && nt2) {
+        nt2.style.display = 'inline-block';
+    } else {
+        if (nt2) nt2.style.display = 'none';
+        document.getElementById('otBtnSubmit').style.display = 'inline-block';
+    }
+
+    otWizardApplyStepUi(2);
+    otWizardCurrentStep = 2;
+}
+
+// Navigate back within wizard (contact step -> delivery, or instructions -> contact)
+function goOtWizardBack() {
+    if (comOpOtUseThreeSteps && otWizardCurrentStep === 3) {
+        opOtUnmountStep3InstructionsIfMounted();
+        var s3b = document.getElementById('otStep3');
+        if (s3b) s3b.style.display = 'none';
+        document.getElementById('otStep2').style.display = 'block';
+
+        document.getElementById('otBtnNext').style.display = 'none';
+        document.getElementById('otBtnBack').style.display = 'inline-block';
+        var nt2 = document.getElementById('otBtnNextStep2');
+        if (nt2) nt2.style.display = 'inline-block';
+        document.getElementById('otBtnSubmit').style.display = 'none';
+
+        otWizardApplyStepUi(2);
+        otWizardCurrentStep = 2;
+        return;
+    }
+    goToStep1();
+}
+function goToStep3() {
+    if (!comOpOtUseThreeSteps) return;
+    if (!validateOtContactInputs()) {
+        alert('Por favor seleccione un contacto o ingrese nombre y teléfono manualmente.');
+        return;
+    }
+
+    opOtMountInstructionsIntoWizardStep3();
+
+    document.getElementById('otStep2').style.display = 'none';
+    var s3 = document.getElementById('otStep3');
+    if (s3) s3.style.display = 'block';
+
+    document.getElementById('otBtnNext').style.display = 'none';
+    document.getElementById('otBtnBack').style.display = 'inline-block';
+    var nt2 = document.getElementById('otBtnNextStep2');
+    if (nt2) nt2.style.display = 'none';
     document.getElementById('otBtnSubmit').style.display = 'inline-block';
-    
-    // Update progress bar
-    document.getElementById('otProgressBar').style.width = '100%';
-    document.getElementById('otProgressBar').textContent = 'Paso 2: Persona de Contacto';
-    document.getElementById('otStepIndicator').textContent = '(Paso 2 de 2)';
+
+    otWizardApplyStepUi(3);
+    otWizardCurrentStep = 3;
 }
 
 // Navigate back to Step 1
 function goToStep1() {
-    // Hide Step 2, Show Step 1
+    opOtUnmountStep3InstructionsIfMounted();
     document.getElementById('otStep2').style.display = 'none';
+    var otStep3El = document.getElementById('otStep3');
+    if (otStep3El) {
+        otStep3El.style.display = 'none';
+    }
     document.getElementById('otStep1').style.display = 'block';
-    
-    // Update buttons
+
     document.getElementById('otBtnNext').style.display = 'inline-block';
     document.getElementById('otBtnBack').style.display = 'none';
     document.getElementById('otBtnSubmit').style.display = 'none';
-    
-    // Update progress bar
-    document.getElementById('otProgressBar').style.width = '50%';
-    document.getElementById('otProgressBar').textContent = 'Paso 1: Dirección de Entrega';
-    document.getElementById('otStepIndicator').textContent = '(Paso 1 de 2)';
+    var ntb = document.getElementById('otBtnNextStep2');
+    if (ntb) ntb.style.display = 'none';
+
+    otWizardApplyStepUi(1);
+    otWizardCurrentStep = 1;
 }
 
 // Submit OT Form
@@ -978,30 +1187,71 @@ function submitOT() {
         deliveryAddress += (deliveryStreet ? ', ' : '') + deliveryCity;
     }
 
-<?php if ($submitReturnOnly) : ?>
-    var bsOt = otModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
-        ? (bootstrap.Modal.getInstance(otModalEl) || bootstrap.Modal.getOrCreateInstance(otModalEl))
-        : null;
-    if (bsOt) {
-        bsOt.hide();
+    if (!cotOtSubmitReturnOnly) {
+        var url = otDestinationUrl;
+        url += '?client_id=' + encodeURIComponent(clientId);
+        url += '&contact_name=' + encodeURIComponent(clientName);
+        url += '&contact_vat=' + encodeURIComponent(clientVat);
+        url += '&x_studio_agente_de_ventas=' + encodeURIComponent(agentName);
+        url += '&tipo_entrega=' + encodeURIComponent(deliveryType);
+        url += '&delivery_address=' + encodeURIComponent(deliveryAddress);
+        url += '&instrucciones_entrega=' + encodeURIComponent(instructions);
+        url += '&contact_person_name=' + encodeURIComponent(contactName);
+        url += '&contact_person_phone=' + encodeURIComponent(contactPhone);
+        window.location.href = url;
+        return;
     }
-    window.location.href = <?php echo json_encode($returnUrl !== '' ? $returnUrl : Route::_('index.php?option=com_ordenproduccion&view=cotizaciones')); ?>;
-<?php else : ?>
-    var url = otDestinationUrl;
-    url += '?client_id=' + encodeURIComponent(clientId);
-    url += '&contact_name=' + encodeURIComponent(clientName);
-    url += '&contact_vat=' + encodeURIComponent(clientVat);
-    url += '&x_studio_agente_de_ventas=' + encodeURIComponent(agentName);
-    url += '&tipo_entrega=' + encodeURIComponent(deliveryType);
-    url += '&delivery_address=' + encodeURIComponent(deliveryAddress);
-    url += '&instrucciones_entrega=' + encodeURIComponent(instructions);
-    url += '&contact_person_name=' + encodeURIComponent(contactName);
-    url += '&contact_person_phone=' + encodeURIComponent(contactPhone);
-    window.location.href = url;
-<?php endif; ?>
+
+    var retUrl = comOpOtReturnAfterSubmitUrl || 'index.php?option=com_ordenproduccion&view=cotizaciones';
+    if (comOpOtUseThreeSteps && otWizardCurrentStep === 3 && comOpOtSaveInstruccionesJsonUrl) {
+        opOtSaveInstruccionesOrdenThenRedirect(retUrl);
+        return;
+    }
+    opOtHideOtModal();
+    window.location.href = retUrl;
+}
+function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
+    var pid = parseInt(String(comOpOtWizardPreId || '0'), 10);
+    var formEl = pid ? document.getElementById('instrucciones-orden-form-' + pid) : null;
+    if (!formEl || !comOpOtSaveInstruccionesJsonUrl) {
+        opOtHideOtModal();
+        window.location.href = doneUrl;
+        return;
+    }
+    var submitBtn = document.getElementById('otBtnSubmit');
+    if (submitBtn) submitBtn.disabled = true;
+    var fd = new FormData(formEl);
+    fetch(comOpOtSaveInstruccionesJsonUrl, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function(response) {
+            return response.text().then(function(text) {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    return { success: false, message: text ? text.substring(0, 200) : '' };
+                }
+            });
+        })
+        .then(function(data) {
+            if (submitBtn) submitBtn.disabled = false;
+            if (data && data.success) {
+                opOtUnmountStep3InstructionsIfMounted();
+                opOtHideOtModal();
+                window.location.href = doneUrl;
+            } else {
+                alert((data && data.message) ? data.message : 'No se pudieron guardar las instrucciones.');
+            }
+        })
+        .catch(function() {
+            if (submitBtn) submitBtn.disabled = false;
+            alert('Error de conexión al guardar las instrucciones.');
+        });
 }
 function saveDeliveryAddressNow() {
-    var clientId = document.getElementById('otClientId').value;
     var addressName = document.getElementById('otManualAddressName').value.trim();
     var street = document.getElementById('otManualStreet').value.trim();
     var city = document.getElementById('otManualCity').value.trim();

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.28-STABLE] - 2026-04-16
+
+### Added
+- **Cotización confirmada — asistente OT:** Paso 3 opcional con los mismos campos «instrucciones por proceso» que el modal de instrucciones (bloque `.instrucciones-orden-block` por pre-cotización). Al cerrar el asistente o volver atrás, el bloque se devuelve al modal de instrucciones. Al crear la orden desde el paso 3 se guardan con `cotizacion.saveInstruccionesOrden` (JSON) antes de volver a la cotización.
+
 ## [3.114.27-STABLE] - 2026-04-16
 
 ### Fixed
