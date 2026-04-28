@@ -1069,6 +1069,8 @@ class CotizacionController extends BaseController
     {
         $app = Factory::getApplication();
         $app->setHeader('Content-Type', 'application/json', true);
+        // JSON task: ensure frontend component strings resolve (fixes raw COM_* when locale has no merged INI)
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
 
         $user = Factory::getUser();
         if ($user->guest) {
@@ -1159,7 +1161,7 @@ class CotizacionController extends BaseController
             }
         } catch (\Throwable $e) {
             Log::add('createOrdenFromQuotation exception: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
-            $msg = Text::_('COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED');
+            $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
             if ($debugEnabled) {
                 $out['detail'] = $e->getMessage();
@@ -1173,7 +1175,7 @@ class CotizacionController extends BaseController
             if ($diag !== '') {
                 Log::add('createOrdenFromQuotation missing insert id: ' . $diag, Log::WARNING, 'com_ordenproduccion');
             }
-            $msg = Text::_('COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED');
+            $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
             if ($debugEnabled && $diag !== '') {
                 $out['detail'] = $diag;
@@ -1191,6 +1193,31 @@ class CotizacionController extends BaseController
             'redirect_url' => $redirect,
         ]);
         $app->close();
+    }
+
+    /**
+     * User-visible error when Step 3 internal OT insert fails (JSON). Loads com_ordenproduccion and
+     * falls back to ES/EN when the active tag has no translation (e.g. es-GT without override).
+     *
+     * @return  string
+     *
+     * @since   3.115.5
+     */
+    private function messageOtCreateInternalFailed(): string
+    {
+        $app = Factory::getApplication();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+        $msg = Text::_('COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED');
+        if ($msg !== 'COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED') {
+            return $msg;
+        }
+
+        $tag = strtolower($app->getLanguage()->getTag());
+        if (strpos($tag, 'en') === 0) {
+            return 'Could not create the internal work order. If this persists, turn on component debug (Options) for details.';
+        }
+
+        return 'No se pudo crear la orden de trabajo interna. Si persiste, active depuración en opciones del componente para más detalle.';
     }
 
     /**

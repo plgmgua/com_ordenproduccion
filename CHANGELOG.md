@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.5-STABLE] - 2026-04-27
+
+### Fixed
+- **OT desde cotización (JSON):** Carga explícita de `com_ordenproduccion` y texto de respaldo ES/EN para `COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED` (evita ver la clave cruda cuando el idioma activo no fusiona la INI del componente).
+
 ## [3.115.4-STABLE] - 2026-04-27
 
 ### Fixed
