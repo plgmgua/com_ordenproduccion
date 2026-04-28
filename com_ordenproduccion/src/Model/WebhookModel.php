@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Administrator\Table\OrdenesTable;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 use Joomla\CMS\Log\Log;
@@ -144,6 +145,8 @@ class WebhookModel extends BaseDatabaseModel
                 'modified_by' => 0,
                 'version' => '1.0.0'
             ];
+
+            $orderData = $this->prepareAssocForOrdeneTableSchema($orderData);
             
             // Insert order
             $query = $db->getQuery(true)
@@ -237,6 +240,8 @@ class WebhookModel extends BaseDatabaseModel
                 ->update($db->quoteName('#__ordenproduccion_ordenes'))
                 ->where($db->quoteName('id') . ' = ' . (int) $orderId);
             
+            $updateData = $this->prepareAssocForOrdeneTableSchema($updateData);
+
             foreach ($updateData as $key => $value) {
                 $query->set($db->quoteName($key) . ' = ' . $db->quote($value));
             }
@@ -440,6 +445,127 @@ class WebhookModel extends BaseDatabaseModel
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Columns present on #__ordenproduccion_ordenes (cached).
+     *
+     * @return  array<int, string>
+     *
+     * @since   3.116.1
+     */
+    protected function getOrdenesTableColumnNames(): array
+    {
+        static $columns = null;
+
+        if (\is_array($columns)) {
+            return $columns;
+        }
+
+        $db    = Factory::getDbo();
+        $table = new OrdenesTable($db);
+        $fields = method_exists($table, 'getFields') ? $table->getFields() : [];
+
+        $columns = $fields ? array_keys($fields) : [];
+
+        return $columns;
+    }
+
+    /**
+     * Canonical English ⇄ legacy Spanish pairs for ordenes rows (same semantics).
+     *
+     * @return  array<int, array{0:string, 1:string}>
+     *
+     * @since   3.116.1
+     */
+    protected function getOrdenEnglishSpanishPairs(): array
+    {
+        return [
+            ['client_name', 'nombre_del_cliente'],
+            ['work_description', 'descripcion_de_trabajo'],
+            ['order_number', 'orden_de_trabajo'],
+            ['delivery_date', 'fecha_de_entrega'],
+            ['request_date', 'fecha_de_solicitud'],
+            ['invoice_value', 'valor_a_facturar'],
+            ['dimensions', 'medidas_en_pulgadas'],
+            ['print_color', 'color_de_impresion'],
+            ['sales_agent', 'agente_de_ventas'],
+            ['quotation_files', 'adjuntar_cotizacion'],
+            ['art_files', 'archivo_de_arte'],
+            ['instructions', 'observaciones_instrucciones_generales'],
+            ['shipping_address', 'direccion_de_entrega'],
+            ['shipping_contact', 'contacto_nombre'],
+            ['shipping_phone', 'contacto_telefono'],
+            ['cutting', 'corte'],
+            ['cutting_details', 'detalles_de_corte'],
+            ['blocking', 'bloqueado'],
+            ['blocking_details', 'detalles_de_bloqueado'],
+            ['folding', 'doblado'],
+            ['folding_details', 'detalles_de_doblado'],
+            ['laminating', 'laminado'],
+            ['laminating_details', 'detalles_de_laminado'],
+            ['spine', 'lomo'],
+            ['spine_details', 'detalles_de_lomo'],
+            ['gluing', 'pegado'],
+            ['gluing_details', 'detalles_de_pegado'],
+            ['numbering', 'numerado'],
+            ['numbering_details', 'detalles_de_numerado'],
+            ['sizing', 'sizado'],
+            ['sizing_details', 'detalles_de_sizado'],
+            ['stapling', 'engrapado'],
+            ['stapling_details', 'detalles_de_engrapado'],
+            ['die_cutting', 'troquel'],
+            ['die_cutting_details', 'detalles_de_troquel'],
+            ['varnish', 'barniz'],
+            ['varnish_details', 'descripcion_de_barniz'],
+            ['white_print', 'impresion_en_blanco'],
+            ['white_print_details', 'descripcion_de_acabado_en_blanco'],
+            ['trimming', 'despuntados'],
+            ['trimming_details', 'descripcion_de_despuntados'],
+            ['eyelets', 'ojetes'],
+            ['perforation', 'perforado'],
+            ['perforation_details', 'descripcion_de_perforado'],
+        ];
+    }
+
+    /**
+     * Keep only keys that exist as physical columns on #__ordenproduccion_ordenes
+     * and copy known English/Spanish aliases when one side is missing.
+     *
+     * Fixes inserts on DBs that migrated to English-only (no nombre_del_cliente, etc.)
+     * and legacy Spanish-only tables (no client_name, delivery_date, etc.).
+     *
+     * @param   array<string, mixed>  $assoc  Desired column => value
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.116.1
+     */
+    protected function prepareAssocForOrdeneTableSchema(array $assoc): array
+    {
+        $cols  = $this->getOrdenesTableColumnNames();
+        $exist = array_fill_keys($cols, true);
+        $out   = [];
+
+        foreach ($assoc as $k => $v) {
+            if (isset($exist[$k])) {
+                $out[$k] = $v;
+            }
+        }
+
+        foreach ($this->getOrdenEnglishSpanishPairs() as $pair) {
+            $en = $pair[0];
+            $es = $pair[1];
+            if (isset($exist[$es]) && !\array_key_exists($es, $out) && \array_key_exists($en, $assoc)) {
+                $out[$es] = $assoc[$en];
+            }
+
+            if (isset($exist[$en]) && !\array_key_exists($en, $out) && \array_key_exists($es, $assoc)) {
+                $out[$en] = $assoc[$es];
+            }
+        }
+
+        return $out;
     }
 
     /**
