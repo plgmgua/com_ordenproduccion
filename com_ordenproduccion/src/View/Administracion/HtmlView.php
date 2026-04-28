@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OtWizardCreationLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -404,6 +405,22 @@ class HtmlView extends BaseHtmlView
      * @since  3.113.39
      */
     protected $outboundEmailLogSeeAllUsers = false;
+
+    /**
+     * Ajustes → Creación OT: lines from Joomla logs (createOrdenFromQuotation failures).
+     *
+     * @var    array<int, array<string,mixed>>
+     * @since  3.115.9
+     */
+    protected $otWizardLogEntries = [];
+
+    /**
+     * Directories scanned for OT wizard log lines (for UI hint).
+     *
+     * @var    string[]
+     * @since  3.115.9
+     */
+    protected $otWizardLogScannedDirs = [];
 
     /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
@@ -952,6 +969,8 @@ class HtmlView extends BaseHtmlView
         $this->outboundEmailLogLimit             = 20;
         $this->outboundEmailLogLimitStart        = 0;
         $this->outboundEmailLogSeeAllUsers       = false;
+        $this->otWizardLogEntries                = [];
+        $this->otWizardLogScannedDirs            = [];
 
         // Ensure banks is always an array to prevent undefined array key errors
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1649,6 +1668,16 @@ class HtmlView extends BaseHtmlView
                 foreach (['email', 'cellphone', 'pdf'] as $ch) {
                     $this->vendorQuoteTemplates[$ch] = $tplRows[$ch] ?? null;
                 }
+            }
+        }
+
+        if ($activeTab === 'ajustes' && $activeSubTab === 'creacion_logs') {
+            try {
+                $this->otWizardLogEntries     = OtWizardCreationLogHelper::collectEntriesFromJoomlaLogs(150);
+                $this->otWizardLogScannedDirs = OtWizardCreationLogHelper::getScannedDirectoryLabels();
+            } catch (\Throwable $e) {
+                $this->otWizardLogEntries     = [];
+                $this->otWizardLogScannedDirs = OtWizardCreationLogHelper::getScannedDirectoryLabels();
             }
         }
 

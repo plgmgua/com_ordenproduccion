@@ -66,6 +66,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-sort-numeric-up"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_NUMERACION_ORDENES'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=creacion_logs'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'creacion_logs' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-notes-medical"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_CREACION_LOGS'); ?>
+    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=solicitud_cotizacion'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'solicitud_cotizacion' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-paper-plane"></i>
@@ -94,6 +99,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php include __DIR__ . '/default_ajustes_solicitud_orden.php'; ?>
     <?php elseif ($activeSubTab === 'numeracion_ordenes'): ?>
         <?php include __DIR__ . '/default_ajustes_numeracion_ordenes.php'; ?>
+    <?php elseif ($activeSubTab === 'creacion_logs'): ?>
+        <?php include __DIR__ . '/default_ajustes_creacion_logs.php'; ?>
     <?php elseif ($activeSubTab === 'solicitud_cotizacion'): ?>
         <?php echo $this->loadTemplate('solicitud_cotizacion'); ?>
     <?php elseif ($activeSubTab === 'flujos_aprobaciones'): ?>

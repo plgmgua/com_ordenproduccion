@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.9-STABLE] - 2026-04-28
+
+### Added
+- **Control de Ventas → Ajustes:** sub-pestaña **Registro creación OT** (`creacion_logs`) que lista entradas de log de Joomla cuyas líneas contienen `OT wizard create failed` (fallos de `createOrdenFromQuotation`). Helper [`OtWizardCreationLogHelper`](com_ordenproduccion/src/Helper/OtWizardCreationLogHelper.php) revisa `administrator/logs` y `logs/` (últimos 2 MB por archivo).
+
 ## [3.115.8-STABLE] - 2026-04-28
 
 ### Changed
