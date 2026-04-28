@@ -214,27 +214,27 @@ function safeGet($array, $key, $default = '') {
                                             class="btn btn-outline-warning" 
                                             onclick="openCotizacionWindow(<?php echo (int)safeGet($item, 'id', 0); ?>, '<?php echo addslashes(safeGet($item, 'name', 'Sin nombre')); ?>', '<?php echo addslashes(safeGet($item, 'vat', '')); ?>')" 
                                             title="Cotización">
-                                        <i class="fas fa-file-invoice-dollar"></i>
+                                        <i class="fas fa-file-alt" aria-hidden="true"></i>
                                     </button>
                                     
                                     <button type="button" 
                                             class="btn btn-outline-success" 
                                             onclick="openOTModal(<?php echo (int)safeGet($item, 'id', 0); ?>, '<?php echo addslashes(safeGet($item, 'name', 'Sin nombre')); ?>', '<?php echo addslashes(safeGet($item, 'vat', '')); ?>')" 
                                             title="Orden de Trabajo">
-                                        <i class="fas fa-print"></i>
+                                        <i class="fas fa-print" aria-hidden="true"></i>
                                     </button>
                                     
                                     <button type="button" 
                                             class="btn btn-outline-info" 
                                             onclick="openOTEModal(<?php echo (int)safeGet($item, 'id', 0); ?>, '<?php echo addslashes(safeGet($item, 'name', 'Sin nombre')); ?>', '<?php echo addslashes(safeGet($item, 'vat', '')); ?>')" 
                                             title="Orden de Trabajo Externa">
-                                        <i class="fas fa-external-link-alt"></i>
+                                        <i class="fas fa-external-link" aria-hidden="true"></i>
                                     </button>
                                     
                                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=' . (int)safeGet($item, 'id', 0)); ?>" 
                                        class="btn btn-outline-primary" 
                                        title="Editar Cliente">
-                                        <i class="fas fa-edit"></i>
+                                        <i class="fas fa-pen" aria-hidden="true"></i>
                                     </a>
                                 </div>
                             </td>

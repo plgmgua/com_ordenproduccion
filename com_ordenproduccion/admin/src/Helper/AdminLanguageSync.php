@@ -17,6 +17,7 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\Language\LanguageHelper;
 
 final class AdminLanguageSync
@@ -87,5 +88,20 @@ final class AdminLanguageSync
         }
 
         return $updated;
+    }
+
+    /**
+     * Reload com_ordenproduccion language strings merged from extension + administrator/language.
+     * Must run after filesystem sync when com_config previously loaded stale keys into memory.
+     */
+    public static function reloadMergedComponentLanguage(): void
+    {
+        $lang = Factory::getLanguage();
+
+        $pComp = \JPATH_ADMINISTRATOR . '/components/com_ordenproduccion';
+
+        // Extension folder first (full key set shipped with releases), then system folder (installer copies / overrides).
+        $lang->load('com_ordenproduccion', $pComp, null, true, false);
+        $lang->load('com_ordenproduccion', \JPATH_ADMINISTRATOR, null, true, true);
     }
 }

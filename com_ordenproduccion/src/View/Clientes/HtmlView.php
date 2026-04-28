@@ -117,8 +117,14 @@ class HtmlView extends BaseHtmlView
         
         // Add CSS and JS using WebAssetManager
         HTMLHelper::_('bootstrap.framework');
-        
+
         $wa = $this->document->getWebAssetManager();
+        // Ensure Font Awesome is available (cassiopeia FA6 subsets can miss icons used in tmpl).
+        $faCss = \JPATH_ROOT . '/media/vendor/fontawesome-free/css/all.min.css';
+        if (\is_file($faCss)) {
+            HTMLHelper::_('stylesheet', 'vendor/fontawesome-free/css/all.min.css', ['relative' => true, 'version' => 'auto']);
+        }
+
         $wa->registerAndUseStyle('com_ordenproduccion.clientes', 'media/com_ordenproduccion/css/clientes.css', [], ['version' => 'auto']);
         $wa->registerAndUseScript('com_ordenproduccion.clientes', 'media/com_ordenproduccion/js/clientes.js', [], ['version' => 'auto']);
         
