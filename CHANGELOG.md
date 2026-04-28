@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.3-STABLE] - 2026-04-16
+
+### Added
+- **Asistente OT (cotización confirmada), paso 3:** Al crear la OT se inserta una orden interna en `#__ordenproduccion_ordenes` (servicio `OrdenFromQuotationService`) y el destino depende de pendientes: si aún hay líneas (PRE) sin OT vuelve a la cotización; si no, abre la nueva OT.
+
 ## [3.115.2-STABLE] - 2026-04-16
 
 ### Added

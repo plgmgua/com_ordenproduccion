@@ -39,6 +39,8 @@ $returnUrl        = isset($wizardParams['return_url']) ? (string) $wizardParams[
 $cotOtStep3Enabled = !empty($wizardParams['cotizacion_ot_step3_instructions']);
 $cotOtSaveInstrUrl = isset($wizardParams['cot_ot_save_instrucciones_json_url'])
     ? (string) $wizardParams['cot_ot_save_instrucciones_json_url'] : '';
+$cotOtCreateOrdenUrl = isset($wizardParams['cot_ot_create_orden_json_url'])
+    ? (string) $wizardParams['cot_ot_create_orden_json_url'] : '';
 $cotOtStepTotal    = $cotOtStep3Enabled ? 3 : 2;
 $cotOtReturnUrlJs  = $submitReturnOnly && $returnUrl !== ''
     ? $returnUrl
@@ -398,8 +400,10 @@ var otDebugMode = <?php echo $params->get('enable_debug', 0) ? 'true' : 'false';
 var comOpOtWizardStepTotal = <?php echo (int) $cotOtStepTotal; ?>;
 var comOpOtUseThreeSteps = <?php echo $cotOtStep3Enabled ? 'true' : 'false'; ?>;
 var comOpOtSaveInstruccionesJsonUrl = <?php echo json_encode($cotOtSaveInstrUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var comOpOtCreateOrdenJsonUrl = <?php echo json_encode($cotOtCreateOrdenUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var comOpOtReturnAfterSubmitUrl = <?php echo json_encode($cotOtReturnUrlJs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var cotOtSubmitReturnOnly = <?php echo $submitReturnOnly ? 'true' : 'false'; ?>;
+var comOpOtFormTokenName = <?php echo json_encode(Session::getFormToken(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var comOpOtWizardPreId = 0;
 var otWizardCurrentStep = 1;
 var otWizardProgressLabels = <?php echo json_encode([
@@ -1338,6 +1342,11 @@ function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
         .then(function(data) {
             if (submitBtn) submitBtn.disabled = false;
             if (data && data.success) {
+                // If configured, create OT internally from this PRE and decide redirect (OT vs return to cotización)
+                if (comOpOtCreateOrdenJsonUrl && String(comOpOtCreateOrdenJsonUrl).length > 0) {
+                    opOtCreateOrdenFromWizard(formEl, doneUrl);
+                    return;
+                }
                 opOtUnmountStep3InstructionsIfMounted();
                 opOtHideOtModal();
                 window.location.href = doneUrl;
@@ -1348,6 +1357,84 @@ function opOtSaveInstruccionesOrdenThenRedirect(doneUrl) {
         .catch(function() {
             if (submitBtn) submitBtn.disabled = false;
             alert('Error de conexión al guardar las instrucciones.');
+        });
+}
+
+function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
+    if (!instruccionesFormEl || !comOpOtCreateOrdenJsonUrl) {
+        opOtUnmountStep3InstructionsIfMounted();
+        opOtHideOtModal();
+        window.location.href = fallbackReturnUrl;
+        return;
+    }
+    var pid = parseInt(String(comOpOtWizardPreId || '0'), 10) || 0;
+    var qidEl = instruccionesFormEl.querySelector('input[name="quotation_id"]');
+    var pidEl = instruccionesFormEl.querySelector('input[name="pre_cotizacion_id"]');
+    var qid = qidEl ? parseInt(String(qidEl.value || '0'), 10) : 0;
+    var preId = pidEl ? parseInt(String(pidEl.value || '0'), 10) : pid;
+    if (!qid || !preId) {
+        opOtUnmountStep3InstructionsIfMounted();
+        opOtHideOtModal();
+        window.location.href = fallbackReturnUrl;
+        return;
+    }
+
+    var clientId = document.getElementById('otClientId') ? document.getElementById('otClientId').value : '';
+    var deliveryStreet = document.getElementById('otSelectedStreet') ? document.getElementById('otSelectedStreet').value : '';
+    var deliveryCity = document.getElementById('otSelectedCity') ? document.getElementById('otSelectedCity').value : '';
+    var instructions = document.getElementById('otDeliveryInstructions') ? document.getElementById('otDeliveryInstructions').value : '';
+    var deliveryTypeEl = document.querySelector('input[name="otDeliveryType"]:checked');
+    var deliveryType = deliveryTypeEl ? deliveryTypeEl.value : '';
+    var contactName = document.getElementById('otSelectedContactName') ? document.getElementById('otSelectedContactName').value : '';
+    var contactPhone = document.getElementById('otSelectedContactPhone') ? document.getElementById('otSelectedContactPhone').value : '';
+
+    var deliveryAddress = deliveryStreet;
+    if (deliveryCity) {
+        deliveryAddress += (deliveryStreet ? ', ' : '') + deliveryCity;
+    }
+
+    var fd = new FormData();
+    fd.append('quotation_id', String(qid));
+    fd.append('pre_cotizacion_id', String(preId));
+    if (clientId) fd.append('client_id', String(clientId));
+    if (deliveryType) fd.append('tipo_entrega', String(deliveryType));
+    if (deliveryAddress) fd.append('delivery_address', String(deliveryAddress));
+    if (instructions) fd.append('instrucciones_entrega', String(instructions));
+    if (contactName) fd.append('contact_person_name', String(contactName));
+    if (contactPhone) fd.append('contact_person_phone', String(contactPhone));
+    if (comOpOtFormTokenName) fd.append(String(comOpOtFormTokenName), '1');
+
+    var submitBtn = document.getElementById('otBtnSubmit');
+    if (submitBtn) submitBtn.disabled = true;
+
+    fetch(comOpOtCreateOrdenJsonUrl, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function(response) {
+            return response.text().then(function(text) {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    return { success: false, message: text ? text.substring(0, 200) : '' };
+                }
+            });
+        })
+        .then(function(data) {
+            if (submitBtn) submitBtn.disabled = false;
+            if (data && data.success && data.redirect_url) {
+                opOtUnmountStep3InstructionsIfMounted();
+                opOtHideOtModal();
+                window.location.href = data.redirect_url;
+                return;
+            }
+            alert((data && data.message) ? data.message : 'No se pudo crear la orden de trabajo.');
+        })
+        .catch(function() {
+            if (submitBtn) submitBtn.disabled = false;
+            alert('Error de conexión al crear la orden de trabajo.');
         });
 }
 function saveDeliveryAddressNow() {

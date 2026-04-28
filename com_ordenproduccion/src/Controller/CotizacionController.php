@@ -25,6 +25,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\OrdenFromQuotationService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
@@ -1039,6 +1040,178 @@ class CotizacionController extends BaseController
             }
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
         }
+    }
+
+    /**
+     * Create an internal work order row (Joomla DB) from a confirmed quotation line (pre-cotización).
+     * Used by OT wizard Step 3 after persisting instrucciones.
+     *
+     * POST: quotation_id, pre_cotizacion_id, optional wizard fields:
+     *  - tipo_entrega (domicilio|recoger)
+     *  - delivery_address
+     *  - instrucciones_entrega
+     *  - contact_person_name
+     *  - contact_person_phone
+     *
+     * Returns JSON: { success, message, order_id?, redirect_url? }
+     *
+     * Redirect rule:
+     * - If there are other pre-cotizaciones on the same quotation without an active OT → redirect back to cotización
+     * - Else → redirect to the newly created OT edit screen
+     *
+     * @return  void
+     *
+     * @since   3.115.3
+     */
+    public function createOrdenFromQuotation()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json', true);
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+        if (!Session::checkToken('post')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $quotationId = (int) $app->input->post->get('quotation_id', 0);
+        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
+        if ($quotationId < 1 || $preCotizacionId < 1) {
+            echo json_encode(['success' => false, 'message' => 'Invalid quotation or pre-cotización id']);
+            $app->close();
+        }
+
+        if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')]);
+            $app->close();
+        }
+
+        $db = Factory::getDbo();
+
+        $service = new OrdenFromQuotationService($db);
+
+        // If already exists, use it (idempotent UX).
+        $existing = $service->findExistingActiveOrderByPreCotizacionId($preCotizacionId);
+        if ($existing && isset($existing->id)) {
+            $existingId = (int) $existing->id;
+            $redirect = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $existingId);
+            echo json_encode([
+                'success' => true,
+                'message' => 'OK',
+                'order_id' => $existingId,
+                'redirect_url' => $redirect,
+            ]);
+            $app->close();
+        }
+
+        $wizard = [
+            'tipo_entrega' => (string) $app->input->post->get('tipo_entrega', '', 'cmd'),
+            'delivery_address' => (string) $app->input->post->get('delivery_address', '', 'string'),
+            'instrucciones_entrega' => (string) $app->input->post->get('instrucciones_entrega', '', 'raw'),
+            'contact_person_name' => (string) $app->input->post->get('contact_person_name', '', 'string'),
+            'contact_person_phone' => (string) $app->input->post->get('contact_person_phone', '', 'string'),
+        ];
+
+        $built = $service->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
+        if (empty($built['success'])) {
+            echo json_encode(['success' => false, 'message' => (string) ($built['message'] ?? 'Could not build work order')]);
+            $app->close();
+        }
+
+        $cols = isset($built['columns']) && is_array($built['columns']) ? $built['columns'] : [];
+        if ($cols === []) {
+            echo json_encode(['success' => false, 'message' => 'No insertable columns for work order table']);
+            $app->close();
+        }
+
+        try {
+            $query = $db->getQuery(true)->insert($db->quoteName('#__ordenproduccion_ordenes'));
+            $names = [];
+            $values = [];
+            foreach ($cols as $k => $v) {
+                $names[] = $db->quoteName((string) $k);
+                $values[] = $v === null ? 'NULL' : $db->quote((string) $v);
+            }
+            $query->columns($names)->values(implode(',', $values));
+            $db->setQuery($query);
+            $db->execute();
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Could not create work order']);
+            $app->close();
+        }
+
+        $newId = (int) $db->insertid();
+        if ($newId < 1) {
+            echo json_encode(['success' => false, 'message' => 'Could not create work order']);
+            $app->close();
+        }
+
+        $redirect = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $newId);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'OK',
+            'order_id' => $newId,
+            'redirect_url' => $redirect,
+        ]);
+        $app->close();
+    }
+
+    /**
+     * Decide whether to redirect back to cotización or to the OT edit page.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   int                                 $quotationId
+     * @param   int                                 $orderId
+     *
+     * @return  string
+     *
+     * @since   3.115.3
+     */
+    private function buildOrdenWizardRedirectUrl($db, int $quotationId, int $orderId): string
+    {
+        $quotationId = (int) $quotationId;
+        $orderId = (int) $orderId;
+
+        $cotUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false);
+        $otUrl  = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&id=' . $orderId, false);
+
+        // If schema doesn't support linkage, just go to the OT.
+        $ordenesCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $ordenesCols = is_array($ordenesCols) ? array_change_key_case($ordenesCols, CASE_LOWER) : [];
+        if (!isset($ordenesCols['pre_cotizacion_id'])) {
+            return $otUrl;
+        }
+
+        try {
+            $q = $db->getQuery(true)
+                ->select($db->quoteName('qi.pre_cotizacion_id'))
+                ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+                ->leftJoin(
+                    $db->quoteName('#__ordenproduccion_ordenes', 'o')
+                    . ' ON ' . $db->quoteName('o.pre_cotizacion_id') . ' = ' . $db->quoteName('qi.pre_cotizacion_id')
+                    . ' AND ' . $db->quoteName('o.state') . ' = 1'
+                )
+                ->where($db->quoteName('qi.quotation_id') . ' = ' . $quotationId)
+                ->where($db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL')
+                ->where($db->quoteName('o.id') . ' IS NULL')
+                ->group($db->quoteName('qi.pre_cotizacion_id'));
+            $db->setQuery($q);
+            $pending = $db->loadColumn() ?: [];
+        } catch (\Throwable $e) {
+            return $otUrl;
+        }
+
+        // If there are still pending PREs without OT, return to quotation.
+        if (!empty($pending)) {
+            return $cotUrl;
+        }
+
+        return $otUrl;
     }
 
     /**

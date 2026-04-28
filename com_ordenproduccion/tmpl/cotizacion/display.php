@@ -607,6 +607,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
     <?php
     // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
     if ($quotationConfirmed) {
+        $createOrdenJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createOrdenFromQuotation&format=json', false);
         $wizardParams = [
             'params'                            => ComponentHelper::getParams('com_ordenproduccion'),
             'user'                              => Factory::getUser(),
@@ -615,6 +616,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             /** Paso 3: mismos campos que #instruccionesOrdenModal (detalle por proceso) */
             'cotizacion_ot_step3_instructions'  => $instruccionesModalCanSave && $lineDetallesTableOk,
             'cot_ot_save_instrucciones_json_url'=> $instruccionesSaveJsonUrl,
+            'cot_ot_create_orden_json_url'      => $createOrdenJsonUrl,
         ];
         $otWizardPartial = JPATH_SITE . '/components/com_ordenproduccion/tmpl/partials/site_ot_modal_wizard.php';
         if (\is_file($otWizardPartial)) {
