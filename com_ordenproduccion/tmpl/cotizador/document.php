@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -812,6 +813,14 @@ $solicitarDescuentoAction   = Route::_(
         .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
         </style>
     <?php endif; ?>
+
+    <?php
+    $userCreCotModal = Factory::getUser();
+    $cotDestUrlModal = trim((string) ComponentHelper::getParams('com_ordenproduccion')->get('cotizacion_destination_url', ''));
+    if (!$userCreCotModal->guest && $cotDestUrlModal !== '') {
+        include __DIR__ . '/crear_cotizacion_modal.php';
+    }
+    ?>
 
     <?php if ($discountWorkflowAvailable) : ?>
     <div class="mt-3 text-end precotizacion-discount-footer">

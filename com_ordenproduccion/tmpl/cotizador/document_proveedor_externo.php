@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -743,6 +744,14 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 </div>
             </div>
         </div>
+    <?php
+    $userCreCotModal = Factory::getUser();
+    $cotDestUrlModal = trim((string) ComponentHelper::getParams('com_ordenproduccion')->get('cotizacion_destination_url', ''));
+    if (!$userCreCotModal->guest && $cotDestUrlModal !== '') {
+        include __DIR__ . '/crear_cotizacion_modal.php';
+    }
+    ?>
+
     <template id="proveedor-externo-line-template">
         <tr class="proveedor-externo-line-row">
             <td class="col-qty">

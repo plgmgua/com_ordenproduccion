@@ -303,6 +303,70 @@ class ClienteController extends FormController
     }
 
     /**
+     * JSON list of contacts (same pool as Mis Clientes) for choosing cliente before opening cotización URL.
+     *
+     * @return  void
+     */
+    public function searchContactsForCotizacion()
+    {
+        $this->app->setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        if (!Session::checkToken('request')) {
+            echo json_encode(['success' => false, 'message' => 'Invalid token', 'contacts' => []]);
+            $this->app->close();
+        }
+
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized', 'contacts' => []]);
+            $this->app->close();
+        }
+
+        $q = trim($this->input->getString('q', ''));
+
+        try {
+            $model = $this->getModel('Clientes', 'Site', ['ignore_request' => true]);
+
+            if ($model === null) {
+                echo json_encode(['success' => false, 'message' => 'Model unavailable', 'contacts' => []]);
+                $this->app->close();
+            }
+
+            $model->setState('filter.search', $q);
+            $model->setState('list.limit', $q !== '' ? 50 : 35);
+            $model->setState('list.start', 0);
+
+            $items = $model->getItems();
+            $contacts = [];
+
+            foreach ($items as $row) {
+                if (!\is_array($row)) {
+                    continue;
+                }
+                $contacts[] = [
+                    'id' => isset($row['id']) ? (int) $row['id'] : 0,
+                    'name' => isset($row['name']) ? (string) $row['name'] : '',
+                    'vat'  => isset($row['vat']) ? (string) $row['vat'] : '',
+                ];
+            }
+
+            echo json_encode([
+                'success' => true,
+                'contacts' => $contacts,
+            ]);
+        } catch (\Throwable $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'contacts' => [],
+            ]);
+        }
+
+        $this->app->close();
+    }
+
+    /**
      * Method to get parent contact info (AJAX)
      *
      * @return  void

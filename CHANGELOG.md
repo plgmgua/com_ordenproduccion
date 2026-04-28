@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.19-STABLE] - 2026-04-16
+
+### Added
+- **Pre-cotización (documento):** Botón **Crear cotización** bajo la tabla de líneas (vista estándar y **proveedor externo**): abre un modal para buscar contactos igual que Mis Clientes y abre la URL de cotización configurada (`cotizacion_destination_url`) con `client_id`, nombre, NIT y agente de ventas. Nueva tarea AJAX `cliente.searchContactsForCotizacion` para listar contactos.
+
 ## [3.114.16-STABLE] - 2026-04-16
 
 ### Added
