@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.17-STABLE] - 2026-04-27
+
+### Changed
+- **Cotización confirmada:** Si la pre-cotización ya tiene orden(es) en la columna **Orden de trabajo**, el botón **Generar OT** muestra aviso (no abre el asistente) — `data-ot-already-exists` + mensaje i18n.
+
 ## [3.115.16-STABLE] - 2026-04-27
 
 ### Fixed

@@ -505,6 +505,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             }
                             $thumbPaths[] = $norm;
                         }
+                        $otsLine = ($preId > 0 && !empty($ordenesPorPre[$preId])) ? $ordenesPorPre[$preId] : [];
+                        $lineHasExistingOt = $otsLine !== [];
                     ?>
                         <tr>
                             <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
@@ -538,7 +540,14 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                         data-client-id="<?php echo (int) $wizClientIdTrimForOt; ?>"
                                         data-client-name="<?php echo htmlspecialchars($quotation->client_name ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                                         data-client-vat="<?php echo htmlspecialchars($quotation->client_nit ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                                        title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?>">
+                                        data-ot-already-exists="<?php echo $lineHasExistingOt ? '1' : '0'; ?>"
+                                        title="<?php echo htmlspecialchars(
+                                            $lineHasExistingOt
+                                                ? $l('COM_ORDENPRODUCCION_COT_PRE_OT_ALREADY_EXISTS', 'A work order already exists for this pre-quotation.', 'Ya existe una orden de trabajo asociada a esta pre-cotización.')
+                                                : $l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo'),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ); ?>">
                                         <i class="fas fa-print" aria-hidden="true"></i>
                                         <span class="visually-hidden"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_GENERAR_ORDEN_TRABAJO', 'Generate Work Order', 'Generar Orden de Trabajo')); ?></span>
                                     </button>
@@ -559,10 +568,9 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             </td>
                             <?php endif; ?>
                             <td class="col-cotizacion-ot align-middle small"><?php
-                            $ots = ($preId > 0 && !empty($ordenesPorPre[$preId])) ? $ordenesPorPre[$preId] : [];
-                            if ($ots !== []) {
+                            if ($otsLine !== []) {
                                 $oti = 0;
-                                foreach ($ots as $ot) {
+                                foreach ($otsLine as $ot) {
                                     if ($oti > 0) {
                                         echo '<span class="text-muted">, </span>';
                                     }
@@ -657,6 +665,12 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 <?php if ($quotationConfirmed) : ?>
 <script>
 (function() {
+    var cotPreOtAlreadyMsg = <?php echo json_encode($l(
+        'COM_ORDENPRODUCCION_COT_PRE_OT_ALREADY_EXISTS',
+        'A work order already exists for this pre-quotation.',
+        'Ya existe una orden de trabajo asociada a esta pre-cotización.'
+    ), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
     function onDocClick(ev) {
         var t = ev.target;
         var btn = t && t.closest ? t.closest('.cotizacion-ot-wizard-trigger') : null;
@@ -664,6 +678,10 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             return;
         }
         ev.preventDefault();
+        if (btn.getAttribute('data-ot-already-exists') === '1') {
+            window.alert(cotPreOtAlreadyMsg || '');
+            return;
+        }
         var cid = parseInt(btn.getAttribute('data-client-id') || '0', 10);
         if (!cid) {
             return;
