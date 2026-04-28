@@ -160,6 +160,10 @@ class OrdenFromQuotationService
             $valorFinal = (float) ($itemRow->subtotal ?? 0);
         }
 
+        if (!\is_finite($valorFinal)) {
+            $valorFinal = 0.0;
+        }
+
         $confirmation = $this->loadLatestConfirmation($quotationId, $preCotizacionId);
 
         $ordenColsRaw = $this->db->getTableColumns('#__ordenproduccion_ordenes', false);
@@ -247,7 +251,7 @@ class OrdenFromQuotationService
             'pre_cotizacion_number'   => $this->getProp($preItem, 'number'),
             'document_mode'         => isset($preItem->document_mode) ? (string) $preItem->document_mode : 'pliego',
             'valor_final_line'      => round($valorFinal, 2),
-            'pre_total_snapshot'    => round($preTotal, 2),
+            'pre_total_snapshot'    => round(\is_finite($preTotal) ? (float) $preTotal : 0.0, 2),
             'confirmation_id'       => $confirmation ? (int) ($confirmation->id ?? 0) : null,
             'line_detalles_snapshot'=> $this->decodeLineDetallesSnapshot($confirmation),
             'wizard_tipo_entrega'   => isset($wizard['tipo_entrega']) ? (string) $wizard['tipo_entrega'] : null,

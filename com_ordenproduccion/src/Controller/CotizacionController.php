@@ -1294,6 +1294,70 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Recursively replace NAN/INF so json_encode succeeds (PHP rejects them otherwise).
+     *
+     * @param   mixed  $data
+     * @return  mixed
+     *
+     * @since   3.115.11
+     */
+    private function sanitizeScalarsForOtWizardLogJson($data)
+    {
+        if (\is_array($data)) {
+            $out = [];
+            foreach ($data as $k => $v) {
+                $out[$k] = $this->sanitizeScalarsForOtWizardLogJson($v);
+            }
+
+            return $out;
+        }
+
+        if (\is_float($data) && (!\is_finite($data))) {
+            return null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Encode payload for Joomla log line; never return empty silently when json_encode fails.
+     *
+     * @since   3.115.11
+     */
+    private function encodeOtWizardPayloadForLog(array $payload): string
+    {
+        $clean = $this->sanitizeScalarsForOtWizardLogJson($payload);
+        $flags = JSON_UNESCAPED_UNICODE;
+        if (\defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+            $flags |= \constant('JSON_INVALID_UTF8_SUBSTITUTE');
+        }
+        if (\defined('JSON_PARTIAL_OUTPUT_ON_ERROR')) {
+            $flags |= \constant('JSON_PARTIAL_OUTPUT_ON_ERROR');
+        }
+
+        $json = json_encode($clean, $flags);
+        if ($json !== false) {
+            return $json;
+        }
+
+        $fbFlags = JSON_UNESCAPED_UNICODE;
+        if (\defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+            $fbFlags |= \constant('JSON_INVALID_UTF8_SUBSTITUTE');
+        }
+
+        $mini = json_encode([
+            '_log_fallback'       => true,
+            'json_last_error_msg' => function_exists('json_last_error_msg') ? json_last_error_msg() : (string) json_last_error(),
+            'stage'               => isset($payload['stage']) ? (string) $payload['stage'] : '',
+            'quotation_id'        => (int) ($payload['quotation_id'] ?? 0),
+            'pre_cotizacion_id'   => (int) ($payload['pre_cotizacion_id'] ?? 0),
+            'detail'              => isset($payload['detail']) ? substr((string) $payload['detail'], 0, 240) : '',
+        ], $fbFlags);
+
+        return $mini !== false ? $mini : '{"_log_fallback":true,"error":"json_encode_failed"}';
+    }
+
+    /**
      * Writes Joomla log entry (category com_ordenproduccion, ERROR). Enable global debug or set log priorities in
      * Joomla to capture; does not depend on component enable_debug.
      *
@@ -1326,7 +1390,7 @@ class CotizacionController extends BaseController
         }
 
         Log::add(
-            'OT wizard create failed: ' . json_encode($payload, JSON_UNESCAPED_UNICODE),
+            'OT wizard create failed: ' . $this->encodeOtWizardPayloadForLog($payload),
             Log::ERROR,
             'com_ordenproduccion'
         );

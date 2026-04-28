@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.11-STABLE] - 2026-04-28
+
+### Fixed
+- **OT wizard log UI / everything.php:** Si `json_encode` fallaba (p. ej. `NAN`/`INF` en montos desde PRE proveedor externo), la línea quedaba en `OT wizard create failed:` vacía y la tabla Creación OT mostraba sólo rayas. Sanitización de escalares NAN/INF, flags `JSON_INVALID_UTF8_SUBSTITUTE`/`JSON_PARTIAL_OUTPUT_ON_ERROR`, fallback JSON mínimo.
+- **`OrdenFromQuotationService`:** `valor_final` y snapshot `pre_total` forzados a finitos antes de usar en payload/JSON.
+
 ## [3.115.10-STABLE] - 2026-04-28
 
 ### Fixed
