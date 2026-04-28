@@ -297,27 +297,32 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-qty {
-    width: 6%;
+    width: 5%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-desc {
-    width: 40%;
+    width: 34%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-images {
-    width: 15%;
-}
-
-.cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-unit {
-    width: 15%;
-}
-
-.cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-sub {
     width: 13%;
 }
 
+.cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-unit {
+    width: 14%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-sub {
+    width: 11%;
+}
+
+/* 7ª columna OT (sin Acción confirmada): mantener hueco visible; antes faltaban % → solapamiento con Descripción */
+.cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-ot {
+    width: 12%;
+}
+
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-pre {
-    width: 10%;
+    width: 9%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-qty {
@@ -325,23 +330,28 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-desc {
-    width: 34%;
+    width: 30%;
+}
+
+/* Columna orden de trabajo: 8 columnas con Acción */
+.cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-ot {
+    width: 11%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-images {
-    width: 12%;
+    width: 11%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-unit {
-    width: 13%;
-}
-
-.cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-sub {
     width: 12%;
 }
 
+.cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-sub {
+    width: 11%;
+}
+
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-action {
-    width: 14%;
+    width: 11%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-pre {
@@ -388,6 +398,24 @@
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-action,
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-action {
     vertical-align: middle;
+}
+
+.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-ot {
+    white-space: normal;
+    line-height: 1.25;
+    vertical-align: middle;
+}
+
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-ot {
+    min-width: 7.5rem;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+/* Contenedor opcional junto al h4: permite ver todas las columnas sin recortes en pantallas estrechas */
+.cotizacion-display .cotizacion-display-lines-table-wrap.table-responsive {
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Cotización display: line images column (aligned with edit form preview size) */

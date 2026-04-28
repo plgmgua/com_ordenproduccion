@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.16-STABLE] - 2026-04-27
+
+### Fixed
+- **Cotización (detalle líneas):** Columna **Orden de trabajo** quedaba sin `%` en `colgroup`/`table-layout:fixed` y el ancho sumaba más de 100 % antes de OT — solapamiento Cantidad/Descripción y número ORD recortado. Ajuste de porcentajes por columna (`col-cotizacion-ot`), cabecera OT sin `text-nowrap`, envoltorio `table-responsive`, y estilos para `th`/`td` OT.
+
 ## [3.115.15-STABLE] - 2026-04-27
 
 ### Changed

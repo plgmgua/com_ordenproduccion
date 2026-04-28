@@ -444,6 +444,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
         <?php if (empty($items)) : ?>
             <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_LINES', 'No lines.', 'Sin líneas.'); ?></p>
         <?php else : ?>
+            <div class="table-responsive cotizacion-display-lines-table-wrap">
             <table class="table table-bordered table-sm cotizacion-display-lines-table<?php echo $quotationConfirmed ? ' cotizacion-display-lines-table--has-action' : ''; ?>">
                 <?php if ($quotationConfirmed) : ?>
                 <colgroup>
@@ -478,7 +479,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <?php if ($quotationConfirmed) : ?>
                         <th class="col-cotizacion-action text-center text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                         <?php endif; ?>
-                        <th class="col-cotizacion-ot text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_COL_ORDEN_TRABAJO', 'Work orders', 'Orden de trabajo'); ?></th>
+                        <th class="col-cotizacion-ot"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_COL_ORDEN_TRABAJO', 'Work orders', 'Orden de trabajo'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -598,6 +599,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                     </tr>
                 </tfoot>
             </table>
+            </div>
         <?php endif; ?>
     </div>
 

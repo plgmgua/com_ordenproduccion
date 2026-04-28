@@ -514,7 +514,7 @@ class HtmlView extends BaseHtmlView
                 'com_ordenproduccion.cotizacion',
                 'media/com_ordenproduccion/css/cotizacion.css',
                 [],
-                ['version' => '3.52.0']
+                ['version' => '3.115.16']
             );
             
         } catch (\Exception $e) {
