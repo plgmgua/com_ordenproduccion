@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.13-STABLE] - 2026-04-27
+
+### Added
+- **Cotización (vista lectura):** columna final **Orden de trabajo** en *Detalles de la cotización*, con enlaces a las OT activas (`state = 1`) cuyo `pre_cotizacion_id` coincide con la línea; texto del enlace según `order_number` u `orden_de_trabajo`.
+
 ## [3.115.12-STABLE] - 2026-04-28
 
 ### Fixed

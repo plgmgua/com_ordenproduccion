@@ -125,6 +125,16 @@ class HtmlView extends BaseHtmlView
     protected $quotationItems = [];
 
     /**
+     * Órdenes de trabajo activas keyed by `pre_cotizacion_id` → list of link rows (display on cotización read-only layout).
+     *
+     * Each entry is [ ['id'=>int,'label'=>string,'url'=>string], ... ] with label preferred from order_number then orden_de_trabajo.
+     *
+     * @var    array<int, array<int, array{id: int, label: string, url: string}>>
+     * @since  3.115.13
+     */
+    protected $ordenesPorPreCotizacionId = [];
+
+    /**
      * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
      *
      * @var    array<int, array{id: int, number: string, showSuffix: bool}>
@@ -247,6 +257,14 @@ class HtmlView extends BaseHtmlView
                             $item->pre_cotizacion_total_con_tarjeta = null;
                         }
                     }
+                    $preIdsDistinct = [];
+                    foreach ($this->quotationItems as $qi) {
+                        $pid = isset($qi->pre_cotizacion_id) ? (int) $qi->pre_cotizacion_id : 0;
+                        if ($pid > 0) {
+                            $preIdsDistinct[$pid] = true;
+                        }
+                    }
+                    $this->ordenesPorPreCotizacionId = $this->buildOrdenesLinksByPreCotizacionIds($db, array_keys($preIdsDistinct));
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
                     $this->itemsWithLineDetalles = [];
                     if ($precotModel->lineDetallesTableExists()) {
@@ -303,6 +321,7 @@ class HtmlView extends BaseHtmlView
                     }
                 } else {
                     $this->quotationItems = [];
+                    $this->ordenesPorPreCotizacionId = [];
                     $this->itemsWithLineDetalles = [];
                     $this->pliegoPaperTypesModal = [];
                     $this->pliegoSizesModal = [];
@@ -503,6 +522,86 @@ class HtmlView extends BaseHtmlView
         }
 
         parent::display($tpl);
+    }
+
+    /**
+     * Active work orders for given pre-cotización ids (for cotización display column).
+     *
+     * @param   \Joomla\Database\DatabaseDriver  $db
+     * @param   int[]                            $preCotizacionIds
+     *
+     * @return  array<int, array<int, array{id: int, label: string, url: string}>>
+     *
+     * @since   3.115.13
+     */
+    protected function buildOrdenesLinksByPreCotizacionIds($db, array $preCotizacionIds): array
+    {
+        $ids = [];
+        foreach ($preCotizacionIds as $pid) {
+            $pid = (int) $pid;
+            if ($pid > 0) {
+                $ids[$pid] = true;
+            }
+        }
+        $idList = array_keys($ids);
+        if ($idList === []) {
+            return [];
+        }
+        $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['pre_cotizacion_id'])) {
+            return [];
+        }
+        $q = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->select($db->quoteName('pre_cotizacion_id'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' IN (' . implode(',', array_map('intval', $idList)) . ')')
+            ->where($db->quoteName('state') . ' = 1');
+        if (isset($cols['order_number'])) {
+            $q->select($db->quoteName('order_number'));
+        }
+        if (isset($cols['orden_de_trabajo'])) {
+            $q->select($db->quoteName('orden_de_trabajo'));
+        }
+        $q->order($db->quoteName('pre_cotizacion_id') . ' ASC')
+            ->order($db->quoteName('id') . ' ASC');
+
+        try {
+            $db->setQuery($q);
+            $rows = $db->loadObjectList();
+        } catch (\Throwable $e) {
+            return [];
+        }
+        $out = [];
+        foreach ($rows ?: [] as $row) {
+            $preId = isset($row->pre_cotizacion_id) ? (int) $row->pre_cotizacion_id : 0;
+            if ($preId < 1) {
+                continue;
+            }
+            $label = '';
+            if (isset($row->order_number)) {
+                $label = trim((string) $row->order_number);
+            }
+            if ($label === '' && isset($row->orden_de_trabajo)) {
+                $label = trim((string) $row->orden_de_trabajo);
+            }
+            $oid = (int) $row->id;
+            if ($label === '') {
+                $label = '#' . $oid;
+            }
+            $url = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&id=' . $oid, false);
+            if (!isset($out[$preId])) {
+                $out[$preId] = [];
+            }
+            $out[$preId][] = [
+                'id'    => $oid,
+                'label' => $label,
+                'url'   => $url,
+            ];
+        }
+
+        return $out;
     }
 
     /**

@@ -65,6 +65,7 @@ if ($facturarCotizacionExacta !== 0) {
 }
 
 $itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
+$ordenesPorPre = isset($this->ordenesPorPreCotizacionId) && is_array($this->ordenesPorPreCotizacionId) ? $this->ordenesPorPreCotizacionId : [];
 $pliegoPaperTypesIo = $this->pliegoPaperTypesModal ?? [];
 $pliegoSizesIo = $this->pliegoSizesModal ?? [];
 $elementosIo = $this->elementosModal ?? [];
@@ -453,6 +454,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                     <col class="col-cotizacion-sub">
                     <col class="col-cotizacion-images">
                     <col class="col-cotizacion-action">
+                    <col class="col-cotizacion-ot">
                 </colgroup>
                 <?php else : ?>
                 <colgroup>
@@ -462,6 +464,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                     <col class="col-cotizacion-unit">
                     <col class="col-cotizacion-sub">
                     <col class="col-cotizacion-images">
+                    <col class="col-cotizacion-ot">
                 </colgroup>
                 <?php endif; ?>
                 <thead>
@@ -475,6 +478,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <?php if ($quotationConfirmed) : ?>
                         <th class="col-cotizacion-action text-center text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                         <?php endif; ?>
+                        <th class="col-cotizacion-ot text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_COL_ORDEN_TRABAJO', 'Work orders', 'Orden de trabajo'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -553,6 +557,27 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                 <?php endif; ?>
                             </td>
                             <?php endif; ?>
+                            <td class="col-cotizacion-ot align-middle small"><?php
+                            $ots = ($preId > 0 && !empty($ordenesPorPre[$preId])) ? $ordenesPorPre[$preId] : [];
+                            if ($ots !== []) {
+                                $oti = 0;
+                                foreach ($ots as $ot) {
+                                    if ($oti > 0) {
+                                        echo '<span class="text-muted">, </span>';
+                                    }
+                                    $oti++;
+                                    $ou = isset($ot['url']) ? (string) $ot['url'] : '';
+                                    $ol = isset($ot['label']) ? (string) $ot['label'] : '';
+                                    if ($ou !== '' && $ol !== '') {
+                                        echo '<a href="' . htmlspecialchars($ou, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($ol, ENT_QUOTES, 'UTF-8') . '</a>';
+                                    } elseif ($ol !== '') {
+                                        echo htmlspecialchars($ol, ENT_QUOTES, 'UTF-8');
+                                    }
+                                }
+                            } else {
+                                echo '<span class="text-muted">—</span>';
+                            }
+                            ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -563,9 +588,11 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
                         <td></td>
                         <td></td>
+                        <td></td>
                         <?php else : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                        <td></td>
                         <td></td>
                         <?php endif; ?>
                     </tr>
