@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.27-STABLE] - 2026-04-16
+
+### Fixed
+- **Asistente OT en cotización:** Con **override de plantilla** en `templates/.../html/com_ordenproduccion/cotizacion/display.php`, `__DIR__` apuntaba al tema y el `include` del partial fallaba (sin `window.openOTModal`). El partial se carga ahora con `JPATH_SITE . '/components/com_ordenproduccion/tmpl/partials/...'`.
+
 ## [3.114.26-STABLE] - 2026-04-16
 
 ### Fixed

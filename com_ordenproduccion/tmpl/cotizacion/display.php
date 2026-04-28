@@ -613,7 +613,11 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             'submit_mode_return'   => true,
             'return_url'           => Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false),
         ];
-        include __DIR__ . '/partials/site_ot_modal_wizard.php';
+        $otWizardPartial = JPATH_SITE . '/components/com_ordenproduccion/tmpl/partials/site_ot_modal_wizard.php';
+        if (\is_file($otWizardPartial)) {
+            // Must not use __DIR__ — if this view is copied to templates/.../html/..., __DIR__ is the template folder and the partial path breaks.
+            include $otWizardPartial;
+        }
     }
     ?>
 <?php if ($quotationConfirmed) : ?>
