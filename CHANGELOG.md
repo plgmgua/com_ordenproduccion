@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.4-STABLE] - 2026-04-27
+
+### Fixed
+- **OT desde cotización (paso 3):** Creación fallaba silenciosamente con “Could not create work order”; insert vía `$db->insertObject()`, filtro de valores inválidos para columnas ENUM, detalle cuando `enable_debug`.
+
 ## [3.115.3-STABLE] - 2026-04-16
 
 ### Added

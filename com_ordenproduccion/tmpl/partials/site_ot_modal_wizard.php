@@ -1430,7 +1430,11 @@ function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
                 window.location.href = data.redirect_url;
                 return;
             }
-            alert((data && data.message) ? data.message : 'No se pudo crear la orden de trabajo.');
+            var err = (data && data.message) ? data.message : 'No se pudo crear la orden de trabajo.';
+            if (data && data.detail) {
+                err += "\n" + String(data.detail).substring(0, 500);
+            }
+            alert(err);
         })
         .catch(function() {
             if (submitBtn) submitBtn.disabled = false;

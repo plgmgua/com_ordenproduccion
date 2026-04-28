@@ -11,10 +11,12 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\File;
 use Joomla\CMS\Input\Input;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
@@ -1128,25 +1130,55 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        try {
-            $query = $db->getQuery(true)->insert($db->quoteName('#__ordenproduccion_ordenes'));
-            $names = [];
-            $values = [];
-            foreach ($cols as $k => $v) {
-                $names[] = $db->quoteName((string) $k);
-                $values[] = $v === null ? 'NULL' : $db->quote((string) $v);
+        $debugEnabled = (int) ComponentHelper::getParams('com_ordenproduccion')->get('enable_debug', 0) === 1;
+        unset($cols['id']);
+
+        $cols = $this->filterOrdeneInsertRowForMysqlEnums($db, $cols);
+
+        $newId = 0;
+
+        $insertRow = new \stdClass();
+        foreach ($cols as $k => $v) {
+            if (!\is_string($k) || $k === '') {
+                continue;
             }
-            $query->columns($names)->values(implode(',', $values));
-            $db->setQuery($query);
-            $db->execute();
+
+            // insertObject/bind stores scalars/null; refuse arrays/objects to avoid malformed SQL.
+            if ($v !== null && !is_scalar($v)) {
+                continue;
+            }
+
+            $insertRow->{$k} = $v;
+        }
+
+        try {
+            $db->insertObject('#__ordenproduccion_ordenes', $insertRow, 'id');
+            $newId = (int) $db->insertid();
+            if ($newId < 1 && isset($insertRow->id)) {
+                $newId = (int) $insertRow->id;
+            }
         } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => 'Could not create work order']);
+            Log::add('createOrdenFromQuotation exception: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+            $msg = Text::_('COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED');
+            $out = ['success' => false, 'message' => $msg];
+            if ($debugEnabled) {
+                $out['detail'] = $e->getMessage();
+            }
+            echo json_encode($out);
             $app->close();
         }
 
-        $newId = (int) $db->insertid();
         if ($newId < 1) {
-            echo json_encode(['success' => false, 'message' => 'Could not create work order']);
+            $diag = method_exists($db, 'getErrorMsg') ? trim((string) $db->getErrorMsg()) : '';
+            if ($diag !== '') {
+                Log::add('createOrdenFromQuotation missing insert id: ' . $diag, Log::WARNING, 'com_ordenproduccion');
+            }
+            $msg = Text::_('COM_ORDENPRODUCCION_OT_CREATE_INTERNAL_FAILED');
+            $out = ['success' => false, 'message' => $msg];
+            if ($debugEnabled && $diag !== '') {
+                $out['detail'] = $diag;
+            }
+            echo json_encode($out);
             $app->close();
         }
 
@@ -1159,6 +1191,148 @@ class CotizacionController extends BaseController
             'redirect_url' => $redirect,
         ]);
         $app->close();
+    }
+
+    /**
+     * Remove values that would violate MySQL ENUM definitions (e.g. UI stores
+     * "Entrega a domicilio" while some schemas use enum('completa','parcial') for shipping_type).
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   array<string,mixed>                  $cols
+     * @return  array<string,mixed>
+     *
+     * @since   3.115.4
+     */
+    private function filterOrdeneInsertRowForMysqlEnums($db, array $cols): array
+    {
+        if ($cols === []) {
+            return [];
+        }
+
+        try {
+            $db->setQuery('SELECT DATABASE()');
+            $schema = (string) $db->loadResult();
+        } catch (\Throwable $e) {
+            return $cols;
+        }
+
+        if ($schema === '') {
+            return $cols;
+        }
+
+        $table = $db->replacePrefix('#__ordenproduccion_ordenes');
+        $want  = [];
+        foreach (array_keys($cols) as $k) {
+            if (\is_string($k) && $k !== '') {
+                $want[] = $k;
+            }
+        }
+
+        if ($want === []) {
+            return $cols;
+        }
+
+        $quoted = [];
+        foreach ($want as $w) {
+            $quoted[] = $db->quote($w);
+        }
+
+        $q = $db->getQuery(true)
+            ->select([
+                $db->quoteName('COLUMN_NAME'),
+                $db->quoteName('COLUMN_TYPE'),
+                $db->quoteName('DATA_TYPE'),
+            ])
+            ->from($db->quoteName('information_schema') . '.' . $db->quoteName('COLUMNS'))
+            ->where($db->quoteName('TABLE_SCHEMA') . ' = ' . $db->quote($schema))
+            ->where($db->quoteName('TABLE_NAME') . ' = ' . $db->quote($table))
+            ->where($db->quoteName('COLUMN_NAME') . ' IN (' . implode(',', $quoted) . ')');
+
+        try {
+            $db->setQuery($q);
+            $rows = $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return $cols;
+        }
+
+        $metaByLower = [];
+        foreach ($rows as $r) {
+            $name = (string) $this->getObjectProperty($r, 'COLUMN_NAME');
+            if ($name === '') {
+                continue;
+            }
+            $metaByLower[strtolower($name)] = [
+                'data_type'   => strtolower((string) $this->getObjectProperty($r, 'DATA_TYPE')),
+                'column_type' => (string) $this->getObjectProperty($r, 'COLUMN_TYPE'),
+            ];
+        }
+
+        foreach ($cols as $name => $value) {
+            if (!\is_string($name) || $name === '') {
+                continue;
+            }
+
+            $meta = $metaByLower[strtolower($name)] ?? null;
+            if ($meta === null || $meta['data_type'] !== 'enum') {
+                continue;
+            }
+
+            if ($value === null) {
+                continue;
+            }
+
+            $allowed = $this->parseMysqlEnumLiteralsFromColumnType($meta['column_type']);
+            if ($allowed === []) {
+                continue;
+            }
+
+            $needle = trim((string) $value);
+            $matched = false;
+            foreach ($allowed as $lit) {
+                if ($needle === trim((string) $lit)) {
+                    $matched = true;
+                    break;
+                }
+            }
+
+            if (!$matched) {
+                unset($cols[$name]);
+            }
+        }
+
+        return $cols;
+    }
+
+    /**
+     * Extract enum literals from a COLUMN_TYPE definition.
+     *
+     * @return  string[]
+     *
+     * @since   3.115.4
+     */
+    private function parseMysqlEnumLiteralsFromColumnType(string $columnType): array
+    {
+        $columnType = str_replace(["\r", "\n"], '', trim($columnType));
+        if ($columnType === '' || stripos($columnType, 'enum(') !== 0) {
+            return [];
+        }
+
+        if (!preg_match('/^enum\\((.*)\\)$/i', $columnType, $m)) {
+            return [];
+        }
+
+        $inner = $m[1];
+        if ($inner === '') {
+            return [];
+        }
+
+        preg_match_all("/'((?:\\\\'|''|[^'])*)'/", $inner, $mm);
+        $out = [];
+        foreach (($mm[1] ?? []) as $frag) {
+            $out[] = str_replace("''", "'", (string) $frag);
+        }
+
+        return $out;
     }
 
     /**
