@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.6-STABLE] - 2026-04-27
+
+### Fixed
+- **OT desde cotización (paso 3):** Persistencia vía administrador `OrdenesTable` (`bind` / `check` / `store`) con `insertObject` como respaldo; duplicación coherente de columnas legado ES / alias EN (incl. nombres de columna con distinto casing o solo uno de los dos campos presentes en la fila) para que las validaciones de `check()` encuentren `orden_de_trabajo`, `nombre_del_cliente`, `descripcion_de_trabajo`.
+
 ## [3.115.5-STABLE] - 2026-04-27
 
 ### Fixed

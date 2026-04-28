@@ -1132,53 +1132,28 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        $debugEnabled = (int) ComponentHelper::getParams('com_ordenproduccion')->get('enable_debug', 0) === 1;
         unset($cols['id']);
 
         $cols = $this->filterOrdeneInsertRowForMysqlEnums($db, $cols);
+        $cols = $this->mirrorOrdenSpanishAliasColumns($cols);
 
-        $newId = 0;
-
-        $insertRow = new \stdClass();
-        foreach ($cols as $k => $v) {
-            if (!\is_string($k) || $k === '') {
-                continue;
-            }
-
-            // insertObject/bind stores scalars/null; refuse arrays/objects to avoid malformed SQL.
-            if ($v !== null && !is_scalar($v)) {
-                continue;
-            }
-
-            $insertRow->{$k} = $v;
-        }
-
-        try {
-            $db->insertObject('#__ordenproduccion_ordenes', $insertRow, 'id');
-            $newId = (int) $db->insertid();
-            if ($newId < 1 && isset($insertRow->id)) {
-                $newId = (int) $insertRow->id;
-            }
-        } catch (\Throwable $e) {
-            Log::add('createOrdenFromQuotation exception: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+        $persist = $this->persistNewOrdenRow($db, $cols);
+        if (empty($persist['success'])) {
             $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
-            if ($debugEnabled) {
-                $out['detail'] = $e->getMessage();
+            if (!empty($persist['detail'])) {
+                $out['detail'] = (string) $persist['detail'];
             }
             echo json_encode($out);
             $app->close();
         }
 
+        $newId = (int) ($persist['order_id'] ?? 0);
         if ($newId < 1) {
-            $diag = method_exists($db, 'getErrorMsg') ? trim((string) $db->getErrorMsg()) : '';
-            if ($diag !== '') {
-                Log::add('createOrdenFromQuotation missing insert id: ' . $diag, Log::WARNING, 'com_ordenproduccion');
-            }
             $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
-            if ($debugEnabled && $diag !== '') {
-                $out['detail'] = $diag;
+            if (!empty($persist['detail'])) {
+                $out['detail'] = (string) $persist['detail'];
             }
             echo json_encode($out);
             $app->close();
@@ -1193,6 +1168,239 @@ class CotizacionController extends BaseController
             'redirect_url' => $redirect,
         ]);
         $app->close();
+    }
+
+    /**
+     * Ensure legacy Spanish columns used by {#__ordenproduccion_ordenes} checks are populated when only
+     * newer English aliases were kept after column filtering (and vice versa).
+     *
+     * @param   array<string,mixed>  $cols
+     * @return  array<string,mixed>
+     *
+     * @since   3.115.6
+     */
+    private function mirrorOrdenSpanishAliasColumns(array $cols): array
+    {
+        $trim = static function ($v): string {
+            return trim((string) ($v ?? ''));
+        };
+
+        $lowerToKey = [];
+        foreach ($cols as $k => $_) {
+            if (\is_string($k) && $k !== '') {
+                $lk = strtolower($k);
+                if (!isset($lowerToKey[$lk])) {
+                    $lowerToKey[$lk] = $k;
+                }
+            }
+        }
+
+        $mirrorPair = static function (array &$cols, array $lowerToKey, string $spa, string $eng) use ($trim): void {
+            $ks = $lowerToKey[strtolower($spa)] ?? null;
+            $ke = $lowerToKey[strtolower($eng)] ?? null;
+
+            $vs = $ks !== null ? $trim($cols[$ks] ?? '') : '';
+            $ve = $ke !== null ? $trim($cols[$ke] ?? '') : '';
+
+            if ($vs === '' && $ve !== '') {
+                if ($ks !== null && $ke !== null) {
+                    $cols[$ks] = $cols[$ke];
+                } elseif ($ks === null && $ke !== null) {
+                    // Row only had the English-ish column key: expose Spanish canonical name too
+                    $cols[$spa] = $cols[$ke];
+                }
+            }
+
+            if ($ks !== null) {
+                $vs = $trim($cols[$ks] ?? '');
+            } else {
+                $vs = $trim($cols[$spa] ?? '');
+            }
+
+            if ($ke !== null) {
+                $ve = $trim($cols[$ke] ?? '');
+            } else {
+                $ve = $trim($cols[$eng] ?? '');
+            }
+
+            if ($ve === '' && $vs !== '') {
+                if ($ks !== null && $ke !== null) {
+                    $cols[$ke] = $cols[$ks];
+                } elseif ($ke === null && $ks !== null) {
+                    $cols[$eng] = $cols[$ks];
+                }
+            }
+        };
+
+        $mirrorPair($cols, $lowerToKey, 'descripcion_de_trabajo', 'work_description');
+        $mirrorPair($cols, $lowerToKey, 'nombre_del_cliente', 'client_name');
+        $mirrorPair($cols, $lowerToKey, 'orden_de_trabajo', 'order_number');
+
+        return $cols;
+    }
+
+    /**
+     * Persist OT row using Administrator OrdenesTable (preferred; runs check/store). Falls back to insertObject.
+     *
+     * @param   \Joomla\Database\DatabaseDriver  $db
+     * @param   array<string,mixed>               $cols
+     * @return  array{success?:bool, order_id?:int, detail?:string}
+     *
+     * @since   3.115.6
+     */
+    private function persistNewOrdenRow($db, array $cols): array
+    {
+        $row = [];
+        foreach ($cols as $k => $v) {
+            if (!\is_string($k) || $k === '') {
+                continue;
+            }
+
+            if ($v !== null && !is_scalar($v)) {
+                continue;
+            }
+
+            $row[$k] = $v;
+        }
+
+        $tableFile = JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/Table/OrdenesTable.php';
+
+        if (\is_file($tableFile)) {
+            try {
+                require_once $tableFile;
+                /** @var \Grimpsa\Component\Ordenproduccion\Administrator\Table\OrdenesTable $orderTable */
+                $orderTable = new \Grimpsa\Component\Ordenproduccion\Administrator\Table\OrdenesTable($db);
+
+                if (!$orderTable->bind($row)) {
+                    return [
+                        'success' => false,
+                        'detail' => $this->summarizeOrdenPersistenceError($this->collectOrdenTableErrorMessage($orderTable)),
+                    ];
+                }
+
+                if (!$orderTable->check()) {
+                    return [
+                        'success' => false,
+                        'detail' => $this->summarizeOrdenPersistenceError($this->translateLikelyLangConstant($this->collectOrdenTableErrorMessage($orderTable))),
+                    ];
+                }
+
+                if (!$orderTable->store()) {
+                    return [
+                        'success' => false,
+                        'detail' => $this->summarizeOrdenPersistenceError($this->collectOrdenTableErrorMessage($orderTable)),
+                    ];
+                }
+
+                $newId = (int) $orderTable->id;
+                if ($newId > 0) {
+                    return ['success' => true, 'order_id' => $newId];
+                }
+
+                return [
+                    'success' => false,
+                    'detail' => $this->summarizeOrdenPersistenceError($this->collectOrdenTableErrorMessage($orderTable) ?: 'Store finished without primary key.'),
+                ];
+            } catch (\Throwable $e) {
+                Log::add('persistNewOrdenRow OrdenesTable: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+                // Fallback below
+            }
+        }
+
+        try {
+            $insertRow = (object) $row;
+            if (!$db->insertObject('#__ordenproduccion_ordenes', $insertRow, 'id')) {
+                $diag = method_exists($db, 'getErrorMsg') ? trim((string) $db->getErrorMsg()) : '';
+
+                return [
+                    'success' => false,
+                    'detail' => $this->summarizeOrdenPersistenceError($diag !== '' ? $diag : 'insertObject returned false.'),
+                ];
+            }
+
+            $newId = (int) $db->insertid();
+
+            if ($newId < 1 && isset($insertRow->id)) {
+                $newId = (int) $insertRow->id;
+            }
+
+            if ($newId > 0) {
+                return ['success' => true, 'order_id' => $newId];
+            }
+
+            $diag = method_exists($db, 'getErrorMsg') ? trim((string) $db->getErrorMsg()) : '';
+
+            return [
+                'success' => false,
+                'detail' => $this->summarizeOrdenPersistenceError($diag !== '' ? $diag : 'Missing insert id after insertObject.'),
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'detail' => $this->summarizeOrdenPersistenceError($e->getMessage())];
+        }
+    }
+
+    /**
+     * Collect last Table error message.
+     *
+     * @param   object  $table  Joomla Table
+     *
+     * @since   3.115.6
+     */
+    private function collectOrdenTableErrorMessage($table): string
+    {
+        if (!\is_object($table)) {
+            return '';
+        }
+
+        if (method_exists($table, 'getError')) {
+            $msg = trim((string) call_user_func([$table, 'getError']));
+            if ($msg !== '') {
+                return $msg;
+            }
+        }
+
+        if (method_exists($table, 'getErrors')) {
+            $errs = call_user_func([$table, 'getErrors']);
+            if (\is_array($errs) && $errs !== []) {
+                return trim(implode(' ', array_map('strval', $errs)));
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * If error is a language constant, translate for JSON output.
+     *
+     * @since   3.115.6
+     */
+    private function translateLikelyLangConstant(string $msg): string
+    {
+        $msg = trim($msg);
+        if ($msg !== '' && strpos($msg, 'COM_ORDENPRODUCCION_') === 0) {
+            Factory::getApplication()->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            $t = Text::_($msg);
+
+            return ($t !== $msg) ? $t : $msg;
+        }
+
+        return $msg;
+    }
+
+    /**
+     * Keep detail helpful but bounded for browser alerts.
+     *
+     * @since   3.115.6
+     */
+    private function summarizeOrdenPersistenceError(string $msg): string
+    {
+        $msg = trim(str_replace(["\r\n", "\r"], "\n", $msg));
+
+        if (\strlen($msg) > 600) {
+            return substr($msg, 0, 600) . '…';
+        }
+
+        return $msg;
     }
 
     /**
