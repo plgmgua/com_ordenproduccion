@@ -309,6 +309,35 @@ function showNotification(message, type) {
         }, 150);
     }, 4000);
 }
+function opOtGetBootstrapModalCtor() {
+    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+        return window.bootstrap.Modal;
+    }
+    /* global bootstrap — some bundles bind only globally */
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        return bootstrap.Modal;
+    }
+    return null;
+}
+
+function opOtShowOtModalBackdrop() {
+    var modalEl = document.getElementById('otModal');
+    if (!modalEl) {
+        return false;
+    }
+    var ModalCtor = opOtGetBootstrapModalCtor();
+    if (ModalCtor && typeof ModalCtor.getOrCreateInstance === 'function') {
+        ModalCtor.getOrCreateInstance(modalEl).show();
+        return true;
+    }
+    /* Fallback if Bootstrap bundle is not globally exposed yet */
+    modalEl.classList.add('show');
+    modalEl.setAttribute('aria-hidden', 'false');
+    modalEl.style.display = 'block';
+    modalEl.style.paddingRight = '0px';
+    document.body.classList.add('modal-open');
+    return false;
+}
 function openOTModal(clientId, clientName, clientVat) {
     // Set client information
     document.getElementById('otClientId').value = clientId;
@@ -331,9 +360,11 @@ function openOTModal(clientId, clientName, clientVat) {
     // Hide new address form and reset button
     document.getElementById('otNewAddressForm').style.display = 'none';
     var showBtn = document.getElementById('otShowNewAddressBtn');
-    showBtn.innerHTML = '<i class="fas fa-plus"></i> Crear una nueva dirección de entrega';
-    showBtn.classList.remove('btn-outline-secondary');
-    showBtn.classList.add('btn-outline-primary');
+    if (showBtn) {
+        showBtn.innerHTML = '<i class="fas fa-plus"></i> Crear una nueva dirección de entrega';
+        showBtn.classList.remove('btn-outline-secondary');
+        showBtn.classList.add('btn-outline-primary');
+    }
     
     // Clear selected address data
     document.getElementById('otSelectedStreet').value = '';
@@ -358,9 +389,11 @@ function openOTModal(clientId, clientName, clientVat) {
     // Hide new contact form and reset button
     document.getElementById('otNewContactForm').style.display = 'none';
     var showContactBtn = document.getElementById('otShowNewContactBtn');
-    showContactBtn.innerHTML = '<i class="fas fa-plus"></i> Crear un nuevo contacto';
-    showContactBtn.classList.remove('btn-outline-secondary');
-    showContactBtn.classList.add('btn-outline-primary');
+    if (showContactBtn) {
+        showContactBtn.innerHTML = '<i class="fas fa-plus"></i> Crear un nuevo contacto';
+        showContactBtn.classList.remove('btn-outline-secondary');
+        showContactBtn.classList.add('btn-outline-primary');
+    }
     
     // Clear selected contact data
     document.getElementById('otSelectedContactName').value = '';
@@ -391,10 +424,11 @@ function openOTModal(clientId, clientName, clientVat) {
     // Load credit limit
     loadCreditLimit(clientId);
     
-    // Show modal
-    var otModal = new bootstrap.Modal(document.getElementById('otModal'));
-    otModal.show();
+    // Show modal (Joomla/template may expose window.bootstrap.Modal instead of bootstrap)
+    opOtShowOtModalBackdrop();
 }
+
+window.openOTModal = openOTModal;
 
 // Load credit limit for the selected client
 function loadCreditLimit(clientId) {

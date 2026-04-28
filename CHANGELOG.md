@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.26-STABLE] - 2026-04-16
+
+### Fixed
+- **Asistente OT (cotización confirmada):** El botón parecía no hacer nada por `bootstrap`/`new bootstrap.Modal` o por el enlace previo sin `window.openOTModal`; se usa `window.bootstrap.Modal.getOrCreateInstance` con respaldo y **listener delegado en `DOMContentLoaded`** con mensaje de error visible.
+
 ## [3.114.25-STABLE] - 2026-04-16
 
 ### Fixed

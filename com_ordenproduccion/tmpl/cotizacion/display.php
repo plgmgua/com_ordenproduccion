@@ -619,18 +619,40 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 <?php if ($quotationConfirmed) : ?>
 <script>
 (function() {
-    document.querySelectorAll('.cotizacion-ot-wizard-trigger').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var cid = parseInt(btn.getAttribute('data-client-id') || '0', 10);
-            var name = btn.getAttribute('data-client-name') || '';
-            var vat = btn.getAttribute('data-client-vat') || '';
-            if (!cid || typeof openOTModal !== 'function') {
-                return;
+    function onDocClick(ev) {
+        var t = ev.target;
+        var btn = t && t.closest ? t.closest('.cotizacion-ot-wizard-trigger') : null;
+        if (!btn) {
+            return;
+        }
+        ev.preventDefault();
+        var cid = parseInt(btn.getAttribute('data-client-id') || '0', 10);
+        if (!cid) {
+            return;
+        }
+        var name = btn.getAttribute('data-client-name') || '';
+        var vat = btn.getAttribute('data-client-vat') || '';
+        var fn = (typeof window.openOTModal === 'function') ? window.openOTModal : null;
+        if (!fn) {
+            alert('Orden de trabajo: el asistente no está disponible en esta página. Recargue (F5) e intente de nuevo.');
+            return;
+        }
+        try {
+            fn(cid, name, vat);
+        } catch (e) {
+            if (typeof console !== 'undefined' && console.error) {
+                console.error(e);
             }
-            openOTModal(cid, name, vat);
+            alert(e && e.message ? e.message : String(e));
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('click', onDocClick, false);
         });
-    });
+    } else {
+        document.addEventListener('click', onDocClick, false);
+    }
 })();
 </script>
 <?php endif; ?>
