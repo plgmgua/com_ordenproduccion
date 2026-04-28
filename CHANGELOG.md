@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.12-STABLE] - 2026-04-28
+
+### Fixed
+- **`OrdenesTable::check()`:** En esquemas donde sólo existen columnas en inglés (`client_name`, `work_description`, `order_number`) o el flujo añade `nombre_del_cliente` al array sin ser columna física, `bind` no rellena la propiedad española y `check()` fallaba pese a datos en inglés. Validación y comprobación de duplicados usan pares ES/EN; `_getAssetTitle` usa `order_number` si falta `orden_de_trabajo`.
+
 ## [3.115.11-STABLE] - 2026-04-28
 
 ### Fixed

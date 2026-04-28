@@ -56,7 +56,12 @@ class OrdenesTable extends Table
      */
     protected function _getAssetTitle()
     {
-        return $this->orden_de_trabajo;
+        $ot = trim((string) ($this->orden_de_trabajo ?? ''));
+        if ($ot !== '') {
+            return $ot;
+        }
+
+        return trim((string) ($this->order_number ?? ''));
     }
 
     /**
@@ -128,38 +133,64 @@ class OrdenesTable extends Table
      */
     public function check()
     {
-        // Check for valid name
-        if (trim($this->orden_de_trabajo) == '') {
+        $orderNo = trim((string) ($this->orden_de_trabajo ?? ''));
+        if ($orderNo === '') {
+            $orderNo = trim((string) ($this->order_number ?? ''));
+        }
+        if ($orderNo === '') {
             $this->setError('COM_ORDENPRODUCCION_ERROR_ORDER_NUMBER_REQUIRED');
+
             return false;
         }
 
-        // Check for valid client name
-        if (trim($this->nombre_del_cliente) == '') {
+        $clientNom = trim((string) ($this->nombre_del_cliente ?? ''));
+        if ($clientNom === '') {
+            $clientNom = trim((string) ($this->client_name ?? ''));
+        }
+        if ($clientNom === '') {
             $this->setError('COM_ORDENPRODUCCION_ERROR_CLIENT_NAME_REQUIRED');
+
             return false;
         }
 
-        // Check for valid work description
-        if (trim($this->descripcion_de_trabajo) == '') {
+        $workDesc = trim((string) ($this->descripcion_de_trabajo ?? ''));
+        if ($workDesc === '') {
+            $workDesc = trim((string) ($this->work_description ?? ''));
+        }
+        if ($workDesc === '') {
             $this->setError('COM_ORDENPRODUCCION_ERROR_WORK_DESCRIPTION_REQUIRED');
+
             return false;
         }
 
-        // Check for duplicate order number
-        $query = $this->_db->getQuery(true)
+        // Duplicate check: same label may live in orden_de_trabajo and/or order_number on mixed schemas
+        $db = $this->_db;
+        $ordQuoted = $db->quote($orderNo);
+        $sub = [];
+        if ($this->hasTableField('orden_de_trabajo')) {
+            $sub[] = $db->quoteName('orden_de_trabajo') . ' = ' . $ordQuoted;
+        }
+        if ($this->hasTableField('order_number')) {
+            $sub[] = $db->quoteName('order_number') . ' = ' . $ordQuoted;
+        }
+        if ($sub === []) {
+            $sub[] = $db->quoteName('orden_de_trabajo') . ' = ' . $ordQuoted;
+        }
+
+        $query = $db->getQuery(true)
             ->select('COUNT(*)')
-            ->from($this->_db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($this->_db->quoteName('orden_de_trabajo') . ' = ' . $this->_db->quote($this->orden_de_trabajo));
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where('(' . implode(' OR ', $sub) . ')');
 
         if ($this->id) {
-            $query->where($this->_db->quoteName('id') . ' != ' . (int) $this->id);
+            $query->where($db->quoteName('id') . ' != ' . (int) $this->id);
         }
 
-        $this->_db->setQuery($query);
+        $db->setQuery($query);
 
-        if ($this->_db->loadResult() > 0) {
+        if ($db->loadResult() > 0) {
             $this->setError('COM_ORDENPRODUCCION_ERROR_DUPLICATE_ORDER_NUMBER');
+
             return false;
         }
 
@@ -169,6 +200,32 @@ class OrdenesTable extends Table
         }
 
         return true;
+    }
+
+    /**
+     * Whether a physical column exists on this table (for mixed ES/EN schemas).
+     *
+     * @since  3.115.12
+     */
+    protected function hasTableField(string $columnName): bool
+    {
+        $columnName = trim($columnName);
+        if ($columnName === '') {
+            return false;
+        }
+
+        $fields = $this->getFields();
+        if (!\is_array($fields)) {
+            return false;
+        }
+
+        foreach (array_keys($fields) as $fname) {
+            if (strcasecmp((string) $fname, $columnName) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
