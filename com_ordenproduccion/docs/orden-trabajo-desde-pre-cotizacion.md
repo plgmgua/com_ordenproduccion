@@ -110,3 +110,4 @@ Más campos opcionales en `form_data` (NIT, material, proceso SI/NO, etc.) está
 
 ---
 
+*Última actualización: 2026-04-28 (numeración alineada webhook / asistente cotización, §5 webhook).*
