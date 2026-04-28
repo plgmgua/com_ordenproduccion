@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.20-STABLE] - 2026-04-16
+
+### Added
+- **Cotización (nuevo):** Parámetro de URL **`precotizacion_id`** (alias **`pre_cotizacion_id`**): si apunta a una pre-cotización permitida para el usuario, la primera línea se genera automáticamente con esa PRE y cantidad desde la primera línea de producto no-envío del documento. El botón desde pre-cotización añade el id a la URL de destino.
+
 ## [3.114.19-STABLE] - 2026-04-16
 
 ### Added

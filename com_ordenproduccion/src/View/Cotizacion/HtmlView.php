@@ -92,6 +92,22 @@ class HtmlView extends BaseHtmlView
     protected $preCotizacionesList = [];
 
     /**
+     * When opening nueva cotización with precotizacion_id (or pre_cotizacion_id) in URL — id if válido para el usuario.
+     *
+     * @var    int
+     * @since  3.114.20
+     */
+    public $initialPrecotizacionId = 0;
+
+    /**
+     * Cantidad sugerida (primera línea de producto no-envío del documento PRE) para la primera línea de la cotización.
+     *
+     * @var    int
+     * @since  3.114.20
+     */
+    public $initialPrecotizacionFirstLineQty = 0;
+
+    /**
      * Quotation when editing (id in request)
      *
      * @var    \stdClass|null
@@ -380,6 +396,27 @@ class HtmlView extends BaseHtmlView
                     ];
                 }
                 $this->preCotizacionesList = $list;
+
+                if (!$this->quotation) {
+                    $wantPreId = (int) $input->getInt('precotizacion_id', 0);
+                    if ($wantPreId < 1) {
+                        $wantPreId = (int) $input->getInt('pre_cotizacion_id', 0);
+                    }
+                    if ($wantPreId > 0) {
+                        $allowed = false;
+                        foreach ($list as $pc) {
+                            if ((int) ($pc->id ?? 0) === $wantPreId) {
+                                $allowed = true;
+                                break;
+                            }
+                        }
+                        if ($allowed) {
+                            $this->initialPrecotizacionId           = $wantPreId;
+                            $precotLines                             = $precotModel->getLines($wantPreId);
+                            $this->initialPrecotizacionFirstLineQty = $this->getFirstNonEnvioLineQuantityFromPreLines(is_array($precotLines) ? $precotLines : []);
+                        }
+                    }
+                }
             }
             
             // Check if user has permission (ventas group)
@@ -394,6 +431,13 @@ class HtmlView extends BaseHtmlView
                     . ($input->getString('address', '') !== '' ? '&address=' . urlencode($input->getString('address')) : '')
                     . ($input->getString('contact_person_name', '') !== '' ? '&contact_person_name=' . urlencode($input->getString('contact_person_name')) : '')
                     . ($input->getString('contact_person_phone', '') !== '' ? '&contact_person_phone=' . urlencode($input->getString('contact_person_phone')) : '');
+                $wantPreGuest = (int) $input->getInt('precotizacion_id', 0);
+                if ($wantPreGuest < 1) {
+                    $wantPreGuest = (int) $input->getInt('pre_cotizacion_id', 0);
+                }
+                if ($wantPreGuest > 0) {
+                    $returnUrl .= '&precotizacion_id=' . $wantPreGuest;
+                }
                 $return = urlencode(base64_encode($returnUrl));
                 $app->redirect(Route::_('index.php?option=com_users&view=login&return=' . $return, false));
                 return;
@@ -497,6 +541,34 @@ class HtmlView extends BaseHtmlView
         }
 
         return $blocks;
+    }
+
+    /**
+     * Quantity from first non-envío línea del documento pre-cotización (para nueva cotización desde URL).
+     *
+     * @param   array<int, object>  $lines
+     *
+     * @return  int
+     *
+     * @since   3.114.20
+     */
+    protected function getFirstNonEnvioLineQuantityFromPreLines(array $lines): int
+    {
+        foreach ($lines as $row) {
+            if (!is_object($row)) {
+                continue;
+            }
+            $r       = array_change_key_case((array) $row, CASE_LOWER);
+            $lineTyp = isset($r['line_type']) ? (string) $r['line_type'] : 'pliego';
+            if ($lineTyp === 'envio') {
+                continue;
+            }
+            $qty = isset($r['quantity']) ? (int) $r['quantity'] : 0;
+
+            return $qty > 0 ? $qty : 0;
+        }
+
+        return 0;
     }
 }
 

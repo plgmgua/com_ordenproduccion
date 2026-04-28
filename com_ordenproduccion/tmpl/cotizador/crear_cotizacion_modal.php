@@ -16,6 +16,7 @@ use Joomla\CMS\Session\Session;
 $userModal      = Factory::getUser();
 $agentDisplay   = (!$userModal->guest && $userModal->name !== '') ? (string) $userModal->name : '';
 $cotDestination = isset($cotDestUrlModal) ? (string) $cotDestUrlModal : '';
+$preCotizacionParaCotUrl = isset($preCotizacionIdParaCotUrl) ? (int) $preCotizacionIdParaCotUrl : 0;
 
 if ($userModal->guest || trim($cotDestination) === '') {
     return;
@@ -85,6 +86,10 @@ $searchAjaxUrlRaw = Route::_('index.php?option=com_ordenproduccion&task=cliente.
         url += '&contact_name=' + encodeURIComponent(clientName || '');
         url += '&contact_vat=' + encodeURIComponent(clientVat || '');
         url += '&x_studio_agente_de_ventas=' + encodeURIComponent(agentName || '');
+        var preIdPc = <?php echo (int) $preCotizacionParaCotUrl; ?>;
+        if (preIdPc > 0) {
+            url += '&precotizacion_id=' + encodeURIComponent(String(preIdPc));
+        }
         window.open(url, '_blank');
     }
 

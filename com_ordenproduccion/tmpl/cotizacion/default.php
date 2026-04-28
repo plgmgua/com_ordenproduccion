@@ -348,6 +348,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
     let lineIndex = <?php echo isset($lineIndex) ? (int)$lineIndex : 0; ?>;
+    var isEditMode = <?php echo $isEdit ? 'true' : 'false'; ?>;
+    var initialPrecotizacionId = <?php echo !$isEdit ? (int) ($this->initialPrecotizacionId ?? 0) : 0; ?>;
+    var initialPrecotizacionFirstQty = <?php echo !$isEdit ? (int) ($this->initialPrecotizacionFirstLineQty ?? 0) : 0; ?>;
     var msgLineAttach = <?php echo json_encode($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>;
 
     // Pre-cotización descriptions from server (reliable for long/special chars), fallback to data-descripcion
@@ -525,6 +528,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var minValorLine = (tcRaw !== null && tcRaw !== '' && !isNaN(parseFloat(tcRaw))) ? parseFloat(tcRaw) : baseTotal;
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
             var value = minValorLine.toFixed(2);
+            var qtyForNewRow = cantidadEl ? parseInt(String(cantidadEl.value).trim(), 10) : 0;
+            if (isNaN(qtyForNewRow) || qtyForNewRow < 0) {
+                qtyForNewRow = 0;
+            }
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
@@ -535,7 +542,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var unitPrice = '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
-                '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="0" step="1" value="0"></td>' +
+                '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
@@ -558,12 +565,27 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 valueInput.addEventListener('input', function() { onValorFinalChange(tr); });
                 valueInput.addEventListener('blur', function() { onValorFinalBlur(tr); });
             }
+            if (qtyInput && qtyForNewRow > 0) {
+                onRowCantidadChange(tr);
+            }
             if (descEl) descEl.value = '';
             if (cantidadEl) cantidadEl.value = '0';
             selectEl.selectedIndex = 0;
             opt.remove();
             updateTotal();
         });
+    }
+
+    if (!isEditMode && typeof initialPrecotizacionId === 'number' && initialPrecotizacionId > 0 && selectEl && btnAdd) {
+        var warmOpt = selectEl.querySelector('option[value="' + String(initialPrecotizacionId) + '"]');
+        if (warmOpt && warmOpt.value) {
+            selectEl.value = String(initialPrecotizacionId);
+            fillDescriptionFromPrecotizacion();
+            if (cantidadEl && initialPrecotizacionFirstQty > 0) {
+                cantidadEl.value = String(initialPrecotizacionFirstQty);
+            }
+            btnAdd.click();
+        }
     }
     // Bind cantidad and valor final change/blur on existing rows (edit mode)
     tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
