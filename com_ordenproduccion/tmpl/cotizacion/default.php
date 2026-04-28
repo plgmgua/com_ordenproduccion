@@ -217,7 +217,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <div id="cotizacion-add-line-cantidad-wrap" class="cotizacion-add-line-cantidad-wrap d-none">
                     <div class="cotizacion-add-cantidad">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
-                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="0" aria-label="Cantidad">
+                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="0" aria-label="Cantidad" disabled>
                     </div>
                     </div>
                     <div class="cotizacion-add-descripcion">
@@ -397,10 +397,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         var hasPre = !!(opt && opt.value && parseInt(opt.value, 10) > 0);
         if (hasPre) {
             cantidadWrapEl.classList.remove('d-none');
+            if (cantidadEl) {
+                cantidadEl.disabled = false;
+            }
         } else {
             cantidadWrapEl.classList.add('d-none');
             if (cantidadEl) {
                 cantidadEl.value = '0';
+                cantidadEl.disabled = true;
             }
         }
     }
