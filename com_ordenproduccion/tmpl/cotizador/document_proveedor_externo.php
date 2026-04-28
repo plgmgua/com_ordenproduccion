@@ -747,6 +747,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     <?php
     $userCreCotModal = Factory::getUser();
     $cotDestUrlModal = trim((string) ComponentHelper::getParams('com_ordenproduccion')->get('cotizacion_destination_url', ''));
+    // Igual que id= en el documento PRE: PK de pre_cotización, no el número PRE-xxxxxx.
     $preCotizacionIdParaCotUrl = (int) $preCotizacionId;
     if (!$userCreCotModal->guest && $cotDestUrlModal !== '') {
         include __DIR__ . '/crear_cotizacion_modal.php';

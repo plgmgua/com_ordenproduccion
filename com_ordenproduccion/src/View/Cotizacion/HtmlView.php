@@ -93,7 +93,7 @@ class HtmlView extends BaseHtmlView
     protected $preCotizacionesList = [];
 
     /**
-     * When opening nueva cotización with precotizacion_id (or pre_cotizacion_id) in URL — id if válido para el usuario.
+     * URL param precotizacion_id / pre_cotizacion_id: PK de #__ordenproduccion_pre_cotizacion (id), not the display number (number / PRE-xxxxx).
      *
      * @var    int
      * @since  3.114.20
@@ -548,7 +548,7 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Reads precotizacion_id / pre_cotizacion_id from merged input and PHP $_GET (SEF/router edge cases).
+     * Reads precotizacion_id / pre_cotizacion_id — must be the table **id** (integer PK), not PRE-nnnnn (**number** column).
      *
      * @param   mixed  $input  Application input (\Joomla\Input\Input)
      *

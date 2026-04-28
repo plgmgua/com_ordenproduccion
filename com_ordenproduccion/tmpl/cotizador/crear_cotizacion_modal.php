@@ -16,6 +16,7 @@ use Joomla\CMS\Session\Session;
 $userModal      = Factory::getUser();
 $agentDisplay   = (!$userModal->guest && $userModal->name !== '') ? (string) $userModal->name : '';
 $cotDestination = isset($cotDestUrlModal) ? (string) $cotDestUrlModal : '';
+// PK de #__ordenproduccion_pre_cotizacion (p. ej. 163), no el campo "number" visible (p. ej. PRE-00144).
 $preCotizacionParaCotUrl = isset($preCotizacionIdParaCotUrl) ? (int) $preCotizacionIdParaCotUrl : 0;
 
 if ($userModal->guest || trim($cotDestination) === '') {
@@ -88,6 +89,7 @@ $searchAjaxUrlRaw = Route::_('index.php?option=com_ordenproduccion&task=cliente.
         url += '&x_studio_agente_de_ventas=' + encodeURIComponent(agentName || '');
         var preIdPc = <?php echo (int) $preCotizacionParaCotUrl; ?>;
         if (preIdPc > 0) {
+            // precotizacion_id = PK base de datos del documento PRE, no el texto PRE-nnnnn del título.
             url += '&precotizacion_id=' + encodeURIComponent(String(preIdPc));
         }
         window.open(url, '_blank');

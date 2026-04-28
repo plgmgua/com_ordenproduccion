@@ -206,6 +206,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                 $tcAttr = ' data-total-con-tarjeta="' . htmlspecialchars(number_format((float) $pre->total_con_tarjeta, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                             }
                         ?>
+                            <?php /* option value = pre_cotizacion.id (PK). Label uses $pre->number (PRE-xxxxx), never mix them. */ ?>
                             <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
