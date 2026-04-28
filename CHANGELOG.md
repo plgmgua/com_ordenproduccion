@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.114.23-STABLE] - 2026-04-28
+
+### Changed
+- **Cotización (nueva/edición):** El campo **Cantidad** del bloque “agregar línea” solo se muestra cuando hay una **Pre-cotización** elegida en el desplegable; al quitar la selección se oculta de nuevo. Para **Agregar línea** la cantidad debe ser **≥ 1** (`min="1"`). Calentamiento desde URL: si la primera cantidad del PRE es 0 se usa **1** para completar la primera línea automáticamente.
+
 ## [3.114.22-STABLE] - 2026-04-16
 
 ### Fixed

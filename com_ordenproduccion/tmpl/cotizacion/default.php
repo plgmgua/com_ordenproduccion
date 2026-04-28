@@ -214,9 +214,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     </select>
                 </div>
                 <div class="cotizacion-add-line-row-second d-flex flex-wrap align-items-end gap-2">
+                    <div id="cotizacion-add-line-cantidad-wrap" class="cotizacion-add-line-cantidad-wrap d-none">
                     <div class="cotizacion-add-cantidad">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
-                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="0" step="1" value="0" aria-label="Cantidad">
+                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="0" aria-label="Cantidad">
+                    </div>
                     </div>
                     <div class="cotizacion-add-descripcion">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
@@ -348,6 +350,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
 (function() {
     const selectEl = document.getElementById('precotizacionSelect');
     const descEl = document.getElementById('precotizacionDescription');
+    const cantidadWrapEl = document.getElementById('cotizacion-add-line-cantidad-wrap');
     const cantidadEl = document.getElementById('precotizacionCantidad');
     const btnAdd = document.getElementById('btnAddPrecotizacionLine');
     const tbody = document.getElementById('quotationItemsBody');
@@ -386,6 +389,22 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         return num ? String(num).trim() : '';
     }
 
+    function syncPrecotCantidadWrapVisibility() {
+        if (!cantidadWrapEl || !selectEl) {
+            return;
+        }
+        var opt = selectEl.options[selectEl.selectedIndex];
+        var hasPre = !!(opt && opt.value && parseInt(opt.value, 10) > 0);
+        if (hasPre) {
+            cantidadWrapEl.classList.remove('d-none');
+        } else {
+            cantidadWrapEl.classList.add('d-none');
+            if (cantidadEl) {
+                cantidadEl.value = '0';
+            }
+        }
+    }
+
     function fillDescriptionFromPrecotizacion() {
         if (!selectEl || !descEl) return;
         var opt = selectEl.options[selectEl.selectedIndex];
@@ -408,8 +427,12 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
 
     // Auto-fill description when a pre-cotización is selected (and on load if one is already selected)
     if (selectEl && descEl) {
-        selectEl.addEventListener('change', fillDescriptionFromPrecotizacion);
+        selectEl.addEventListener('change', function() {
+            fillDescriptionFromPrecotizacion();
+            syncPrecotCantidadWrapVisibility();
+        });
         fillDescriptionFromPrecotizacion();
+        syncPrecotCantidadWrapVisibility();
     }
 
     function escapeAttr(s) {
@@ -564,16 +587,21 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 if (descEl) descEl.focus();
                 return;
             }
+            var qtyForNewRowPre = cantidadEl ? parseInt(String(cantidadEl.value).trim(), 10) : 0;
+            if (isNaN(qtyForNewRowPre) || qtyForNewRowPre < 1) {
+                alert(msgCantidadRequired);
+                if (cantidadEl) {
+                    cantidadEl.focus();
+                }
+                return;
+            }
             var preId = opt.value;
             var baseTotal = parseFloat(opt.getAttribute('data-total') || '0');
             var tcRaw = opt.getAttribute('data-total-con-tarjeta');
             var minValorLine = (tcRaw !== null && tcRaw !== '' && !isNaN(parseFloat(tcRaw))) ? parseFloat(tcRaw) : baseTotal;
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
             var value = minValorLine.toFixed(2);
-            var qtyForNewRow = cantidadEl ? parseInt(String(cantidadEl.value).trim(), 10) : 0;
-            if (isNaN(qtyForNewRow) || qtyForNewRow < 0) {
-                qtyForNewRow = 0;
-            }
+            var qtyForNewRow = qtyForNewRowPre;
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
@@ -614,6 +642,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             if (cantidadEl) cantidadEl.value = '0';
             selectEl.selectedIndex = 0;
             opt.remove();
+            syncPrecotCantidadWrapVisibility();
             updateTotal();
         });
     }
@@ -623,12 +652,17 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         if (warmOpt && warmOpt.value) {
             selectEl.value = String(initialPrecotizacionId);
             fillDescriptionFromPrecotizacion();
+            syncPrecotCantidadWrapVisibility();
             if (descEl && !String(descEl.value).trim()) {
                 var bf = deriveDescFromPrecotOption(warmOpt);
                 if (bf) descEl.value = bf;
             }
-            if (cantidadEl && initialPrecotizacionFirstQty > 0) {
-                cantidadEl.value = String(initialPrecotizacionFirstQty);
+            if (cantidadEl) {
+                if (initialPrecotizacionFirstQty > 0) {
+                    cantidadEl.value = String(initialPrecotizacionFirstQty);
+                } else {
+                    cantidadEl.value = '1';
+                }
             }
             btnAdd.click();
         }
