@@ -9,7 +9,7 @@ ni a las migraciones SQL; la columna `orden_source_json` se añade en la migraci
 
 | Objetivo en OT | Fuente principal | Columna(s) en `ordenproduccion_ordenes` | Notas |
 |----------------|------------------|----------------------------------------|--------|
-| Número OT | Config `default_order_prefix` + secuencia en `orden_de_trabajo` | `orden_de_trabajo`, `order_number` (si existe) | Misma lógica que admin; no reutilizar el generador del webhook salvo alineación explícita. |
+| Número OT | **Misma cadena admin/webhook**: `Administrator\Model\SettingsModel::getNextOrderNumber()` (tabla `#__ordenproduccion_settings`; collisiones en `order_number`) | `orden_de_trabajo`, `order_number` | Alineación explícita con webhook desde **3.115.8**; antes el servicio derivaba número desde `#__ordenproduccion_config` + MAX en ordenes (formato divergente). |
 | Cliente (nombre) | `quotations.client_name` | `client_name` y/o `nombre_del_cliente` (la que exista) | El modelo de listados acepta ambas vía helper de columna cliente. |
 | NIT | `quotations.client_nit` | `nit` |
 | Odoo Client ID | `quotations.client_id` | `client_id` (si existe) |
@@ -73,8 +73,40 @@ Entrada típica `$wizardPayload`:
 2. **`pendingPrecotizaciones`:** Para un `client_id`, antes de crear OT nueva vía servicio aparece el par cotización/PRE; después de insert con `pre_cotizacion_id`, el par deja de listarse (LEFT JOIN orden).
 3. **Admin listados:** `admin` órdenes lista y filtro por cliente no rompe con órdenes nuevas (`client_name`/`nombre_del_cliente`).
 4. **Pagos:** Comprobaciones que unen `payment_orders` + `ordenproduccion_ordenes` por `order_id`; crear OT y aplicar pago de prueba en entorno no productivo si aplica.
-5. **Cotización confirmada + dos PRE:** una OT por PRE (idempotencia por `pre_cotizacion_id`, no por cotización sola).
+## 5. Alternativa externa: webhook `webhook.process` (Ventas → Producción)
+
+Además del asistente en la vista cotización, las órdenes se pueden crear con **POST JSON** público:
+
+- **Task:** `index.php?option=com_ordenproduccion&task=webhook.process&format=json` (GET params; cuerpo = JSON).
+
+**Cuerpo mínimo (validación):**
+
+- Top-level no vacíos: `request_title`, `form_data`.
+- `form_data` obligatorios: `cliente`, `descripcion_trabajo`, `fecha_entrega` (ver `WebhookController::validateWebhookData`).
+- **`request_title`:** si es `Anulacion de Orden de Trabajo` (ignore case), el endpoint trata cancelación; el resto dispara alta vía [`WebhookModel::createOrder()`](../src/Model/WebhookModel.php) (numeración igual que admin vía `SettingsModel::getNextOrderNumber`).
+
+**Ejemplo:**
+
+```json
+{
+  "request_title": "Solicitud Ventas a Produccion",
+  "form_data": {
+    "cliente": "Cliente X",
+    "descripcion_trabajo": "Descripción",
+    "fecha_entrega": "15/10/2025"
+  }
+}
+```
+
+**Postman:** método `POST`; **Headers:** `Content-Type: application/json`; **Body:** raw JSON (no form-data).
+
+**Ejemplo respuesta éxito (2026 verificación manual):**
+
+```json
+{"success":true,"message":"Order created successfully","data":{"order_id":6482,"order_number":"ORD-006631"},"processing_time":"..."}
+```
+
+Más campos opcionales en `form_data` (NIT, material, proceso SI/NO, etc.) están mapeados en `WebhookModel::createOrder`; conviven con `#__ordenproduccion_ordenes` igual que otros flujos.
 
 ---
 
-*Última actualización: diseño acorde a plan «OT desde pre-cotización» (implementación incremental).*

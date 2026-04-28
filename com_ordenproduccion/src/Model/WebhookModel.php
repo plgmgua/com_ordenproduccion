@@ -79,15 +79,17 @@ class WebhookModel extends BaseDatabaseModel
             $orderNumber = $this->generateOrderNumber($formData);
             $this->lastOrderNumber = $orderNumber;
             
-            // Prepare order data - map to actual English column names in database
+            // Prepare order data — English + legacy Spanish columns (OrdenesTable/listados expect both when present)
             $orderData = [
                 'order_number' => $orderNumber,
-                'orden_de_trabajo' => $orderNumber, // Also populate the Spanish column
+                'orden_de_trabajo' => $orderNumber,
                 'client_id' => $formData['client_id'] ?? '0',
                 'client_name' => $formData['cliente'],
+                'nombre_del_cliente' => $formData['cliente'],
                 'nit' => $formData['nit'] ?? '',
                 'invoice_value' => $formData['valor_factura'] ?? 0,
                 'work_description' => $formData['descripcion_trabajo'],
+                'descripcion_de_trabajo' => $formData['descripcion_trabajo'],
                 'print_color' => $formData['color_impresion'] ?? '',
                 'dimensions' => $formData['medidas'] ?? '',
                 'delivery_date' => $this->formatDate($formData['fecha_entrega']),

@@ -15,6 +15,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\User\User;
 use Joomla\Database\DatabaseInterface;
+use Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel;
 
 /**
@@ -551,29 +552,25 @@ class OrdenFromQuotationService
         return null;
     }
 
+    /**
+     * Uses the same counter and format as webhooks and admin numeración
+     * (`SettingsModel::getNextOrderNumber`, `#__ordenproduccion_settings`).
+     *
+     * @since  3.115.8
+     */
     protected function generateNextOrderNumber(): string
     {
-        $db = $this->db;
+        try {
+            $settingsModel = new SettingsModel();
+            $number        = $settingsModel->getNextOrderNumber();
 
-        $q = $db->getQuery(true)
-            ->select('setting_value')
-            ->from($db->quoteName('#__ordenproduccion_config'))
-            ->where($db->quoteName('setting_key') . ' = ' . $db->quote('default_order_prefix'));
+            if (\is_string($number) && trim($number) !== '') {
+                return trim($number);
+            }
+        } catch (\Throwable $e) {
+            // Fall through to timestamp-based fallback (matches SettingsModel catch style).
+        }
 
-        $db->setQuery($q);
-        $prefix = (string) ($db->loadResult() ?: 'ORD');
-
-        $prefixLen = \strlen($prefix);
-        $subStart  = $prefixLen + 1;
-
-        $q2 = $db->getQuery(true)
-            ->select('MAX(CAST(SUBSTRING(' . $db->quoteName('orden_de_trabajo') . ', ' . (int) $subStart . ') AS UNSIGNED))')
-            ->from($db->quoteName('#__ordenproduccion_ordenes'))
-            ->where($db->quoteName('orden_de_trabajo') . ' LIKE ' . $db->quote($prefix . '%'));
-
-        $db->setQuery($q2);
-        $maxNumber = (int) $db->loadResult();
-
-        return $prefix . str_pad((string) ($maxNumber + 1), 4, '0', STR_PAD_LEFT);
+        return 'ORD-' . date('YmdHis');
     }
 }

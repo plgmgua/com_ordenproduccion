@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.8-STABLE] - 2026-04-28
+
+### Changed
+- **OT desde cotización:** `OrdenFromQuotationService::generateNextOrderNumber()` usa `Administrator\Model\SettingsModel::getNextOrderNumber()` (misma cola `#__ordenproduccion_settings` y formato tipo `ORD-006631` que el webhook/admin), sustituye la lógica previa `#__ordenproduccion_config` + MAX en ordenes.
+
+### Fixed
+- **Webhook `WebhookModel::createOrder`:** relleno de `nombre_del_cliente` y `descripcion_de_trabajo` además de `client_name` / `work_description` para coherencia con listados y validaciones de tabla.
+
+### Added
+- **Docs:** sección en `docs/orden-trabajo-desde-pre-cotizacion.md` con contrato `webhook.process`, Postman y ejemplo de respuesta validada.
+
 ## [3.115.7-STABLE] - 2026-04-27
 
 ### Added
