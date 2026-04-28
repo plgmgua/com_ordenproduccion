@@ -27,6 +27,16 @@ WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'joomla_ordenproduccion_ordenes'
   AND COLUMN_NAME = 'pre_cotizacion_id';
 
+-- -----------------------------------------------------------------------------
+-- 2b) Ordenes: orden_source_json (3.115.0) — JSON snapshot for OT from quotation/PRE
+-- Expect 1 row. If 0, run 3.115.0 migration.
+-- -----------------------------------------------------------------------------
+SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'joomla_ordenproduccion_ordenes'
+  AND COLUMN_NAME = 'orden_source_json';
+
 
 -- -----------------------------------------------------------------------------
 -- 3) Quotations: client_id, sales_agent (3.74.0) — API and client association
@@ -97,6 +107,7 @@ FROM (
     UNION SELECT 'joomla_ordenproduccion_payment_proofs', 'mismatch_difference'
     UNION SELECT 'joomla_ordenproduccion_payment_proofs', 'verification_status'
     UNION SELECT 'joomla_ordenproduccion_ordenes', 'pre_cotizacion_id'
+    UNION SELECT 'joomla_ordenproduccion_ordenes', 'orden_source_json'
     UNION SELECT 'joomla_ordenproduccion_quotations', 'client_id'
     UNION SELECT 'joomla_ordenproduccion_quotations', 'sales_agent'
     UNION SELECT 'joomla_ordenproduccion_quotations', 'signed_document_path'

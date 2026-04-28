@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.115.0-STABLE] - 2026-04-16
+
+### Added
+- **OT desde pre-cotización (análisis):** Documento [`com_ordenproduccion/docs/orden-trabajo-desde-pre-cotizacion.md`](com_ordenproduccion/docs/orden-trabajo-desde-pre-cotizacion.md) con matriz campo-base, decisión de persistencia (`orden_source_json`), alcance de regresión y referencia al servicio [`OrdenFromQuotationService`](com_ordenproduccion/src/Service/OrdenFromQuotationService.php).
+- **Migración 3.115.0:** columna nullable `orden_source_json` en `#__ordenproduccion_ordenes` para snapshot JSON (cotización/PRE, `document_mode`, `valor_final` vs total PRE, `line_detalles` desde confirmación).
+- **Servicio `Grimpsa\Component\Ordenproduccion\Site\Service\OrdenFromQuotationService`:** ensambla columnas insertables + JSON; idempotencia por `pre_cotizacion_id` activo; no ejecuta INSERT (lo hará un controlador futuro).
+
 ## [3.114.28-STABLE] - 2026-04-16
 
 ### Added
