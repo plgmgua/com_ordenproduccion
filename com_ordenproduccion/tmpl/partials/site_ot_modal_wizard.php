@@ -406,6 +406,12 @@ $otStepIndicatorInitial = $otWizardLangIsEn
         </div>
     </div>
 </div>
+<style>
+/* Ocultar la línea tipo envío («Detalles envío», etc.) solo en el paso 3 del asistente; el mismo .instrucciones-orden-block también vive en #instruccionesOrdenModal. */
+#otModal #otStep3InstructionsRoot .card[data-line-type="envio"] {
+    display: none !important;
+}
+</style>
 <script>
 var otChildContacts = [];
 var otDestinationUrl = <?php echo json_encode((string) $params->get('ot_destination_url', '')); ?>;

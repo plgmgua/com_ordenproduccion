@@ -933,7 +933,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                 }
                                 $tipoElementoIo = isset($lineIo->tipo_elemento) && trim((string) $lineIo->tipo_elemento) !== '' ? trim((string) $lineIo->tipo_elemento) : $lineLabelIo;
                                 ?>
-                            <div class="card mb-3">
+                            <?php $lineTypeAttrIo = htmlspecialchars(strtolower((string) $lineTypeIo), ENT_QUOTES, 'UTF-8'); ?>
+                            <div class="card mb-3" data-line-type="<?php echo $lineTypeAttrIo; ?>">
                                 <div class="card-header bg-light py-2">
                                     <strong><?php echo htmlspecialchars($tipoElementoIo); ?></strong>
                                     <span class="text-muted small ms-2"><?php echo $lineLabelIo !== $tipoElementoIo ? htmlspecialchars($lineLabelIo) : ''; ?></span>
