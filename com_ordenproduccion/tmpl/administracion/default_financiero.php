@@ -55,6 +55,16 @@ $confirmBadge = static function ($r): string {
 
     return $c === 1 ? Text::_('JYES') : Text::_('JNO');
 };
+
+$facturarSiNo = static function ($r): string {
+    if (!property_exists($r, 'facturar') || $r->facturar === null || $r->facturar === '') {
+        return '—';
+    }
+    $v  = $r->facturar;
+    $on = ($v === true || $v === 1 || $v === '1' || (string) $v === '1');
+
+    return $on ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_SI') : Text::_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_NO');
+};
 ?>
 <style>
 .financiero-subtabs { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 2px solid #dee2e6; margin-bottom: 18px; }
@@ -89,6 +99,8 @@ $confirmBadge = static function ($r): string {
                 <thead class="table-light">
                     <tr>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN_TOTAL_REF'); ?></th>
@@ -116,6 +128,11 @@ $confirmBadge = static function ($r): string {
                         <td>
                             <a href="<?php echo htmlspecialchars($urlPrecot($pid)); ?>"><?php echo htmlspecialchars($rowPrecotLabel($r)); ?></a>
                         </td>
+                        <td><?php echo htmlspecialchars($facturarSiNo($r)); ?></td>
+                        <td><?php
+                            $ag = isset($r->financiero_agent_label) ? trim((string) $r->financiero_agent_label) : '';
+                            echo $ag !== '' ? htmlspecialchars($ag) : '—';
+?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($r->lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($margenAm)); ?></td>
                         <td class="text-end bg-margen-total-row"><?php echo htmlspecialchars($fmt($margenTotDisplay)); ?></td>
@@ -142,7 +159,7 @@ $confirmBadge = static function ($r): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_ALL'); ?></td>
+                        <td colspan="3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_ALL'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>

@@ -3931,16 +3931,24 @@ class AdministracionModel extends BaseDatabaseModel
             $db->setQuery($countQ);
             $total = (int) $db->loadResult();
 
+            $agentSelect = 'NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\') AS ' . $db->quoteName('financiero_agent_label');
+
             $sel = [
                 $db->quoteName('pc') . '.*',
                 'CAST(NULL AS UNSIGNED) AS ' . $db->quoteName('linked_quotation_id'),
                 'CAST(NULL AS CHAR) AS ' . $db->quoteName('linked_quotation_number'),
                 'CAST(NULL AS UNSIGNED) AS ' . $db->quoteName('cotizacion_confirmada'),
+                $agentSelect,
             ];
             // Build grand total in PHP if columns missing — use * and compute in loop? Better select explicit known columns.
             $qRows = $db->getQuery(true)
                 ->select($sel)
                 ->from($pcTbl . ' AS ' . $db->quoteName('pc'))
+                ->join(
+                    'LEFT',
+                    $db->quoteName('#__users', 'u'),
+                    $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
+                )
                 ->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
             $db->setQuery($qRows, $start, $limit);
             $rows = $db->loadObjectList() ?: [];
@@ -3974,16 +3982,32 @@ class AdministracionModel extends BaseDatabaseModel
             ? $db->quoteName('q') . '.' . $db->quoteName('cotizacion_confirmada')
             : 'CAST(NULL AS UNSIGNED)';
 
+        $hasQSalesAgent = isset($qCols['sales_agent']);
+        if ($hasQSalesAgent) {
+            $agentSelect = 'COALESCE(NULLIF(TRIM(' . $db->quoteName('q') . '.' . $db->quoteName('sales_agent')
+                . '), \'\'), NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\')) AS '
+                . $db->quoteName('financiero_agent_label');
+        } else {
+            $agentSelect = 'NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\') AS '
+                . $db->quoteName('financiero_agent_label');
+        }
+
         $sel = [
             $db->quoteName('pc') . '.*',
             $db->quoteName('q') . '.' . $db->quoteName('id') . ' AS ' . $db->quoteName('linked_quotation_id'),
             $db->quoteName('q') . '.' . $db->quoteName('quotation_number') . ' AS ' . $db->quoteName('linked_quotation_number'),
             $confirmSel . ' AS ' . $db->quoteName('cotizacion_confirmada'),
+            $agentSelect,
         ];
 
         $main = $db->getQuery(true)
             ->select($sel)
             ->from($pcTbl . ' AS ' . $db->quoteName('pc'))
+            ->join(
+                'LEFT',
+                $db->quoteName('#__users', 'u'),
+                $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
+            )
             ->join(
                 'LEFT',
                 $sub . ' AS ' . $db->quoteName('qmap'),
