@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdenPrecotSectionsHelper;
 
 /**
  * Orden model for com_ordenproduccion
@@ -36,6 +37,13 @@ class OrdenModel extends ItemModel
      * @since  3.116.3
      */
     public const ORDEN_VIEW_LAYOUT_VENDOR_PRE = 2;
+
+    /**
+     * PRE internal pliego quotation with mixed líneas (pliego folios plus otros elementos and/or envío): per línea PRE details, hide Acabados grid.
+     *
+     * @since  3.115.18
+     */
+    public const ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS = 3;
 
     /**
      * The prefix to use with controller messages.
@@ -239,8 +247,9 @@ class OrdenModel extends ItemModel
     }
 
     /**
-     * Sets orden_view_layout_type on the row: {@see ORDEN_VIEW_LAYOUT_STANDARD} vs
-     * {@see ORDEN_VIEW_LAYOUT_VENDOR_PRE} when the OT is tied to a PRE with document_mode proveedor_externo.
+     * Sets orden_view_layout_type on the row: {@see ORDEN_VIEW_LAYOUT_STANDARD},
+     * {@see ORDEN_VIEW_LAYOUT_VENDOR_PRE}, or {@see ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS}.
+     * Populates orden_view_precot_line_sections when using the mixed PRE líneas layout.
      *
      * @param   object  $data  Row reference
      *
@@ -251,6 +260,9 @@ class OrdenModel extends ItemModel
     protected function enrichOrdenViewPresentationType(object $data): void
     {
         $layout = self::ORDEN_VIEW_LAYOUT_STANDARD;
+        $preId  = isset($data->pre_cotizacion_id) ? (int) $data->pre_cotizacion_id : 0;
+
+        $data->orden_view_precot_line_sections = [];
 
         if (!empty($data->orden_source_json)) {
             $decoded = json_decode((string) $data->orden_source_json, true);
@@ -260,23 +272,24 @@ class OrdenModel extends ItemModel
             }
         }
 
-        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD
-            && isset($data->pre_cotizacion_id) && (int) $data->pre_cotizacion_id > 0
-        ) {
+        $preDm = null;
+
+        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD && $preId > 0) {
             try {
                 $db = $this->getDatabase();
                 $q  = $db->getQuery(true)
                     ->select($db->quoteName('document_mode'))
                     ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                    ->where($db->quoteName('id') . ' = ' . (int) $data->pre_cotizacion_id);
+                    ->where($db->quoteName('id') . ' = ' . $preId);
 
                 $db->setQuery($q);
-                $dm = $db->loadResult();
-                if ($dm !== null && (string) $dm === 'proveedor_externo') {
+                $preDm = $db->loadResult();
+
+                if ($preDm !== null && (string) $preDm === 'proveedor_externo') {
                     $layout = self::ORDEN_VIEW_LAYOUT_VENDOR_PRE;
                 }
             } catch (\Throwable $e) {
-                // Missing table/column: keep standard
+                $preDm = null;
             }
         }
 
@@ -286,7 +299,71 @@ class OrdenModel extends ItemModel
             }
         }
 
+        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD && $preId > 0 && $preDm !== null && (string) $preDm === 'pliego') {
+            try {
+                if ($this->precotMixedPliegoWithElementOrEnvio($preId)) {
+                    $layout = self::ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS;
+                }
+            } catch (\Throwable $e) {
+                // Missing table/column / unexpected: remain standard.
+            }
+        }
+
         $data->orden_view_layout_type = $layout;
+
+        if ($layout === self::ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS && $preId > 0) {
+            try {
+                $data->orden_view_precot_line_sections = OrdenPrecotSectionsHelper::buildSections($preId);
+            } catch (\Throwable $e) {
+                $data->orden_view_precot_line_sections = [];
+            }
+        }
+    }
+
+    /**
+     * Whether the PRE contains at least one pliego línea and at least one elementos or envío línea.
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id on the orden
+     *
+     * @return  bool
+     *
+     * @since   3.115.18
+     */
+    protected function precotMixedPliegoWithElementOrEnvio(int $preCotizacionId): bool
+    {
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $q  = $db->getQuery(true)
+                ->select($db->quoteName('line_type'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId);
+            $db->setQuery($q);
+            $types = $db->loadColumn() ?: [];
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        $hasPliego = false;
+        $hasOther  = false;
+
+        foreach ($types as $t) {
+            $lt = strtolower(trim((string) $t));
+            if ($lt === '' || $lt === 'pliego') {
+                $hasPliego = true;
+
+                continue;
+            }
+
+            if ($lt === 'elementos' || $lt === 'envio') {
+                $hasOther = true;
+            }
+        }
+
+        return $hasPliego && $hasOther;
     }
 
     /**
