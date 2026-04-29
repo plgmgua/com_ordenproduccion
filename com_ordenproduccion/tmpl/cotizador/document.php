@@ -128,6 +128,15 @@ $totalConTarjeta = isset($item->total_con_tarjeta) && $item->total_con_tarjeta !
     ? (float) $item->total_con_tarjeta
     : null;
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+
+/* IVA/ISR líneas pie: necesitan vista interna + Facturar. Además debe haber tasa global (params iva/isr)
+ * distinta de 0, o importe persistido/recalculado no trivial — las opciones del componente (manifest)
+ * usan defecto 0 si no las configuran en Opciones del componente. */
+$precotFooterShowIva = $canSeePrecotInternalTax && $facturar
+    && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);
+$precotFooterShowIsr = $canSeePrecotInternalTax && $facturar
+    && (($paramIsr != 0) || abs((float) $isrAmount) >= 0.005);
+
 $saveTarjetaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveTarjetaCredito');
 // Labels for add-line buttons (fallback if lang key missing or old "Nueva Línea" override)
 $labelCalculoFolios = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CALCULO_FOLIOS');
@@ -750,16 +759,16 @@ $solicitarDescuentoAction   = Route::_(
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
+                    <?php if ($precotFooterShowIva) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?><?php echo $paramIva != 0 ? ' (' . number_format($paramIva, 1) . '%)' : ''; ?></td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
+                    <?php if ($precotFooterShowIsr) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?><?php echo $paramIsr != 0 ? ' (' . number_format($paramIsr, 1) . '%)' : ''; ?></td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
                         <td></td>
                     </tr>

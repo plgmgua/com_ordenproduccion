@@ -88,6 +88,11 @@ if ($item) {
 }
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 
+$precotFooterShowIva = $canSeePrecotInternalTax && $facturar
+    && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);
+$precotFooterShowIsr = $canSeePrecotInternalTax && $facturar
+    && (($paramIsr != 0) || abs((float) $isrAmount) >= 0.005);
+
 $docMode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
 $isProveedorExternoDoc = ($docMode === 'proveedor_externo');
 $vendorLines           = [];
@@ -161,15 +166,15 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                         <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
+                    <?php if ($precotFooterShowIva) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?><?php echo $paramIva != 0 ? ' (' . number_format($paramIva, 1) . '%)' : ''; ?></td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
+                    <?php if ($precotFooterShowIsr) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?><?php echo $paramIsr != 0 ? ' (' . number_format($paramIsr, 1) . '%)' : ''; ?></td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
@@ -330,15 +335,15 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                         <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
+                    <?php if ($precotFooterShowIva) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?><?php echo $paramIva != 0 ? ' (' . number_format($paramIva, 1) . '%)' : ''; ?></td>
                         <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
+                    <?php if ($precotFooterShowIsr) : ?>
                     <tr>
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?><?php echo $paramIsr != 0 ? ' (' . number_format($paramIsr, 1) . '%)' : ''; ?></td>
                         <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>

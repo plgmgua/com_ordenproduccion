@@ -92,6 +92,10 @@ $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adiciona
     ? (float) $item->comision_margen_adicional : 0;
 $displayTotal = $linesTotalFinal + $margenAdicional;
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+$precotFooterShowIva = $canSeePrecotInternalTax && $facturar
+    && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);
+$precotFooterShowIsr = $canSeePrecotInternalTax && $facturar
+    && (($paramIsr != 0) || abs((float) $isrAmount) >= 0.005);
 $canSeeVendorPup         = AccessHelper::canEditProveedorExternoPrecioUnitProveedor();
 $canAdminEditPupWhenLocked = $precotizacionLocked && AccessHelper::canAdministracionEditProveedorExternoPupWhenQuotationLocked();
 $linesTableLocked          = $precotizacionLocked || !$canEditDocument;
@@ -860,15 +864,15 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
                 </tr>
                 <?php endif; ?>
-                <?php if ($canSeePrecotInternalTax && $facturar && $paramIva != 0) : ?>
+                <?php if ($precotFooterShowIva) : ?>
                 <tr>
-                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?> (<?php echo number_format($paramIva, 1); ?>%)</td>
+                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?><?php echo $paramIva != 0 ? ' (' . number_format($paramIva, 1) . '%)' : ''; ?></td>
                     <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
                 </tr>
                 <?php endif; ?>
-                <?php if ($canSeePrecotInternalTax && $facturar && $paramIsr != 0) : ?>
+                <?php if ($precotFooterShowIsr) : ?>
                 <tr>
-                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?> (<?php echo number_format($paramIsr, 1); ?>%)</td>
+                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?><?php echo $paramIsr != 0 ? ' (' . number_format($paramIsr, 1) . '%)' : ''; ?></td>
                     <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
                 </tr>
                 <?php endif; ?>
