@@ -21,6 +21,7 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
@@ -368,6 +369,229 @@ class AdministracionController extends BaseController
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $filename = 'facturas-' . date('Y-m-d-His') . '.xlsx';
+        @ob_clean();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $app->close();
+    }
+
+    /**
+     * Export Financiero → Listado PRE to Excel (.xlsx) or CSV (same filters as on screen; super user only).
+     *
+     * @return  void
+     *
+     * @since   3.115.26
+     */
+    public function exportFinancieroExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=listado', false);
+
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $input = $app->input;
+        $f     = AdministracionModel::normalizeFinancieroFilters([
+            'financiero_filter_date_from' => $input->getString('financiero_filter_date_from', ''),
+            'financiero_filter_date_to' => $input->getString('financiero_filter_date_to', ''),
+            'financiero_filter_agent' => $input->getString('financiero_filter_agent', ''),
+            'financiero_filter_facturar' => $input->getString('financiero_filter_facturar', ''),
+        ]);
+
+        try {
+            /** @var AdministracionModel $model */
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            if (!$model) {
+                throw new \RuntimeException('Administracion model unavailable');
+            }
+            $pack = $model->getFinancieroPrecotizacionesData(200000, 0, $f);
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_EXPORT_ERROR'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $rows = $pack['rows'] ?? [];
+
+        if (!is_array($rows)) {
+            $rows = [];
+        }
+
+        $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage('es-ES');
+        $lang->load('com_ordenproduccion', JPATH_SITE);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
+
+        $cols = [
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN_TOTAL_REF'),
+            $lang->_('COM_ORDENPRODUCCION_PARAM_IVA'),
+            $lang->_('COM_ORDENPRODUCCION_PARAM_ISR'),
+            $lang->_('COM_ORDENPRODUCCION_PRE_COTIZACION_BONO_VENTA'),
+            $lang->_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_TOTAL'),
+            $lang->_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_COTIZ'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_CONFIRM'),
+        ];
+
+        $numFmt = static function (float $v): string {
+            return number_format(round($v, 2), 2, '.', '');
+        };
+
+        $rowGrand = static function (object $r): float {
+            $tf = isset($r->total_final) && $r->total_final !== null && $r->total_final !== '' ? (float) $r->total_final : null;
+            $t  = isset($r->total) ? (float) $r->total : 0.0;
+            $ma = isset($r->margen_adicional) && $r->margen_adicional !== null && $r->margen_adicional !== '' ? (float) $r->margen_adicional : 0.0;
+            $base = $tf !== null ? $tf : $t;
+
+            return round($base + $ma, 2);
+        };
+
+        $rowPrecotLabel = static function (object $r): string {
+            $pid = isset($r->id) ? (int) $r->id : 0;
+            $raw = isset($r->number) ? trim((string) $r->number) : '';
+
+            return $raw !== '' ? $raw : ('PRE-' . str_pad((string) max(1, $pid), 5, '0', STR_PAD_LEFT));
+        };
+
+        $facturarLabel = static function (object $r) use ($lang): string {
+            if (!property_exists($r, 'facturar') || $r->facturar === null || $r->facturar === '') {
+                return '—';
+            }
+            $v  = $r->facturar;
+            $on = ($v === true || $v === 1 || $v === '1' || (string) $v === '1');
+
+            return $on ? $lang->_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_SI') : $lang->_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_NO');
+        };
+
+        $confirmLabel = static function (object $r) use ($lang): string {
+            if (!property_exists($r, 'cotizacion_confirmada') || $r->cotizacion_confirmada === null) {
+                return '—';
+            }
+
+            return (int) $r->cotizacion_confirmada === 1 ? $lang->_('JYES') : $lang->_('JNO');
+        };
+
+        $outRows = [];
+
+        foreach ($rows as $r) {
+            if (!is_object($r)) {
+                continue;
+            }
+            $margenAm           = isset($r->margen_amount) ? (float) $r->margen_amount : 0.0;
+            $margenAd           = isset($r->margen_adicional) && $r->margen_adicional !== null && $r->margen_adicional !== '' ? (float) $r->margen_adicional : 0.0;
+            $margenTotDisplay   = round($margenAm + $margenAd, 2);
+            $qnum               = isset($r->linked_quotation_number) ? trim((string) $r->linked_quotation_number) : '';
+            $ag                 = isset($r->financiero_agent_label) ? trim((string) $r->financiero_agent_label) : '';
+
+            $outRows[] = [
+                $rowPrecotLabel($r),
+                $facturarLabel($r),
+                $ag !== '' ? $ag : '—',
+                $numFmt((float) ($r->lines_subtotal ?? 0)),
+                $numFmt($margenAm),
+                $numFmt($margenTotDisplay),
+                $numFmt((float) ($r->iva_amount ?? 0)),
+                $numFmt((float) ($r->isr_amount ?? 0)),
+                $numFmt((float) ($r->comision_amount ?? 0)),
+                $numFmt($margenAd),
+                $numFmt($rowGrand($r)),
+                $numFmt((float) ($r->comision_margen_adicional ?? 0)),
+                $qnum !== '' ? $qnum : '—',
+                $confirmLabel($r),
+            ];
+        }
+
+        $autoload = JPATH_ROOT . '/vendor/autoload.php';
+
+        if (is_file($autoload)) {
+            require_once $autoload;
+
+            if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+                try {
+                    $this->exportFinancieroListXlsx($cols, $outRows, $app);
+
+                    return;
+                } catch (\Throwable $e) {
+                    // Fall through to CSV
+                }
+            }
+        }
+
+        $this->exportFinancieroListCsv($cols, $outRows, $app);
+    }
+
+    /**
+     * @param   array<int, string>   $cols
+     * @param   array<int, mixed[]>  $rows
+     *
+     * @since   3.115.26
+     */
+    protected function exportFinancieroListCsv(array $cols, array $rows, $app): void
+    {
+        $filename = 'financiero-pre-' . date('Y-m-d-His') . '.csv';
+        @ob_clean();
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, must-revalidate');
+        $out = fopen('php://output', 'w');
+        fprintf($out, "\xEF\xBB\xBF");
+        fputcsv($out, $cols);
+
+        foreach ($rows as $row) {
+            fputcsv($out, $row);
+        }
+
+        fclose($out);
+        $app->close();
+    }
+
+    /**
+     * @param   array<int, string>   $cols
+     * @param   array<int, mixed[]>  $rows
+     *
+     * @since   3.115.26
+     */
+    protected function exportFinancieroListXlsx(array $cols, array $rows, $app): void
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Listado PRE');
+        $sheet->fromArray($cols, null, 'A1');
+
+        $nCols          = max(1, count($cols));
+        $lastColLetter  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nCols);
+        $headerStyle    = $sheet->getStyle('A1:' . $lastColLetter . '1');
+        $headerStyle->getFont()->setBold(true);
+        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
+
+        $rowIndex = 2;
+
+        foreach ($rows as $row) {
+            $sheet->fromArray($row, null, 'A' . $rowIndex);
+            $rowIndex++;
+        }
+
+        for ($ci = 1; $ci <= $nCols; $ci++) {
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci))->setAutoSize(true);
+        }
+
+        $filename = 'financiero-pre-' . date('Y-m-d-His') . '.xlsx';
         @ob_clean();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');

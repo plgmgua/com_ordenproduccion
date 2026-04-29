@@ -90,6 +90,72 @@ $facturarSiNo = static function ($r): string {
 
 <?php if ($fst === 'listado') : ?>
     <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_INTRO_LISTADO'); ?></p>
+    <?php
+    $fdFrom   = isset($this->financieroFilterDateFrom) ? (string) $this->financieroFilterDateFrom : '';
+    $fdTo     = isset($this->financieroFilterDateTo) ? (string) $this->financieroFilterDateTo : '';
+    $fAgent   = isset($this->financieroFilterAgent) ? (string) $this->financieroFilterAgent : '';
+    $fFactur  = isset($this->financieroFilterFacturar) ? (string) $this->financieroFilterFacturar : '';
+    $agentsOp = isset($this->financieroAgentFilterOptions) && is_array($this->financieroAgentFilterOptions) ? $this->financieroAgentFilterOptions : [];
+    $fLim     = isset($this->financieroListLimit) ? max(5, min(200, (int) $this->financieroListLimit)) : 50;
+    ?>
+    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero'); ?>"
+          class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
+        <input type="hidden" name="option" value="com_ordenproduccion" />
+        <input type="hidden" name="view" value="administracion" />
+        <input type="hidden" name="tab" value="financiero" />
+        <input type="hidden" name="financiero_subtab" value="listado" />
+        <input type="hidden" name="financiero_limit" value="<?php echo (int) $fLim; ?>" />
+        <input type="hidden" name="financiero_limitstart" value="0" />
+        <div>
+            <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_FROM'); ?></label>
+            <input type="date" class="form-control form-control-sm" name="financiero_filter_date_from" value="<?php echo htmlspecialchars($fdFrom, ENT_QUOTES, 'UTF-8'); ?>" />
+        </div>
+        <div>
+            <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_TO'); ?></label>
+            <input type="date" class="form-control form-control-sm" name="financiero_filter_date_to" value="<?php echo htmlspecialchars($fdTo, ENT_QUOTES, 'UTF-8'); ?>" />
+        </div>
+        <div>
+            <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></label>
+            <select class="form-select form-select-sm" name="financiero_filter_agent" style="min-width: 12rem;" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'), ENT_QUOTES, 'UTF-8'); ?>">
+                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_ALL'); ?></option>
+                <?php foreach ($agentsOp as $al) :
+                    $tal = trim((string) $al);
+                    if ($tal === '') :
+                        continue;
+                    endif; ?>
+                <option value="<?php echo htmlspecialchars($tal, ENT_QUOTES, 'UTF-8'); ?>"<?php echo ($fAgent !== '' && $fAgent === $tal) ? ' selected' : ''; ?>><?php echo htmlspecialchars($tal, ENT_QUOTES, 'UTF-8'); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'); ?></label>
+            <select class="form-select form-select-sm" name="financiero_filter_facturar" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'), ENT_QUOTES, 'UTF-8'); ?>">
+                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_ALL'); ?></option>
+                <option value="1"<?php echo $fFactur === '1' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_SI'); ?></option>
+                <option value="0"<?php echo $fFactur === '0' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_NO'); ?></option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label small mb-0">&nbsp;</label>
+            <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
+        </div>
+    </form>
+    <?php
+        $exportParams = [
+            'financiero_filter_date_from' => $fdFrom,
+            'financiero_filter_date_to' => $fdTo,
+            'financiero_filter_agent' => $fAgent,
+            'financiero_filter_facturar' => $fFactur,
+        ];
+        $baseExport = 'index.php?option=com_ordenproduccion&task=administracion.exportFinancieroExcel&format=raw';
+        foreach ($exportParams as $pk => $pv) {
+            $baseExport .= '&' . $pk . '=' . rawurlencode((string) $pv);
+        }
+        $exportFinUrl = Route::_($baseExport);
+    ?>
+    <p class="mb-3">
+        <a href="<?php echo htmlspecialchars($exportFinUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-success btn-sm" target="_blank" rel="noopener"><i class="fas fa-file-excel"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_EXPORT_EXCEL'); ?></a>
+    </p>
     <?php $rowsFin = isset($this->financieroRows) && is_array($this->financieroRows) ? $this->financieroRows : []; ?>
     <?php if ($rowsFin === []) : ?>
         <p><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_EMPTY'); ?></p>
@@ -159,7 +225,7 @@ $facturarSiNo = static function ($r): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td colspan="3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_ALL'); ?></td>
+                        <td colspan="3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>

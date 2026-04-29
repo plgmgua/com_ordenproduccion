@@ -19,6 +19,7 @@ use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OtWizardCreationLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -467,12 +468,55 @@ class HtmlView extends BaseHtmlView
     protected $financieroJoinQuotations = false;
 
     /**
-     * Bonos summary by agent label.
+     * Financiero listado: filter — PRE created date from (YYYY-MM-DD).
      *
-     * @var    array<int, object>
-     * @since  3.115.24
+     * @var    string
+     * @since  3.115.26
      */
-    protected $financieroBonosByAgent = [];
+    protected $financieroFilterDateFrom = '';
+
+    /**
+     * Financiero listado: filter — PRE created date to (YYYY-MM-DD).
+     *
+     * @var    string
+     * @since  3.115.26
+     */
+    protected $financieroFilterDateTo = '';
+
+    /**
+     * Financiero listado: filter — agent label (exact match).
+     *
+     * @var    string
+     * @since  3.115.26
+     */
+    protected $financieroFilterAgent = '';
+
+    /**
+     * Financiero listado: filter facturar — '' | '1' | '0'.
+     *
+     * @var    string
+     * @since  3.115.26
+     */
+    protected $financieroFilterFacturar = '';
+
+    /**
+     * Distinct agent labels for the financiero_filter_agent dropdown (respects date and facturar filters).
+     *
+     * @var    string[]
+     * @since  3.115.26
+     */
+    protected $financieroAgentFilterOptions = [];
+
+    /**
+     * Page size applied for financiero listado (persists filter form hidden).
+     *
+     * @var    int
+     * @since  3.115.26
+     */
+    protected $financieroListLimit = 50;
+
+    /**
+     * Bonos summary by agent label.
 
     /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
@@ -1034,6 +1078,12 @@ class HtmlView extends BaseHtmlView
         $this->financieroPagination               = null;
         $this->financieroAggregates               = null;
         $this->financieroJoinQuotations           = false;
+        $this->financieroFilterDateFrom            = '';
+        $this->financieroFilterDateTo               = '';
+        $this->financieroFilterAgent                = '';
+        $this->financieroFilterFacturar             = '';
+        $this->financieroAgentFilterOptions         = [];
+        $this->financieroListLimit                  = 50;
         $this->financieroBonosByAgent             = [];
 
         // Ensure banks is always an array
@@ -1449,15 +1499,28 @@ class HtmlView extends BaseHtmlView
             $this->financieroSubtab = $fst;
             try {
                 $admFin = $this->getModel('Administracion');
-                if (!$admFin && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel::class)) {
+                if (!$admFin && class_exists(AdministracionModel::class)) {
                     $admFin = Factory::getApplication()->bootComponent('com_ordenproduccion')
                         ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
                 }
                 if ($admFin) {
                     if ($fst === 'listado') {
+                        $ff = AdministracionModel::normalizeFinancieroFilters([
+                            'financiero_filter_date_from' => $input->getString('financiero_filter_date_from', ''),
+                            'financiero_filter_date_to' => $input->getString('financiero_filter_date_to', ''),
+                            'financiero_filter_agent' => $input->getString('financiero_filter_agent', ''),
+                            'financiero_filter_facturar' => $input->getString('financiero_filter_facturar', ''),
+                        ]);
+                        $this->financieroFilterDateFrom   = $ff['date_from'];
+                        $this->financieroFilterDateTo     = $ff['date_to'];
+                        $this->financieroFilterAgent      = $ff['agent'];
+                        $this->financieroFilterFacturar   = $ff['facturar'];
+                        $this->financieroAgentFilterOptions = $admFin->getFinancieroAgentDistinctLabels($ff);
+
                         $limit      = max(5, min(200, (int) $input->getInt('financiero_limit', 50)));
                         $limitStart = max(0, (int) $input->getInt('financiero_limitstart', 0));
-                        $pack       = $admFin->getFinancieroPrecotizacionesData($limit, $limitStart);
+                        $this->financieroListLimit = $limit;
+                        $pack       = $admFin->getFinancieroPrecotizacionesData($limit, $limitStart, $ff);
                         $this->financieroRows             = $pack['rows'] ?? [];
                         $this->financieroTotal             = (int) ($pack['total'] ?? 0);
                         $this->financieroAggregates        = $pack['aggregates'] ?? null;
@@ -1474,6 +1537,10 @@ class HtmlView extends BaseHtmlView
                             $this->financieroPagination->setAdditionalUrlParam('tab', 'financiero');
                             $this->financieroPagination->setAdditionalUrlParam('financiero_subtab', 'listado');
                             $this->financieroPagination->setAdditionalUrlParam('financiero_limit', (string) $limit);
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_filter_date_from', $this->financieroFilterDateFrom);
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_filter_date_to', $this->financieroFilterDateTo);
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_filter_agent', $this->financieroFilterAgent);
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_filter_facturar', $this->financieroFilterFacturar);
                         }
                     }
                     if ($fst === 'bonos') {

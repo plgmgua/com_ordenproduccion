@@ -3845,31 +3845,55 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Control de ventas → Financiero: paginated pre-cotizaciones with financial snapshot + linked quotation.
-     * Super-user-only at controller; do not call for other roles.
+     * Normalize Financiero list/export filter input (date range on PRE created, agent label, facturar flag).
      *
-     * @param   int  $limit  Page size (max 200)
-     * @param   int  $start  Offset
+     * @param   array<string, mixed>  $in  Request keys financiero_filter_* or generic filter_*
      *
-     * @return  array{rows: object[], total: int, aggregates: \stdClass|null, precotTableOk: bool, joinQuotations: bool}
+     * @return  array<string, string>  keys: date_from, date_to, agent, facturar ('' | '0' | '1')
      *
-     * @since   3.115.24
+     * @since   3.115.26
      */
-    public function getFinancieroPrecotizacionesData(int $limit, int $start): array
+    public static function normalizeFinancieroFilters(array $in): array
+    {
+        $df = trim((string) ($in['financiero_filter_date_from'] ?? $in['filter_date_from'] ?? ''));
+        $dt = trim((string) ($in['financiero_filter_date_to'] ?? $in['filter_date_to'] ?? ''));
+        $agent = trim((string) ($in['financiero_filter_agent'] ?? $in['filter_agent'] ?? ''));
+        $facturar = trim((string) ($in['financiero_filter_facturar'] ?? $in['filter_facturar'] ?? ''));
+
+        if ($facturar !== '' && $facturar !== '0' && $facturar !== '1') {
+            $facturar = '';
+        }
+        if ($df !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $df)) {
+            $df = '';
+        }
+        if ($dt !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dt)) {
+            $dt = '';
+        }
+
+        return [
+            'date_from' => $df,
+            'date_to' => $dt,
+            'agent' => $agent,
+            'facturar' => $facturar,
+        ];
+    }
+
+    /**
+     * Schema + expressions for Financiero PRE queries (counts, aggregates, exports).
+     *
+     * @return  array<string, mixed>|null
+     *
+     * @since   3.115.26
+     */
+    protected function financieroPrecotFinanceContext(): ?array
     {
         $db     = $this->getDatabase();
         $prefix = $db->getPrefix();
-        $pcTbl  = $db->quoteName('#__ordenproduccion_pre_cotizacion');
+
         try {
             $tables = $db->getTableList();
         } catch (\Throwable $e) {
-            return [
-                'rows' => [],
-                'total' => 0,
-                'aggregates' => null,
-                'precotTableOk' => false,
-                'joinQuotations' => false,
-            ];
+            return null;
         }
 
         $hasPc = false;
@@ -3879,18 +3903,14 @@ class AdministracionModel extends BaseDatabaseModel
                 break;
             }
         }
+
         if (!$hasPc) {
-            return [
-                'rows' => [],
-                'total' => 0,
-                'aggregates' => null,
-                'precotTableOk' => false,
-                'joinQuotations' => false,
-            ];
+            return null;
         }
 
         $qiCols = [];
         $qCols  = [];
+
         try {
             $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false) ?: [];
             $qCols  = $db->getTableColumns('#__ordenproduccion_quotations', false) ?: [];
@@ -3898,16 +3918,16 @@ class AdministracionModel extends BaseDatabaseModel
             $qiCols = [];
             $qCols  = [];
         }
-        $qiCols    = is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
-        $qCols     = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
-        $hasQiPrec = isset($qiCols['pre_cotizacion_id']);
-        $joinQuotations = $hasQiPrec && isset($qCols['quotation_number']);
 
-        $limit  = max(1, min(200, $limit));
-        $start  = max(0, $start);
+        $qiCols           = is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        $qCols            = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        $hasQiPrec        = isset($qiCols['pre_cotizacion_id']);
+        $joinQuotations   = $hasQiPrec && isset($qCols['quotation_number']);
+        $hasQSalesAgent   = isset($qCols['sales_agent']);
 
         $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+
         $hasTotalFinal = isset($pcCols['total_final']);
         $hasTotal      = isset($pcCols['total']);
         $hasMargenAd   = isset($pcCols['margen_adicional']);
@@ -3915,6 +3935,7 @@ class AdministracionModel extends BaseDatabaseModel
         $tf            = $pcAlias . '.' . $db->quoteName('total_final');
         $tt            = $pcAlias . '.' . $db->quoteName('total');
         $ma            = $pcAlias . '.' . $db->quoteName('margen_adicional');
+
         if ($hasTotalFinal && $hasTotal && $hasMargenAd) {
             $exprGrand = 'ROUND(COALESCE(COALESCE(' . $tf . ', ' . $tt . '), 0) + COALESCE(' . $ma . ', 0), 2)';
         } elseif ($hasTotal && $hasMargenAd) {
@@ -3925,12 +3946,235 @@ class AdministracionModel extends BaseDatabaseModel
             $exprGrand = '0';
         }
 
-        if (!$joinQuotations) {
-            // List without quotation join
-            $countQ = $db->getQuery(true)->select('COUNT(*)')->from($pcTbl . ' AS ' . $db->quoteName('pc'));
+        $subSql = '';
+
+        if ($joinQuotations) {
+            $subSql = '(SELECT MIN(' . $db->quoteName('qi2') . '.' . $db->quoteName('quotation_id') . ') AS ' . $db->quoteName('qid')
+                . ', ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_quotation_items', 'qi2')
+                . ' WHERE ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' IS NOT NULL'
+                . ' AND ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' > 0'
+                . ' GROUP BY ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ')';
+        }
+
+        return [
+            'db' => $db,
+            'pc_cols' => $pcCols,
+            'q_cols' => $qCols,
+            'join_quotations' => $joinQuotations,
+            'has_q_sales_agent' => $hasQSalesAgent,
+            'expr_grand' => $exprGrand,
+            'sub_sql' => $subSql,
+        ];
+    }
+
+    /**
+     * SQL expression for financiero_agent_label (quoted table aliases pc, u, optionally q).
+     *
+     * @since  3.115.26
+     */
+    protected function financieroAgentSqlExpr($db, bool $quotationJoined, bool $hasQSalesAgent): string
+    {
+        $uNm = $db->quoteName('u') . '.' . $db->quoteName('name');
+
+        if ($quotationJoined && $hasQSalesAgent) {
+            return 'COALESCE(NULLIF(TRIM(' . $db->quoteName('q') . '.' . $db->quoteName('sales_agent')
+                . "), ''), NULLIF(TRIM({$uNm}), ''))";
+        }
+
+        return 'NULLIF(TRIM(' . $uNm . "), '')";
+    }
+
+    /**
+     * LEFT JOIN users (+ optional quotations / qmap for linked cotización).
+     *
+     * @since  3.115.26
+     */
+    protected function financieroAttachListJoins($db, $query, bool $joinQuotations, string $subSql): void
+    {
+        $query->join(
+            'LEFT',
+            $db->quoteName('#__users', 'u'),
+            $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
+        );
+
+        if ($joinQuotations && $subSql !== '') {
+            $query->join(
+                'LEFT',
+                $subSql . ' AS ' . $db->quoteName('qmap'),
+                $db->quoteName('qmap') . '.' . $db->quoteName('pre_cotizacion_id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('id')
+            );
+            $query->join(
+                'LEFT',
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('qmap') . '.' . $db->quoteName('qid')
+            );
+        }
+    }
+
+    /**
+     * WHERE for date range (pc.created), facturar, agent label (must match list SELECT).
+     *
+     * @since  3.115.26
+     */
+    protected function financieroApplyListFilters($db, $query, array $filters, array $pcCols, bool $joinQuotations, bool $hasQSalesAgent): void
+    {
+        if (isset($pcCols['created'])) {
+            $created = $db->quoteName('pc') . '.' . $db->quoteName('created');
+            $df      = isset($filters['date_from']) ? (string) $filters['date_from'] : '';
+
+            if ($df !== '') {
+                $query->where('DATE(' . $created . ') >= ' . $db->quote($df));
+            }
+
+            $dt = isset($filters['date_to']) ? (string) $filters['date_to'] : '';
+
+            if ($dt !== '') {
+                $query->where('DATE(' . $created . ') <= ' . $db->quote($dt));
+            }
+        }
+
+        $facturar = isset($filters['facturar']) ? (string) $filters['facturar'] : '';
+
+        if ($facturar !== '' && isset($pcCols['facturar'])) {
+            $query->where($db->quoteName('pc') . '.' . $db->quoteName('facturar') . ' = ' . (int) $facturar);
+        }
+
+        $agent = isset($filters['agent']) ? trim((string) $filters['agent']) : '';
+
+        if ($agent !== '') {
+            $expr = $this->financieroAgentSqlExpr($db, $joinQuotations, $hasQSalesAgent);
+            $query->where('(' . $expr . ') = ' . $db->quote($agent));
+        }
+    }
+
+    /**
+     * Distinct agent labels for Financiero filter dropdown (respects date + facturar; ignores agent filter).
+     *
+     * @param   array<string, string>  $filters  Normalized filters
+     *
+     * @return  string[]
+     *
+     * @since   3.115.26
+     */
+    public function getFinancieroAgentDistinctLabels(array $filters = []): array
+    {
+        $ctx = $this->financieroPrecotFinanceContext();
+
+        if ($ctx === null) {
+            return [];
+        }
+
+        $db               = $ctx['db'];
+        $filters          = self::normalizeFinancieroFilters($filters);
+        $filters['agent'] = '';
+        $pcCols           = $ctx['pc_cols'];
+        $joinQuotations   = $ctx['join_quotations'];
+        $hasQSalesAgent   = $ctx['has_q_sales_agent'];
+        $subSql           = $ctx['sub_sql'];
+        $agentExpr        = $this->financieroAgentSqlExpr($db, $joinQuotations, $hasQSalesAgent);
+
+        $pcTbl = $db->quoteName('#__ordenproduccion_pre_cotizacion');
+
+        try {
+            $q = $db->getQuery(true)
+                ->select('DISTINCT ' . $agentExpr . ' AS ' . $db->quoteName('lbl'))
+                ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
+            $this->financieroAttachListJoins($db, $q, $joinQuotations, $subSql);
+            $this->financieroApplyListFilters($db, $q, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+            $q->where('(' . $agentExpr . ') IS NOT NULL')->where('(' . $agentExpr . ") <> ''");
+            $q->order($db->quoteName('lbl') . ' ASC');
+            $db->setQuery($q, 0, 500);
+            $col = $db->loadColumn() ?: [];
+
+            return array_values(array_filter(array_map('trim', $col)));
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Control de ventas → Financiero: paginated pre-cotizaciones with financial snapshot + linked quotation.
+     * Super-user-only at controller; do not call for other roles.
+     *
+     * @param   int                  $limit    Page size (max 200 in UI; use large value for exports)
+     * @param   int                  $start    Offset
+     * @param   array<string, mixed> $filters  Raw or normalized financiero filters
+     *
+     * @return  array{rows: object[], total: int, aggregates: \stdClass|null, precotTableOk: bool, joinQuotations: bool}
+     *
+     * @since   3.115.24
+     */
+    public function getFinancieroPrecotizacionesData(int $limit, int $start, array $filters = []): array
+    {
+        $empty = [
+            'rows' => [],
+            'total' => 0,
+            'aggregates' => null,
+            'precotTableOk' => false,
+            'joinQuotations' => false,
+        ];
+
+        $ctx = $this->financieroPrecotFinanceContext();
+
+        if ($ctx === null) {
+            return $empty;
+        }
+
+        $filters = self::normalizeFinancieroFilters(is_array($filters) ? $filters : []);
+
+        $db             = $ctx['db'];
+        $pcCols         = $ctx['pc_cols'];
+        $joinQuotations = $ctx['join_quotations'];
+        $exprGrand      = $ctx['expr_grand'];
+        $subSql         = $ctx['sub_sql'];
+        $hasQSalesAgent = $ctx['has_q_sales_agent'];
+        $qCols          = $ctx['q_cols'];
+
+        if ($limit > 1000) {
+            $limit = max(1, min(200000, $limit));
+        } else {
+            $limit = max(1, min(200, $limit));
+        }
+
+        $start = max(0, $start);
+
+        $pcTbl   = $db->quoteName('#__ordenproduccion_pre_cotizacion');
+        $fromPc  = $pcTbl . ' AS ' . $db->quoteName('pc');
+
+        $countQ = $db->getQuery(true)->select('COUNT(*)')->from($fromPc);
+        $this->financieroAttachListJoins($db, $countQ, $joinQuotations, $subSql);
+        $this->financieroApplyListFilters($db, $countQ, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+
+        try {
             $db->setQuery($countQ);
             $total = (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            $total = 0;
+        }
 
+        $confirmSel = isset($qCols['cotizacion_confirmada'])
+            ? $db->quoteName('q') . '.' . $db->quoteName('cotizacion_confirmada')
+            : 'CAST(NULL AS UNSIGNED)';
+
+        if ($joinQuotations) {
+            if ($hasQSalesAgent) {
+                $agentSelect = 'COALESCE(NULLIF(TRIM(' . $db->quoteName('q') . '.' . $db->quoteName('sales_agent')
+                    . '), \'\'), NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\')) AS '
+                    . $db->quoteName('financiero_agent_label');
+            } else {
+                $agentSelect = 'NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\') AS '
+                    . $db->quoteName('financiero_agent_label');
+            }
+
+            $sel = [
+                $db->quoteName('pc') . '.*',
+                $db->quoteName('q') . '.' . $db->quoteName('id') . ' AS ' . $db->quoteName('linked_quotation_id'),
+                $db->quoteName('q') . '.' . $db->quoteName('quotation_number') . ' AS ' . $db->quoteName('linked_quotation_number'),
+                $confirmSel . ' AS ' . $db->quoteName('cotizacion_confirmada'),
+                $agentSelect,
+            ];
+        } else {
             $agentSelect = 'NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\') AS ' . $db->quoteName('financiero_agent_label');
 
             $sel = [
@@ -3940,119 +4184,71 @@ class AdministracionModel extends BaseDatabaseModel
                 'CAST(NULL AS UNSIGNED) AS ' . $db->quoteName('cotizacion_confirmada'),
                 $agentSelect,
             ];
-            // Build grand total in PHP if columns missing — use * and compute in loop? Better select explicit known columns.
-            $qRows = $db->getQuery(true)
-                ->select($sel)
-                ->from($pcTbl . ' AS ' . $db->quoteName('pc'))
-                ->join(
-                    'LEFT',
-                    $db->quoteName('#__users', 'u'),
-                    $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
-                )
-                ->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
-            $db->setQuery($qRows, $start, $limit);
-            $rows = $db->loadObjectList() ?: [];
-
-            $agg = $this->buildFinancieroAggregates($db, $exprGrand);
-
-            return [
-                'rows' => $rows,
-                'total' => $total,
-                'aggregates' => $agg,
-                'precotTableOk' => true,
-                'joinQuotations' => false,
-            ];
         }
 
-        // Subquery: first quotation_id per pre_cotizacion (MIN id = oldest link)
-        $sub = '(SELECT MIN(' . $db->quoteName('qi2') . '.' . $db->quoteName('quotation_id') . ') AS ' . $db->quoteName('qid')
-            . ', ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id')
-            . ' FROM ' . $db->quoteName('#__ordenproduccion_quotation_items', 'qi2')
-            . ' WHERE ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' IS NOT NULL'
-            . ' AND ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' > 0'
-            . ' GROUP BY ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ')';
-
-        $countQ = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
-        $db->setQuery($countQ);
-        $total = (int) $db->loadResult();
-
-        $confirmSel = isset($qCols['cotizacion_confirmada'])
-            ? $db->quoteName('q') . '.' . $db->quoteName('cotizacion_confirmada')
-            : 'CAST(NULL AS UNSIGNED)';
-
-        $hasQSalesAgent = isset($qCols['sales_agent']);
-        if ($hasQSalesAgent) {
-            $agentSelect = 'COALESCE(NULLIF(TRIM(' . $db->quoteName('q') . '.' . $db->quoteName('sales_agent')
-                . '), \'\'), NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\')) AS '
-                . $db->quoteName('financiero_agent_label');
-        } else {
-            $agentSelect = 'NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\') AS '
-                . $db->quoteName('financiero_agent_label');
-        }
-
-        $sel = [
-            $db->quoteName('pc') . '.*',
-            $db->quoteName('q') . '.' . $db->quoteName('id') . ' AS ' . $db->quoteName('linked_quotation_id'),
-            $db->quoteName('q') . '.' . $db->quoteName('quotation_number') . ' AS ' . $db->quoteName('linked_quotation_number'),
-            $confirmSel . ' AS ' . $db->quoteName('cotizacion_confirmada'),
-            $agentSelect,
-        ];
-
-        $main = $db->getQuery(true)
-            ->select($sel)
-            ->from($pcTbl . ' AS ' . $db->quoteName('pc'))
-            ->join(
-                'LEFT',
-                $db->quoteName('#__users', 'u'),
-                $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
-            )
-            ->join(
-                'LEFT',
-                $sub . ' AS ' . $db->quoteName('qmap'),
-                $db->quoteName('qmap') . '.' . $db->quoteName('pre_cotizacion_id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('id')
-            )
-            ->join(
-                'LEFT',
-                $db->quoteName('#__ordenproduccion_quotations', 'q'),
-                $db->quoteName('q') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('qmap') . '.' . $db->quoteName('qid')
-            )
-            ->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
-
-        $db->setQuery($main, $start, $limit);
         try {
-            $rows = $db->loadObjectList() ?: [];
+            $main = $db->getQuery(true)
+                ->select($sel)
+                ->from($fromPc);
+            $this->financieroAttachListJoins($db, $main, $joinQuotations, $subSql);
+            $this->financieroApplyListFilters($db, $main, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+            $main->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
+            $db->setQuery($main, $start, $limit);
+
+            try {
+                $rows = $db->loadObjectList() ?: [];
+            } catch (\Throwable $e) {
+                $rows = [];
+            }
         } catch (\Throwable $e) {
             $rows = [];
         }
 
-        $agg = $this->buildFinancieroAggregates($db, $exprGrand);
+        $agg = $this->buildFinancieroAggregates(
+            $db,
+            $exprGrand,
+            $filters,
+            $joinQuotations,
+            $hasQSalesAgent,
+            $pcCols,
+            $subSql
+        );
 
         return [
             'rows' => $rows,
             'total' => $total,
             'aggregates' => $agg,
             'precotTableOk' => true,
-            'joinQuotations' => true,
+            'joinQuotations' => $joinQuotations,
         ];
     }
 
     /**
-     * SUM() across all pre_cotizaciones for footer totals.
+     * SUM() across filtered pre_cotizaciones for footer totals.
      *
-     * @param   \Joomla\Database\DatabaseInterface  $db
-     * @param   string                              $exprGrand  SQL expression for displayed grand total
+     * @param   \Joomla\Database\DatabaseInterface  $db            DB
+     * @param   string                              $exprGrand     SQL expression for displayed grand total
+     * @param   array<string, string>              $filters       Normalized filters
+     * @param   bool                               $joinQuotations
+     * @param   bool                               $hasQSalesAgent
+     * @param   array<string, mixed>                $pcCols
+     * @param   string                             $subSql        Quotation-per-PRE map subquery
      *
      * @return  \stdClass|null
      *
      * @since   3.115.24
      */
-    protected function buildFinancieroAggregates($db, string $exprGrand): ?\stdClass
-    {
+    protected function buildFinancieroAggregates(
+        $db,
+        string $exprGrand,
+        array $filters,
+        bool $joinQuotations,
+        bool $hasQSalesAgent,
+        array $pcCols,
+        string $subSql
+    ): ?\stdClass {
         $pcTbl = $db->quoteName('#__ordenproduccion_pre_cotizacion');
-        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+        $pcCols = array_change_key_case($pcCols, CASE_LOWER);
 
         $sumLines = isset($pcCols['lines_subtotal'])
             ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('lines_subtotal') . ', 0))'
@@ -4089,6 +4285,8 @@ class AdministracionModel extends BaseDatabaseModel
                 'SUM(' . $exprGrand . ') AS sum_grand_total',
             ])
             ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
+        $this->financieroAttachListJoins($db, $q, $joinQuotations, $subSql);
+        $this->financieroApplyListFilters($db, $q, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
 
         try {
             $db->setQuery($q);
