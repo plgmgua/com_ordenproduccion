@@ -16,7 +16,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
 
 /**
- * Builds orden de trabajo view sections from pre-cotización lines (tipo pliego mixed with otros/envío).
+ * Builds orden de trabajo view sections from pre-cotización lines (solo pliego + otros elementos; líneas tipo envío se omiten — ver Información de Envío).
  *
  * @since  3.115.18
  */
@@ -126,6 +126,11 @@ class OrdenPrecotSectionsHelper
                 continue;
             }
 
+            /** Envío se muestra solo en «Información de Envío» del OT, no como tarjeta duplicada. */
+            if ($lineType === 'envio') {
+                continue;
+            }
+
             $tipoElementoEl = isset($line->tipo_elemento) ? trim((string) $line->tipo_elemento) : '';
             $tipoLabel      = $tipoElementoEl !== '' ? $tipoElementoEl : '';
 
@@ -218,23 +223,6 @@ class OrdenPrecotSectionsHelper
                     $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ELEMENTO', 'value' => $elName];
                 }
                 $subtitle = trim($tipoLabel . ($elName !== '' ? ' · ' . $elName : ''));
-                $heading    = $tipoLabel;
-            } elseif ($lineType === 'envio') {
-                if ($tipoLabel === '') {
-                    $tipoLabel = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_ENVIO');
-                }
-                $envId = isset($line->envio_id) ? (int) $line->envio_id : 0;
-                $envName = '';
-                if ($envId > 0 && $productosModel && $productosModel->enviosTableExists()) {
-                    $eo = $productosModel->getEnvio($envId);
-                    if ($eo !== null) {
-                        $envName = trim((string) ($eo->name ?? ''));
-                    }
-                }
-                if ($envName !== '') {
-                    $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ENVIO', 'value' => $envName];
-                }
-                $subtitle = trim($tipoLabel . ($envName !== '' ? ' · ' . $envName : ''));
                 $heading    = $tipoLabel;
             } else {
                 continue;
