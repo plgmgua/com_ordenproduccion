@@ -291,10 +291,16 @@ function displayYesNoBadge($value) {
                                     <td><?php echo htmlspecialchars($item->tiro_retiro); ?></td>
                                 </tr>
                             <?php endif; ?>
-                            <?php if (!$isPrecotPliegoElementosPresentation) : ?>
+                            <?php
+                            $ordenMedidasPrecot = isset($item->orden_view_pre_medidas) ? trim((string) $item->orden_view_pre_medidas) : '';
+                            $ordenMedidasDims   = isset($item->dimensions) ? trim((string) $item->dimensions) : '';
+                            /** Prefer PRE cabecera "Medidas" when orden is linked to a pre-cotización */
+                            $ordenInformacionMedidasValor = ($ordenMedidasPrecot !== '') ? $ordenMedidasPrecot : $ordenMedidasDims;
+                            ?>
+                            <?php if ($ordenInformacionMedidasValor !== '') : ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_MEDIDAS'); ?>:</strong></td>
-                                <td><?php echo htmlspecialchars($item->dimensions); ?></td>
+                                <td><?php echo htmlspecialchars($ordenInformacionMedidasValor); ?></td>
                             </tr>
                             <?php endif; ?>
                             <?php if (!$isVendorPrePresentation && !$isPrecotPliegoElementosPresentation) : ?>

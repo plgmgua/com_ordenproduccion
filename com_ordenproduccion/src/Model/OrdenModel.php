@@ -177,6 +177,7 @@ class OrdenModel extends ItemModel
                 $this->normalizeOrdenRecordForView($data);
                 $this->normalizeLegacyQuotationWorkDescriptionBlob($data);
                 $this->enrichOrdenViewPresentationType($data);
+                $this->enrichOrdenPrecotHeaderMedidasForView($data);
 
                 // Check user access to this order
                 $this->checkUserAccess($data);
@@ -316,6 +317,53 @@ class OrdenModel extends ItemModel
                 $data->orden_view_precot_line_sections = OrdenPrecotSectionsHelper::buildSections($preId);
             } catch (\Throwable $e) {
                 $data->orden_view_precot_line_sections = [];
+            }
+        }
+    }
+
+    /**
+     * Cabecera PRE "Medidas" for display in orden Información del trabajo (prefer over empty dimensions).
+     *
+     * @param   object  $data  Row from #__ordenproduccion_ordenes (mutated)
+     *
+     * @return  void
+     *
+     * @since   3.115.20
+     */
+    protected function enrichOrdenPrecotHeaderMedidasForView(object $data): void
+    {
+        $data->orden_view_pre_medidas = '';
+
+        $preId = isset($data->pre_cotizacion_id) ? (int) $data->pre_cotizacion_id : 0;
+        if ($preId < 1) {
+            return;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $q  = $db->getQuery(true)
+                ->select($db->quoteName('medidas'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $preId);
+
+            $db->setQuery($q);
+            $raw = $db->loadResult();
+            if ($raw !== null && trim((string) $raw) !== '') {
+                $data->orden_view_pre_medidas = trim((string) $raw);
+
+                return;
+            }
+        } catch (\Throwable $e) {
+            // Column/table missing or other DB failure: fallback below.
+        }
+
+        if (!empty($data->orden_source_json)) {
+            $decoded = json_decode((string) $data->orden_source_json, true);
+            if (\is_array($decoded) && isset($decoded['pre_medidas'])) {
+                $m = trim((string) $decoded['pre_medidas']);
+                if ($m !== '') {
+                    $data->orden_view_pre_medidas = $m;
+                }
             }
         }
     }
