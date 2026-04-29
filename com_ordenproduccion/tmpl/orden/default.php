@@ -18,9 +18,8 @@ use Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel as OrdenSingularMode
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Orden\HtmlView $this */
 
 $item = $this->item;
-/** Presentation layout for this OT view (1 = standard production, 2 = PRE proveedor externo). */
-$otVistaTipo            = (int) ($item->orden_view_layout_type ?? OrdenSingularModel::ORDEN_VIEW_LAYOUT_STANDARD);
-$isVendorPrePresentation = ($otVistaTipo === OrdenSingularModel::ORDEN_VIEW_LAYOUT_VENDOR_PRE);
+$isVendorPrePresentation = ((int) ($item->orden_view_layout_type ?? OrdenSingularModel::ORDEN_VIEW_LAYOUT_STANDARD)
+    === OrdenSingularModel::ORDEN_VIEW_LAYOUT_VENDOR_PRE);
 $canSeeInvoice = $this->canSeeInvoiceValue();
 $quotationFilesForJs = AccessHelper::canViewCotizacionPdfForOrder($item->sales_agent ?? '') ? ($item->quotation_files ?? '') : '';
 
@@ -126,18 +125,6 @@ function displayYesNoBadge($value) {
                                     <?php echo $this->formatDate($item->delivery_date); ?>
                                 </div>
                             </div>
-                        </div>
-                        <hr class="my-3">
-                        <div class="small text-muted mb-0">
-                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_VISTA_PRESENTACION'); ?>:</strong>
-                            <span class="badge rounded-pill <?php echo $isVendorPrePresentation ? 'bg-info text-dark' : 'bg-light text-dark border'; ?>">
-                                <?php echo $otVistaTipo; ?></span>
-                            <?php echo Text::_(
-                                $isVendorPrePresentation
-                                    ? 'COM_ORDENPRODUCCION_ORDEN_VISTA_PROVEEDOR_EXTERNO'
-                                    : 'COM_ORDENPRODUCCION_ORDEN_VISTA_ESTANDAR'
-                            ); ?>
-                            <span class="d-none d-md-inline"><?php echo ' — ' . Text::_('COM_ORDENPRODUCCION_ORDEN_VISTA_PRESENTACION_HELP'); ?></span>
                         </div>
                     </div>
                 </div>
