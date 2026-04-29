@@ -66,7 +66,6 @@ class OrdenPrecotSectionsHelper
 
         $papersById = [];
         $sizesById  = [];
-        $procById   = [];
 
         if ($productosModel && $productosModel->tablesExist()) {
             foreach ($productosModel->getPaperTypes() as $p) {
@@ -74,9 +73,6 @@ class OrdenPrecotSectionsHelper
             }
             foreach ($productosModel->getSizes() as $s) {
                 $sizesById[(int) $s->id] = $s;
-            }
-            foreach ($productosModel->getProcesses() as $pr) {
-                $procById[(int) $pr->id] = $pr;
             }
         }
 
@@ -160,18 +156,20 @@ class OrdenPrecotSectionsHelper
                     }
                 }
 
+                $metaMid = [];
+
                 if ($paperName !== '') {
-                    $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER', 'value' => $paperName];
+                    $metaMid[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER', 'value' => $paperName];
                 }
                 if ($sizeLabel !== '') {
-                    $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PLIEGO_SIZE', 'value' => $sizeLabel];
+                    $metaMid[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PLIEGO_SIZE', 'value' => $sizeLabel];
                 }
 
                 $tiroRetiro = strtolower((string) ($line->tiro_retiro ?? 'tiro'));
                 $trDisp     = ($tiroRetiro === 'retiro')
                     ? Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_RETIRO')
                     : Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_ONLY');
-                $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO', 'value' => $trDisp];
+                $metaMid[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO', 'value' => $trDisp];
 
                 $lamId = isset($line->lamination_type_id) ? (int) $line->lamination_type_id : 0;
                 if ($lamId > 0 && isset($lamsById[$lamId])) {
@@ -180,60 +178,52 @@ class OrdenPrecotSectionsHelper
                     $lamTiroPhrase = ($lamTiroRaw === 'retiro')
                         ? Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_RETIRO')
                         : Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_ONLY');
-                    $metaRows[] = [
+                    $metaMid[] = [
                         'label_key' => 'COM_ORDENPRODUCCION_ORDEN_LAMINADO',
                         'value'     => trim($lamName . ' — ' . $lamTiroPhrase),
                     ];
                 }
 
-                $procNames = [];
-                if (!empty($line->process_ids)) {
-                    $pids = json_decode((string) $line->process_ids, true);
-                    if (\is_array($pids)) {
-                        foreach ($pids as $pid) {
-                            $pid = (int) $pid;
-                            if ($pid > 0 && isset($procById[$pid]->name)) {
-                                $procNames[] = (string) $procById[$pid]->name;
-                            }
-                        }
-                    }
-                }
-                if ($procNames !== []) {
+                $qty = isset($line->quantity) ? (int) $line->quantity : 0;
+                $metaRows = [];
+                if ($qty > 0) {
                     $metaRows[] = [
-                        'label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_EXTRA_PROCESSES',
-                        'value'     => implode(', ', $procNames),
+                        'label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_PLIEGOS_IMPR',
+                        'value'     => (string) $qty,
                     ];
                 }
+                $metaRows = array_merge($metaRows, $metaMid);
 
                 $subtitle = trim($tipoLabel . ($paperName !== '' ? ' · ' . $paperName : ''));
-                $heading = $tipoLabel !== '' ? $tipoLabel : Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_PLIEGO');
+                $heading  = $tipoLabel !== '' ? $tipoLabel : Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_PLIEGO');
             } elseif ($lineType === 'elementos') {
                 if ($tipoLabel === '') {
                     $tipoLabel = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_ELEMENTOS');
                 }
-                $elId     = isset($line->elemento_id) ? (int) $line->elemento_id : 0;
-                $elName   = '';
+                $elId   = isset($line->elemento_id) ? (int) $line->elemento_id : 0;
+                $elName = '';
                 if ($elId > 0 && $productosModel && $productosModel->elementosTableExists()) {
                     $el = $productosModel->getElemento($elId);
                     if ($el !== null) {
                         $elName = trim((string) ($el->name ?? ''));
                     }
                 }
+
+                $qty = isset($line->quantity) ? (int) $line->quantity : 0;
+                $metaRows = [];
+                if ($qty > 0) {
+                    $metaRows[] = [
+                        'label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_OTROS',
+                        'value'     => (string) $qty,
+                    ];
+                }
                 if ($elName !== '') {
                     $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ELEMENTO', 'value' => $elName];
                 }
                 $subtitle = trim($tipoLabel . ($elName !== '' ? ' · ' . $elName : ''));
-                $heading    = $tipoLabel;
+                $heading  = $tipoLabel;
             } else {
                 continue;
-            }
-
-            $qty = isset($line->quantity) ? (int) $line->quantity : 0;
-            if ($qty > 0) {
-                $qtyKey = ($lineType === 'pliego')
-                    ? 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_PLIEGOS_IMPR'
-                    : 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_OTROS';
-                $metaRows[] = ['label_key' => $qtyKey, 'value' => (string) $qty];
             }
 
             $instructions = [];

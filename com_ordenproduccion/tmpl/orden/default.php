@@ -339,6 +339,12 @@ function displayYesNoBadge($value) {
             .orden-precot-pliego-elos-wrap .orden-precot-line-title {
                 font-weight: 600;
             }
+            @media (min-width: 768px) {
+                .orden-precot-pliego-elos-wrap .orden-precot-meta-col > .orden-precot-meta-table,
+                .orden-precot-pliego-elos-wrap .orden-precot-instr-col > .orden-precot-instr-stack {
+                    margin-bottom: 0 !important;
+                }
+            }
         </style>
         <div class="row mb-3 orden-precot-pliego-elos-wrap">
             <div class="col-12">
@@ -359,27 +365,76 @@ function displayYesNoBadge($value) {
                             </div>
                         </div>
                         <div class="card-body py-2 px-2 orden-precot-line-body">
-                                    <?php if (!empty($metaRows) && \is_array($metaRows)) : ?>
-                                        <table class="table table-sm table-borderless orden-precot-meta-table mb-2">
-                                            <tbody>
-                                            <?php foreach ($metaRows as $mr) :
-                                                $lk = htmlspecialchars(Text::_((string) ($mr['label_key'] ?? '')));
-                                                $val = htmlspecialchars((string) ($mr['value'] ?? ''));
-                                                if ($lk === '') {
-                                                    continue;
-                                                }
-                                                ?>
-                                                <tr>
-                                                    <th class="align-top text-muted orden-precot-meta-th" scope="row" style="width: 42%;"><?php echo $lk; ?></th>
-                                                    <td class="align-top orden-precot-meta-td"><?php echo $val; ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    <?php endif; ?>
-
-                                    <?php if (!empty($instructions) && \is_array($instructions)) : ?>
-                                        <div class="small fw-semibold mb-1 text-body-secondary orden-precot-instr-heading"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINE_INSTRUC_TITLE'); ?></div>
+                                    <?php
+                                    $precotHasMeta = !empty($metaRows) && \is_array($metaRows);
+                                    $precotHasInstr = !empty($instructions) && \is_array($instructions);
+                                    ?>
+                                    <?php if ($precotHasMeta && $precotHasInstr) : ?>
+                            <div class="row g-2 g-md-3 align-items-start orden-precot-line-cols">
+                                <div class="col-12 col-md-6 orden-precot-meta-col">
+                                            <table class="table table-sm table-borderless orden-precot-meta-table mb-md-0">
+                                                <tbody>
+                                                <?php foreach ($metaRows as $mr) :
+                                                    $lk = htmlspecialchars(Text::_((string) ($mr['label_key'] ?? '')));
+                                                    $val = htmlspecialchars((string) ($mr['value'] ?? ''));
+                                                    if ($lk === '') {
+                                                        continue;
+                                                    }
+                                                    ?>
+                                                    <tr>
+                                                        <th class="align-top text-muted orden-precot-meta-th" scope="row" style="width: 42%;"><?php echo $lk; ?></th>
+                                                        <td class="align-top orden-precot-meta-td"><?php echo $val; ?></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                <div class="col-12 col-md-6 orden-precot-instr-col">
+                                    <div class="orden-precot-instr-stack">
+                                        <div class="small fw-semibold mb-1 text-body-secondary orden-precot-instr-heading"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTRUC_ACABADOS_TITLE'); ?></div>
+                                            <div class="table-responsive mb-0">
+                                                <table class="table table-bordered table-sm orden-precot-instr-table mb-0">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTR_TH_CONCEPT'); ?></th>
+                                                            <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTR_TH_INSTRUCTIONS'); ?></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($instructions as $ins) :
+                                                            $inl = htmlspecialchars((string) ($ins['label'] ?? ''));
+                                                            $int = nl2br(htmlspecialchars((string) ($ins['text'] ?? '')));
+                                                            ?>
+                                                            <tr>
+                                                                <td class="fw-semibold"><?php echo $inl; ?></td>
+                                                                <td><?php echo $int; ?></td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                            </div>
+                                    <?php elseif ($precotHasMeta) : ?>
+                                            <table class="table table-sm table-borderless orden-precot-meta-table mb-2">
+                                                <tbody>
+                                                <?php foreach ($metaRows as $mr) :
+                                                    $lk = htmlspecialchars(Text::_((string) ($mr['label_key'] ?? '')));
+                                                    $val = htmlspecialchars((string) ($mr['value'] ?? ''));
+                                                    if ($lk === '') {
+                                                        continue;
+                                                    }
+                                                    ?>
+                                                    <tr>
+                                                        <th class="align-top text-muted orden-precot-meta-th" scope="row" style="width: 42%;"><?php echo $lk; ?></th>
+                                                        <td class="align-top orden-precot-meta-td"><?php echo $val; ?></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                    <?php elseif ($precotHasInstr) : ?>
+                                        <div class="small fw-semibold mb-1 text-body-secondary orden-precot-instr-heading"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTRUC_ACABADOS_TITLE'); ?></div>
                                         <div class="table-responsive mb-0">
                                             <table class="table table-bordered table-sm orden-precot-instr-table mb-0">
                                                 <thead class="table-light">
