@@ -13,10 +13,14 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel as OrdenSingularModel;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Orden\HtmlView $this */
 
 $item = $this->item;
+/** Presentation layout for this OT view (1 = standard production, 2 = PRE proveedor externo). */
+$otVistaTipo            = (int) ($item->orden_view_layout_type ?? OrdenSingularModel::ORDEN_VIEW_LAYOUT_STANDARD);
+$isVendorPrePresentation = ($otVistaTipo === OrdenSingularModel::ORDEN_VIEW_LAYOUT_VENDOR_PRE);
 $canSeeInvoice = $this->canSeeInvoiceValue();
 $quotationFilesForJs = AccessHelper::canViewCotizacionPdfForOrder($item->sales_agent ?? '') ? ($item->quotation_files ?? '') : '';
 
@@ -122,6 +126,18 @@ function displayYesNoBadge($value) {
                                     <?php echo $this->formatDate($item->delivery_date); ?>
                                 </div>
                             </div>
+                        </div>
+                        <hr class="my-3">
+                        <div class="small text-muted mb-0">
+                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_VISTA_PRESENTACION'); ?>:</strong>
+                            <span class="badge rounded-pill <?php echo $isVendorPrePresentation ? 'bg-info text-dark' : 'bg-light text-dark border'; ?>">
+                                <?php echo $otVistaTipo; ?></span>
+                            <?php echo Text::_(
+                                $isVendorPrePresentation
+                                    ? 'COM_ORDENPRODUCCION_ORDEN_VISTA_PROVEEDOR_EXTERNO'
+                                    : 'COM_ORDENPRODUCCION_ORDEN_VISTA_ESTANDAR'
+                            ); ?>
+                            <span class="d-none d-md-inline"><?php echo ' — ' . Text::_('COM_ORDENPRODUCCION_ORDEN_VISTA_PRESENTACION_HELP'); ?></span>
                         </div>
                     </div>
                 </div>
@@ -274,10 +290,12 @@ function displayYesNoBadge($value) {
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_DESCRIPCION'); ?>:</strong></td>
                                 <td><?php echo htmlspecialchars($item->work_description); ?></td>
                             </tr>
+                            <?php if (!$isVendorPrePresentation) : ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_COLOR_IMPRESION'); ?>:</strong></td>
                                 <td><?php echo htmlspecialchars($item->print_color); ?></td>
                             </tr>
+                            <?php endif; ?>
                             <?php if (!empty($item->tiro_retiro)) : ?>
                                 <tr>
                                     <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO'); ?>:</strong></td>
@@ -288,17 +306,20 @@ function displayYesNoBadge($value) {
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_MEDIDAS'); ?>:</strong></td>
                                 <td><?php echo htmlspecialchars($item->dimensions); ?></td>
                             </tr>
+                            <?php if (!$isVendorPrePresentation) : ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_MATERIAL'); ?>:</strong></td>
                                 <td><?php echo htmlspecialchars($item->material); ?></td>
                             </tr>
+                            <?php endif; ?>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Production Details -->
+        <!-- Production Details (hidden for PRE proveedor_externo – no process checklist on this OT) -->
+        <?php if (!$isVendorPrePresentation) : ?>
         <div class="row">
             <div class="col-12 mb-4">
                 <div class="card">
@@ -391,6 +412,7 @@ function displayYesNoBadge($value) {
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- Instructions and Notes -->
         <?php if (!empty($item->instructions) || !empty($item->production_notes)) : ?>

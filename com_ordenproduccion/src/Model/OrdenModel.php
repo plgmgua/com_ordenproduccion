@@ -24,6 +24,20 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 class OrdenModel extends ItemModel
 {
     /**
+     * Single-orden presentation layout: standard OT (production fields + acabados).
+     *
+     * @since  3.116.3
+     */
+    public const ORDEN_VIEW_LAYOUT_STANDARD = 1;
+
+    /**
+     * PRE cotización document_mode proveedor_externo: compact view (strip color/material rows + acabados).
+     *
+     * @since  3.116.3
+     */
+    public const ORDEN_VIEW_LAYOUT_VENDOR_PRE = 2;
+
+    /**
      * The prefix to use with controller messages.
      *
      * @var    string
@@ -153,6 +167,7 @@ class OrdenModel extends ItemModel
                 }
 
                 $this->normalizeOrdenRecordForView($data);
+                $this->enrichOrdenViewPresentationType($data);
 
                 // Check user access to this order
                 $this->checkUserAccess($data);
@@ -176,16 +191,6 @@ class OrdenModel extends ItemModel
         return $this->_item[$pk];
     }
 
-    /**
-     * Check if user has access to this order
-     *
-     * @param   object  $data  The order data
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     * @throws  \Exception
-     */
     /**
      * Map legacy Spanish column names onto the English properties the site templates expect.
      * Webhook-created rows typically already use English names (invoice_value, client_name, …).
@@ -232,6 +237,67 @@ class OrdenModel extends ItemModel
         }
     }
 
+    /**
+     * Sets orden_view_layout_type on the row: {@see ORDEN_VIEW_LAYOUT_STANDARD} vs
+     * {@see ORDEN_VIEW_LAYOUT_VENDOR_PRE} when the OT is tied to a PRE with document_mode proveedor_externo.
+     *
+     * @param   object  $data  Row reference
+     *
+     * @return  void
+     *
+     * @since   3.116.3
+     */
+    protected function enrichOrdenViewPresentationType(object $data): void
+    {
+        $layout = self::ORDEN_VIEW_LAYOUT_STANDARD;
+
+        if (!empty($data->orden_source_json)) {
+            $decoded = json_decode((string) $data->orden_source_json, true);
+            if (\is_array($decoded) && isset($decoded['document_mode'])
+                && (string) $decoded['document_mode'] === 'proveedor_externo') {
+                $layout = self::ORDEN_VIEW_LAYOUT_VENDOR_PRE;
+            }
+        }
+
+        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD
+            && isset($data->pre_cotizacion_id) && (int) $data->pre_cotizacion_id > 0
+        ) {
+            try {
+                $db = $this->getDatabase();
+                $q  = $db->getQuery(true)
+                    ->select($db->quoteName('document_mode'))
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $data->pre_cotizacion_id);
+
+                $db->setQuery($q);
+                $dm = $db->loadResult();
+                if ($dm !== null && (string) $dm === 'proveedor_externo') {
+                    $layout = self::ORDEN_VIEW_LAYOUT_VENDOR_PRE;
+                }
+            } catch (\Throwable $e) {
+                // Missing table/column: keep standard
+            }
+        }
+
+        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD && !empty($data->work_description)) {
+            if (preg_match('/Modo\s+documento\s*:\s*proveedor_externo/ui', (string) $data->work_description)) {
+                $layout = self::ORDEN_VIEW_LAYOUT_VENDOR_PRE;
+            }
+        }
+
+        $data->orden_view_layout_type = $layout;
+    }
+
+    /**
+     * Check if user has access to this order
+     *
+     * @param   object  $data  The order data
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     * @throws  \Exception
+     */
     protected function checkUserAccess($data)
     {
         // Check if user has any access to orders
