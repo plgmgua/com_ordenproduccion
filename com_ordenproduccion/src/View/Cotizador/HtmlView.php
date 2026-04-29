@@ -24,7 +24,7 @@ use Joomla\CMS\Router\Route;
  * View for Pre-Cotización CRUD and pliego quote (cotizador).
  * Menu link: index.php?option=com_ordenproduccion&view=cotizador
  * - default layout: list of Pre-Cotizaciones (current user).
- * - document layout: one Pre-Cotización with lines; "Cálculo de Folios" and "Otros Elementos" open modals; Total sums all line subtotals.
+ * - document layout: one Pre-Cotización with lines; Totals row sums all line amounts (including Envío) for subtotal snapshot.
  *
  * @since  3.67.0
  */
@@ -302,16 +302,24 @@ class HtmlView extends BaseHtmlView
                 }
                 $this->tarjetaCreditoTableExists = $productosModel->tarjetaCreditoTableExists();
                 $this->tarjetaCreditoRates = $this->tarjetaCreditoTableExists ? $productosModel->getTarjetaCreditoRates() : [];
+                // Backfill / repair totals snapshot (lines_subtotal includes all line totals, e.g. Envío — 3.115.27+)
+                if (($layout === 'document' || $layout === 'details') && !empty($this->lines)) {
+                    $sumLines = 0.0;
+                    foreach ($this->lines as $ln) {
+                        $sumLines += (float) ($ln->total ?? 0);
+                    }
+                    $hasSnapshot = isset($this->item->lines_subtotal) && $this->item->lines_subtotal !== null && $this->item->lines_subtotal !== '';
+                    $stored = $hasSnapshot ? (float) $this->item->lines_subtotal : null;
+                    if ($stored === null || abs($stored - $sumLines) > 0.02) {
+                        $precotModel->refreshPreCotizacionTotalsSnapshot($id);
+                        $this->item = $precotModel->getItem($id);
+                    }
+                }
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
                     $this->precotizacionLocked = $precotModel->isAssociatedWithConfirmedQuotation((int) $id);
                     $this->precotizacionDocumentEditable = $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked;
-                    // Backfill totals snapshot (3.86.0) when not yet stored so first view persists historical totals
-                    if (!empty($this->lines) && (!isset($this->item->lines_subtotal) || $this->item->lines_subtotal === null || $this->item->lines_subtotal === '')) {
-                        $precotModel->refreshPreCotizacionTotalsSnapshot($id);
-                        $this->item = $precotModel->getItem($id);
-                    }
                     $this->canSaveImpresionOverride = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
                     $this->discountWorkflowAvailable   = false;
                     $this->pendingSolicitudDescuento     = false;

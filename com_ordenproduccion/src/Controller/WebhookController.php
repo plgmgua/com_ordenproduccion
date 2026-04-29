@@ -898,11 +898,6 @@ class WebhookController extends BaseController
             ->select('SUM(' . $db->quoteName('l.total') . ')')
             ->from($lineTable)
             ->where($db->quoteName('l.pre_cotizacion_id') . ' = ' . $preId);
-        $lineCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
-        $lineCols = is_array($lineCols) ? array_change_key_case($lineCols, CASE_LOWER) : [];
-        if (isset($lineCols['line_type'])) {
-            $subQuery->where('(' . $db->quoteName('l.line_type') . ' IS NULL OR ' . $db->quoteName('l.line_type') . ' != ' . $db->quote('envio') . ')');
-        }
         $db->setQuery($subQuery);
         $subtotal = (float) $db->loadResult();
 

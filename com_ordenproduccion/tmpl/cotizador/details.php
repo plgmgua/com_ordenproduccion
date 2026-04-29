@@ -43,10 +43,7 @@ if ($hasStoredTotals) {
     $linesSubtotal = 0;
     if (!empty($lines)) {
         foreach ($lines as $l) {
-            $lineType = isset($l->line_type) ? (string) $l->line_type : 'pliego';
-            if ($lineType !== 'envio') {
-                $linesSubtotal += (float) ($l->total ?? 0);
-            }
+            $linesSubtotal += (float) ($l->total ?? 0);
         }
     }
     $paramMargen = isset($this->paramMargen) ? (float) $this->paramMargen : 0;

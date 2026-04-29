@@ -1233,7 +1233,7 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
-     * Get total amount for a Pre-Cotizaci?n: subtotal (lines excluding envio) + params (Margen, IVA, ISR, Comisi?n).
+     * Get total amount for a Pre-Cotización: sum of all line totals (including Envío), then Margen / IVA / ISR / Comisión from params.
      * When facturar=1, IVA and ISR are included; when 0, they are excluded.
      *
      * @param   int  $preCotizacionId  Pre-Cotizaci?n id.
@@ -1249,10 +1249,7 @@ class PrecotizacionModel extends ListModel
         $lines = $this->getLines((int) $preCotizacionId);
         $subtotal = 0.0;
         foreach ($lines as $line) {
-            $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
-            if ($lineType !== 'envio') {
-                $subtotal += (float) ($line->total ?? 0);
-            }
+            $subtotal += (float) ($line->total ?? 0);
         }
         $params = ComponentHelper::getParams('com_ordenproduccion');
         $margen = (float) $params->get('margen_ganancia', 0);
@@ -1330,10 +1327,7 @@ class PrecotizacionModel extends ListModel
         $lines = $this->getLines($preCotizacionId);
         $linesSubtotal = 0.0;
         foreach ($lines as $line) {
-            $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
-            if ($lineType !== 'envio') {
-                $linesSubtotal += (float) ($line->total ?? 0);
-            }
+            $linesSubtotal += (float) ($line->total ?? 0);
         }
 
         $params = ComponentHelper::getParams('com_ordenproduccion');
