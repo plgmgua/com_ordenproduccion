@@ -513,7 +513,7 @@ class HtmlView extends BaseHtmlView
      * @var    int
      * @since  3.115.26
      */
-    protected $financieroListLimit = 50;
+    protected $financieroListLimit = 15;
 
     /**
      * Bonos summary by agent label.
@@ -1083,7 +1083,7 @@ class HtmlView extends BaseHtmlView
         $this->financieroFilterAgent                = '';
         $this->financieroFilterFacturar             = '';
         $this->financieroAgentFilterOptions         = [];
-        $this->financieroListLimit                  = 50;
+        $this->financieroListLimit                  = 15;
         $this->financieroBonosByAgent             = [];
 
         // Ensure banks is always an array
@@ -1517,7 +1517,7 @@ class HtmlView extends BaseHtmlView
                         $this->financieroFilterFacturar   = $ff['facturar'];
                         $this->financieroAgentFilterOptions = $admFin->getFinancieroAgentDistinctLabels($ff);
 
-                        $limit      = max(5, min(200, (int) $input->getInt('financiero_limit', 50)));
+                        $limit      = max(5, min(200, (int) $input->getInt('financiero_limit', 15)));
                         $limitStart = max(0, (int) $input->getInt('financiero_limitstart', 0));
                         $this->financieroListLimit = $limit;
                         $pack       = $admFin->getFinancieroPrecotizacionesData($limit, $limitStart, $ff);

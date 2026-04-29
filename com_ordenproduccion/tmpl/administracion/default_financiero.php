@@ -96,7 +96,7 @@ $facturarSiNo = static function ($r): string {
     $fAgent   = isset($this->financieroFilterAgent) ? (string) $this->financieroFilterAgent : '';
     $fFactur  = isset($this->financieroFilterFacturar) ? (string) $this->financieroFilterFacturar : '';
     $agentsOp = isset($this->financieroAgentFilterOptions) && is_array($this->financieroAgentFilterOptions) ? $this->financieroAgentFilterOptions : [];
-    $fLim     = isset($this->financieroListLimit) ? max(5, min(200, (int) $this->financieroListLimit)) : 50;
+    $fLim     = isset($this->financieroListLimit) ? max(5, min(200, (int) $this->financieroListLimit)) : 15;
     ?>
     <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero'); ?>"
           class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
