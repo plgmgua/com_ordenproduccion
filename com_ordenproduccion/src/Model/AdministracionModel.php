@@ -3843,5 +3843,350 @@ class AdministracionModel extends BaseDatabaseModel
 
         return true;
     }
+
+    /**
+     * Control de ventas → Financiero: paginated pre-cotizaciones with financial snapshot + linked quotation.
+     * Super-user-only at controller; do not call for other roles.
+     *
+     * @param   int  $limit  Page size (max 200)
+     * @param   int  $start  Offset
+     *
+     * @return  array{rows: object[], total: int, aggregates: \stdClass|null, precotTableOk: bool, joinQuotations: bool}
+     *
+     * @since   3.115.24
+     */
+    public function getFinancieroPrecotizacionesData(int $limit, int $start): array
+    {
+        $db     = $this->getDatabase();
+        $prefix = $db->getPrefix();
+        $pcTbl  = $db->quoteName('#__ordenproduccion_pre_cotizacion');
+        try {
+            $tables = $db->getTableList();
+        } catch (\Throwable $e) {
+            return [
+                'rows' => [],
+                'total' => 0,
+                'aggregates' => null,
+                'precotTableOk' => false,
+                'joinQuotations' => false,
+            ];
+        }
+
+        $hasPc = false;
+        foreach ($tables as $t) {
+            if (strcasecmp((string) $t, $prefix . 'ordenproduccion_pre_cotizacion') === 0) {
+                $hasPc = true;
+                break;
+            }
+        }
+        if (!$hasPc) {
+            return [
+                'rows' => [],
+                'total' => 0,
+                'aggregates' => null,
+                'precotTableOk' => false,
+                'joinQuotations' => false,
+            ];
+        }
+
+        $qiCols = [];
+        $qCols  = [];
+        try {
+            $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false) ?: [];
+            $qCols  = $db->getTableColumns('#__ordenproduccion_quotations', false) ?: [];
+        } catch (\Throwable $e) {
+            $qiCols = [];
+            $qCols  = [];
+        }
+        $qiCols    = is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        $qCols     = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        $hasQiPrec = isset($qiCols['pre_cotizacion_id']);
+        $joinQuotations = $hasQiPrec && isset($qCols['quotation_number']);
+
+        $limit  = max(1, min(200, $limit));
+        $start  = max(0, $start);
+
+        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+        $hasTotalFinal = isset($pcCols['total_final']);
+        $hasTotal      = isset($pcCols['total']);
+        $hasMargenAd   = isset($pcCols['margen_adicional']);
+        $pcAlias       = $db->quoteName('pc');
+        $tf            = $pcAlias . '.' . $db->quoteName('total_final');
+        $tt            = $pcAlias . '.' . $db->quoteName('total');
+        $ma            = $pcAlias . '.' . $db->quoteName('margen_adicional');
+        if ($hasTotalFinal && $hasTotal && $hasMargenAd) {
+            $exprGrand = 'ROUND(COALESCE(COALESCE(' . $tf . ', ' . $tt . '), 0) + COALESCE(' . $ma . ', 0), 2)';
+        } elseif ($hasTotal && $hasMargenAd) {
+            $exprGrand = 'ROUND(COALESCE(' . $tt . ', 0) + COALESCE(' . $ma . ', 0), 2)';
+        } elseif ($hasTotal) {
+            $exprGrand = 'ROUND(COALESCE(' . $tt . ', 0), 2)';
+        } else {
+            $exprGrand = '0';
+        }
+
+        if (!$joinQuotations) {
+            // List without quotation join
+            $countQ = $db->getQuery(true)->select('COUNT(*)')->from($pcTbl . ' AS ' . $db->quoteName('pc'));
+            $db->setQuery($countQ);
+            $total = (int) $db->loadResult();
+
+            $sel = [
+                $db->quoteName('pc') . '.*',
+                'CAST(NULL AS UNSIGNED) AS ' . $db->quoteName('linked_quotation_id'),
+                'CAST(NULL AS CHAR) AS ' . $db->quoteName('linked_quotation_number'),
+                'CAST(NULL AS UNSIGNED) AS ' . $db->quoteName('cotizacion_confirmada'),
+            ];
+            // Build grand total in PHP if columns missing — use * and compute in loop? Better select explicit known columns.
+            $qRows = $db->getQuery(true)
+                ->select($sel)
+                ->from($pcTbl . ' AS ' . $db->quoteName('pc'))
+                ->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
+            $db->setQuery($qRows, $start, $limit);
+            $rows = $db->loadObjectList() ?: [];
+
+            $agg = $this->buildFinancieroAggregates($db, $exprGrand);
+
+            return [
+                'rows' => $rows,
+                'total' => $total,
+                'aggregates' => $agg,
+                'precotTableOk' => true,
+                'joinQuotations' => false,
+            ];
+        }
+
+        // Subquery: first quotation_id per pre_cotizacion (MIN id = oldest link)
+        $sub = '(SELECT MIN(' . $db->quoteName('qi2') . '.' . $db->quoteName('quotation_id') . ') AS ' . $db->quoteName('qid')
+            . ', ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id')
+            . ' FROM ' . $db->quoteName('#__ordenproduccion_quotation_items', 'qi2')
+            . ' WHERE ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' IS NOT NULL'
+            . ' AND ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' > 0'
+            . ' GROUP BY ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ')';
+
+        $countQ = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
+        $db->setQuery($countQ);
+        $total = (int) $db->loadResult();
+
+        $confirmSel = isset($qCols['cotizacion_confirmada'])
+            ? $db->quoteName('q') . '.' . $db->quoteName('cotizacion_confirmada')
+            : 'CAST(NULL AS UNSIGNED)';
+
+        $sel = [
+            $db->quoteName('pc') . '.*',
+            $db->quoteName('q') . '.' . $db->quoteName('id') . ' AS ' . $db->quoteName('linked_quotation_id'),
+            $db->quoteName('q') . '.' . $db->quoteName('quotation_number') . ' AS ' . $db->quoteName('linked_quotation_number'),
+            $confirmSel . ' AS ' . $db->quoteName('cotizacion_confirmada'),
+        ];
+
+        $main = $db->getQuery(true)
+            ->select($sel)
+            ->from($pcTbl . ' AS ' . $db->quoteName('pc'))
+            ->join(
+                'LEFT',
+                $sub . ' AS ' . $db->quoteName('qmap'),
+                $db->quoteName('qmap') . '.' . $db->quoteName('pre_cotizacion_id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('id')
+            )
+            ->join(
+                'LEFT',
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('qmap') . '.' . $db->quoteName('qid')
+            )
+            ->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
+
+        $db->setQuery($main, $start, $limit);
+        try {
+            $rows = $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            $rows = [];
+        }
+
+        $agg = $this->buildFinancieroAggregates($db, $exprGrand);
+
+        return [
+            'rows' => $rows,
+            'total' => $total,
+            'aggregates' => $agg,
+            'precotTableOk' => true,
+            'joinQuotations' => true,
+        ];
+    }
+
+    /**
+     * SUM() across all pre_cotizaciones for footer totals.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   string                              $exprGrand  SQL expression for displayed grand total
+     *
+     * @return  \stdClass|null
+     *
+     * @since   3.115.24
+     */
+    protected function buildFinancieroAggregates($db, string $exprGrand): ?\stdClass
+    {
+        $pcTbl = $db->quoteName('#__ordenproduccion_pre_cotizacion');
+        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+
+        $sumLines = isset($pcCols['lines_subtotal'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('lines_subtotal') . ', 0))'
+            : 'SUM(0)';
+        $sumMargen = isset($pcCols['margen_amount'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('margen_amount') . ', 0))'
+            : 'SUM(0)';
+        $sumIva = isset($pcCols['iva_amount'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('iva_amount') . ', 0))'
+            : 'SUM(0)';
+        $sumIsr = isset($pcCols['isr_amount'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('isr_amount') . ', 0))'
+            : 'SUM(0)';
+        $sumCom = isset($pcCols['comision_amount'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_amount') . ', 0))'
+            : 'SUM(0)';
+        $sumMa = isset($pcCols['margen_adicional'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('margen_adicional') . ', 0))'
+            : 'SUM(0)';
+        $sumCma = isset($pcCols['comision_margen_adicional'])
+            ? 'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_margen_adicional') . ', 0))'
+            : 'SUM(0)';
+
+        $q = $db->getQuery(true)
+            ->select([
+                'COUNT(*) AS ' . $db->quoteName('cnt'),
+                $sumLines . ' AS sum_lines_subtotal',
+                $sumMargen . ' AS sum_margen_amount',
+                $sumIva . ' AS sum_iva_amount',
+                $sumIsr . ' AS sum_isr_amount',
+                $sumCom . ' AS sum_comision_amount',
+                $sumMa . ' AS sum_margen_adicional',
+                $sumCma . ' AS sum_comision_margen_adicional',
+                'SUM(' . $exprGrand . ') AS sum_grand_total',
+            ])
+            ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
+
+        try {
+            $db->setQuery($q);
+            $row = $db->loadObject();
+
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Financiero → Bonos: SUM(bono venta) and SUM(bono margen adicional) grouped by sales agent label.
+     *
+     * @return  array<int, object>  Each: agent_label, sum_bono_venta, sum_bono_margen_adicional, sum_bonos_total
+     *
+     * @since   3.115.24
+     */
+    public function getFinancieroBonosByAgentSummary(): array
+    {
+        $db = $this->getDatabase();
+        try {
+            $tables = $db->getTableList();
+        } catch (\Throwable $e) {
+            return [];
+        }
+        $prefix = $db->getPrefix();
+        $hasPc = false;
+        foreach ($tables as $t) {
+            if (strcasecmp((string) $t, $prefix . 'ordenproduccion_pre_cotizacion') === 0) {
+                $hasPc = true;
+                break;
+            }
+        }
+        if (!$hasPc) {
+            return [];
+        }
+
+        $qiCols = [];
+        $qCols  = [];
+        try {
+            $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false) ?: [];
+            $qCols  = $db->getTableColumns('#__ordenproduccion_quotations', false) ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+        $qiCols    = is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        $qCols     = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        $hasQiPrec = isset($qiCols['pre_cotizacion_id']) && isset($qiCols['quotation_id']);
+        $hasSales  = isset($qCols['sales_agent']);
+
+        // Agent label: quotation.sales_agent when linked, else Joomla user name of pre.created_by
+        if ($hasQiPrec && isset($qCols['quotation_number'])) {
+            $sub = '(SELECT MIN(' . $db->quoteName('qi2') . '.' . $db->quoteName('quotation_id') . ') AS ' . $db->quoteName('qid')
+                . ', ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_quotation_items', 'qi2')
+                . ' WHERE ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' IS NOT NULL'
+                . ' AND ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ' > 0'
+                . ' GROUP BY ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ')';
+
+            $unknown = $db->quote('-');
+
+            $agentExpr = $hasSales
+                ? 'COALESCE(NULLIF(TRIM(' . $db->quoteName('q') . '.' . $db->quoteName('sales_agent') . '), \'\'), NULLIF(TRIM('
+                . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\'), ' . $unknown . ')'
+                : 'COALESCE(NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\'), ' . $unknown . ')';
+
+            $q = $db->getQuery(true)
+                ->select([
+                    $agentExpr . ' AS ' . $db->quoteName('agent_label'),
+                    'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_amount') . ', 0)) AS ' . $db->quoteName('sum_bono_venta'),
+                    'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_margen_adicional') . ', 0)) AS ' . $db->quoteName('sum_bono_margen_adicional'),
+                    'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_amount') . ', 0) + COALESCE('
+                    . $db->quoteName('pc') . '.' . $db->quoteName('comision_margen_adicional') . ', 0)) AS ' . $db->quoteName('sum_bonos_total'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'pc'))
+                ->join(
+                    'LEFT',
+                    $sub . ' AS ' . $db->quoteName('qmap'),
+                    $db->quoteName('qmap') . '.' . $db->quoteName('pre_cotizacion_id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('id')
+                )
+                ->join(
+                    'LEFT',
+                    $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                    $db->quoteName('q') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('qmap') . '.' . $db->quoteName('qid')
+                )
+                ->join(
+                    'LEFT',
+                    $db->quoteName('#__users', 'u'),
+                    $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
+                )
+                ->group($agentExpr)
+                ->order($db->quoteName('sum_bonos_total') . ' DESC');
+        } else {
+            $unknown   = $db->quote('-');
+            $agentExpr = 'COALESCE(NULLIF(TRIM(' . $db->quoteName('u') . '.' . $db->quoteName('name') . '), \'\'), ' . $unknown . ')';
+
+            $q = $db->getQuery(true)
+                ->select([
+                    $agentExpr . ' AS ' . $db->quoteName('agent_label'),
+                    'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_amount') . ', 0)) AS ' . $db->quoteName('sum_bono_venta'),
+                    'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_margen_adicional') . ', 0)) AS ' . $db->quoteName('sum_bono_margen_adicional'),
+                    'SUM(COALESCE(' . $db->quoteName('pc') . '.' . $db->quoteName('comision_amount') . ', 0) + COALESCE('
+                    . $db->quoteName('pc') . '.' . $db->quoteName('comision_margen_adicional') . ', 0)) AS ' . $db->quoteName('sum_bonos_total'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'pc'))
+                ->join(
+                    'LEFT',
+                    $db->quoteName('#__users', 'u'),
+                    $db->quoteName('u') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('pc') . '.' . $db->quoteName('created_by')
+                )
+                ->group($agentExpr)
+                ->order($db->quoteName('sum_bonos_total') . ' DESC');
+        }
+
+        try {
+            $db->setQuery($q);
+
+            return $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
 }
 

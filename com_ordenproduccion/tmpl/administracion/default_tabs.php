@@ -38,6 +38,9 @@ if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas'], true
 if (!$canSeeVentasTabs && $activeTab === 'email_log') {
     $activeTab = 'resumen';
 }
+if (!AccessHelper::isSuperUser() && $activeTab === 'financiero') {
+    $activeTab = 'resumen';
+}
 
 // Ensure language is loaded for tabs
 $lang = $app->getLanguage();
@@ -150,6 +153,13 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-users"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_ESTADO_DE_CUENTA'); ?>
     </a>
+    <?php if (AccessHelper::isSuperUser()) : ?>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=listado'); ?>"
+       class="admin-tab <?php echo $activeTab === 'financiero' ? 'active' : ''; ?>">
+        <i class="fas fa-coins"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_FINANCIERO'); ?>
+    </a>
+    <?php endif; ?>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=email_log'); ?>"
        class="admin-tab <?php echo $activeTab === 'email_log' ? 'active' : ''; ?>">
         <i class="fas fa-envelope"></i>
@@ -182,6 +192,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('reportes'); ?>
     <?php elseif ($activeTab === 'clientes'): ?>
         <?php echo $this->loadTemplate('clientes'); ?>
+    <?php elseif ($activeTab === 'financiero'): ?>
+        <?php echo $this->loadTemplate('financiero'); ?>
     <?php elseif ($activeTab === 'email_log'): ?>
         <?php echo $this->loadTemplate('email_log'); ?>
     <?php elseif ($activeTab === 'herramientas'): ?>

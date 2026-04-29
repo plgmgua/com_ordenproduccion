@@ -423,6 +423,58 @@ class HtmlView extends BaseHtmlView
     protected $otWizardLogScannedDirs = [];
 
     /**
+     * Financiero subtab: listado | bonos.
+     *
+     * @var    string
+     * @since  3.115.24
+     */
+    protected $financieroSubtab = 'listado';
+
+    /**
+     * Pre-cotizaciones rows for Financiero tab (paginated).
+     *
+     * @var    array<int, object>
+     * @since  3.115.24
+     */
+    protected $financieroRows = [];
+
+    /**
+     * Total PRE count for Financiero pagination.
+     *
+     * @var    int
+     * @since  3.115.24
+     */
+    protected $financieroTotal = 0;
+
+    /**
+     * @var    \Joomla\CMS\Pagination\Pagination|null
+     * @since  3.115.24
+     */
+    protected $financieroPagination = null;
+
+    /**
+     * Footer sums across all pre-cotizaciones.
+     *
+     * @var    \stdClass|null
+     * @since  3.115.24
+     */
+    protected $financieroAggregates = null;
+
+    /**
+     * @var    bool
+     * @since  3.115.24
+     */
+    protected $financieroJoinQuotations = false;
+
+    /**
+     * Bonos summary by agent label.
+     *
+     * @var    array<int, object>
+     * @since  3.115.24
+     */
+    protected $financieroBonosByAgent = [];
+
+    /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
      *
      * @var    string
@@ -861,6 +913,11 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        if ($activeTab === 'financiero' && !AccessHelper::isSuperUser()) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
         // Sales agent filter: only Administracion/Admon see all; everyone else sees only their own records
         $salesAgentFilter = AccessHelper::getSalesAgentFilterForAdministracionView();
         // Ventas: statistics tab only from Jan 1, 2026 (year dropdown minimum; clamp so UI matches data)
@@ -971,8 +1028,15 @@ class HtmlView extends BaseHtmlView
         $this->outboundEmailLogSeeAllUsers       = false;
         $this->otWizardLogEntries                = [];
         $this->otWizardLogScannedDirs            = [];
+        $this->financieroSubtab                   = 'listado';
+        $this->financieroRows                     = [];
+        $this->financieroTotal                    = 0;
+        $this->financieroPagination               = null;
+        $this->financieroAggregates               = null;
+        $this->financieroJoinQuotations           = false;
+        $this->financieroBonosByAgent             = [];
 
-        // Ensure banks is always an array to prevent undefined array key errors
+        // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
             $this->banks = [];
         }
@@ -1374,6 +1438,51 @@ class HtmlView extends BaseHtmlView
                 $this->outboundEmailLogPagination->setAdditionalUrlParam('view', 'administracion');
                 $this->outboundEmailLogPagination->setAdditionalUrlParam('tab', 'email_log');
                 $this->outboundEmailLogPagination->setAdditionalUrlParam('email_log_limit', (string) $this->outboundEmailLogLimit);
+            }
+        }
+
+        if ($activeTab === 'financiero') {
+            $fst = $input->getString('financiero_subtab', 'listado');
+            if (!in_array($fst, ['listado', 'bonos'], true)) {
+                $fst = 'listado';
+            }
+            $this->financieroSubtab = $fst;
+            try {
+                $admFin = $this->getModel('Administracion');
+                if (!$admFin && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel::class)) {
+                    $admFin = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                        ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+                }
+                if ($admFin) {
+                    if ($fst === 'listado') {
+                        $limit      = max(5, min(200, (int) $input->getInt('financiero_limit', 50)));
+                        $limitStart = max(0, (int) $input->getInt('financiero_limitstart', 0));
+                        $pack       = $admFin->getFinancieroPrecotizacionesData($limit, $limitStart);
+                        $this->financieroRows             = $pack['rows'] ?? [];
+                        $this->financieroTotal             = (int) ($pack['total'] ?? 0);
+                        $this->financieroAggregates        = $pack['aggregates'] ?? null;
+                        $this->financieroJoinQuotations    = (bool) ($pack['joinQuotations'] ?? false);
+                        if ($this->financieroTotal > 0) {
+                            $this->financieroPagination = new \Joomla\CMS\Pagination\Pagination(
+                                $this->financieroTotal,
+                                $limitStart,
+                                $limit,
+                                'financiero_'
+                            );
+                            $this->financieroPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                            $this->financieroPagination->setAdditionalUrlParam('view', 'administracion');
+                            $this->financieroPagination->setAdditionalUrlParam('tab', 'financiero');
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_subtab', 'listado');
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_limit', (string) $limit);
+                        }
+                    }
+                    if ($fst === 'bonos') {
+                        $this->financieroBonosByAgent = $admFin->getFinancieroBonosByAgentSummary();
+                    }
+                }
+            } catch (\Throwable $e) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                $this->financieroRows = [];
             }
         }
 
