@@ -508,36 +508,20 @@ class OrdenFromQuotationService
         return $p !== '' ? $p : null;
     }
 
+    /**
+     * Work order description for display: the confirmed cotización line text only
+     * (#__ordenproduccion_quotation_items.descripcion), not the PRE header text.
+     * Cotización/PRE numbers and document_mode remain in orden_source_json.
+     *
+     * @param   object  $quotation  Quotation header (unused; kept for callers)
+     * @param   object  $preItem    PRE row (unused; kept for callers)
+     * @param   object  $itemRow    Quotation line for this pre_cotizacion_id
+     *
+     * @return  string  Trimmed quotation line descripcion
+     */
     protected function composeWorkDescription(object $quotation, object $preItem, object $itemRow): string
     {
-        $parts   = [];
-        $parts[] = 'Cotización / PRE — línea vendida';
-
-        $qNum = trim((string) ($this->getProp($quotation, 'quotation_number') ?? ''));
-        if ($qNum !== '') {
-            $parts[] = 'Cotización: ' . $qNum;
-        }
-
-        $preNum = trim((string) ($this->getProp($preItem, 'number') ?? ''));
-        if ($preNum === '') {
-            $preNum = 'PRE-' . (int) ($preItem->id ?? 0);
-        }
-        $parts[] = 'PRE: ' . $preNum;
-
-        $mode = isset($preItem->document_mode) ? (string) $preItem->document_mode : 'pliego';
-        $parts[] = 'Modo documento: ' . $mode;
-
-        $desc = trim((string) ($this->getProp($itemRow, 'descripcion') ?? ''));
-        if ($desc !== '') {
-            $parts[] = 'Descripción línea: ' . $desc;
-        }
-
-        $preDesc = trim((string) ($this->getProp($preItem, 'descripcion') ?? ''));
-        if ($preDesc !== '') {
-            $parts[] = 'Descripción PRE: ' . $preDesc;
-        }
-
-        return implode("\n", $parts);
+        return trim((string) ($this->getProp($itemRow, 'descripcion') ?? ''));
     }
 
     protected function loadQuotation(int $quotationId): ?object

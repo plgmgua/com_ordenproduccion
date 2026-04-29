@@ -167,6 +167,7 @@ class OrdenModel extends ItemModel
                 }
 
                 $this->normalizeOrdenRecordForView($data);
+                $this->normalizeLegacyQuotationWorkDescriptionBlob($data);
                 $this->enrichOrdenViewPresentationType($data);
 
                 // Check user access to this order
@@ -286,6 +287,51 @@ class OrdenModel extends ItemModel
         }
 
         $data->orden_view_layout_type = $layout;
+    }
+
+    /**
+     * Older OT rows stored a multi-line work_description (Cotización/PRE metadata + Descripción línea / PRE).
+     * For display, reduce to the cotización-line text when that pattern is detected.
+     *
+     * @param   object  $data  Mutable row from #__ordenproduccion_ordenes
+     *
+     * @return  void
+     *
+     * @since   3.116.5
+     */
+    protected function normalizeLegacyQuotationWorkDescriptionBlob(object $data): void
+    {
+        $tryExtract = static function (string $blob): ?string {
+            $blob = trim($blob);
+            if ($blob === '' || strpos($blob, 'Cotización / PRE — línea vendida') !== 0) {
+                return null;
+            }
+            if (preg_match('/^Descripción línea:\s*(.+)$/m', $blob, $m)) {
+                return trim($m[1]);
+            }
+
+            return null;
+        };
+
+        $wd = isset($data->work_description) ? trim((string) $data->work_description) : '';
+        $dde = property_exists($data, 'descripcion_de_trabajo')
+            ? trim((string) ($data->descripcion_de_trabajo ?? ''))
+            : '';
+
+        $clean = $tryExtract($wd);
+        if ($clean === null) {
+            $clean = $tryExtract($dde);
+        }
+
+        if ($clean === null || $clean === '') {
+            return;
+        }
+
+        $data->work_description = $clean;
+        if (property_exists($data, 'descripcion_de_trabajo')
+            && ($dde === '' || strpos($dde, 'Cotización / PRE — línea vendida') === 0)) {
+            $data->descripcion_de_trabajo = $clean;
+        }
     }
 
     /**
