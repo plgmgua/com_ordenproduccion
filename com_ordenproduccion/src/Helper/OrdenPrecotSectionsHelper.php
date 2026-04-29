@@ -242,7 +242,10 @@ class OrdenPrecotSectionsHelper
 
             $qty = isset($line->quantity) ? (int) $line->quantity : 0;
             if ($qty > 0) {
-                $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_LABEL', 'value' => (string) $qty];
+                $qtyKey = ($lineType === 'pliego')
+                    ? 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_PLIEGOS_IMPR'
+                    : 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_OTROS';
+                $metaRows[] = ['label_key' => $qtyKey, 'value' => (string) $qty];
             }
 
             $instructions = [];

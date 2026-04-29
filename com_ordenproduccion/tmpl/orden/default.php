@@ -356,14 +356,27 @@ function displayYesNoBadge($value) {
 
                                     <?php if (!empty($instructions) && \is_array($instructions)) : ?>
                                         <h6 class="mt-3 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINE_INSTRUC_TITLE'); ?></h6>
-                                        <ul class="list-unstyled small mb-3">
-                                            <?php foreach ($instructions as $ins) :
-                                                $inl = htmlspecialchars((string) ($ins['label'] ?? ''));
-                                                $int = nl2br(htmlspecialchars((string) ($ins['text'] ?? '')));
-                                                ?>
-                                                <li class="mb-2"><strong><?php echo $inl; ?>:</strong> <span><?php echo $int; ?></span></li>
-                                            <?php endforeach; ?>
-                                        </ul>
+                                        <div class="table-responsive mb-0">
+                                            <table class="table table-bordered table-sm">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTR_TH_CONCEPT'); ?></th>
+                                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTR_TH_INSTRUCTIONS'); ?></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php foreach ($instructions as $ins) :
+                                                        $inl = htmlspecialchars((string) ($ins['label'] ?? ''));
+                                                        $int = nl2br(htmlspecialchars((string) ($ins['text'] ?? '')));
+                                                        ?>
+                                                        <tr>
+                                                            <td><strong><?php echo $inl; ?></strong></td>
+                                                            <td><?php echo $int; ?></td>
+                                                        </tr>
+                                                    <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
