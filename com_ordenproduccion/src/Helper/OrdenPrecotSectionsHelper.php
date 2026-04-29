@@ -23,7 +23,7 @@ use Joomla\Database\DatabaseInterface;
 class OrdenPrecotSectionsHelper
 {
     /**
-     * One structured card per línea PRE (metadata + opcional desglose + instrucciones por concepto).
+     * One structured card per línea PRE (metadata + instrucciones por concepto; sin precios).
      *
      * @param   int  $preCotizacionId  Pre-cotización id
      *
@@ -224,7 +224,6 @@ class OrdenPrecotSectionsHelper
                     $tipoLabel = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_ENVIO');
                 }
                 $envId = isset($line->envio_id) ? (int) $line->envio_id : 0;
-                $ev    = isset($line->envio_valor) ? (float) $line->envio_valor : null;
                 $envName = '';
                 if ($envId > 0 && $productosModel && $productosModel->enviosTableExists()) {
                     $eo = $productosModel->getEnvio($envId);
@@ -234,12 +233,6 @@ class OrdenPrecotSectionsHelper
                 }
                 if ($envName !== '') {
                     $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ENVIO', 'value' => $envName];
-                }
-                if ($ev !== null && abs($ev) > 0.00001) {
-                    $metaRows[] = [
-                        'label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_CUSTOM_AMOUNT',
-                        'value'     => 'Q ' . number_format($ev, 2, '.', ','),
-                    ];
                 }
                 $subtitle = trim($tipoLabel . ($envName !== '' ? ' · ' . $envName : ''));
                 $heading    = $tipoLabel;
@@ -266,40 +259,13 @@ class OrdenPrecotSectionsHelper
                 $instructions[] = ['label' => $lab, 'text' => $detTxt];
             }
 
-            $breakdownRows = [];
-            if (!empty($line->calculation_breakdown)) {
-                $bd = json_decode((string) $line->calculation_breakdown, true);
-                if (\is_array($bd)) {
-                    foreach ($bd as $row) {
-                        if (!\is_array($row)) {
-                            continue;
-                        }
-                        $label    = isset($row['label']) ? trim((string) $row['label']) : '';
-                        $detail   = isset($row['detail']) ? trim((string) $row['detail']) : '';
-                        $subtotal = isset($row['subtotal']) ? (float) $row['subtotal'] : null;
-                        if ($label === '' && $detail === '' && $subtotal === null) {
-                            continue;
-                        }
-                        $breakdownRows[] = [
-                            'label'    => $label,
-                            'detail'   => $detail,
-                            'subtotal' => $subtotal !== null ? number_format(round($subtotal, 2), 2, '.', ',') : '',
-                        ];
-                    }
-                }
-            }
-
-            $lineTotal = isset($line->total) ? (float) $line->total : 0.0;
-
             $sections[] = [
-                'line_id'         => $lineId,
-                'line_type'       => $lineType,
-                'heading'         => $heading ?? '',
-                'subtitle'        => $subtitle ?? '',
-                'meta_rows'       => $metaRows,
-                'instructions'    => $instructions,
-                'breakdown_rows'  => $breakdownRows,
-                'line_total'      => $lineTotal,
+                'line_id'       => $lineId,
+                'line_type'     => $lineType,
+                'heading'       => $heading ?? '',
+                'subtitle'      => $subtitle ?? '',
+                'meta_rows'     => $metaRows,
+                'instructions'  => $instructions,
             ];
         }
 

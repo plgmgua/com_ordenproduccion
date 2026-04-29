@@ -312,39 +312,23 @@ function displayYesNoBadge($value) {
         <?php if ($isPrecotPliegoElementosPresentation) : ?>
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-list-alt"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINES_CARD_TITLE'); ?>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <?php if (!empty($precotLineSections) && \is_array($precotLineSections)) : ?>
-                            <?php foreach ($precotLineSections as $sec) :
-                                $hid = htmlspecialchars((string) ($sec['heading'] ?? ''));
-                                $subtitle = htmlspecialchars((string) ($sec['subtitle'] ?? ''));
-                                $metaRows = $sec['meta_rows'] ?? [];
-                                $instructions = $sec['instructions'] ?? [];
-                                $breakdownRows = $sec['breakdown_rows'] ?? [];
-                                $lineTot = isset($sec['line_total']) ? (float) $sec['line_total'] : 0;
-                                ?>
-                            <div class="card mb-3 border">
-                                <div class="card-header py-2">
-                                    <div class="d-flex justify-content-between flex-wrap gap-2 align-items-start">
-                                        <div>
-                                            <strong class="d-block"><?php echo $hid ?></strong>
-                                            <?php if ($subtitle !== '') : ?>
-                                                <span class="text-muted small"><?php echo $subtitle; ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <span class="text-nowrap fw-semibold">
-                                            <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINE_TOTAL'); ?>:
-                                            <?php echo $this->formatCurrency($lineTot); ?>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="card-body py-3">
+                <?php if (!empty($precotLineSections) && \is_array($precotLineSections)) : ?>
+                    <?php foreach ($precotLineSections as $sec) :
+                        $hid = htmlspecialchars((string) ($sec['heading'] ?? ''));
+                        $subtitle = htmlspecialchars((string) ($sec['subtitle'] ?? ''));
+                        $metaRows = $sec['meta_rows'] ?? [];
+                        $instructions = $sec['instructions'] ?? [];
+                        ?>
+                    <div class="card mb-3 border">
+                        <div class="card-header py-2">
+                            <div>
+                                <strong class="d-block"><?php echo $hid ?></strong>
+                                <?php if ($subtitle !== '') : ?>
+                                    <span class="text-muted small"><?php echo $subtitle; ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="card-body py-3">
                                     <?php if (!empty($metaRows) && \is_array($metaRows)) : ?>
                                         <table class="table table-sm mb-3">
                                             <tbody>
@@ -375,41 +359,12 @@ function displayYesNoBadge($value) {
                                             <?php endforeach; ?>
                                         </ul>
                                     <?php endif; ?>
-
-                                    <?php if (!empty($breakdownRows) && \is_array($breakdownRows)) : ?>
-                                        <h6 class="mt-3 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_BREAKDOWN_CAPTION'); ?></h6>
-                                        <div class="table-responsive mb-0">
-                                            <table class="table table-sm table-bordered mb-0">
-                                                <thead class="table-light">
-                                                    <tr>
-                                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
-                                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_DETAIL'); ?></th>
-                                                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_SUBTOTAL'); ?></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($breakdownRows as $br) :
-                                                        $lbl = htmlspecialchars((string) ($br['label'] ?? ''));
-                                                        $det = htmlspecialchars((string) ($br['detail'] ?? ''));
-                                                        $st  = htmlspecialchars((string) ($br['subtotal'] ?? '')); ?>
-                                                        <tr>
-                                                            <td><?php echo $lbl; ?></td>
-                                                            <td><?php echo $det; ?></td>
-                                                            <td class="text-end"><?php echo ($st !== '' ? 'Q ' . $st : ''); ?></td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                             <?php endforeach; ?>
-                        <?php else : ?>
-                            <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINES_EMPTY'); ?></p>
-                        <?php endif; ?>
-                    </div>
-                </div>
+                <?php else : ?>
+                    <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINES_EMPTY'); ?></p>
+                <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
