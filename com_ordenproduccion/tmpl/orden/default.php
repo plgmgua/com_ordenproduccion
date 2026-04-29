@@ -316,7 +316,31 @@ function displayYesNoBadge($value) {
         </div>
 
         <?php if ($isPrecotPliegoElementosPresentation) : ?>
-        <div class="row mb-4">
+        <style>
+            .orden-precot-pliego-elos-wrap .orden-precot-line-card { margin-bottom: 0.6rem !important; }
+            .orden-precot-pliego-elos-wrap .orden-precot-meta-table tbody th,
+            .orden-precot-pliego-elos-wrap .orden-precot-meta-table tbody td {
+                padding: 0.22rem 0.4rem 0.22rem 0 !important;
+                font-size: 0.8125rem;
+                line-height: 1.3;
+                border-width: 0;
+            }
+            .orden-precot-pliego-elos-wrap .orden-precot-meta-table tbody tr + tr th,
+            .orden-precot-pliego-elos-wrap .orden-precot-meta-table tbody tr + tr td {
+                border-top: 1px solid #eee;
+            }
+            .orden-precot-pliego-elos-wrap .orden-precot-instr-table thead th,
+            .orden-precot-pliego-elos-wrap .orden-precot-instr-table tbody td {
+                padding: 0.35rem 0.45rem !important;
+                font-size: 0.78rem;
+                line-height: 1.35;
+                vertical-align: top;
+            }
+            .orden-precot-pliego-elos-wrap .orden-precot-line-title {
+                font-weight: 600;
+            }
+        </style>
+        <div class="row mb-3 orden-precot-pliego-elos-wrap">
             <div class="col-12">
                 <?php if (!empty($precotLineSections) && \is_array($precotLineSections)) : ?>
                     <?php foreach ($precotLineSections as $sec) :
@@ -325,18 +349,18 @@ function displayYesNoBadge($value) {
                         $metaRows = $sec['meta_rows'] ?? [];
                         $instructions = $sec['instructions'] ?? [];
                         ?>
-                    <div class="card mb-3 border">
-                        <div class="card-header py-2">
+                    <div class="card mb-2 border orden-precot-line-card">
+                        <div class="card-header py-1 px-2">
                             <div>
-                                <strong class="d-block"><?php echo $hid ?></strong>
+                                <strong class="d-block orden-precot-line-title fs-6 mb-0"><?php echo $hid ?></strong>
                                 <?php if ($subtitle !== '') : ?>
-                                    <span class="text-muted small"><?php echo $subtitle; ?></span>
+                                    <span class="text-muted small lh-sm"><?php echo $subtitle; ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <div class="card-body py-3">
+                        <div class="card-body py-2 px-2 orden-precot-line-body">
                                     <?php if (!empty($metaRows) && \is_array($metaRows)) : ?>
-                                        <table class="table table-sm mb-3">
+                                        <table class="table table-sm table-borderless orden-precot-meta-table mb-2">
                                             <tbody>
                                             <?php foreach ($metaRows as $mr) :
                                                 $lk = htmlspecialchars(Text::_((string) ($mr['label_key'] ?? '')));
@@ -346,8 +370,8 @@ function displayYesNoBadge($value) {
                                                 }
                                                 ?>
                                                 <tr>
-                                                    <th class="align-top text-muted w-50" scope="row"><?php echo $lk; ?></th>
-                                                    <td><?php echo $val; ?></td>
+                                                    <th class="align-top text-muted orden-precot-meta-th" scope="row" style="width: 42%;"><?php echo $lk; ?></th>
+                                                    <td class="align-top orden-precot-meta-td"><?php echo $val; ?></td>
                                                 </tr>
                                             <?php endforeach; ?>
                                             </tbody>
@@ -355,9 +379,9 @@ function displayYesNoBadge($value) {
                                     <?php endif; ?>
 
                                     <?php if (!empty($instructions) && \is_array($instructions)) : ?>
-                                        <h6 class="mt-3 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINE_INSTRUC_TITLE'); ?></h6>
+                                        <div class="small fw-semibold mb-1 text-body-secondary orden-precot-instr-heading"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINE_INSTRUC_TITLE'); ?></div>
                                         <div class="table-responsive mb-0">
-                                            <table class="table table-bordered table-sm">
+                                            <table class="table table-bordered table-sm orden-precot-instr-table mb-0">
                                                 <thead class="table-light">
                                                     <tr>
                                                         <th style="width: 30%;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTR_TH_CONCEPT'); ?></th>
@@ -370,7 +394,7 @@ function displayYesNoBadge($value) {
                                                         $int = nl2br(htmlspecialchars((string) ($ins['text'] ?? '')));
                                                         ?>
                                                         <tr>
-                                                            <td><strong><?php echo $inl; ?></strong></td>
+                                                            <td class="fw-semibold"><?php echo $inl; ?></td>
                                                             <td><?php echo $int; ?></td>
                                                         </tr>
                                                     <?php endforeach; ?>
