@@ -92,8 +92,10 @@ class OrdenFromQuotationService
      * @param   int    $quotationId          Cotización PK
      * @param   int    $preCotizacionId      PRE PK (must match a quotation item line)
      * @param   array  $wizard               Optional: tipo_entrega (domicilio|recoger), delivery_address,
-     *                                       instrucciones_entrega, contact_person_name, contact_person_phone,
-     *                                       ot_fecha_entrega (Y-m-d, wizard step 3)
+     *                                       instrucciones_entrega (solo entrega; no duplicar en notas generales),
+     *                                       contact_person_name, contact_person_phone,
+     *                                       ot_fecha_entrega (Y-m-d, wizard step 3),
+     *                                       ot_instrucciones_generales (paso 3 → orden.instructions)
      * @param   User   $user                 Current user (created_by / modified_by)
      * @param   bool   $requireConfirmed     If true, quotation must have cotizacion_confirmada = 1 when column exists
      *
@@ -193,6 +195,7 @@ class OrdenFromQuotationService
         $shippingPhone   = $this->deriveShippingPhone($formLike);
 
         $instruccionesEntrega = trim((string) ($formLike['instrucciones_entrega'] ?? ''));
+        $otInstruccionesGenerales = trim((string) ($wizard['ot_instrucciones_generales'] ?? ''));
 
         $now        = Factory::getDate()->toSql();
         $uid        = (int) $user->id;
@@ -216,8 +219,8 @@ class OrdenFromQuotationService
             'agente_de_ventas'       => $salesAgent !== '' ? $salesAgent : null,
             'invoice_value'          => $valorFinal,
             'valor_a_facturar'       => $valorFinal,
-            'instructions'           => $instruccionesEntrega,
-            'observaciones_instrucciones_generales' => $instruccionesEntrega,
+            'instructions'           => $otInstruccionesGenerales,
+            'observaciones_instrucciones_generales' => $otInstruccionesGenerales,
             'instrucciones_entrega'  => $instruccionesEntrega,
             'shipping_type'          => $shippingType,
             'shipping_address'       => $shippingAddress,
