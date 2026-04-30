@@ -524,10 +524,8 @@ class OrdenController extends BaseController
                 }
                 
                 $agentText = 'AGENTE DE VENTAS: ' . $salesAgent;
-                $pdf->Cell(0, 6, $agentText, 1, 1, 'L');
+                $pdf->Cell(0, 6.5, $agentText, 1, 1, 'L');
 
-                $pdf->Ln(2.5);
-        
                 
         // Client and job rows: narrow label column; value uses remaining width (matches PRE strip feel).
         $labelColWpdf = 36;
@@ -586,26 +584,17 @@ class OrdenController extends BaseController
         }
         $medidasPdf = $fixSpanishChars($medidasPdf);
 
-        // TRABAJO / MEDIDAS: shared-height rows (label MultiCell matches value height; avoids overlap with next row).
+        // TRABAJO: aligned label/value row (avoid overlap); MEDIDAS same fixed height as CLIENTE (Cell rows).
         $innerPdfW    = (float) $pdf->GetPageWidth() - 30.0;
         $valueColWpdf = max(80.0, $innerPdfW - $labelColWpdf);
         $jobDescPdf   = ($jobDesc !== 'N/A' && $jobDesc !== '')
-            ? (rtrim((string) $jobDesc) . "\n\n")
+            ? (rtrim((string) $jobDesc) . "\n")
             : $jobDesc;
 
-        OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
-            $pdf,
-            $labelColWpdf,
-            $valueColWpdf,
-            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES'),
-            (string) $medidasPdf,
-            $fixSpanishChars,
-            $hClienteRowMm,
-            10.0,
-            'B',
-            9.0,
-            ''
-        );
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($labelColWpdf, $hClienteRowMm, Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES') . ':', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(0, $hClienteRowMm, $medidasPdf, 1, 1, 'L');
 
         OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
             $pdf,
