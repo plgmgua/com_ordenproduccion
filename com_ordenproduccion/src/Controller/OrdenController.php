@@ -495,14 +495,15 @@ class OrdenController extends BaseController
                 $pdf->Cell(0, 8, $fullText, 0, 1, 'R');
 
                 // ROW 2: FECHA SOLICITUD + FECHA ENTREGA with proper spacing
+                $wOrdenPdfFechaLabelColMm = 40;
                 $pdf->SetXY(15, $startY + 20); // Position below logo
                 $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(40, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
+                $pdf->Cell($wOrdenPdfFechaLabelColMm, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
                 $pdf->Cell(50, 6, $fixSpanishChars($this->formatOrdenPdfDisplayDate($workOrderData->request_date ?? null)), 1, 0, 'L');
                 
                 $pdf->SetFont('Arial', 'B', 10);
-                $pdf->Cell(40, 6, 'FECHA ENTREGA:', 1, 0, 'L');
+                $pdf->Cell($wOrdenPdfFechaLabelColMm, 6, 'FECHA ENTREGA:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
                 $pdf->Cell(0, 6, $fixSpanishChars($this->formatOrdenPdfDisplayDate($workOrderData->delivery_date ?? null)), 1, 1, 'L');
 
@@ -527,8 +528,8 @@ class OrdenController extends BaseController
                 $pdf->Cell(0, 6.5, $agentText, 1, 1, 'L');
 
                 
-        // Client and job rows: narrow label column; value uses remaining width (matches PRE strip feel).
-        $labelColWpdf = 36;
+        // Client/job label column aligns with fecha row labels (same variable).
+        $labelColWpdf = $wOrdenPdfFechaLabelColMm;
         $hClienteRowMm = 6.5; // 8 mm − 1.5 mm
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelColWpdf, $hClienteRowMm, 'CLIENTE:', 1, 0, 'L');
