@@ -93,22 +93,19 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         $pdf->SetFillColor(220, 220, 220);
         $pdf->Cell(0, 8, $fix(mb_strtoupper($tit, 'UTF-8')), 1, 1, 'L', true);
 
-        $wLbl = ($pdf->GetPageWidth()) - ($pdf->lMargin ?? 15) - ($pdf->rMargin ?? 15);
+        $widthsOtros = self::otrosElementosPdfThreeWidths($pdf);
 
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($wLbl, 7, $fix(mb_strtoupper(
+        $hdrOtros = [
             Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_ELEMENTO'),
-            'UTF-8'
-        )
-            . ' / '
-            . mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_CANTIDAD'), 'UTF-8')
-            . ' / '
-            . mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_INSTRUCCIONES'), 'UTF-8')),
-        1, 1, 'L');
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_CANTIDAD'),
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_INSTRUCCIONES'),
+        ];
 
-        $pdf->SetFont('Arial', '', 10);
+        self::maybePageBreak($pdf, 30);
+        self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $hdrOtros, 6.2, true, 3);
+
         foreach ($bulk as $esec) {
-            self::maybePageBreak($pdf, 40);
+            self::maybePageBreak($pdf, 36);
 
             $elNombre = '';
             $elCant   = '';
@@ -136,18 +133,13 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             }
             $instrRaw = implode("\n\n", $parts);
 
-            $pdf->MultiCell(
-                0,
-                5.8,
-                implode("\n", [
-                    $fix(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ELEMENTO') . ': ' . ($elNombre !== '' ? $elNombre : '—')),
-                    $fix(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_CANTIDAD') . ': ' . ($elCant !== '' ? $elCant : '—')),
-                    $fix(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_INSTRUCCIONES') . ': ' . ($instrRaw !== '' ? $instrRaw : '—')),
-                ]),
-                1,
-                'L'
-            );
-            $pdf->Ln(1);
+            $rowVals = [
+                self::ordenPdfTblCell($elNombre),
+                self::ordenPdfTblCell($elCant),
+                self::ordenPdfTblCell($instrRaw),
+            ];
+
+            self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $rowVals, 5.95, false, 3);
         }
 
         $pdf->Ln(2);
@@ -269,6 +261,30 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     }
 
     /**
+     * Elemento column aligns with pliego / instrucciones label column; cantidad narrower; remainder = instructions.
+     *
+     * @return  array{0: float, 1: float, 2: float}
+     */
+    private static function otrosElementosPdfThreeWidths(\FPDF $pdf): array
+    {
+        [$wLbl, $wVal] = self::pliegoTwoColumnWidths($pdf);
+        $total         = max(150.0, (float) $wLbl + (float) $wVal);
+        $wElem         = max(52.0, (float) $wLbl);
+
+        $wCant = max(38.0, min(54.0, floor($total * 0.16)));
+        $wInstr = round($total - $wElem - $wCant, 2);
+
+        if ($wInstr < 62.0) {
+            $def   = 62.0 - $wInstr;
+            $shave = min($def, max(0.0, $wCant - 34.0));
+            $wCant -= $shave;
+            $wInstr = round($total - $wElem - $wCant, 2);
+        }
+
+        return [$wElem, (float) $wCant, (float) max(55.0, $wInstr)];
+    }
+
+    /**
      * First column equals label width from {@see pliegoTwoColumnWidths}; remaining columns split value width evenly.
      *
      * @return  array{0: float, 1: float, 2: float, 3: float}
@@ -328,35 +344,41 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     }
 
     /**
-     * @param   float[]                               $widthsMm    Four column widths summing usable width (mm).
-     * @param   list<string>|array<int, string>       $cells       Up to four texts (padded).
-     * @param   bool                                  $headerBand  Header: grey cells + bold. Values row: plain (no grey).
+     * Shared grid row for PRE PDF tables (pliego 4-col, otros elementos 3-col). Paint cells first, stroke borders last.
+     *
+     * @param   float[]               $widthsMm
+     * @param   array<int, string>    $cells
+     * @param   int                   $columnCount  Between 2 and 12 inclusive.
+     *
+     * @since  3.115.41
      */
-    private static function drawPliegoFourColumnAlignedBand(
+    private static function drawPdfPrecotNcColumnAlignedRow(
         \FPDF $pdf,
         callable $fix,
         array $widthsMm,
         array $cells,
         float $lineH,
-        bool $headerBand
+        bool $headerBand,
+        int $columnCount
     ): void {
+        $columnCount = max(2, min(12, $columnCount));
+
         $widthsMm = \array_values($widthsMm);
-        while (\count($widthsMm) < 4) {
+        while (\count($widthsMm) < $columnCount) {
             $widthsMm[] = 10.0;
         }
 
-        $widthsMm = \array_slice($widthsMm, 0, 4);
+        $widthsMm = \array_slice($widthsMm, 0, $columnCount);
 
         $cells = \array_values($cells);
-        while (\count($cells) < 4) {
+        while (\count($cells) < $columnCount) {
             $cells[] = '';
         }
 
         /** @var list<string> $row */
         $row = [];
-        for ($ci = 0; $ci < 4; $ci++) {
-            $raw = trim((string) ($cells[$ci] ?? ''));
-
+        for ($ci = 0; $ci < $columnCount; $ci++) {
+            $raw       = trim((string) ($cells[$ci] ?? ''));
             $row[$ci] = ($raw !== '') ? $fix($raw) : $fix('—');
         }
 
@@ -365,7 +387,10 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             $sumW += (float) $ww;
         }
 
-        $fills = $headerBand ? [true, true, true, true] : [false, false, false, false];
+        /** @var list<bool> $fills */
+        $fills = $headerBand
+            ? array_fill(0, $columnCount, true)
+            : array_fill(0, $columnCount, false);
 
         $nMax = 1;
 
@@ -404,7 +429,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         $xv = $x;
 
         foreach ($widthsMm as $idxCol => $wcell) {
-            if ($idxCol === 3) {
+            if ($idxCol >= $columnCount - 1) {
                 break;
             }
 
@@ -413,6 +438,22 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         }
 
         $pdf->SetXY($x, $y + $hRow);
+    }
+
+    /**
+     * @param   float[]                               $widthsMm    Four column widths summing usable width (mm).
+     * @param   list<string>|array<int, string>       $cells       Up to four texts (padded).
+     * @param   bool                                  $headerBand  Header: grey cells + bold. Values row: plain (no grey).
+     */
+    private static function drawPliegoFourColumnAlignedBand(
+        \FPDF $pdf,
+        callable $fix,
+        array $widthsMm,
+        array $cells,
+        float $lineH,
+        bool $headerBand
+    ): void {
+        self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsMm, $cells, $lineH, $headerBand, 4);
     }
 
     /**
