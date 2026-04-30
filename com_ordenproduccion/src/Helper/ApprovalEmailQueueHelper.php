@@ -82,7 +82,7 @@ class ApprovalEmailQueueHelper
 
     /**
      * Human-facing entity reference for Telegram templates.
-     * For solicitud_descuento and solicitud_cotizacion, entity_id is the pre-cotización PK: use stored number (e.g. PRE-00072).
+     * For solicitud_descuento, solicitud_cotizacion and creacion_orden_trabajo, entity_id is the pre-cotización PK: use stored number (e.g. PRE-00072).
      *
      * @since  3.109.68
      */
@@ -139,6 +139,76 @@ class ApprovalEmailQueueHelper
         }
 
         return 'PRE-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Quotación reference for Telegram (e.g. COT-00123).
+     *
+     * @since  3.115.58
+     */
+    protected static function formatCotizacionNumberForTelegram(DatabaseInterface $db, int $quotationId): string
+    {
+        if ($quotationId < 1) {
+            return '';
+        }
+
+        try {
+            $q = $db->getQuery(true)
+                ->select($db->quoteName('quotation_number'))
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->setLimit(1);
+            $db->setQuery($q);
+            $num = trim((string) $db->loadResult());
+
+            return $num !== '' ? $num : 'COT-' . str_pad((string) $quotationId, 5, '0', STR_PAD_LEFT);
+        } catch (\Throwable $e) {
+            return 'COT-' . str_pad((string) $quotationId, 5, '0', STR_PAD_LEFT);
+        }
+    }
+
+    /**
+     * Orden de trabajo reference for Telegram (uses stored numeración).
+     *
+     * @since  3.115.58
+     */
+    protected static function formatOrdenTrabajoNumberForTelegram(DatabaseInterface $db, int $ordenId): string
+    {
+        if ($ordenId < 1) {
+            return '';
+        }
+
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $select = [$db->quoteName('orden_de_trabajo')];
+            if (isset($cols['order_number'])) {
+                $select[] = $db->quoteName('order_number');
+            }
+
+            $q = $db->getQuery(true)
+                ->select($select)
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' = ' . $ordenId)
+                ->setLimit(1);
+            $db->setQuery($q);
+            $row = $db->loadObject();
+            if ($row !== null) {
+                $a = trim((string) ($row->orden_de_trabajo ?? ''));
+                if ($a !== '') {
+                    return $a;
+                }
+                if (isset($row->order_number)) {
+                    $b = trim((string) ($row->order_number ?? ''));
+                    if ($b !== '') {
+                        return $b;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return 'ORD-' . str_pad((string) $ordenId, 5, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -330,16 +400,44 @@ class ApprovalEmailQueueHelper
         }
 
         if ($etLink === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO) {
+            $preNumFormatted                 = self::formatEntityIdForTelegram($db, $request);
+            $vars['pre_cotizacion_number']   = $preNumFormatted;
+            $vars['precot_number']           = $preNumFormatted;
+            $vars['cotizacion_number']       = '';
+            $vars['quotation_id']            = '';
+            $vars['orden_trabajo_id']        = '';
+            $vars['orden_trabajo_number']    = '';
             $vars['fecha_entrega']           = '';
             $vars['fecha_entrega_solicitada'] = '';
-            $metaRawCre = isset($request->metadata) ? trim((string) $request->metadata) : '';
+            $metaRawCre                      = isset($request->metadata) ? trim((string) $request->metadata) : '';
+            $metaArrCre                      = null;
+
             if ($metaRawCre !== '') {
                 try {
                     $metaArrCre = json_decode($metaRawCre, true);
                 } catch (\Throwable $e) {
                     $metaArrCre = null;
                 }
-                if (is_array($metaArrCre) && isset($metaArrCre['wizard']) && is_array($metaArrCre['wizard'])) {
+            }
+
+            if (is_array($metaArrCre)) {
+                $qidCre = (int) ($metaArrCre['quotation_id'] ?? 0);
+                if ($qidCre > 0) {
+                    $vars['quotation_id']      = (string) $qidCre;
+                    $vars['cotizacion_number'] = self::formatCotizacionNumberForTelegram($db, $qidCre);
+                }
+
+                $creacionOtId = (int) ($metaArrCre['creacion_ot_orden_id'] ?? 0);
+                $creacionOtNu = trim((string) ($metaArrCre['creacion_ot_orden_number'] ?? ''));
+                if ($creacionOtId > 0) {
+                    $vars['orden_trabajo_id'] = (string) $creacionOtId;
+                }
+
+                $vars['orden_trabajo_number'] = $creacionOtNu !== ''
+                    ? $creacionOtNu
+                    : ($creacionOtId > 0 ? self::formatOrdenTrabajoNumberForTelegram($db, $creacionOtId) : '');
+
+                if (isset($metaArrCre['wizard']) && is_array($metaArrCre['wizard'])) {
                     $feCre = trim((string) ($metaArrCre['wizard']['ot_fecha_entrega'] ?? ''));
                     if ($feCre !== '') {
                         try {

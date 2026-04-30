@@ -3052,6 +3052,36 @@ class PrecotizacionController extends BaseController
             $app->close();
         }
 
+        $newOrderId     = (int) ($result['order_id'] ?? 0);
+        $ordenNumStored = '';
+        if ($newOrderId > 0) {
+            $dbMerc = Factory::getDbo();
+            try {
+                $oq = $dbMerc->getQuery(true)
+                    ->select($dbMerc->quoteName('orden_de_trabajo'))
+                    ->from($dbMerc->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($dbMerc->quoteName('id') . ' = ' . $newOrderId)
+                    ->setLimit(1);
+                $dbMerc->setQuery($oq);
+                $ordenNumStored = trim((string) $dbMerc->loadResult());
+            } catch (\Throwable $e) {
+                $ordenNumStored = '';
+            }
+        }
+
+        $mergedMeta = $wf->mergeRequestMetadataJson($requestId, [
+            'creacion_ot_orden_id'     => $newOrderId,
+            'creacion_ot_orden_number' => $ordenNumStored,
+        ]);
+
+        if (!$mergedMeta) {
+            Log::add(
+                'Creacion OT approve: could not merge orden metadata into approval request request_id=' . $requestId,
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+        }
+
         $stepOk = $wf->approve($requestId, (int) $user->id, '');
         if (!$stepOk) {
             Log::add(

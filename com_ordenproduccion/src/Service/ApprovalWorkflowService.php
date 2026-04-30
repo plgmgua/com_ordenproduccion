@@ -41,7 +41,8 @@ class ApprovalWorkflowService
 
     /**
      * Creación de orden de trabajo desde cotización confirmada (asistente 3 pasos).
-     * entity_id = #__ordenproduccion_pre_cotizacion.id; metadata JSON: quotation_id, wizard (POST-equivalent payload).
+     * entity_id = #__ordenproduccion_pre_cotizacion.id; metadata JSON: quotation_id, wizard (POST-equivalent payload);
+     * after OT is created and before approve: creacion_ot_orden_id, creacion_ot_orden_number (for Telegram placeholders).
      *
      * @since  3.115.57
      */
@@ -416,6 +417,63 @@ class ApprovalWorkflowService
         }
 
         return $this->loadRequest($requestId);
+    }
+
+    /**
+     * Merge associative fields into a pending request's JSON metadata (shallow merge at top level).
+     * Used before final approve so Telegram outcome templates can include values such as the new orden number.
+     *
+     * @param   array<string, mixed>  $merge
+     *
+     * @since   3.115.58
+     */
+    public function mergeRequestMetadataJson(int $requestId, array $merge): bool
+    {
+        if (!$this->hasSchema() || $requestId < 1 || $merge === []) {
+            return false;
+        }
+
+        $req = $this->loadRequest($requestId);
+
+        if ($req === null || (string) ($req->status ?? '') !== 'pending') {
+            return false;
+        }
+
+        $cur = [];
+        $raw = trim((string) ($req->metadata ?? ''));
+
+        if ($raw !== '') {
+            try {
+                $decoded = json_decode($raw, true);
+            } catch (\Throwable $e) {
+                $decoded = null;
+            }
+            if (\is_array($decoded)) {
+                $cur = $decoded;
+            }
+        }
+
+        $merged = array_merge($cur, $merge);
+        $json   = json_encode($merged, JSON_UNESCAPED_UNICODE);
+
+        if ($json === false) {
+            return false;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->update($this->db->quoteName('#__ordenproduccion_approval_requests'))
+            ->set($this->db->quoteName('metadata') . ' = ' . $this->db->quote($json))
+            ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote(Factory::getDate()->toSql()))
+            ->where($this->db->quoteName('id') . ' = ' . (int) $requestId);
+        $this->db->setQuery($q);
+
+        try {
+            $this->db->execute();
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
