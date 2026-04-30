@@ -640,11 +640,6 @@ class OrdenController extends BaseController
         $pdf->Ln(5);
 
         } else {
-            // Orden desde pre-cotización (pliego + otros elementos): misma información que la vista HTML.
-            $pdf->SetFont('Arial', 'B', 11);
-            $pdf->SetFillColor(220, 220, 220);
-            $pdf->Cell(0, 8, $fixSpanishChars(mb_strtoupper('Detalle produccion (pre-cotizacion)', 'UTF-8')), 1, 1, 'L', true);
-            $pdf->SetFont('Arial', '', 10);
             OrdenTrabajoPdfPrecotSectionsHelper::renderPiecesOnPdf($pdf, $ordenPiecesPdf, $fixSpanishChars);
             $pdf->Ln(2);
         }

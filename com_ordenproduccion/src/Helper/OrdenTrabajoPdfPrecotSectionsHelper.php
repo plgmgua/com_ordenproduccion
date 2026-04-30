@@ -160,21 +160,38 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     {
         self::maybePageBreak($pdf, 68);
 
-        $head = trim((string) ($sec['heading'] ?? ''));
-        if ($head === '') {
-            $head = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_PLIEGO');
-        }
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->SetFillColor(220, 220, 220);
-        $pdf->Cell(0, 8, $fix(mb_strtoupper($head, 'UTF-8')), 1, 1, 'L', true);
-        $sub = trim((string) ($sec['subtitle'] ?? ''));
-        if ($sub !== '') {
-            $pdf->SetFont('Arial', 'I', 9);
-            $pdf->MultiCell(0, 5.5, $fix($sub), 1, 'L');
-            $pdf->Ln(2);
+        $paperKey = 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER';
+        $paperVal = '';
+
+        /** @var list<array<string, mixed>> $metaRest */
+        $metaRest = [];
+        foreach (($sec['meta_rows'] ?? []) as $mr) {
+            $lk = trim((string) ($mr['label_key'] ?? ''));
+            $val = trim((string) ($mr['value'] ?? ''));
+            if ($lk === $paperKey && $paperVal === '') {
+                $paperVal = $val;
+
+                continue;
+            }
+            if ($lk !== '') {
+                $metaRest[] = $mr;
+            }
         }
 
-        foreach (($sec['meta_rows'] ?? []) as $mr) {
+        if ($paperVal === '') {
+            $subRaw = trim((string) ($sec['subtitle'] ?? ''));
+            $paperVal = self::extractPaperFromSubtitleOrEmpty($subRaw);
+        }
+
+        if ($paperVal !== '') {
+            self::maybePageBreak($pdf, 22);
+            $lblLine = mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER'), 'UTF-8') . ':  ' . $paperVal;
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->MultiCell(0, 6.8, $fix($lblLine), 1, 'L');
+            $pdf->Ln(1);
+        }
+
+        foreach ($metaRest as $mr) {
             self::maybePageBreak($pdf, 28);
             $lk = trim((string) ($mr['label_key'] ?? ''));
             $val = trim((string) ($mr['value'] ?? ''));
@@ -210,6 +227,44 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         }
 
         $pdf->Ln(5);
+    }
+
+    /**
+     * Subtitle suele ser "Papel · Husky 16" (UTF-8). Devuelve el nombre del papel tras el separador.
+     */
+    private static function extractPaperFromSubtitleOrEmpty(string $sub): string
+    {
+        $s = self::normalizeInterPunctSubtitle($sub);
+        if ($s === '') {
+            return '';
+        }
+        foreach (["\u{00B7}", '·'] as $sep) {
+            if (\function_exists('mb_strpos') && mb_strpos($s, $sep, 0, 'UTF-8') !== false) {
+                $pos = mb_strpos($s, $sep, 0, 'UTF-8');
+                if ($pos !== false) {
+                    $right = trim(mb_substr($s, $pos + mb_strlen($sep, 'UTF-8'), null, 'UTF-8'));
+
+                    return $right;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Corrige Â· u otros artefactos y unifica separador medio.
+     */
+    private static function normalizeInterPunctSubtitle(string $s): string
+    {
+        $s = trim($s);
+        if ($s === '') {
+            return '';
+        }
+        $s = str_replace(["\xc2\xa0\xc2\xb7\xc2\xa0", "\xc2\xb7"], ' · ', $s);
+        $s = str_replace(['Â · ', ' Â· ', 'Â·', "\xEF\xBF\xBD"], [' · ', ' · ', '·', '·'], $s);
+
+        return trim(preg_replace('/\s*·\s*/u', ' · ', $s) ?? $s);
     }
 
     private static function maybePageBreak(\FPDF $pdf, float $reserveBottomMm): void
