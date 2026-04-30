@@ -470,14 +470,14 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 <?php endif; ?>
                 <thead>
                     <tr>
-                        <th class="col-cotizacion-pre text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th class="col-cotizacion-qty text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
+                        <th class="col-cotizacion-pre"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th class="col-cotizacion-qty"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
                         <th class="col-cotizacion-desc"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                        <th class="col-cotizacion-unit text-end text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
-                        <th class="col-cotizacion-sub text-end text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                        <th class="col-cotizacion-images text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
+                        <th class="col-cotizacion-unit text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
+                        <th class="col-cotizacion-sub text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th class="col-cotizacion-images"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
                         <?php if ($quotationConfirmed) : ?>
-                        <th class="col-cotizacion-action text-center text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <th class="col-cotizacion-action text-center"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                         <?php endif; ?>
                         <th class="col-cotizacion-ot"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_COL_ORDEN_TRABAJO', 'Work orders', 'Orden de trabajo'); ?></th>
                     </tr>

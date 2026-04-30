@@ -234,14 +234,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             <table class="items-table table table-bordered table-sm" id="quotationItemsTable">
                 <thead>
                     <tr>
-                        <th class="col-precotizacion"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th style="width: 8%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
-                        <th style="width: 30%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th class="col-precotizacion" style="width: 13%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th style="width: 7%;"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?></th>
+                        <th style="width: 26%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                        <th style="width: 12%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
+                        <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
                         <th style="width: 11%;" class="text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
-                        <th style="width: 12%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <th style="width: 10%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">

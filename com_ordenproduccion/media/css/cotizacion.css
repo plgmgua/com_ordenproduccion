@@ -91,11 +91,26 @@
     min-width: 200px;
 }
 
-/* Pre-cotización column narrower in items table */
-.items-table th.col-precotizacion,
-.items-table td:first-child {
-    width: 10%;
-    max-width: 120px;
+/* Quotation lines (#quotationItemsTable): fixed layout + wrap headers; adequate width for «Pre-Cotización» */
+.cotizacion-container .items-table {
+    table-layout: fixed;
+}
+
+.cotizacion-container .items-table thead th {
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    vertical-align: bottom;
+    line-height: 1.25;
+}
+
+.cotizacion-container .items-table th.col-precotizacion {
+    width: 13%;
+    min-width: 7.5rem;
+    max-width: none;
+}
+
+.cotizacion-container .items-table tbody td:first-child {
+    max-width: none;
 }
 
 /* Line images: keep attach control inside its column (avoid overlap with add-line controls on small widths) */
@@ -292,20 +307,29 @@
     width: 100%;
 }
 
+/* thead: never let Bootstrap .text-nowrap force header text into adjacent columns */
+.cotizacion-display .cotizacion-display-lines-table thead th {
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    vertical-align: bottom;
+    line-height: 1.25;
+}
+
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-pre {
-    width: 11%;
+    width: 13%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-qty {
-    width: 5%;
+    width: 6%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-desc {
-    width: 34%;
+    width: 31%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-images {
-    width: 13%;
+    width: 12%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-unit {
@@ -318,24 +342,24 @@
 
 /* 7ª columna OT (sin Acción confirmada): mantener hueco visible; antes faltaban % → solapamiento con Descripción */
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-ot {
-    width: 12%;
+    width: 13%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-pre {
-    width: 9%;
+    width: 12%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-qty {
-    width: 5%;
+    width: 6%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-desc {
-    width: 30%;
+    width: 25%;
 }
 
 /* Columna orden de trabajo: 8 columnas con Acción */
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-ot {
-    width: 11%;
+    width: 12%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-images {
@@ -355,7 +379,6 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-pre {
-    white-space: normal;
     line-height: 1.25;
     vertical-align: middle;
 }
@@ -368,7 +391,6 @@
     max-width: 0;
 }
 
-.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-qty,
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-qty {
     white-space: nowrap;
     vertical-align: middle;
@@ -382,9 +404,7 @@
     vertical-align: middle;
 }
 
-.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-unit,
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-unit,
-.cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-sub,
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-sub {
     white-space: nowrap;
     vertical-align: middle;
