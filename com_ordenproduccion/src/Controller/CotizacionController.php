@@ -583,6 +583,22 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
+
+        $quickFacturacionFinalize = (int) $app->input->post->get('confirmar_sin_modal_facturacion', 0) === 1;
+        if ($quickFacturacionFinalize) {
+            $precotModelFinalize = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            if ($precotModelFinalize !== null) {
+                $facturarPrecots = $precotModelFinalize->getFacturarPreCotizacionesForQuotation($quotationId);
+                if ($facturarPrecots !== []) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_REQUIRED_FACTURACION'), 'error');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                    return;
+                }
+            }
+        }
+
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['cotizacion_confirmada'])) {

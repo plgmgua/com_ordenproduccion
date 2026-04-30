@@ -143,6 +143,15 @@ class HtmlView extends BaseHtmlView
     protected $confirmarInstruccionesFacturacionBlocks = [];
 
     /**
+     * Confirmar Cotización UX: omit modal when no linked pre-cot has «Facturar» — nothing to invoice; POST finalizes directly.
+     *
+     * @var    bool
+     *
+     * @since  3.115.61
+     */
+    protected $confirmarCotizacionSkipModal = false;
+
+    /**
      * True when DB has FEL issuance columns (migration 3.101.50) and quotation_id on invoices.
      *
      * @var    bool
@@ -319,6 +328,7 @@ class HtmlView extends BaseHtmlView
                             $precotModel
                         );
                     }
+                    $this->refreshConfirmarCotizacionSkipModal();
                 } else {
                     $this->quotationItems = [];
                     $this->ordenesPorPreCotizacionId = [];
@@ -327,6 +337,7 @@ class HtmlView extends BaseHtmlView
                     $this->pliegoSizesModal = [];
                     $this->elementosModal = [];
                     $this->confirmarInstruccionesFacturacionBlocks = [];
+                    $this->refreshConfirmarCotizacionSkipModal();
                 }
             }
 
@@ -652,6 +663,26 @@ class HtmlView extends BaseHtmlView
         }
 
         return $blocks;
+    }
+
+    /**
+     * Set {@see $confirmarCotizacionSkipModal}: direct finalize when quotation is not confirmed and no PRE requires invoicing modal.
+     *
+     * @since  3.115.61
+     */
+    protected function refreshConfirmarCotizacionSkipModal(): void
+    {
+        $this->confirmarCotizacionSkipModal = false;
+
+        if (!$this->quotation) {
+            return;
+        }
+
+        if ((int) ($this->quotation->cotizacion_confirmada ?? 0) === 1) {
+            return;
+        }
+
+        $this->confirmarCotizacionSkipModal = $this->confirmarInstruccionesFacturacionBlocks === [];
     }
 
     /**

@@ -634,10 +634,26 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             <?php if ($quotationConfirmed) : ?>
                 <span class="badge bg-success"><i class="fas fa-check"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_YA_FINALIZADA', 'Confirmation completed', 'Confirmación finalizada'); ?></span>
             <?php else : ?>
+                <?php if (!empty($this->confirmarCotizacionSkipModal)) : ?>
+            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.finalizeConfirmacionCotizacion'); ?>" class="d-inline">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                <input type="hidden" name="confirmar_sin_modal_facturacion" value="1">
+                <?php if (!empty($this->facturacionUiAvailable)) : ?>
+                <input type="hidden" name="facturacion_modo" value="con_envio">
+                <input type="hidden" name="facturar_cotizacion_exacta" value="1">
+                <?php endif; ?>
+                <button type="submit" class="btn btn-success" onclick="this.disabled=true;this.form.submit();return false;">
+                    <i class="fas fa-check-circle"></i>
+                    <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_COTIZACION', 'Confirm Quotation', 'Confirmar Cotización'); ?>
+                </button>
+            </form>
+                <?php else : ?>
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarCotizacionModal" id="btnConfirmarCotizacion">
                 <i class="fas fa-check-circle"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_COTIZACION', 'Confirm Quotation', 'Confirmar Cotización'); ?>
             </button>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -720,6 +736,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 <?php endif; ?>
 </div>
 
+<?php if (empty($this->confirmarCotizacionSkipModal)) : ?>
 <!-- Modal: archivos opcionales + Finalizar confirmación -->
 <div class="modal fade" id="confirmarCotizacionModal" tabindex="-1" aria-labelledby="confirmarCotizacionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -868,6 +885,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Modal: Instrucciones para orden de trabajo (pre-cotización) — saved via saveInstruccionesOrden + instrucciones_save_only -->
 <div class="modal fade" id="instruccionesOrdenModal" tabindex="-1" aria-labelledby="instruccionesOrdenModalLabel" aria-hidden="true">
