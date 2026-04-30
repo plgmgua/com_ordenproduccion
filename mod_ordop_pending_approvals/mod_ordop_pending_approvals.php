@@ -70,6 +70,7 @@ if ($rows !== []) {
         if (
             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+            || $et === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
         ) {
             $eid = (int) ($row->entity_id ?? 0);
             if ($eid > 0) {
@@ -124,6 +125,7 @@ if ($rows !== []) {
         if (
             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+            || $et === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
         ) {
             $eid = (int) ($row->entity_id ?? 0);
             $row->precotizacion_number = $eid > 0

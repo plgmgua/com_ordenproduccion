@@ -69,6 +69,8 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         $rid = isset($row->id) ? (int) $row->id : 0;
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
+                        $workflowTypeLabel = isset($row->workflow_pending_type_label) ? trim((string) $row->workflow_pending_type_label) : '';
+                        $typeDisplay = $workflowTypeLabel !== '' ? $workflowTypeLabel : $entityLabel($etype);
                         $created = isset($row->created) ? (string) $row->created : '';
                         if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion' || $etype === 'creacion_orden_trabajo') {
                             $refDisplay = (string) ($row->precotizacion_number ?? '');
@@ -96,7 +98,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         ?>
                         <tr>
                             <td class="text-nowrap small"><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo htmlspecialchars($entityLabel($etype), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($typeDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:260px;">

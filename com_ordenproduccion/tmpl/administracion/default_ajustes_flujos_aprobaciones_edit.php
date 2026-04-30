@@ -102,6 +102,13 @@ $formId = 'adminFormApprovalWorkflowsSave';
                 <label class="form-label" for="awf-desc-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WF_DESCRIPTION'); ?></label>
                 <textarea class="form-control" name="awf_workflow[<?php echo $wid; ?>][description]" id="awf-desc-<?php echo $wid; ?>" rows="2"><?php echo htmlspecialchars((string) ($wf->description ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
             </div>
+            <div class="col-md-8">
+                <label class="form-label" for="awf-pending-type-<?php echo $wid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WF_PENDING_MODULE_TYPE_LABEL'); ?></label>
+                <input type="text" class="form-control" name="awf_workflow[<?php echo $wid; ?>][pending_module_type_label]" id="awf-pending-type-<?php echo $wid; ?>" maxlength="255"
+                    value="<?php echo htmlspecialchars((string) ($wf->pending_module_type_label ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                    placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WF_PENDING_MODULE_TYPE_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>" />
+                <p class="small text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_WF_PENDING_MODULE_TYPE_DESC'); ?></p>
+            </div>
             <div class="col-12">
                 <h4 class="h6 mt-2 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_MESSAGES'); ?></h4>
                 <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_APPROVAL_TELEGRAM_INTRO'); ?></p>

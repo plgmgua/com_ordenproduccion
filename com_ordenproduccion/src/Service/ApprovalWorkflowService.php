@@ -187,11 +187,17 @@ class ApprovalWorkflowService
         }
 
         $q = $this->db->getQuery(true)
-            ->select('r.*, s.`id` AS step_row_id, s.`step_number` AS step_row_step')
+            ->select(
+                'r.*, s.`id` AS step_row_id, s.`step_number` AS step_row_step, awf.`pending_module_type_label` AS workflow_pending_type_label'
+            )
             ->from($this->db->quoteName('#__ordenproduccion_approval_request_steps', 's'))
             ->innerJoin(
                 $this->db->quoteName('#__ordenproduccion_approval_requests', 'r') . ' ON '
                 . $this->db->quoteName('r.id') . ' = ' . $this->db->quoteName('s.request_id')
+            )
+            ->leftJoin(
+                $this->db->quoteName('#__ordenproduccion_approval_workflows', 'awf')
+                . ' ON ' . $this->db->quoteName('awf.id') . ' = ' . $this->db->quoteName('r.workflow_id')
             )
             ->where($this->db->quoteName('s.approver_user_id') . ' = ' . (int) $userId)
             ->where($this->db->quoteName('s.status') . ' = ' . $this->db->quote('pending'))
@@ -1944,6 +1950,10 @@ class ApprovalWorkflowService
         $emailBodyDecided    = isset($data['email_body_decided']) ? (string) $data['email_body_decided'] : '';
         $emailOcApprovedSubj = isset($data['email_ordencompra_approved_subject']) ? trim((string) $data['email_ordencompra_approved_subject']) : '';
         $emailOcApprovedBody = isset($data['email_ordencompra_approved_body']) ? (string) $data['email_ordencompra_approved_body'] : '';
+        $pendingModuleTypeLabel = isset($data['pending_module_type_label']) ? trim((string) $data['pending_module_type_label']) : '';
+        if (strlen($pendingModuleTypeLabel) > 255) {
+            $pendingModuleTypeLabel = substr($pendingModuleTypeLabel, 0, 255);
+        }
 
         if (strlen($emailSubjectAssign) > 255) {
             $emailSubjectAssign = substr($emailSubjectAssign, 0, 255);
@@ -1990,6 +2000,10 @@ class ApprovalWorkflowService
                 ->set(
                     $this->db->quoteName('email_body_decided') . ' = '
                     . ($emailBodyDecided === '' ? 'NULL' : $this->db->quote($emailBodyDecided))
+                )
+                ->set(
+                    $this->db->quoteName('pending_module_type_label') . ' = '
+                    . ($pendingModuleTypeLabel === '' ? 'NULL' : $this->db->quote($pendingModuleTypeLabel))
                 );
 
             if ($entityType === self::ENTITY_ORDEN_COMPRA) {

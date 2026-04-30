@@ -27,6 +27,7 @@ $entityLabel = static function (string $entityType): string {
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
+        'creacion_orden_trabajo'   => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_CREACION_ORDEN_TRABAJO',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 
@@ -74,21 +75,27 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                     <?php foreach ($rows as $row) : ?>
                         <?php
                         $etype = strtolower(trim((string) ($row->entity_type ?? '')));
+                        $wfTypeLabel = isset($row->workflow_pending_type_label) ? trim((string) $row->workflow_pending_type_label) : '';
                         $isDiscount     = $etype === 'solicitud_descuento';
                         $isPreCotVendor = $etype === 'solicitud_cotizacion';
+                        $isCreacionOt   = $etype === 'creacion_orden_trabajo';
                         $isPaymentProof = $etype === 'payment_proof';
                         $isOrdenCompra  = $etype === 'orden_compra';
-                        $tipoLabel      = $isDiscount
-                            ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_DESCUENTO')
-                            : ($isPreCotVendor
-                                ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_VENDOR_QUOTE')
-                                : ($isPaymentProof
-                                    ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_PAGO')
-                                    : ($isOrdenCompra
-                                        ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_ORDEN_COMPRA')
-                                        : $entityLabel($etype))));
+                        if ($wfTypeLabel !== '') {
+                            $tipoLabel = $wfTypeLabel;
+                        } else {
+                            $tipoLabel      = $isDiscount
+                                ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_DESCUENTO')
+                                : ($isPreCotVendor
+                                    ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_VENDOR_QUOTE')
+                                    : ($isPaymentProof
+                                        ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_PAGO')
+                                        : ($isOrdenCompra
+                                            ? Text::_('MOD_ORDOP_PENDING_APPROVALS_TYPE_ORDEN_COMPRA')
+                                            : $entityLabel($etype))));
+                        }
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
-                        if ($isDiscount || $isPreCotVendor) {
+                        if ($isDiscount || $isPreCotVendor || $isCreacionOt) {
                             $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
                                 ? (string) $row->precotizacion_number
                                 : ($eid > 0 ? 'PRE-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT) : '');

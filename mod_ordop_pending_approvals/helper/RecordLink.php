@@ -64,6 +64,7 @@ final class RecordLink
 
             case ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO:
             case ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION:
+            case ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO:
                 return 'index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $eid;
 
             case ApprovalWorkflowService::ENTITY_ORDEN_COMPRA:

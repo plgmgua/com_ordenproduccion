@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_approval_workflows` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
     `name` varchar(255) NOT NULL,
     `description` text,
+    `pending_module_type_label` varchar(255) DEFAULT NULL COMMENT 'Displayed as request type in pending approvals UI when set',
     `entity_type` varchar(64) NOT NULL COMMENT 'cotizacion_confirmation, orden_status, timesheet, payment_proof',
     `published` tinyint(1) NOT NULL DEFAULT 1,
     `email_subject_assign` varchar(255) DEFAULT NULL,
