@@ -32,11 +32,11 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     /** Etiquetas filas instrucciones (former 9.5 pt). */
     private const PDF_PRE_PT_INSTR_LABEL = 7.5;
 
-    /** Altura multicell por línea (~80% vs 6.2 mm ≈ −20%). */
-    private const PDF_PRE_MM_LINE = 5.0;
+    /** Altura de cada línea en MultiCell (~alto efectivo una sola línea antes del pad fino). */
+    private const PDF_PRE_MM_LINE = 3.5;
 
-    /** Margen bajo texto envuelto en fila (~80% × 2.75 mm). */
-    private const PDF_PRE_MM_ROW_PAD = 2.2;
+    /** Suma bajo el último texto (subir a p. ej. 0.1 si el borde corta descendentes). */
+    private const PDF_PRE_MM_ROW_PAD = 0.0;
 
     /** Barra OTROS ELEMENTOS (former 8 mm). */
     private const PDF_PRE_MM_H_OTROS_TITLE = 6.4;
