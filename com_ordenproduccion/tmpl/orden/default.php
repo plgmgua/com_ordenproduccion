@@ -336,6 +336,13 @@ function displayYesNoBadge($value) {
                 line-height: 1.35;
                 vertical-align: top;
             }
+            .orden-precot-pliego-elos-wrap .orden-precot-elementos-aggr-table thead th,
+            .orden-precot-pliego-elos-wrap .orden-precot-elementos-aggr-table tbody td {
+                padding: 0.35rem 0.45rem !important;
+                font-size: 0.78rem;
+                line-height: 1.35;
+                vertical-align: top;
+            }
             .orden-precot-pliego-elos-wrap .orden-precot-line-title {
                 font-weight: 600;
             }
@@ -348,13 +355,102 @@ function displayYesNoBadge($value) {
         </style>
         <div class="row mb-3 orden-precot-pliego-elos-wrap">
             <div class="col-12">
-                <?php if (!empty($precotLineSections) && \is_array($precotLineSections)) : ?>
-                    <?php foreach ($precotLineSections as $sec) :
-                        $hid = htmlspecialchars((string) ($sec['heading'] ?? ''));
-                        $subtitle = htmlspecialchars((string) ($sec['subtitle'] ?? ''));
-                        $metaRows = $sec['meta_rows'] ?? [];
-                        $instructions = $sec['instructions'] ?? [];
+                <?php
+                $precotSecList = \is_array($precotLineSections ?? null) ? $precotLineSections : [];
+                $ordenPrecotRenderList = [];
+                $ordenPrecotElemBuf = [];
+                foreach ($precotSecList as $psc) {
+                    $ltOrd = (string) ($psc['line_type'] ?? '');
+                    if ($ltOrd === 'elementos') {
+                        $ordenPrecotElemBuf[] = $psc;
+                        continue;
+                    }
+                    if ($ordenPrecotElemBuf !== []) {
+                        $ordenPrecotRenderList[] = ['type' => 'elementos_bulk', 'sections' => $ordenPrecotElemBuf];
+                        $ordenPrecotElemBuf = [];
+                    }
+                    $ordenPrecotRenderList[] = ['type' => 'pliego', 'section' => $psc];
+                }
+                if ($ordenPrecotElemBuf !== []) {
+                    $ordenPrecotRenderList[] = ['type' => 'elementos_bulk', 'sections' => $ordenPrecotElemBuf];
+                }
+                ?>
+                <?php if ($ordenPrecotRenderList !== []) : ?>
+                    <?php foreach ($ordenPrecotRenderList as $precPe) : ?>
+                        <?php
+                        $ordenPrecPieceType = (string) ($precPe['type'] ?? '');
                         ?>
+                        <?php if ($ordenPrecPieceType === 'elementos_bulk') : ?>
+                            <?php
+                            $__bulkEl = isset($precPe['sections']) && \is_array($precPe['sections']) ? $precPe['sections'] : [];
+                            ?>
+                            <?php if ($__bulkEl !== []) : ?>
+                                <?php
+                                $__otrosTitle = htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_ELEMENTOS'), ENT_QUOTES, 'UTF-8');
+                                ?>
+                    <div class="card mb-2 border orden-precot-line-card orden-precot-elementos-bulk-card">
+                        <div class="card-header py-1 px-2">
+                            <strong class="d-block orden-precot-line-title fs-6 mb-0"><?php echo $__otrosTitle; ?></strong>
+                        </div>
+                        <div class="card-body py-2 px-2 orden-precot-line-body">
+                            <div class="table-responsive mb-0">
+                                <table class="table table-bordered table-sm orden-precot-elementos-aggr-table mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_ELEMENTO'); ?></th>
+                                            <th style="width: 110px;"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_CANTIDAD'); ?></th>
+                                            <th><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_ELEMENTOS_TBL_TH_INSTRUCCIONES'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach ($__bulkEl as $esec) : ?>
+                                        <?php
+                                        $__elNombre = '';
+                                        $__elCant = '';
+                                        foreach (($esec['meta_rows'] ?? []) as $__mr) {
+                                            $__mk = (string) ($__mr['label_key'] ?? '');
+                                            $__mv = (string) ($__mr['value'] ?? '');
+                                            if ($__mk === 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ELEMENTO') {
+                                                $__elNombre = trim($__mv);
+                                            } elseif ($__mk === 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_OTROS') {
+                                                $__elCant = trim($__mv);
+                                            }
+                                        }
+                                        if ($__elNombre === '') {
+                                            $__elNombre = trim((string) ($esec['heading'] ?? ''));
+                                        }
+                                        $__instrListEl = isset($esec['instructions']) && \is_array($esec['instructions']) ? $esec['instructions'] : [];
+                                        $__partsInstr = [];
+                                        foreach ($__instrListEl as $__insEl) {
+                                            $__t = trim((string) ($__insEl['text'] ?? ''));
+                                            if ($__t === '') {
+                                                continue;
+                                            }
+                                            $__lb = trim((string) ($__insEl['label'] ?? ''));
+                                            $__partsInstr[] = ($__lb !== '') ? ($__lb . ': ' . $__t) : $__t;
+                                        }
+                                        $__instrCellRaw = implode("\n\n", $__partsInstr);
+                                        ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($__elNombre !== '' ? $__elNombre : '—'); ?></td>
+                                            <td><?php echo htmlspecialchars($__elCant !== '' ? $__elCant : '—'); ?></td>
+                                            <td><?php echo $__instrCellRaw !== '' ? nl2br(htmlspecialchars($__instrCellRaw, ENT_QUOTES, 'UTF-8')) : ''; ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                            <?php endif; ?>
+                        <?php else : ?>
+                            <?php
+                            $sec = $precPe['section'] ?? [];
+                            $hid = htmlspecialchars((string) ($sec['heading'] ?? ''));
+                            $subtitle = htmlspecialchars((string) ($sec['subtitle'] ?? ''));
+                            $metaRows = $sec['meta_rows'] ?? [];
+                            $instructions = $sec['instructions'] ?? [];
+                            ?>
                     <div class="card mb-2 border orden-precot-line-card">
                         <div class="card-header py-1 px-2">
                             <div>
@@ -459,7 +555,8 @@ function displayYesNoBadge($value) {
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php endforeach; ?>
                 <?php else : ?>
                     <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_LINES_EMPTY'); ?></p>
                 <?php endif; ?>
