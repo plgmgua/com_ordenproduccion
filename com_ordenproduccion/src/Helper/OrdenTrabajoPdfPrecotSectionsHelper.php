@@ -184,25 +184,24 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         }
 
         if ($paperVal !== '') {
-            self::maybePageBreak($pdf, 22);
+            self::maybePageBreak($pdf, 24);
             $lblLine = mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER'), 'UTF-8') . ':  ' . $paperVal;
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->MultiCell(0, 6.8, $fix($lblLine), 1, 'L');
-            $pdf->Ln(1);
+            $pdf->SetFillColor(238, 238, 238);
+            $pdf->MultiCell(0, 7.5, $fix($lblLine), 1, 'L', true);
+            $pdf->Ln(2);
         }
 
+        [$wLblCol, $wValCol] = self::pliegoTwoColumnWidths($pdf);
+
         foreach ($metaRest as $mr) {
-            self::maybePageBreak($pdf, 28);
             $lk = trim((string) ($mr['label_key'] ?? ''));
             $val = trim((string) ($mr['value'] ?? ''));
             if ($lk === '') {
                 continue;
             }
             $lbl = Text::_($lk);
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(58, 6.8, $fix($lbl . ': '), 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 10);
-            $pdf->MultiCell(0, 5.8, $fix($val !== '' ? $val : '—'), 1, 'L');
+            self::drawLabelValueRowTwoColumn($pdf, $wLblCol, $wValCol, $lbl, ($val !== '' ? $val : '—'), $fix, 6.2);
         }
 
         $instr = isset($sec['instructions']) && \is_array($sec['instructions']) ? $sec['instructions'] : [];
@@ -213,20 +212,156 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             $pdf->SetFillColor(238, 238, 238);
             $pdf->Cell(0, 7.5, $fix(mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTRUC_ACABADOS_TITLE'), 'UTF-8')), 1, 1, 'L', true);
             foreach ($instr as $insRow) {
-                self::maybePageBreak($pdf, 36);
                 $lab = trim((string) ($insRow['label'] ?? ''));
                 if ($lab === '') {
                     $lab = Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES');
                 }
                 $txt = trim((string) ($insRow['text'] ?? ''));
-                $pdf->SetFont('Arial', 'B', 9.5);
-                $pdf->Cell(58, 6.8, $fix($lab . ': '), 1, 0, 'L');
-                $pdf->SetFont('Arial', '', 10);
-                $pdf->MultiCell(0, 5.8, $fix($txt !== '' ? $txt : '—'), 1, 'L');
+                self::drawLabelValueRowTwoColumn(
+                    $pdf,
+                    $wLblCol,
+                    $wValCol,
+                    $lab,
+                    ($txt !== '' ? $txt : '—'),
+                    $fix,
+                    6.2,
+                    9.5,
+                    'B',
+                    10,
+                    ''
+                );
             }
         }
 
         $pdf->Ln(5);
+    }
+
+    /**
+     * Wide label column + remainder for values (Letter with 15 mm margins: ~114 mm labels).
+     *
+     * @return  array{0: float, 1: float}
+     */
+    private static function pliegoTwoColumnWidths(\FPDF $pdf): array
+    {
+        $rm = 15.0;
+        $remainder = max(74.0, $pdf->GetPageWidth() - $pdf->GetX() - $rm);
+        $w1          = (float) min(132.0, max(94.0, floor($remainder * 0.62)));
+
+        return [$w1, max(56.0, $remainder - $w1)];
+    }
+
+    /** Inner width heuristic close to MultiCell’s (column − margins); slightly pessimistic ⇒ taller rows, less clipping. */
+    private static function multicellApproxInnerWidthMm(float $columnWidthMm): float
+    {
+        return max(24.0, $columnWidthMm - 5.5);
+    }
+
+    /**
+     * Wrapped line estimate using {@see FPDF::GetStringWidth()} for the active font/size.
+     */
+    private static function estimateWrappedLineCount(\FPDF $pdf, float $columnWidthMm, string $txt): int
+    {
+        $txt   = str_replace(["\r\n", "\r"], "\n", (string) $txt);
+        $inner = self::multicellApproxInnerWidthMm($columnWidthMm);
+
+        if ($txt === '') {
+            return 1;
+        }
+
+        $linesTotal = 0;
+
+        foreach (preg_split('/\n/u', $txt, -1) ?: [] as $block) {
+            $words = preg_split('/\s+/u', $block, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            if ($words === []) {
+                $linesTotal++;
+
+                continue;
+            }
+
+            $line = '';
+
+            foreach ($words as $word) {
+                $trial = ($line === '') ? $word : $line . ' ' . $word;
+
+                if ($pdf->GetStringWidth($trial) <= $inner) {
+                    $line = $trial;
+
+                    continue;
+                }
+
+                if ($line !== '') {
+                    $linesTotal++;
+                }
+
+                if ($pdf->GetStringWidth($word) <= $inner) {
+                    $line = $word;
+
+                    continue;
+                }
+
+                $linesTotal += max(1, (int) ceil($pdf->GetStringWidth($word) / $inner));
+
+                $line = '';
+            }
+
+            if ($line !== '') {
+                $linesTotal++;
+            }
+        }
+
+        return max(1, $linesTotal);
+    }
+
+    /**
+     * One row: bordered box, wrapping label/value with shared row height so cells do not overlap.
+     *
+     * @since  3.115.37
+     */
+    private static function drawLabelValueRowTwoColumn(
+        \FPDF $pdf,
+        float $w1,
+        float $w2,
+        string $lbl,
+        string $val,
+        callable $fix,
+        float $lineH,
+        float $labelFontPt = 10,
+        string $labelStyle = 'B',
+        float $valueFontPt = 10,
+        string $valueStyle = ''
+    ): void {
+        $lblF = $fix($lbl . ': ');
+        $valF = $fix($val);
+
+        $pdf->SetFont('Arial', $labelStyle, $labelFontPt);
+        $n1 = self::estimateWrappedLineCount($pdf, $w1, $lblF);
+
+        $pdf->SetFont('Arial', $valueStyle, $valueFontPt);
+        $n2 = self::estimateWrappedLineCount($pdf, $w2, $valF);
+
+        $nBlocks = max(1, max($n1, $n2));
+
+        /** Extra mm under last line avoids border clipping ascenders/descenders. */
+        $hRow = ($nBlocks * $lineH) + 2.75;
+
+        self::maybePageBreak($pdf, $hRow + 22);
+
+        $x = $pdf->GetX();
+        $y = $pdf->GetY();
+
+        $pdf->Rect($x, $y, $w1 + $w2, $hRow);
+        $pdf->Line($x + $w1, $y, $x + $w1, $y + $hRow);
+
+        $pdf->SetFont('Arial', $labelStyle, $labelFontPt);
+        $pdf->SetXY($x, $y);
+        $pdf->MultiCell($w1, $lineH, $lblF, 0, 'L');
+
+        $pdf->SetXY($x + $w1, $y);
+
+        $pdf->SetFont('Arial', $valueStyle, $valueFontPt);
+        $pdf->MultiCell($w2, $lineH, $valF, 0, 'L');
+
+        $pdf->SetXY($x, $y + $hRow);
     }
 
     /**
