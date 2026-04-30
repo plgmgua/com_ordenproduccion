@@ -12,9 +12,11 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Controller\BaseController;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdenTrabajoPdfPrecotSectionsHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel;
 
 /**
  * Orden controller for com_ordenproduccion
@@ -111,7 +113,7 @@ class OrdenController extends BaseController
             // Generate PDF using FPDF
             $this->generateWorkOrderPDF($orderId, $workOrderData);
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
             $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
         }
@@ -268,7 +270,7 @@ class OrdenController extends BaseController
             // Generate shipping slip PDF using FPDF
             $this->generateShippingSlipPDF($orderId, $workOrderData, $tipoEnvio, $tipoMensajeria, $descripcionEnvio);
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             $app->enqueueMessage('Error: ' . $e->getMessage(), 'error');
             $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
         }
@@ -317,7 +319,7 @@ class OrdenController extends BaseController
             foreach ($eavData as $item) {
                 $workOrder->eav_data[$item->attribute_name] = $item;
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             // EAV table doesn't exist or other error - continue without EAV data
             $workOrder->eav_data = [];
         }
@@ -337,9 +339,13 @@ class OrdenController extends BaseController
      */
     private function generateWorkOrderPDF($orderId, $workOrderData)
     {
-        // Include FPDF library
-        require_once JPATH_ROOT . '/fpdf/fpdf.php';
-        
+        if (!FpdfHelper::register()) {
+            Factory::getApplication()->enqueueMessage('No se encontro la libreria FPDF para generar el PDF.', 'error');
+            Factory::getApplication()->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . (int) $orderId);
+
+            return;
+        }
+
                 // Create PDF instance with UTF-8 support for 8.5" x 11" paper
                 $pdf = new \FPDF('P', 'mm', array(215.9, 279.4)); // 8.5" x 11" in mm
                 $pdf->AddPage();
@@ -363,6 +369,32 @@ class OrdenController extends BaseController
             
             return strtr($text, $replacements);
         };
+
+        Factory::getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
+        $ordenLayoutPdf  = OrdenModel::ORDEN_VIEW_LAYOUT_STANDARD;
+        $ordenPiecesPdf = [];
+
+        try {
+            $mOrdenPdf = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Orden', 'Site', ['ignore_request' => true]);
+
+            $rowPdf = ($mOrdenPdf !== null) ? $mOrdenPdf->getItem((int) $orderId) : null;
+
+            if ($rowPdf && \is_object($rowPdf)) {
+                $ordenLayoutPdf = (int) ($rowPdf->orden_view_layout_type ?? OrdenModel::ORDEN_VIEW_LAYOUT_STANDARD);
+                $secPdf         = $rowPdf->orden_view_precot_line_sections ?? [];
+                if (\is_array($secPdf) && $secPdf !== []) {
+                    $ordenPiecesPdf = OrdenTrabajoPdfPrecotSectionsHelper::buildRenderPieces($secPdf);
+                }
+            }
+        } catch (\Throwable $e) {
+            $ordenPiecesPdf = [];
+        }
+
+        $usePrecMixedPdfLayout = ($ordenLayoutPdf === OrdenModel::ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS)
+            && ($ordenPiecesPdf !== []);
+
         
                 // Header with logo and work order info - 3 rows layout with borders
                 // Store current Y position for alignment
@@ -420,12 +452,12 @@ class OrdenController extends BaseController
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell(40, 6, 'FECHA SOLICITUD:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(50, 6, $workOrderData->request_date ?? 'N/A', 1, 0, 'L');
+                $pdf->Cell(50, 6, $fixSpanishChars($this->formatOrdenPdfDisplayDate($workOrderData->request_date ?? null)), 1, 0, 'L');
                 
                 $pdf->SetFont('Arial', 'B', 10);
                 $pdf->Cell(40, 6, 'FECHA ENTREGA:', 1, 0, 'L');
                 $pdf->SetFont('Arial', '', 10);
-                $pdf->Cell(0, 6, $workOrderData->delivery_date ?? 'N/A', 1, 1, 'L');
+                $pdf->Cell(0, 6, $fixSpanishChars($this->formatOrdenPdfDisplayDate($workOrderData->delivery_date ?? null)), 1, 1, 'L');
 
                 // ROW 3: AGENTE DE VENTAS (single cell with label and value)
                 $pdf->SetXY(15, $startY + 26); // Position below dates
@@ -507,6 +539,7 @@ class OrdenController extends BaseController
         
         $pdf->Ln(5);
         
+        if (!$usePrecMixedPdfLayout) {
         // Production specifications table - 2 columns × 4 rows layout
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'COLOR:', 1, 0, 'L');
@@ -604,6 +637,16 @@ class OrdenController extends BaseController
         }
         
         $pdf->Ln(5);
+
+        } else {
+            // Orden desde pre-cotización (pliego + otros elementos): misma información que la vista HTML.
+            $pdf->SetFont('Arial', 'B', 11);
+            $pdf->SetFillColor(220, 220, 220);
+            $pdf->Cell(0, 8, $fixSpanishChars(mb_strtoupper('Detalle produccion (pre-cotizacion)', 'UTF-8')), 1, 1, 'L', true);
+            $pdf->SetFont('Arial', '', 10);
+            OrdenTrabajoPdfPrecotSectionsHelper::renderPiecesOnPdf($pdf, $ordenPiecesPdf, $fixSpanishChars);
+            $pdf->Ln(2);
+        }
         
         // INSTRUCCIONES GENERALES section with 3-row height
         $pdf->SetFont('Arial', 'B', 11);
@@ -626,8 +669,7 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
-        $shippingType = $workOrderData->shipping_type ?? 'Entrega a domicilio';
-        $shippingType = $fixSpanishChars($shippingType);
+        $shippingType = $fixSpanishChars($this->resolveShippingTypeDisplayForPdf($workOrderData));
         $pdf->Cell(0, 7, $shippingType, 1, 1, 'L');
         
         // Check if "Recoge en oficina"
@@ -901,6 +943,56 @@ class OrdenController extends BaseController
         // Output PDF
         $pdf->Output('I', 'envio_' . $envioNumber . '.pdf');
         exit;
+    }
+
+    /**
+     * Formato de fecha corto para el PDF OT (ISO/SQL datetime → DD/MM/AAAA).
+     *
+     * @param   mixed   $raw
+     *
+     * @return  string
+     *
+     * @since   3.115.33
+     */
+    private function formatOrdenPdfDisplayDate($raw): string
+    {
+        $s = trim((string) ($raw ?? ''));
+        if ($s === '') {
+            return 'N/A';
+        }
+        $ts = strtotime($s);
+
+        return $ts ? date('d/m/Y', $ts) : $s;
+    }
+
+    /**
+     * Tipo de entrega legible cuando `shipping_type` quedó vacío pero existe snapshot en orden_source_json.
+     *
+     * @param   object  $data
+     *
+     * @return  string
+     *
+     * @since   3.115.33
+     */
+    private function resolveShippingTypeDisplayForPdf(object $data): string
+    {
+        $t = trim((string) ($data->shipping_type ?? ''));
+        if ($t !== '') {
+            return $t;
+        }
+
+        $j = isset($data->orden_source_json) ? json_decode((string) $data->orden_source_json, true) : null;
+        if (\is_array($j) && !empty($j['wizard_tipo_entrega'])) {
+            $w = strtolower(trim((string) $j['wizard_tipo_entrega']));
+            if ($w === 'recoger') {
+                return 'Recoge en oficina';
+            }
+            if ($w === 'domicilio') {
+                return 'Entrega a domicilio';
+            }
+        }
+
+        return 'Entrega a domicilio';
     }
 
 }

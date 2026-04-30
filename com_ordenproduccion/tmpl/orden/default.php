@@ -691,9 +691,20 @@ function displayYesNoBadge($value) {
         <?php endif; ?>
 
         <!-- Shipping Information -->
-        <?php 
-        if (!empty($item->shipping_address) || !empty($item->shipping_contact) || !empty($item->shipping_phone) || !empty($item->instrucciones_entrega)) : 
+        <?php
+        $ordenViewTipoEntrega = trim((string) ($item->shipping_type ?? ''));
+        if ($ordenViewTipoEntrega === '' && !empty($item->orden_source_json)) {
+            $ordenSrcDecodedTipo = json_decode((string) $item->orden_source_json, true);
+            if (\is_array($ordenSrcDecodedTipo) && !empty($ordenSrcDecodedTipo['wizard_tipo_entrega'])) {
+                $wTipoRaw = strtolower(trim((string) $ordenSrcDecodedTipo['wizard_tipo_entrega']));
+                $ordenViewTipoEntrega = ($wTipoRaw === 'recoger') ? 'Recoge en oficina' : 'Entrega a domicilio';
+            }
+        }
+
+        $ordenShowShippingSection = (!empty($item->shipping_address) || !empty($item->shipping_contact)
+            || !empty($item->shipping_phone) || !empty($item->instrucciones_entrega) || trim($ordenViewTipoEntrega) !== '');
         ?>
+        <?php if ($ordenShowShippingSection) : ?>
             <div class="row">
                 <div class="col-12 mb-4">
                     <div class="card">
@@ -711,7 +722,9 @@ function displayYesNoBadge($value) {
                                         <tr>
                                             <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_TIPO_ENTREGA'); ?>:</strong></td>
                                             <td>
-                                                <?php if ($item->shipping_type === 'Recoge en oficina') : ?>
+                                                <?php if (trim((string) $ordenViewTipoEntrega) === '') : ?>
+                                                    <span class="text-muted">—</span>
+                                                <?php elseif ($ordenViewTipoEntrega === 'Recoge en oficina') : ?>
                                                     <span class="badge badge-info"><?php echo Text::_('COM_ORDENPRODUCCION_SHIPPING_TYPE_PICKUP'); ?></span>
                                                 <?php else : ?>
                                                     <span class="badge badge-primary"><?php echo Text::_('COM_ORDENPRODUCCION_SHIPPING_TYPE_DELIVERY'); ?></span>
@@ -719,7 +732,7 @@ function displayYesNoBadge($value) {
                                             </td>
                                         </tr>
                                         
-                                        <?php if ($item->shipping_type === 'Recoge en oficina') : ?>
+                                        <?php if (trim((string) $ordenViewTipoEntrega) === 'Recoge en oficina') : ?>
                                             <!-- Show only "Recoge en oficina" message -->
                                             <tr>
                                                 <td colspan="2">
