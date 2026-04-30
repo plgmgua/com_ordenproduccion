@@ -643,20 +643,36 @@ class OrdenController extends BaseController
             OrdenTrabajoPdfPrecotSectionsHelper::renderPiecesOnPdf($pdf, $ordenPiecesPdf, $fixSpanishChars);
             $pdf->Ln(1);
         }
-        
+
+        // Footers stacked at bottom margin (no gap between IG and envío); estimate height before drawing.
+        $instructionsStr = (string) ($fixSpanishChars($workOrderData->instructions ?? 'N/A'));
+        $instructionsPdf = ($instructionsStr !== 'N/A' && $instructionsStr !== '')
+            ? rtrim($instructionsStr) . "\n\n"
+            : $instructionsStr;
+        $shippingType       = $fixSpanishChars($this->resolveShippingTypeDisplayForPdf($workOrderData));
+        $footerH            = $this->ordenPdfEstimatedFooterIgEnvioHeightMm(
+            $pdf,
+            $workOrderData,
+            $fixSpanishChars,
+            (string) $instructionsPdf,
+            $shippingType
+        );
+        $pageHFull          = 279.4;
+        // Same as generateWorkOrderPDF SetMargins / SetAutoPageBreak (FPDF exposes no getters)
+        $bottomMargMm       = 15.0;
+        $leftMm             = 15.0;
+        $yAfterContent      = (float) $pdf->GetY();
+        $yFloor             = $pageHFull - $bottomMargMm - $footerH;
+        $pdf->SetXY($leftMm, max($yAfterContent + 0.5, $yFloor));
+
         // INSTRUCCIONES GENERALES section with 3-row height
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetFillColor(220, 220, 220); // Light gray background
         $pdf->Cell(0, 8, 'INSTRUCCIONES GENERALES', 1, 1, 'L', true);
         $pdf->SetFont('Arial', '', 9);
-        $instructions = $workOrderData->instructions ?? 'N/A';
-        $instructions = $fixSpanishChars($instructions); // Fix Spanish characters
-        // Use MultiCell with proper line height for 3-row display
-        $pdf->MultiCell(0, 6, $instructions, 1, 'L');
-        
-        $pdf->Ln(5);
-        
-        // INFORMACION DE ENVIO section
+        $pdf->MultiCell(0, 6, $instructionsPdf, 1, 'L');
+
+        // INFORMACION DE ENVIO section (immediately follows IG row; no intervening blank line)
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetFillColor(220, 220, 220); // Light gray background
         $pdf->Cell(0, 8, 'INFORMACION DE ENVIO', 1, 1, 'L', true);
@@ -665,7 +681,6 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
-        $shippingType = $fixSpanishChars($this->resolveShippingTypeDisplayForPdf($workOrderData));
         $pdf->Cell(0, 7, $shippingType, 1, 1, 'L');
         
         // Check if "Recoge en oficina"
@@ -959,6 +974,109 @@ class OrdenController extends BaseController
         $ts = strtotime($s);
 
         return $ts ? date('d/m/Y', $ts) : $s;
+    }
+
+    /**
+     * Approximate rendered height for a MultiCell block (explicit newlines + word wrap).
+     *
+     * Must run with font/size matching the actual PDF output (caller sets font).
+     */
+    private function ordenPdfApproxMultilineBlockMm(\FPDF $pdf, string $text, float $usableWmm, float $lineHm): float
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+
+        $linesTotal = 0;
+        foreach (explode("\n", $text) as $paragraph) {
+            if ($paragraph === '') {
+                $linesTotal++;
+
+                continue;
+            }
+            $linesTotal += $this->ordenPdfApproxWrapParagraphLines($pdf, $paragraph, $usableWmm);
+        }
+
+        return max($lineHm, ($linesTotal > 0 ? $linesTotal : 1) * $lineHm);
+    }
+
+    private function ordenPdfApproxWrapParagraphLines(\FPDF $pdf, string $paragraph, float $usableWmm): int
+    {
+        $words = preg_split('/\s+/u', $paragraph, -1, PREG_SPLIT_NO_EMPTY);
+        if ($words === []) {
+            return 1;
+        }
+
+        $line       = '';
+        $lineBlocks = 0;
+
+        foreach ($words as $word) {
+            $trial = ($line === '') ? $word : $line . ' ' . $word;
+
+            if ($pdf->GetStringWidth($trial) <= $usableWmm) {
+                $line = $trial;
+
+                continue;
+            }
+
+            if ($line !== '') {
+                $lineBlocks++;
+                $line = '';
+            }
+
+            if ($pdf->GetStringWidth($word) <= $usableWmm) {
+                $line = $word;
+
+                continue;
+            }
+
+            $lineBlocks++;
+            $line = '';
+        }
+
+        if ($line !== '') {
+            $lineBlocks++;
+        }
+
+        return max(1, $lineBlocks);
+    }
+
+    /**
+     * Conservative height (mm) for INSTRUCCIONES GENERALES + INFORMACION DE ENVIO stacked at page bottom.
+     */
+    private function ordenPdfEstimatedFooterIgEnvioHeightMm(
+        \FPDF $pdf,
+        object $wd,
+        callable $fix,
+        string $instructionsPdf,
+        string $shippingType
+    ): float {
+        $pageW   = 215.9;
+        $lMargin = 15.0;
+        $rEdge   = $pageW - $lMargin;
+        $fullW   = $rEdge - $lMargin;
+        $addrW   = $rEdge - ($lMargin + 50.0);
+
+        $h = 0.0;
+
+        $h += 8.0;
+        $pdf->SetFont('Arial', '', 9);
+        $h += $this->ordenPdfApproxMultilineBlockMm($pdf, $instructionsPdf, $fullW, 6.0);
+
+        $h += 8.0;
+        $h += 7.0;
+
+        if ($shippingType === 'Recoge en oficina') {
+            $h += 7.0;
+        } else {
+            $addr = (string) $fix($wd->shipping_address ?? 'N/A');
+            $h    += max(7.0, $this->ordenPdfApproxMultilineBlockMm($pdf, $addr, $addrW, 6.0));
+            $h    += 7.0 + 7.0;
+        }
+
+        $h += 7.0;
+        $instr = (string) $fix($wd->instrucciones_entrega ?? 'N/A');
+        $h     += $this->ordenPdfApproxMultilineBlockMm($pdf, $instr, $fullW, 6.0);
+
+        return $h + 10.0;
     }
 
     /**
