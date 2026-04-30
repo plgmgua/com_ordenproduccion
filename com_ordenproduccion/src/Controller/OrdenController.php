@@ -526,7 +526,7 @@ class OrdenController extends BaseController
                 $agentText = 'AGENTE DE VENTAS: ' . $salesAgent;
                 $pdf->Cell(0, 6, $agentText, 1, 1, 'L');
 
-                $pdf->Ln(5);
+                $pdf->Ln(2.5);
         
                 
         // Client and job rows: narrow label column; value uses remaining width (matches PRE strip feel).
@@ -597,10 +597,10 @@ class OrdenController extends BaseController
             $pdf,
             $labelColWpdf,
             $valueColWpdf,
-            'TRABAJO',
-            (string) $jobDescPdf,
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES'),
+            (string) $medidasPdf,
             $fixSpanishChars,
-            6.0,
+            $hClienteRowMm,
             10.0,
             'B',
             9.0,
@@ -611,10 +611,10 @@ class OrdenController extends BaseController
             $pdf,
             $labelColWpdf,
             $valueColWpdf,
-            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES'),
-            (string) $medidasPdf,
+            'TRABAJO',
+            (string) $jobDescPdf,
             $fixSpanishChars,
-            4.5,
+            6.0,
             10.0,
             'B',
             9.0,
