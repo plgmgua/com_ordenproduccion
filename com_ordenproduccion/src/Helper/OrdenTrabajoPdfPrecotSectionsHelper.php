@@ -89,6 +89,8 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             return;
         }
 
+        $pliegoEmitted = false;
+
         foreach ($pieces as $piece) {
             $tipo = (string) ($piece['type'] ?? '');
             if ($tipo === 'elementos_bulk') {
@@ -96,7 +98,11 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 continue;
             }
             if ($tipo === 'pliego') {
+                if ($pliegoEmitted) {
+                    $pdf->Ln(3);
+                }
                 self::renderPliegoBlock($pdf, $piece['section'] ?? [], $fix);
+                $pliegoEmitted = true;
             }
         }
     }
@@ -219,22 +225,16 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             $metaRest[] = $mr;
         }
 
-        // Tipo de elemento (card title + subtitle), aligned with orden vista — above Papel table.
-        $headingPl  = trim((string) ($sec['heading'] ?? ''));
-        $subtitlePl = trim((string) ($sec['subtitle'] ?? ''));
+        // Tipo de elemento (grey band only; subtitle not shown — paper is in tabla Papel).
+        $headingPl = trim((string) ($sec['heading'] ?? ''));
         if ($headingPl === '') {
             $headingPl = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_PLIEGO');
         }
         $wFullPliegoBand = (float) $pdf->GetPageWidth() - 30.0;
-        self::maybePageBreak($pdf, ($subtitlePl !== '' ? 16.0 : 9.0) + 56);
+        self::maybePageBreak($pdf, 12.0 + 56);
         $pdf->SetFillColor(238, 238, 238);
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($wFullPliegoBand, 6.5, $fix($headingPl), 1, 1, 'L', true);
-        if ($subtitlePl !== '') {
-            $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell($wFullPliegoBand, 5.2, $fix($subtitlePl), 1, 1, 'L', true);
-        }
-
         self::maybePageBreak($pdf, 56);
         $wCols = self::pliegoPdfFourWidthsForSpecTable($pdf);
         self::renderPliegoFourColumnPdfTable(
