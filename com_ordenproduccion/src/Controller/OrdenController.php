@@ -531,15 +531,16 @@ class OrdenController extends BaseController
                 
         // Client and job rows: narrow label column; value uses remaining width (matches PRE strip feel).
         $labelColWpdf = 36;
+        $hClienteRowMm = 6.5; // 8 mm − 1.5 mm
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($labelColWpdf, 8, 'CLIENTE:', 1, 0, 'L');
+        $pdf->Cell($labelColWpdf, $hClienteRowMm, 'CLIENTE:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         $clientName = $workOrderData->client_name ?? 'N/A';
         $clientName = $fixSpanishChars($clientName); // Fix Spanish characters
         if (strlen($clientName) > 50) {
             $clientName = substr($clientName, 0, 47) . '...';
         }
-        $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
+        $pdf->Cell(0, $hClienteRowMm, $clientName, 1, 1, 'L');
 
         // Get job description from correct field name
         $jobDesc = 'N/A';
@@ -613,7 +614,7 @@ class OrdenController extends BaseController
             Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES'),
             (string) $medidasPdf,
             $fixSpanishChars,
-            6.0,
+            4.5,
             10.0,
             'B',
             9.0,
