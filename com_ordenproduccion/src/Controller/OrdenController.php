@@ -507,10 +507,10 @@ class OrdenController extends BaseController
                 $pdf->SetFont('Arial', '', 10);
                 $pdf->Cell(0, 6, $fixSpanishChars($this->formatOrdenPdfDisplayDate($workOrderData->delivery_date ?? null)), 1, 1, 'L');
 
-                // ROW 3: AGENTE DE VENTAS (single cell with label and value)
+                // ROW 3: AGENTE DE VENTAS (label | value, same label width as FECHA / CLIENTE columns)
                 $pdf->SetXY(15, $startY + 26); // Position below dates
                 $pdf->SetFont('Arial', 'B', 10);
-                
+
                 // Get sales agent from correct field name
                 $salesAgent = 'N/A';
                 if (isset($workOrderData->sales_agent)) {
@@ -518,14 +518,16 @@ class OrdenController extends BaseController
                 } elseif (isset($workOrderData->agente_de_ventas)) {
                     $salesAgent = $workOrderData->agente_de_ventas;
                 }
-                
+
                 // Try EAV data as fallback
                 if ($salesAgent === 'N/A' && isset($workOrderData->eav_data['sales_agent'])) {
                     $salesAgent = $workOrderData->eav_data['sales_agent']->attribute_value;
                 }
-                
-                $agentText = 'AGENTE DE VENTAS: ' . $salesAgent;
-                $pdf->Cell(0, 6.5, $agentText, 1, 1, 'L');
+
+                $hAgenteRowMm = 6.5;
+                $pdf->Cell($wOrdenPdfFechaLabelColMm, $hAgenteRowMm, 'AGENTE DE VENTAS:', 1, 0, 'L');
+                $pdf->SetFont('Arial', '', 9);
+                $pdf->Cell(0, $hAgenteRowMm, $fixSpanishChars($salesAgent), 1, 1, 'L');
 
                 
         // Client/job label column aligns with fecha row labels (same variable).
