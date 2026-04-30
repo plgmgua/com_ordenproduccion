@@ -568,9 +568,11 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     /**
      * One row: bordered box, wrapping label/value with shared row height so cells do not overlap.
      *
+     * Used by orden de trabajo PDF (Cliente block) as well as PRE pliego/acabados.
+     *
      * @since  3.115.37
      */
-    private static function drawLabelValueRowTwoColumn(
+    public static function drawLabelValueRowTwoColumn(
         \FPDF $pdf,
         float $w1,
         float $w2,

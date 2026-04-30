@@ -577,13 +577,6 @@ class OrdenController extends BaseController
         }
         
         $jobDesc = $fixSpanishChars($jobDesc); // Fix Spanish characters
-        
-        // Use MultiCell approach like INSTRUCCIONES GENERALES for text wrapping
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($labelColWpdf, 8, 'TRABAJO:', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 9);
-        // Use MultiCell to allow text wrapping like INSTRUCCIONES GENERALES
-        $pdf->MultiCell(0, 6, $jobDesc, 1, 'L'); // Full remaining width like CLIENTE
 
         // Medidas finales: prefer PRE cabecera medidas, then orden dimensions (same as orden vista).
         $medidasPdf = trim($this->resolveMedidasFinalesForWorkOrderPdf($workOrderData));
@@ -591,10 +584,41 @@ class OrdenController extends BaseController
             $medidasPdf = 'N/A';
         }
         $medidasPdf = $fixSpanishChars($medidasPdf);
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($labelColWpdf, 8, Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES') . ':', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 9);
-        $pdf->MultiCell(0, 6, $medidasPdf, 1, 'L');
+
+        // TRABAJO / MEDIDAS: shared-height rows (label MultiCell matches value height; avoids overlap with next row).
+        $innerPdfW    = (float) $pdf->GetPageWidth() - 30.0;
+        $valueColWpdf = max(80.0, $innerPdfW - $labelColWpdf);
+        $jobDescPdf   = ($jobDesc !== 'N/A' && $jobDesc !== '')
+            ? (rtrim((string) $jobDesc) . "\n\n")
+            : $jobDesc;
+
+        OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
+            $pdf,
+            $labelColWpdf,
+            $valueColWpdf,
+            'TRABAJO',
+            (string) $jobDescPdf,
+            $fixSpanishChars,
+            6.0,
+            10.0,
+            'B',
+            9.0,
+            ''
+        );
+
+        OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
+            $pdf,
+            $labelColWpdf,
+            $valueColWpdf,
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES'),
+            (string) $medidasPdf,
+            $fixSpanishChars,
+            6.0,
+            10.0,
+            'B',
+            9.0,
+            ''
+        );
 
         $pdf->Ln(5);
         
