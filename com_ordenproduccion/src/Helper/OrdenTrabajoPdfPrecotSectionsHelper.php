@@ -20,6 +20,30 @@ use Joomla\CMS\Language\Text;
  */
 class OrdenTrabajoPdfPrecotSectionsHelper
 {
+    /** PRE orden PDF: tabla / multicolumna texto (former 10 pt). */
+    private const PDF_PRE_PT_GRID = 8;
+
+    /** Barra OTROS ELEMENTOS (former 11 pt). */
+    private const PDF_PRE_PT_SECTION_BAR = 9;
+
+    /** Título ancho «INSTRUCCIONES DE ACABADOS» (former 10 pt). */
+    private const PDF_PRE_PT_ACABADOS_TITLE = 8;
+
+    /** Etiquetas filas instrucciones (former 9.5 pt). */
+    private const PDF_PRE_PT_INSTR_LABEL = 7.5;
+
+    /** Altura multicell por línea (~80% vs 6.2 mm ≈ −20%). */
+    private const PDF_PRE_MM_LINE = 5.0;
+
+    /** Margen bajo texto envuelto en fila (~80% × 2.75 mm). */
+    private const PDF_PRE_MM_ROW_PAD = 2.2;
+
+    /** Barra OTROS ELEMENTOS (former 8 mm). */
+    private const PDF_PRE_MM_H_OTROS_TITLE = 6.4;
+
+    /** Barra instrucciones acabados (former 7.5 mm). */
+    private const PDF_PRE_MM_H_ACABADOS_BAND = 6.0;
+
     /**
      * Same grouping as tmpl/orden/default.php (consecutive elementos → one tabla).
      *
@@ -89,9 +113,9 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         self::maybePageBreak($pdf, 54);
 
         $tit = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_ELEMENTOS');
-        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->SetFont('Arial', 'B', self::PDF_PRE_PT_SECTION_BAR);
         $pdf->SetFillColor(220, 220, 220);
-        $pdf->Cell(0, 8, $fix(mb_strtoupper($tit, 'UTF-8')), 1, 1, 'L', true);
+        $pdf->Cell(0, self::PDF_PRE_MM_H_OTROS_TITLE, $fix(mb_strtoupper($tit, 'UTF-8')), 1, 1, 'L', true);
 
         $widthsOtros = self::otrosElementosPdfThreeWidths($pdf);
 
@@ -102,7 +126,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         ];
 
         self::maybePageBreak($pdf, 30);
-        self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $hdrOtros, 6.2, true, 3);
+        self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $hdrOtros, self::PDF_PRE_MM_LINE, true, 3);
 
         foreach ($bulk as $esec) {
             self::maybePageBreak($pdf, 36);
@@ -139,7 +163,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 self::ordenPdfTblCell($instrRaw),
             ];
 
-            self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $rowVals, 5.95, false, 3);
+            self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $rowVals, self::PDF_PRE_MM_LINE, false, 3);
         }
 
         $pdf->Ln(2);
@@ -218,16 +242,24 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 continue;
             }
             $lbl = Text::_($lk);
-            self::drawLabelValueRowTwoColumn($pdf, $wLblCol, $wValCol, $lbl, ($val !== '' ? $val : '—'), $fix, 6.2);
+            self::drawLabelValueRowTwoColumn(
+                $pdf,
+                $wLblCol,
+                $wValCol,
+                $lbl,
+                ($val !== '' ? $val : '—'),
+                $fix,
+                self::PDF_PRE_MM_LINE
+            );
         }
 
         $instr = isset($sec['instructions']) && \is_array($sec['instructions']) ? $sec['instructions'] : [];
         if ($instr !== []) {
             $pdf->Ln(4);
             self::maybePageBreak($pdf, 24);
-            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->SetFont('Arial', 'B', self::PDF_PRE_PT_ACABADOS_TITLE);
             $pdf->SetFillColor(238, 238, 238);
-            $pdf->Cell(0, 7.5, $fix(mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTRUC_ACABADOS_TITLE'), 'UTF-8')), 1, 1, 'L', true);
+            $pdf->Cell(0, self::PDF_PRE_MM_H_ACABADOS_BAND, $fix(mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTRUC_ACABADOS_TITLE'), 'UTF-8')), 1, 1, 'L', true);
             foreach ($instr as $insRow) {
                 $lab = trim((string) ($insRow['label'] ?? ''));
                 if ($lab === '') {
@@ -241,10 +273,10 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                     $lab,
                     ($txt !== '' ? $txt : '—'),
                     $fix,
-                    6.2,
-                    9.5,
+                    self::PDF_PRE_MM_LINE,
+                    self::PDF_PRE_PT_INSTR_LABEL,
                     'B',
-                    10,
+                    self::PDF_PRE_PT_GRID,
                     ''
                 );
             }
@@ -336,9 +368,9 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_PLIEGO_TBL_H_TIRO'),
         ];
         self::maybePageBreak($pdf, 52);
-        self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, $hdrs, 6.2, true);
+        self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, $hdrs, self::PDF_PRE_MM_LINE, true);
         self::maybePageBreak($pdf, 42);
-        self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, [$papel, $qty, $sizeVal, $tiro], 6.2, false);
+        self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, [$papel, $qty, $sizeVal, $tiro], self::PDF_PRE_MM_LINE, false);
 
         $pdf->Ln(2);
     }
@@ -397,11 +429,11 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         foreach ($row as $i => $cellT) {
             $wcol = (float) $widthsMm[$i];
 
-            $pdf->SetFont('Arial', $headerBand ? 'B' : '', 10);
+            $pdf->SetFont('Arial', $headerBand ? 'B' : '', self::PDF_PRE_PT_GRID);
             $nMax = max($nMax, self::estimateWrappedLineCount($pdf, $wcol, $cellT));
         }
 
-        $hRow = ($nMax * $lineH) + 2.75;
+        $hRow = ($nMax * $lineH) + self::PDF_PRE_MM_ROW_PAD;
         self::maybePageBreak($pdf, min(252.0, $hRow + 24));
 
         $x = $pdf->GetX();
@@ -417,7 +449,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 $pdf->SetFillColor(238, 238, 238);
             }
 
-            $pdf->SetFont('Arial', $headerBand ? 'B' : '', 10);
+            $pdf->SetFont('Arial', $headerBand ? 'B' : '', self::PDF_PRE_PT_GRID);
 
             $pdf->SetXY($acc, $y);
             $pdf->MultiCell($wcol, $lineH, $cellT, 0, 'L', $fill);
@@ -549,9 +581,9 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         string $val,
         callable $fix,
         float $lineH,
-        float $labelFontPt = 10,
+        float $labelFontPt = self::PDF_PRE_PT_GRID,
         string $labelStyle = 'B',
-        float $valueFontPt = 10,
+        float $valueFontPt = self::PDF_PRE_PT_GRID,
         string $valueStyle = ''
     ): void {
         $lblF = $fix($lbl . ': ');
@@ -565,8 +597,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
 
         $nBlocks = max(1, max($n1, $n2));
 
-        /** Extra mm under last line avoids border clipping ascenders/descenders. */
-        $hRow = ($nBlocks * $lineH) + 2.75;
+        $hRow = ($nBlocks * $lineH) + self::PDF_PRE_MM_ROW_PAD;
 
         self::maybePageBreak($pdf, $hRow + 22);
 
