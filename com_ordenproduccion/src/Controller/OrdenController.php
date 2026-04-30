@@ -641,7 +641,7 @@ class OrdenController extends BaseController
 
         } else {
             OrdenTrabajoPdfPrecotSectionsHelper::renderPiecesOnPdf($pdf, $ordenPiecesPdf, $fixSpanishChars);
-            $pdf->Ln(2);
+            $pdf->Ln(1);
         }
         
         // INSTRUCCIONES GENERALES section with 3-row height

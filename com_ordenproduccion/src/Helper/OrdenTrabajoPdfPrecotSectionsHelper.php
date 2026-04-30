@@ -165,8 +165,6 @@ class OrdenTrabajoPdfPrecotSectionsHelper
 
             self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $rowVals, self::PDF_PRE_MM_LINE, false, 3);
         }
-
-        $pdf->Ln(2);
     }
 
     /**
@@ -255,7 +253,6 @@ class OrdenTrabajoPdfPrecotSectionsHelper
 
         $instr = isset($sec['instructions']) && \is_array($sec['instructions']) ? $sec['instructions'] : [];
         if ($instr !== []) {
-            $pdf->Ln(4);
             self::maybePageBreak($pdf, 24);
             $pdf->SetFont('Arial', 'B', self::PDF_PRE_PT_ACABADOS_TITLE);
             $pdf->SetFillColor(238, 238, 238);
@@ -281,8 +278,6 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 );
             }
         }
-
-        $pdf->Ln(5);
     }
 
     private static function ordenPdfTblCell(string $v): string
@@ -371,8 +366,6 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, $hdrs, self::PDF_PRE_MM_LINE, true);
         self::maybePageBreak($pdf, 42);
         self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, [$papel, $qty, $sizeVal, $tiro], self::PDF_PRE_MM_LINE, false);
-
-        $pdf->Ln(2);
     }
 
     /**
