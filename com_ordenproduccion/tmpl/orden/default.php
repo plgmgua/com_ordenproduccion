@@ -321,7 +321,7 @@ function displayYesNoBadge($value) {
             .orden-precot-pliego-elos-wrap .orden-precot-meta-table tbody th,
             .orden-precot-pliego-elos-wrap .orden-precot-meta-table tbody td {
                 padding: 0.22rem 0.4rem 0.22rem 0 !important;
-                font-size: 0.8125rem;
+                font-size: calc(0.8125rem + 2pt);
                 line-height: 1.3;
                 border-width: 0;
             }
@@ -332,14 +332,14 @@ function displayYesNoBadge($value) {
             .orden-precot-pliego-elos-wrap .orden-precot-instr-table thead th,
             .orden-precot-pliego-elos-wrap .orden-precot-instr-table tbody td {
                 padding: 0.35rem 0.45rem !important;
-                font-size: 0.78rem;
+                font-size: calc(0.78rem + 2pt);
                 line-height: 1.35;
                 vertical-align: top;
             }
             .orden-precot-pliego-elos-wrap .orden-precot-elementos-aggr-table thead th,
             .orden-precot-pliego-elos-wrap .orden-precot-elementos-aggr-table tbody td {
                 padding: 0.35rem 0.45rem !important;
-                font-size: 0.78rem;
+                font-size: calc(0.78rem + 2pt);
                 line-height: 1.35;
                 vertical-align: top;
             }
