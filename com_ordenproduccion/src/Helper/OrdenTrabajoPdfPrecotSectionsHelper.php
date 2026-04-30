@@ -206,8 +206,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         }
 
         self::maybePageBreak($pdf, 56);
-        $usable = self::pdfContentRemainderMm($pdf);
-        $wCols  = self::pliegoPdfFourWidthsMm($usable);
+        $wCols = self::pliegoPdfFourWidthsForSpecTable($pdf);
         self::renderPliegoFourColumnPdfTable(
             $pdf,
             $fix,
@@ -269,28 +268,40 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         return $v !== '' ? $v : '—';
     }
 
-    private static function pdfContentRemainderMm(\FPDF $pdf): float
-    {
-        $rm = 15.0;
-
-        return max(74.0, $pdf->GetPageWidth() - $pdf->GetX() - $rm);
-    }
-
     /**
+     * First column equals label width from {@see pliegoTwoColumnWidths}; remaining columns split value width evenly.
+     *
      * @return  array{0: float, 1: float, 2: float, 3: float}
      */
-    private static function pliegoPdfFourWidthsMm(float $usableMm): array
+    private static function pliegoPdfFourWidthsForSpecTable(\FPDF $pdf): array
     {
-        $t = (int) floor($usableMm);
-        $b = (int) floor($t / 4);
-        $w = [(float) $b, (float) $b, (float) $b, (float) $b];
-        $r = $t - 4 * $b;
+        [$wLbl, $wVal] = self::pliegoTwoColumnWidths($pdf);
+        $wLbl = max(52.0, (float) $wLbl);
+        $wVal = max(60.0, (float) $wVal);
 
-        for ($i = 0; $i < $r; ++$i) {
-            $w[$i] += 1.0;
+        $tiWhole = (int) floor($wVal);
+        $base    = (int) floor($tiWhole / 3);
+        $w2      = (float) $base;
+        $w3      = (float) $base;
+        $w4      = (float) $base;
+        $left    = $tiWhole - 3 * $base;
+
+        for ($j = 0; $j < $left; ++$j) {
+            if ($j === 0) {
+                $w2 += 1.0;
+            } elseif ($j === 1) {
+                $w3 += 1.0;
+            } else {
+                $w4 += 1.0;
+            }
         }
 
-        return $w;
+        $frac = round($wVal - $tiWhole, 3);
+        if ($frac > 0) {
+            $w4 += $frac;
+        }
+
+        return [$wLbl, $w2, $w3, $w4];
     }
 
     private static function renderPliegoFourColumnPdfTable(
@@ -319,7 +330,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     /**
      * @param   float[]                               $widthsMm    Four column widths summing usable width (mm).
      * @param   list<string>|array<int, string>       $cells       Up to four texts (padded).
-     * @param   bool                                  $headerBand  Grey fill + bold for all cols; value row emphasizes column 1 (paper).
+     * @param   bool                                  $headerBand  Header: grey cells + bold. Values row: plain (no grey).
      */
     private static function drawPliegoFourColumnAlignedBand(
         \FPDF $pdf,
@@ -354,14 +365,14 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             $sumW += (float) $ww;
         }
 
-        $fills = $headerBand ? [true, true, true, true] : [true, false, false, false];
+        $fills = $headerBand ? [true, true, true, true] : [false, false, false, false];
 
         $nMax = 1;
 
         foreach ($row as $i => $cellT) {
             $wcol = (float) $widthsMm[$i];
 
-            $pdf->SetFont('Arial', ($headerBand || $i === 0) ? 'B' : '', 10);
+            $pdf->SetFont('Arial', $headerBand ? 'B' : '', 10);
             $nMax = max($nMax, self::estimateWrappedLineCount($pdf, $wcol, $cellT));
         }
 
@@ -371,18 +382,8 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         $x = $pdf->GetX();
         $y = $pdf->GetY();
 
-        $pdf->Rect($x, $y, $sumW, $hRow);
-        $xv = $x;
-        foreach ($widthsMm as $idxCol => $wcell) {
-            if ($idxCol === 3) {
-                break;
-            }
-
-            $xv += (float) $wcell;
-            $pdf->Line($xv, $y, $xv, $y + $hRow);
-        }
-
         $acc = $x;
+
         foreach ($row as $i => $cellT) {
             $wcol = (float) $widthsMm[$i];
             $fill = !empty($fills[$i]);
@@ -391,11 +392,24 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 $pdf->SetFillColor(238, 238, 238);
             }
 
-            $pdf->SetFont('Arial', ($headerBand || $i === 0) ? 'B' : '', 10);
+            $pdf->SetFont('Arial', $headerBand ? 'B' : '', 10);
 
             $pdf->SetXY($acc, $y);
             $pdf->MultiCell($wcol, $lineH, $cellT, 0, 'L', $fill);
             $acc += $wcol;
+        }
+
+        $pdf->SetDrawColor(0, 0, 0);
+        $pdf->Rect($x, $y, $sumW, $hRow);
+        $xv = $x;
+
+        foreach ($widthsMm as $idxCol => $wcell) {
+            if ($idxCol === 3) {
+                break;
+            }
+
+            $xv += (float) $wcell;
+            $pdf->Line($xv, $y, $xv, $y + $hRow);
         }
 
         $pdf->SetXY($x, $y + $hRow);
