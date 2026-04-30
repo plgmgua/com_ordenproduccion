@@ -237,7 +237,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     }
 
     /**
-     * Wide label column + remainder for values (Letter with 15 mm margins: ~114 mm labels).
+     * Two-column split for pliego meta + instrucciones (~38% labels, ~62% values; divider left of center).
      *
      * @return  array{0: float, 1: float}
      */
@@ -245,9 +245,13 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     {
         $rm = 15.0;
         $remainder = max(74.0, $pdf->GetPageWidth() - $pdf->GetX() - $rm);
-        $w1          = (float) min(132.0, max(94.0, floor($remainder * 0.62)));
 
-        return [$w1, max(56.0, $remainder - $w1)];
+        // ~35–40% of usable width for label column (narrower labels, wider values).
+        $w1 = (float) floor($remainder * 0.38);
+
+        $w1 = max(58.0, min($w1, $remainder - 72.0));
+
+        return [$w1, max(60.0, $remainder - $w1)];
     }
 
     /** Inner width heuristic close to MultiCell’s (column − margins); slightly pessimistic ⇒ taller rows, less clipping. */
