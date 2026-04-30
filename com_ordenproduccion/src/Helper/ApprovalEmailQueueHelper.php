@@ -502,6 +502,32 @@ class ApprovalEmailQueueHelper
     }
 
     /**
+     * For «Creación de orden de trabajo» Telegram templates only.
+     * When `orden_trabajo_number` would be empty (assignment, rejection, or missing data), the whole
+     * `{?creacion_ot} ... {/creacion_ot}` region is removed so no label or placeholder remains.
+     * When non-empty (approved with OT), the inner text is kept and normal {orden_trabajo_number} etc.
+     * substitution runs on it.
+     *
+     * @since  3.115.60
+     */
+    protected static function applyCreacionOtConditionalSpans(string $template, bool $showOrdenClause): string
+    {
+        if ($template === '' || strpos($template, '{?creacion_ot}') === false) {
+            return $template;
+        }
+
+        $out = preg_replace_callback(
+            '/\{\?creacion_ot\}(.*?)\{\/creacion_ot\}/s',
+            static function (array $m) use ($showOrdenClause): string {
+                return $showOrdenClause ? $m[1] : '';
+            },
+            $template
+        );
+
+        return \is_string($out) ? $out : $template;
+    }
+
+    /**
      * Notify approver(s) via Telegram when a step is assigned.
      */
     public static function notifyAssign(int $requestId, User $approver, int $entityId, string $entityType): void
@@ -529,6 +555,11 @@ class ApprovalEmailQueueHelper
             'approver_username' => trim((string) $approver->username),
             'approver_id'       => (string) (int) $approver->id,
         ]);
+
+        if ((string) ($req->entity_type ?? '') === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO) {
+            $showOrden = trim((string) ($vars['orden_trabajo_number'] ?? '')) !== '';
+            $template  = self::applyCreacionOtConditionalSpans($template, $showOrden);
+        }
 
         $text = TelegramNotificationHelper::replaceTemplatePlaceholders($template, $vars);
         if (trim($text) === '') {
@@ -619,6 +650,11 @@ class ApprovalEmailQueueHelper
             'actor_name'      => $actorName,
             'actor_username'  => $actorUser,
         ]);
+
+        if ((string) ($req->entity_type ?? '') === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO) {
+            $showOrden = trim((string) ($vars['orden_trabajo_number'] ?? '')) !== '';
+            $template  = self::applyCreacionOtConditionalSpans($template, $showOrden);
+        }
 
         $text = TelegramNotificationHelper::replaceTemplatePlaceholders($template, $vars);
         if (trim($text) === '') {
