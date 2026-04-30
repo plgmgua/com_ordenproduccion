@@ -142,29 +142,61 @@ class ApprovalEmailQueueHelper
     }
 
     /**
+     * Quotación fields for Telegram: display number + client label (Creación OT, etc.).
+     *
+     * @return  array{number: string, client_name: string}
+     *
+     * @since  3.115.59
+     */
+    protected static function loadQuotationTelegramExtras(DatabaseInterface $db, int $quotationId): array
+    {
+        $out = [
+            'number'      => '',
+            'client_name' => '',
+        ];
+
+        if ($quotationId < 1) {
+            return $out;
+        }
+
+        $fallbackNum = 'COT-' . str_pad((string) $quotationId, 5, '0', STR_PAD_LEFT);
+
+        try {
+            $q = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('quotation_number'),
+                    $db->quoteName('client_name'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->setLimit(1);
+            $db->setQuery($q);
+            $row = $db->loadObject();
+
+            if ($row === null) {
+                $out['number'] = $fallbackNum;
+
+                return $out;
+            }
+
+            $num = trim((string) ($row->quotation_number ?? ''));
+            $out['number']      = $num !== '' ? $num : $fallbackNum;
+            $out['client_name'] = trim((string) ($row->client_name ?? ''));
+        } catch (\Throwable $e) {
+            $out['number'] = $fallbackNum;
+        }
+
+        return $out;
+    }
+
+    /**
      * Quotación reference for Telegram (e.g. COT-00123).
      *
      * @since  3.115.58
      */
     protected static function formatCotizacionNumberForTelegram(DatabaseInterface $db, int $quotationId): string
     {
-        if ($quotationId < 1) {
-            return '';
-        }
-
-        try {
-            $q = $db->getQuery(true)
-                ->select($db->quoteName('quotation_number'))
-                ->from($db->quoteName('#__ordenproduccion_quotations'))
-                ->where($db->quoteName('id') . ' = ' . $quotationId)
-                ->setLimit(1);
-            $db->setQuery($q);
-            $num = trim((string) $db->loadResult());
-
-            return $num !== '' ? $num : 'COT-' . str_pad((string) $quotationId, 5, '0', STR_PAD_LEFT);
-        } catch (\Throwable $e) {
-            return 'COT-' . str_pad((string) $quotationId, 5, '0', STR_PAD_LEFT);
-        }
+        return self::loadQuotationTelegramExtras($db, $quotationId)['number'];
     }
 
     /**
@@ -404,6 +436,7 @@ class ApprovalEmailQueueHelper
             $vars['pre_cotizacion_number']   = $preNumFormatted;
             $vars['precot_number']           = $preNumFormatted;
             $vars['cotizacion_number']       = '';
+            $vars['cotizacion_client_name']  = '';
             $vars['quotation_id']            = '';
             $vars['orden_trabajo_id']        = '';
             $vars['orden_trabajo_number']    = '';
@@ -423,8 +456,10 @@ class ApprovalEmailQueueHelper
             if (is_array($metaArrCre)) {
                 $qidCre = (int) ($metaArrCre['quotation_id'] ?? 0);
                 if ($qidCre > 0) {
-                    $vars['quotation_id']      = (string) $qidCre;
-                    $vars['cotizacion_number'] = self::formatCotizacionNumberForTelegram($db, $qidCre);
+                    $vars['quotation_id']           = (string) $qidCre;
+                    $qExtras                        = self::loadQuotationTelegramExtras($db, $qidCre);
+                    $vars['cotizacion_number']      = $qExtras['number'];
+                    $vars['cotizacion_client_name'] = $qExtras['client_name'];
                 }
 
                 $creacionOtId = (int) ($metaArrCre['creacion_ot_orden_id'] ?? 0);
