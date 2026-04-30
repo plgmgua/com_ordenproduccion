@@ -914,4 +914,26 @@ class AccessHelper
 
         return (int) ($quotation->created_by ?? 0) === (int) Factory::getUser()->id;
     }
+
+    /**
+     * Completing «creación OT» approval: owners plus Aprobaciones Ventas may read the quotation row for insert.
+     *
+     * @param   object|null  $quotation  Row from #__ordenproduccion_quotations
+     *
+     * @return  bool
+     *
+     * @since   3.115.57
+     */
+    public static function userCanAccessQuotationForCreacionOtApproval($quotation): bool
+    {
+        if (!$quotation) {
+            return false;
+        }
+
+        if (self::userCanAccessQuotationRow($quotation)) {
+            return true;
+        }
+
+        return self::isInAprobacionesVentasGroup();
+    }
 }

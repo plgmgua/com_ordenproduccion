@@ -330,6 +330,14 @@ class HtmlView extends BaseHtmlView
                 }
             }
 
+            if ($quotationId > 0 && $this->quotation) {
+                $sessFlash = $app->getSession();
+                if ($sessFlash->get('com_ordenproduccion.ot_creacion_pending_msg', '') === '1') {
+                    $sessFlash->remove('com_ordenproduccion.ot_creacion_pending_msg');
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_REQUESTED'), 'success');
+                }
+            }
+
             $layout = $input->get('layout', '', 'cmd');
             if ($quotationId > 0 && $this->quotation && $layout === 'edit'
                 && (int) ($this->quotation->cotizacion_confirmada ?? 0) === 1) {

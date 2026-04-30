@@ -29,6 +29,7 @@ use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\User\UserFactoryInterface;
 use Joomla\CMS\Uri\Uri;
 
 /**
@@ -2908,5 +2909,167 @@ class PrecotizacionController extends BaseController
             : 'index.php?option=com_ordenproduccion&view=cotizador';
         $this->setRedirect(Route::_($redirect, false));
         return true;
+    }
+
+    /**
+     * JSON: finalize or reject «creacion_orden_trabajo» approval (aprobar tras crear orden; rechazar cierra sin OT).
+     *
+     * POST: request_id, pre_cotizacion_id, decision (approve|reject), ot_fecha_entrega (Y-m-d, approve).
+     *
+     * @return  void
+     *
+     * @since   3.115.57
+     */
+    public function decideCreacionOrdenTrabajo()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json', true);
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if (!Session::checkToken('post')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        $requestId = (int) $app->input->post->get('request_id', 0);
+        $preId     = (int) $app->input->post->get('pre_cotizacion_id', 0);
+        $decision  = strtolower(trim((string) $app->input->post->get('decision', '')));
+
+        if ($requestId < 1 || $preId < 1 || ($decision !== 'approve' && $decision !== 'reject')) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST')]);
+            $app->close();
+        }
+
+        $wf = new ApprovalWorkflowService();
+        if (!$wf->hasSchema()) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING')]);
+            $app->close();
+        }
+
+        $req = $wf->fetchRequestById($requestId);
+
+        if ($req === null
+            || strtolower(trim((string) ($req->entity_type ?? ''))) !== strtolower(ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO)
+            || (int) ($req->entity_id ?? 0) !== $preId
+            || strtolower((string) ($req->status ?? '')) !== 'pending'
+        ) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST')]);
+            $app->close();
+        }
+
+        if (!$wf->canUserActOnPendingStep($requestId, (int) $user->id)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+            $app->close();
+        }
+
+        $precotUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preId, false);
+
+        if ($decision === 'reject') {
+            if (!$wf->reject($requestId, (int) $user->id, 'reject_creacion_ot')) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED')]);
+                $app->close();
+            }
+
+            echo json_encode([
+                'success'       => true,
+                'redirect_url'  => $precotUrl,
+                'message'       => Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_REJECTED_OK_JSON'),
+            ]);
+            $app->close();
+        }
+
+        $metaRaw = isset($req->metadata) ? trim((string) $req->metadata) : '';
+        /** @var array<string, mixed>|null $metaArr */
+        $metaArr = $metaRaw !== '' ? json_decode($metaRaw, true) : null;
+
+        if (!is_array($metaArr)
+            || !isset($metaArr['wizard'])
+            || !is_array($metaArr['wizard'])
+        ) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST')]);
+            $app->close();
+        }
+
+        $quotationId = (int) ($metaArr['quotation_id'] ?? 0);
+        $wizard      = $metaArr['wizard'];
+
+        if ($quotationId < 1 || $wizard === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST')]);
+            $app->close();
+        }
+
+        $fePost = trim((string) $app->input->post->get('ot_fecha_entrega', ''));
+        if ($fePost === '' || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fePost, $xm)
+            || !checkdate((int) $xm[2], (int) $xm[3], (int) $xm[1])
+        ) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA')]);
+            $app->close();
+        }
+
+        $wizard['ot_fecha_entrega'] = $fePost;
+
+        $submitterId = (int) ($req->submitter_id ?? 0);
+
+        try {
+            $orderingUser = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($submitterId);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED')]);
+            $app->close();
+        }
+
+        if ($orderingUser->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED')]);
+            $app->close();
+        }
+
+        $co = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createController(
+            'Cotizacion',
+            'Site',
+            [],
+            $app,
+            $app->input
+        );
+
+        if (!$co instanceof CotizacionController) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED')]);
+            $app->close();
+        }
+
+        $result = $co->createOrdenFromWizardInternal($quotationId, $preId, $wizard, $orderingUser, true);
+
+        if (empty($result['success'])) {
+            echo json_encode([
+                'success' => false,
+                'message' => (string) ($result['message'] ?? ''),
+                'detail'  => isset($result['detail']) ? (string) $result['detail'] : '',
+            ]);
+            $app->close();
+        }
+
+        $stepOk = $wf->approve($requestId, (int) $user->id, '');
+        if (!$stepOk) {
+            Log::add(
+                'Creacion OT approve: orden created but workflow approve failed request_id=' . $requestId,
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+        }
+
+        $redirectUrl = !empty($result['redirect_url'])
+            ? (string) $result['redirect_url']
+            : Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false);
+
+        echo json_encode([
+            'success'       => true,
+            'redirect_url'  => $redirectUrl,
+            'message'       => Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_APPROVED_OK_JSON'),
+        ]);
+        $app->close();
     }
 }

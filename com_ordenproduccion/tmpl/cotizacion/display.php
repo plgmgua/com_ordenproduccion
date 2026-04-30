@@ -20,6 +20,7 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 $l = function($key, $fallbackEn, $fallbackEs = null) {
     $t = Text::_($key);
@@ -644,7 +645,11 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
     <?php
     // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
     if ($quotationConfirmed) {
-        $createOrdenJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createOrdenFromQuotation&format=json', false);
+        $wfOtAp = new ApprovalWorkflowService();
+        $otTask = $wfOtAp->hasSchema() && $wfOtAp->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO)
+            ? 'cotizacion.requestCreacionOrdenTrabajoApproval'
+            : 'cotizacion.createOrdenFromQuotation';
+        $createOrdenJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=' . $otTask . '&format=json', false);
         $wizardParams = [
             'params'                            => ComponentHelper::getParams('com_ordenproduccion'),
             'user'                              => Factory::getUser(),

@@ -1483,10 +1483,13 @@ function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
         })
         .then(function(data) {
             if (submitBtn) submitBtn.disabled = false;
-            if (data && data.success && data.redirect_url) {
+            if (data && data.success) {
                 opOtUnmountStep3InstructionsIfMounted();
                 opOtHideOtModal();
-                window.location.href = data.redirect_url;
+                var go = (data.redirect_url && String(data.redirect_url).length > 0)
+                    ? String(data.redirect_url)
+                    : fallbackReturnUrl;
+                window.location.href = go;
                 return;
             }
             var err = (data && data.message) ? data.message : 'No se pudo crear la orden de trabajo.';

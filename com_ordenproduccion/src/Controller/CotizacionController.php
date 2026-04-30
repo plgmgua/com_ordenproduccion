@@ -22,6 +22,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
+use Joomla\CMS\User\User;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
@@ -1115,21 +1116,56 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        $db = Factory::getDbo();
+        $wizard = [
+            'tipo_entrega' => (string) $app->input->post->get('tipo_entrega', '', 'cmd'),
+            'delivery_address' => (string) $app->input->post->get('delivery_address', '', 'string'),
+            'instrucciones_entrega' => (string) $app->input->post->get('instrucciones_entrega', '', 'raw'),
+            'contact_person_name' => (string) $app->input->post->get('contact_person_name', '', 'string'),
+            'contact_person_phone' => (string) $app->input->post->get('contact_person_phone', '', 'string'),
+            'ot_fecha_entrega' => (string) $app->input->post->get('ot_fecha_entrega', '', 'string'),
+            'ot_instrucciones_generales' => (string) $app->input->post->get('ot_instrucciones_generales', '', 'string'),
+        ];
 
-        $service = new OrdenFromQuotationService($db);
+        $result = $this->createOrdenFromWizardInternal($quotationId, $preCotizacionId, $wizard, $user, false);
 
-        // If already exists, use it (idempotent UX).
-        $existing = $service->findExistingActiveOrderByPreCotizacionId($preCotizacionId);
-        if ($existing && isset($existing->id)) {
-            $existingId = (int) $existing->id;
-            $redirect = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $existingId);
-            echo json_encode([
-                'success' => true,
-                'message' => 'OK',
-                'order_id' => $existingId,
-                'redirect_url' => $redirect,
-            ]);
+        echo json_encode($result);
+        $app->close();
+    }
+
+    /**
+     * Request approval instead of inserting OT immediately (when workflow creacion_orden_trabajo is published).
+     *
+     * POST mirrors createOrdenFromQuotation. Returns JSON: success, message, redirect_url (cotización).
+     *
+     * @return void
+     *
+     * @since  3.115.57
+     */
+    public function requestCreacionOrdenTrabajoApproval()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json', true);
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+        if (!Session::checkToken('post')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $quotationId = (int) $app->input->post->get('quotation_id', 0);
+        $preCotizacionId = (int) $app->input->post->get('pre_cotizacion_id', 0);
+        if ($quotationId < 1 || $preCotizacionId < 1) {
+            echo json_encode(['success' => false, 'message' => 'Invalid quotation or pre-cotización id']);
+            $app->close();
+        }
+
+        if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')]);
             $app->close();
         }
 
@@ -1150,7 +1186,6 @@ class CotizacionController extends BaseController
             $fechaOk = checkdate((int) $mm[2], (int) $mm[3], (int) $mm[1]);
         }
         if (!$fechaOk) {
-            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
             echo json_encode([
                 'success' => false,
                 'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA'),
@@ -1158,7 +1193,6 @@ class CotizacionController extends BaseController
             $app->close();
         }
         if ($otDesc === '') {
-            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
             echo json_encode([
                 'success' => false,
                 'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_DESCRIPCION'),
@@ -1166,7 +1200,163 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        $built = $service->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
+        $wf = new ApprovalWorkflowService();
+        if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO)) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_SCHEMA_OR_WF_UNAVAILABLE'),
+            ]);
+            $app->close();
+        }
+
+        $db      = Factory::getDbo();
+        $svc     = new OrdenFromQuotationService($db);
+        $existing = $svc->findExistingActiveOrderByPreCotizacionId($preCotizacionId);
+        if ($existing && isset($existing->id)) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_ALREADY_EXISTS'),
+            ]);
+            $app->close();
+        }
+
+        if ($wf->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO, $preCotizacionId) !== null) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_ALREADY_PENDING'),
+            ]);
+            $app->close();
+        }
+
+        // Ensure PRE is on cotización línea (+ confirmed) sin construir orden todavía
+        $probe = $svc->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
+        if (empty($probe['success'])) {
+            $wm = (string) ($probe['message'] ?? 'Could not validate work order prerequisites');
+            echo json_encode([
+                'success' => false,
+                'message' => $wm,
+            ]);
+            $app->close();
+        }
+
+        $meta = json_encode(
+            [
+                'schema_version' => 1,
+                'quotation_id'   => $quotationId,
+                'wizard'         => $wizard,
+            ],
+            JSON_UNESCAPED_UNICODE
+        );
+        if ($meta === false) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_REQUEST_FAILED'),
+            ]);
+            $app->close();
+        }
+
+        $rid = $wf->createRequest(
+            ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO,
+            $preCotizacionId,
+            (int) $user->id,
+            $meta
+        );
+
+        if ($rid < 1) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_REQUEST_FAILED'),
+            ]);
+            $app->close();
+        }
+
+        $app->getSession()->set('com_ordenproduccion.ot_creacion_pending_msg', '1');
+
+        echo json_encode([
+            'success'        => true,
+            'approval_pending' => true,
+            'message'        => Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_REQUESTED_JSON'),
+            'redirect_url'   => Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false),
+        ]);
+        $app->close();
+    }
+
+    /**
+     * Build and persist orden from wizard POST payload.
+     *
+     * @param   bool   $approverCreacionOtAcl   When true, quotation row may be accessed by Ventas approvals path.
+     *
+     * @return  array<string, mixed>  Keys: success (bool); message?, order_id?, redirect_url?, detail?
+     *
+     * @since   3.115.57
+     */
+    public function createOrdenFromWizardInternal(
+        int $quotationId,
+        int $preCotizacionId,
+        array $wizard,
+        User $orderingUser,
+        bool $approverCreacionOtAcl = false
+    ): array {
+        $quotationId     = (int) $quotationId;
+        $preCotizacionId = (int) $preCotizacionId;
+
+        $db      = Factory::getDbo();
+        $svc     = new OrdenFromQuotationService($db);
+        $existing = $svc->findExistingActiveOrderByPreCotizacionId($preCotizacionId);
+
+        $qLoad = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_quotations'))
+            ->where($db->quoteName('id') . ' = ' . $quotationId)
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($qLoad);
+        $qRow = $db->loadObject();
+
+        if (!$qRow) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')];
+        }
+
+        if ($approverCreacionOtAcl) {
+            if (!AccessHelper::userCanAccessQuotationForCreacionOtApproval($qRow)) {
+                return ['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')];
+            }
+        } elseif (!AccessHelper::userCanAccessQuotationRow($qRow)) {
+            return ['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')];
+        }
+
+        if ($existing && isset($existing->id)) {
+            $existingId = (int) $existing->id;
+            $redirect   = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $existingId);
+
+            return [
+                'success'       => true,
+                'message'       => 'OK',
+                'order_id'      => $existingId,
+                'redirect_url'  => $redirect,
+            ];
+        }
+
+        $otFe = trim((string) ($wizard['ot_fecha_entrega'] ?? ''));
+        $otDesc = trim((string) ($wizard['ot_instrucciones_generales'] ?? ''));
+        $fechaOk = false;
+        if ($otFe !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $otFe, $mm)) {
+            $fechaOk = checkdate((int) $mm[2], (int) $mm[3], (int) $mm[1]);
+        }
+        Factory::getApplication()->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+        if (!$fechaOk) {
+            return [
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA'),
+            ];
+        }
+        if ($otDesc === '') {
+            return [
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_DESCRIPCION'),
+            ];
+        }
+
+        $built = $svc->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $orderingUser, true);
         if (empty($built['success'])) {
             $wm = (string) ($built['message'] ?? 'Could not build work order');
             $this->logOtWizardCreateFailure(
@@ -1175,8 +1365,8 @@ class CotizacionController extends BaseController
                 [],
                 $wm
             );
-            echo json_encode(['success' => false, 'message' => $wm]);
-            $app->close();
+
+            return ['success' => false, 'message' => $wm];
         }
 
         $cols = isset($built['columns']) && is_array($built['columns']) ? $built['columns'] : [];
@@ -1187,8 +1377,8 @@ class CotizacionController extends BaseController
                 [],
                 'No insertable columns for work order table'
             );
-            echo json_encode(['success' => false, 'message' => 'No insertable columns for work order table']);
-            $app->close();
+
+            return ['success' => false, 'message' => 'No insertable columns for work order table'];
         }
 
         unset($cols['id']);
@@ -1198,14 +1388,15 @@ class CotizacionController extends BaseController
 
         $wizardCtx = ['quotation_id' => $quotationId, 'pre_cotizacion_id' => $preCotizacionId];
         $persist = $this->persistNewOrdenRow($db, $cols, $wizardCtx);
+
         if (empty($persist['success'])) {
             $msg = $this->messageOtCreateInternalFailed();
             $out = ['success' => false, 'message' => $msg];
             if (!empty($persist['detail'])) {
                 $out['detail'] = (string) $persist['detail'];
             }
-            echo json_encode($out);
-            $app->close();
+
+            return $out;
         }
 
         $newId = (int) ($persist['order_id'] ?? 0);
@@ -1221,19 +1412,18 @@ class CotizacionController extends BaseController
             if (!empty($persist['detail'])) {
                 $out['detail'] = (string) $persist['detail'];
             }
-            echo json_encode($out);
-            $app->close();
+
+            return $out;
         }
 
         $redirect = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $newId);
 
-        echo json_encode([
-            'success' => true,
-            'message' => 'OK',
-            'order_id' => $newId,
-            'redirect_url' => $redirect,
-        ]);
-        $app->close();
+        return [
+            'success'       => true,
+            'message'       => 'OK',
+            'order_id'      => $newId,
+            'redirect_url'  => $redirect,
+        ];
     }
 
     /**

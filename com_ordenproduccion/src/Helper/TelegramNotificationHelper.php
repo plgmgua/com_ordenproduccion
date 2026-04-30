@@ -33,6 +33,9 @@ class TelegramNotificationHelper
 
     public const EVENT_PAYMENT_PROOF_VERIFIED = 'proof_verified';
 
+    /** Internal approval workflow / creación OT (same message text as DMs, optional channel broadcast). */
+    public const EVENT_APPROVAL_WORKFLOW = 'approval_workflow';
+
     /**
      * After a new invoice row is stored: notify linked order owner(s).
      *
@@ -419,6 +422,11 @@ class TelegramNotificationHelper
                 && (int) ($arr['telegram_broadcast_payment_proof_verified'] ?? 0) === 1;
         }
 
+        if ($event === self::EVENT_APPROVAL_WORKFLOW) {
+            return \array_key_exists('telegram_broadcast_approval_workflow', $arr)
+                && (int) ($arr['telegram_broadcast_approval_workflow'] ?? 0) === 1;
+        }
+
         return false;
     }
 
@@ -454,6 +462,7 @@ class TelegramNotificationHelper
             self::EVENT_ENVIO => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ENVIO',
             self::EVENT_PAYMENT_PROOF_ENTERED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_ENTERED',
             self::EVENT_PAYMENT_PROOF_VERIFIED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_VERIFIED',
+            self::EVENT_APPROVAL_WORKFLOW => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_APPROVAL_WORKFLOW',
             default => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE',
         };
         $full = Text::_($pfxKey) . $body;

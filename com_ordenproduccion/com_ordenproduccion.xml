@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.115.55-STABLE</version>
+    <version>3.115.57-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -392,6 +392,17 @@
                     label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_VERIFIED_LABEL"
                     description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_VERIFIED_DESC"
                     default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="telegram_broadcast_approval_workflow"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_APPROVAL_WORKFLOW_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_APPROVAL_WORKFLOW_DESC"
+                    default="1"
                     class="btn-group btn-group-yesno"
                 >
                     <option value="1">JYES</option>

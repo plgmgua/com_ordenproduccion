@@ -2243,6 +2243,21 @@ class AdministracionController extends BaseController
             return;
         }
 
+        if ($action === 'approve') {
+            $reqPeek = $svc->fetchRequestById($requestId);
+            $etPeek  = strtolower(trim((string) ($reqPeek->entity_type ?? '')));
+            if (
+                $reqPeek !== null
+                && $reqPeek->status === 'pending'
+                && $etPeek === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
+            ) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_CREACION_OT_APPROVE_PRECOT_HINT'), 'warning');
+                $app->redirect($redirect);
+
+                return;
+            }
+        }
+
         $ok = $action === 'approve'
             ? $svc->approve($requestId, (int) $user->id, $comment)
             : $svc->reject($requestId, (int) $user->id, $comment);

@@ -183,6 +183,38 @@ class HtmlView extends BaseHtmlView
     protected $ordenCompraLinesReady = false;
 
     /**
+     * Document: open «creación orden de trabajo» approval for this pre-cotización (entity_id = precot PK).
+     *
+     * @var    bool
+     * @since  3.115.57
+     */
+    protected $creacionOtWorkflowAvailable = false;
+
+    /**
+     * Request id for pending creacion_orden_trabajo workflow, or 0.
+     *
+     * @var    int
+     * @since  3.115.57
+     */
+    protected $pendingCreacionOtRequestId = 0;
+
+    /**
+     * Current user may approve/reject that request (pending step assignee).
+     *
+     * @var    bool
+     * @since  3.115.57
+     */
+    protected $canCompleteCreacionOtApprovalHere = false;
+
+    /**
+     * Default delivery date Y-m-d from pending creación OT request metadata (approval modal).
+     *
+     * @var    string
+     * @since  3.115.57
+     */
+    protected $pendingCreacionOtDefaultFechaYmd = '';
+
+    /**
      * Precotizacion model (document/details layout) for breakdown adjustment helpers in layout.
      *
      * @var    \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel|null
@@ -335,6 +367,9 @@ class HtmlView extends BaseHtmlView
                     $this->ordenCompraLinesReady                = false;
                     $this->ordenCompraLatestByProveedor         = [];
                     $docMode = isset($this->item->document_mode) ? (string) $this->item->document_mode : 'pliego';
+                    $this->creacionOtWorkflowAvailable = false;
+                    $this->pendingCreacionOtRequestId = 0;
+                    $this->canCompleteCreacionOtApprovalHere = false;
                     try {
                         $wf = new ApprovalWorkflowService();
                         if ($wf->hasSchema()) {
@@ -345,6 +380,34 @@ class HtmlView extends BaseHtmlView
                                 ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
                                 (int) $id
                             ) !== null;
+                            $this->pendingCreacionOtDefaultFechaYmd = '';
+                            $this->creacionOtWorkflowAvailable      = $wf->isWorkflowPublishedForEntity(
+                                ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
+                            );
+                            if ($this->creacionOtWorkflowAvailable) {
+                                $pendingCre = $wf->getOpenPendingRequest(
+                                    ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO,
+                                    (int) $id
+                                );
+                                if ($pendingCre !== null) {
+                                    $this->pendingCreacionOtRequestId = (int) ($pendingCre->id ?? 0);
+                                    $this->canCompleteCreacionOtApprovalHere = $this->pendingCreacionOtRequestId > 0
+                                        && $wf->canUserActOnPendingStep(
+                                            $this->pendingCreacionOtRequestId,
+                                            (int) $user->id
+                                        );
+                                    $mr = isset($pendingCre->metadata) ? trim((string) $pendingCre->metadata) : '';
+                                    if ($mr !== '') {
+                                        $decodedMeta = json_decode($mr, true);
+                                        if (is_array($decodedMeta) && isset($decodedMeta['wizard']['ot_fecha_entrega'])) {
+                                            $fe0 = trim((string) $decodedMeta['wizard']['ot_fecha_entrega']);
+                                            if ($fe0 !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fe0)) {
+                                                $this->pendingCreacionOtDefaultFechaYmd = $fe0;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             if ($this->discountWorkflowAvailable) {
                                 $latestDisc = $wf->getLatestRequestForEntity(
                                     ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
@@ -394,6 +457,10 @@ class HtmlView extends BaseHtmlView
                         $this->ordenCompraLinesReady                  = false;
                         $this->ordenCompraLatestByProveedor           = [];
                         $this->solicitudDescuentoLatestNote           = '';
+                        $this->creacionOtWorkflowAvailable            = false;
+                        $this->pendingCreacionOtRequestId           = 0;
+                        $this->canCompleteCreacionOtApprovalHere    = false;
+                        $this->pendingCreacionOtDefaultFechaYmd       = '';
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserSubmitPreCotizacionWorkflowRequests((int) $id)

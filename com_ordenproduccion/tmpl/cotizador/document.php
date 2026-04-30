@@ -180,6 +180,18 @@ $rejectSinDescuentoUrl = Route::_(
     true
 );
 
+$pendingCreacionOtReq = isset($this->pendingCreacionOtRequestId) ? (int) $this->pendingCreacionOtRequestId : 0;
+$fechaDefaultCreacionOt = isset($this->pendingCreacionOtDefaultFechaYmd) ? trim((string) $this->pendingCreacionOtDefaultFechaYmd) : '';
+$decideCreacionOtUrl = Route::_(
+    'index.php?option=com_ordenproduccion&task=precotizacion.decideCreacionOrdenTrabajo&format=json&tmpl=component',
+    false,
+    Route::TLS_IGNORE,
+    true
+);
+$showCreacionOtApprovalBanner = AccessHelper::isInAprobacionesVentasGroup()
+    && ($this->canCompleteCreacionOtApprovalHere ?? false)
+    && $pendingCreacionOtReq > 0;
+
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
 $pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
@@ -200,6 +212,21 @@ $solicitarDescuentoAction   = Route::_(
     <nav class="mb-3">
         <a href="<?php echo $listUrl; ?>" class="btn btn-outline-secondary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BACK'); ?></a>
     </nav>
+
+    <?php if ($showCreacionOtApprovalBanner) :
+        ?>
+    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <strong><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_ALERT_TITLE'); ?></strong>
+            <span class="d-block small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_ALERT_INTRO'); ?></span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#precotCreacionOtApprovalModal">
+                <i class="fas fa-clipboard-check" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_BTN_REVIEW'); ?>
+            </button>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <?php if ($canEditDocument) : ?>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -1185,6 +1212,96 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         </div>
     </div>
 </div>
+<?php endif; ?>
+
+<?php if ($showCreacionOtApprovalBanner) : ?>
+<!-- Modal: Creación OT — aprobación (fecha + completar / rechazar) -->
+<div class="modal fade" id="precotCreacionOtApprovalModal" tabindex="-1" aria-labelledby="precotCreacionOtApprovalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="precotCreacionOtApprovalModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_MODAL_TITLE'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE'), ENT_QUOTES, 'UTF-8'); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_MODAL_INTRO'); ?></p>
+                <div class="mb-3">
+                    <label for="precotCreacionOtFechaInput" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_FECHA_ENTREGA_LABEL'); ?> <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="precotCreacionOtFechaInput" name="ot_fecha_entrega" required
+                        value="<?php echo htmlspecialchars($fechaDefaultCreacionOt, ENT_QUOTES, 'UTF-8'); ?>" />
+                </div>
+                <div id="precotCreacionOtApprovalErr" class="alert alert-danger py-2 small" style="display:none;" role="alert"></div>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-danger" id="precotCreacionOtRejectBtn"><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_BTN_REJECT'); ?></button>
+                <button type="button" class="btn btn-success" id="precotCreacionOtApproveBtn"><?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_BTN_COMPLETE'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var url = <?php echo json_encode($decideCreacionOtUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var tok = <?php echo json_encode(Session::getFormToken(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var reqId = <?php echo (int) $pendingCreacionOtReq; ?>;
+    var preId = <?php echo (int) $preCotizacionId; ?>;
+    var errEl = document.getElementById('precotCreacionOtApprovalErr');
+    function showErr(msg) {
+        if (!errEl) return;
+        errEl.textContent = msg || '';
+        errEl.style.display = msg ? 'block' : 'none';
+    }
+    function postDecision(action) {
+        showErr('');
+        var fe = document.getElementById('precotCreacionOtFechaInput');
+        var fd = new FormData();
+        fd.append('request_id', String(reqId));
+        fd.append('pre_cotizacion_id', String(preId));
+        fd.append('decision', action);
+        if (tok) fd.append(tok, '1');
+        if (action === 'approve' && fe && fe.value) {
+            fd.append('ot_fecha_entrega', String(fe.value));
+        }
+        var ab = document.getElementById('precotCreacionOtApproveBtn');
+        var rb = document.getElementById('precotCreacionOtRejectBtn');
+        if (ab) ab.disabled = true;
+        if (rb) rb.disabled = true;
+        fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.text().then(function(t) { try { return JSON.parse(t); } catch (e) { return { success: false, message: t.substring(0, 200) }; } }); })
+            .then(function(data) {
+                if (data && data.success && data.redirect_url) {
+                    window.location.href = String(data.redirect_url);
+                    return;
+                }
+                var m = (data && data.message) ? data.message : 'Error.';
+                showErr(m);
+                if (ab) ab.disabled = false;
+                if (rb) rb.disabled = false;
+            })
+            .catch(function() {
+                showErr(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>);
+                if (ab) ab.disabled = false;
+                if (rb) rb.disabled = false;
+            });
+    }
+    var abtn = document.getElementById('precotCreacionOtApproveBtn');
+    var rbtn = document.getElementById('precotCreacionOtRejectBtn');
+    if (abtn) abtn.addEventListener('click', function() {
+        var fe = document.getElementById('precotCreacionOtFechaInput');
+        if (!fe || !fe.value) {
+            showErr(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>);
+            return;
+        }
+        postDecision('approve');
+    });
+    if (rbtn) rbtn.addEventListener('click', function() {
+        if (!window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_REJECT_CONFIRM'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)) {
+            return;
+        }
+        postDecision('reject');
+    });
+})();
+</script>
 <?php endif; ?>
 
 <!-- Modal: Otros Elementos (always shown so "Otros Elementos" button always works) -->

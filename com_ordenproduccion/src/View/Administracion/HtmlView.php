@@ -1609,6 +1609,7 @@ class HtmlView extends BaseHtmlView
                         if (
                             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
                             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                            || $et === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
                         ) {
                             $eid = (int) ($prow->entity_id ?? 0);
                             if ($eid > 0) {
@@ -1646,6 +1647,7 @@ class HtmlView extends BaseHtmlView
                                     if (
                                         $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
                                         || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                                        || $et === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
                                     ) {
                                         $eid = (int) ($prow->entity_id ?? 0);
                                         $prow->precotizacion_number = $eid > 0

@@ -28,6 +28,7 @@ $entityLabel = static function (string $entityType): string {
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
         'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
+        'creacion_orden_trabajo'  => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_CREACION_ORDEN_TRABAJO',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 
@@ -69,7 +70,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
                         $created = isset($row->created) ? (string) $row->created : '';
-                        if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion') {
+                        if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion' || $etype === 'creacion_orden_trabajo') {
                             $refDisplay = (string) ($row->precotizacion_number ?? '');
                             if ($refDisplay === '') {
                                 $refDisplay = (string) (int) $eid;
@@ -99,7 +100,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:260px;">
-                                <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion') : ?>
+                                <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion' || $etype === 'creacion_orden_trabajo') : ?>
                                 <div class="d-flex flex-wrap gap-1 align-items-center">
                                     <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>

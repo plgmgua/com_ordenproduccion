@@ -43,6 +43,7 @@ $entityLabel = static function (string $entityType): string {
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
         'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
+        'creacion_orden_trabajo'  => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_CREACION_ORDEN_TRABAJO',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 

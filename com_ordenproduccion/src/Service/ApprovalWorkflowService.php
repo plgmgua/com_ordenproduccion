@@ -39,6 +39,14 @@ class ApprovalWorkflowService
     /** Orden de compra: entity_id = #__ordenproduccion_orden_compra.id */
     public const ENTITY_ORDEN_COMPRA = 'orden_compra';
 
+    /**
+     * Creación de orden de trabajo desde cotización confirmada (asistente 3 pasos).
+     * entity_id = #__ordenproduccion_pre_cotizacion.id; metadata JSON: quotation_id, wizard (POST-equivalent payload).
+     *
+     * @since  3.115.57
+     */
+    public const ENTITY_CREACION_ORDEN_TRABAJO = 'creacion_orden_trabajo';
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -201,7 +209,11 @@ class ApprovalWorkflowService
         $out = [];
         foreach ($rows as $row) {
             $et = strtolower(trim((string) ($row->entity_type ?? '')));
-            if ($et === self::ENTITY_SOLICITUD_DESCUENTO || $et === self::ENTITY_SOLICITUD_COTIZACION) {
+            if (
+                $et === self::ENTITY_SOLICITUD_DESCUENTO
+                || $et === self::ENTITY_SOLICITUD_COTIZACION
+                || $et === self::ENTITY_CREACION_ORDEN_TRABAJO
+            ) {
                 $eid = (int) ($row->entity_id ?? 0);
                 if ($eid > 0 && !$this->preCotizacionExistsPublished($eid)) {
                     $rid = (int) ($row->id ?? 0);
@@ -390,6 +402,20 @@ class ApprovalWorkflowService
         }
 
         return $requestId;
+    }
+
+    /**
+     * Read an approval_requests row by primary key (any status).
+     *
+     * @since  3.115.57
+     */
+    public function fetchRequestById(int $requestId): ?object
+    {
+        if (!$this->hasSchema() || $requestId < 1) {
+            return null;
+        }
+
+        return $this->loadRequest($requestId);
     }
 
     /**
@@ -713,6 +739,7 @@ class ApprovalWorkflowService
         $allowed = [
             self::ENTITY_SOLICITUD_DESCUENTO,
             self::ENTITY_SOLICITUD_COTIZACION,
+            self::ENTITY_CREACION_ORDEN_TRABAJO,
             self::ENTITY_ORDEN_COMPRA,
         ];
 
@@ -775,6 +802,7 @@ class ApprovalWorkflowService
         $types = [
             $this->db->quote(self::ENTITY_SOLICITUD_DESCUENTO),
             $this->db->quote(self::ENTITY_SOLICITUD_COTIZACION),
+            $this->db->quote(self::ENTITY_CREACION_ORDEN_TRABAJO),
         ];
         $query = $this->db->getQuery(true)
             ->select($this->db->quoteName('id'))
@@ -833,6 +861,10 @@ class ApprovalWorkflowService
                 ApprovalWorkflowEntityHelper::applyOrdenCompraWorkflowOutcome($this->db, $eid, 'approved');
                 break;
 
+            case self::ENTITY_CREACION_ORDEN_TRABAJO:
+                /** OT persist runs in {@see \Grimpsa\Component\Ordenproduccion\Site\Controller\PrecotizacionController::completeCreacionOrdenTrabajoApprovalJson} before finalize approval. */
+                break;
+
             default:
                 break;
         }
@@ -860,6 +892,9 @@ class ApprovalWorkflowService
 
             case self::ENTITY_ORDEN_COMPRA:
                 ApprovalWorkflowEntityHelper::applyOrdenCompraWorkflowOutcome($this->db, $eid, 'rejected');
+                break;
+
+            case self::ENTITY_CREACION_ORDEN_TRABAJO:
                 break;
 
             default:

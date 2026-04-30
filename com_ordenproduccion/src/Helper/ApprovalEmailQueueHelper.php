@@ -119,6 +119,7 @@ class ApprovalEmailQueueHelper
         if (
             $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             && $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+            && $type !== ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
         ) {
             return (string) $pk;
         }
@@ -313,6 +314,46 @@ class ApprovalEmailQueueHelper
             $vars = array_merge($vars, self::buildPaymentProofTemplateVars($db, $request));
         }
 
+        $etLink = (string) ($request->entity_type ?? '');
+        if (
+            $etLink === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+            || $etLink === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+            || $etLink === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
+        ) {
+            $precotPkUrl = (int) ($request->entity_id ?? 0);
+            if ($precotPkUrl > 0) {
+                $precotDocRel = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotPkUrl, false);
+                $precotAbs    = $root . '/' . ltrim((string) $precotDocRel, '/');
+                $vars['approval_url']         = $precotAbs;
+                $vars['precot_document_url']    = $precotAbs;
+            }
+        }
+
+        if ($etLink === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO) {
+            $vars['fecha_entrega']           = '';
+            $vars['fecha_entrega_solicitada'] = '';
+            $metaRawCre = isset($request->metadata) ? trim((string) $request->metadata) : '';
+            if ($metaRawCre !== '') {
+                try {
+                    $metaArrCre = json_decode($metaRawCre, true);
+                } catch (\Throwable $e) {
+                    $metaArrCre = null;
+                }
+                if (is_array($metaArrCre) && isset($metaArrCre['wizard']) && is_array($metaArrCre['wizard'])) {
+                    $feCre = trim((string) ($metaArrCre['wizard']['ot_fecha_entrega'] ?? ''));
+                    if ($feCre !== '') {
+                        try {
+                            $lbl = Factory::getDate($feCre . ' 12:00:00')->format(Text::_('DATE_FORMAT_LC4'));
+                        } catch (\Throwable $e) {
+                            $lbl = $feCre;
+                        }
+                        $vars['fecha_entrega']           = $lbl;
+                        $vars['fecha_entrega_solicitada'] = $lbl;
+                    }
+                }
+            }
+        }
+
         /*
          * Step-assignment Telegram/email templates may use {actor_name} for “who triggered this request”.
          * Outcome notifications pass actor_* in $base (the approver who decided). Assign notifications do not;
@@ -367,6 +408,13 @@ class ApprovalEmailQueueHelper
         }
 
         TelegramQueueHelper::enqueue($chatId, $text);
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        TelegramNotificationHelper::sendToAdministracionBroadcastChannel(
+            $params,
+            $text,
+            TelegramNotificationHelper::EVENT_APPROVAL_WORKFLOW
+        );
     }
 
     /**
@@ -450,5 +498,12 @@ class ApprovalEmailQueueHelper
         }
 
         TelegramQueueHelper::enqueue($chatId, $text);
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        TelegramNotificationHelper::sendToAdministracionBroadcastChannel(
+            $params,
+            $text,
+            TelegramNotificationHelper::EVENT_APPROVAL_WORKFLOW
+        );
     }
 }

@@ -417,6 +417,11 @@ SELECT 'Orden de Compra', 'Aprueba la creación de órdenes de compra a proveedo
 FROM (SELECT 1 AS `x`) AS `t`
 WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'orden_compra');
 
+INSERT INTO `#__ordenproduccion_approval_workflows` (`name`, `description`, `entity_type`, `published`, `created_by`)
+SELECT 'Creación de Orden de Trabajo', 'Aprueba la creación de la orden de trabajo desde la cotización confirmada (asistente de 3 pasos).', 'creacion_orden_trabajo', 1, 0
+FROM (SELECT 1 AS `x`) AS `t`
+WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'creacion_orden_trabajo');
+
 INSERT INTO `#__ordenproduccion_approval_workflow_steps` (`workflow_id`, `step_number`, `step_name`, `approver_type`, `approver_value`, `require_all`, `timeout_hours`, `timeout_action`, `created_by`)
 SELECT w.`id`, 1, 'Aprobar', 'named_group', 'Administracion', 0, 0, 'escalate', 0
 FROM `#__ordenproduccion_approval_workflows` AS w
@@ -437,6 +442,11 @@ UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
 INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
 SET s.`step_name` = 'Revisar orden de compra', s.`approver_value` = 'Administracion,Administración'
 WHERE w.`entity_type` = 'orden_compra' AND s.`step_number` = 1;
+
+UPDATE `#__ordenproduccion_approval_workflow_steps` AS s
+INNER JOIN `#__ordenproduccion_approval_workflows` AS w ON w.`id` = s.`workflow_id`
+SET s.`step_name` = 'Revisar creación de orden de trabajo', s.`approver_value` = 'Aprobaciones Ventas'
+WHERE w.`entity_type` = 'creacion_orden_trabajo' AND s.`step_number` = 1;
 
 -- Telegram bot: per-user chat_id (3.105.0)
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_telegram_users` (
