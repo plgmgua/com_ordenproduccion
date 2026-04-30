@@ -20,29 +20,29 @@ use Joomla\CMS\Language\Text;
  */
 class OrdenTrabajoPdfPrecotSectionsHelper
 {
-    /** PRE orden PDF: tabla / multicolumna texto (former 10 pt). */
-    private const PDF_PRE_PT_GRID = 8;
+    /** PRE orden PDF: tabla / multicolumna texto. */
+    private const PDF_PRE_PT_GRID = 9;
 
-    /** Barra OTROS ELEMENTOS (former 11 pt). */
-    private const PDF_PRE_PT_SECTION_BAR = 9;
+    /** Barra OTROS ELEMENTOS. */
+    private const PDF_PRE_PT_SECTION_BAR = 10;
 
-    /** Título ancho «INSTRUCCIONES DE ACABADOS» (former 10 pt). */
-    private const PDF_PRE_PT_ACABADOS_TITLE = 8;
+    /** Título ancho «INSTRUCCIONES DE ACABADOS». */
+    private const PDF_PRE_PT_ACABADOS_TITLE = 9;
 
-    /** Etiquetas filas instrucciones (former 9.5 pt). */
-    private const PDF_PRE_PT_INSTR_LABEL = 7.5;
+    /** Etiquetas filas instrucciones. */
+    private const PDF_PRE_PT_INSTR_LABEL = 8.5;
 
-    /** Altura de cada línea en MultiCell (~alto efectivo una sola línea antes del pad fino). */
-    private const PDF_PRE_MM_LINE = 3.5;
+    /** Altura de cada línea en MultiCell (sube con cuerpo 9 pt). */
+    private const PDF_PRE_MM_LINE = 4.0;
 
     /** Suma bajo el último texto (subir a p. ej. 0.1 si el borde corta descendentes). */
     private const PDF_PRE_MM_ROW_PAD = 0.0;
 
-    /** Barra OTROS ELEMENTOS (former 8 mm). */
-    private const PDF_PRE_MM_H_OTROS_TITLE = 6.4;
+    /** Barra OTROS ELEMENTOS (mm). */
+    private const PDF_PRE_MM_H_OTROS_TITLE = 7.0;
 
-    /** Barra instrucciones acabados (former 7.5 mm). */
-    private const PDF_PRE_MM_H_ACABADOS_BAND = 6.0;
+    /** Barra instrucciones acabados (mm). */
+    private const PDF_PRE_MM_H_ACABADOS_BAND = 6.6;
 
     /**
      * Same grouping as tmpl/orden/default.php (consecutive elementos → one tabla).
