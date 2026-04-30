@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
@@ -329,6 +330,51 @@ class OrdenController extends BaseController
     }
 
     /**
+     * Final dimensions text for orden PDF: orden_view_pre_medidas if present, otherwise dimensions,
+     * with fallbacks mirroring orden vista (PRE medidas tabla / orden_source_json).
+     */
+    private function resolveMedidasFinalesForWorkOrderPdf(object $wd): string
+    {
+        if (isset($wd->orden_view_pre_medidas) && trim((string) $wd->orden_view_pre_medidas) !== '') {
+            return trim((string) $wd->orden_view_pre_medidas);
+        }
+
+        if (isset($wd->dimensions) && trim((string) $wd->dimensions) !== '') {
+            return trim((string) $wd->dimensions);
+        }
+
+        $preId = isset($wd->pre_cotizacion_id) ? (int) $wd->pre_cotizacion_id : 0;
+        if ($preId >= 1) {
+            try {
+                $db = Factory::getDbo();
+                $q = $db->getQuery(true)
+                    ->select($db->quoteName('medidas'))
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                    ->where($db->quoteName('id') . ' = ' . $preId);
+
+                $db->setQuery($q);
+                $raw = $db->loadResult();
+                if ($raw !== null && trim((string) $raw) !== '') {
+                    return trim((string) $raw);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if (!empty($wd->orden_source_json)) {
+            $decoded = json_decode((string) $wd->orden_source_json, true);
+            if (\is_array($decoded) && isset($decoded['pre_medidas'])) {
+                $m = trim((string) $decoded['pre_medidas']);
+                if ($m !== '') {
+                    return $m;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Method to generate PDF file for work order using FPDF.
      *
      * @param   int     $orderId        Work order ID
@@ -482,10 +528,11 @@ class OrdenController extends BaseController
 
                 $pdf->Ln(5);
         
-        
-        // Client and job information table with proper cell sizing (40% larger labels)
+                
+        // Client and job rows: narrow label column; value uses remaining width (matches PRE strip feel).
+        $labelColWpdf = 36;
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(49, 8, 'CLIENTE:', 1, 0, 'L'); // 35 * 1.4 = 49
+        $pdf->Cell($labelColWpdf, 8, 'CLIENTE:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         $clientName = $workOrderData->client_name ?? 'N/A';
         $clientName = $fixSpanishChars($clientName); // Fix Spanish characters
@@ -493,10 +540,10 @@ class OrdenController extends BaseController
             $clientName = substr($clientName, 0, 47) . '...';
         }
         $pdf->Cell(0, 8, $clientName, 1, 1, 'L');
-        
+
         // Get job description from correct field name
         $jobDesc = 'N/A';
-        
+
         // Debug: Check what fields are available
         $debugInfo = [];
         if (isset($workOrderData->work_description)) {
@@ -533,11 +580,22 @@ class OrdenController extends BaseController
         
         // Use MultiCell approach like INSTRUCCIONES GENERALES for text wrapping
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(49, 8, 'TRABAJO:', 1, 0, 'L'); // Same width as CLIENTE label (49mm)
+        $pdf->Cell($labelColWpdf, 8, 'TRABAJO:', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
         // Use MultiCell to allow text wrapping like INSTRUCCIONES GENERALES
         $pdf->MultiCell(0, 6, $jobDesc, 1, 'L'); // Full remaining width like CLIENTE
-        
+
+        // Medidas finales: prefer PRE cabecera medidas, then orden dimensions (same as orden vista).
+        $medidasPdf = trim($this->resolveMedidasFinalesForWorkOrderPdf($workOrderData));
+        if ($medidasPdf === '') {
+            $medidasPdf = 'N/A';
+        }
+        $medidasPdf = $fixSpanishChars($medidasPdf);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($labelColWpdf, 8, Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES') . ':', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->MultiCell(0, 6, $medidasPdf, 1, 'L');
+
         $pdf->Ln(5);
         
         if (!$usePrecMixedPdfLayout) {

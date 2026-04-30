@@ -288,22 +288,26 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     }
 
     /**
-     * Elemento column aligns with pliego / instrucciones label column; cantidad narrower; remainder = instructions.
+     * Elemento column tracks pliego / instrucciones label strip; Cantidad narrower; remainder = instructions.
      *
      * @return  array{0: float, 1: float, 2: float}
      */
     private static function otrosElementosPdfThreeWidths(\FPDF $pdf): array
     {
         [$wLbl, $wVal] = self::pliegoTwoColumnWidths($pdf);
-        $total         = max(150.0, (float) $wLbl + (float) $wVal);
-        $wElem         = max(52.0, (float) $wLbl);
+        $total         = (float) $wLbl + (float) $wVal;
+        $total         = max(150.0, $total);
 
-        $wCant = max(38.0, min(54.0, floor($total * 0.16)));
+        // First column aligns with pliego / instrucciones label strip; narrower than legacy 52 mm minimum.
+        $wElem = max(36.0, (float) $wLbl);
+
+        // “Cantidad” kept tight; remainder goes to instructions.
+        $wCant = max(20.0, min(32.0, floor($total * 0.105)));
         $wInstr = round($total - $wElem - $wCant, 2);
 
-        if ($wInstr < 62.0) {
-            $def   = 62.0 - $wInstr;
-            $shave = min($def, max(0.0, $wCant - 34.0));
+        if ($wInstr < 68.0) {
+            $def   = 68.0 - $wInstr;
+            $shave = min($def, max(0.0, $wCant - 18.0));
             $wCant -= $shave;
             $wInstr = round($total - $wElem - $wCant, 2);
         }
@@ -319,7 +323,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     private static function pliegoPdfFourWidthsForSpecTable(\FPDF $pdf): array
     {
         [$wLbl, $wVal] = self::pliegoTwoColumnWidths($pdf);
-        $wLbl = max(52.0, (float) $wLbl);
+        $wLbl = max(36.0, (float) $wLbl);
         $wVal = max(60.0, (float) $wVal);
 
         $tiWhole = (int) floor($wVal);
@@ -491,10 +495,10 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         $rm = 15.0;
         $remainder = max(74.0, $pdf->GetPageWidth() - $pdf->GetX() - $rm);
 
-        // ~35–40% of usable width for label column (narrower labels, wider values).
-        $w1 = (float) floor($remainder * 0.38);
+        // Narrow label strip (~30%): more room for values (papel spec + instrucciones).
+        $w1 = (float) floor($remainder * 0.30);
 
-        $w1 = max(58.0, min($w1, $remainder - 72.0));
+        $w1 = max(40.0, min($w1, $remainder - 80.0));
 
         return [$w1, max(60.0, $remainder - $w1)];
     }
