@@ -160,37 +160,63 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     {
         self::maybePageBreak($pdf, 68);
 
-        $paperKey = 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER';
-        $paperVal = '';
+        $paperKey      = 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER';
+        $qtyKey        = 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_PLIEGOS_IMPR';
+        $sizeKey       = 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PLIEGO_SIZE';
+        $tiroKey       = 'COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO';
+        $consumesTable = [
+            $paperKey => true,
+            $qtyKey => true,
+            $sizeKey => true,
+            $tiroKey => true,
+        ];
 
-        /** @var list<array<string, mixed>> $metaRest */
-        $metaRest = [];
+        $valsByKey = [];
         foreach (($sec['meta_rows'] ?? []) as $mr) {
             $lk = trim((string) ($mr['label_key'] ?? ''));
             $val = trim((string) ($mr['value'] ?? ''));
-            if ($lk === $paperKey && $paperVal === '') {
-                $paperVal = $val;
-
+            if ($lk === '') {
                 continue;
             }
-            if ($lk !== '') {
-                $metaRest[] = $mr;
-            }
+            $valsByKey[$lk] = $val;
         }
 
+        $paperVal = (string) ($valsByKey[$paperKey] ?? '');
         if ($paperVal === '') {
             $subRaw = trim((string) ($sec['subtitle'] ?? ''));
             $paperVal = self::extractPaperFromSubtitleOrEmpty($subRaw);
         }
 
-        if ($paperVal !== '') {
-            self::maybePageBreak($pdf, 24);
-            $lblLine = mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_META_PAPER'), 'UTF-8') . ':  ' . $paperVal;
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->SetFillColor(238, 238, 238);
-            $pdf->MultiCell(0, 7.5, $fix($lblLine), 1, 'L', true);
-            $pdf->Ln(2);
+        $qtyStr      = self::ordenPdfTblCell((string) ($valsByKey[$qtyKey] ?? ''));
+        $sizeStr     = self::ordenPdfTblCell((string) ($valsByKey[$sizeKey] ?? ''));
+        $tiroStr     = self::ordenPdfTblCell((string) ($valsByKey[$tiroKey] ?? ''));
+        $papelColStr = self::ordenPdfTblCell($paperVal);
+
+        /** @var list<array<string, mixed>> $metaRest */
+        $metaRest = [];
+        foreach (($sec['meta_rows'] ?? []) as $mr) {
+            $lk = trim((string) ($mr['label_key'] ?? ''));
+            if ($lk === '') {
+                continue;
+            }
+            if (isset($consumesTable[$lk])) {
+                continue;
+            }
+            $metaRest[] = $mr;
         }
+
+        self::maybePageBreak($pdf, 56);
+        $usable = self::pdfContentRemainderMm($pdf);
+        $wCols  = self::pliegoPdfFourWidthsMm($usable);
+        self::renderPliegoFourColumnPdfTable(
+            $pdf,
+            $fix,
+            $wCols,
+            $papelColStr,
+            $qtyStr,
+            $sizeStr,
+            $tiroStr
+        );
 
         [$wLblCol, $wValCol] = self::pliegoTwoColumnWidths($pdf);
 
@@ -234,6 +260,145 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         }
 
         $pdf->Ln(5);
+    }
+
+    private static function ordenPdfTblCell(string $v): string
+    {
+        $v = trim($v);
+
+        return $v !== '' ? $v : '—';
+    }
+
+    private static function pdfContentRemainderMm(\FPDF $pdf): float
+    {
+        $rm = 15.0;
+
+        return max(74.0, $pdf->GetPageWidth() - $pdf->GetX() - $rm);
+    }
+
+    /**
+     * @return  array{0: float, 1: float, 2: float, 3: float}
+     */
+    private static function pliegoPdfFourWidthsMm(float $usableMm): array
+    {
+        $t = (int) floor($usableMm);
+        $b = (int) floor($t / 4);
+        $w = [(float) $b, (float) $b, (float) $b, (float) $b];
+        $r = $t - 4 * $b;
+
+        for ($i = 0; $i < $r; ++$i) {
+            $w[$i] += 1.0;
+        }
+
+        return $w;
+    }
+
+    private static function renderPliegoFourColumnPdfTable(
+        \FPDF $pdf,
+        callable $fix,
+        array $wCols,
+        string $papel,
+        string $qty,
+        string $sizeVal,
+        string $tiro
+    ): void {
+        $hdrs = [
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_PLIEGO_TBL_H_PAPER'),
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_PLIEGO_TBL_H_CANT'),
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_PLIEGO_TBL_H_SIZE'),
+            Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_PLIEGO_TBL_H_TIRO'),
+        ];
+        self::maybePageBreak($pdf, 52);
+        self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, $hdrs, 6.2, true);
+        self::maybePageBreak($pdf, 42);
+        self::drawPliegoFourColumnAlignedBand($pdf, $fix, $wCols, [$papel, $qty, $sizeVal, $tiro], 6.2, false);
+
+        $pdf->Ln(2);
+    }
+
+    /**
+     * @param   float[]                               $widthsMm    Four column widths summing usable width (mm).
+     * @param   list<string>|array<int, string>       $cells       Up to four texts (padded).
+     * @param   bool                                  $headerBand  Grey fill + bold for all cols; value row emphasizes column 1 (paper).
+     */
+    private static function drawPliegoFourColumnAlignedBand(
+        \FPDF $pdf,
+        callable $fix,
+        array $widthsMm,
+        array $cells,
+        float $lineH,
+        bool $headerBand
+    ): void {
+        $widthsMm = \array_values($widthsMm);
+        while (\count($widthsMm) < 4) {
+            $widthsMm[] = 10.0;
+        }
+
+        $widthsMm = \array_slice($widthsMm, 0, 4);
+
+        $cells = \array_values($cells);
+        while (\count($cells) < 4) {
+            $cells[] = '';
+        }
+
+        /** @var list<string> $row */
+        $row = [];
+        for ($ci = 0; $ci < 4; $ci++) {
+            $raw = trim((string) ($cells[$ci] ?? ''));
+
+            $row[$ci] = ($raw !== '') ? $fix($raw) : $fix('—');
+        }
+
+        $sumW = 0.0;
+        foreach ($widthsMm as $ww) {
+            $sumW += (float) $ww;
+        }
+
+        $fills = $headerBand ? [true, true, true, true] : [true, false, false, false];
+
+        $nMax = 1;
+
+        foreach ($row as $i => $cellT) {
+            $wcol = (float) $widthsMm[$i];
+
+            $pdf->SetFont('Arial', ($headerBand || $i === 0) ? 'B' : '', 10);
+            $nMax = max($nMax, self::estimateWrappedLineCount($pdf, $wcol, $cellT));
+        }
+
+        $hRow = ($nMax * $lineH) + 2.75;
+        self::maybePageBreak($pdf, min(252.0, $hRow + 24));
+
+        $x = $pdf->GetX();
+        $y = $pdf->GetY();
+
+        $pdf->Rect($x, $y, $sumW, $hRow);
+        $xv = $x;
+        foreach ($widthsMm as $idxCol => $wcell) {
+            if ($idxCol === 3) {
+                break;
+            }
+
+            $xv += (float) $wcell;
+            $pdf->Line($xv, $y, $xv, $y + $hRow);
+        }
+
+        $acc = $x;
+        foreach ($row as $i => $cellT) {
+            $wcol = (float) $widthsMm[$i];
+            $fill = !empty($fills[$i]);
+
+            if ($fill) {
+                $pdf->SetFillColor(238, 238, 238);
+            }
+
+            $pdf->SetFont('Arial', ($headerBand || $i === 0) ? 'B' : '', 10);
+
+            $pdf->SetXY($acc, $y);
+            $pdf->MultiCell($wcol, $lineH, $cellT, 0, 'L', $fill);
+            $acc += $wcol;
+        }
+
+        $pdf->SetXY($x, $y + $hRow);
     }
 
     /**
