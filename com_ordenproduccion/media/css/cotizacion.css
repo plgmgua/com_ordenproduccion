@@ -104,9 +104,14 @@
 }
 
 .cotizacion-container .items-table th.col-precotizacion {
-    width: 13%;
-    min-width: 7.5rem;
+    width: 9%;
+    min-width: 5.5rem;
     max-width: none;
+}
+
+.cotizacion-container .items-table thead th.col-cotizacion-items-qty-th {
+    width: 5%;
+    white-space: nowrap !important;
 }
 
 .cotizacion-container .items-table tbody td:first-child {
@@ -317,15 +322,15 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-pre {
-    width: 13%;
+    width: 9%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-qty {
-    width: 6%;
+    width: 5%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-desc {
-    width: 31%;
+    width: 41%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-images {
@@ -333,7 +338,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-unit {
-    width: 14%;
+    width: 9%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-sub {
@@ -346,20 +351,20 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-pre {
-    width: 12%;
+    width: 8%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-qty {
-    width: 6%;
+    width: 5%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-desc {
-    width: 25%;
+    width: 34%;
 }
 
 /* Columna orden de trabajo: 8 columnas con Acción */
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-ot {
-    width: 12%;
+    width: 11%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-images {
@@ -367,7 +372,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-unit {
-    width: 12%;
+    width: 9%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-sub {
@@ -376,6 +381,14 @@
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-action {
     width: 11%;
+}
+
+.cotizacion-display .cotizacion-display-lines-table thead th.col-cotizacion-qty {
+    white-space: nowrap !important;
+}
+
+.cotizacion-display .cotizacion-display-lines-table thead th.col-cotizacion-unit {
+    white-space: nowrap !important;
 }
 
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-pre {
