@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\MVC\Controller\BaseController;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdenTrabajoPdfPrecotSectionsHelper;
