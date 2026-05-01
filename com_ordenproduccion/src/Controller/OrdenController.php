@@ -305,6 +305,8 @@ class OrdenController extends BaseController
             return null;
         }
 
+        OrdenModel::copySpanishFinishFieldsToEnglishAliases($workOrder);
+
         // Get additional EAV data (tecnico, detalles, etc.) - using correct table structure
         try {
             $eavQuery = $db->getQuery(true)

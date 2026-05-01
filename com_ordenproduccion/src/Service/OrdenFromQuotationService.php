@@ -240,6 +240,11 @@ class OrdenFromQuotationService
 
         $payload = array_merge($payload, $mapBool);
 
+        $precotAcabados = $this->deriveAcabadosPayloadFromPrecotizacionLines($preCotizacionId);
+        if ($precotAcabados !== []) {
+            $payload = array_merge($payload, $precotAcabados);
+        }
+
         if ($deliveryDateYmd !== null) {
             $payload['delivery_date']   = $deliveryDateYmd;
             $payload['fecha_de_entrega'] = $deliveryDateYmd;
@@ -599,6 +604,207 @@ class OrdenFromQuotationService
         $decoded = json_decode((string) $raw, true);
 
         return \is_array($decoded) ? $decoded : new \stdClass();
+    }
+
+    /**
+     * Maps PRE pliego line pricing inputs (breakdown concepts, lamination type, proceso IDs) onto
+     * orden SI/NO + detail columns so OT view and PDF reflect Laminación / Corte selected in Cotizador.
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.115.63
+     */
+    protected function deriveAcabadosPayloadFromPrecotizacionLines(int $preCotizacionId): array
+    {
+        if ($preCotizacionId < 1) {
+            return [];
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->where($this->db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+                ->order($this->db->quoteName('ordering') . ' ASC, id ASC');
+
+            $this->db->setQuery($q);
+            $lines = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        if ($lines === []) {
+            return [];
+        }
+
+        $processNamesById = $this->loadPliegoProcessNamesById();
+        $lamNamesById     = $this->loadLaminationTypeNamesById();
+
+        $lamDetailTexts = [];
+        $cutDetailTexts = [];
+
+        foreach ($lines as $line) {
+            $ltRaw = isset($line->line_type) ? strtolower(trim((string) $line->line_type)) : '';
+            $lineTypeNorm = ($ltRaw === '') ? 'pliego' : $ltRaw;
+
+            if ($lineTypeNorm === 'envio' || $lineTypeNorm === 'proveedor_externo') {
+                continue;
+            }
+
+            $laminationId = isset($line->lamination_type_id) ? (int) $line->lamination_type_id : 0;
+            if ($laminationId > 0) {
+                $lamName = trim((string) ($lamNamesById[$laminationId] ?? ''));
+                if ($lamName === '') {
+                    $lamName = 'Laminación #' . $laminationId;
+                }
+
+                $lamSide = strtolower((string) ($line->lamination_tiro_retiro ?? 'tiro')) === 'retiro'
+                    ? 'Tiro/Retiro'
+                    : 'Tiro';
+                $lamDetailTexts[] = trim($lamName . ' (' . $lamSide . ')');
+            }
+
+            $processIds = [];
+            if (!empty($line->process_ids)) {
+                $decodedP = json_decode((string) $line->process_ids, true);
+
+                if (\is_array($decodedP)) {
+                    foreach ($decodedP as $pid) {
+                        $processIds[] = (int) $pid;
+                    }
+                }
+            }
+
+            foreach ($processIds as $pid) {
+                if ($pid < 1) {
+                    continue;
+                }
+
+                $pname = strtolower((string) ($processNamesById[$pid] ?? ''));
+
+                if ($pname !== '' && (str_contains($pname, 'corte') || str_contains($pname, 'cut'))) {
+                    $cutDetailTexts[] = trim((string) ($processNamesById[$pid] ?? ''));
+                }
+            }
+
+            if (!empty($line->calculation_breakdown)) {
+                $rows = json_decode((string) $line->calculation_breakdown, true);
+
+                if (\is_array($rows)) {
+                    foreach ($rows as $row) {
+                        if (!\is_array($row)) {
+                            continue;
+                        }
+
+                        $label = isset($row['label']) ? trim((string) $row['label']) : '';
+                        $detail = isset($row['detail']) ? trim((string) $row['detail']) : '';
+                        $labelLower = strtolower($label);
+
+                        if ($label !== '' && str_contains($labelLower, 'lamin')) {
+                            $suffix = ($detail !== '' ? ': ' . $detail : '');
+                            $lamDetailTexts[] = trim($label . $suffix);
+                        }
+
+                        if ($label !== '') {
+                            // único «corte» con límite de palabra (\b): evita «recorte» pero sí «Impresión (Corte)» si existiera así
+                            if (preg_match('/\bcorte\b/iu', $label) === 1) {
+                                $suffix = ($detail !== '' ? ': ' . $detail : '');
+                                $cutDetailTexts[] = trim($label . $suffix);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $lamDetailTexts = array_values(array_unique(array_filter($lamDetailTexts, static function ($s) {
+            return $s !== '';
+        })));
+        $cutDetailTexts = array_values(array_unique(array_filter($cutDetailTexts, static function ($s) {
+            return $s !== '';
+        })));
+
+        $hasLam = $lamDetailTexts !== [];
+        $hasCut = $cutDetailTexts !== [];
+
+        if (!$hasLam && !$hasCut) {
+            return [];
+        }
+
+        $si = 'SI';
+        $out = [];
+
+        if ($hasLam) {
+            $lamJoined = $this->truncateUtf8(implode(' | ', $lamDetailTexts), 60000);
+            $out['laminating']          = $si;
+            $out['laminado']            = $si;
+            $out['laminating_details']  = $lamJoined;
+            $out['detalles_de_laminado'] = $lamJoined;
+        }
+
+        if ($hasCut) {
+            $cutJoined = $this->truncateUtf8(implode(' | ', $cutDetailTexts), 60000);
+            $out['cutting']             = $si;
+            $out['corte']               = $si;
+            $out['cutting_details']     = $cutJoined;
+            $out['detalles_de_corte']   = $cutJoined;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return  array<int, string>  id => name
+     */
+    protected function loadPliegoProcessNamesById(): array
+    {
+        try {
+            $q = $this->db->getQuery(true)
+                ->select([$this->db->quoteName('id'), $this->db->quoteName('name')])
+                ->from($this->db->quoteName('#__ordenproduccion_pliego_processes'))
+                ->where($this->db->quoteName('state') . ' = 1');
+            $this->db->setQuery($q);
+            $rows = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $byId = [];
+        foreach ($rows as $r) {
+            $id = (int) ($r->id ?? 0);
+            if ($id > 0) {
+                $byId[$id] = trim((string) ($r->name ?? ''));
+            }
+        }
+
+        return $byId;
+    }
+
+    /**
+     * @return  array<int, string>  id => name
+     */
+    protected function loadLaminationTypeNamesById(): array
+    {
+        try {
+            $q = $this->db->getQuery(true)
+                ->select([$this->db->quoteName('id'), $this->db->quoteName('name')])
+                ->from($this->db->quoteName('#__ordenproduccion_lamination_types'))
+                ->where($this->db->quoteName('state') . ' = 1');
+            $this->db->setQuery($q);
+            $rows = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $byId = [];
+        foreach ($rows as $r) {
+            $id = (int) ($r->id ?? 0);
+            if ($id > 0) {
+                $byId[$id] = trim((string) ($r->name ?? ''));
+            }
+        }
+
+        return $byId;
     }
 
     /**

@@ -245,6 +245,63 @@ class OrdenModel extends ItemModel
         if (($qf === null || $qf === '') && $adj !== null && $adj !== '') {
             $data->quotation_files = $adj;
         }
+
+        self::copySpanishFinishFieldsToEnglishAliases($data);
+    }
+
+    /**
+     * Spanish-only orden rows use corte/laminado/detalles_de_* columns; vistas y PDF esperan cutting/laminating/*_details.
+     *
+     * @since   3.115.63
+     */
+    public static function copySpanishFinishFieldsToEnglishAliases(object $data): void
+    {
+        $pairs = [
+            ['cutting', 'corte'],
+            ['cutting_details', 'detalles_de_corte'],
+            ['blocking', 'bloqueado'],
+            ['blocking_details', 'detalles_de_bloqueado'],
+            ['folding', 'doblado'],
+            ['folding_details', 'detalles_de_doblado'],
+            ['laminating', 'laminado'],
+            ['laminating_details', 'detalles_de_laminado'],
+            ['spine', 'lomo'],
+            ['spine_details', 'detalles_de_lomo'],
+            ['gluing', 'pegado'],
+            ['gluing_details', 'detalles_de_pegado'],
+            ['numbering', 'numerado'],
+            ['numbering_details', 'detalles_de_numerado'],
+            ['sizing', 'sizado'],
+            ['sizing_details', 'detalles_de_sizado'],
+            ['stapling', 'engrapado'],
+            ['stapling_details', 'detalles_de_engrapado'],
+            ['die_cutting', 'troquel'],
+            ['die_cutting_details', 'detalles_de_troquel'],
+            ['varnish', 'barniz'],
+            ['varnish_details', 'descripcion_de_barniz'],
+            ['white_print', 'impresion_en_blanco'],
+            ['white_print_details', 'descripcion_de_acabado_en_blanco'],
+            ['trimming', 'despuntados'],
+            ['trimming_details', 'descripcion_de_despuntados'],
+            ['eyelets', 'ojetes'],
+            ['perforation', 'perforado'],
+            ['perforation_details', 'descripcion_de_perforado'],
+        ];
+
+        foreach ($pairs as [$en, $es]) {
+            if (!property_exists($data, $es)) {
+                continue;
+            }
+
+            $esValTrim = trim((string) ($data->$es ?? ''));
+            $enBlank   = !property_exists($data, $en)
+                || $data->$en === null
+                || trim((string) ($data->$en ?? '')) === '';
+
+            if ($enBlank && $esValTrim !== '') {
+                $data->$en = $data->$es;
+            }
+        }
     }
 
     /**
