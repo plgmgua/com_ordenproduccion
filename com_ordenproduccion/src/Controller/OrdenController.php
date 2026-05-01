@@ -760,10 +760,17 @@ class OrdenController extends BaseController
         
         // Tipo de Entrega
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
-        $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, 7, $shippingType, 1, 1, 'L');
-        
+        if ($shippingType === 'Recoge en oficina') {
+            $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(0, 7, $shippingType, 1, 1, 'L');
+        } else {
+            // No bottom on this row: the address block below draws the shared horizontal line (avoids double stroke with MultiCell).
+            $pdf->Cell(50, 7, 'TIPO DE ENTREGA:', 'LRT', 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(0, 7, $shippingType, 'LRT', 1, 'L');
+        }
+
         // Check if "Recoge en oficina"
         if ($shippingType === 'Recoge en oficina') {
             // Only show "Recoge en oficina" message
@@ -773,42 +780,54 @@ class OrdenController extends BaseController
             $pdf->SetTextColor(0, 0, 0); // Reset to black
         } else {
             // Show full shipping information
-            // Direccion de Entrega - using MultiCell like INSTRUCCIONES GENERALES
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 7, 'DIRECCION DE ENTREGA:', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
             $shippingAddress = $workOrderData->shipping_address ?? 'N/A';
             $shippingAddress = $fixSpanishChars($shippingAddress);
-            // Use MultiCell to allow text wrapping like INSTRUCCIONES GENERALES
-            $pdf->MultiCell(0, 6, $shippingAddress, 1, 'L');
-            
-            // Nombre de Contacto
+            $xStart   = (float) $pdf->GetX();
+            $labelW   = 50.0;
+            $valueW   = (float) $pdf->GetPageWidth() - $xStart - (float) $pdf->rMargin - $labelW;
+            $valueW   = max(30.0, $valueW);
+            // Single bordered row (label + wrapped value) — avoids stacked Cell/MultiCell double borders.
+            OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
+                $pdf,
+                $labelW,
+                $valueW,
+                'DIRECCION DE ENTREGA',
+                $shippingAddress,
+                $fixSpanishChars,
+                6.0,
+                10.0,
+                'B',
+                9.0,
+                ''
+            );
+
+            // Nombre de Contacto (omit top edge: continues the address rectangle’s bottom stroke)
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 7, 'NOMBRE DE CONTACTO:', 1, 0, 'L');
+            $pdf->Cell(50, 7, 'NOMBRE DE CONTACTO:', 'LRB', 0, 'L');
             $pdf->SetFont('Arial', '', 9);
             $shippingContact = $workOrderData->shipping_contact ?? 'N/A';
             $shippingContact = $fixSpanishChars($shippingContact);
-            $pdf->Cell(0, 7, $shippingContact, 1, 1, 'L');
-            
+            $pdf->Cell(0, 7, $shippingContact, 'LRB', 1, 'L');
+
             // Telefono de Contacto
             $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(50, 7, 'TELEFONO DE CONTACTO:', 1, 0, 'L');
+            $pdf->Cell(50, 7, 'TELEFONO DE CONTACTO:', 'LRB', 0, 'L');
             $pdf->SetFont('Arial', '', 9);
             $shippingPhone = $workOrderData->shipping_phone ?? 'N/A';
             $shippingPhone = $fixSpanishChars($shippingPhone);
-            $pdf->Cell(0, 7, $shippingPhone, 1, 1, 'L');
+            $pdf->Cell(0, 7, $shippingPhone, 'LRB', 1, 'L');
         }
-        
+
         // Instrucciones de Entrega - Label row (spans both columns)
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(0, 7, 'INSTRUCCIONES DE ENTREGA:', 1, 1, 'L');
-        
+        $pdf->Cell(0, 7, 'INSTRUCCIONES DE ENTREGA:', 'LRB', 1, 'L');
+
         // Instrucciones de Entrega - Value row with 3-row height
         $pdf->SetFont('Arial', '', 9);
         $shippingInstructions = $workOrderData->instrucciones_entrega ?? 'N/A';
         $shippingInstructions = $fixSpanishChars($shippingInstructions);
-        // Use MultiCell with proper line height for 3-row display
-        $pdf->MultiCell(0, 6, $shippingInstructions, 1, 'L');
+        // LRB: omit top border (shared with label row) — avoids double horizontal line.
+        $pdf->MultiCell(0, 6, $shippingInstructions, 'LRB', 'L');
         
         // Set headers for inline PDF viewing in new tab
         header('Content-Type: application/pdf');
