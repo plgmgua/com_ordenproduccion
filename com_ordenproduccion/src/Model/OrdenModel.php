@@ -39,7 +39,8 @@ class OrdenModel extends ItemModel
     public const ORDEN_VIEW_LAYOUT_VENDOR_PRE = 2;
 
     /**
-     * PRE internal pliego quotation with mixed líneas (pliego folios plus otros elementos and/or envío): per línea PRE details, hide Acabados grid.
+     * Internal PRE cotización path (wizard / quotation + PRE): línea-accurate orden + PDF slices.
+     * Used when the orden row carries a quotation wizard snapshot and PRE document_mode is not proveedor externo.
      *
      * @since  3.115.18
      */
@@ -307,7 +308,7 @@ class OrdenModel extends ItemModel
     /**
      * Sets orden_view_layout_type on the row: {@see ORDEN_VIEW_LAYOUT_STANDARD},
      * {@see ORDEN_VIEW_LAYOUT_VENDOR_PRE}, or {@see ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS}.
-     * Populates orden_view_precot_line_sections when using the mixed PRE líneas layout.
+     * Populates orden_view_precot_line_sections for layout 3 when applicable.
      *
      * @param   object  $data  Row reference
      *
@@ -357,14 +358,12 @@ class OrdenModel extends ItemModel
             }
         }
 
-        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD && $preId > 0 && $preDm !== null && (string) $preDm === 'pliego') {
-            try {
-                if ($this->precotMixedPliegoWithElementOrEnvio($preId)) {
-                    $layout = self::ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS;
-                }
-            } catch (\Throwable $e) {
-                // Missing table/column / unexpected: remain standard.
-            }
+        if ($layout === self::ORDEN_VIEW_LAYOUT_STANDARD
+            && $preId > 0
+            && $this->ordenRowHasCotizacionPreWizardLinkage($data)
+            && $preDm !== null
+            && strtolower(trim((string) $preDm)) !== 'proveedor_externo') {
+            $layout = self::ORDEN_VIEW_LAYOUT_PLIEGO_ELEMENTOS;
         }
 
         $data->orden_view_layout_type = $layout;
@@ -376,6 +375,42 @@ class OrdenModel extends ItemModel
                 $data->orden_view_precot_line_sections = [];
             }
         }
+    }
+
+    /**
+     * True when OT was produced from cotización wizard (PRE line on confirmed quote): orden_source_json has
+     * source quotation_pre_cotizacion plus quotation/PRE ids. Legacy webhook/manual OT without this blob
+     * keeps layout 1.
+     *
+     * @since  3.115.64
+     */
+    protected function ordenRowHasCotizacionPreWizardLinkage(object $data): bool
+    {
+        if (empty($data->orden_source_json)) {
+            return false;
+        }
+
+        $d = json_decode((string) $data->orden_source_json, true);
+        if (!\is_array($d)) {
+            return false;
+        }
+
+        if (($d['source'] ?? '') !== 'quotation_pre_cotizacion') {
+            return false;
+        }
+
+        if ((int) ($d['quotation_id'] ?? 0) < 1) {
+            return false;
+        }
+
+        $jsonPre = (int) ($d['pre_cotizacion_id'] ?? 0);
+        $rowPre  = isset($data->pre_cotizacion_id) ? (int) $data->pre_cotizacion_id : 0;
+
+        if ($jsonPre > 0 && $rowPre > 0 && $jsonPre !== $rowPre) {
+            return false;
+        }
+
+        return $jsonPre > 0 || $rowPre > 0;
     }
 
     /**
@@ -426,7 +461,7 @@ class OrdenModel extends ItemModel
     }
 
     /**
-     * Whether the PRE contains at least one pliego línea and at least one elementos or envío línea.
+     * Whether the PRE contains at least one pliego línea and at least one elementos or envío línea (diagnostics / callers).
      *
      * @param   int  $preCotizacionId  Pre-cotización id on the orden
      *
