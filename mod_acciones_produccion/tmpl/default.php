@@ -34,6 +34,7 @@ $currentUrl = Uri::current();
     
     <?php if ($orderId && $workOrderData): ?>
         <?php $isAnulada = (strtolower((string) ($workOrderData->status ?? '')) === 'anulada'); ?>
+        <?php $isTerminada = (strtolower((string) ($workOrderData->status ?? '')) === 'terminada'); ?>
         
         <!-- PRODUCCION SECTION -->
         <?php if ($hasProductionAccess): ?>
@@ -49,6 +50,13 @@ $currentUrl = Uri::current();
                     <i class="fas fa-ban"></i>
                     Orden Anulada
                 </button>
+                <?php elseif ($isTerminada): ?>
+                <button type="button" class="btn btn-secondary btn-block" disabled
+                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_BLOCKED_TERMINADA_BTN_TITLE'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_BLOCKED_TERMINADA_BTN'); ?>
+                </button>
+                <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_BLOCKED_TERMINADA_HINT'); ?></p>
                 <?php else: ?>
                 <a href="index.php?option=com_ordenproduccion&task=orden.generatePdf&id=<?php echo $orderId; ?>" 
                    target="_blank" 

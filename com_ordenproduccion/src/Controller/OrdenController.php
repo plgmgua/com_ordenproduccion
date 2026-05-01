@@ -64,6 +64,8 @@ class OrdenController extends BaseController
     public function generatePdf()
     {
         $app = Factory::getApplication();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+
         $user = Factory::getUser();
         
         // Check if user is in produccion group
@@ -110,6 +112,16 @@ class OrdenController extends BaseController
             if (strtolower((string) ($workOrderData->status ?? '')) === 'anulada') {
                 $app->enqueueMessage('No se puede imprimir una orden de trabajo Anulada.', 'error');
                 $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
+
+                return;
+            }
+
+            // Guard: completed (Terminada) — OT PDF reprint is disabled; show clear message (not a raw FPDF error).
+            $statusNorm = strtolower(trim((string) ($workOrderData->status ?? '')));
+            if ($statusNorm === 'terminada') {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_BLOCKED_TERMINADA'), 'warning');
+                $app->redirect('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId);
+
                 return;
             }
 
@@ -402,7 +414,8 @@ class OrdenController extends BaseController
                 
                 // Set margins for letter size
                 $pdf->SetMargins(15, 15, 15);
-                
+                $pdfSideMarginMm = 15.0;
+
         // Set UTF-8 encoding for proper Spanish character support
         $pdf->SetAutoPageBreak(true, 15);
         
@@ -784,7 +797,7 @@ class OrdenController extends BaseController
             $shippingAddress = $fixSpanishChars($shippingAddress);
             $xStart   = (float) $pdf->GetX();
             $labelW   = 50.0;
-            $valueW   = (float) $pdf->GetPageWidth() - $xStart - (float) $pdf->rMargin - $labelW;
+            $valueW   = (float) $pdf->GetPageWidth() - $xStart - $pdfSideMarginMm - $labelW;
             $valueW   = max(30.0, $valueW);
             // Single bordered row (label + wrapped value) — avoids stacked Cell/MultiCell double borders.
             OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(

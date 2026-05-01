@@ -68,6 +68,7 @@ if ($option !== 'com_ordenproduccion' || $view !== 'orden') {
     return; // Don't display the module
 }
 
+$app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 
 // Generate PDF action - redirect to component
 if ($app->input->get('task') === 'generate_pdf' && $hasProductionAccess) {
