@@ -18,6 +18,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdenTrabajoPdfPrecotSectionsHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Utf8DisplayHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel;
 
 /**
@@ -406,9 +407,12 @@ class OrdenController extends BaseController
         $pdf->SetAutoPageBreak(true, 15);
         
         // Function to fix Spanish characters for FPDF
-        $fixSpanishChars = function($text) {
-            if (empty($text)) return $text;
-            
+        $fixSpanishChars = function ($text) {
+            $text = Utf8DisplayHelper::normalizeUserFacing((string) $text);
+            if ($text === '') {
+                return $text;
+            }
+
             // Convert common Spanish characters that FPDF doesn't handle well
             $replacements = [
                 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
@@ -841,9 +845,12 @@ class OrdenController extends BaseController
         $pdf->AddPage();
         
         // Function to fix Spanish characters for FPDF
-        $fixSpanishChars = function($text) {
-            if (empty($text)) return $text;
-            
+        $fixSpanishChars = function ($text) {
+            $text = Utf8DisplayHelper::normalizeUserFacing((string) $text);
+            if ($text === '') {
+                return $text;
+            }
+
             // Convert common Spanish characters that FPDF doesn't handle well
             $replacements = [
                 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',

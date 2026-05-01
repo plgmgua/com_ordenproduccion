@@ -129,6 +129,7 @@ class OrdenPrecotSectionsHelper
 
             $tipoElementoEl = isset($line->tipo_elemento) ? trim((string) $line->tipo_elemento) : '';
             $tipoLabel      = $tipoElementoEl !== '' ? $tipoElementoEl : '';
+            $tipoLabel      = Utf8DisplayHelper::normalizeUserFacing($tipoLabel);
 
             $lineId = (int) ($line->id ?? 0);
             $metaRows = [];
@@ -144,6 +145,7 @@ class OrdenPrecotSectionsHelper
                 $paperName = isset($papersById[$paperId]->name)
                     ? (string) $papersById[$paperId]->name
                     : ($paperId > 0 ? (string) $paperId : '');
+                $paperName = Utf8DisplayHelper::normalizeUserFacing($paperName);
                 $sizeObj   = $sizeId > 0 && isset($sizesById[$sizeId])
                     ? $sizesById[$sizeId]
                     : null;
@@ -155,6 +157,7 @@ class OrdenPrecotSectionsHelper
                         $sizeLabel = trim((string) $sizeObj->width_in) . '×' . trim((string) $sizeObj->height_in);
                     }
                 }
+                $sizeLabel = Utf8DisplayHelper::normalizeUserFacing($sizeLabel);
 
                 $metaMid = [];
 
@@ -166,21 +169,21 @@ class OrdenPrecotSectionsHelper
                 }
 
                 $tiroRetiro = strtolower((string) ($line->tiro_retiro ?? 'tiro'));
-                $trDisp     = ($tiroRetiro === 'retiro')
+                $trDisp     = Utf8DisplayHelper::normalizeUserFacing(($tiroRetiro === 'retiro')
                     ? Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_RETIRO')
-                    : Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_ONLY');
+                    : Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_ONLY'));
                 $metaMid[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_TIRO_RETIRO', 'value' => $trDisp];
 
                 $lamId = isset($line->lamination_type_id) ? (int) $line->lamination_type_id : 0;
                 if ($lamId > 0 && isset($lamsById[$lamId])) {
-                    $lamName       = trim((string) ($lamsById[$lamId]->name ?? ''));
+                    $lamName       = Utf8DisplayHelper::normalizeUserFacing(trim((string) ($lamsById[$lamId]->name ?? '')));
                     $lamTiroRaw    = strtolower((string) ($line->lamination_tiro_retiro ?? 'tiro'));
-                    $lamTiroPhrase = ($lamTiroRaw === 'retiro')
+                    $lamTiroPhrase = Utf8DisplayHelper::normalizeUserFacing(($lamTiroRaw === 'retiro')
                         ? Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_RETIRO')
-                        : Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_ONLY');
+                        : Text::_('COM_ORDENPRODUCCION_ORDEN_DISP_IMPRESION_TIRO_ONLY'));
                     $metaMid[] = [
                         'label_key' => 'COM_ORDENPRODUCCION_ORDEN_LAMINADO',
-                        'value'     => trim($lamName . ' — ' . $lamTiroPhrase),
+                        'value'     => trim($lamName . ' - ' . $lamTiroPhrase),
                     ];
                 }
 
@@ -194,8 +197,8 @@ class OrdenPrecotSectionsHelper
                 }
                 $metaRows = array_merge($metaRows, $metaMid);
 
-                $subtitle = trim($tipoLabel . ($paperName !== '' ? ' · ' . $paperName : ''));
-                $heading  = $tipoLabel !== '' ? $tipoLabel : Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_PLIEGO');
+                $subtitle = Utf8DisplayHelper::normalizeUserFacing(trim($tipoLabel . ($paperName !== '' ? ' · ' . $paperName : '')));
+                $heading  = Utf8DisplayHelper::normalizeUserFacing($tipoLabel !== '' ? $tipoLabel : Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_PLIEGO'));
             } elseif ($lineType === 'elementos') {
                 if ($tipoLabel === '') {
                     $tipoLabel = Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_TIPO_FALLBACK_ELEMENTOS');
@@ -205,7 +208,7 @@ class OrdenPrecotSectionsHelper
                 if ($elId > 0 && $productosModel && $productosModel->elementosTableExists()) {
                     $el = $productosModel->getElemento($elId);
                     if ($el !== null) {
-                        $elName = trim((string) ($el->name ?? ''));
+                        $elName = Utf8DisplayHelper::normalizeUserFacing(trim((string) ($el->name ?? '')));
                     }
                 }
 
@@ -220,8 +223,8 @@ class OrdenPrecotSectionsHelper
                 if ($elName !== '') {
                     $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_META_ELEMENTO', 'value' => $elName];
                 }
-                $subtitle = trim($tipoLabel . ($elName !== '' ? ' · ' . $elName : ''));
-                $heading  = $tipoLabel;
+                $subtitle = Utf8DisplayHelper::normalizeUserFacing(trim($tipoLabel . ($elName !== '' ? ' · ' . $elName : '')));
+                $heading  = Utf8DisplayHelper::normalizeUserFacing($tipoLabel);
             } else {
                 continue;
             }
@@ -229,11 +232,11 @@ class OrdenPrecotSectionsHelper
             $instructions = [];
 
             foreach ($detallesByLine[$lineId] ?? [] as $d) {
-                $detTxt = isset($d['detalle']) ? trim((string) $d['detalle']) : '';
+                $detTxt = isset($d['detalle']) ? Utf8DisplayHelper::normalizeUserFacing(trim((string) $d['detalle'])) : '';
                 if ($detTxt === '') {
                     continue;
                 }
-                $lab = isset($d['concepto_label']) ? trim((string) $d['concepto_label']) : '';
+                $lab = isset($d['concepto_label']) ? Utf8DisplayHelper::normalizeUserFacing(trim((string) $d['concepto_label'])) : '';
                 if ($lab === '') {
                     $lab = Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES');
                 }
