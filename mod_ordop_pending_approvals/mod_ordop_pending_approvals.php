@@ -66,7 +66,7 @@ if ($rows !== []) {
 
     $preCotIds = [];
     foreach ($rows as $row) {
-        $et = strtolower(trim((string) ($row->entity_type ?? '')));
+        $et = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
         if (
             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -80,7 +80,7 @@ if ($rows !== []) {
     }
     $ordenCompraIds = [];
     foreach ($rows as $row) {
-        $et = strtolower(trim((string) ($row->entity_type ?? '')));
+        $et = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
         if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
             $eid = (int) ($row->entity_id ?? 0);
             if ($eid > 0) {
@@ -121,7 +121,7 @@ if ($rows !== []) {
     }
     foreach ($rows as $row) {
         $row->record_link = ApprovalRecordLink::relativeUrl($db, $row);
-        $et = strtolower(trim((string) ($row->entity_type ?? '')));
+        $et = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
         if (
             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION

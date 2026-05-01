@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
@@ -18,7 +19,7 @@ use Joomla\CMS\Router\Route;
 /** @var int $pendingTotal */
 
 $entityLabel = static function (string $entityType): string {
-    $entityType = strtolower(trim($entityType));
+    $entityType = ApprovalWorkflowService::normalizeEntityType($entityType);
     $map        = [
         'cotizacion_confirmation' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_CONFIRMATION',
         'orden_status'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_STATUS',
@@ -74,7 +75,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                 <tbody>
                     <?php foreach ($rows as $row) : ?>
                         <?php
-                        $etype = strtolower(trim((string) ($row->entity_type ?? '')));
+                        $etype = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
                         $wfTypeLabel = isset($row->workflow_pending_type_label) ? trim((string) $row->workflow_pending_type_label) : '';
                         $isDiscount     = $etype === 'solicitud_descuento';
                         $isPreCotVendor = $etype === 'solicitud_cotizacion';

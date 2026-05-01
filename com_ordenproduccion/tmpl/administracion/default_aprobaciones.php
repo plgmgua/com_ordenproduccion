@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -20,7 +21,8 @@ if (!is_array($rows)) {
 $schemaOk = (bool) $this->get('approvalWorkflowSchemaAvailable');
 
 $entityLabel = static function (string $entityType): string {
-    $map = [
+    $entityType = ApprovalWorkflowService::normalizeEntityType($entityType);
+    $map        = [
         'cotizacion_confirmation' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_CONFIRMATION',
         'orden_status'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_STATUS',
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
@@ -67,7 +69,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                     <?php foreach ($rows as $row) : ?>
                         <?php
                         $rid = isset($row->id) ? (int) $row->id : 0;
-                        $etype = isset($row->entity_type) ? (string) $row->entity_type : '';
+                        $etype = ApprovalWorkflowService::normalizeEntityType(isset($row->entity_type) ? (string) $row->entity_type : '');
                         $eid = isset($row->entity_id) ? (int) $row->entity_id : 0;
                         $workflowTypeLabel = isset($row->workflow_pending_type_label) ? trim((string) $row->workflow_pending_type_label) : '';
                         $typeDisplay = $workflowTypeLabel !== '' ? $workflowTypeLabel : $entityLabel($etype);

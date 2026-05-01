@@ -51,6 +51,41 @@ class ApprovalWorkflowService
     /** @var DatabaseInterface */
     protected $db;
 
+    /** @var bool|null */
+    private static $pendingModuleTypeLabelColumnExists;
+
+    /**
+     * Normalize approval entity_type strings for comparisons (lowercase trim; strip Unicode combining marks).
+     *
+     * @since   3.115.65
+     */
+    public static function normalizeEntityType(string $raw): string
+    {
+        $t = strtolower(trim($raw));
+
+        if ($t === '') {
+            return '';
+        }
+
+        if (class_exists(\Normalizer::class)) {
+            $n = \Normalizer::normalize($t, \Normalizer::FORM_D);
+
+            if (is_string($n) && $n !== '') {
+                $t = $n;
+            }
+
+            $stripped = preg_replace('/\p{Mn}/u', '', $t);
+
+            if (is_string($stripped) && $stripped !== '') {
+                $t = $stripped;
+            }
+
+            $t = strtolower($t);
+        }
+
+        return $t;
+    }
+
     public function __construct(?DatabaseInterface $db = null)
     {
         $this->db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
@@ -215,7 +250,7 @@ class ApprovalWorkflowService
 
         $out = [];
         foreach ($rows as $row) {
-            $et = strtolower(trim((string) ($row->entity_type ?? '')));
+            $et = self::normalizeEntityType((string) ($row->entity_type ?? ''));
             if (
                 $et === self::ENTITY_SOLICITUD_DESCUENTO
                 || $et === self::ENTITY_SOLICITUD_COTIZACION
@@ -237,7 +272,123 @@ class ApprovalWorkflowService
             $out[] = $row;
         }
 
+        $this->hydrateWorkflowPendingTypeLabels($out);
+
         return $out;
+    }
+
+    /**
+     * Ensures workflow_pending_type_label is set when JOIN did not populate it (driver quirks).
+     *
+     * @param   array<int, object>  $rows  Pending rows after pre-cotización pruning
+     *
+     * @since   3.115.65
+     */
+    private function hydrateWorkflowPendingTypeLabels(array &$rows): void
+    {
+        if ($rows === [] || !$this->hasPendingModuleTypeLabelColumn()) {
+            return;
+        }
+
+        $need = [];
+        foreach ($rows as $row) {
+            $lbl = isset($row->workflow_pending_type_label) ? trim((string) $row->workflow_pending_type_label) : '';
+
+            if ($lbl !== '') {
+                continue;
+            }
+
+            $wid = (int) ($row->workflow_id ?? 0);
+
+            if ($wid > 0) {
+                $need[$wid] = true;
+            }
+        }
+
+        if ($need === []) {
+            return;
+        }
+
+        $idsList = implode(',', array_map(
+            static function ($id) {
+                return (string) ((int) $id);
+            },
+            array_keys($need)
+        ));
+
+        try {
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select([
+                        $this->db->quoteName('id'),
+                        $this->db->quoteName('pending_module_type_label'),
+                    ])
+                    ->from($this->db->quoteName('#__ordenproduccion_approval_workflows'))
+                    ->where($this->db->quoteName('id') . ' IN (' . $idsList . ')')
+            );
+            $wfRows = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $map = [];
+
+        foreach ($wfRows as $w) {
+            $map[(int) ($w->id ?? 0)] = trim((string) ($w->pending_module_type_label ?? ''));
+        }
+
+        foreach ($rows as &$row) {
+            $lbl = isset($row->workflow_pending_type_label) ? trim((string) $row->workflow_pending_type_label) : '';
+
+            if ($lbl !== '') {
+                continue;
+            }
+
+            $wid = (int) ($row->workflow_id ?? 0);
+
+            if ($wid < 1) {
+                continue;
+            }
+
+            if (isset($map[$wid]) && $map[$wid] !== '') {
+                $row->workflow_pending_type_label = $map[$wid];
+            }
+        }
+
+        unset($row);
+    }
+
+    /**
+     * @since   3.115.65
+     */
+    private function hasPendingModuleTypeLabelColumn(): bool
+    {
+        if (self::$pendingModuleTypeLabelColumnExists !== null) {
+            return self::$pendingModuleTypeLabelColumnExists;
+        }
+
+        try {
+            $cols = $this->db->getTableColumns('#__ordenproduccion_approval_workflows');
+
+            if (!is_array($cols)) {
+                self::$pendingModuleTypeLabelColumnExists = false;
+
+                return false;
+            }
+
+            foreach (array_keys($cols) as $name) {
+                if (strcasecmp((string) $name, 'pending_module_type_label') === 0) {
+                    self::$pendingModuleTypeLabelColumnExists = true;
+
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        self::$pendingModuleTypeLabelColumnExists = false;
+
+        return false;
     }
 
     /**

@@ -1605,7 +1605,7 @@ class HtmlView extends BaseHtmlView
                     $preCotIds = [];
                     $ocIds     = [];
                     foreach ($this->approvalPendingRows as $prow) {
-                        $et = strtolower(trim((string) ($prow->entity_type ?? '')));
+                        $et = ApprovalWorkflowService::normalizeEntityType((string) ($prow->entity_type ?? ''));
                         if (
                             $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
                             || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -1643,7 +1643,7 @@ class HtmlView extends BaseHtmlView
                                     $byId[$pid] = $raw !== '' ? $raw : ('PRE-' . str_pad((string) $pid, 5, '0', STR_PAD_LEFT));
                                 }
                                 foreach ($this->approvalPendingRows as $prow) {
-                                    $et = strtolower(trim((string) ($prow->entity_type ?? '')));
+                                    $et = ApprovalWorkflowService::normalizeEntityType((string) ($prow->entity_type ?? ''));
                                     if (
                                         $et === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
                                         || $et === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -1681,7 +1681,7 @@ class HtmlView extends BaseHtmlView
                                     $byOcId[$oid] = $raw !== '' ? $raw : ('ORC-' . str_pad((string) $oid, 5, '0', STR_PAD_LEFT));
                                 }
                                 foreach ($this->approvalPendingRows as $prow) {
-                                    $et = strtolower(trim((string) ($prow->entity_type ?? '')));
+                                    $et = ApprovalWorkflowService::normalizeEntityType((string) ($prow->entity_type ?? ''));
                                     if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
                                         $oid = (int) ($prow->entity_id ?? 0);
                                         $prow->orden_compra_number = $oid > 0

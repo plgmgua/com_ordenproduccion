@@ -29,14 +29,14 @@ final class RecordLink
      */
     public static function relativeUrl(DatabaseInterface $db, object $row): ?string
     {
-        $type = (string) ($row->entity_type ?? '');
-        $eid  = (int) ($row->entity_id ?? 0);
+        $typeNorm = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
+        $eid      = (int) ($row->entity_id ?? 0);
 
-        if ($type === '' || $eid < 1) {
+        if ($typeNorm === '' || $eid < 1) {
             return null;
         }
 
-        switch ($type) {
+        switch ($typeNorm) {
             case ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION:
                 return 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $eid;
 
