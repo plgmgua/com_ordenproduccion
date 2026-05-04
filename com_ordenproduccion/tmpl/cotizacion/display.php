@@ -961,7 +961,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                     $lineLabelIo = isset($lineIo->envio_name) ? 'Envío: ' . $lineIo->envio_name : 'Envío';
                                 } elseif ($lineTypeIo === 'tercerizado') {
                                     $prodIo = isset($lineIo->tercerizado_producto) ? trim((string) $lineIo->tercerizado_producto) : '';
-                                    $lineLabelIo = $prodIo !== '' ? $prodIo : $l('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN', 'Outsourced product', 'Producto tercerizado');
+                                    $lineLabelIo = $prodIo !== '' ? $prodIo : $l('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN', 'Outsourced service', 'Servicio tercerizado');
                                 } elseif ($lineTypeIo === 'elementos' && !empty($lineIo->elemento_id) && isset($elementosByIdIo[(int) $lineIo->elemento_id])) {
                                     $lineLabelIo = $elementosByIdIo[(int) $lineIo->elemento_id]->name ?? ('ID ' . $lineIo->elemento_id);
                                 } else {

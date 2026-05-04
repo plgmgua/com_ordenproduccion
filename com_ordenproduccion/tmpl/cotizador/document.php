@@ -150,7 +150,7 @@ if ($labelAnadirEnvio === 'COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO') {
 }
 $labelProductoTercerizado = Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN');
 if ($labelProductoTercerizado === 'COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN') {
-    $labelProductoTercerizado = 'Producto tercerizado';
+    $labelProductoTercerizado = 'Servicio tercerizado';
 }
 $envios = $this->envios ?? [];
 
@@ -1378,7 +1378,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
     </div>
 </div>
 
-<!-- Modal: Producto tercerizado -->
+<!-- Modal: Servicio tercerizado -->
 <div class="modal fade" id="tercerizadoLineModal" tabindex="-1" aria-labelledby="tercerizadoLineModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">

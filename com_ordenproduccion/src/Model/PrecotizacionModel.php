@@ -2190,7 +2190,7 @@ class PrecotizacionModel extends ListModel
         if ($lineType === 'tercerizado') {
             $prodLbl = trim((string) ($data['tercerizado_producto'] ?? ''));
             $tipoLbl = trim((string) ($data['tipo_elemento'] ?? ''));
-            $label   = $prodLbl !== '' ? $prodLbl : ($tipoLbl !== '' ? $tipoLbl : 'Producto tercerizado');
+            $label   = $prodLbl !== '' ? $prodLbl : ($tipoLbl !== '' ? $tipoLbl : Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_TIPO_FALLBACK'));
             $breakdown = json_encode([[
                 'label'    => $label,
                 'detail'   => 'Q ' . number_format($totalLine, 2, '.', ''),

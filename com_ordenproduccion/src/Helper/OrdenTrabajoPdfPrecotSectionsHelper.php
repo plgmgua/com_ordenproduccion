@@ -186,7 +186,7 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     }
 
     /**
-     * Producto tercerizado: heading band + meta rows + instructions (no pliego 4-column table).
+     * Servicio tercerizado: heading band + meta rows + instructions (no pliego 4-column table).
      *
      * @param   array<string, mixed>  $sec
      *
