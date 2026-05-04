@@ -1788,6 +1788,51 @@ class PrecotizacionModel extends ListModel
             }
         }
 
+        if ($lineTypeExisting === 'tercerizado') {
+            $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+            $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+            $totalLine = round((float) ($data['total'] ?? $line->total ?? 0), 2);
+            if ($totalLine < 0) {
+                $totalLine = 0;
+            }
+            $tipoEl = trim((string) ($data['tipo_elemento'] ?? $line->tipo_elemento ?? ''));
+            if ($tipoEl === '') {
+                return false;
+            }
+            $prod = trim((string) ($data['tercerizado_producto'] ?? $line->tercerizado_producto ?? ''));
+            if ($prod === '') {
+                return false;
+            }
+            $labelBreak = $prod !== '' ? $prod : $tipoEl;
+            $breakEnc   = json_encode([[
+                'label'    => $labelBreak,
+                'detail'   => 'Q ' . number_format($totalLine, 2, '.', ''),
+                'subtotal' => $totalLine,
+            ]]);
+            $obj = (object) [
+                'id'                    => (int) $lineId,
+                'quantity'              => 1,
+                'total'                 => $totalLine,
+                'price_per_sheet'       => $totalLine,
+                'calculation_breakdown' => $breakEnc,
+                'tipo_elemento'         => $tipoEl,
+            ];
+            if (isset($columns['tercerizado_producto'])) {
+                $obj->tercerizado_producto = substr($prod, 0, 512);
+            }
+            try {
+                $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+                $preCotizacionId = (int) $line->pre_cotizacion_id;
+                if ($preCotizacionId > 0) {
+                    $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+                }
+
+                return true;
+            } catch (\Exception $e) {
+                return false;
+            }
+        }
+
         $processIds = isset($data['process_ids']) && is_array($data['process_ids'])
             ? json_encode(array_values(array_map('intval', $data['process_ids'])))
             : '[]';
@@ -2100,6 +2145,8 @@ class PrecotizacionModel extends ListModel
         } elseif (isset($data['line_type']) && $data['line_type'] === 'elementos') {
             $lineType   = 'elementos';
             $elementoId = (int) ($data['elemento_id'] ?? 0);
+        } elseif (isset($data['line_type']) && $data['line_type'] === 'tercerizado') {
+            $lineType = 'tercerizado';
         }
 
         if ($lineType === 'proveedor_externo' && $docMode !== 'proveedor_externo') {
@@ -2130,19 +2177,36 @@ class PrecotizacionModel extends ListModel
                 }
             }
         }
+        if ($lineType === 'tercerizado') {
+            $totalLine = round((float) ($totalLine ?? 0), 2);
+            if ($totalLine < 0) {
+                $totalLine = 0;
+            }
+        }
         $processIds = isset($data['process_ids']) && is_array($data['process_ids'])
             ? json_encode(array_values(array_map('intval', $data['process_ids'])))
             : '[]';
-        $breakdown = $lineType !== 'envio' && isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown'])
-            ? json_encode($data['calculation_breakdown'])
-            : null;
+        $breakdown = null;
+        if ($lineType === 'tercerizado') {
+            $prodLbl = trim((string) ($data['tercerizado_producto'] ?? ''));
+            $tipoLbl = trim((string) ($data['tipo_elemento'] ?? ''));
+            $label   = $prodLbl !== '' ? $prodLbl : ($tipoLbl !== '' ? $tipoLbl : 'Producto tercerizado');
+            $breakdown = json_encode([[
+                'label'    => $label,
+                'detail'   => 'Q ' . number_format($totalLine, 2, '.', ''),
+                'subtotal' => $totalLine,
+            ]]);
+        } elseif ($lineType !== 'envio' && isset($data['calculation_breakdown']) && is_array($data['calculation_breakdown'])) {
+            $breakdown = json_encode($data['calculation_breakdown']);
+        }
 
-        $isPliego = ($lineType === 'pliego');
-        $isEnvio  = ($lineType === 'envio');
-        $qtyLine  = $isEnvio ? 1 : ($lineType === 'proveedor_externo'
+        $isPliego      = ($lineType === 'pliego');
+        $isEnvio       = ($lineType === 'envio');
+        $isTercerizado = ($lineType === 'tercerizado');
+        $qtyLine       = ($isEnvio || $isTercerizado) ? 1 : ($lineType === 'proveedor_externo'
             ? max(1, (int) ($data['quantity'] ?? 1))
             : (int) ($data['quantity'] ?? 1));
-        if ($isEnvio) {
+        if ($isEnvio || $isTercerizado) {
             $pricePerSheet = $totalLine;
         } elseif ($lineType === 'proveedor_externo') {
             $pricePerSheet = round((float) ($data['price_per_sheet'] ?? 0), 4);
@@ -2180,6 +2244,10 @@ class PrecotizacionModel extends ListModel
             if ($line->tipo_elemento === '') {
                 $line->tipo_elemento = null;
             }
+        }
+        if (isset($columns['tercerizado_producto']) && $lineType === 'tercerizado') {
+            $tp = trim((string) ($data['tercerizado_producto'] ?? ''));
+            $line->tercerizado_producto = $tp !== '' ? substr($tp, 0, 512) : null;
         }
         if ($lineType === 'proveedor_externo') {
             if (isset($columns['vendor_descripcion'])) {
@@ -3147,6 +3215,15 @@ class PrecotizacionModel extends ListModel
             ];
         }
         if ($lineType === 'elementos') {
+            return [
+                'detalle' => CotizacionHelper::labelOrFallback(
+                    'COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC',
+                    'Details',
+                    'Detalles'
+                ),
+            ];
+        }
+        if ($lineType === 'tercerizado') {
             return [
                 'detalle' => CotizacionHelper::labelOrFallback(
                     'COM_ORDENPRODUCCION_LINE_DETALLE_GENERIC',

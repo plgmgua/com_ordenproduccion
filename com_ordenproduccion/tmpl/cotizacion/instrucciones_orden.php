@@ -75,6 +75,9 @@ $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&pre_cotiza
             $lineLabel = '—';
             if ($lineType === 'envio') {
                 $lineLabel = isset($line->envio_name) ? 'Envío: ' . $line->envio_name : 'Envío';
+            } elseif ($lineType === 'tercerizado') {
+                $prod = isset($line->tercerizado_producto) ? trim((string) $line->tercerizado_producto) : '';
+                $lineLabel = $prod !== '' ? $prod : $l('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN', 'Outsourced product', 'Producto tercerizado');
             } elseif ($lineType === 'elementos' && !empty($line->elemento_id) && isset($elementosById[(int) $line->elemento_id])) {
                 $lineLabel = $elementosById[(int) $line->elemento_id]->name ?? ('ID ' . $line->elemento_id);
             } else {

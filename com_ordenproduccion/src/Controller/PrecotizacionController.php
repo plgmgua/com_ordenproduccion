@@ -744,6 +744,107 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Add or update a «producto tercerizado» line (quantity 1, amount in Q with 2 decimals).
+     *
+     * POST: pre_cotizacion_id, line_id (omit or 0 = add), tipo_elemento, tercerizado_producto, total.
+     *
+     * @return  bool
+     *
+     * @since   3.116.0
+     */
+    public function saveLineTercerizado()
+    {
+        $app = Factory::getApplication();
+        if (!Session::checkToken('post')) {
+            $this->setMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return false;
+        }
+
+        $preCotizacionId = (int) $app->input->post->getInt('pre_cotizacion_id', 0);
+        $lineId          = (int) $app->input->post->getInt('line_id', 0);
+        $tipoElemento    = trim($app->input->post->getString('tipo_elemento', ''));
+        $producto        = trim($app->input->post->getString('tercerizado_producto', ''));
+        $totalRaw        = $app->input->post->get('total', null, 'raw');
+        $total           = is_numeric($totalRaw) ? round((float) $totalRaw, 2) : -1.0;
+
+        if ($preCotizacionId < 1 || $tipoElemento === '' || $producto === '' || $total < 0) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . max(1, $preCotizacionId), false));
+
+            return false;
+        }
+
+        if ($this->isPrecotizacionLocked($preCotizacionId, 'html')) {
+            return false;
+        }
+        if ($this->denyIfNotEditableDocument($preCotizacionId, 'html')) {
+            return false;
+        }
+
+        if ($this->documentModeForPrecot($preCotizacionId) === 'proveedor_externo') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_PROVEEDOR_EXTERNO_NO_PLIEGO'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+            return false;
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+
+        if ($lineId > 0) {
+            $line = $model->getLine($lineId);
+            if (!$line || (int) $line->pre_cotizacion_id !== $preCotizacionId) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+                return false;
+            }
+            $lt = isset($line->line_type) ? (string) $line->line_type : '';
+            if ($lt !== 'tercerizado') {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_EDIT_LINE'), 'error');
+                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+                return false;
+            }
+            $ok = $model->updateLine($lineId, [
+                'tipo_elemento'        => $tipoElemento,
+                'tercerizado_producto' => $producto,
+                'total'                => $total,
+            ]);
+            if (!$ok) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_EDIT_LINE'), 'error');
+            } else {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_UPDATED'));
+            }
+        } else {
+            $newId = $model->addLine($preCotizacionId, [
+                'line_type'            => 'tercerizado',
+                'tipo_elemento'        => $tipoElemento,
+                'tercerizado_producto' => $producto,
+                'total'                => $total,
+            ]);
+            if ($newId === false) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_ADD_LINE'), 'error');
+            } else {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_ADDED'));
+            }
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+        return true;
+    }
+
+    /**
      * Save all external-vendor lines from the proveedor document form (batch POST).
      *
      * POST: id (pre_cotizacion_id), lines[] with id, quantity, price_per_sheet, vendor_descripcion, vendor_precio_unit_proveedor (groups 12/16 only).

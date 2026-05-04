@@ -148,6 +148,10 @@ $labelAnadirEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO');
 if ($labelAnadirEnvio === 'COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO') {
     $labelAnadirEnvio = 'Añadir envío';
 }
+$labelProductoTercerizado = Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN');
+if ($labelProductoTercerizado === 'COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN') {
+    $labelProductoTercerizado = 'Producto tercerizado';
+}
 $envios = $this->envios ?? [];
 
 $hasAnyBreakdownOverrideRows = false;
@@ -528,6 +532,9 @@ $solicitarDescuentoAction   = Route::_(
         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#elementosLineModal">
             <?php echo htmlspecialchars($labelOtrosElementos); ?>
         </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tercerizadoLineModal" id="btnTercerizadoLineOpen">
+            <?php echo htmlspecialchars($labelProductoTercerizado); ?>
+        </button>
         <?php if (!empty($envios)) : ?>
         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal">
             <?php echo htmlspecialchars($labelAnadirEnvio); ?>
@@ -580,7 +587,8 @@ $solicitarDescuentoAction   = Route::_(
                     <?php foreach ($lines as $line) :
                         $deleteLineUrl = 'index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . (int) $line->id . '&id=' . $preCotizacionId;
                         $isEnvio = isset($line->line_type) && $line->line_type === 'envio';
-                        $isElemento = !$isEnvio && isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
+                        $isTercerizado = isset($line->line_type) && $line->line_type === 'tercerizado';
+                        $isElemento = !$isEnvio && !$isTercerizado && isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
                         if ($isEnvio) {
                             $paperName = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_LABEL');
                             if (strpos($paperName, 'COM_ORDENPRODUCCION_') === 0) {
@@ -591,6 +599,12 @@ $solicitarDescuentoAction   = Route::_(
                                 $paperName .= ': ' . $envioName;
                             }
                             $sizeName = '—';
+                        } elseif ($isTercerizado) {
+                            $paperName = isset($line->tercerizado_producto) ? trim((string) $line->tercerizado_producto) : '';
+                            if ($paperName === '') {
+                                $paperName = '—';
+                            }
+                            $sizeName = '—';
                         } elseif ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
                             $el = $elementosById[(int) $line->elemento_id];
                             $paperName = $el->name ?? '';
@@ -599,7 +613,7 @@ $solicitarDescuentoAction   = Route::_(
                             $paperName = $paperNames[$line->paper_type_id ?? 0] ?? ('ID ' . (int) $line->paper_type_id);
                             $sizeName = $sizeNames[$line->size_id ?? 0] ?? ('ID ' . (int) $line->size_id);
                         }
-                        $lineJson = $isEnvio ? '' : htmlspecialchars(json_encode([
+                        $lineJson = ($isEnvio || $isTercerizado) ? '' : htmlspecialchars(json_encode([
                             'id' => (int) $line->id,
                             'tipo_elemento' => isset($line->tipo_elemento) ? (string) $line->tipo_elemento : '',
                             'quantity' => (int) $line->quantity,
@@ -618,19 +632,32 @@ $solicitarDescuentoAction   = Route::_(
                         <tr class="line-data-row">
                             <td><?php echo htmlspecialchars($tipoElemento); ?></td>
                             <td><?php echo (int) $line->quantity; ?></td>
-                            <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
+                            <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento || $isTercerizado ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
-                            <td><?php echo $isEnvio ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
+                            <td><?php echo ($isEnvio || $isTercerizado) ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                             <td class="text-end">
-                                <?php if (!$isElemento && !$isEnvio) : ?>
+                                <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
                                     <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
                                 </button>
                                 <?php endif; ?>
                                 <?php if ($canEditDocument) : ?>
-                                    <?php if (!$isElemento && !$isEnvio) : ?>
+                                    <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
+                                        <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
+                                    </button>
+                                    <?php endif; ?>
+                                    <?php if ($isTercerizado) :
+                                        $teEd = isset($line->tipo_elemento) ? (string) $line->tipo_elemento : '';
+                                        $prEd = isset($line->tercerizado_producto) ? (string) $line->tercerizado_producto : '';
+                                        $toEd = isset($line->total) ? (float) $line->total : 0;
+                                        ?>
+                                    <button type="button" class="btn btn-sm btn-outline-primary tercerizado-edit-line-btn"
+                                        data-line-id="<?php echo (int) $line->id; ?>"
+                                        data-tipo-elemento="<?php echo htmlspecialchars($teEd, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-tercerizado-producto="<?php echo htmlspecialchars($prEd, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-total="<?php echo htmlspecialchars(number_format($toEd, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                     </button>
                                     <?php endif; ?>
@@ -638,12 +665,12 @@ $solicitarDescuentoAction   = Route::_(
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('JACTION_DELETE'); ?></button>
                                     </form>
-                                <?php elseif ($isElemento || $isEnvio) : ?>
+                                <?php elseif ($isElemento || $isEnvio || $isTercerizado) : ?>
                                     —
                                 <?php endif; ?>
                             </td>
                         </tr>
-                        <?php if (!$isElemento && !$isEnvio) : ?>
+                        <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
@@ -1350,6 +1377,87 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         </div>
     </div>
 </div>
+
+<!-- Modal: Producto tercerizado -->
+<div class="modal fade" id="tercerizadoLineModal" tabindex="-1" aria-labelledby="tercerizadoLineModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tercerizadoLineModalLabel"><?php echo htmlspecialchars($labelProductoTercerizado); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveLineTercerizado'); ?>" method="post" id="tercerizado-line-form">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="pre_cotizacion_id" value="<?php echo (int) $preCotizacionId; ?>">
+                <input type="hidden" name="line_id" id="tercerizado_modal_line_id" value="0">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tercerizado_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
+                        <input type="text" name="tipo_elemento" id="tercerizado_modal_tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="tercerizado_modal_producto" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_PRODUCTO_LABEL'); ?></label>
+                        <input type="text" name="tercerizado_producto" id="tercerizado_modal_producto" class="form-control" maxlength="512" required autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_PRODUCTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="tercerizado_modal_total" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_IMPORTE'); ?></label>
+                        <div class="input-group">
+                            <span class="input-group-text">Q</span>
+                            <input type="number" name="total" id="tercerizado_modal_total" class="form-control" min="0" step="0.01" value="0.00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var modalEl = document.getElementById('tercerizadoLineModal');
+    if (!modalEl) return;
+    var lineIdInp = document.getElementById('tercerizado_modal_line_id');
+    var tipoInp = document.getElementById('tercerizado_modal_tipo_elemento');
+    var prodInp = document.getElementById('tercerizado_modal_producto');
+    var totInp = document.getElementById('tercerizado_modal_total');
+    function resetAdd() {
+        if (lineIdInp) lineIdInp.value = '0';
+        if (tipoInp) tipoInp.value = '';
+        if (prodInp) prodInp.value = '';
+        if (totInp) totInp.value = '0.00';
+    }
+    modalEl.addEventListener('show.bs.modal', function(ev) {
+        var t = ev.relatedTarget;
+        var fromEdit = t && t.classList && t.classList.contains('tercerizado-edit-line-btn');
+        if (!fromEdit) {
+            resetAdd();
+            return;
+        }
+        if (lineIdInp) lineIdInp.value = String(t.getAttribute('data-line-id') || '0');
+        if (tipoInp) tipoInp.value = t.getAttribute('data-tipo-elemento') || '';
+        if (prodInp) prodInp.value = t.getAttribute('data-tercerizado-producto') || '';
+        if (totInp) totInp.value = t.getAttribute('data-total') || '0.00';
+    });
+    var openAdd = document.getElementById('btnTercerizadoLineOpen');
+    if (openAdd) {
+        openAdd.addEventListener('click', function() {
+            resetAdd();
+        });
+    }
+    document.querySelectorAll('.tercerizado-edit-line-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getOrCreateInstance(modalEl);
+                m.show(btn);
+            }
+        });
+    });
+})();
+</script>
 
 <?php if (!empty($envios)) : ?>
 <!-- Modal: Añadir envío -->

@@ -225,6 +225,27 @@ class OrdenPrecotSectionsHelper
                 }
                 $subtitle = Utf8DisplayHelper::normalizeUserFacing(trim($tipoLabel . ($elName !== '' ? ' · ' . $elName : '')));
                 $heading  = Utf8DisplayHelper::normalizeUserFacing($tipoLabel);
+            } elseif ($lineType === 'tercerizado') {
+                if ($tipoLabel === '') {
+                    $tipoLabel = Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_TIPO_FALLBACK');
+                }
+                $prodName = isset($line->tercerizado_producto) ? trim((string) $line->tercerizado_producto) : '';
+                $prodName = Utf8DisplayHelper::normalizeUserFacing($prodName);
+                $qty      = isset($line->quantity) ? (int) $line->quantity : 1;
+                $tot      = isset($line->total) ? (float) $line->total : 0.0;
+                $metaRows = [];
+                if ($qty > 0) {
+                    $metaRows[] = [
+                        'label_key' => 'COM_ORDENPRODUCCION_ORDEN_PRECOT_CANTIDAD_OTROS',
+                        'value'     => (string) $qty,
+                    ];
+                }
+                if ($prodName !== '') {
+                    $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_PRODUCTO_LABEL', 'value' => $prodName];
+                }
+                $metaRows[] = ['label_key' => 'COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL', 'value' => 'Q ' . number_format($tot, 2)];
+                $subtitle = Utf8DisplayHelper::normalizeUserFacing(trim($tipoLabel . ($prodName !== '' ? ' · ' . $prodName : '')));
+                $heading  = Utf8DisplayHelper::normalizeUserFacing($tipoLabel);
             } else {
                 continue;
             }

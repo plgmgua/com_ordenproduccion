@@ -498,7 +498,7 @@ class OrdenModel extends ItemModel
                 continue;
             }
 
-            if ($lt === 'elementos' || $lt === 'envio') {
+            if ($lt === 'elementos' || $lt === 'envio' || $lt === 'tercerizado') {
                 $hasOther = true;
             }
         }

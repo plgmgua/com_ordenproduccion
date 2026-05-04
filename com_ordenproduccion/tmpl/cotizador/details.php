@@ -235,8 +235,26 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                 </thead>
                 <tbody>
                     <?php foreach ($lines as $line) :
-                        $isElemento = isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
-                        if ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
+                        $isEnvio = isset($line->line_type) && $line->line_type === 'envio';
+                        $isTercerizado = isset($line->line_type) && $line->line_type === 'tercerizado';
+                        $isElemento = !$isEnvio && !$isTercerizado && isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
+                        if ($isEnvio) {
+                            $paperName = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_LABEL');
+                            if (strpos($paperName, 'COM_ORDENPRODUCCION_') === 0) {
+                                $paperName = 'Envío';
+                            }
+                            $envioName = isset($line->envio_name) ? (string) $line->envio_name : '';
+                            if ($envioName !== '') {
+                                $paperName .= ': ' . $envioName;
+                            }
+                            $sizeName = '—';
+                        } elseif ($isTercerizado) {
+                            $paperName = isset($line->tercerizado_producto) ? trim((string) $line->tercerizado_producto) : '';
+                            if ($paperName === '') {
+                                $paperName = '—';
+                            }
+                            $sizeName = '—';
+                        } elseif ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
                             $el = $elementosById[(int) $line->elemento_id];
                             $paperName = $el->name ?? '';
                             $sizeName = $el->size ?? '—';
@@ -249,12 +267,12 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                         <tr>
                             <td><?php echo htmlspecialchars($tipoElementoDetail); ?></td>
                             <td><?php echo (int) $line->quantity; ?></td>
-                            <td><?php echo $isElemento ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName); ?></td>
+                            <td><?php echo ($isEnvio || $isElemento || $isTercerizado) ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
-                            <td><?php echo $isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
+                            <td><?php echo ($isEnvio || $isTercerizado || $isElemento) ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro'); ?></td>
                             <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
                         </tr>
-                        <?php if (!$isElemento) :
+                        <?php if (!$isElemento && !$isEnvio && !$isTercerizado) :
                             $breakdown = $line->breakdown ?? [];
                         ?>
                         <tr class="line-detail-row">

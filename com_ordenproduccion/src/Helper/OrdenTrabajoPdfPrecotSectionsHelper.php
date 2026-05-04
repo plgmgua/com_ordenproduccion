@@ -68,6 +68,10 @@ class OrdenTrabajoPdfPrecotSectionsHelper
                 $out[] = ['type' => 'elementos_bulk', 'sections' => $buf];
                 $buf   = [];
             }
+            if ($lt === 'tercerizado') {
+                $out[] = ['type' => 'tercerizado', 'section' => $psc];
+                continue;
+            }
             $out[] = ['type' => 'pliego', 'section' => $psc];
         }
         if ($buf !== []) {
@@ -95,6 +99,14 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             $tipo = (string) ($piece['type'] ?? '');
             if ($tipo === 'elementos_bulk') {
                 self::renderOtrosElementosBlock($pdf, $piece['sections'] ?? [], $fix);
+                continue;
+            }
+            if ($tipo === 'tercerizado') {
+                if ($pliegoEmitted) {
+                    $pdf->Ln(3);
+                }
+                self::renderTercerizadoBlock($pdf, $piece['section'] ?? [], $fix);
+                $pliegoEmitted = true;
                 continue;
             }
             if ($tipo === 'pliego') {
@@ -170,6 +182,75 @@ class OrdenTrabajoPdfPrecotSectionsHelper
             ];
 
             self::drawPdfPrecotNcColumnAlignedRow($pdf, $fix, $widthsOtros, $rowVals, self::PDF_PRE_MM_LINE, false, 3);
+        }
+    }
+
+    /**
+     * Producto tercerizado: heading band + meta rows + instructions (no pliego 4-column table).
+     *
+     * @param   array<string, mixed>  $sec
+     *
+     * @since   3.116.0
+     */
+    private static function renderTercerizadoBlock(\FPDF $pdf, array $sec, callable $fix): void
+    {
+        self::maybePageBreak($pdf, 40);
+
+        $heading = trim((string) ($sec['heading'] ?? ''));
+        if ($heading === '') {
+            $heading = Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_TIPO_FALLBACK');
+        }
+        $wFullBand = (float) $pdf->GetPageWidth() - 30.0;
+        $pdf->SetFillColor(238, 238, 238);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($wFullBand, 6.5, $fix($heading), 1, 1, 'L', true);
+
+        [$wLblCol, $wValCol] = self::pliegoTwoColumnWidths($pdf);
+
+        foreach (($sec['meta_rows'] ?? []) as $mr) {
+            $lk = trim((string) ($mr['label_key'] ?? ''));
+            $val = trim((string) ($mr['value'] ?? ''));
+            if ($lk === '') {
+                continue;
+            }
+            $lbl = Text::_($lk);
+            self::drawLabelValueRowTwoColumn(
+                $pdf,
+                $wLblCol,
+                $wValCol,
+                $lbl,
+                ($val !== '' ? $val : '—'),
+                $fix,
+                self::PDF_PRE_MM_LINE
+            );
+        }
+
+        $instr = isset($sec['instructions']) && \is_array($sec['instructions']) ? $sec['instructions'] : [];
+        if ($instr !== []) {
+            self::maybePageBreak($pdf, 24);
+            $pdf->SetFont('Arial', 'B', self::PDF_PRE_PT_ACABADOS_TITLE);
+            $pdf->SetFillColor(238, 238, 238);
+            $pdf->Cell(0, self::PDF_PRE_MM_H_ACABADOS_BAND, $fix(mb_strtoupper(Text::_('COM_ORDENPRODUCCION_ORDEN_PRECOT_INSTRUC_ACABADOS_TITLE'), 'UTF-8')), 1, 1, 'L', true);
+            foreach ($instr as $insRow) {
+                $lab = trim((string) ($insRow['label'] ?? ''));
+                if ($lab === '') {
+                    $lab = Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES');
+                }
+                $txt = trim((string) ($insRow['text'] ?? ''));
+                self::drawLabelValueRowTwoColumn(
+                    $pdf,
+                    $wLblCol,
+                    $wValCol,
+                    $lab,
+                    ($txt !== '' ? $txt : '—'),
+                    $fix,
+                    self::PDF_PRE_MM_LINE,
+                    self::PDF_PRE_PT_INSTR_LABEL,
+                    'B',
+                    self::PDF_PRE_PT_GRID,
+                    ''
+                );
+            }
         }
     }
 
