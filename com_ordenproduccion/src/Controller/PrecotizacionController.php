@@ -2793,7 +2793,24 @@ class PrecotizacionController extends BaseController
     private function denyIfNotEditableDocument($preCotizacionId, $format = 'html')
     {
         $model = $this->getModel('Precotizacion', 'Site');
-        if ($model->canUserEditPreCotizacionDocument((int) $preCotizacionId)) {
+        $pid = (int) $preCotizacionId;
+        if ($model->hasActiveOrdenTrabajoForPrecotizacion($pid)) {
+            $app = Factory::getApplication();
+            $msg = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_ORDEN_TRABAJO');
+            if ($msg === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_ORDEN_TRABAJO' || (is_string($msg) && strpos($msg, 'COM_ORDENPRODUCCION_') === 0)) {
+                $msg = 'Esta pre-cotización tiene una orden de trabajo activa; no se puede modificar.';
+            }
+            if ($format === 'json' || $app->input->getBool('ajax')) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                $app->close();
+            }
+            $this->setMessage($msg, 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $pid, false));
+
+            return true;
+        }
+        if ($model->canUserEditPreCotizacionDocument($pid)) {
             return false;
         }
         $app = Factory::getApplication();
@@ -2889,14 +2906,29 @@ class PrecotizacionController extends BaseController
     private function isPrecotizacionLocked($preCotizacionId, $format = 'html', $messageKey = 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY')
     {
         $model = $this->getModel('Precotizacion', 'Site');
-        if (!$model->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
+        $pid   = (int) $preCotizacionId;
+        $lockedByOt        = $model->hasActiveOrdenTrabajoForPrecotizacion($pid);
+        $lockedByConfirmed = $model->isAssociatedWithConfirmedQuotation($pid);
+        if (!$lockedByOt && !$lockedByConfirmed) {
             return false;
+        }
+        if ($lockedByOt) {
+            $messageKey = $messageKey === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE'
+                ? 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE_ORDEN_TRABAJO'
+                : 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_ORDEN_TRABAJO';
         }
         $msg = Text::_($messageKey);
         if ($msg === $messageKey || (is_string($msg) && strpos($msg, 'COM_ORDENPRODUCCION_') === 0)) {
-            $msg = $messageKey === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE'
-                ? 'No se puede eliminar: esta pre-cotización ya está vinculada a una cotización.'
-                : 'Esta pre-cotización ya forma parte de una cotización formal, por eso no se puede editar aquí. Si necesita cambios, cree una nueva pre-cotización o revise la cotización vinculada.';
+            if ($messageKey === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE'
+                || $messageKey === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_DELETE_ORDEN_TRABAJO') {
+                $msg = $lockedByOt
+                    ? 'No se puede eliminar: existe una orden de trabajo activa vinculada a esta pre-cotización.'
+                    : 'No se puede eliminar: esta pre-cotización ya está vinculada a una cotización.';
+            } elseif ($lockedByOt) {
+                $msg = 'Esta pre-cotización tiene una orden de trabajo activa; no se puede modificar.';
+            } else {
+                $msg = 'Esta pre-cotización ya forma parte de una cotización formal, por eso no se puede editar aquí. Si necesita cambios, cree una nueva pre-cotización o revise la cotización vinculada.';
+            }
         }
         if ($format === 'json' || Factory::getApplication()->input->getBool('ajax')) {
             Factory::getApplication()->setHeader('Content-Type', 'application/json', true);

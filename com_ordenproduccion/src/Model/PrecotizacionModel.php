@@ -518,6 +518,81 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * True when an active orden de trabajo exists for this pre-cotización id.
+     *
+     * @param   int  $preCotizacionId  Pre-cotización primary key
+     *
+     * @return  bool
+     *
+     * @since   3.115.70
+     */
+    public function hasActiveOrdenTrabajoForPrecotizacion(int $preCotizacionId): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['pre_cotizacion_id'])) {
+            return false;
+        }
+        $query = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->where($db->quoteName('state') . ' = 1')
+            ->setLimit(1);
+        $db->setQuery($query);
+
+        return (bool) $db->loadResult();
+    }
+
+    /**
+     * True when any quotation line's pre-cotización has an active orden de trabajo (state = 1).
+     *
+     * @param   int  $quotationId  Quotation id
+     *
+     * @return  bool
+     *
+     * @since   3.115.70
+     */
+    public function quotationHasActiveOrdenTrabajo(int $quotationId): bool
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return false;
+        }
+        $db = $this->getDatabase();
+        $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $oCols = is_array($oCols) ? array_change_key_case($oCols, CASE_LOWER) : [];
+        if (!isset($oCols['pre_cotizacion_id'])) {
+            return false;
+        }
+        $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $qiCols = is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        if (!isset($qiCols['pre_cotizacion_id'])) {
+            return false;
+        }
+        $query = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_ordenes', 'o'),
+                $db->quoteName('o.pre_cotizacion_id') . ' = ' . $db->quoteName('qi.pre_cotizacion_id')
+                . ' AND ' . $db->quoteName('o.state') . ' = 1'
+            )
+            ->where($db->quoteName('qi.quotation_id') . ' = ' . $quotationId)
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL')
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' > 0')
+            ->setLimit(1);
+        $db->setQuery($query);
+
+        return (bool) $db->loadResult();
+    }
+
+    /**
      * Pre-cotizaciones linked to this quotation's lines that have facturar = 1.
      *
      * @param   int  $quotationId  Quotation id.
@@ -618,6 +693,9 @@ class PrecotizacionModel extends ListModel
         if (!$item || (int) $item->state !== 1) {
             return false;
         }
+        if ($this->hasActiveOrdenTrabajoForPrecotizacion($preCotizacionId)) {
+            return false;
+        }
         $user = Factory::getUser();
         if ($user->guest) {
             return false;
@@ -664,6 +742,9 @@ class PrecotizacionModel extends ListModel
         if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
             return false;
         }
+        if ($this->hasActiveOrdenTrabajoForPrecotizacion($preCotizacionId)) {
+            return false;
+        }
         $item = $this->getItem($preCotizacionId);
         if (!$item || (int) $item->state !== 1) {
             return false;
@@ -706,6 +787,9 @@ class PrecotizacionModel extends ListModel
             return false;
         }
         if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
+            return false;
+        }
+        if ($this->hasActiveOrdenTrabajoForPrecotizacion($preCotizacionId)) {
             return false;
         }
         $db = $this->getDatabase();

@@ -629,6 +629,13 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT')]);
             exit;
         }
+        $precotOt = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if ($precotOt && $precotOt->quotationHasActiveOrdenTrabajo($quotationId)) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
+            exit;
+        }
         $input = $app->input;
         $clientName = $input->getString('client_name', '');
         $clientNit = $input->getString('client_nit', '');
@@ -874,6 +881,12 @@ class AjaxController extends BaseController
             $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
             if (isset($qCols['cotizacion_confirmada']) && (int) ($qRow->cotizacion_confirmada ?? 0) === 1) {
                 echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT')]);
+                exit;
+            }
+            $precotOt = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            if ($precotOt && $precotOt->quotationHasActiveOrdenTrabajo($quotationId)) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
                 exit;
             }
         }

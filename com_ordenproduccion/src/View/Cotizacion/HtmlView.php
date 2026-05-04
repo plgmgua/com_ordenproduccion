@@ -184,6 +184,14 @@ class HtmlView extends BaseHtmlView
     protected $ebipayMockAvailable = false;
 
     /**
+     * True when any active orden de trabajo is linked (via quotation line pre_cotizacion_id) to this quotation.
+     *
+     * @var    bool
+     * @since  3.115.70
+     */
+    protected $quotationHasActiveOrdenTrabajo = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -329,6 +337,7 @@ class HtmlView extends BaseHtmlView
                         );
                     }
                     $this->refreshConfirmarCotizacionSkipModal();
+                    $this->quotationHasActiveOrdenTrabajo = $precotModel->quotationHasActiveOrdenTrabajo((int) $quotationId);
                 } else {
                     $this->quotationItems = [];
                     $this->ordenesPorPreCotizacionId = [];
@@ -338,6 +347,7 @@ class HtmlView extends BaseHtmlView
                     $this->elementosModal = [];
                     $this->confirmarInstruccionesFacturacionBlocks = [];
                     $this->refreshConfirmarCotizacionSkipModal();
+                    $this->quotationHasActiveOrdenTrabajo = false;
                 }
             }
 
@@ -350,12 +360,19 @@ class HtmlView extends BaseHtmlView
             }
 
             $layout = $input->get('layout', '', 'cmd');
-            if ($quotationId > 0 && $this->quotation && $layout === 'edit'
-                && (int) ($this->quotation->cotizacion_confirmada ?? 0) === 1) {
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT'), 'warning');
-                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
+            if ($quotationId > 0 && $this->quotation && $layout === 'edit') {
+                $lockedConfirm = (int) ($this->quotation->cotizacion_confirmada ?? 0) === 1;
+                $lockedOt      = !empty($this->quotationHasActiveOrdenTrabajo);
+                if ($lockedConfirm) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT'), 'warning');
+                } elseif ($lockedOt) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO'), 'warning');
+                }
+                if ($lockedConfirm || $lockedOt) {
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
 
-                return;
+                    return;
+                }
             }
 
             // Layout: edit, instrucciones_orden, or display (read-only)
@@ -366,6 +383,11 @@ class HtmlView extends BaseHtmlView
                 if (isset($qtcGate['cotizacion_confirmada']) && $this->quotation
                     && (int) ($this->quotation->cotizacion_confirmada ?? 0) !== 1) {
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_REQUIRES_CONFIRM'), 'warning');
+                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
+                    return;
+                }
+                if ($this->quotation && !empty($this->quotationHasActiveOrdenTrabajo)) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO'), 'warning');
                     $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
                     return;
                 }

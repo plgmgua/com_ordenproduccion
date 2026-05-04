@@ -42,9 +42,11 @@ if (!$quotation) {
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
+$quotationLockedByOrdenTrabajo = !empty($this->quotationHasActiveOrdenTrabajo);
 $wizClientIdTrimForOt = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
 $wizClientNumericForOt = $wizClientIdTrimForOt !== '' && ctype_digit($wizClientIdTrimForOt);
 $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
+$editLockedHintOt = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT_OT', 'Cannot edit: this quotation has an active work order.', 'No se puede editar: la cotización tiene una orden de trabajo activa.');
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
 $pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
 $instruccionesFacturacionValue = isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : '';
@@ -94,7 +96,7 @@ $elementosByIdIo = [];
 foreach ($elementosIo as $el) {
     $elementosByIdIo[(int) $el->id] = $el;
 }
-$instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetalles);
+$instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetalles) && !$quotationLockedByOrdenTrabajo;
 
 $felEngineAvailable = !empty($this->felEngineAvailable);
 $felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation : null;
@@ -139,8 +141,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_CREATE_LINK', 'Payment link (test)', 'Link de pago (prueba)')); ?>
             </button>
             <?php endif; ?>
-            <?php if ($quotationConfirmed) : ?>
-            <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($editLockedHint); ?>">
+            <?php if ($quotationConfirmed || $quotationLockedByOrdenTrabajo) : ?>
+            <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($quotationLockedByOrdenTrabajo ? $editLockedHintOt : $editLockedHint); ?>">
                 <i class="fas fa-edit"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
             </span>
@@ -618,8 +620,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 <i class="fas fa-arrow-left"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
             </a>
-            <?php if ($quotationConfirmed) : ?>
-            <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($editLockedHint); ?>">
+            <?php if ($quotationConfirmed || $quotationLockedByOrdenTrabajo) : ?>
+            <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($quotationLockedByOrdenTrabajo ? $editLockedHintOt : $editLockedHint); ?>">
                 <i class="fas fa-edit"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_EDIT', 'Edit', 'Editar'); ?>
             </span>

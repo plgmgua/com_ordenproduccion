@@ -70,6 +70,38 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * True if this quotation has any active orden linked via quotation lines (pre_cotizacion_id).
+     *
+     * @since  3.115.70
+     */
+    private function quotationHasActiveOrdenTrabajoRow(int $quotationId): bool
+    {
+        $precot = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+
+        return $precot && $precot->quotationHasActiveOrdenTrabajo((int) $quotationId);
+    }
+
+    /**
+     * Block mutation tasks when the quotation already has an active OT; redirect to read-only cotización view.
+     *
+     * @return  bool  True if the request was blocked (caller should return immediately).
+     *
+     * @since  3.115.70
+     */
+    private function blockIfQuotationHasActiveOrden(int $quotationId): bool
+    {
+        if (!$this->quotationHasActiveOrdenTrabajoRow($quotationId)) {
+            return false;
+        }
+        $app = Factory::getApplication();
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO'), 'warning');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
+
+        return true;
+    }
+
+    /**
      * Calculate pliego price (AJAX). Returns JSON: success, price_per_sheet, total, message.
      *
      * @return  void
@@ -376,6 +408,9 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
+        if ($this->blockIfQuotationHasActiveOrden($quotationId)) {
+            return;
+        }
         $nextStep = (int) $app->input->post->get('next_step', 0);
         $file = $app->input->files->get('signed_document', [], 'array');
         if (empty($file['name']) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
@@ -496,6 +531,9 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
+        if ($this->blockIfQuotationHasActiveOrden($quotationId)) {
+            return;
+        }
         $nextStep = (int) $app->input->post->get('next_step', 0);
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
@@ -581,6 +619,10 @@ class CotizacionController extends BaseController
         if (!$row) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+
+        if ($this->blockIfQuotationHasActiveOrden($quotationId)) {
             return;
         }
 
@@ -832,6 +874,11 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
+        if ($this->quotationHasActiveOrdenTrabajoRow($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
+            $app->close();
+        }
+
         $svc    = new EbiPayLinkService();
         $result = $svc->createMockLinkForQuotation($quotationId);
         if (!empty($result['success'])) {
@@ -985,7 +1032,20 @@ class CotizacionController extends BaseController
             return;
         }
         $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
-        if (!$precotModel->lineDetallesTableExists()) {
+        if ($precotModel && $precotModel->quotationHasActiveOrdenTrabajo($quotationId)) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            $isAjaxEarly = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+            if ($isAjaxEarly) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
+                $app->close();
+            }
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+        if (!$precotModel || !$precotModel->lineDetallesTableExists()) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INSTRUCCIONES_ORDEN_TABLE_MISSING'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
             return;
@@ -1132,6 +1192,11 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
+        if ($this->quotationHasActiveOrdenTrabajoRow($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
+            $app->close();
+        }
+
         $wizard = [
             'tipo_entrega' => (string) $app->input->post->get('tipo_entrega', '', 'cmd'),
             'delivery_address' => (string) $app->input->post->get('delivery_address', '', 'string'),
@@ -1182,6 +1247,11 @@ class CotizacionController extends BaseController
 
         if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')]);
+            $app->close();
+        }
+
+        if ($this->quotationHasActiveOrdenTrabajoRow($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
             $app->close();
         }
 
@@ -2133,6 +2203,10 @@ class CotizacionController extends BaseController
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             $app->close();
+        }
+
+        if ($this->blockIfQuotationHasActiveOrden($quotationId)) {
+            return;
         }
 
         if (isset($qTableCols['cotizacion_confirmada']) && (int) $this->getObjectProperty($quotation, 'cotizacion_confirmada') !== 1) {

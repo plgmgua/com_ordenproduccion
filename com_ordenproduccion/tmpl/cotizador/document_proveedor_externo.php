@@ -29,10 +29,11 @@ if (!$item) {
 $listUrl           = Route::_('index.php?option=com_ordenproduccion&view=cotizador');
 $preCotizacionId   = (int) $item->id;
 $precotizacionLocked = !empty($this->precotizacionLocked);
-$canEditDocument   = isset($this->precotizacionDocumentEditable)
+$precotLockedByOt = !empty($this->precotizacionLockedByOrdenTrabajo);
+$canEditDocument = isset($this->precotizacionDocumentEditable)
     ? (bool) $this->precotizacionDocumentEditable
     : !$precotizacionLocked;
-$ofertaViewOnly    = !empty($item->oferta) && !$canEditDocument && !$precotizacionLocked;
+$ofertaViewOnly = !empty($item->oferta) && !$canEditDocument && !$precotizacionLocked;
 
 $vendorLines = [];
 foreach ($lines as $ln) {
@@ -94,7 +95,7 @@ $precotFooterShowIva = $canSeePrecotInternalTax && $facturar
 $precotFooterShowIsr = $canSeePrecotInternalTax && $facturar
     && (($paramIsr != 0) || abs((float) $isrAmount) >= 0.005);
 $canSeeVendorPup         = AccessHelper::canEditProveedorExternoPrecioUnitProveedor();
-$canAdminEditPupWhenLocked = $precotizacionLocked && AccessHelper::canAdministracionEditProveedorExternoPupWhenQuotationLocked();
+$canAdminEditPupWhenLocked = $precotizacionLocked && !$precotLockedByOt && AccessHelper::canAdministracionEditProveedorExternoPupWhenQuotationLocked();
 $linesTableLocked          = $precotizacionLocked || !$canEditDocument;
 $showVendorPupColumn       = $canSeeVendorPup || $canAdminEditPupWhenLocked;
 /** Hide Precio unidad + Total columns in read-only vendor line tables when all unit prices are still zero. */
@@ -334,10 +335,18 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     <?php endif; ?>
 
     <?php if ($precotizacionLocked) :
-        $msgLocked = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY');
-        if ($msgLocked === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY'
-            || (is_string($msgLocked) && strpos($msgLocked, 'COM_ORDENPRODUCCION_') === 0)) {
-            $msgLocked = 'Esta pre-cotización ya forma parte de una cotización formal, por eso no se puede editar aquí. Si necesita cambios, cree una nueva pre-cotización o revise la cotización vinculada.';
+        if ($precotLockedByOt) {
+            $msgLocked = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_ORDEN_TRABAJO');
+            if ($msgLocked === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_ORDEN_TRABAJO'
+                || (is_string($msgLocked) && strpos($msgLocked, 'COM_ORDENPRODUCCION_') === 0)) {
+                $msgLocked = 'Esta pre-cotización tiene una orden de trabajo activa; no se puede modificar.';
+            }
+        } else {
+            $msgLocked = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY');
+            if ($msgLocked === 'COM_ORDENPRODUCCION_PRE_COTIZACION_LOCKED_MODIFY'
+                || (is_string($msgLocked) && strpos($msgLocked, 'COM_ORDENPRODUCCION_') === 0)) {
+                $msgLocked = 'Esta pre-cotización ya forma parte de una cotización formal, por eso no se puede editar aquí. Si necesita cambios, cree una nueva pre-cotización o revise la cotización vinculada.';
+            }
         }
     ?>
     <div class="alert alert-info mb-3"><?php echo htmlspecialchars($msgLocked); ?></div>

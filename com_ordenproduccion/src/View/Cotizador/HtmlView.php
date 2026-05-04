@@ -87,6 +87,14 @@ class HtmlView extends BaseHtmlView
     protected $precotizacionDocumentEditable = true;
 
     /**
+     * Document layout: locked because an active orden de trabajo exists for this pre-cotización (UI copy).
+     *
+     * @var    bool
+     * @since  3.115.70
+     */
+    protected $precotizacionLockedByOrdenTrabajo = false;
+
+    /**
      * Document layout: Aprobaciones Ventas may edit Impresión subtotal override (schema + permission).
      *
      * @var    bool
@@ -357,7 +365,9 @@ class HtmlView extends BaseHtmlView
                 }
                 if ($layout === 'document') {
                     $this->associatedQuotations = $this->getQuotationsForPreCotizacion($id);
-                    $this->precotizacionLocked = $precotModel->isAssociatedWithConfirmedQuotation((int) $id);
+                    $this->precotizacionLockedByOrdenTrabajo = $precotModel->hasActiveOrdenTrabajoForPrecotizacion((int) $id);
+                    $this->precotizacionLocked = $this->precotizacionLockedByOrdenTrabajo
+                        || $precotModel->isAssociatedWithConfirmedQuotation((int) $id);
                     $this->precotizacionDocumentEditable = $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked;
                     $this->canSaveImpresionOverride = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
