@@ -217,7 +217,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <div id="cotizacion-add-line-cantidad-wrap" class="cotizacion-add-line-cantidad-wrap d-none">
                     <div class="cotizacion-add-cantidad">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
-                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end" style="width: 70px;" min="1" step="1" value="0" aria-label="Cantidad" disabled>
+                        <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end cotizacion-qty-input" min="1" step="1" value="0" aria-label="Cantidad" disabled>
                     </div>
                     </div>
                     <div class="cotizacion-add-descripcion">
@@ -280,7 +280,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                        <td><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="0" step="1" value="<?php echo $qty; ?>"></td>
+                        <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="<?php echo $qty; ?>"></td>
                         <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
@@ -616,7 +616,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var unitPrice = '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
-                '<td><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input text-end" style="width:70px;" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
+                '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
                 '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +

@@ -111,7 +111,25 @@
 
 .cotizacion-container .items-table thead th.col-cotizacion-items-qty-th {
     width: 5%;
+    min-width: 6.5rem;
     white-space: nowrap !important;
+}
+
+/* Cant.: room for at least 4 digits plus browser number spinners */
+.cotizacion-container .items-table td.cotizacion-line-qty-cell {
+    width: 1%;
+    min-width: 6.5rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.cotizacion-container .items-table input.line-cantidad-input.cotizacion-qty-input,
+.cotizacion-container #precotizacionCantidad.cotizacion-qty-input {
+    /* ~4 digit positions + space for native steppers (varies by browser) */
+    width: 7.5ch !important;
+    min-width: 7.5ch;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .cotizacion-container .items-table tbody td:first-child {
@@ -407,6 +425,8 @@
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-qty {
     white-space: nowrap;
     vertical-align: middle;
+    min-width: 6.5rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-desc,
