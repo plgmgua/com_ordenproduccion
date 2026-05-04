@@ -340,7 +340,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-pre {
-    width: 9%;
+    width: 11%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-qty {
@@ -348,7 +348,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-desc {
-    width: 41%;
+    width: 39%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table col.col-cotizacion-images {
@@ -369,7 +369,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-pre {
-    width: 8%;
+    width: 12%;
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-qty {
@@ -377,7 +377,7 @@
 }
 
 .cotizacion-display .cotizacion-display-lines-table--has-action col.col-cotizacion-desc {
-    width: 34%;
+    width: 30%;
 }
 
 /* Columna orden de trabajo: 8 columnas con Acción */
@@ -412,14 +412,22 @@
 .cotizacion-display .cotizacion-display-lines-table th.col-cotizacion-pre {
     line-height: 1.25;
     vertical-align: middle;
+    font-size: 0.8125rem;
 }
 
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-pre {
     white-space: nowrap;
     vertical-align: middle;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 0;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    /* Show full PRE-xxxxx; ellipsis was cutting labels — smaller type + wider col */
+    overflow: visible;
+    text-overflow: unset;
+    max-width: none;
+}
+
+.cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-pre a {
+    font-size: inherit;
 }
 
 .cotizacion-display .cotizacion-display-lines-table td.col-cotizacion-qty {
