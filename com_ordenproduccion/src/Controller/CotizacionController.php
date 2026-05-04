@@ -102,6 +102,38 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * True if the quotation has at least one line with pre_cotizacion_id set.
+     *
+     * @since  3.115.71
+     */
+    private function quotationHasLinkedPreCotizacionRow(int $quotationId): bool
+    {
+        $precot = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+
+        return $precot && $precot->quotationHasAnyLinkedPreCotizacion((int) $quotationId);
+    }
+
+    /**
+     * Block confirmar tasks when no pre-cotización is linked to any line.
+     *
+     * @return  bool  True if blocked.
+     *
+     * @since  3.115.71
+     */
+    private function blockIfQuotationMissingPreCotizacionForConfirmar(int $quotationId): bool
+    {
+        if ($this->quotationHasLinkedPreCotizacionRow($quotationId)) {
+            return false;
+        }
+        $app = Factory::getApplication();
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_REQUIRES_PRE_COTIZACION'), 'warning');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false));
+
+        return true;
+    }
+
+    /**
      * Calculate pliego price (AJAX). Returns JSON: success, price_per_sheet, total, message.
      *
      * @return  void
@@ -408,6 +440,9 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
+        if ($this->blockIfQuotationMissingPreCotizacionForConfirmar($quotationId)) {
+            return;
+        }
         if ($this->blockIfQuotationHasActiveOrden($quotationId)) {
             return;
         }
@@ -531,6 +566,9 @@ class CotizacionController extends BaseController
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
+        if ($this->blockIfQuotationMissingPreCotizacionForConfirmar($quotationId)) {
+            return;
+        }
         if ($this->blockIfQuotationHasActiveOrden($quotationId)) {
             return;
         }
@@ -619,6 +657,10 @@ class CotizacionController extends BaseController
         if (!$row) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+            return;
+        }
+
+        if ($this->blockIfQuotationMissingPreCotizacionForConfirmar($quotationId)) {
             return;
         }
 

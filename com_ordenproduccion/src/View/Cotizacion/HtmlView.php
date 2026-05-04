@@ -192,6 +192,14 @@ class HtmlView extends BaseHtmlView
     protected $quotationHasActiveOrdenTrabajo = false;
 
     /**
+     * True when at least one quotation line has pre_cotizacion_id set (required to confirmar cotización).
+     *
+     * @var    bool
+     * @since  3.115.71
+     */
+    protected $quotationHasLinkedPreCotizacion = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -281,6 +289,7 @@ class HtmlView extends BaseHtmlView
                             $preIdsDistinct[$pid] = true;
                         }
                     }
+                    $this->quotationHasLinkedPreCotizacion = $preIdsDistinct !== [];
                     $this->ordenesPorPreCotizacionId = $this->buildOrdenesLinksByPreCotizacionIds($db, array_keys($preIdsDistinct));
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
                     $this->itemsWithLineDetalles = [];
@@ -341,6 +350,7 @@ class HtmlView extends BaseHtmlView
                 } else {
                     $this->quotationItems = [];
                     $this->ordenesPorPreCotizacionId = [];
+                    $this->quotationHasLinkedPreCotizacion = false;
                     $this->itemsWithLineDetalles = [];
                     $this->pliegoPaperTypesModal = [];
                     $this->pliegoSizesModal = [];
@@ -701,6 +711,10 @@ class HtmlView extends BaseHtmlView
         }
 
         if ((int) ($this->quotation->cotizacion_confirmada ?? 0) === 1) {
+            return;
+        }
+
+        if (!$this->quotationHasLinkedPreCotizacion) {
             return;
         }
 

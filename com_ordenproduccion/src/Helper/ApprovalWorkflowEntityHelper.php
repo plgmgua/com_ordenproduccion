@@ -230,6 +230,20 @@ class ApprovalWorkflowEntityHelper
         int $approvedByUserId,
         ?string $metadataJson
     ): void {
+        $quotationId = (int) $quotationId;
+        $app         = Factory::getApplication();
+        $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if ($precotModel && method_exists($precotModel, 'quotationHasAnyLinkedPreCotizacion') && ! $precotModel->quotationHasAnyLinkedPreCotizacion($quotationId)) {
+            Log::add(
+                'Cotización confirmation approval skipped: quotation ' . $quotationId . ' has no linked pre-cotización.',
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+
+            return;
+        }
+
         $meta = [];
         if ($metadataJson !== null && $metadataJson !== '') {
             $decoded = json_decode($metadataJson, true);

@@ -43,6 +43,7 @@ $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amoun
 $currency = $quotation->currency ?? 'Q';
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
 $quotationLockedByOrdenTrabajo = !empty($this->quotationHasActiveOrdenTrabajo);
+$quotationHasLinkedPreCotizacion = !empty($this->quotationHasLinkedPreCotizacion);
 $wizClientIdTrimForOt = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
 $wizClientNumericForOt = $wizClientIdTrimForOt !== '' && ctype_digit($wizClientIdTrimForOt);
 $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
@@ -635,6 +636,15 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
         <div class="d-flex flex-wrap align-items-center gap-3">
             <?php if ($quotationConfirmed) : ?>
                 <span class="badge bg-success"><i class="fas fa-check"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_YA_FINALIZADA', 'Confirmation completed', 'Confirmación finalizada'); ?></span>
+            <?php elseif (!$quotationHasLinkedPreCotizacion) : ?>
+                <span class="text-muted small">
+                    <i class="fas fa-info-circle"></i>
+                    <?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_CONFIRMAR_REQUIRES_PRE_COTIZACION_HINT',
+                        'Link at least one pre-cotización to a line (Edit) before confirming.',
+                        'Vincule al menos una pre-cotización a una línea (Editar) antes de confirmar.'
+                    ), ENT_QUOTES, 'UTF-8'); ?>
+                </span>
             <?php else : ?>
                 <?php if (!empty($this->confirmarCotizacionSkipModal)) : ?>
             <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.finalizeConfirmacionCotizacion'); ?>" class="d-inline">
@@ -738,7 +748,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 <?php endif; ?>
 </div>
 
-<?php if (empty($this->confirmarCotizacionSkipModal)) : ?>
+<?php if (empty($this->confirmarCotizacionSkipModal) && !empty($this->quotationHasLinkedPreCotizacion) && !$quotationConfirmed) : ?>
 <!-- Modal: archivos opcionales + Finalizar confirmación -->
 <div class="modal fade" id="confirmarCotizacionModal" tabindex="-1" aria-labelledby="confirmarCotizacionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">

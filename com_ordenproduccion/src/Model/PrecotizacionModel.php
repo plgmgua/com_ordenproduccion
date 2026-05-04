@@ -593,6 +593,35 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * True when at least one quotation line links to a pre-cotización (pre_cotizacion_id > 0).
+     *
+     * @since  3.115.71
+     */
+    public function quotationHasAnyLinkedPreCotizacion(int $quotationId): bool
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return false;
+        }
+        $db     = $this->getDatabase();
+        $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $qiCols = is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        if (!isset($qiCols['pre_cotizacion_id'])) {
+            return false;
+        }
+        $query = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+            ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+            ->where($db->quoteName('pre_cotizacion_id') . ' IS NOT NULL')
+            ->where($db->quoteName('pre_cotizacion_id') . ' > 0')
+            ->setLimit(1);
+        $db->setQuery($query);
+
+        return (bool) $db->loadResult();
+    }
+
+    /**
      * Pre-cotizaciones linked to this quotation's lines that have facturar = 1.
      *
      * @param   int  $quotationId  Quotation id.
