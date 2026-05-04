@@ -71,6 +71,14 @@ class HtmlView extends BaseHtmlView
     protected $salesAgentFilterOptions = [];
 
     /**
+     * Default list layout: active work orders (state = 1) keyed by pre-cotización id.
+     *
+     * @var    array<int, array<int, array{id: int, label: string, url: string}>>
+     * @since   3.115.69
+     */
+    protected $associatedOrdenesByPreId = [];
+
+    /**
      * Document layout: whether the user may change lines, description, facturar, etc. (offer templates: owner only).
      *
      * @var    bool
@@ -542,6 +550,7 @@ class HtmlView extends BaseHtmlView
                 $ids[] = (int) $it->id;
             }
             $this->associatedQuotationNumbersByPreId = $this->getAssociatedQuotationNumbersByPreCotizacionIds($ids);
+            $this->associatedOrdenesByPreId = $this->getAssociatedOrdenTrabajoLinksByPreCotizacionIds($ids);
             $this->salesAgentFilterOptions = [];
             if ($this->showSalesAgentColumn) {
                 $db = Factory::getDbo();
@@ -666,6 +675,82 @@ class HtmlView extends BaseHtmlView
                 $map[$pid][] = $entry;
             }
         }
+        return $map;
+    }
+
+    /**
+     * Active work orders per pre-cotización id (for list view). Mirrors
+     * {@see \Grimpsa\Component\Ordenproduccion\Site\View\Cotizacion\HtmlView::buildOrdenesLinksByPreCotizacionIds}.
+     *
+     * @param   int[]  $preCotizacionIds  Pre-cotización primary keys
+     *
+     * @return  array<int, array<int, array{id: int, label: string, url: string}>>
+     *
+     * @since   3.115.69
+     */
+    protected function getAssociatedOrdenTrabajoLinksByPreCotizacionIds(array $preCotizacionIds): array
+    {
+        $db = Factory::getDbo();
+        $ids = array_map('intval', $preCotizacionIds);
+        $ids = array_filter($ids, static function ($id) {
+            return $id > 0;
+        });
+        if ($ids === []) {
+            return [];
+        }
+        $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['pre_cotizacion_id'])) {
+            return [];
+        }
+        $map = [];
+        foreach ($ids as $id) {
+            $map[$id] = [];
+        }
+        $q = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->select($db->quoteName('pre_cotizacion_id'))
+            ->from($db->quoteName('#__ordenproduccion_ordenes'))
+            ->whereIn($db->quoteName('pre_cotizacion_id'), $ids)
+            ->where($db->quoteName('state') . ' = 1');
+        if (isset($cols['order_number'])) {
+            $q->select($db->quoteName('order_number'));
+        }
+        if (isset($cols['orden_de_trabajo'])) {
+            $q->select($db->quoteName('orden_de_trabajo'));
+        }
+        $q->order($db->quoteName('pre_cotizacion_id') . ' ASC')
+            ->order($db->quoteName('id') . ' ASC');
+
+        try {
+            $db->setQuery($q);
+            $rows = $db->loadObjectList();
+        } catch (\Throwable $e) {
+            return $map;
+        }
+        foreach ($rows ?: [] as $row) {
+            $preId = isset($row->pre_cotizacion_id) ? (int) $row->pre_cotizacion_id : 0;
+            if ($preId < 1 || !isset($map[$preId])) {
+                continue;
+            }
+            $label = '';
+            if (isset($row->order_number)) {
+                $label = trim((string) $row->order_number);
+            }
+            if ($label === '' && isset($row->orden_de_trabajo)) {
+                $label = trim((string) $row->orden_de_trabajo);
+            }
+            $oid = (int) $row->id;
+            if ($label === '') {
+                $label = '#' . $oid;
+            }
+            $map[$preId][] = [
+                'id'    => $oid,
+                'label' => $label,
+                'url'   => Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&id=' . $oid, false),
+            ];
+        }
+
         return $map;
     }
 

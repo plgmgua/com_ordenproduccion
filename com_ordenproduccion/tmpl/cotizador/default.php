@@ -40,7 +40,7 @@ $dateIn = static function (string $key) use ($fv) : string {
 
     return strlen($s) >= 10 ? substr($s, 0, 10) : '';
 };
-$colCount = 7 + (!empty($this->showSalesAgentColumn) ? 1 : 0) + ($showOfertaColumn ? 1 : 0) + ($showFacturarColumn ? 1 : 0);
+$colCount = 8 + (!empty($this->showSalesAgentColumn) ? 1 : 0) + ($showOfertaColumn ? 1 : 0) + ($showFacturarColumn ? 1 : 0);
 $listLimit = (int) $state->get('list.limit', 20);
 $filterFormAction = Route::_('index.php?option=com_ordenproduccion&view=cotizador', false);
 $filterClearUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&filter_reset=1', false);
@@ -189,6 +189,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                     <?php endif; ?>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION'); ?></th>
                     <th scope="col" class="col-cotizacion-num"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_QUOTATION_COLUMN'); ?></th>
+                    <th scope="col" class="col-orden-trabajo"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTATION_COL_ORDEN_TRABAJO'); ?></th>
                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CLIENT'); ?></th>
                     <th scope="col" class="text-center col-precot-scope"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_COL_SCOPE'); ?></th>
                     <?php if ($showOfertaColumn) : ?>
@@ -203,6 +204,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
             <tbody>
                 <?php
                 $associatedMap = $this->associatedQuotationNumbersByPreId ?? [];
+                $ordenesByPreId = $this->associatedOrdenesByPreId ?? [];
                 if (empty($items)) :
                 ?>
                 <tr>
@@ -216,6 +218,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         $deleteAction = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.delete', false);
                         $created = $item->created ? (new \DateTime($item->created))->format('d/m/Y H:i') : '-';
                         $quotationNumbers = $associatedMap[(int) $item->id] ?? [];
+                        $ordenLinks = $ordenesByPreId[(int) $item->id] ?? [];
                 ?>
                     <tr>
                         <td class="col-precot-num">
@@ -242,6 +245,25 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                                     }
                                 }
                                 echo implode(', ', $parts);
+                            }
+                            ?>
+                        </td>
+                        <td class="col-orden-trabajo">
+                            <?php
+                            if (empty($ordenLinks)) {
+                                echo '<span class="text-muted">—</span>';
+                            } else {
+                                $otParts = [];
+                                foreach ($ordenLinks as $ot) {
+                                    $otUrl = is_array($ot) ? ($ot['url'] ?? '') : '';
+                                    $otLabel = is_array($ot) ? ($ot['label'] ?? '') : '';
+                                    if ($otUrl !== '' && $otLabel !== '') {
+                                        $otParts[] = '<a href="' . htmlspecialchars($otUrl) . '">' . htmlspecialchars($otLabel) . '</a>';
+                                    } elseif ($otLabel !== '') {
+                                        $otParts[] = htmlspecialchars($otLabel);
+                                    }
+                                }
+                                echo $otParts !== [] ? implode(', ', $otParts) : '<span class="text-muted">—</span>';
                             }
                             ?>
                         </td>
@@ -339,6 +361,11 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
     white-space: nowrap;
     width: 1%;
     min-width: 7.25rem;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table .col-orden-trabajo {
+    white-space: nowrap;
+    width: 1%;
+    min-width: 6.5rem;
 }
 .precotizacion-list-table-wrap .precotizacion-list-table .col-facturar-short {
     white-space: nowrap;
