@@ -34,7 +34,7 @@ if ($preCotizacionId < 1 || empty($linesWithConcepts)) {
 }
 
 $saveUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveInstruccionesOrden');
-$ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId);
+$ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId);
 ?>
 <div class="cotizacion-instrucciones-orden container py-4">
     <h2 class="mb-3">

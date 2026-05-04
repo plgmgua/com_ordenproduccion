@@ -2036,7 +2036,7 @@ class CotizacionController extends BaseController
         $orderId = (int) $orderId;
 
         $cotUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false);
-        $otUrl  = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&id=' . $orderId, false);
+        $otUrl  = Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId, false);
 
         // If schema doesn't support linkage, just go to the OT.
         $ordenesCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
@@ -2220,7 +2220,7 @@ class CotizacionController extends BaseController
         }
 
         // No Order Request URL configured: fallback to internal order form
-        $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
+        $ordenUrl = Route::_('index.php?option=com_ordenproduccion&view=orden&pre_cotizacion_id=' . $preCotizacionId . '&quotation_id=' . $quotationId, false);
         $app->redirect($ordenUrl);
     }
 

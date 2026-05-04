@@ -747,7 +747,7 @@ class HtmlView extends BaseHtmlView
             $map[$preId][] = [
                 'id'    => $oid,
                 'label' => $label,
-                'url'   => Route::_('index.php?option=com_ordenproduccion&view=orden&layout=edit&id=' . $oid, false),
+                'url'   => Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $oid, false),
             ];
         }
 
